@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Minecraft Clone - Debug</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #111; font-family: monospace; }
+      #debug-panel {
+        position: fixed; top: 0; left: 0; right: 0;
+        max-height: 40vh; overflow-y: auto;
+        background: rgba(0,0,0,0.85); color: #f44;
+        font-size: 12px; line-height: 1.6;
+        padding: 8px 12px; z-index: 9999;
+        border-bottom: 2px solid #f44;
+      }
+      #debug-panel .ok { color: #4f4; }
+      #debug-panel .warn { color: #fa0; }
+      #debug-panel .info { color: #8af; }
+      #debug-panel .sep { color: #555; margin: 4px 0; }
+      #app { width: 100vw; height: 100vh; }
+    </style>
+  </head>
+  <body>
+    <div id="debug-panel"></div>
+    <div id="app"></div>
+
+    <div id="crosshair"></div>
+    <div id="crosshair-dot"></div>
+    <div id="item-name"></div>
+    <div id="xp-bar"><div id="xp-bar-fill"></div></div>
+    <div id="status-bars"></div>
+    <div id="hotbar"></div>
+    <div id="hud"></div>
+    <div id="water-overlay"></div>
+
+    <div id="overlay">
+      <h1>MINECRAFT</h1>
+      <h2>~ a voxel sandbox clone ~</h2>
+      <div class="panel">
+        <div class="keys">
+          <div><b>WASD</b> Move around</div>
+          <div><b>Space</b> Jump / swim up</div>
+          <div><b>Shift</b> Sprint</div>
+          <div><b>Ctrl</b> Crouch</div>
+          <div><b>Mouse</b> Look around</div>
+          <div><b>Left Click</b> Mine / break block</div>
+          <div><b>Right Click</b> Place block</div>
+          <div><b>Mouse Wheel</b> Cycle hotbar</div>
+          <div><b>1 - 9</b> Select hotbar slot</div>
+          <div><b>F</b> Toggle flying</div>
+          <div><b>G</b> Regenerate world (new seed)</div>
+          <div><b>R</b> Toggle reduced motion / shadows</div>
+          <div><b>ESC</b> Pause</div>
+        </div>
+      </div>
+      <button id="play-btn">PLAY</button>
+    </div>
+
+    <div id="breaking"></div>
+
+    <script>
+      // Capture ALL errors before the module runs
+      var panel = document.getElementById('debug-panel');
+      function log(cls, msg) {
+        var d = document.createElement('div');
+        d.className = cls;
+        d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+        panel.appendChild(d);
+        panel.scrollTop = panel.scrollHeight;
+      }
+      log('info', 'Debug panel active — capturing errors...');
+
+      window.onerror = function(msg, src, line, col, err) {
+        log('', 'ERROR: ' + msg + ' at ' + (src || '?').split('/').pop() + ':' + line + ':' + col);
+        if (err && err.stack) log('', 'Stack: ' + err.stack.split('\n').slice(0,5).join(' | '));
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        log('warn', 'Unhandled Promise: ' + (e.reason && e.reason.message || e.reason || e));
+      });
+
+      // Watch for button click
+      document.addEventListener('DOMContentLoaded', function() {
+        var btn = document.getElementById('play-btn');
+        log('ok', 'DOM loaded. play-btn found: ' + !!btn);
+        if (btn) {
+          btn.addEventListener('click', function() {
+            log('ok', 'PLAY button CLICKED');
+          });
+        } else {
+          log('', 'ERROR: play-btn element NOT FOUND in DOM');
+        }
+      });
+
+      log('info', 'Loading module script...');
+    </script>
+    <script type="module">
+      try {
+        log('info', 'Module script started');
+        await import('/src/main.js');
+        log('ok', 'Module loaded successfully');
+      } catch (e) {
+        log('', 'MODULE LOAD ERROR: ' + e.message);
+        log('', 'Stack: ' + (e.stack || '').split('\n').slice(0,8).join(' | '));
+      }
+    </script>
+  </body>
+</html>

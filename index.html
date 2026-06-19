@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>BlockForge</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+      #app { width: 100vw; height: 100vh; }
+      canvas { display: block; }
+
+      /* Crosshair */
+      #crosshair {
+        position: fixed; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: 16px; height: 16px;
+        pointer-events: none; z-index: 10;
+        mix-blend-mode: difference;
+      }
+      #crosshair::before, #crosshair::after {
+        content: ""; position: absolute; background: #fff;
+      }
+      #crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+      #crosshair::after  { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
+      #crosshair-dot {
+        position: fixed; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: 2px; height: 2px;
+        background: rgba(255,255,255,0.5);
+        pointer-events: none; z-index: 10;
+        mix-blend-mode: difference;
+        border-radius: 50%;
+      }
+
+      /* Held item name */
+      #item-name {
+        position: fixed; left: 50%; bottom: 78px;
+        transform: translateX(-50%);
+        font: bold 15px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, 2px 2px 0 #000;
+        pointer-events: none; z-index: 10;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #item-name.visible { opacity: 1; }
+
+      /* Hotbar */
+      #hotbar {
+        position: fixed; left: 50%; bottom: 18px;
+        transform: translateX(-50%);
+        display: flex; gap: 2px;
+        padding: 5px 6px; z-index: 10;
+        background: linear-gradient(180deg, rgba(40,40,40,0.7) 0%, rgba(20,20,20,0.85) 100%);
+        border: 2px solid rgba(80,80,80,0.5);
+        border-radius: 5px;
+        box-shadow: 0 0 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+        image-rendering: pixelated;
+      }
+      .slot {
+        width: 50px; height: 50px;
+        background: linear-gradient(135deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.7) 100%);
+        border: 2px solid rgba(30,30,30,0.9);
+        border-radius: 2px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        transition: border-color 0.1s, box-shadow 0.1s;
+      }
+      .slot.active {
+        border-color: #fff;
+        box-shadow: 0 0 4px rgba(255,255,255,0.4), 0 0 0 1px #fff inset;
+      }
+      .slot canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+      .slot .num {
+        position: absolute; top: 1px; left: 3px;
+        font: bold 10px monospace; color: rgba(255,255,255,0.7);
+        text-shadow: 1px 1px 0 #000;
+      }
+      .slot.active .num { color: #fff; }
+
+      /* XP Bar */
+      #xp-bar {
+        position: fixed; left: 50%; bottom: 73px;
+        transform: translateX(-50%);
+        width: 168px; height: 5px;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(0,0,0,0.6);
+        border-radius: 2px;
+        z-index: 10;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      #xp-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #3f8f3f, #5fc85f);
+        border-radius: 1px;
+        transition: width 0.3s;
+      }
+      #xp-level {
+        position: absolute; left: 50%; top: -12px;
+        transform: translateX(-50%);
+        font: bold 9px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000;
+      }
+
+      /* Status bars container */
+      #status-bars {
+        position: fixed; bottom: 78px; left: 50%;
+        transform: translateX(-50%);
+        width: 370px; z-index: 10;
+        pointer-events: none;
+        display: flex; justify-content: space-between;
+      }
+      #armor-bar {
+        position: absolute; bottom: 13px; left: 50%;
+        transform: translateX(-50%);
+        display: flex; gap: 1px; z-index: 10;
+        pointer-events: none;
+      }
+
+      /* HUD */
+      #hud {
+        position: fixed; top: 6px; left: 8px; z-index: 10;
+        font: bold 12px/1.6 monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, 2px 2px 0 #000;
+        pointer-events: none;
+      }
+      #hud .fps { color: #9ad; }
+      #hud .mode { color: #faa; }
+      #hud .coord { color: #ddd; }
+      #hud .biome { color: #9cf; }
+
+      /* Water overlay */
+      #water-overlay {
+        position: fixed; inset: 0; z-index: 8;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        background: radial-gradient(ellipse at center, transparent 40%, rgba(30,70,160,0.35) 100%);
+      }
+      #water-overlay.active { opacity: 1; }
+
+      /* Achievement toast notification */
+      #achievement-toast {
+        position: fixed; top: 70px; right: 20px;
+        z-index: 100;
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(0,0,0,0.75);
+        border: 2px solid rgba(200,170,60,0.6);
+        border-radius: 4px;
+        padding: 10px 16px;
+        min-width: 280px;
+        transform: translateX(400px);
+        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        pointer-events: none;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      }
+      #achievement-toast.show { transform: translateX(0); }
+      #achievement-toast .ach-icon {
+        width: 40px; height: 40px;
+        image-rendering: pixelated;
+        border: 2px solid rgba(200,170,60,0.5);
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+      #achievement-toast .ach-text { text-align: left; }
+      #achievement-toast .ach-label {
+        font: bold 10px/1 'Segoe UI', Arial, monospace;
+        color: #c8aa3c;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #achievement-toast .ach-name {
+        font: bold 13px/1.2 'Segoe UI', Arial, monospace;
+        color: #fff;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+        margin-top: 2px;
+      }
+      #achievement-toast .ach-desc {
+        font: 11px/1.2 'Segoe UI', Arial, monospace;
+        color: #aaa;
+        margin-top: 1px;
+      }
+
+      /* Achievement list screen */
+      #achievement-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.8);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto;
+        padding: 30px 20px;
+      }
+      #achievement-screen.open { display: flex; }
+      #achievement-screen h2 {
+        font-size: 24px; color: #ddd; margin-bottom: 4px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #ach-progress-bar {
+        width: 300px; height: 10px;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(100,100,100,0.4);
+        border-radius: 3px;
+        margin-bottom: 16px;
+        overflow: hidden;
+      }
+      #ach-progress-fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, #c8aa3c, #e8ca5c);
+        border-radius: 2px;
+        transition: width 0.4s;
+      }
+      #ach-progress-text {
+        font-size: 11px; color: #aaa; margin-bottom: 20px;
+      }
+      .ach-category {
+        width: min(700px, 95vw);
+        margin-bottom: 16px;
+      }
+      .ach-cat-title {
+        font-size: 14px; color: #c8aa3c;
+        letter-spacing: 2px; text-transform: uppercase;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(200,170,60,0.2);
+        margin-bottom: 8px;
+      }
+      .ach-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+      }
+      .ach-card {
+        display: flex; align-items: center; gap: 10px;
+        background: rgba(40,40,50,0.6);
+        border: 1px solid rgba(80,80,80,0.3);
+        border-radius: 3px;
+        padding: 8px 10px;
+        transition: background 0.1s;
+      }
+      .ach-card.locked {
+        opacity: 0.45;
+      }
+      .ach-card .ach-card-icon {
+        width: 36px; height: 36px;
+        image-rendering: pixelated;
+        border: 1px solid rgba(100,100,100,0.3);
+        border-radius: 2px;
+        flex-shrink: 0;
+        background: rgba(30,30,40,0.5);
+      }
+      .ach-card .ach-card-info { text-align: left; min-width: 0; }
+      .ach-card .ach-card-name {
+        font: bold 12px/1.2 'Segoe UI', Arial, monospace;
+        color: #ddd;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ach-card.locked .ach-card-name { color: #888; }
+      .ach-card .ach-card-desc {
+        font: 10px/1.2 'Segoe UI', Arial, monospace;
+        color: #999;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ach-card.locked .ach-card-desc { color: #666; }
+      #ach-close {
+        margin-top: 16px;
+        padding: 8px 30px;
+        font: bold 13px 'Segoe UI', Arial, monospace;
+        background: linear-gradient(180deg, #555 0%, #3a3a3a 100%);
+        color: #fff; border: 2px solid #222; border-radius: 3px;
+        cursor: pointer;
+        box-shadow: 0 2px 0 #222;
+      }
+      #ach-close:hover { background: linear-gradient(180deg, #666 0%, #444 100%); }
+
+      /* Inventory screen */
+      #inventory-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.65);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: monospace;
+      }
+      #inventory-screen.open { display: flex; }
+      #inventory-screen h2 {
+        font-size: 18px; color: #ddd; margin-bottom: 12px;
+        text-shadow: 2px 2px 0 #000;
+        letter-spacing: 2px;
+      }
+      #inv-layout {
+        display: flex; gap: 16px; align-items: flex-start;
+      }
+      #inv-right {
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #creative-browser {
+        background: rgba(0,0,0,0.4);
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.4);
+        width: 180px;
+        max-height: 400px;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      #creative-browser .creative-label {
+        font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: center;
+      }
+      #creative-search {
+        width: 100%;
+        padding: 5px 8px;
+        background: rgba(30,30,30,0.8);
+        border: 1px solid rgba(80,80,80,0.5);
+        border-radius: 3px;
+        color: #ddd;
+        font: 12px monospace;
+        outline: none;
+        box-sizing: border-box;
+      }
+      #creative-search::placeholder { color: rgba(180,180,180,0.4); }
+      #creative-search:focus { border-color: rgba(120,160,200,0.6); }
+      #creative-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 34px);
+        gap: 2px;
+        overflow-y: auto;
+        max-height: 340px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100,100,100,0.5) transparent;
+      }
+      #creative-grid::-webkit-scrollbar { width: 6px; }
+      #creative-grid::-webkit-scrollbar-track { background: transparent; }
+      #creative-grid::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.5); border-radius: 3px; }
+      #creative-grid .inv-slot {
+        width: 34px; height: 34px;
+      }
+      #creative-grid .inv-slot canvas { width: 28px; height: 28px; }
+      #creative-grid .inv-slot:hover {
+        background: rgba(100,130,160,0.7);
+      }
+      #creative-grid .inv-slot .cri-name {
+        display: none;
+        position: absolute; bottom: -18px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.85);
+        color: #eee;
+        font: 9px monospace;
+        padding: 2px 5px;
+        border-radius: 2px;
+        white-space: nowrap;
+        z-index: 65;
+        pointer-events: none;
+      }
+      #creative-grid .inv-slot:hover .cri-name { display: block; }
+      #inv-crafting-area {
+        display: flex; flex-direction: column; align-items: center; gap: 8px;
+        background: rgba(0,0,0,0.3);
+        padding: 12px;
+        border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.3);
+      }
+      #inv-crafting-area .craft-label {
+        font-size: 11px; color: #aaa; letter-spacing: 1px;
+      }
+      #crafting-input {
+        display: grid;
+        grid-template-columns: repeat(2, 42px);
+        gap: 2px;
+      }
+      #crafting-arrow {
+        font-size: 24px; color: #888; margin: 4px 0;
+      }
+      #crafting-output {
+        width: 42px; height: 42px;
+        background: rgba(50,50,50,0.7);
+        border: 2px solid rgba(80,80,80,0.5);
+        border-radius: 2px;
+        display: flex; align-items: center; justify-content: center;
+        position: relative;
+        cursor: pointer;
+      }
+      #crafting-output:hover { border-color: rgba(150,150,150,0.6); }
+      #crafting-output canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+      #cursor-item {
+        position: fixed; pointer-events: none; z-index: 60;
+        width: 42px; height: 42px;
+        display: none;
+      }
+      #cursor-item canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+      #cursor-item .cur-count {
+        position: absolute; bottom: 1px; right: 2px;
+        font: bold 9px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000;
+      }
+      #inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+        background: rgba(0,0,0,0.4);
+        padding: 6px;
+        border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.4);
+      }
+      .inv-slot {
+        width: 42px; height: 42px;
+        background: rgba(50,50,50,0.7);
+        border: 1px solid rgba(30,30,30,0.9);
+        border-radius: 2px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+      }
+      .inv-slot:hover {
+        background: rgba(80,80,100,0.7);
+        border-color: rgba(150,150,150,0.6);
+      }
+      .inv-slot canvas {
+        width: 32px; height: 32px; image-rendering: pixelated;
+      }
+      .inv-slot .inv-count {
+        position: absolute; bottom: 1px; right: 2px;
+        font: bold 9px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000;
+      }
+      .inv-slot .inv-num {
+        position: absolute; top: 1px; left: 2px;
+        font: bold 8px monospace; color: rgba(255,255,255,0.5);
+        text-shadow: 1px 1px 0 #000;
+      }
+      .inv-slot.selected {
+        border-color: #fff;
+        box-shadow: 0 0 3px rgba(255,255,255,0.4), 0 0 0 1px #fff inset;
+      }
+      #inventory-grid .inv-slot.craft-slot {
+        background: rgba(40,40,50,0.7);
+      }
+      .inv-separator {
+        grid-column: 1 / -1;
+        height: 2px;
+        background: rgba(80,80,80,0.3);
+        margin: 2px 0;
+      }
+      #inventory-hint {
+        margin-top: 10px; font-size: 11px; color: #888;
+      }
+
+      /* Furnace screen */
+      #furnace-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.65);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: monospace;
+      }
+      #furnace-screen.open { display: flex; }
+      #furnace-screen h2 {
+        font-size: 18px; color: #ddd; margin-bottom: 12px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #furnace-layout {
+        background: rgba(0,0,0,0.3); padding: 16px;
+        border-radius: 4px; border: 1px solid rgba(80,80,80,0.3);
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      #furnace-screen .furnace-label {
+        font-size: 10px; color: #aaa; letter-spacing: 1px; text-align: center;
+      }
+      #furnace-top {
+        display: flex; align-items: flex-end; gap: 6px;
+      }
+      #furnace-left, #furnace-right { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-center {
+        display: flex; align-items: center; justify-content: center;
+        padding-bottom: 6px;
+      }
+      #furnace-bottom-row {
+        display: flex; align-items: flex-end; gap: 12px;
+        padding-left: 6px;
+      }
+      #furnace-fuel-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-flame { padding-bottom: 2px; }
+      #furnace-inv-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      /* Main menu overlay — Bedrock Beta style */
+      #overlay {
+        position: fixed; inset: 0; z-index: 50;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        text-align: center;
+        overflow: hidden;
+      }
+      #overlay.hidden { display: none; }
+      #overlay-bg {
+        position: absolute; inset: 0;
+        z-index: 0;
+        image-rendering: pixelated;
+        background-size: cover;
+        background-position: center;
+      }
+      #overlay-vignette {
+        position: absolute; inset: 0;
+        z-index: 1;
+        background: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7) 100%);
+      }
+      .menu-screen {
+        display: none; flex-direction: column; align-items: center; gap: 10px;
+        position: relative; z-index: 2;
+      }
+      .menu-screen.active { display: flex; }
+      .menu-logo-wrap {
+        position: relative;
+        margin-bottom: 30px;
+      }
+      .menu-logo {
+        font-family: monospace;
+        font-size: 64px; font-weight: 900; letter-spacing: 10px;
+        color: #fff;
+        text-shadow: 4px 4px 0 #3f3f3f, 5px 5px 0 #2a2a2a, 6px 6px 0 #1a1a1a, 0 0 20px rgba(0,0,0,0.5);
+        image-rendering: pixelated;
+      }
+      .menu-splash {
+        position: absolute; top: -8px; right: -80px;
+        font: bold 22px monospace;
+        color: #ffdd33;
+        text-shadow: 2px 2px 0 #aa7700;
+        transform: rotate(-12deg);
+        letter-spacing: 1px;
+        animation: splashBounce 2s ease-in-out infinite;
+      }
+      @keyframes splashBounce {
+        0%, 100% { transform: rotate(-12deg) scale(1); }
+        50% { transform: rotate(-12deg) scale(1.08); }
+      }
+      .menu-btn {
+        padding: 14px 0;
+        font: bold 16px/1.2 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        background: linear-gradient(180deg, #6b6b6b 0%, #555 40%, #4a4a4a 60%, #3a3a3a 100%);
+        color: #fff; border: 2px solid #222; border-radius: 3px;
+        cursor: pointer; letter-spacing: 1px;
+        text-shadow: 1px 1px 0 #222;
+        box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.12);
+        transition: transform 0.06s, box-shadow 0.06s;
+        min-width: 400px;
+        position: relative;
+      }
+      .menu-btn:hover {
+        background: linear-gradient(180deg, #7a7a7a 0%, #666 40%, #555 60%, #444 100%);
+        box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.15);
+      }
+      .menu-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 #2a2a2a, inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      .menu-btn .btn-badge {
+        position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+        background: #5a5; color: #fff; font-size: 9px; font-weight: bold;
+        padding: 1px 5px; border-radius: 2px; letter-spacing: 0.5px;
+        text-shadow: 1px 1px 0 #383;
+      }
+      .menu-btn.danger {
+        background: linear-gradient(180deg, #a44 0%, #833 40%, #722 60%, #611 100%);
+        border-color: #411;
+        box-shadow: 0 3px 0 #411, inset 0 1px 0 rgba(255,255,255,0.1);
+      }
+      .menu-btn.danger:hover {
+        background: linear-gradient(180deg, #b55 0%, #944 40%, #833 60%, #722 100%);
+      }
+      /* Bottom corners — fixed to viewport */
+      .menu-bottom-left, .menu-bottom-right {
+        position: fixed; bottom: 20px; z-index: 3;
+      }
+      .menu-bottom-left { left: 20px; }
+      .menu-bottom-right { right: 20px; }
+      .menu-icon-btn {
+        width: 44px; height: 44px;
+        background: rgba(0,0,0,0.45);
+        border: 2px solid rgba(100,100,100,0.4);
+        border-radius: 4px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.15s;
+        image-rendering: pixelated;
+      }
+      .menu-icon-btn:hover { background: rgba(60,60,60,0.6); }
+      .menu-icon-btn svg { width: 28px; height: 28px; }
+      /* Steve preview — fixed to right side of viewport */
+      .menu-player-preview {
+        position: fixed; z-index: 3;
+        right: 40px; top: 50%; transform: translateY(-50%);
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+      }
+      .menu-player-name {
+        font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
+        background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 2px;
+      }
+      .menu-panel {
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(100,100,120,0.3);
+        padding: 16px 20px;
+        border-radius: 4px;
+        width: 420px;
+        max-height: 340px;
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100,100,100,0.5) transparent;
+      }
+      .menu-panel::-webkit-scrollbar { width: 6px; }
+      .menu-panel::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.5); border-radius: 3px; }
+      .world-card {
+        display: flex; align-items: center; justify-content: space-between;
+        background: rgba(40,50,60,0.6);
+        border: 1px solid rgba(80,80,100,0.3);
+        border-radius: 3px; padding: 10px 14px;
+        margin-bottom: 6px; cursor: pointer;
+        transition: background 0.1s, border-color 0.1s;
+      }
+      .world-card:hover {
+        background: rgba(60,80,100,0.6);
+        border-color: rgba(100,140,180,0.5);
+      }
+      .world-card .wc-info { text-align: left; }
+      .world-card .wc-name { font-size: 14px; font-weight: bold; color: #ddd; }
+      .world-card .wc-meta { font-size: 10px; color: #999; margin-top: 2px; }
+      .world-card .wc-mode {
+        font-size: 10px; padding: 2px 6px; border-radius: 2px;
+        font-weight: bold; letter-spacing: 1px;
+      }
+      .wc-mode.creative { background: rgba(60,140,60,0.5); color: #8d8; }
+      .wc-mode.survival { background: rgba(140,60,60,0.5); color: #d88; }
+      .world-card .wc-delete {
+        background: none; border: none; color: #866; cursor: pointer;
+        font: bold 14px monospace; padding: 2px 6px; border-radius: 2px;
+      }
+      .world-card .wc-delete:hover { color: #f44; background: rgba(255,60,60,0.15); }
+      .menu-form { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+      .menu-form label {
+        font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: left;
+      }
+      .menu-form input, .menu-form select {
+        width: 100%; padding: 8px 10px;
+        background: rgba(20,20,20,0.8);
+        border: 1px solid rgba(80,80,100,0.4);
+        border-radius: 3px; color: #ddd;
+        font: 13px monospace; outline: none;
+        box-sizing: border-box;
+      }
+      .menu-form input:focus, .menu-form select:focus {
+        border-color: rgba(100,160,100,0.6);
+      }
+      .mode-select { display: flex; gap: 8px; }
+      .mode-option {
+        flex: 1; padding: 10px; border: 2px solid rgba(80,80,100,0.3);
+        border-radius: 4px; cursor: pointer; text-align: center;
+        transition: border-color 0.15s, background 0.15s;
+      }
+      .mode-option:hover { background: rgba(60,80,60,0.3); }
+      .mode-option.selected { border-color: #6cbb3c; background: rgba(60,140,60,0.15); }
+      .mode-option .mo-icon { font-size: 24px; margin-bottom: 4px; }
+      .mode-option .mo-label { font-size: 12px; font-weight: bold; color: #ddd; }
+      .mode-option .mo-desc { font-size: 9px; color: #999; margin-top: 2px; }
+      .menu-hint {
+        font-size: 11px; color: #777; margin-top: 8px; line-height: 1.5;
+      }
+      .menu-divider {
+        width: 100%; height: 1px;
+        background: rgba(100,100,120,0.3); margin: 4px 0;
+      }
+      .settings-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 0; border-bottom: 1px solid rgba(60,60,70,0.3);
+      }
+      .settings-row:last-child { border-bottom: none; }
+      .settings-row label { font-size: 12px; color: #ccc; }
+      .settings-row select, .settings-row input[type=range] {
+        width: 140px;
+      }
+
+      /* Create World layout — Bedrock two-column style */
+      .create-layout {
+        display: flex; gap: 16px; width: 100%; margin-bottom: 12px;
+      }
+      .create-left { flex: 1; }
+      .create-right { flex: 1; }
+      .create-section {
+        background: rgba(0,0,0,0.4); border: 1px solid rgba(100,100,120,0.3);
+        border-radius: 4px; padding: 14px 16px; margin-bottom: 10px;
+      }
+      .create-section-title {
+        font: bold 11px 'Segoe UI', Arial, monospace; color: #8af;
+        letter-spacing: 1.5px; margin-bottom: 10px;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      .create-section label {
+        font: bold 12px 'Segoe UI', Arial, monospace; color: #ccc;
+        display: block; margin-bottom: 4px;
+      }
+      .create-section input[type="text"] {
+        width: 100%; padding: 8px 10px; margin-bottom: 10px;
+        background: rgba(0,0,0,0.6); border: 1px solid rgba(100,100,120,0.4);
+        border-radius: 3px; color: #fff; font: 13px 'Segoe UI', Arial, monospace;
+        box-sizing: border-box;
+      }
+      .create-section input[type="text"]:focus {
+        outline: none; border-color: #5af;
+      }
+      .create-preview-box {
+        background: rgba(0,0,0,0.4); border: 1px solid rgba(100,100,120,0.3);
+        border-radius: 4px; padding: 20px; text-align: center;
+        width: 100%;
+      }
+      .create-preview-icon { font-size: 40px; margin-bottom: 8px; }
+      .create-preview-text { font: bold 13px 'Segoe UI', Arial, monospace; color: #ddd; }
+      .create-preview-sub { font: 11px 'Segoe UI', Arial, monospace; color: #999; margin-top: 4px; }
+
+      /* Loading screen — Bedrock style */
+      #loading-screen {
+        position: fixed; inset: 0; z-index: 200;
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-end;
+        font-family: 'Segoe UI', 'Helvetica Neue', monospace; color: #fff;
+        overflow: hidden;
+      }
+      #loading-screen.active { display: flex; }
+      #loading-bg {
+        position: absolute; inset: 0;
+        z-index: 0;
+        background-size: cover;
+        background-position: center;
+        image-rendering: pixelated;
+      }
+      #loading-vignette {
+        position: absolute; inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.65) 100%);
+      }
+      #loading-logo {
+        position: absolute; top: 24px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+        font-family: monospace;
+        font-size: 52px; font-weight: 900; letter-spacing: 8px;
+        color: #fff;
+        text-shadow: 4px 4px 0 #3f3f3f, 5px 5px 0 #2a2a2a, 6px 6px 12px rgba(0,0,0,0.7);
+      }
+      #loading-content {
+        position: relative; z-index: 2;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 0;
+        width: 100%;
+        padding-bottom: 50px;
+      }
+      #loading-subtitle {
+        font-size: 15px; color: #ccc;
+        letter-spacing: 2px; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      #loading-tip-box {
+        width: min(600px, 90vw);
+        background: rgba(0,0,0,0.7);
+        border: 2px solid rgba(80,80,80,0.5);
+        border-radius: 3px;
+        padding: 14px 20px;
+        margin-bottom: 18px;
+        text-align: center;
+      }
+      #loading-tip {
+        font-size: 13px; color: #ddd;
+        line-height: 1.6;
+        letter-spacing: 0.3px;
+      }
+      #loading-tip span { color: #fff; font-weight: bold; }
+      #loading-bar-wrap {
+        width: min(520px, 85vw); height: 12px;
+        background: rgba(0,0,0,0.6);
+        border: 2px solid rgba(50,50,50,0.7);
+        border-radius: 2px;
+        overflow: hidden;
+        display: flex; gap: 3px; padding: 2px;
+      }
+      #loading-bar-fill {
+        height: 100%; width: 0%;
+        transition: width 0.25s ease-out;
+        display: flex; gap: 3px;
+      }
+      .load-seg {
+        flex: 1; min-width: 0;
+        background: linear-gradient(180deg, #7bc547 0%, #5aaa30 40%, #4a9a28 60%, #3d8520 100%);
+        border-radius: 1px;
+        position: relative;
+      }
+      .load-seg::after {
+        content: '';
+        position: absolute; top: 0; left: 0; right: 0;
+        height: 45%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
+        border-radius: 1px;
+      }
+      #loading-bar-pct {
+        font-size: 12px; color: #aaa;
+        margin-top: 6px; letter-spacing: 1px;
+      }
+      #loading-step {
+        font-size: 11px; color: #888;
+        letter-spacing: 1px;
+        margin-top: 4px;
+        min-height: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="crosshair"></div>
+    <div id="crosshair-dot"></div>
+    <div id="item-name"></div>
+    <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
+    <div id="armor-bar"></div>
+    <div id="status-bars"></div>
+    <div id="hotbar"></div>
+    <div id="hud"></div>
+    <div id="water-overlay"></div>
+
+    <!-- Loading Screen — Bedrock style -->
+    <div id="loading-screen">
+      <div id="loading-bg"></div>
+      <div id="loading-vignette"></div>
+      <div id="loading-logo">BLOCKFORGE</div>
+      <div id="loading-content">
+        <div id="loading-subtitle">Generating world</div>
+        <div id="loading-tip-box">
+          <div id="loading-tip">Loading...</div>
+        </div>
+        <div id="loading-bar-wrap">
+          <div id="loading-bar-fill"></div>
+        </div>
+        <div id="loading-step"></div>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div id="overlay-bg"></div>
+      <div id="overlay-vignette"></div>
+
+      <!-- Screen: Main Menu — Bedrock Beta style -->
+      <div id="menu-main" class="menu-screen active">
+        <div class="menu-logo-wrap">
+          <div class="menu-logo">BLOCKFORGE</div>
+          <div class="menu-splash">Beta!!!</div>
+        </div>
+        <button class="menu-btn" id="btn-play">Play</button>
+        <button class="menu-btn" id="btn-achievements">Achievements</button>
+        <button class="menu-btn" id="btn-settings">Settings</button>
+      </div>
+
+      <!-- Fixed viewport elements -->
+      <div class="menu-player-preview">
+        <canvas id="menu-player-canvas" width="64" height="96" style="width:64px;height:96px;image-rendering:pixelated;"></canvas>
+        <div class="menu-player-name">Steve</div>
+      </div>
+      <div class="menu-bottom-left">
+        <div class="menu-icon-btn" title="Language">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>
+          </svg>
+        </div>
+      </div>
+      <div class="menu-bottom-right">
+        <div class="menu-icon-btn" title="Profile">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+            <circle cx="12" cy="7" r="4"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Screen: World List -->
+      <div id="menu-worlds" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">WORLDS</div>
+        <div class="menu-panel" id="world-list"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn" id="btn-new-world">NEW WORLD</button>
+          <button class="menu-btn secondary" id="btn-worlds-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Create World -->
+      <div id="menu-create" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">CREATE NEW WORLD</div>
+        <div class="create-layout">
+          <div class="create-left">
+            <div class="create-section">
+              <div class="create-section-title">GAME MODE</div>
+              <div class="mode-select">
+                <div class="mode-option selected" id="mode-survival" data-mode="survival">
+                  <div class="mo-icon">♥</div>
+                  <div class="mo-label">SURVIVAL</div>
+                  <div class="mo-desc">Health, hunger, mining</div>
+                </div>
+                <div class="mode-option" id="mode-creative" data-mode="creative">
+                  <div class="mo-icon">✦</div>
+                  <div class="mo-label">CREATIVE</div>
+                  <div class="mo-desc">Unlimited blocks, fly</div>
+                </div>
+              </div>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">DIFFICULTY</div>
+              <div class="mode-select">
+                <div class="mode-option" id="diff-normal" data-diff="normal">
+                  <div class="mo-label">NORMAL</div>
+                </div>
+                <div class="mode-option selected" id="diff-hard" data-diff="hard">
+                  <div class="mo-label">HARD</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="create-right">
+            <div class="create-section">
+              <div class="create-section-title">WORLD OPTIONS</div>
+              <label>World Name</label>
+              <input id="input-world-name" type="text" value="My World" maxlength="32" spellcheck="false" autocomplete="off"/>
+              <label>Seed (leave blank for random)</label>
+              <input id="input-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
+            </div>
+            <div class="create-preview-box" id="seed-preview-box">
+              <div class="create-preview-icon">⛏</div>
+              <div class="create-preview-text" id="seed-preview-name">A new world awaits...</div>
+              <div class="create-preview-sub" id="seed-preview-sub">Enter a seed to preview terrain</div>
+              <canvas id="seed-preview-canvas" width="200" height="80" style="display:none;margin-top:8px;border-radius:3px;image-rendering:pixelated;width:200px;height:80px;border:1px solid rgba(100,100,120,0.4);"></canvas>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="menu-btn" id="btn-create-confirm" style="min-width:220px;">CREATE NEW WORLD</button>
+          <button class="menu-btn secondary" id="btn-create-back" style="min-width:120px;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Screen: Settings -->
+      <div id="menu-settings" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">SETTINGS</div>
+        <div class="menu-panel" style="max-height:none;">
+          <div class="settings-row">
+            <label>Render Distance</label>
+            <select id="set-render-distance">
+              <option value="4">4 chunks</option>
+              <option value="6">6 chunks</option>
+              <option value="7" selected>7 chunks</option>
+              <option value="8">8 chunks</option>
+              <option value="10">10 chunks</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>FOV</label>
+            <select id="set-fov">
+              <option value="60">60</option>
+              <option value="70">70</option>
+              <option value="75" selected>75</option>
+              <option value="90">90</option>
+              <option value="110">110</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Volume</label>
+            <input id="set-volume" type="range" min="0" max="100" value="50"/>
+          </div>
+          <div class="settings-row">
+            <label>Show FPS</label>
+            <select id="set-fps">
+              <option value="1" selected>On</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
+        </div>
+        <button class="menu-btn secondary" id="btn-settings-back">BACK</button>
+      </div>
+
+      <!-- Screen: Pause Menu (in-game) -->
+      <div id="menu-pause" class="menu-screen">
+        <div class="menu-title" style="font-size:36px;">PAUSED</div>
+        <button class="menu-btn" id="btn-resume">RESUME</button>
+        <button class="menu-btn secondary" id="btn-pause-settings">SETTINGS</button>
+        <button class="menu-btn danger" id="btn-quit">QUIT TO MENU</button>
+      </div>
+
+      <!-- Screen: Death -->
+      <div id="menu-death" class="menu-screen">
+        <div class="menu-title" style="font-size:36px;color:#c44;">YOU DIED</div>
+        <button class="menu-btn" id="btn-respawn">RESPAWN</button>
+        <button class="menu-btn danger" id="btn-death-quit">QUIT TO MENU</button>
+      </div>
+    </div>
+
+    <div id="breaking"></div>
+
+    <!-- Achievement Toast Notification -->
+    <div id="achievement-toast">
+      <canvas class="ach-icon" width="16" height="16"></canvas>
+      <div class="ach-text">
+        <div class="ach-label">Achievement Unlocked!</div>
+        <div class="ach-name"></div>
+        <div class="ach-desc"></div>
+      </div>
+    </div>
+
+    <!-- Achievement List Screen -->
+    <div id="achievement-screen">
+      <h2>ACHIEVEMENTS</h2>
+      <div id="ach-progress-bar"><div id="ach-progress-fill"></div></div>
+      <div id="ach-progress-text">0 / 0</div>
+      <div id="ach-list"></div>
+      <button id="ach-close">BACK</button>
+    </div>
+
+    <div id="inventory-screen">
+      <h2>INVENTORY</h2>
+      <div id="inv-layout">
+        <div id="creative-browser" style="display:none;">
+          <div class="creative-label">BLOCKS</div>
+          <input id="creative-search" type="text" placeholder="Search blocks..." autocomplete="off" spellcheck="false"/>
+          <div id="creative-grid"></div>
+        </div>
+        <div id="inv-right">
+          <div id="inv-crafting-area">
+            <div class="craft-label">CRAFTING</div>
+            <div id="crafting-input"></div>
+            <div id="crafting-arrow">&#x2192;</div>
+            <div id="crafting-output"></div>
+          </div>
+          <div id="inventory-grid"></div>
+        </div>
+      </div>
+      <div id="inventory-hint">Click to move items. Click output to craft. Press TAB to close.</div>
+    </div>
+    <div id="cursor-item"></div>
+
+    <div id="furnace-screen">
+      <h2>FURNACE</h2>
+      <div id="furnace-layout">
+        <div id="furnace-top">
+          <div id="furnace-left">
+            <div class="furnace-label">INPUT</div>
+            <div id="furnace-input" class="inv-slot craft-slot"></div>
+          </div>
+          <div id="furnace-center">
+            <svg id="furnace-arrow" width="40" height="24" viewBox="0 0 40 24">
+              <polygon points="0,6 28,6 28,0 40,12 28,24 28,18 0,18" fill="#555"/>
+              <polygon id="furnace-arrow-fill" points="0,6 0,6 0,6 0,6 0,6 0,6 0,6" fill="#f80"/>
+            </svg>
+          </div>
+          <div id="furnace-right">
+            <div class="furnace-label">OUTPUT</div>
+            <div id="furnace-output" class="inv-slot craft-slot"></div>
+          </div>
+        </div>
+        <div id="furnace-bottom-row">
+          <div id="furnace-fuel-wrap">
+            <div class="furnace-label">FUEL</div>
+            <div id="furnace-fuel" class="inv-slot craft-slot"></div>
+          </div>
+          <div id="furnace-flame">
+            <svg width="14" height="20" viewBox="0 0 14 20">
+              <polygon points="2,18 7,2 12,18 9,13 5,13" fill="#555" opacity="0.4"/>
+              <polygon id="furnace-flame-fill" points="2,18 7,2 12,18 9,13 5,13" fill="#f80" style="display:none"/>
+            </svg>
+          </div>
+        </div>
+        <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
+        <div id="furnace-inv-grid"></div>
+      </div>
+      <div id="inventory-hint">Click to move items. Press TAB to close.</div>
+    </div>
+
+    <script>
+      // Generate pixel-art village landscape for loading screen background
+      (function() {
+        var c = document.createElement('canvas');
+        c.width = 256; c.height = 144;
+        var x = c.getContext('2d');
+
+        // Sky gradient
+        var sky = x.createLinearGradient(0, 0, 0, 90);
+        sky.addColorStop(0, '#5bc0eb');
+        sky.addColorStop(0.6, '#87ceeb');
+        sky.addColorStop(1, '#b8e4f0');
+        x.fillStyle = sky;
+        x.fillRect(0, 0, 256, 90);
+
+        // Clouds
+        x.fillStyle = 'rgba(255,255,255,0.8)';
+        function cloud(cx, cy, w) {
+          for (var i = 0; i < w; i += 4) {
+            x.fillRect(cx + i, cy + (Math.random() > 0.5 ? 0 : -2), 4, 3);
+          }
+        }
+        cloud(20, 25, 20); cloud(80, 18, 28); cloud(150, 30, 24); cloud(210, 22, 18);
+
+        // Distant hills
+        x.fillStyle = '#6a9a5a';
+        x.beginPath(); x.moveTo(0, 90);
+        for (var i = 0; i <= 256; i += 2) {
+          x.lineTo(i, 78 + Math.sin(i * 0.025) * 6 + Math.sin(i * 0.01) * 4);
+        }
+        x.lineTo(256, 90); x.fill();
+
+        // Nearer hills
+        x.fillStyle = '#5a8a4a';
+        x.beginPath(); x.moveTo(0, 90);
+        for (var i = 0; i <= 256; i += 2) {
+          x.lineTo(i, 84 + Math.sin(i * 0.04 + 1) * 4 + Math.sin(i * 0.015) * 3);
+        }
+        x.lineTo(256, 90); x.fill();
+
+        // Grass ground
+        x.fillStyle = '#5a9a3a';
+        x.fillRect(0, 88, 256, 56);
+        x.fillStyle = '#4a8a30';
+        x.fillRect(0, 90, 256, 54);
+
+        // Dirt patches
+        x.fillStyle = '#6b4c33';
+        for (var i = 0; i < 8; i++) {
+          x.fillRect(10 + i * 30, 92, 8 + Math.floor(Math.random() * 6), 3);
+        }
+
+        // Grass tufts
+        x.fillStyle = '#68b040';
+        for (var i = 0; i < 30; i++) {
+          var gx = Math.floor(Math.random() * 256);
+          x.fillRect(gx, 87 + Math.floor(Math.random() * 3), 1, 2);
+        }
+
+        // Trees
+        function tree(tx, ty, h) {
+          x.fillStyle = '#4a3520';
+          x.fillRect(tx + 3, ty, 2, h);
+          x.fillStyle = '#3a7a2a';
+          x.fillRect(tx, ty - 6, 8, 8);
+          x.fillStyle = '#4a8a34';
+          x.fillRect(tx + 1, ty - 8, 6, 4);
+        }
+        tree(30, 82, 8); tree(60, 84, 6); tree(120, 80, 10);
+        tree(180, 83, 7); tree(230, 81, 9);
+
+        // House 1
+        x.fillStyle = '#8a6a44';
+        x.fillRect(80, 74, 16, 14);
+        x.fillStyle = '#6a4a2a';
+        x.fillRect(80, 74, 16, 2);
+        // roof
+        x.fillStyle = '#9a3a2a';
+        x.beginPath(); x.moveTo(77, 74); x.lineTo(88, 64); x.lineTo(99, 74); x.fill();
+        // door
+        x.fillStyle = '#5a3a1a';
+        x.fillRect(85, 82, 4, 6);
+        // window
+        x.fillStyle = '#8ad4f0';
+        x.fillRect(81, 78, 3, 3);
+
+        // House 2
+        x.fillStyle = '#9a7a54';
+        x.fillRect(145, 76, 14, 12);
+        x.fillStyle = '#7a5a3a';
+        x.fillRect(145, 76, 14, 2);
+        x.fillStyle = '#aa4a3a';
+        x.beginPath(); x.moveTo(143, 76); x.lineTo(152, 67); x.lineTo(161, 76); x.fill();
+        x.fillStyle = '#5a3a1a';
+        x.fillRect(150, 82, 3, 6);
+        x.fillStyle = '#8ad4f0';
+        x.fillRect(146, 78, 3, 3);
+
+        // Water pond
+        x.fillStyle = '#3a8acc';
+        x.fillRect(190, 88, 22, 5);
+        x.fillStyle = 'rgba(255,255,255,0.15)';
+        x.fillRect(192, 89, 18, 1);
+
+        // Path
+        x.fillStyle = '#9a8a70';
+        x.fillRect(92, 88, 8, 20);
+        x.fillRect(88, 90, 20, 3);
+
+        // Flowers
+        x.fillStyle = '#ee4444';
+        x.fillRect(15, 86, 2, 2);
+        x.fillRect(50, 85, 2, 2);
+        x.fillStyle = '#eeee44';
+        x.fillRect(110, 86, 2, 2);
+        x.fillRect(200, 87, 2, 2);
+        x.fillStyle = '#ee88ee';
+        x.fillRect(165, 85, 2, 2);
+
+        // Sun
+        x.fillStyle = '#ffe066';
+        x.beginPath(); x.arc(220, 20, 10, 0, Math.PI * 2); x.fill();
+        x.fillStyle = 'rgba(255,240,100,0.3)';
+        x.beginPath(); x.arc(220, 20, 16, 0, Math.PI * 2); x.fill();
+
+        var el = document.getElementById('loading-bg');
+        if (el) el.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+      })();
+    </script>
+    <script>
+      // Menu background is now a real 3D rotating terrain (rendered by Three.js)
+      // overlay-bg is kept transparent so the 3D scene shows through
+    </script>
+    <script>
+      // Draw pixel-art Steve character on main menu
+      (function() {
+        var canvas = document.getElementById('menu-player-canvas');
+        if (!canvas) return;
+        var x = canvas.getContext('2d');
+        var s = 4; // pixel scale
+
+        // Steve skin colors
+        var SKIN = '#c0906a';
+        var SKIN_S = '#a07050';
+        var HAIR = '#3a2a1a';
+        var EYES = '#fff';
+        var PUPIL = '#335';
+        var SHIRT = '#4abbc0';
+        var SHIRT_S = '#389a9e';
+        var PANTS = '#3a3a7a';
+        var PANTS_S = '#2a2a5a';
+        var SHOE = '#444';
+
+        function px(col, gx, gy) {
+          x.fillStyle = col;
+          x.fillRect(gx * s, gy * s, s, s);
+        }
+
+        // Head (8x8 at y=0)
+        // hair top
+        for (var i = 0; i < 8; i++) px(HAIR, i, 0);
+        // hair sides + face row 1
+        px(HAIR, 0, 1); px(HAIR, 1, 1);
+        px(SKIN, 2, 1); px(SKIN, 3, 1); px(SKIN, 4, 1); px(SKIN, 5, 1);
+        px(HAIR, 6, 1); px(HAIR, 7, 1);
+        // face row 2 (eyes)
+        px(HAIR, 0, 2); px(HAIR, 1, 2);
+        px(SKIN, 2, 2); px(EYES, 3, 2); px(PUPIL, 3, 2);
+        px(EYES, 4, 2); px(PUPIL, 4, 2); px(SKIN, 5, 2);
+        px(HAIR, 6, 2); px(HAIR, 7, 2);
+        // face row 3 (nose/mouth)
+        px(SKIN, 0, 3); px(SKIN, 1, 3);
+        px(SKIN, 2, 3); px(SKIN, 3, 3); px(SKIN_S, 3, 3);
+        px(SKIN, 4, 3); px(SKIN, 5, 3);
+        px(SKIN, 6, 3); px(SKIN, 7, 3);
+        // face row 4 (mouth)
+        px(SKIN, 0, 4); px(SKIN, 1, 4);
+        px(SKIN, 2, 4); px(SKIN_S, 3, 4); px(SKIN_S, 4, 4);
+        px(SKIN, 5, 4); px(SKIN, 6, 4); px(SKIN, 7, 4);
+
+        // Body (8x4 at y=8)
+        for (var by = 0; by < 4; by++) {
+          for (var bx = 0; bx < 8; bx++) {
+            var col = (bx < 2 || bx >= 6) ? SHIRT_S : SHIRT;
+            if (by === 3) col = (bx < 2 || bx >= 6) ? PANTS_S : PANTS;
+            px(col, bx, 8 + by);
+          }
+        }
+
+        // Arms (2x4 on each side at y=8)
+        for (var ay = 0; ay < 4; ay++) {
+          px(SKIN, -2, 8 + ay); px(SKIN, -1, 8 + ay);
+          px(SKIN, 8, 8 + ay); px(SKIN, 9, 8 + ay);
+        }
+
+        // Legs (3x4 at y=12)
+        for (var ly = 0; ly < 4; ly++) {
+          for (var lx = 0; lx < 8; lx++) {
+            var col = (lx < 2 || lx >= 6) ? PANTS_S : PANTS;
+            if (ly >= 3) col = SHOE;
+            px(col, lx, 12 + ly);
+          }
+        }
+      })();
+    </script>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        var el = document.createElement('div');
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
+        el.textContent = 'ERROR: ' + msg + ' @ ' + (src||'?').split('/').pop() + ':' + line;
+        document.body.appendChild(el);
+        return false;
+      };
+    </script>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
