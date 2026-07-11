@@ -12,15 +12,16 @@ const ORE_SPEC = [
   { block: BLOCK.IRON_ORE,    surfaceDepth: 5,  threshold: 0.85, min: 1, max: 64 },
   { block: BLOCK.GOLD_ORE,    surfaceDepth: 10, threshold: 0.90, min: 1, max: 32 },
   { block: BLOCK.DIAMOND_ORE, surfaceDepth: 16, threshold: 0.95, min: 1, max: 16 },
+  { block: BLOCK.PRISMITE_ORE,surfaceDepth: 16, threshold: 0.992, min: 1, max: 12 },
 ];
 
 export function calcHeight(n, wx, wz) {
-  const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
-  const erosion = n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
-  const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.005, wz * 0.005, 4, 2, 0.5));
-  const detail = n.fbm2(n.detail, wx * 0.02, wz * 0.02, 4, 2, 0.5);
-  const depth = n.fbm2(n.depth, wx * 0.008, wz * 0.008, 4, 2, 0.5);
-  const oceanDetail = n.fbm2(n.height, wx * 0.015, wz * 0.015, 3, 2, 0.5);
+  const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
+  const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
+  const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.007, wz * 0.007, 4, 2, 0.5));
+  const detail = n.fbm2(n.detail, wx * 0.025, wz * 0.025, 4, 2, 0.5);
+  const depth = n.fbm2(n.depth, wx * 0.01, wz * 0.01, 4, 2, 0.5);
+  const oceanDetail = n.fbm2(n.height, wx * 0.018, wz * 0.018, 3, 2, 0.5);
 
   let h;
   
@@ -55,10 +56,10 @@ export function calcHeight(n, wx, wz) {
 }
 
 export function calcBiome(n, wx, wz, h) {
-  const t = n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
-  const hu = n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
-  const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
-  const erosion = n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
+  const t = n.fbm2(n.temp, wx * 0.004, wz * 0.004, 4, 2, 0.5);
+  const hu = n.fbm2(n.humid, wx * 0.004, wz * 0.004, 4, 2, 0.5);
+  const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
+  const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
 
   // Ocean biomes (continentalness < 0)
   if (cont < -0.2) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
@@ -137,7 +138,16 @@ export function generateColumn(n, chunk, x, z, wx, wz) {
     if (y > 2 && y < h - 3) {
       const c1 = n.cave(wx * 0.04, y * 0.05, wz * 0.04);
       const c2 = n.cave2(wx * 0.035, y * 0.06, wz * 0.035);
+      const c3 = n.cave(wx * 0.02, y * 0.03, wz * 0.02);
+      const c4 = n.cave2(wx * 0.018, y * 0.025, wz * 0.018);
+
       if (Math.abs(c1) < 0.06 && Math.abs(c2) < 0.06) b = BLOCK.AIR;
+      else if (Math.abs(c3) < 0.085 && Math.abs(c4) < 0.085) b = BLOCK.AIR;
+
+      const ravX = n.cave(wx * 0.01, y * 0.15, wz * 0.06);
+      const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
+      const ravDepth = n.cave(wx * 0.008, y * 0.005, wz * 0.008);
+      if (Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
     }
 
     if (b === BLOCK.STONE) {
@@ -186,7 +196,8 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
     case BIOMES.FOREST:
-      if (roll < 0.09 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
+      if (roll < 0.04 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
+      else if (roll < 0.09 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
       else if (roll < 0.13 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
@@ -202,15 +213,17 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
       else if (roll < 0.14 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
       break;
     case BIOMES.SAVANNA:
-      if (roll < 0.035 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'savanna');
+      if (roll < 0.015 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
+      else if (roll < 0.030 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'savanna');
+      else if (roll < 0.040 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'dead');
       break;
     case BIOMES.PLAINS:
-      if (roll < 0.015 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
-      else if (roll < 0.08 && top === BLOCK.GRASS)
+      if (roll < 0.04 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
     case BIOMES.DESERT:
-      if (roll < 0.02 && top === BLOCK.SAND) {
+      if (roll < 0.015 && top === BLOCK.SAND) plantTree(chunk, x, h + 1, z, local, 'dead');
+      else if (roll < 0.035 && top === BLOCK.SAND) {
         const ch = 1 + ((local() * 3) | 0);
         for (let i = 0; i < ch && h + 1 + i < WORLD_HEIGHT; i++)
           chunk.set(x, h + 1 + i, z, BLOCK.CACTUS);
@@ -221,8 +234,9 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
         plantTree(chunk, x, h + 1, z, local, 'taiga');
       break;
     case BIOMES.SWAMP:
-      if (roll < 0.05 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'swamp');
-      else if (roll < 0.09 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
+      if (roll < 0.04 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'swamp');
+      else if (roll < 0.08 && top === BLOCK.GRASS) plantBush(chunk, x, h + 1, z, local);
+      else if (roll < 0.12 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
       break;
   }
 }
@@ -232,26 +246,33 @@ export function plantTree(chunk, x, y, z, rng, type) {
   switch (type) {
     case 'jungle':
       trunkBlock = BLOCK.JUNGLE_WOOD; leafBlock = BLOCK.LEAVES;
-      trunkH = 4 + ((rng() * 3) | 0); leafRadius = 2; break;
+      trunkH = 4 + ((rng() * 4) | 0); leafRadius = 2; break;
     case 'taiga':
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.DARK_OAK_LEAVES;
       trunkH = 4 + ((rng() * 3) | 0); leafRadius = 1; break;
     case 'birch':
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
-      trunkH = 5 + ((rng() * 2) | 0); leafRadius = 2; break;
+      trunkH = 5 + ((rng() * 3) | 0); leafRadius = 2; break;
     case 'savanna':
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 3 + ((rng() * 2) | 0); leafRadius = 2; break;
     case 'swamp':
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 3 + ((rng() * 2) | 0); leafRadius = 2; break;
+    case 'large_oak':
+      trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
+      trunkH = 6 + ((rng() * 2) | 0); leafRadius = 3; break;
+    case 'dead':
+      trunkBlock = BLOCK.WOOD; leafBlock = null;
+      trunkH = 3 + ((rng() * 4) | 0); leafRadius = 0; break;
     default:
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
-      trunkH = 4 + ((rng() * 2) | 0); leafRadius = 2;
+      trunkH = 4 + ((rng() * 3) | 0); leafRadius = 2;
   }
   for (let i = 0; i < trunkH; i++) {
     if (y + i < WORLD_HEIGHT) chunk.set(x, y + i, z, trunkBlock);
   }
+  if (!leafBlock) return;
   const top = y + trunkH;
   for (let ly = -leafRadius; ly <= 1; ly++) {
     const r = ly <= 0 ? leafRadius : Math.max(1, leafRadius - 1);
@@ -264,6 +285,13 @@ export function plantTree(chunk, x, y, z, rng, type) {
         if (chunk.get(lx, ly2, lz) === BLOCK.AIR) chunk.set(lx, ly2, lz, leafBlock);
       }
     }
+  }
+}
+
+function plantBush(chunk, x, y, z, rng) {
+  const h = 2 + ((rng() * 2) | 0);
+  for (let i = 0; i < h; i++) {
+    if (y + i < WORLD_HEIGHT) chunk.set(x, y + i, z, BLOCK.LEAVES);
   }
 }
 

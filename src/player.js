@@ -16,6 +16,7 @@ import { WORLD_HEIGHT } from './world.js';
 import { Inventory } from './inventory.js';
 import { Noise } from './noise.js';
 import { calcHeight } from './worldgen.js';
+import { totalArmorDefense } from './items.js';
 
 const EYE_HEIGHT = 1.62;
 const PLAYER_HALF_WIDTH = 0.3;
@@ -66,6 +67,47 @@ export class Player {
     this.inventory = new Inventory();
     this.lastYVelocity = 0;   // for fall damage
     this.fallStartY = -1;     // Y position when player started falling (Minecraft Bedrock style)
+    this.cameraMode = 0;      // 0 = first person, 1 = 3rd person back, 2 = 3rd person front
+    this.cameraOffset = new THREE.Vector3();
+
+    // --- eating state ---
+    this.eating = false;
+    this.eatTimer = 0;
+    this.eatBiteTimer = 0;
+
+    // --- XP / leveling ---
+    this.xp = 0;
+    this.level = 0;
+    this.xpToNextLevel = 10;
+
+    // --- auto-jump (step up 1-block obstacles) ---
+    this.autoJump = true;
+
+    // --- difficulty (normal | hard) ---
+    this.difficulty = 'normal';
+  }
+
+  // XP thresholds follow a simplified formula: each level needs more XP
+  // Level 1 = 10, Level 2 = 20, Level 3 = 35, etc. (roughly level * 10 + level * level)
+  static xpForLevel(level) {
+    if (level <= 0) return 0;
+    return level * 10 + Math.floor(level * level * 1.5);
+  }
+
+  addXp(amount) {
+    this.xp += amount;
+    let leveled = false;
+    while (this.xp >= this.xpToNextLevel) {
+      this.xp -= this.xpToNextLevel;
+      this.level++;
+      this.xpToNextLevel = Player.xpForLevel(this.level);
+      leveled = true;
+    }
+    return leveled;
+  }
+
+  getXpProgress() {
+    return this.xpToNextLevel > 0 ? this.xp / this.xpToNextLevel : 0;
   }
 
   setGamemode(mode) {
@@ -85,8 +127,18 @@ export class Player {
 
   spawn() {
     const noise = new Noise(this.seed);
-    const h = calcHeight(noise, 0, 0);
-    this.position.set(0.5, Math.max(h + 1.05, 33), 0.5);
+    // Search outward from origin for land (not ocean)
+    let bestX = 0.5, bestZ = 0.5, bestH = calcHeight(noise, 0, 0);
+    for (let r = 0; r <= 80; r += 4) {
+      for (let a = 0; a < 8; a++) {
+        const angle = (a / 8) * Math.PI * 2;
+        const tx = Math.cos(angle) * r;
+        const tz = Math.sin(angle) * r;
+        const h = calcHeight(noise, Math.floor(tx), Math.floor(tz));
+        if (h > 33) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
+      }
+    }
+    this.position.set(bestX, Math.max(bestH + 1.05, 33), bestZ);
     this.velocity.set(0, 0, 0);
   }
 
@@ -105,7 +157,14 @@ export class Player {
   takeDamage(amount, source = 'generic') {
     if (this.isCreative() || this.isDead()) return;
     if (this.damageTimer > 0) return; // i-frames
-    this.health = Math.max(0, this.health - amount);
+
+    // Armor damage reduction using totalArmorDefense (handles full-set bonuses)
+    const armorDef = this.inventory ? totalArmorDefense(this.inventory.armor) : 0;
+    if (armorDef >= 999) return true; // Full Prismite set = invincible
+    const reduction = Math.min(0.8, armorDef * 0.04);
+    const finalDamage = Math.max(1, Math.ceil(amount * (1 - reduction)));
+
+    this.health = Math.max(0, this.health - finalDamage);
     this.damageTimer = 0.5;
     this.addExhaustion(0.1);
     if (this.health <= 0) this.die(source);
@@ -135,6 +194,11 @@ export class Player {
     if (this.hunger >= this.maxHunger) return false;
     this.hunger = Math.min(this.maxHunger, this.hunger + foodValue);
     this.saturation = Math.min(this.hunger, this.saturation + foodValue * 0.4);
+    // Start eating animation — stops sprint, slows movement
+    this.eating = true;
+    this.eatTimer = 1.0;   // 1 second eating animation
+    this.eatBiteTimer = 0;
+    this.sprinting = false;
     return true;
   }
 
@@ -161,7 +225,9 @@ export class Player {
     }
 
     // starvation: 1 HP / 4s when hunger = 0
-    if (this.hunger <= 0 && this.health > 1) {
+    // Normal: stops at half a heart (1 HP). Hard: can kill you entirely.
+    const starveMin = this.difficulty === 'hard' ? 0 : 1;
+    if (this.hunger <= 0 && this.health > starveMin) {
       if ((this.starveAcc = (this.starveAcc || 0) + dt) >= 4) {
         this.starveAcc -= 4;
         this.takeDamage(1, 'starve');
@@ -192,7 +258,7 @@ export class Player {
   }
 
   applyMouse(dx, dy) {
-    const sens = 0.0022;
+    const sens = 0.0022 * (window.__mouseSens || 1.0);
     this.yaw -= dx * sens;
     this.pitch -= dy * sens;
     const max = Math.PI / 2 - 0.01;
@@ -208,6 +274,17 @@ export class Player {
   }
 
   update(dt, input) {
+    // Eating timer countdown
+    if (this.eating) {
+      this.eatTimer -= dt;
+      this.eatBiteTimer -= dt;
+      if (this.eatTimer <= 0) {
+        this.eating = false;
+        this.eatTimer = 0;
+        this.eatBiteTimer = 0;
+      }
+    }
+
     // Are we in water (check feet & middle)?
     const fb = this.world.getBlock(
       Math.floor(this.position.x),
@@ -219,12 +296,13 @@ export class Player {
     this.headInWater = this.eyeBlock() === BLOCK.WATER;
 
     this.crouching = (!!input.keys['ControlLeft'] || !!input.keys['KeyC']) && !this.flying;
-    // Sprinting only works in survival when hunger > 6.
+    // Sprinting: disabled when hungry, crouching, or eating
     if (this.isSurvival() && this.hunger <= 6) this.sprinting = false;
-    else this.sprinting = !!input.keys['ShiftLeft'] && !this.crouching;
+    else this.sprinting = !!input.keys['ShiftLeft'] && !this.crouching && !this.eating;
 
-    // Double-tap space to toggle fly in creative (both on and off)
-    if (this.isCreative() && input.keys['Space'] && !this.inWater) {
+    // Double-tap space to start fly in creative (only toggles ON, not OFF)
+    // Only detect on initial press, not while held (prevents flicker)
+    if (this.isCreative() && !this.flying && input.keys['Space'] && !this.inWater && !this._spaceHeld) {
       const now = performance.now();
       if (now - this._lastSpaceTime < 300) {
         this.toggleFly();
@@ -233,10 +311,13 @@ export class Player {
         this._lastSpaceTime = now;
       }
     }
+    this._spaceHeld = !!input.keys['Space'];
 
     // --- desired horizontal velocity from input ---
+    const EAT_SPEED = 1.3;  // slower than crouch when eating
     const speed = this.flying ? FLY_SPEED
       : this.inWater ? SWIM_SPEED
+      : this.eating ? EAT_SPEED
       : this.crouching ? CROUCH_SPEED
       : this.sprinting ? SPRINT_SPEED : WALK_SPEED;
 
@@ -272,6 +353,21 @@ export class Player {
       }
     }
 
+    // --- auto-jump: step up 1-block obstacles when walking into them ---
+    if (this.autoJump && !this.flying && !this.crouching && this.onGround && !this.inWater && move.lengthSq() > 0) {
+      const aheadX = Math.floor(this.position.x + move.x * (PLAYER_HALF_WIDTH + 0.4));
+      const aheadZ = Math.floor(this.position.z + move.z * (PLAYER_HALF_WIDTH + 0.4));
+      const feetY = Math.floor(this.position.y);
+      const groundAhead = this.world.getBlock(aheadX, feetY, aheadZ);
+      const stepAhead = this.world.getBlock(aheadX, feetY + 1, aheadZ);
+      const headAhead = this.world.getBlock(aheadX, feetY + 2, aheadZ);
+      if (!BLOCKS[groundAhead]?.solid && BLOCKS[stepAhead]?.solid && !BLOCKS[headAhead]?.solid) {
+        this.velocity.y = JUMP_VELOCITY;
+        this.onGround = false;
+        this.fallStartY = this.position.y;
+      }
+    }
+
     // --- integrate with per-axis collision ---
     const dx = this.velocity.x * dt;
     const dy = this.velocity.y * dt;
@@ -291,14 +387,66 @@ export class Player {
     this.tickSurvival(dt);
 
     // sync camera
-    this.camera.position.copy(this.position);
-    this.camera.position.y += EYE_HEIGHT;
-    this.setLookFromCamera();
+    const crouchEyeOffset = this.crouching ? -0.25 : 0;
+    if (this.cameraMode === 0) {
+      // First person: camera at eye level
+      this.camera.position.copy(this.position);
+      this.camera.position.y += EYE_HEIGHT + crouchEyeOffset;
+    } else {
+      // 3rd person: camera behind or in front of player
+      const dist = 4;
+      const height = 2;
+      const dir = this.cameraMode === 1 ? 1 : -1; // 1=behind, -1=front
+      const offsetX = Math.sin(this.yaw) * dist * dir;
+      const offsetZ = Math.cos(this.yaw) * dist * dir;
+      this.camera.position.set(
+        this.position.x + offsetX,
+        this.position.y + height + crouchEyeOffset,
+        this.position.z + offsetZ
+      );
+    }
+    if (this.cameraMode === 0) {
+      this.setLookFromCamera();
+    } else {
+      // 3rd person: look at the player's head
+      this.camera.lookAt(this.position.x, this.position.y + EYE_HEIGHT + crouchEyeOffset, this.position.z);
+    }
   }
 
   // Move along one axis by `delta`, resolving collisions against solid voxels.
+  // Returns true if the block at (bx,by,bz) is solid.
+  _solid(bx, by, bz) {
+    const b = this.world.getBlock(bx, by, bz);
+    return !!(BLOCKS[b]?.solid);
+  }
+
+  // Edge protection: when crouching on ground, prevent walking off block edges.
+  // Checks if the player's AABB at the new X/Z position still has ground beneath it.
+  _crouchEdgeBlocked(dx, dz) {
+    if (!this.crouching || this.flying || !this.onGround) return false;
+    const nx = this.position.x + dx;
+    const nz = this.position.z + dz;
+    // Check all 4 corners of the player AABB at the new position
+    const corners = [
+      [nx - PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
+      [nx + PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
+      [nx - PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH],
+      [nx + PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH]
+    ];
+    const footY = Math.floor(this.position.y - 0.05);
+    for (const [cx, cz] of corners) {
+      if (!this._solid(Math.floor(cx), footY, Math.floor(cz))) return true;
+    }
+    return false;
+  }
+
   moveAxis(axis, delta) {
     if (delta === 0) return;
+
+    // Crouch edge protection: block horizontal movement that would walk off an edge
+    if (axis === 'x' && this._crouchEdgeBlocked(delta, 0)) return;
+    if (axis === 'z' && this._crouchEdgeBlocked(0, delta)) return;
+
     this.position[axis] += delta;
 
     // player AABB at the new position
@@ -362,5 +510,9 @@ export class Player {
   toggleFly() {
     this.flying = !this.flying;
     this.velocity.set(0, 0, 0);
+  }
+
+  cycleCamera() {
+    this.cameraMode = (this.cameraMode + 1) % 3;
   }
 }

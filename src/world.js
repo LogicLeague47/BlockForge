@@ -5,7 +5,6 @@ import { Noise } from './noise.js';
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { generateColumn, generateFeatures, calcBiome, calcHeight } from './worldgen.js';
-
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
 export class Chunk {
@@ -14,6 +13,7 @@ export class Chunk {
     this.data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
     this.generated = false;
     this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
+    this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
   }
   idx(x, y, z) { return (y * CHUNK_SIZE + z) * CHUNK_SIZE + x; }
   get(x, y, z) { return (y < 0 || y >= WORLD_HEIGHT) ? BLOCK.AIR : this.data[this.idx(x, y, z)]; }
@@ -26,6 +26,39 @@ export class World {
     this.noise = new Noise(this.seed);
     this.chunks = new Map();
     this.edits = new Map();
+    this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
+
+  }
+
+  getChest(x, y, z) {
+    return this.chestInventories.get(x + ',' + y + ',' + z) || null;
+  }
+
+  getOrCreateChest(x, y, z) {
+    const k = x + ',' + y + ',' + z;
+    if (!this.chestInventories.has(k)) {
+      this.chestInventories.set(k, new Array(27).fill(null));
+    }
+    return this.chestInventories.get(k);
+  }
+
+  removeChest(x, y, z) {
+    this.chestInventories.delete(x + ',' + y + ',' + z);
+  }
+
+  serializeChests() {
+    const obj = {};
+    for (const [k, v] of this.chestInventories) {
+      obj[k] = v.map(s => s ? [s.item, s.count] : null);
+    }
+    return obj;
+  }
+
+  loadChests(obj) {
+    if (!obj) return;
+    for (const [k, v] of Object.entries(obj)) {
+      this.chestInventories.set(k, v.map(s => s ? { item: s[0], count: s[1] } : null));
+    }
   }
 
   key(cx, cz) { return cx + ',' + cz; }
@@ -61,6 +94,7 @@ export class World {
         const wx = baseX + x, wz = baseZ + z;
         const result = generateColumn(n, chunk, x, z, wx, wz);
         chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
+        chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
       }
     }
 
@@ -81,6 +115,6 @@ export class World {
 
   biomeAt(wx, wz, y) { return calcBiome(this.noise, wx, wz, y); }
 
-  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()) }; }
-  loadEdits(obj) { if (!obj || obj.edits == null) return; for (const [k, v] of obj.edits) this.edits.set(k, v); }
+  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests() }; }
+  loadEdits(obj) { if (!obj || obj.edits == null) return; for (const [k, v] of obj.edits) this.edits.set(k, v); this.loadChests(obj.chests); }
 }

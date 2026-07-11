@@ -39,8 +39,13 @@ export class Audio {
     this.musicGain.gain.value = 0.3;
     this.musicGain.connect(this.ctx.destination);
 
-    this.startWind();
     this._initMusic();
+
+    // iOS: resume AudioContext on touchend (required after backgrounding)
+    const ctx = this.ctx;
+    document.addEventListener('touchend', () => {
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    }, { passive: true });
   }
 
   resume() {
@@ -55,8 +60,6 @@ export class Audio {
     this._musicPaths = [
       '/Music/Main1.mp3',
       '/Music/Main2.mp3',
-      '/Music/Main3.mp3',
-      '/Music/Main4.mp3',
     ];
     this._musicIdx = (Math.random() * this._musicPaths.length) | 0;
   }
@@ -508,6 +511,91 @@ export class Audio {
     ]);
   }
 
+  hit() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.06, gain: 0.5, bp: 3500, bq: 1.5, atk: 0.001, rel: 0.08 },
+      { noise: 'brown', dur: 0.08, gain: 0.3, lp: 600, atk: 0.002, rel: 0.1 },
+      { wave: 'square', freq: 220, dur: 0.05, gain: 0.15, atk: 0.001, rel: 0.08 },
+    ]);
+  }
+
+  // ── EATING SOUND ──────────────────────────────────────────────────────
+  // Crunchy bite + chewy texture + soft swallow
+
+  eatBite() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      // crunchy bite — sharp white noise snap
+      { noise: 'white', dur: 0.06, gain: 0.35, hp: 2000, hq: 1.2, atk: 0.001, rel: 0.12 },
+      // body crunch — brown noise thud
+      { noise: 'brown', dur: 0.1, gain: 0.25, bp: 600, bq: 1.5, atk: 0.002, rel: 0.15 },
+      // tonal crunch snap
+      { wave: 'square', freq: 350, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.06 },
+    ]);
+  }
+
+  eatChew() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      // wet squishy chew
+      { noise: 'pink', dur: 0.08, gain: 0.2, bp: 1200, bq: 2, atk: 0.002, rel: 0.12 },
+      // soft mastication low
+      { noise: 'brown', dur: 0.1, gain: 0.15, lp: 500, atk: 0.003, rel: 0.2 },
+      // tonal swallow hint
+      { wave: 'sine', freq: 280, dur: 0.05, gain: 0.06, atk: 0.002, rel: 0.08 },
+    ]);
+  }
+
+  // ── ANIMAL SOUNDS ────────────────────────────────────────────────────
+  // Real MP3 sounds loaded from /Sounds/
+
+  _animalSound(files) {
+    if (!this.enabled) return;
+    const src = files[(Math.random() * files.length) | 0];
+    const el = new window.Audio(src);
+    el.volume = 0.6;
+    el.play().catch(() => {});
+  }
+
+  cowSound() {
+    this._animalSound([
+      '/Sounds/cow_idle1.mp3',
+      '/Sounds/cow_idle2.mp3',
+      '/Sounds/cow_idle3.mp3',
+      '/Sounds/cow_idle4.mp3',
+      '/Sounds/cow_idle5.mp3',
+    ]);
+  }
+
+  pigSound() {
+    this._animalSound([
+      '/Sounds/pig_idle1.mp3',
+      '/Sounds/pig_idle2.mp3',
+      '/Sounds/pig_idle3.mp3',
+      '/Sounds/pig_idle4.mp3',
+    ]);
+  }
+
+  sheepSound() {
+    this._animalSound([
+      '/Sounds/sheep_idle1.mp3',
+      '/Sounds/sheep_idle2.mp3',
+      '/Sounds/sheep_idle3.mp3',
+      '/Sounds/sheep_idle4.mp3',
+    ]);
+  }
+
+  hurtAnimal() {
+    this._animalSound([
+      '/Sounds/cow_hit1.mp3',
+      '/Sounds/cow_hit2.mp3',
+      '/Sounds/pig_hit1.mp3',
+      '/Sounds/pig_hit2.mp3',
+      '/Sounds/sheep_hit1.mp3',
+    ]);
+  }
+
   // ── AMBIENT WIND ─────────────────────────────────────────────────────
 
   startWind() {
@@ -525,5 +613,78 @@ export class Audio {
 
   setWindIntensity(v) {
     if (this.wind) this.wind.g.gain.value = 0.015 + v * 0.035;
+  }
+
+  // ── RAIN AMBIENT ──────────────────────────────────────────────────────
+
+  startRain() {
+    if (!this.ctx || this._rainSrc) return;
+    const ctx = this.ctx;
+    const len = ctx.sampleRate * 3;
+    const buf = this._pinkNoise(len, ctx.sampleRate);
+    const src = this._src(buf, true);
+    const hp = this._filter('highpass', 800, 0.5);
+    const lp = this._filter('lowpass', 8000, 0.3);
+    const g = this._gain(0);
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start();
+    this._rainSrc = src;
+    this._rainGain = g;
+    this._rainFadeTo(0.12, 2);
+  }
+
+  stopRain() {
+    if (!this._rainSrc) return;
+    this._rainFadeTo(0, 2);
+    const src = this._rainSrc;
+    setTimeout(() => { try { src.stop(); } catch (_) {} }, 2500);
+    this._rainSrc = null;
+    this._rainGain = null;
+  }
+
+  _rainFadeTo(target, dur) {
+    const g = this._rainGain;
+    if (!g) return;
+    const step = (target - g.gain.value) / (dur * 30);
+    const iv = setInterval(() => {
+      if (!g) { clearInterval(iv); return; }
+      g.gain.value += step;
+      if ((step > 0 && g.gain.value >= target) || (step < 0 && g.gain.value <= target)) {
+        g.gain.value = target;
+        clearInterval(iv);
+      }
+    }, 1000 / 30);
+  }
+
+  // ── THUNDER ───────────────────────────────────────────────────────────
+
+  thunder() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+
+    // Initial crack — sharp noise burst
+    const crackDur = 0.4;
+    const crackBuf = this._noise(Math.floor(ctx.sampleRate * crackDur), ctx.sampleRate);
+    const crackSrc = this._src(crackBuf);
+    const crackHp = this._filter('highpass', 1000, 0.6);
+    const crackG = this._gain(0);
+    this._envGain(crackG, 0.55, crackDur, 0.002, 0.25);
+    crackSrc.connect(crackHp); crackHp.connect(crackG); crackG.connect(this.master);
+    crackSrc.start(); crackSrc.stop(ctx.currentTime + crackDur + 0.05);
+
+    // Rolling rumble — brown noise with slow swell
+    const rumbleDur = 2.5;
+    const rumbleBuf = this._brownNoise(Math.floor(ctx.sampleRate * rumbleDur), ctx.sampleRate);
+    const rumbleSrc = this._src(rumbleBuf);
+    const rumbleLp = this._filter('lowpass', 220, 0.4);
+    const rumbleG = this._gain(0);
+    // swell in then out
+    const t = ctx.currentTime;
+    rumbleG.gain.setValueAtTime(0, t);
+    rumbleG.gain.linearRampToValueAtTime(0.5, t + 0.2);
+    rumbleG.gain.setValueAtTime(0.5, t + rumbleDur - 0.8);
+    rumbleG.gain.linearRampToValueAtTime(0, t + rumbleDur);
+    rumbleSrc.connect(rumbleLp); rumbleLp.connect(rumbleG); rumbleG.connect(this.master);
+    rumbleSrc.start(); rumbleSrc.stop(ctx.currentTime + rumbleDur + 0.05);
   }
 }

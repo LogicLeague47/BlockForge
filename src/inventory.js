@@ -16,6 +16,7 @@ export class Inventory {
   constructor() {
     this.slots = new Array(TOTAL).fill(null);
     this.armor = new Array(ARMOR_SLOTS).fill(null);
+    this.offhand = null; // single offhand slot
     this.selected = 0; // hotbar index 0..8
   }
 
@@ -39,6 +40,7 @@ export class Inventory {
   // Tries to add `count` of `itemId`. Returns leftover that didn't fit.
   // Prefers stacking onto existing slots, then empty slots.
   add(itemId, count = 1) {
+    if (itemId == null || itemId < 0 || count <= 0) return count;
     const cap = maxStack(itemId);
     // 1. top up existing stacks
     for (let i = 0; i < TOTAL && count > 0; i++) {
@@ -57,6 +59,21 @@ export class Inventory {
       }
     }
     return count; // leftover
+  }
+
+  // Sanitize the whole inventory: fix corrupted counts, remove invalid slots
+  validate() {
+    for (let i = 0; i < TOTAL; i++) {
+      const s = this.slots[i];
+      if (s) {
+        if (s.count <= 0) { this.slots[i] = null; continue; }
+        if (s.count > maxStack(s.item)) s.count = maxStack(s.item);
+      }
+    }
+    for (let i = 0; i < ARMOR_SLOTS; i++) {
+      const s = this.armor[i];
+      if (s && s.count <= 0) this.armor[i] = null;
+    }
   }
 
   // --- remove --------------------------------------------------------------
@@ -123,6 +140,39 @@ export class Inventory {
   clear() {
     for (let i = 0; i < TOTAL; i++) this.slots[i] = null;
     for (let i = 0; i < ARMOR_SLOTS; i++) this.armor[i] = null;
+    this.offhand = null;
+  }
+
+  // Sort main inventory: stack-compatible items together and fill gaps.
+  sort() {
+    const items = this.slots.filter(s => s);
+    // Group by item id, merging counts up to max stack
+    const byId = new Map();
+    for (const s of items) {
+      const cap = maxStack(s.item);
+      if (!byId.has(s.item)) byId.set(s.item, { item: s.item, count: 0, durability: s.durability });
+      const entry = byId.get(s.item);
+      entry.count += s.count;
+      if (entry.count > cap) {
+        // overflow: push extras back as separate stacks later
+        this._overflow = this._overflow || [];
+      }
+    }
+    // Rebuild slots in order
+    const sortedSlots = [];
+    for (const [item, entry] of byId) {
+      const cap = maxStack(item);
+      let remaining = entry.count;
+      while (remaining > 0) {
+        const c = Math.min(remaining, cap);
+        sortedSlots.push({ item, count: c, ...(entry.durability != null ? { durability: entry.durability } : {}) });
+        remaining -= c;
+      }
+    }
+    // Fill slots
+    for (let i = 0; i < TOTAL; i++) {
+      this.slots[i] = sortedSlots[i] || null;
+    }
   }
 
   // --- serialization -------------------------------------------------------
@@ -130,6 +180,7 @@ export class Inventory {
     return {
       slots: this.slots.map(s => s ? [s.item, s.count, s.durability ?? null] : null),
       armor: this.armor.map(s => s ? [s.item, s.count, s.durability ?? null] : null),
+      offhand: this.offhand ? [this.offhand.item, this.offhand.count, this.offhand.durability ?? null] : null,
       selected: this.selected,
     };
   }
@@ -137,11 +188,19 @@ export class Inventory {
   load(obj) {
     if (!obj) return;
     if (Array.isArray(obj.slots)) {
-      this.slots = obj.slots.map(s => s ? { item: s[0], count: s[1], ...(s[2] != null ? { durability: s[2] } : {}) } : null);
+      this.slots = obj.slots.map(s => s ? { item: s[0], count: Math.max(1, Math.min(s[1], 64)), ...(s[2] != null ? { durability: s[2] } : {}) } : null);
+      // Validate: ensure no count exceeds max stack
+      for (const s of this.slots) {
+        if (s && s.count > maxStack(s.item)) s.count = maxStack(s.item);
+        if (s && s.count <= 0) s.count = 1;
+      }
     }
     if (Array.isArray(obj.armor)) {
-      this.armor = obj.armor.map(s => s ? { item: s[0], count: s[1], ...(s[2] != null ? { durability: s[2] } : {}) } : null);
+      this.armor = obj.armor.map(s => s ? { item: s[0], count: 1, ...(s[2] != null ? { durability: s[2] } : {}) } : null);
     }
-    if (typeof obj.selected === 'number') this.selected = obj.selected;
+    if (obj.offhand) {
+      this.offhand = { item: obj.offhand[0], count: Math.max(1, obj.offhand[1]), ...(obj.offhand[2] != null ? { durability: obj.offhand[2] } : {}) };
+    }
+    if (typeof obj.selected === 'number') this.selected = Math.max(0, Math.min(obj.selected, 8));
   }
 }

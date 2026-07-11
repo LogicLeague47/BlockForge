@@ -18,7 +18,7 @@ export const ACHIEVEMENTS = [
   {
     id: 'benchmarking',
     name: 'Benchmarking',
-    desc: 'Craft a Crafting Table',
+    desc: 'Craft a Workbench',
     icon: BLOCK.CRAFTING,
     category: 'story',
     check: s => s.crafted[`${BLOCK.CRAFTING}`] >= 1,
@@ -116,10 +116,10 @@ export const ACHIEVEMENTS = [
   {
     id: 'cow_tipper',
     name: 'Cow Tipper',
-    desc: 'Harvest leather from a cow',
+    desc: 'Kill a cow',
     icon: ITEM.LEATHER,
     category: 'husbandry',
-    check: s => s.pickedUp[`${ITEM.LEATHER}`] >= 1,
+    check: s => s.mobKillsCow >= 1,
   },
   {
     id: 'eat_food',
@@ -138,7 +138,56 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.mobKillsSword >= 1,
   },
+  {
+    id: 'monster_hunter',
+    name: 'Monster Hunter',
+    desc: 'Defeat a Zombie',
+    icon: ITEM.ROTTEN_FLESH,
+    category: 'challenge',
+    check: s => s.mobKillsZombie >= 1,
+  },
+  {
+    id: 'bone_collector',
+    name: 'Bone Collector',
+    desc: 'Defeat a Skeleton',
+    icon: ITEM.BONE,
+    category: 'challenge',
+    check: s => s.mobKillsSkeleton >= 1,
+  },
+  // ── Building ──
+  {
+    id: 'light_up',
+    name: 'Light Up the Night',
+    desc: 'Place your first torch',
+    icon: BLOCK.TORCH,
+    category: 'tutorial',
+    check: s => s.torchesPlaced >= 1,
+  },
+  {
+    id: 'refined',
+    name: 'Refined',
+    desc: 'Craft a storage block (iron/gold/diamond)',
+    icon: BLOCK.IRON_BLOCK,
+    category: 'challenge',
+    check: s => s.storageBlocksCrafted >= 1,
+  },
+  {
+    id: 'diamond_hoarder',
+    name: 'Diamond Hoarder',
+    desc: 'Craft a Block of Diamond',
+    icon: BLOCK.DIAMOND_BLOCK,
+    category: 'challenge',
+    check: s => (s.crafted[BLOCK.DIAMOND_BLOCK] || 0) >= 1,
+  },
   // ── Exploration ──
+  {
+    id: 'multiplayer_joiner',
+    name: 'Social Butterfly',
+    desc: 'Join a multiplayer server',
+    icon: BLOCK.PLANKS,
+    category: 'tutorial',
+    check: s => s.multiplayerJoined >= 1,
+  },
   {
     id: 'open_inventory',
     name: 'Taking Inventory',
@@ -211,6 +260,79 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.craftedAny >= 50,
   },
+  // ── New achievements ──
+  {
+    id: 'craft_wood_pickaxe',
+    name: 'Getting Wood',
+    desc: 'Craft a wooden pickaxe',
+    icon: ITEM.WOOD_PICKAXE,
+    category: 'story',
+    check: s => s.crafted[`${ITEM.WOOD_PICKAXE}`] >= 1,
+  },
+  {
+    id: 'hot_topic',
+    name: 'Hot Topic',
+    desc: 'Craft a furnace',
+    icon: BLOCK.FURNACE,
+    category: 'story',
+    check: s => s.crafted[`${BLOCK.FURNACE}`] >= 1,
+  },
+  {
+    id: 'on_a_rail',
+    name: 'On a Rail',
+    desc: 'Travel 100 blocks',
+    icon: BLOCK.IRON_ORE,
+    category: 'challenge',
+    check: s => s.distanceTraveled >= 100,
+  },
+  {
+    id: 'pork_chop',
+    name: 'Pork Chop',
+    desc: 'Eat a cooked porkchop',
+    icon: ITEM.PORKCHOP_COOKED,
+    category: 'husbandry',
+    check: s => s.foodEatenPorkchop >= 1,
+  },
+  {
+    id: 'sniper_duel',
+    name: 'Sniper Duel',
+    desc: 'Kill a mob from 50+ blocks away',
+    icon: ITEM.ARROW,
+    category: 'challenge',
+    check: s => s.mobKillsLongRange >= 1,
+  },
+  {
+    id: 'explorer',
+    name: 'Explorer',
+    desc: 'Travel 1,000 blocks from spawn',
+    icon: BLOCK.GRASS,
+    category: 'challenge',
+    check: s => s.distanceTraveled >= 1000,
+  },
+  {
+    id: 'globetrotter',
+    name: 'Globetrotter',
+    desc: 'Travel 10,000 blocks from spawn',
+    icon: BLOCK.STONE,
+    category: 'challenge',
+    check: s => s.distanceTraveled >= 10000,
+  },
+  {
+    id: 'skin_customizer',
+    name: 'Artiste',
+    desc: 'Create a custom skin',
+    icon: BLOCK.CRAFTING,
+    category: 'tutorial',
+    check: s => s.customSkinCreated >= 1,
+  },
+  {
+    id: 'determined',
+    name: 'Determined',
+    desc: 'Respawn after death',
+    icon: BLOCK.PLANKS,
+    category: 'challenge',
+    check: s => s.deaths >= 1,
+  },
 ];
 
 // Categories for display ordering
@@ -243,6 +365,20 @@ export function createStats() {
     craftedAllDiamondArmor: 0,
     inventoryHas: {},       // itemId -> count seen in inventory
     bucketLava: 0,
+    distanceTraveled: 0,
+    mobKillsCow: 0,
+    foodEatenPorkchop: 0,
+    mobKillsLongRange: 0,
+    multiplayerJoined: 0,
+    customSkinCreated: 0,
+    playTime: 0,
+    itemsCrafted: 0,
+    deaths: 0,
+    level: 0,
+    mobKillsZombie: 0,
+    mobKillsSkeleton: 0,
+    torchesPlaced: 0,
+    storageBlocksCrafted: 0,
   };
 }
 
@@ -316,10 +452,15 @@ export class AchievementManager {
 
   _save() {
     try {
-      localStorage.setItem('mc-clone-achievements', JSON.stringify({
+      const json = JSON.stringify({
         unlocked: Array.from(this.unlocked),
         stats: this.stats,
-      }));
+      });
+      localStorage.setItem('mc-clone-achievements', json);
+      // Cloud sync via CrazyGames SDK
+      if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
+        window.CrazyGames.SDK.data.setItem('mc-clone-achievements', json).catch(() => {});
+      }
     } catch (_) {}
   }
 
@@ -331,6 +472,15 @@ export class AchievementManager {
       if (data.unlocked) this.unlocked = new Set(data.unlocked);
       if (data.stats) Object.assign(this.stats, data.stats);
     } catch (_) {}
+  }
+
+  addPlayTime(dt) {
+    this.stats.playTime += dt;
+  }
+
+  addItemsCrafted(count = 1) {
+    this.stats.itemsCrafted += count;
+    this._check();
   }
 
   reset() {

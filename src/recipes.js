@@ -158,6 +158,75 @@ export const RECIPES = [
     key: {},
     _disabled: true, // placeholder, glass is smelted
   }),
+
+  // ---- bed ----
+  shaped({
+    out: { id: I.BED, count: 1 },
+    pattern: ['WWW', 'PPP'],
+    key: { W: I.WOOL, P: 10 },
+  }),
+
+  // ---- armor: Leather ----
+  shaped({ out: { id: I.LEATHER_HELMET, count: 1 }, pattern: ['LLL', 'L L'], key: { L: I.LEATHER } }),
+  shaped({ out: { id: I.LEATHER_CHEST, count: 1 }, pattern: ['L L', 'LLL', 'LLL'], key: { L: I.LEATHER } }),
+  shaped({ out: { id: I.LEATHER_LEGS, count: 1 }, pattern: ['LLL', 'L L', 'L L'], key: { L: I.LEATHER } }),
+  shaped({ out: { id: I.LEATHER_BOOTS, count: 1 }, pattern: ['L L', 'L L'], key: { L: I.LEATHER } }),
+
+  // ---- armor: Iron ----
+  shaped({ out: { id: I.IRON_HELMET, count: 1 }, pattern: ['III', 'I I'], key: { I: I.IRON_INGOT } }),
+  shaped({ out: { id: I.IRON_CHEST, count: 1 }, pattern: ['I I', 'III', 'III'], key: { I: I.IRON_INGOT } }),
+  shaped({ out: { id: I.IRON_LEGS, count: 1 }, pattern: ['III', 'I I', 'I I'], key: { I: I.IRON_INGOT } }),
+  shaped({ out: { id: I.IRON_BOOTS, count: 1 }, pattern: ['I I', 'I I'], key: { I: I.IRON_INGOT } }),
+
+  // ---- armor: Gold ----
+  shaped({ out: { id: I.GOLD_HELMET, count: 1 }, pattern: ['GGG', 'G G'], key: { G: I.GOLD_INGOT } }),
+  shaped({ out: { id: I.GOLD_CHEST, count: 1 }, pattern: ['G G', 'GGG', 'GGG'], key: { G: I.GOLD_INGOT } }),
+  shaped({ out: { id: I.GOLD_LEGS, count: 1 }, pattern: ['GGG', 'G G', 'G G'], key: { G: I.GOLD_INGOT } }),
+  shaped({ out: { id: I.GOLD_BOOTS, count: 1 }, pattern: ['G G', 'G G'], key: { G: I.GOLD_INGOT } }),
+
+  // ---- armor: Diamond ----
+  shaped({ out: { id: I.DIAMOND_HELMET, count: 1 }, pattern: ['DDD', 'D D'], key: { D: I.DIAMOND } }),
+  shaped({ out: { id: I.DIAMOND_CHEST, count: 1 }, pattern: ['D D', 'DDD', 'DDD'], key: { D: I.DIAMOND } }),
+  shaped({ out: { id: I.DIAMOND_LEGS, count: 1 }, pattern: ['DDD', 'D D', 'D D'], key: { D: I.DIAMOND } }),
+  shaped({ out: { id: I.DIAMOND_BOOTS, count: 1 }, pattern: ['D D', 'D D'], key: { D: I.DIAMOND } }),
+
+  // ---- Prismite tools ----
+  shaped({ out: { id: I.PRISMITE_SWORD, count: 1 }, pattern: ['P', 'P', 'S'], key: { P: I.PRISMITE, S: I.STICK } }),
+  shaped({ out: { id: I.PRISMITE_PICKAXE, count: 1 }, pattern: ['PPP', ' S ', ' S '], key: { P: I.PRISMITE, S: I.STICK } }),
+  shaped({ out: { id: I.PRISMITE_AXE, count: 1 }, pattern: ['PP', 'PS', ' S'], key: { P: I.PRISMITE, S: I.STICK } }),
+  shaped({ out: { id: I.PRISMITE_SHOVEL, count: 1 }, pattern: ['P', 'S', 'S'], key: { P: I.PRISMITE, S: I.STICK } }),
+
+  // ---- Prismite armor ----
+  shaped({ out: { id: I.PRISMITE_HELMET, count: 1 }, pattern: ['PPP', 'P P'], key: { P: I.PRISMITE } }),
+  shaped({ out: { id: I.PRISMITE_CHEST, count: 1 }, pattern: ['P P', 'PPP', 'PPP'], key: { P: I.PRISMITE } }),
+  shaped({ out: { id: I.PRISMITE_LEGS, count: 1 }, pattern: ['PPP', 'P P', 'P P'], key: { P: I.PRISMITE } }),
+  shaped({ out: { id: I.PRISMITE_BOOTS, count: 1 }, pattern: ['P P', 'P P'], key: { P: I.PRISMITE } }),
+
+  // ---- New BlockForge blocks ----
+  shaped({ out: { id: B.SANDSTONE, count: 1 }, pattern: ['SS', 'SS'], key: { S: B.SAND } }),
+  shaped({ out: { id: B.MOSSY_COBBLESTONE, count: 1 }, pattern: ['C', 'V'], key: { C: B.COBBLESTONE, V: B.LEAVES } }),
+  shaped({ out: { id: B.COBBLESTONE_WALL, count: 6 }, pattern: ['C', 'C'], key: { C: B.COBBLESTONE } }),
+  shaped({ out: { id: B.NETHER_BRICK, count: 1 }, pattern: ['NN', 'NN'], key: { N: B.NETHERRACK } }),
+  shaped({ out: { id: B.GLASS_PANE, count: 16 }, pattern: ['GG', 'GG'], key: { G: B.GLASS } }),
+  shaped({ out: { id: B.HAY_BLOCK, count: 1 }, pattern: ['WW', 'WW'], key: { W: I.WHEAT } }),
+  shaped({ out: { id: B.PRISMITE_BLOCK, count: 1 }, pattern: ['PP', 'PP'], key: { P: I.PRISMITE } }),
+  shaped({ out: { id: B.COAL_BLOCK, count: 1 }, pattern: ['CC', 'CC'], key: { C: I.COAL } }),
+  shaped({ out: { id: B.IRON_BLOCK, count: 1 }, pattern: ['II', 'II'], key: { I: I.IRON_INGOT } }),
+  shaped({ out: { id: B.GOLD_BLOCK, count: 1 }, pattern: ['GG', 'GG'], key: { G: I.GOLD_INGOT } }),
+  shaped({ out: { id: B.DIAMOND_BLOCK, count: 1 }, pattern: ['DD', 'DD'], key: { D: I.DIAMOND } }),
+  shaped({ out: { id: B.TORCH, count: 4 }, pattern: ['C', 'S'], key: { C: I.COAL, S: I.STICK } }),
+  // Reverse storage blocks -> 9 ingots
+  shaped({ out: { id: I.COAL, count: 9 }, pattern: ['C'], key: { C: B.COAL_BLOCK } }),
+  shaped({ out: { id: I.IRON_INGOT, count: 9 }, pattern: ['I'], key: { I: B.IRON_BLOCK } }),
+  shaped({ out: { id: I.GOLD_INGOT, count: 9 }, pattern: ['G'], key: { G: B.GOLD_BLOCK } }),
+  shaped({ out: { id: I.DIAMOND, count: 9 }, pattern: ['D'], key: { D: B.DIAMOND_BLOCK } }),
+  shaped({ out: { id: I.PRISMITE, count: 9 }, pattern: ['P'], key: { P: B.PRISMITE_BLOCK } }),
+
+  // ---- Foods ----
+  shaped({ out: { id: I.GOLDEN_APPLE, count: 1 },
+    pattern: ['GGG', 'GAG', 'GGG'], key: { G: I.GOLD_INGOT, A: I.APPLE } }),
+  shaped({ out: { id: I.PUMPKIN_PIE, count: 1 },
+    pattern: ['P', 'E', 'W'], key: { P: B.PUMPKIN, E: I.EGG, W: I.WHEAT } }),
 ];
 
 // Smelting recipes: input item id -> output item id.
@@ -179,6 +248,8 @@ export const SMELTING = {
   [I.BEEF_RAW]: I.BEEF_COOKED,
   [I.CHICKEN_RAW]: I.CHICKEN_COOKED,
   [I.MUTTON_RAW]: I.MUTTON_COOKED,
+  [B.NETHERRACK]: B.NETHER_BRICK,
+  [B.QUARTZ_BLOCK]: B.QUARTZ_BLOCK,
 };
 
 // --- recipe builders --------------------------------------------------------

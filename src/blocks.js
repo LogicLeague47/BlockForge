@@ -43,6 +43,23 @@ export const BLOCK = {
   JUNGLE_WOOD: 35,
   DARK_OAK_LEAVES: 36,
   SNOW_BLOCK: 37,
+  BED: 38,
+  PRISMITE_ORE: 39,
+  CHEST: 40,
+  TORCH: 41,
+  SANDSTONE: 42,
+  MOSSY_COBBLESTONE: 43,
+  COBBLESTONE_WALL: 44,
+  NETHER_BRICK: 45,
+  GLASS_PANE: 46,
+  HAY_BLOCK: 47,
+  PRISMITE_BLOCK: 48,
+  COAL_BLOCK: 49,
+  IRON_BLOCK: 50,
+  GOLD_BLOCK: 51,
+  DIAMOND_BLOCK: 52,
+  END_STONE: 53,
+  QUARTZ_BLOCK: 54,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -100,6 +117,27 @@ export const TILES = {
   jungle_wood_side:[1, 3],
   dark_leaves:     [2, 3],
   snow_block:      [3, 3],
+  bed_top:         [4, 3],
+  bed_side:        [5, 3],
+  bed_foot:        [6, 3],
+  prismite_ore:    [7, 3],
+  chest_top:       [8, 3],
+  chest_side:      [9, 3],
+  chest_front:     [10, 3],
+  torch:           [0, 4],
+  sandstone:       [1, 4],
+  mossy_cobblestone:[2, 4],
+  cobblestone_wall: [3, 4],
+  nether_brick:    [4, 4],
+  glass_pane:      [5, 4],
+  hay_block:       [6, 4],
+  prismite_block:  [7, 4],
+  coal_block:      [8, 4],
+  iron_block:      [9, 4],
+  gold_block:      [10, 4],
+  diamond_block:   [11, 4],
+  end_stone:       [12, 4],
+  quartz_block:    [13, 4],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -128,8 +166,8 @@ export const BLOCKS = {
   [BLOCK.BEDROCK]:    { name: 'Bedrock', solid: true, hardness: -1, unbreakable: true, faces: 'bedrock' },
   [BLOCK.PLANKS]:     { name: 'Oak Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks' },
   [BLOCK.COAL_ORE]:   { name: 'Coal Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, drop: 257 /* COAL item */, faces: 'coal_ore' },
-  [BLOCK.IRON_ORE]:   { name: 'Iron Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 2, faces: 'iron_ore' },
-  [BLOCK.GOLD_ORE]:   { name: 'Gold Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 3, faces: 'gold_ore' },
+  [BLOCK.IRON_ORE]:   { name: 'Iron Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 2, drop: 259 /* IRON_INGOT item */, faces: 'iron_ore' },
+  [BLOCK.GOLD_ORE]:   { name: 'Gold Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 3, drop: 260 /* GOLD_INGOT item */, faces: 'gold_ore' },
   [BLOCK.DIAMOND_ORE]:{ name: 'Diamond Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 3, drop: 261 /* DIAMOND item */, faces: 'diamond_ore' },
   [BLOCK.SNOW]:       { name: 'Snow', solid: true, hardness: 0.2, tool: 'shovel', faces: 'snow' },
   [BLOCK.GLASS]:      { name: 'Glass', solid: true, transparent: true, hardness: 0.3, drop: 0, faces: 'glass' },
@@ -143,8 +181,8 @@ export const BLOCKS = {
   [BLOCK.BOOKSHELF]:  { name: 'Bookshelf', solid: true, hardness: 1.5, tool: 'axe', faces: { top: 'planks', bottom: 'planks', side: 'bookshelf_side' } },
   [BLOCK.OBSIDIAN]:   { name: 'Obsidian', solid: true, hardness: 50, tool: 'pickaxe', harvest: 4, faces: 'obsidian' },
   [BLOCK.TNT]:        { name: 'TNT', solid: true, hardness: 0, faces: { top: 'tnt_top', bottom: 'tnt_bottom', side: 'tnt_side' } },
-  [BLOCK.CRAFTING]:   { name: 'Crafting Table', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' } },
-  [BLOCK.NETHERRACK]: { name: 'Netherrack', solid: true, hardness: 0.4, tool: 'pickaxe', harvest: 1, faces: 'netherrack' },
+  [BLOCK.CRAFTING]:   { name: 'Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'crafting_top', bottom: 'planks', side: 'crafting_side' } },
+  [BLOCK.NETHERRACK]: { name: 'Brimstone', solid: true, hardness: 0.4, tool: 'pickaxe', harvest: 1, faces: 'netherrack' },
   [BLOCK.RED_SAND]:   { name: 'Red Sand', solid: true, hardness: 0.5, tool: 'shovel', faces: 'red_sand' },
   [BLOCK.TERRACOTTA]: { name: 'Terracotta', solid: true, hardness: 1.25, tool: 'pickaxe', harvest: 1, faces: 'terracotta' },
   [BLOCK.SNOW_GRASS]: { name: 'Snowy Grass', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'snow', bottom: 'dirt', side: 'snow_side' } },
@@ -154,6 +192,23 @@ export const BLOCKS = {
   [BLOCK.JUNGLE_WOOD]:{ name: 'Jungle Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'jungle_wood_top', bottom: 'jungle_wood_top', side: 'jungle_wood_side' } },
   [BLOCK.DARK_OAK_LEAVES]:{ name: 'Dark Oak Leaves', solid: true, transparent: true, hardness: 0.2, faces: 'dark_leaves' },
   [BLOCK.SNOW_BLOCK]: { name: 'Snow Block', solid: true, hardness: 0.2, tool: 'shovel', faces: 'snow_block' },
+  [BLOCK.BED]:        { name: 'Bed', solid: true, hardness: 0.2, faces: { top: 'bed_top', bottom: 'planks', side: 'bed_side' } },
+  [BLOCK.PRISMITE_ORE]: { name: 'Prismite Ore', solid: true, hardness: 50, tool: 'pickaxe', harvest: 4, drop: 287 /* PRISMITE item */, faces: 'prismite_ore' },
+  [BLOCK.CHEST]:      { name: 'Chest', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'chest_top', bottom: 'planks', side: 'chest_side', front: 'chest_front' } },
+  [BLOCK.TORCH]:      { name: 'Torch', solid: false, transparent: true, plant: true, hardness: 0, luminance: 14, drop: 41, faces: 'torch' },
+  [BLOCK.SANDSTONE]:  { name: 'Sandstone', solid: true, hardness: 0.8, tool: 'pickaxe', faces: 'sandstone' },
+  [BLOCK.MOSSY_COBBLESTONE]: { name: 'Mossy Cobblestone', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'mossy_cobblestone' },
+  [BLOCK.COBBLESTONE_WALL]: { name: 'Cobblestone Wall', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone_wall' },
+  [BLOCK.NETHER_BRICK]: { name: 'Brimstone Bricks', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick' },
+  [BLOCK.GLASS_PANE]: { name: 'Glass Pane', solid: true, transparent: true, hardness: 0.3, drop: 0, faces: 'glass_pane' },
+  [BLOCK.HAY_BLOCK]:  { name: 'Hay Bale', solid: true, hardness: 0.5, tool: 'hoe', faces: { top: 'hay_block', bottom: 'hay_block', side: 'hay_block' } },
+  [BLOCK.PRISMITE_BLOCK]: { name: 'Prismite Block', solid: true, hardness: 4, tool: 'pickaxe', harvest: 3, faces: 'prismite_block' },
+  [BLOCK.COAL_BLOCK]: { name: 'Block of Coal', solid: true, hardness: 5, tool: 'pickaxe', harvest: 1, faces: 'coal_block' },
+  [BLOCK.IRON_BLOCK]: { name: 'Block of Iron', solid: true, hardness: 5, tool: 'pickaxe', harvest: 2, faces: 'iron_block' },
+  [BLOCK.GOLD_BLOCK]: { name: 'Block of Gold', solid: true, hardness: 5, tool: 'pickaxe', harvest: 2, faces: 'gold_block' },
+  [BLOCK.DIAMOND_BLOCK]: { name: 'Block of Diamond', solid: true, hardness: 5, tool: 'pickaxe', harvest: 3, faces: 'diamond_block' },
+  [BLOCK.END_STONE]:  { name: 'End Stone', solid: true, hardness: 3, tool: 'pickaxe', harvest: 1, faces: 'end_stone' },
+  [BLOCK.QUARTZ_BLOCK]: { name: 'Quartz Block', solid: true, hardness: 1, tool: 'pickaxe', harvest: 1, faces: 'quartz_block' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
@@ -188,10 +243,17 @@ export function blockHarvestLevel(blockId) {
   const d = BLOCKS[blockId];
   return d && d.harvest != null ? d.harvest : 0;
 }
-// Item id to drop (default = the block itself; 0 = nothing).
-export function blockDrop(blockId) {
+// Item id to drop. `harvestLevel` is the player's tool harvest level (0 = hand).
+// If the block requires a higher harvest level than the tool provides, it drops
+// nothing (0). Default = the block itself; explicit `drop` overrides.
+export function blockDrop(blockId, harvestLevel) {
   const d = BLOCKS[blockId];
   if (!d) return blockId;
+  // Harvest-level gate: if a harvest level is required and the tool is too weak,
+  // the block breaks but drops nothing.
+  if (d.harvest != null && d.harvest > 0) {
+    if (harvestLevel == null || harvestLevel < d.harvest) return 0;
+  }
   if (d.drop != null) return d.drop; // explicit drop (may be 0 for "nothing")
   return blockId;                    // default: drop self
 }
@@ -214,4 +276,18 @@ export const HOTBAR_BLOCKS = [
   BLOCK.LEAVES,
   BLOCK.GLASS,
   BLOCK.SAND,
+  BLOCK.SANDSTONE,
+  BLOCK.MOSSY_COBBLESTONE,
+  BLOCK.COBBLESTONE_WALL,
+  BLOCK.NETHER_BRICK,
+  BLOCK.GLASS_PANE,
+  BLOCK.HAY_BLOCK,
+  BLOCK.TORCH,
+  BLOCK.PRISMITE_BLOCK,
+  BLOCK.COAL_BLOCK,
+  BLOCK.IRON_BLOCK,
+  BLOCK.GOLD_BLOCK,
+  BLOCK.DIAMOND_BLOCK,
+  BLOCK.END_STONE,
+  BLOCK.QUARTZ_BLOCK,
 ];

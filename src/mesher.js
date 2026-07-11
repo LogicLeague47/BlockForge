@@ -17,7 +17,7 @@
 
 import { BLOCK, BLOCKS, tileNameFor } from './blocks.js';
 import { tileUVRect } from './tiles.js';
-import { CHUNK_SIZE, WORLD_HEIGHT } from './world.js';
+import { CHUNK_SIZE, WORLD_HEIGHT, BIOMES } from './world.js';
 
 // Face definitions: outward normal + 4 corner offsets.
 //
@@ -61,15 +61,47 @@ const FACES = [
   },
 ];
 
-// Per-face base brightness — mimics Minecraft's directional shading so faces
-// read as 3D even before AO. Top brightest, sides medium, bottom darkest.
+// Per-face base brightness — Minecraft-style directional shading
+// Top gets most light, bottom gets least, sides vary by axis
 const FACE_SHADE = {
   top: 1.0,
-  bottom: 0.5,
-  side: 0.8, // will be slightly varied per axis below
+  bottom: 0.45,
+  side: 0.75,
 };
-// Differentiate E/W vs N/S a touch for readability.
-const SIDE_SHADE_AXIS = { '0': 0.8, '2': 0.72, '3': 0.72, '4': 0.85, '5': 0.85 };
+// E/W sides brighter, N/S sides slightly darker (like MC)
+const SIDE_SHADE_AXIS = { '0': 0.82, '2': 0.68, '3': 0.68, '4': 0.88, '5': 0.88 };
+
+// Block-specific color tints for visual variety
+const BLOCK_TINT = {
+  [BLOCK.GRASS]:        [0.95, 1.0, 0.85],
+  [BLOCK.DIRT]:         [0.85, 0.72, 0.55],
+  [BLOCK.STONE]:        [0.75, 0.75, 0.78],
+  [BLOCK.COBBLESTONE]:  [0.72, 0.72, 0.75],
+  [BLOCK.SAND]:         [0.95, 0.9, 0.7],
+  [BLOCK.GRAVEL]:       [0.7, 0.68, 0.65],
+  [BLOCK.CLAY]:         [0.8, 0.78, 0.75],
+  [BLOCK.SNOW]:         [0.95, 0.97, 1.0],
+  [BLOCK.SNOW_GRASS]:   [0.88, 0.95, 0.92],
+  [BLOCK.LEAVES]:       [0.6, 0.9, 0.55],
+  [BLOCK.DARK_OAK_LEAVES]: [0.4, 0.7, 0.35],
+  [BLOCK.WOOD]:         [0.82, 0.65, 0.4],
+  [BLOCK.PLANKS]:       [0.88, 0.72, 0.45],
+  [BLOCK.BRICK]:        [0.85, 0.5, 0.4],
+  [BLOCK.TERRACOTTA]:   [0.85, 0.6, 0.45],
+  [BLOCK.GLASS]:        [0.9, 0.95, 1.0],
+  [BLOCK.BOOKSHELF]:    [0.78, 0.65, 0.42],
+  [BLOCK.PUMPKIN]:      [0.9, 0.65, 0.2],
+  [BLOCK.CACTUS]:       [0.35, 0.7, 0.3],
+  [BLOCK.COAL_ORE]:     [0.6, 0.6, 0.62],
+  [BLOCK.IRON_ORE]:     [0.78, 0.72, 0.65],
+  [BLOCK.GOLD_ORE]:     [0.9, 0.8, 0.5],
+  [BLOCK.DIAMOND_ORE]:  [0.5, 0.85, 0.9],
+  [BLOCK.PRISMITE_ORE]: [0.3, 0.9, 0.7],
+  [BLOCK.PODZOL]:       [0.6, 0.5, 0.35],
+  [BLOCK.MYCELIUM]:     [0.65, 0.55, 0.6],
+  [BLOCK.NETHERRACK]:   [0.65, 0.25, 0.2],
+  [BLOCK.JUNGLE_WOOD]:  [0.7, 0.55, 0.35],
+};
 
 function isOpaque(blockId) {
   if (blockId === BLOCK.AIR) return false;
@@ -98,6 +130,7 @@ export function buildChunkGeometry(chunk, world) {
 
   const opaque = { pos: [], uv: [], col: [], nor: [], idx: [] };
   const trans = { pos: [], uv: [], col: [], nor: [], idx: [] };
+  const water = { pos: [], uv: [], col: [], nor: [], idx: [] };
 
   // Helper to read world-space block, generating neighbour chunks on demand so
   // faces at chunk borders cull correctly against adjacent chunks.
@@ -113,6 +146,41 @@ export function buildChunkGeometry(chunk, world) {
   }
   maxY = Math.min(maxY + 14, WORLD_HEIGHT);
 
+  // Biome-based grass color tinting
+  const GRASS_TINT = {
+    [BIOMES.PLAINS]:       [1.0,  1.0,  1.0],
+    [BIOMES.FOREST]:       [1.0,  1.0,  1.0],
+    [BIOMES.BIRCH_FOREST]: [1.0,  1.0,  1.0],
+    [BIOMES.DARK_FOREST]:  [0.85, 0.95, 0.85],
+    [BIOMES.DESERT]:       [1.2,  1.1,  0.5],
+    [BIOMES.TAIGA]:        [0.7,  0.9,  0.7],
+    [BIOMES.SNOWY]:        [0.7,  0.9,  0.7],
+    [BIOMES.SAVANNA]:      [1.15, 1.1,  0.6],
+    [BIOMES.JUNGLE]:       [0.95, 1.05, 0.85],
+    [BIOMES.SWAMP]:        [0.65, 0.8,  0.55],
+    [BIOMES.MOUNTAINS]:    [1.0,  1.0,  1.0],
+    [BIOMES.BEACH]:        [1.0,  1.0,  1.0],
+    [BIOMES.OCEAN]:        [1.0,  1.0,  1.0],
+    [BIOMES.DEEP_OCEAN]:   [1.0,  1.0,  1.0],
+  };
+  // Leaf biome tinting (slightly different from grass — more saturated)
+  const LEAF_TINT = {
+    [BIOMES.PLAINS]:       [0.9, 1.0, 0.85],
+    [BIOMES.FOREST]:       [0.85, 1.0, 0.8],
+    [BIOMES.BIRCH_FOREST]: [0.95, 1.0, 0.85],
+    [BIOMES.DARK_FOREST]:  [0.7, 0.85, 0.65],
+    [BIOMES.DESERT]:       [1.1, 1.0, 0.55],
+    [BIOMES.TAIGA]:        [0.6, 0.85, 0.65],
+    [BIOMES.SNOWY]:        [0.65, 0.85, 0.7],
+    [BIOMES.SAVANNA]:      [1.1, 1.0, 0.55],
+    [BIOMES.JUNGLE]:       [0.85, 1.0, 0.75],
+    [BIOMES.SWAMP]:        [0.55, 0.75, 0.5],
+    [BIOMES.MOUNTAINS]:    [0.85, 0.95, 0.8],
+    [BIOMES.BEACH]:        [0.9, 1.0, 0.85],
+    [BIOMES.OCEAN]:        [0.9, 1.0, 0.85],
+    [BIOMES.DEEP_OCEAN]:   [0.9, 1.0, 0.85],
+  };
+
   for (let y = 0; y < maxY; y++) {
     for (let z = 0; z < CHUNK_SIZE; z++) {
       for (let x = 0; x < CHUNK_SIZE; x++) {
@@ -123,7 +191,7 @@ export function buildChunkGeometry(chunk, world) {
 
         const wx = baseX + x, wz = baseZ + z;
         const isWater = def.liquid;
-        const target = def.transparent ? trans : opaque;
+        const target = isWater ? water : (def.transparent ? trans : opaque);
 
         if (def.plant) {
           pushPlant(target, wx, y, wz, b);
@@ -157,6 +225,33 @@ export function buildChunkGeometry(chunk, world) {
 
           const ao = computeAO(face, wx, y, wz, sample);
 
+          // Block-specific color tinting + biome grass/leaves tinting
+          let tintR = 1, tintG = 1, tintB = 1;
+
+          // Apply block tint (varies block-to-block color)
+          const bt = BLOCK_TINT[b];
+          if (bt) { tintR = bt[0]; tintG = bt[1]; tintB = bt[2]; }
+
+          // Grass/leaves get additional biome color multiplier
+          if (b === BLOCK.GRASS || b === BLOCK.SNOW_GRASS) {
+            const biomeIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
+            const tint = GRASS_TINT[biomeIdx] || [1, 1, 1];
+            tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
+          } else if (b === BLOCK.LEAVES || b === BLOCK.DARK_OAK_LEAVES) {
+            const biomeIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
+            const tint = LEAF_TINT[biomeIdx] || [0.9, 1.0, 0.85];
+            tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
+          }
+
+          // Water should have no AO (causes grid lines) and no shading variation
+          let sR, sG, sB;
+          if (isWater) {
+            sR = 1; sG = 1; sB = 1;
+          } else {
+            const s = shade * (ao[0] + ao[1] + ao[2] + ao[3]) / 4;
+            sR = s * tintR; sG = s * tintG; sB = s * tintB;
+          }
+
           const start = target.pos.length / 3;
           for (let c = 0; c < 4; c++) {
             const co = face.corners[c];
@@ -170,9 +265,13 @@ export function buildChunkGeometry(chunk, world) {
               uvr[0] ? uvRect.u1 : uvRect.u0,
               uvr[1] ? uvRect.v1 : uvRect.v0
             );
-            const a = ao[c];
-            const s = shade * a;
-            target.col.push(s, s, s);
+            if (isWater) {
+              target.col.push(1, 1, 1);
+            } else {
+              const a = ao[c];
+              const s = shade * a;
+              target.col.push(s * tintR, s * tintG, s * tintB);
+            }
             target.nor.push(face.dir[0], face.dir[1], face.dir[2]);
           }
           target.idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
@@ -181,7 +280,7 @@ export function buildChunkGeometry(chunk, world) {
     }
   }
 
-  return { opaque: toGeometry(opaque), trans: toGeometry(trans) };
+  return { opaque: toGeometry(opaque), trans: toGeometry(trans), water: toGeometry(water) };
 }
 
 // Sample 3 neighbours per corner (side1, side2, corner) for ambient occlusion.
@@ -213,8 +312,8 @@ function computeAO(face, x, y, z, sample) {
     )) ? 1 : 0;
     const corner = isOpaque(sample(sx, sy, sz)) ? 1 : 0;
     const occ = (side1 && side2) ? 3 : (side1 + side2 + corner);
-    // map 0..3 -> brightness 1.0..0.5
-    ao.push(1 - occ * 0.16);
+    // Minecraft AO: 0→1.0, 1→0.8, 2→0.7, 3→0.5
+    ao.push([1.0, 0.8, 0.7, 0.5][occ]);
   }
   return ao;
 }

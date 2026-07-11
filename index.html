@@ -4,22 +4,47 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>BlockForge</title>
+    <script>
+      // WebGL detection — show friendly error if unsupported
+      (function() {
+        try {
+          var c = document.createElement('canvas');
+          var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+          if (!gl) {
+            document.write('<div style="color:#fff;background:#111;text-align:center;padding:80px;font-family:sans-serif;"><h2>WebGL Required</h2><p style="margin-top:12px;color:#aaa;">Your browser does not support WebGL, which is required for this game.<br>Please try Google Chrome, Firefox, or Microsoft Edge.</p></div>');
+            throw new Error('WebGL not supported');
+          }
+        } catch(e) {
+          if (e.message !== 'WebGL not supported') {
+            document.write('<div style="color:#fff;background:#111;text-align:center;padding:80px;font-family:sans-serif;"><h2>Oops!</h2><p style="margin-top:12px;color:#aaa;">Something went wrong loading the game. Please try a different browser.</p></div>');
+            throw e;
+          }
+          throw e;
+        }
+      })();
+
+      // Sitelock — game is platform-agnostic, works on any domain
+      // (Previously locked to CrazyGames only for their submission)
+    </script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%238B6B3B'/%3E%3Crect y='0' width='16' height='5' fill='%235B8C2A'/%3E%3Crect y='5' width='16' height='2' fill='%236B4B2B'/%3E%3Crect x='2' y='1' width='2' height='2' fill='%234A7A1A'/%3E%3Crect x='8' y='2' width='3' height='2' fill='%234A7A1A'/%3E%3Crect x='5' y='0' width='2' height='1' fill='%234A7A1A'/%3E%3C/svg%3E" />
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; touch-action: none; -webkit-touch-callout: none; -webkit-overflow-scrolling: auto; }
+      /* Prevent pull-to-refresh on mobile */
+      html { overscroll-behavior: none; -ms-overflow-style: none; scrollbar-width: none; }
       #app { width: 100vw; height: 100vh; }
       canvas { display: block; }
 
-      /* Crosshair */
+      /* Crosshair — Bedrock style: small, thin, white */
       #crosshair {
         position: fixed; left: 50%; top: 50%;
         transform: translate(-50%, -50%);
-        width: 16px; height: 16px;
+        width: 12px; height: 12px;
         pointer-events: none; z-index: 10;
         mix-blend-mode: difference;
       }
       #crosshair::before, #crosshair::after {
-        content: ""; position: absolute; background: #fff;
+        content: ""; position: absolute; background: rgba(255,255,255,0.85);
       }
       #crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
       #crosshair::after  { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
@@ -27,7 +52,7 @@
         position: fixed; left: 50%; top: 50%;
         transform: translate(-50%, -50%);
         width: 2px; height: 2px;
-        background: rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.6);
         pointer-events: none; z-index: 10;
         mix-blend-mode: difference;
         border-radius: 50%;
@@ -35,7 +60,7 @@
 
       /* Held item name */
       #item-name {
-        position: fixed; left: 50%; bottom: 78px;
+        position: fixed; left: 50%; bottom: 74px;
         transform: translateX(-50%);
         font: bold 15px monospace; color: #fff;
         text-shadow: 1px 1px 0 #000, 2px 2px 0 #000;
@@ -46,78 +71,164 @@
       }
       #item-name.visible { opacity: 1; }
 
-      /* Hotbar */
+      /* Hotbar — Bedrock style */
       #hotbar {
-        position: fixed; left: 50%; bottom: 18px;
+        position: fixed; left: 50%; bottom: 12px;
         transform: translateX(-50%);
-        display: flex; gap: 2px;
-        padding: 5px 6px; z-index: 10;
-        background: linear-gradient(180deg, rgba(40,40,40,0.7) 0%, rgba(20,20,20,0.85) 100%);
-        border: 2px solid rgba(80,80,80,0.5);
-        border-radius: 5px;
-        box-shadow: 0 0 12px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.08);
+        display: none; gap: 2px;
+        padding: 3px 4px; z-index: 10;
+        background: rgba(0,0,0,0.55);
+        border: 3px solid rgba(50,50,50,0.85);
+        border-top-color: rgba(80,80,80,0.9);
+        border-left-color: rgba(70,70,70,0.85);
+        border-radius: 2px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
         image-rendering: pixelated;
       }
       .slot {
-        width: 50px; height: 50px;
-        background: linear-gradient(135deg, rgba(60,60,60,0.6) 0%, rgba(40,40,40,0.7) 100%);
-        border: 2px solid rgba(30,30,30,0.9);
-        border-radius: 2px;
+        width: 48px; height: 48px;
+        background: rgba(60,60,60,0.45);
+        border: 2px solid rgba(20,20,20,0.8);
+        border-top-color: rgba(60,60,60,0.6);
+        border-left-color: rgba(50,50,50,0.55);
+        border-radius: 1px;
         position: relative;
         display: flex; align-items: center; justify-content: center;
-        transition: border-color 0.1s, box-shadow 0.1s;
+        transition: border-color 0.08s, box-shadow 0.08s;
       }
       .slot.active {
-        border-color: #fff;
-        box-shadow: 0 0 4px rgba(255,255,255,0.4), 0 0 0 1px #fff inset;
+        border-color: rgba(255,255,255,0.85);
+        border-top-color: #fff;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 8px rgba(255,255,255,0.1);
       }
-      .slot canvas { width: 36px; height: 36px; image-rendering: pixelated; }
+      .slot canvas { width: 34px; height: 34px; image-rendering: pixelated;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
+      }
       .slot .num {
-        position: absolute; top: 1px; left: 3px;
-        font: bold 10px monospace; color: rgba(255,255,255,0.7);
+        position: absolute; top: calc(100% + 3px); left: 50%;
+        transform: translateX(-50%);
+        font: bold 9px monospace; color: rgba(255,255,255,0.55);
         text-shadow: 1px 1px 0 #000;
+        pointer-events: none;
       }
-      .slot.active .num { color: #fff; }
+      .slot.active .num { color: rgba(255,255,255,0.9); }
+      .slot .count {
+        position: absolute; bottom: 1px; right: 3px;
+        font: bold 10px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
+        pointer-events: none;
+        line-height: 1;
+      }
+      /* Low durability warning — pulse the selected slot red */
+      @keyframes durWarn {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 8px rgba(255,255,255,0.1); }
+        50% { box-shadow: 0 0 0 2px rgba(255,60,60,0.9), inset 0 0 10px rgba(255,40,40,0.4); }
+      }
+      .slot.low-dur.active {
+        animation: durWarn 0.8s ease-in-out infinite;
+      }
 
       /* XP Bar */
       #xp-bar {
-        position: fixed; left: 50%; bottom: 73px;
+        position: fixed; left: 50%; bottom: 72px;
         transform: translateX(-50%);
-        width: 168px; height: 5px;
-        background: rgba(0,0,0,0.55);
-        border: 1px solid rgba(0,0,0,0.6);
-        border-radius: 2px;
+        width: 462px; height: 7px;
+        background: #1a1a1a;
+        border: 2px solid #0a0a0a;
+        border-top-color: #0a0a0a;
+        border-left-color: #0a0a0a;
+        border-bottom-color: #3a3a3a;
+        border-right-color: #3a3a3a;
+        border-radius: 1px;
         z-index: 10;
         pointer-events: none;
-        overflow: hidden;
+        overflow: visible;
       }
       #xp-bar-fill {
         height: 100%;
         width: 0%;
-        background: linear-gradient(90deg, #3f8f3f, #5fc85f);
-        border-radius: 1px;
+        background: linear-gradient(180deg, #7dff5f 0%, #5ec43a 35%, #3fa52a 70%, #2d8a1e 100%);
+        border-radius: 0;
         transition: width 0.3s;
+        box-shadow: 0 0 4px rgba(80,200,40,0.4);
       }
       #xp-level {
-        position: absolute; left: 50%; top: -12px;
+        position: absolute; left: 50%; top: -13px;
         transform: translateX(-50%);
-        font: bold 9px monospace; color: #fff;
-        text-shadow: 1px 1px 0 #000;
+        font: bold 11px monospace; color: #7fff5f;
+        text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+        opacity: 0;
+        transition: opacity 0.2s;
       }
+      #xp-level.visible { opacity: 1; }
 
-      /* Status bars container */
+      /* Status bars container — sits above XP bar, hearts left, hunger right */
       #status-bars {
         position: fixed; bottom: 78px; left: 50%;
         transform: translateX(-50%);
-        width: 370px; z-index: 10;
+        width: 462px; z-index: 10;
         pointer-events: none;
         display: flex; justify-content: space-between;
+        align-items: flex-end;
       }
+      @keyframes hungerPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .hunger-warn { animation: hungerPulse 0.7s ease-in-out infinite; filter: drop-shadow(0 0 2px #f55); }
       #armor-bar {
-        position: absolute; bottom: 13px; left: 50%;
+        position: fixed; bottom: 78px; left: 50%;
         transform: translateX(-50%);
-        display: flex; gap: 1px; z-index: 10;
+        width: 462px;
+        display: flex; justify-content: space-between;
+        z-index: 10;
         pointer-events: none;
+      }
+      #armor-slots {
+        display: flex; gap: 2px;
+        pointer-events: none;
+      }
+      #offhand-slot {
+        position: fixed; right: calc(50% - 270px); bottom: 14px;
+        width: 38px; height: 38px;
+        background: rgba(0,0,0,0.45);
+        border: 2px solid rgba(20,20,20,0.7);
+        border-top-color: rgba(50,50,50,0.6);
+        border-left-color: rgba(40,40,40,0.5);
+        border-radius: 1px;
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10;
+        pointer-events: none;
+      }
+      #offhand-slot img {
+        width: 30px; height: 30px;
+        image-rendering: pixelated;
+      }
+      #offhand-slot .offhand-label {
+        position: absolute; bottom: -1px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 7px; color: rgba(200,200,200,0.4);
+        letter-spacing: 0.3px;
+      }
+      .armor-slot {
+        width: 28px; height: 28px;
+        background: rgba(0,0,0,0.45);
+        border: 2px solid rgba(20,20,20,0.7);
+        border-top-color: rgba(50,50,50,0.6);
+        border-left-color: rgba(40,40,40,0.5);
+        border-radius: 1px;
+        display: flex; align-items: center; justify-content: center;
+        position: relative;
+      }
+      .armor-slot img {
+        width: 22px; height: 22px;
+        image-rendering: pixelated;
+      }
+      .armor-slot-label {
+        position: absolute; bottom: -1px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 7px; color: rgba(200,200,200,0.5);
+        letter-spacing: 0.3px;
       }
 
       /* HUD */
@@ -131,6 +242,33 @@
       #hud .mode { color: #faa; }
       #hud .coord { color: #ddd; }
       #hud .biome { color: #9cf; }
+      #coords-hud .ch-val { color: #9cf; }
+
+      /* Hand overlay — first-person held item in bottom-right */
+      #hand-overlay {
+        position: fixed; bottom: 20px; right: 20px;
+        width: 80px; height: 80px;
+        pointer-events: none; z-index: 9;
+        display: flex; align-items: flex-end; justify-content: flex-end;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #hand-overlay.visible { opacity: 1; }
+      #hand-overlay .hand-item {
+        width: 56px; height: 56px;
+        image-rendering: pixelated;
+        filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.7));
+        transform-origin: bottom right;
+        animation: handBob 1.5s ease-in-out infinite;
+        animation-play-state: paused;
+      }
+      #hand-overlay.bobbing .hand-item {
+        animation-play-state: running;
+      }
+      @keyframes handBob {
+        0%, 100% { transform: translateY(0) rotate(-5deg); }
+        50% { transform: translateY(-4px) rotate(0deg); }
+      }
 
       /* Water overlay */
       #water-overlay {
@@ -142,33 +280,69 @@
       }
       #water-overlay.active { opacity: 1; }
 
+      /* Underwater overlay — solid blue tint */
+      #underwater-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 40, 120, 0.25);
+        pointer-events: none; display: none;
+        z-index: 5;
+      }
+
+      /* Sleep overlay */
+      #sleep-overlay {
+        position: fixed; inset: 0; z-index: 90;
+        background: #000; opacity: 0;
+        pointer-events: none;
+      }
+      #sleep-message {
+        position: fixed; top: 40%; left: 50%;
+        transform: translate(-50%, -50%);
+        font: bold 18px monospace; color: #fff;
+        text-shadow: 2px 2px 0 #000;
+        pointer-events: none; z-index: 91;
+        opacity: 0; transition: opacity 0.3s;
+        text-align: center;
+      }
+      #sleep-message.visible { opacity: 1; }
+
+      /* Damage flash overlay — red vignette when hurt */
+      #damage-overlay {
+        position: fixed; inset: 0; z-index: 6;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(ellipse at center, rgba(180,0,0,0) 35%, rgba(180,0,0,0.55) 100%);
+        transition: opacity 0.12s ease-out;
+      }
+      #damage-overlay.flash { opacity: 1; }
+
       /* Achievement toast notification */
       #achievement-toast {
-        position: fixed; top: 70px; right: 20px;
+        position: fixed; top: 70px; right: -400px;
         z-index: 100;
         display: flex; align-items: center; gap: 12px;
-        background: rgba(0,0,0,0.75);
-        border: 2px solid rgba(200,170,60,0.6);
-        border-radius: 4px;
-        padding: 10px 16px;
+        background: rgba(10,10,10,0.82);
+        border: 2px solid rgba(220,185,50,0.7);
+        border-radius: 8px;
+        padding: 10px 18px;
         min-width: 280px;
-        transform: translateX(400px);
-        transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6), 0 0 12px rgba(220,185,50,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
         pointer-events: none;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+        transform: translateX(0);
+        transition: right 0.45s cubic-bezier(0.22, 1, 0.36, 1);
       }
-      #achievement-toast.show { transform: translateX(0); }
+      #achievement-toast.show { right: 20px; }
       #achievement-toast .ach-icon {
         width: 40px; height: 40px;
         image-rendering: pixelated;
-        border: 2px solid rgba(200,170,60,0.5);
-        border-radius: 3px;
+        border: 2px solid rgba(220,185,50,0.6);
+        border-radius: 4px;
         flex-shrink: 0;
+        box-shadow: 0 0 6px rgba(220,185,50,0.3);
       }
       #achievement-toast .ach-text { text-align: left; }
       #achievement-toast .ach-label {
         font: bold 10px/1 'Segoe UI', Arial, monospace;
-        color: #c8aa3c;
+        color: #dcb932;
         letter-spacing: 2px;
         text-transform: uppercase;
         text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
@@ -196,6 +370,67 @@
         padding: 30px 20px;
       }
       #achievement-screen.open { display: flex; }
+
+      /* Recipe book screen */
+      #recipe-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.8);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto; padding: 30px 20px;
+      }
+      #recipe-screen { display: none; }
+      #recipe-screen.open { display: flex; }
+      #recipe-screen h2 { font-size: 24px; color: #ddd; margin-bottom: 12px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+      .recipe-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+      .recipe-tab {
+        background: rgba(60,60,60,0.5); border: 1px solid rgba(80,80,80,0.4);
+        color: #ccc; cursor: pointer; font: bold 10px monospace; padding: 5px 10px; border-radius: 3px;
+      }
+      .recipe-tab.active { background: rgba(100,150,200,0.4); border-color: #8af; color: #fff; }
+      #recipe-list {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px; width: 100%; max-width: 800px; padding: 4px;
+      }
+      .recipe-card {
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(100,100,120,0.25);
+        border-radius: 5px; padding: 8px; display: flex; gap: 10px; align-items: center;
+      }
+      .recipe-info { flex: 1; }
+      .recipe-name { font: bold 12px monospace; color: #eee; }
+      .recipe-cat { font: 9px monospace; color: #888; margin-top: 2px; }
+      .recipe-grid-mini { display: grid; gap: 1px; image-rendering: pixelated; }
+      .recipe-grid-mini canvas { width: 16px; height: 16px; image-rendering: pixelated; }
+      #recipe-close, #recipe-screen button#recipe-close {
+        position: sticky; bottom: 0; z-index: 2;
+        margin-top: 16px; padding: 12px 40px;
+        background: linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);
+        border: 2px solid #2a5a2a; border-radius: 6px; color: #fff; cursor: pointer; font: bold 14px monospace;
+        box-shadow: 0 2px 0 #224;
+      }
+      #stats-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.8);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto; padding: 30px 20px;
+      }
+      #stats-screen.open { display: flex; }
+      #stats-screen h2 { font-size: 24px; color: #ddd; margin-bottom: 12px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+      #stats-list { width: 100%; max-width: 500px; background: rgba(255,255,255,0.03); border-radius: 6px; padding: 16px; }
+      .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font: 13px monospace; }
+      .stat-row:last-child { border-bottom: none; }
+      .stat-label { color: #aaa; }
+      .stat-value { color: #7fff5f; font-weight: bold; }
+      #stats-close {
+        position: sticky; bottom: 0; z-index: 2;
+        margin-top: 16px; padding: 12px 40px;
+        background: linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);
+        border: 2px solid #2a5a2a; border-radius: 6px; color: #fff; cursor: pointer; font: bold 14px monospace;
+        box-shadow: 0 2px 0 #224;
+      }
       #achievement-screen h2 {
         font-size: 24px; color: #ddd; margin-bottom: 4px;
         text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
@@ -270,15 +505,76 @@
       }
       .ach-card.locked .ach-card-desc { color: #666; }
       #ach-close {
+        position: sticky; bottom: 0; z-index: 2;
         margin-top: 16px;
-        padding: 8px 30px;
-        font: bold 13px 'Segoe UI', Arial, monospace;
-        background: linear-gradient(180deg, #555 0%, #3a3a3a 100%);
-        color: #fff; border: 2px solid #222; border-radius: 3px;
+        padding: 12px 40px;
+        font: bold 14px 'Segoe UI', Arial, monospace;
+        background: linear-gradient(180deg, #5a8a5a 0%, #4a7a4a 40%, #407040 60%, #366336 100%);
+        color: #fff; border: 2px solid #2a5a2a; border-radius: 6px;
         cursor: pointer;
-        box-shadow: 0 2px 0 #222;
+        box-shadow: 0 2px 0 #224;
       }
-      #ach-close:hover { background: linear-gradient(180deg, #666 0%, #444 100%); }
+      #ach-close:hover { background: linear-gradient(180deg, #6a9a6a 0%, #5a8a5a 40%, #4a8050 60%, #467346 100%); }
+
+      /* Pause menu — Bedrock style overlay */
+      #menu-pause {
+        position: fixed; inset: 0; z-index: 56;
+        background: rgba(0,0,0,0.7);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: monospace;
+      }
+      #menu-pause.active { display: flex; }
+      #menu-pause .pause-panel {
+        background: rgba(40,40,40,0.95);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 340px;
+        width: 100%;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+      }
+      #menu-pause .pause-title {
+        font-size: 24px; font-weight: bold; color: #fff;
+        text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        margin-bottom: 8px; letter-spacing: 1px;
+      }
+      #menu-pause .pause-btn {
+        width: 100%; padding: 10px 16px;
+        background: linear-gradient(180deg, #6b6b6b 0%, #555 40%, #4a4a4a 60%, #3a3a3a 100%);
+        color: #fff; border: 2px solid #222; border-radius: 6px;
+        font: bold 14px monospace; cursor: pointer;
+        text-shadow: 1px 1px 0 #222;
+        box-shadow: 0 2px 0 #222, inset 0 1px 0 rgba(255,255,255,0.1);
+        transition: background 0.1s, box-shadow 0.1s;
+      }
+      #menu-pause .pause-btn:hover {
+        background: linear-gradient(180deg, #808080 0%, #666 40%, #555 60%, #444 100%);
+        box-shadow: 0 2px 0 #222, inset 0 1px 0 rgba(255,255,255,0.18);
+      }
+      #menu-pause .pause-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 1px 0 #222, inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      #menu-pause .pause-btn.danger {
+        background: linear-gradient(180deg, #a44 0%, #833 40%, #722 60%, #611 100%);
+        border-color: #411;
+        box-shadow: 0 2px 0 #411, inset 0 1px 0 rgba(255,255,255,0.1);
+      }
+      #menu-pause .pause-btn.danger:hover {
+        background: linear-gradient(180deg, #b55 0%, #944 40%, #833 60%, #722 100%);
+      }
+
+      /* Item tooltip */
+      #item-tooltip {
+        position: fixed; z-index: 65;
+        background: rgba(10,10,10,0.92);
+        color: #fff; font: 12px monospace;
+        padding: 4px 8px; border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.5);
+        pointer-events: none;
+        display: none; white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      }
 
       /* Inventory screen */
       #inventory-screen {
@@ -297,6 +593,9 @@
       #inv-layout {
         display: flex; gap: 16px; align-items: flex-start;
       }
+      #inv-left {
+        display: flex; flex-direction: column; gap: 8px;
+      }
       #inv-right {
         display: flex; flex-direction: column; gap: 8px;
       }
@@ -305,7 +604,7 @@
         padding: 8px;
         border-radius: 4px;
         border: 1px solid rgba(80,80,80,0.4);
-        width: 180px;
+        width: 280px;
         max-height: 400px;
         display: flex; flex-direction: column; gap: 6px;
       }
@@ -327,7 +626,7 @@
       #creative-search:focus { border-color: rgba(120,160,200,0.6); }
       #creative-grid {
         display: grid;
-        grid-template-columns: repeat(5, 34px);
+        grid-template-columns: repeat(7, 34px);
         gap: 2px;
         overflow-y: auto;
         max-height: 340px;
@@ -340,7 +639,9 @@
       #creative-grid .inv-slot {
         width: 34px; height: 34px;
       }
-      #creative-grid .inv-slot canvas { width: 28px; height: 28px; }
+      #creative-grid .inv-slot canvas { width: 28px; height: 28px;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
+      }
       #creative-grid .inv-slot:hover {
         background: rgba(100,130,160,0.7);
       }
@@ -422,6 +723,7 @@
       }
       .inv-slot canvas {
         width: 32px; height: 32px; image-rendering: pixelated;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
       }
       .inv-slot .inv-count {
         position: absolute; bottom: 1px; right: 2px;
@@ -435,7 +737,7 @@
       }
       .inv-slot.selected {
         border-color: #fff;
-        box-shadow: 0 0 3px rgba(255,255,255,0.4), 0 0 0 1px #fff inset;
+        box-shadow: 0 0 6px rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.3), 0 0 0 1px #fff inset;
       }
       #inventory-grid .inv-slot.craft-slot {
         background: rgba(40,40,50,0.7);
@@ -449,6 +751,45 @@
       #inventory-hint {
         margin-top: 10px; font-size: 11px; color: #888;
       }
+      /* Armor display in inventory */
+      #inv-armor-area {
+        background: rgba(0,0,0,0.4);
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.4);
+        display: flex; flex-direction: column; gap: 4px;
+        align-items: center;
+      }
+      #inv-armor-area .inv-armor-label {
+        font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: center;
+        margin-bottom: 2px;
+      }
+      #inv-armor-slots {
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .inv-armor-slot {
+        width: 42px; height: 42px;
+        background: rgba(50,50,50,0.7);
+        border: 1px solid rgba(30,30,30,0.9);
+        border-radius: 2px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+      }
+      .inv-armor-slot:hover {
+        background: rgba(80,80,100,0.7);
+        border-color: rgba(150,150,150,0.6);
+      }
+      .inv-armor-slot canvas {
+        width: 32px; height: 32px; image-rendering: pixelated;
+      }
+      .inv-armor-slot .inv-armor-name {
+        position: absolute; bottom: 1px; left: 0; right: 0;
+        text-align: center;
+        font: bold 7px monospace; color: rgba(200,200,200,0.6);
+        text-shadow: 1px 1px 0 #000;
+        pointer-events: none;
+      }
 
       /* Furnace screen */
       #furnace-screen {
@@ -459,6 +800,158 @@
         color: #fff; font-family: monospace;
       }
       #furnace-screen.open { display: flex; }
+      #chest-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.65);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: monospace;
+      }
+      #chest-screen.open { display: flex; }
+      #chest-screen h2 {
+        font-size: 18px; color: #ddd; margin-bottom: 12px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #chest-layout {
+        background: rgba(0,0,0,0.3); padding: 16px;
+        border-radius: 4px; border: 1px solid rgba(80,80,80,0.3);
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      #chest-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      #chest-inv-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      #chest-hotbar-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+        margin-top: 4px;
+      }
+      .skin-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 100px);
+        gap: 10px;
+        justify-content: center;
+        margin: 6px 0 12px;
+      }
+      .skin-card {
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        background: rgba(40,50,60,0.6);
+        border: 2px solid rgba(80,80,100,0.3);
+        border-radius: 4px; padding: 10px 6px;
+        cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      }
+      .skin-card:hover {
+        background: rgba(60,80,100,0.6);
+        border-color: rgba(100,180,255,0.5);
+      }
+      .skin-card.selected {
+        border-color: rgba(100,200,100,0.8);
+        background: rgba(40,80,40,0.4);
+      }
+      .skin-card canvas {
+        image-rendering: pixelated;
+      }
+      .skin-card-name {
+        font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
+      }
+      /* Skin Editor - Bedrock style: BIG preview, grid secondary */
+      .skin-editor-layout {
+        display: flex; gap: 10px; align-items: flex-start;
+        max-height: 70vh; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: rgba(100,100,100,0.5) transparent;
+      }
+      .skin-tool-btn {
+        width: 32px; height: 32px; border: 1px solid rgba(80,80,80,0.5);
+        background: rgba(40,40,50,0.8); color: #ccc; border-radius: 3px;
+        cursor: pointer; font: bold 13px monospace; transition: all 0.1s;
+      }
+      .skin-tool-btn:hover { background: rgba(70,70,90,0.9); }
+      .skin-tool-btn.active { background: rgba(80,120,180,0.8); border-color: #8af; color: #fff; }
+      .skin-tool-btn.wide { width: auto; padding: 0 10px; font-size: 11px; }
+      .skin-act-btn {
+        flex: 1; padding: 6px 8px; border: 1px solid rgba(80,80,80,0.5);
+        background: rgba(40,40,50,0.8); color: #ccc; border-radius: 3px;
+        cursor: pointer; font: 11px monospace; transition: all 0.1s;
+      }
+      .skin-act-btn:hover { background: rgba(70,70,90,0.9); }
+      .skin-act-btn.primary { background: rgba(60,140,60,0.8); color: #fff; border-color: rgba(80,180,80,0.5); }
+      .skin-act-btn.primary:hover { background: rgba(80,170,80,0.9); }
+      .skin-color-grid {
+        display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px;
+      }
+      .skin-color-cell {
+        width: 20px; height: 20px; border: 1px solid rgba(60,60,60,0.5);
+        border-radius: 2px; cursor: pointer; transition: transform 0.08s;
+      }
+      .skin-color-cell:hover { transform: scale(1.3); z-index: 1; border-color: #fff; }
+      .skin-color-cell.selected { border: 2px solid #fff; box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+      .skin-editor-main {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .skin-editor-preview-wrap {
+        display: flex; flex-direction: column; gap: 4px;
+        flex: 1;
+      }
+      .skin-editor-preview-box {
+        background: repeating-conic-gradient(rgba(60,60,70,0.4) 0% 25%, rgba(40,40,50,0.4) 0% 50%) 0 0 / 16px 16px;
+        border: 2px solid rgba(80,80,80,0.4);
+        border-radius: 6px; overflow: hidden; width: 100%;
+        flex: 1; min-height: 260px;
+        position: relative;
+      }
+      .skin-editor-grid-section {
+        display: flex; gap: 6px; align-items: center;
+        background: rgba(0,0,0,0.2); padding: 6px 8px;
+        border-radius: 6px; border: 1px solid rgba(80,80,80,0.2);
+      }
+      .skin-editor-grid-section .skin-grid-editor-wrap {
+        width: 140px; height: 140px; flex-shrink: 0;
+      }
+      .skin-editor-grid-section .skin-grid-editor-wrap canvas {
+        width: 140px; height: 140px;
+      }
+      .skin-editor-grid-section .skin-grid-overlay {
+        width: 140px; height: 140px;
+      }
+      .skin-editor-grid-section .skin-preview-hint {
+        font-size: 10px; color: #666; flex: 1;
+      }
+      .skin-editor-grid-section .skin-tool-btn {
+        width: 28px; height: 28px; font-size: 11px;
+      }
+      .skin-editor-grid-section .skin-tool-btn.wide {
+        width: auto; padding: 0 8px; font-size: 10px;
+      }
+      .skin-editor-sidebar {
+        width: 200px; flex-shrink: 0;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .skin-editor-sidebar .skin-palette-section { display: flex; flex-direction: column; gap: 3px; }
+      .skin-editor-sidebar .skin-palette-label { font-size: 9px; color: #888; letter-spacing: 1px; }
+      .skin-editor-sidebar .skin-sat-bright-wrap {
+        width: 110px; height: 110px; flex-shrink: 0;
+        border: 1px solid rgba(80,80,80,0.5); border-radius: 3px; cursor: crosshair;
+      }
+      .skin-editor-sidebar #skin-sat-bright { width: 110px; height: 110px; }
+      .skin-editor-sidebar .skin-hue-wrap {
+        width: 16px; height: 110px; flex-shrink: 0;
+        border: 1px solid rgba(80,80,80,0.5); border-radius: 3px; cursor: pointer;
+      }
+      .skin-editor-sidebar #skin-hue-bar { width: 16px; height: 110px; }
+      .skin-editor-sidebar .skin-color-cell { width: 18px; height: 18px; }
+      .skin-editor-sidebar .skin-current-color { padding: 3px 6px; }
+      .skin-editor-sidebar .skin-swatch-lg { width: 24px; height: 24px; }
+      .skin-editor-sidebar .skin-hex-label { font-size: 10px; }
+      .skin-editor-sidebar .skin-act-btn { padding: 4px 6px; font-size: 10px; }
+      .skin-region-label { font-size: 7px; }
       #furnace-screen h2 {
         font-size: 18px; color: #ddd; margin-bottom: 12px;
         text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
@@ -484,7 +977,16 @@
         padding-left: 6px;
       }
       #furnace-fuel-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-      #furnace-flame { padding-bottom: 2px; }
+      #furnace-flame { padding-bottom: 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-fuel-bar {
+        width: 28px; height: 6px; background: #1a1a1a; border: 1px solid #0a0a0a;
+        border-radius: 2px; overflow: hidden;
+      }
+      #furnace-fuel-bar-fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(180deg, #ffcc44 0%, #f89020 60%, #d87010 100%);
+        transition: width 0.3s;
+      }
       #furnace-inv-grid {
         display: grid;
         grid-template-columns: repeat(9, 42px);
@@ -529,17 +1031,17 @@
         image-rendering: pixelated;
       }
       .menu-splash {
-        position: absolute; top: -8px; right: -80px;
+        position: absolute; top: -20px; right: -80px;
         font: bold 22px monospace;
         color: #ffdd33;
         text-shadow: 2px 2px 0 #aa7700;
-        transform: rotate(-12deg);
+        transform: rotate(12deg);
         letter-spacing: 1px;
         animation: splashBounce 2s ease-in-out infinite;
       }
       @keyframes splashBounce {
-        0%, 100% { transform: rotate(-12deg) scale(1); }
-        50% { transform: rotate(-12deg) scale(1.08); }
+        0%, 100% { transform: rotate(12deg) scale(1); }
+        50% { transform: rotate(12deg) scale(1.08); }
       }
       .menu-btn {
         padding: 14px 0;
@@ -549,17 +1051,37 @@
         cursor: pointer; letter-spacing: 1px;
         text-shadow: 1px 1px 0 #222;
         box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.12);
-        transition: transform 0.06s, box-shadow 0.06s;
+        transition: transform 0.08s, box-shadow 0.08s, background 0.15s, border-color 0.15s;
         min-width: 400px;
         position: relative;
       }
       .menu-btn:hover {
         background: linear-gradient(180deg, #7a7a7a 0%, #666 40%, #555 60%, #444 100%);
         box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.15);
+        border-color: rgba(255,255,255,0.15);
       }
       .menu-btn:active {
         transform: translateY(2px);
         box-shadow: 0 1px 0 #2a2a2a, inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      .menu-btn#btn-play {
+        background: linear-gradient(180deg, #5a8a5a 0%, #4a7a4a 40%, #407040 60%, #366336 100%);
+        border-color: #2a5a2a;
+        box-shadow: 0 3px 0 #224, inset 0 1px 0 rgba(255,255,255,0.12);
+      }
+      .menu-btn#btn-play:hover {
+        background: linear-gradient(180deg, #6a9a6a 0%, #5a8a5a 40%, #4a7a4a 60%, #407040 100%);
+      }
+      .menu-btn#btn-multiplayer {
+        background: linear-gradient(180deg, #4a6a8a 0%, #3a5a7a 40%, #2a4a6a 60%, #1a3a5a 100%);
+        border-color: #1a3a5a;
+        box-shadow: 0 3px 0 #112, inset 0 1px 0 rgba(255,255,255,0.12);
+      }
+      .menu-btn#btn-multiplayer:hover {
+        background: linear-gradient(180deg, #5a7a9a 0%, #4a6a8a 40%, #3a5a7a 60%, #2a4a6a 100%);
+      }
+      .menu-btn#btn-lan:hover {
+        background: linear-gradient(180deg, #6a8a4a 0%, #5a7a3a 40%, #4a6a2a 60%, #3a5a1a 100%) !important;
       }
       .menu-btn .btn-badge {
         position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
@@ -574,6 +1096,14 @@
       }
       .menu-btn.danger:hover {
         background: linear-gradient(180deg, #b55 0%, #944 40%, #833 60%, #722 100%);
+      }
+      .menu-btn.secondary {
+        background: linear-gradient(180deg, #446 0%, #335 40%, #2a2f45 60%, #1a1f35 100%);
+        border-color: #223;
+        box-shadow: 0 3px 0 #223, inset 0 1px 0 rgba(255,255,255,0.08);
+      }
+      .menu-btn.secondary:hover {
+        background: linear-gradient(180deg, #558 0%, #447 40%, #3a3f55 60%, #2a2f45 100%);
       }
       /* Bottom corners — fixed to viewport */
       .menu-bottom-left, .menu-bottom-right {
@@ -596,11 +1126,15 @@
       .menu-player-preview {
         position: fixed; z-index: 3;
         right: 40px; top: 50%; transform: translateY(-50%);
-        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
       }
       .menu-player-name {
         font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
         background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 2px;
+      }
+      #btn-skin-customize {
+        font-size: 12px; padding: 8px 20px; min-width: auto;
+        border: 2px solid #333;
       }
       .menu-panel {
         background: rgba(0,0,0,0.5);
@@ -686,40 +1220,112 @@
 
       /* Create World layout — Bedrock two-column style */
       .create-layout {
-        display: flex; gap: 16px; width: 100%; margin-bottom: 12px;
+        display: flex; gap: 0; width: 100%; margin-bottom: 12px;
+        border-radius: 6px; overflow: hidden;
+        border: 1px solid rgba(60,60,80,0.5);
+        min-height: 380px;
       }
-      .create-left { flex: 1; }
-      .create-right { flex: 1; }
+      .create-left {
+        width: 180px; min-width: 180px;
+        background: rgba(15,15,25,0.85);
+        border-right: 1px solid rgba(60,60,80,0.5);
+        display: flex; flex-direction: column;
+      }
+      .create-sidebar-tab {
+        padding: 12px 16px;
+        font: bold 12px 'Segoe UI', Arial, sans-serif;
+        color: #8899aa; cursor: pointer;
+        border-left: 3px solid transparent;
+        transition: all 0.12s;
+        letter-spacing: 0.5px;
+      }
+      .create-sidebar-tab:hover { background: rgba(255,255,255,0.05); color: #aabbcc; }
+      .create-sidebar-tab.active {
+        background: rgba(255,255,255,0.08);
+        color: #fff; border-left-color: #6cbb3c;
+      }
+      .create-sidebar-tab .tab-icon { margin-right: 8px; font-size: 14px; }
+      .create-right {
+        flex: 1; background: rgba(20,22,30,0.9);
+        padding: 20px 24px; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: rgba(80,80,100,0.5) transparent;
+      }
+      .create-right::-webkit-scrollbar { width: 6px; }
+      .create-right::-webkit-scrollbar-thumb { background: rgba(80,80,100,0.5); border-radius: 3px; }
       .create-section {
-        background: rgba(0,0,0,0.4); border: 1px solid rgba(100,100,120,0.3);
-        border-radius: 4px; padding: 14px 16px; margin-bottom: 10px;
+        background: rgba(0,0,0,0.3); border: 1px solid rgba(60,60,80,0.4);
+        border-radius: 6px; padding: 16px 18px; margin-bottom: 14px;
       }
       .create-section-title {
-        font: bold 11px 'Segoe UI', Arial, monospace; color: #8af;
-        letter-spacing: 1.5px; margin-bottom: 10px;
-        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+        font: bold 11px 'Segoe UI', Arial, sans-serif; color: #7ab8e0;
+        letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;
       }
       .create-section label {
-        font: bold 12px 'Segoe UI', Arial, monospace; color: #ccc;
-        display: block; margin-bottom: 4px;
+        font: bold 12px 'Segoe UI', Arial, sans-serif; color: #ccccdd;
+        display: block; margin-bottom: 5px;
       }
       .create-section input[type="text"] {
-        width: 100%; padding: 8px 10px; margin-bottom: 10px;
-        background: rgba(0,0,0,0.6); border: 1px solid rgba(100,100,120,0.4);
-        border-radius: 3px; color: #fff; font: 13px 'Segoe UI', Arial, monospace;
-        box-sizing: border-box;
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: rgba(0,0,0,0.5); border: 1px solid rgba(80,80,100,0.4);
+        border-radius: 4px; color: #fff; font: 13px 'Segoe UI', Arial, monospace;
+        box-sizing: border-box; transition: border-color 0.15s;
       }
       .create-section input[type="text"]:focus {
         outline: none; border-color: #5af;
       }
+      .create-section input[type="text"]::placeholder { color: rgba(150,150,170,0.5); }
+      .create-mode-btn {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 12px 14px; margin-bottom: 8px;
+        background: rgba(0,0,0,0.3); border: 2px solid rgba(60,60,80,0.4);
+        border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        text-align: left;
+      }
+      .create-mode-btn:hover { border-color: rgba(100,140,180,0.4); background: rgba(255,255,255,0.03); }
+      .create-mode-btn.selected { border-color: #6cbb3c; background: rgba(60,140,60,0.1); }
+      .create-mode-btn .mode-emoji { font-size: 22px; width: 32px; text-align: center; }
+      .create-mode-btn .mode-info { flex: 1; }
+      .create-mode-btn .mode-title { font: bold 13px 'Segoe UI', Arial, sans-serif; color: #ddd; }
+      .create-mode-btn .mode-desc { font: 11px 'Segoe UI', Arial, sans-serif; color: #888; margin-top: 1px; }
+      .create-dropdown {
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: rgba(0,0,0,0.5); border: 1px solid rgba(80,80,100,0.4);
+        border-radius: 4px; color: #fff; font: 13px 'Segoe UI', Arial, sans-serif;
+        box-sizing: border-box; cursor: pointer;
+        -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center;
+      }
+      .create-dropdown option { background: #1a1a2e; color: #ddd; }
+      .create-toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 0; border-bottom: 1px solid rgba(60,60,70,0.2);
+      }
+      .create-toggle-row:last-child { border-bottom: none; }
+      .create-toggle-label { font: 12px 'Segoe UI', Arial, sans-serif; color: #ccc; }
+      .create-toggle-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: #777; margin-top: 1px; }
+      .toggle-switch {
+        width: 40px; height: 22px; border-radius: 11px;
+        background: rgba(60,60,80,0.6); cursor: pointer;
+        position: relative; transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle-switch.on { background: #6cbb3c; }
+      .toggle-switch::after {
+        content: ''; position: absolute;
+        top: 2px; left: 2px; width: 18px; height: 18px;
+        border-radius: 50%; background: #fff;
+        transition: transform 0.2s;
+      }
+      .toggle-switch.on::after { transform: translateX(18px); }
       .create-preview-box {
-        background: rgba(0,0,0,0.4); border: 1px solid rgba(100,100,120,0.3);
-        border-radius: 4px; padding: 20px; text-align: center;
+        background: rgba(0,0,0,0.3); border: 1px solid rgba(60,60,80,0.4);
+        border-radius: 6px; padding: 10px; text-align: center;
         width: 100%;
       }
-      .create-preview-icon { font-size: 40px; margin-bottom: 8px; }
-      .create-preview-text { font: bold 13px 'Segoe UI', Arial, monospace; color: #ddd; }
-      .create-preview-sub { font: 11px 'Segoe UI', Arial, monospace; color: #999; margin-top: 4px; }
+      .create-preview-icon { font-size: 36px; margin-bottom: 8px; }
+      .create-preview-text { font: bold 13px 'Segoe UI', Arial, sans-serif; color: #ddd; }
+      .create-preview-sub { font: 11px 'Segoe UI', Arial, sans-serif; color: #888; margin-top: 4px; }
 
       /* Loading screen — Bedrock style */
       #loading-screen {
@@ -784,12 +1390,14 @@
         border: 2px solid rgba(50,50,50,0.7);
         border-radius: 2px;
         overflow: hidden;
-        display: flex; gap: 3px; padding: 2px;
+        position: relative;
       }
       #loading-bar-fill {
         height: 100%; width: 0%;
         transition: width 0.25s ease-out;
         display: flex; gap: 3px;
+        padding: 0 2px;
+        box-sizing: border-box;
       }
       .load-seg {
         flex: 1; min-width: 0;
@@ -814,6 +1422,148 @@
         margin-top: 4px;
         min-height: 14px;
       }
+
+      /* ── Offer Banner ── */
+      #offer-banner {
+        position: fixed; top: 50px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 95; display: none;
+        background: rgba(10,10,10,0.88);
+        border: 2px solid rgba(220,185,50,0.7);
+        border-radius: 10px;
+        padding: 14px 22px;
+        min-width: 300px; max-width: 420px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 16px rgba(220,185,50,0.2);
+        pointer-events: auto;
+        animation: offerSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes offerSlideIn {
+        from { transform: translateX(-50%) translateY(-30px); opacity: 0; }
+        to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+      }
+      #offer-banner .offer-title {
+        font: bold 14px monospace; color: #dcb932;
+        letter-spacing: 2px; text-transform: uppercase;
+        text-align: center; margin-bottom: 8px;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #offer-banner .offer-item-row {
+        display: flex; align-items: center; justify-content: center;
+        gap: 12px; margin-bottom: 10px;
+      }
+      #offer-banner .offer-item-icon {
+        width: 48px; height: 48px;
+        image-rendering: pixelated;
+        border: 2px solid rgba(220,185,50,0.5);
+        border-radius: 4px;
+        background: rgba(30,30,40,0.6);
+      }
+      #offer-banner .offer-item-name {
+        font: bold 15px monospace; color: #fff;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #offer-banner .offer-item-desc {
+        font: 11px monospace; color: #aaa;
+        margin-top: 2px;
+      }
+      #offer-banner .offer-actions {
+        display: flex; gap: 10px; justify-content: center;
+      }
+      #offer-banner .offer-btn {
+        padding: 6px 18px;
+        font: bold 12px monospace;
+        border: 2px solid #222; border-radius: 4px;
+        cursor: pointer;
+        text-shadow: 1px 1px 0 #222;
+        transition: background 0.1s;
+      }
+      #offer-banner .offer-btn-accept {
+        background: linear-gradient(180deg, #5a5 0%, #383 100%);
+        color: #fff; border-color: #262;
+      }
+      #offer-banner .offer-btn-accept:hover {
+        background: linear-gradient(180deg, #6b6 0%, #494 100%);
+      }
+      #offer-banner .offer-btn-deny {
+        background: linear-gradient(180deg, #a44 0%, #722 100%);
+        color: #fff; border-color: #411;
+      }
+      #offer-banner .offer-btn-deny:hover {
+        background: linear-gradient(180deg, #b55 0%, #833 100%);
+      }
+      #offer-banner .offer-key-hint {
+        text-align: center; margin-top: 6px;
+        font: 10px monospace; color: #666;
+      }
+
+      /* ── Mobile touch controls (MultiCraft-style) ── */
+      #mobile-controls {
+        display: none;
+        position: fixed; inset: 0;
+        pointer-events: none; z-index: 20;
+        touch-action: none;
+        user-select: none; -webkit-user-select: none;
+      }
+      #mobile-controls * { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+      /* Joystick zone — left 40% of screen */
+      .mc-joystick-zone {
+        position: absolute; left: 0; bottom: 0;
+        width: 40%; height: 50%;
+        pointer-events: auto;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .mc-joystick-base {
+        width: 120px; height: 120px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        border: 2px solid rgba(255,255,255,0.2);
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .mc-joystick-knob {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.25);
+        border: 2px solid rgba(255,255,255,0.4);
+        transition: transform 0.05s ease-out;
+      }
+
+      /* Camera zone — right 60% of screen (upper portion) */
+      .mc-camera-zone {
+        position: absolute; right: 0; top: 0;
+        width: 60%; height: 60%;
+        pointer-events: auto;
+      }
+
+      /* Action buttons — right side */
+      .mc-buttons {
+        position: absolute; right: 16px; bottom: 80px;
+        display: flex; flex-direction: column; gap: 12px;
+        pointer-events: auto;
+      }
+      .mc-btn {
+        width: 56px; height: 56px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(255,255,255,0.12);
+        color: #fff;
+        font-size: 22px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+        transition: background 0.1s;
+      }
+      .mc-btn:active { background: rgba(255,255,255,0.35); }
+      .mc-btn-jump { border-color: rgba(100,200,100,0.5); }
+      .mc-btn-attack { border-color: rgba(255,80,80,0.5); }
+      .mc-btn-place { border-color: rgba(100,150,255,0.5); }
+
+      /* Show mobile controls on touch devices */
+      @media (hover: none) and (pointer: coarse) {
+        #mobile-controls { display: block; }
+        #crosshair { display: none; }
+      }
     </style>
   </head>
   <body>
@@ -822,11 +1572,104 @@
     <div id="crosshair-dot"></div>
     <div id="item-name"></div>
     <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
-    <div id="armor-bar"></div>
+    <div id="armor-bar">
+      <div id="armor-slots">
+        <div class="armor-slot" data-slot="0"><span class="armor-slot-label">H</span></div>
+        <div class="armor-slot" data-slot="1"><span class="armor-slot-label">C</span></div>
+        <div class="armor-slot" data-slot="2"><span class="armor-slot-label">L</span></div>
+        <div class="armor-slot" data-slot="3"><span class="armor-slot-label">B</span></div>
+      </div>
+    </div>
+    <div id="offhand-slot"><span class="offhand-label">F</span></div>
     <div id="status-bars"></div>
     <div id="hotbar"></div>
+    <div id="hand-overlay"><img class="hand-item" src="" alt=""/></div>
     <div id="hud"></div>
+    <div id="coords-hud" style="position:fixed;bottom:96px;left:8px;z-index:10;pointer-events:none;font:bold 11px/1.5 monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;"></div>
+    <div id="time-hud" style="position:fixed;bottom:96px;right:8px;z-index:10;pointer-events:none;font:bold 12px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;text-align:right;"></div>
+    <div id="debug-overlay" style="display:none;position:fixed;top:4px;left:8px;z-index:12;pointer-events:none;font:bold 11px monospace;color:#fff;text-shadow:1px 1px 0 #000;line-height:1.5;"></div>
+    <!-- Mob health bar tooltip -->
+    <div id="mob-health" style="display:none;position:fixed;left:50%;top:20%;transform:translate(-50%,-50%);z-index:10;pointer-events:none;text-align:center;transition:opacity 0.1s;">
+      <div id="mob-health-name" style="font:bold 13px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;margin-bottom:2px;"></div>
+      <div id="mob-health-bar" style="width:80px;height:8px;background:rgba(0,0,0,0.6);border:1px solid rgba(50,50,50,0.8);border-radius:2px;overflow:hidden;margin:0 auto;">
+        <div id="mob-health-fill" style="height:100%;background:linear-gradient(90deg,#c44,#e55);transition:width 0.15s;border-radius:1px;"></div>
+      </div>
+      <div id="mob-health-hearts" style="margin-top:3px;font-size:10px;line-height:1;"></div>
+    </div>
     <div id="water-overlay"></div>
+    <div id="underwater-overlay"></div>
+    <div id="sleep-overlay"></div>
+    <div id="sleep-message"></div>
+    <div id="damage-overlay"></div>
+
+    <!-- Tutorial / First-Time Intro Overlay -->
+    <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;overflow-y:auto;">
+      <div style="max-width:520px;width:90%;background:rgba(20,22,32,0.97);border:2px solid rgba(100,150,200,0.25);border-radius:10px;padding:32px 36px;color:#ddd;font-family:monospace;box-shadow:0 0 40px rgba(0,0,0,0.5);">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font:bold 30px monospace;color:#6cbb3c;letter-spacing:3px;text-shadow:0 2px 8px rgba(80,200,60,0.3);">BLOCKFORGE</div>
+          <div style="font:13px monospace;color:#888;margin-top:6px;">A voxel sandbox adventure</div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(60,80,100,0.3);border-radius:6px;padding:16px 20px;margin-bottom:16px;">
+          <div style="font:bold 12px monospace;color:#7ab8e0;letter-spacing:1px;margin-bottom:8px;">&#9654; GETTING STARTED</div>
+          <div style="font:12px monospace;color:#bbb;line-height:1.8;">
+            Explore a procedurally generated world. Mine resources, build structures, craft tools, and survive the night.
+            Play solo or invite friends to your server!
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;font-size:12px;line-height:1.7;">
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">MOVEMENT</div>
+            <div><span style="color:#fa0;">W A S D</span> Move</div>
+            <div><span style="color:#fa0;">Space</span> Jump</div>
+            <div><span style="color:#fa0;">Shift</span> Sprint</div>
+            <div><span style="color:#fa0;">C</span> Crouch</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">ACTIONS</div>
+            <div><span style="color:#fa0;">Left Click</span> Break block</div>
+            <div><span style="color:#fa0;">Right Click</span> Place / Use</div>
+            <div><span style="color:#fa0;">Tab / E</span> Inventory</div>
+            <div><span style="color:#fa0;">F</span> Swap offhand</div>
+            <div><span style="color:#fa0;">Q</span> Drop item</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">CAMERA</div>
+            <div><span style="color:#fa0;">P</span> 3rd Person</div>
+            <div><span style="color:#fa0;">Mouse</span> Look around</div>
+            <div><span style="color:#fa0;">Scroll</span> Hotbar select</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">INFO</div>
+            <div><span style="color:#fa0;">F3</span> Debug overlay</div>
+            <div><span style="color:#fa0;">T</span> Chat</div>
+            <div><span style="color:#fa0;">/</span> Commands</div>
+            <div><span style="color:#fa0;">1-9</span> Hotbar slots</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <div style="flex:1;background:rgba(50,180,80,0.08);border:1px solid rgba(50,180,80,0.2);border-radius:6px;padding:10px 12px;text-align:center;">
+            <div style="font:bold 11px monospace;color:#6cbb3c;">OBJECTIVE</div>
+            <div style="font:10px monospace;color:#aaa;margin-top:3px;">Survive, explore, build, create</div>
+          </div>
+          <div style="flex:1;background:rgba(50,130,220,0.08);border:1px solid rgba(50,130,220,0.2);border-radius:6px;padding:10px 12px;text-align:center;">
+            <div style="font:bold 11px monospace;color:#5af;">TIP</div>
+            <div style="font:10px monospace;color:#aaa;margin-top:3px;">Punch a tree to get started!</div>
+          </div>
+        </div>
+
+        <div style="text-align:center;margin-top:20px;">
+          <button id="tutorial-ok-btn" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);color:#fff;border:2px solid #2a5a2a;border-radius:6px;padding:10px 36px;font:bold 14px monospace;cursor:pointer;letter-spacing:1px;text-shadow:1px 1px 0 #224;box-shadow:0 2px 0 #224, 0 0 20px rgba(80,200,80,0.1);transition:transform 0.06s;">LET'S PLAY</button>
+          <div style="margin-top:8px;">
+            <label style="font:10px monospace;color:#666;cursor:pointer;">
+              <input type="checkbox" id="tutorial-dont-show"/> Don't show again
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Loading Screen — Bedrock style -->
     <div id="loading-screen">
@@ -836,11 +1679,12 @@
       <div id="loading-content">
         <div id="loading-subtitle">Generating world</div>
         <div id="loading-tip-box">
-          <div id="loading-tip">Loading...</div>
+          <div id="loading-tip"><span>Tip:</span> Loading...</div>
         </div>
         <div id="loading-bar-wrap">
           <div id="loading-bar-fill"></div>
         </div>
+        <div id="loading-bar-pct">0%</div>
         <div id="loading-step"></div>
       </div>
     </div>
@@ -850,20 +1694,49 @@
       <div id="overlay-vignette"></div>
 
       <!-- Screen: Main Menu — Bedrock Beta style -->
-      <div id="menu-main" class="menu-screen active">
+      <!-- Screen: Login / Create Account -->
+      <div id="menu-login" class="menu-screen active">
         <div class="menu-logo-wrap">
           <div class="menu-logo">BLOCKFORGE</div>
-          <div class="menu-splash">Beta!!!</div>
+          <div class="menu-splash">Welcome!</div>
+        </div>
+        <div style="max-width:420px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:18px 20px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9998; ACCOUNT</div>
+          <input id="login-username" type="text" value="" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Choose a username" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;margin-bottom:10px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
+          <input id="login-password" type="password" placeholder="Password (min 3 chars)" maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
+          <div id="login-hint" style="font:11px monospace;min-height:16px;margin:8px 0;color:#5a8;"></div>
+          <button class="menu-btn" id="btn-login-create" style="width:100%;margin-bottom:6px;">CREATE ACCOUNT</button>
+          <button class="menu-btn secondary" id="btn-login-go" style="width:100%;margin-bottom:8px;">LOG IN</button>
+          <div style="font:9px monospace;color:rgba(255,255,255,0.35);text-align:center;line-height:1.4;">Don't have an account? Tap CREATE ACCOUNT.<br>Already have one? Tap LOG IN.</div>
+        </div>
+      </div>
+
+      <div id="menu-main" class="menu-screen">
+        <div class="menu-logo-wrap">
+          <div class="menu-logo">BLOCKFORGE</div>
+          <div class="menu-splash">More Updates Coming Soon!</div>
         </div>
         <button class="menu-btn" id="btn-play">Play</button>
+        <button class="menu-btn" id="btn-lan" style="background:linear-gradient(180deg,#5a7a3a 0%,#4a6a2a 40%,#3a5a1a 60%,#2a4a0a 100%);border-color:#2a4a0a;box-shadow:0 3px 0 #1a3a0a,inset 0 1px 0 rgba(255,255,255,0.12);">LAN</button>
+        <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
         <button class="menu-btn" id="btn-achievements">Achievements</button>
+        <button class="menu-btn" id="btn-recipes">Recipe Book</button>
+        <button class="menu-btn" id="btn-stats">Statistics</button>
         <button class="menu-btn" id="btn-settings">Settings</button>
+        <button class="menu-btn" id="btn-feedback">Feedback</button>
+        <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
+        <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
+        <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
+          Music by Kevin MacLeod — released under CC-BY 4.0.<br>incompetech.com<br><br>
+          <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="https://www.crazygames.com/game/blockforge" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms of Service</a>. This game stores data locally on your device. No personal data is collected or shared. <a id="footer-privacy" href="https://www.crazygames.com/privacy" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a></span>
+        </div>
       </div>
 
       <!-- Fixed viewport elements -->
       <div class="menu-player-preview">
-        <canvas id="menu-player-canvas" width="64" height="96" style="width:64px;height:96px;image-rendering:pixelated;"></canvas>
-        <div class="menu-player-name">Steve</div>
+        <div id="menu-player-container" style="width:120px;height:180px;image-rendering:pixelated;border-radius:6px;overflow:hidden;background:rgba(0,0,0,0.3);"></div>
+        <div class="menu-player-name" id="menu-player-name">Player</div>
+        <button class="menu-btn secondary" id="btn-skin-customize">Customize Skin</button>
       </div>
       <div class="menu-bottom-left">
         <div class="menu-icon-btn" title="Language">
@@ -915,10 +1788,10 @@
             <div class="create-section">
               <div class="create-section-title">DIFFICULTY</div>
               <div class="mode-select">
-                <div class="mode-option" id="diff-normal" data-diff="normal">
+                <div class="mode-option selected" id="diff-normal" data-diff="normal">
                   <div class="mo-label">NORMAL</div>
                 </div>
-                <div class="mode-option selected" id="diff-hard" data-diff="hard">
+                <div class="mode-option" id="diff-hard" data-diff="hard">
                   <div class="mo-label">HARD</div>
                 </div>
               </div>
@@ -933,10 +1806,9 @@
               <input id="input-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
             </div>
             <div class="create-preview-box" id="seed-preview-box">
-              <div class="create-preview-icon">⛏</div>
-              <div class="create-preview-text" id="seed-preview-name">A new world awaits...</div>
-              <div class="create-preview-sub" id="seed-preview-sub">Enter a seed to preview terrain</div>
-              <canvas id="seed-preview-canvas" width="200" height="80" style="display:none;margin-top:8px;border-radius:3px;image-rendering:pixelated;width:200px;height:80px;border:1px solid rgba(100,100,120,0.4);"></canvas>
+              <canvas id="seed-preview-canvas" width="240" height="160" style="width:240px;height:160px;margin-top:4px;border-radius:4px;image-rendering:pixelated;border:1px solid rgba(100,100,120,0.4);display:block;"></canvas>
+              <div class="create-preview-text" id="seed-preview-name" style="font:bold 11px monospace;color:#aaa;margin-top:6px;">A new world awaits...</div>
+              <div class="create-preview-sub" id="seed-preview-sub" style="font:10px monospace;color:#666;margin-top:2px;">Enter a seed above to preview terrain</div>
             </div>
           </div>
         </div>
@@ -971,6 +1843,10 @@
             </select>
           </div>
           <div class="settings-row">
+            <label>Mouse Sensitivity</label>
+            <input id="set-sensitivity" type="range" min="20" max="200" value="100"/>
+          </div>
+          <div class="settings-row">
             <label>Volume</label>
             <input id="set-volume" type="range" min="0" max="100" value="50"/>
           </div>
@@ -981,27 +1857,379 @@
               <option value="0">Off</option>
             </select>
           </div>
+          <div class="settings-row">
+            <label>Graphics Quality</label>
+            <select id="set-quality">
+              <option value="low">Fast (Low)</option>
+              <option value="medium" selected>Normal</option>
+              <option value="high">Fancy (High)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Auto-Jump</label>
+            <select id="set-autojump">
+              <option value="1" selected>On</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
         </div>
         <button class="menu-btn secondary" id="btn-settings-back">BACK</button>
       </div>
 
-      <!-- Screen: Pause Menu (in-game) -->
-      <div id="menu-pause" class="menu-screen">
-        <div class="menu-title" style="font-size:36px;">PAUSED</div>
-        <button class="menu-btn" id="btn-resume">RESUME</button>
-        <button class="menu-btn secondary" id="btn-pause-settings">SETTINGS</button>
-        <button class="menu-btn danger" id="btn-quit">QUIT TO MENU</button>
+      <!-- Screen: Credits -->
+      <div id="menu-credits" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">CREDITS</div>
+        <div class="menu-panel" style="max-height:400px;overflow-y:auto;text-align:center;line-height:1.8;">
+          <div style="font:bold 18px monospace;color:#fa0;margin-bottom:12px;">BLOCKFORGE</div>
+          <div style="font:bold 14px monospace;color:#fff;margin-bottom:16px;">Developer: Judah</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:16px;margin-bottom:4px;">Libraries</div>
+          <div style="font:12px monospace;color:#ccc;">Three.js — 3D rendering engine</div>
+          <div style="font:10px monospace;color:#888;">threejs.org &middot; MIT License</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Music</div>
+          <div style="font:12px monospace;color:#ccc;">Kevin MacLeod</div>
+          <div style="font:10px monospace;color:#888;">incompetech.com &middot; CC-BY 4.0</div>
+          <div style="font:11px monospace;color:#999;">Track: Ambiment</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Platform</div>
+          <div style="font:12px monospace;color:#ccc;">CrazyGames SDK</div>
+          <div style="font:10px monospace;color:#888;">crazygames.com &middot; Used for ads &amp; cloud saves</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Inspiration</div>
+          <div style="font:12px monospace;color:#ccc;">Minecraft — Mojang Studios</div>
+          <div style="font:12px monospace;color:#ccc;">MultiCraft — Build and Mine!</div>
+          <div style="font:10px monospace;color:#888;">Gameplay mechanics and UI design references</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Built With</div>
+          <div style="font:12px monospace;color:#ccc;">Vite — Build tool</div>
+          <div style="font:12px monospace;color:#ccc;">ES Modules &middot; Vanilla JavaScript</div>
+
+          <div style="margin-top:20px;font:11px monospace;color:#555;">BlockForge Beta &copy; 2026 Judah</div>
+        </div>
+        <button class="menu-btn secondary" id="btn-credits-back">BACK</button>
+      </div>
+
+      <!-- Screen: Feedback -->
+      <div id="menu-feedback" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">FEEDBACK</div>
+        <div class="menu-panel" style="max-width:500px;width:100%;display:flex;flex-direction:column;gap:8px;">
+          <div style="font:12px monospace;color:#aaa;margin-bottom:4px;">Report a bug or suggest a feature:</div>
+          <select id="feedback-type" style="background:#1a2a3a;color:#ddd;border:1px solid #456;padding:8px 10px;font:13px monospace;border-radius:4px;">
+            <option value="bug">Bug Report</option>
+            <option value="feature">Feature Request</option>
+          </select>
+          <textarea id="feedback-text" rows="5" placeholder="Describe the bug or feature..." style="background:#0a1a2a;color:#ddd;border:1px solid #456;padding:8px 10px;font:13px monospace;border-radius:4px;resize:vertical;font-family:monospace;"></textarea>
+          <button class="menu-btn" id="btn-feedback-submit" style="margin-top:4px;">SUBMIT</button>
+          <div id="feedback-status" style="font:11px monospace;color:#5a5;text-align:center;min-height:16px;"></div>
+          <div style="font:bold 12px monospace;color:#aaa;margin-top:8px;">Recent Submissions</div>
+          <div id="feedback-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+        <button class="menu-btn secondary" id="btn-feedback-back">BACK</button>
       </div>
 
       <!-- Screen: Death -->
       <div id="menu-death" class="menu-screen">
         <div class="menu-title" style="font-size:36px;color:#c44;">YOU DIED</div>
+        <div id="death-stats" style="background:rgba(0,0,0,0.3);border-radius:6px;padding:12px 18px;margin:8px 0;font:12px monospace;color:#ccc;text-align:center;line-height:1.8;"></div>
         <button class="menu-btn" id="btn-respawn">RESPAWN</button>
         <button class="menu-btn danger" id="btn-death-quit">QUIT TO MENU</button>
+      </div>
+
+      <!-- Screen: Multiplayer Server List -->
+      <div id="menu-multiplayer" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">MULTIPLAYER</div>
+
+        <!-- Username -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:4px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9998; YOUR IDENTITY</div>
+          <input id="input-mp-username" type="text" value="Player" maxlength="16" spellcheck="false" autocomplete="off" readonly style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.35);color:#aaa;border:1px solid rgba(80,80,80,0.3);border-radius:4px;font:14px monospace;outline:none;cursor:default;box-sizing:border-box;" />
+          <div id="mp-account-hint" style="font:9px monospace;color:#5a8;margin-top:6px;">Logged in — username cannot be changed.</div>
+        </div>
+
+        <!-- Recently Played -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:4px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9201; RECENTLY PLAYED</div>
+          <div id="recent-servers" style="max-height:88px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
+        </div>
+
+        <!-- Server Browser -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:6px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9881; SERVER BROWSER</div>
+          <input id="input-server-search" type="text" placeholder="Search servers..." maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:12px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.35)'" />
+          <div id="server-list" style="max-height:160px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
+        </div>
+
+        <div id="mp-error" style="max-width:480px;width:100%;min-height:18px;font:12px monospace;text-align:center;color:#f55;"></div>
+
+        <!-- Buttons -->
+        <div style="display:flex;gap:8px;max-width:480px;width:100%;">
+          <button class="menu-btn" id="btn-create-server" style="flex:1;min-width:auto;">CREATE SERVER</button>
+          <button class="menu-btn" id="btn-invite-link" style="display:none;flex:0.6;min-width:auto;font-size:11px;padding:14px 16px;background:linear-gradient(180deg,#2a6b4a 0%,#1a5b3a 40%,#1a5030 60%,#0a4020 100%);border-color:#0a4020;">INVITE FRIEND</button>
+          <button class="menu-btn secondary" id="btn-mp-back" style="flex:0.5;min-width:auto;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Create Server -->
+      <div id="menu-create-server" class="menu-screen">
+        <div class="menu-title" style="font-size:26px;">CREATE SERVER</div>
+        <div class="create-layout" style="min-height:auto;">
+          <div class="create-left" style="width:auto;min-width:auto;">
+            <div class="create-section">
+              <div class="create-section-title">SERVER SETTINGS</div>
+              <label>Server Name</label>
+              <input id="input-server-name" type="text" value="My Server" maxlength="32" spellcheck="false" autocomplete="off"/>
+              <label>Max Players</label>
+              <input id="input-max-players" type="number" value="10" min="2" max="100"/>
+              <label>Your Name</label>
+              <input id="input-player-name" type="text" value="Player" maxlength="16" spellcheck="false" autocomplete="off"/>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">GAME MODE</div>
+              <div class="mode-select">
+                <div class="mode-option selected" id="sv-mode-survival">
+                  <div class="mo-icon">&#9829;</div>
+                  <div class="mo-label">SURVIVAL</div>
+                  <div class="mo-desc">Health, hunger, mining</div>
+                </div>
+                <div class="mode-option" id="sv-mode-creative">
+                  <div class="mo-icon">&#10022;</div>
+                  <div class="mo-label">CREATIVE</div>
+                  <div class="mo-desc">Unlimited blocks, fly</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="create-right" style="min-width:200px;">
+            <div class="create-section">
+              <div class="create-section-title">SERVER INFO</div>
+              <div style="font:12px monospace;color:#ccc;line-height:2;">
+                Players: <span id="sv-info-players" style="color:#fff;">10</span><br>
+                Mode: <span id="sv-info-mode" style="color:#fff;">Survival</span><br>
+                Owner: <span id="sv-info-owner" style="color:#fa0;">—</span>
+              </div>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">WORLD SEED</div>
+              <label>Seed (leave blank for random)</label>
+              <input id="input-server-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="menu-btn" id="btn-create-server-go" style="min-width:200px;">CREATE &amp; JOIN</button>
+          <button class="menu-btn secondary" id="btn-create-server-back" style="min-width:120px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: LAN Mode -->
+      <div id="menu-lan" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">LAN</div>
+        <div style="font:11px monospace;color:#aaa;margin-bottom:12px;text-align:center;">Play with friends on your local network</div>
+
+        <!-- Host Section -->
+        <div id="lan-host-section" style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,120,60,0.4);border-radius:6px;padding:16px;margin-bottom:8px;">
+          <div style="font:bold 11px monospace;color:#8c5;letter-spacing:1.5px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">&#9654; HOST A WORLD</div>
+          <div style="font:11px monospace;color:#aaa;margin-bottom:10px;">Start a singleplayer world and let others on your network join.</div>
+          <label style="font:10px monospace;color:#888;display:block;margin-bottom:4px;">World Name</label>
+          <input id="input-lan-world" type="text" value="LAN World" maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
+          <button class="menu-btn" id="btn-lan-host" style="width:100%;margin-top:10px;background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border-color:#2a5a2a;">HOST WORLD</button>
+          <div id="lan-host-info" style="display:none;margin-top:10px;background:rgba(0,0,0,0.4);border:1px solid rgba(80,120,60,0.3);border-radius:4px;padding:10px 12px;">
+            <div style="font:bold 10px monospace;color:#8c5;letter-spacing:1px;margin-bottom:6px;">SHARE THIS ADDRESS</div>
+            <div id="lan-host-ip" style="font:bold 14px monospace;color:#fff;word-break:break-all;margin-bottom:6px;"></div>
+            <div style="font:9px monospace;color:#888;">Other players: click Multiplayer → enter this address → Join</div>
+          </div>
+        </div>
+
+        <!-- Join Section -->
+        <div id="lan-join-section" style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;">
+          <div style="font:bold 11px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">&#9654; JOIN A WORLD</div>
+          <div style="font:11px monospace;color:#aaa;margin-bottom:10px;">Enter the host's IP address to join their world.</div>
+          <label style="font:10px monospace;color:#888;display:block;margin-bottom:4px;">Host IP Address</label>
+          <input id="input-lan-ip" type="text" placeholder="192.168.1.100" maxlength="64" spellcheck="false" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
+          <div id="lan-error" style="font:11px monospace;color:#f55;min-height:16px;margin-top:6px;"></div>
+          <button class="menu-btn" id="btn-lan-join" style="width:100%;margin-top:8px;background:linear-gradient(180deg,#4a6a8a 0%,#3a5a7a 40%,#2a4a6a 60%,#1a3a5a 100%);border-color:#1a3a5a;">JOIN</button>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button class="menu-btn secondary" id="btn-lan-back" style="min-width:160px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Server Player List / Admin Panel -->
+      <div id="menu-server-admin" class="menu-screen">
+        <div class="menu-title" style="font-size:26px;">SERVER: <span id="admin-server-name"></span></div>
+        <div id="server-admin-tabs" style="display:flex;gap:4px;margin-bottom:8px;">
+          <button class="menu-btn secondary" id="tab-players" style="flex:1;font-size:11px;">PLAYERS</button>
+          <button class="menu-btn secondary" id="tab-staff" style="flex:1;font-size:11px;">STAFF</button>
+          <button class="menu-btn secondary" id="tab-bans" style="flex:1;font-size:11px;">BANS</button>
+        </div>
+        <div class="menu-panel" id="admin-panel-content" style="max-height:260px;overflow-y:auto;font:12px monospace;color:#ddd;"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="menu-btn secondary" id="btn-admin-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Skin Picker -->
+      <div id="menu-skins" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">SELECT SKIN</div>
+        <div style="max-height:55vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;">
+          <div style="font:bold 13px monospace;color:#5af;letter-spacing:1px;margin:8px 0 6px;text-shadow:1px 1px 0 #000;">BOYS</div>
+          <div class="skin-grid" id="skin-grid-boys"></div>
+          <div style="font:bold 13px monospace;color:#f7a;margin:8px 0 6px;text-shadow:1px 1px 0 #000;">GIRLS</div>
+          <div class="skin-grid" id="skin-grid-girls"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn secondary" id="btn-skins-edit" style="flex:1;">EDIT SKIN</button>
+          <button class="menu-btn secondary" id="btn-skins-back" style="flex:1;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Skin Editor -->
+      <div id="menu-skin-editor" class="menu-screen">
+        <div class="menu-title" style="font-size:22px;">SKIN EDITOR</div>
+        <div class="skin-editor-layout">
+          <div class="skin-editor-main">
+            <div class="skin-editor-preview-wrap">
+              <div class="skin-editor-preview-box">
+              </div>
+            </div>
+            <div class="skin-editor-grid-section">
+              <div class="skin-grid-editor-wrap" style="position:relative;border:1px solid rgba(80,80,80,0.4);background:rgba(0,0,0,0.4);border-radius:3px;overflow:hidden;cursor:crosshair;width:140px;height:140px;flex-shrink:0;">
+                <canvas id="skin-grid-canvas" width="448" height="448" style="display:block;image-rendering:pixelated;width:140px;height:140px;"></canvas>
+                <div id="skin-grid-overlay" style="position:absolute;top:0;left:0;width:140px;height:140px;pointer-events:none;"></div>
+              </div>
+              <div class="skin-editor-tools">
+                <button data-skin-tool="brush" class="skin-tool-btn active" title="Brush">B</button>
+                <button data-skin-tool="eraser" class="skin-tool-btn" title="Eraser">E</button>
+                <button data-skin-tool="fill" class="skin-tool-btn" title="Fill">F</button>
+                <button data-skin-tool="eyedropper" class="skin-tool-btn" title="Eyedropper">I</button>
+                <button id="skin-fill-all" class="skin-tool-btn wide" title="Fill All">Fill All</button>
+                <button id="skin-clear" class="skin-tool-btn wide" title="Clear All">Clear</button>
+              </div>
+              <span class="skin-preview-hint">Click pixels to edit. Drag preview to rotate.</span>
+            </div>
+          </div>
+          <div class="skin-editor-sidebar">
+            <div class="skin-palette-section">
+              <div class="skin-palette-label">SELECT COLOR</div>
+              <div class="skin-color-picker-area" style="display:flex;gap:6px;align-items:flex-start;">
+                <div style="position:relative;border:1px solid rgba(80,80,80,0.5);border-radius:3px;cursor:crosshair;" class="skin-sat-bright-wrap">
+                  <canvas id="skin-sat-bright" width="110" height="110" style="display:block;border-radius:3px;"></canvas>
+                  <div id="skin-sb-cursor" style="position:absolute;width:10px;height:10px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px rgba(0,0,0,0.8);pointer-events:none;transform:translate(-50%,-50%);"></div>
+                </div>
+                <div style="position:relative;width:16px;height:110px;flex-shrink:0;border:1px solid rgba(80,80,80,0.5);border-radius:3px;cursor:pointer;">
+                  <canvas id="skin-hue-bar" width="16" height="110" style="display:block;border-radius:3px;"></canvas>
+                  <div id="skin-hue-cursor" style="position:absolute;left:-2px;width:22px;height:4px;background:#fff;border:1px solid #000;border-radius:2px;pointer-events:none;transform:translateY(-50%);"></div>
+                </div>
+              </div>
+            </div>
+            <div class="skin-current-color" style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.3);padding:3px 6px;border-radius:3px;">
+              <div id="skin-color-swatch" style="width:24px;height:24px;border:2px solid rgba(200,200,200,0.3);border-radius:3px;flex-shrink:0;"></div>
+              <div id="skin-color-hex" style="font:10px monospace;color:#ccc;">#c0906a</div>
+            </div>
+            <div class="skin-palette-section">
+              <div class="skin-palette-label">PRESET COLORS</div>
+              <div id="skin-preset-colors" class="skin-color-grid"></div>
+            </div>
+            <div style="display:flex;gap:3px;">
+              <button id="skin-undo" class="skin-act-btn">Undo</button>
+              <button id="skin-redo" class="skin-act-btn">Redo</button>
+            </div>
+            <div style="display:flex;gap:3px;">
+              <button id="skin-save" class="skin-act-btn primary">Save</button>
+              <button id="skin-load-preset" class="skin-act-btn">Load</button>
+            </div>
+            <div style="display:flex;gap:3px;">
+              <button id="skin-export" class="skin-act-btn">Export</button>
+              <button id="skin-import" class="skin-act-btn">Import</button>
+            </div>
+          </div>
+        </div>
+        <button class="menu-btn secondary" id="btn-skin-editor-back">BACK</button>
+      </div>
+
+      <!-- Screen: Developer Panel (GameDev account only) -->
+      <div id="menu-dev-panel" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">DEVELOPER PANEL</div>
+        <div class="menu-panel" style="max-height:none;width:420px;">
+          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin-bottom:12px;">STATISTICS</div>
+          <div class="settings-row">
+            <label>Daily Users (today)</label>
+            <span id="dev-dau" style="font:bold 14px monospace;color:#5f5;">0</span>
+          </div>
+          <div class="settings-row">
+            <label>Monthly Users</label>
+            <span id="dev-mau" style="font:bold 14px monospace;color:#5f5;">0</span>
+          </div>
+          <div class="settings-row">
+            <label>Servers Created</label>
+            <span id="dev-servers" style="font:bold 14px monospace;color:#fa0;">0</span>
+          </div>
+          <div class="menu-divider"></div>
+          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:8px 0 12px;">DAILY ACTIVE USERS (7 DAYS)</div>
+          <div id="dev-daily-chart" style="display:flex;align-items:flex-end;gap:4px;height:60px;margin-bottom:12px;"></div>
+          <div class="menu-divider"></div>
+          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:8px 0 12px;">EDIT DEV TAG</div>
+          <div class="settings-row">
+            <label>Current Tag</label>
+            <span id="dev-current-tag" style="font:bold 13px monospace;color:#0ff;">GameDev</span>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
+            <input id="dev-tag-input" type="text" placeholder="New tag..." maxlength="20" spellcheck="false" autocomplete="off" style="flex:1;padding:8px 10px;background:rgba(0,0,0,0.5);color:#fff;border:1px solid rgba(100,100,100,0.4);border-radius:4px;font:13px monospace;outline:none;" />
+            <button class="menu-btn" id="dev-tag-save" style="min-width:auto;padding:8px 16px;font-size:12px;">SAVE</button>
+          </div>
+        </div>
+        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:420px;">BACK</button>
+      </div>
+    </div>
+
+    <!-- Pause Menu — OUTSIDE overlay so it's visible when overlay is hidden -->
+    <div id="menu-pause">
+      <div class="pause-panel">
+        <div class="pause-title">Game Paused</div>
+        <button class="pause-btn" id="btn-resume">Resume Game</button>
+        <button class="pause-btn" id="btn-pause-settings">Settings</button>
+        <button class="pause-btn danger" id="btn-quit">Quit to Title</button>
       </div>
     </div>
 
     <div id="breaking"></div>
+
+    <!-- Offer Banner (free iron gear popup) -->
+    <div id="offer-banner">
+      <div class="offer-title">Free Iron Gear!</div>
+      <div class="offer-item-row">
+        <canvas class="offer-item-icon" id="offer-item-icon" width="16" height="16"></canvas>
+        <div>
+          <div class="offer-item-name" id="offer-item-name">Iron Pickaxe</div>
+          <div class="offer-item-desc">A sturdy iron pickaxe</div>
+        </div>
+      </div>
+      <div class="offer-actions">
+        <button class="offer-btn offer-btn-accept" id="offer-accept">ACCEPT [Y]</button>
+        <button class="offer-btn offer-btn-deny" id="offer-deny">DENY [X]</button>
+      </div>
+      <div class="offer-key-hint">Press Y to accept, X to deny</div>
+    </div>
+
+    <!-- First-time Name Prompt -->
+    <div id="name-prompt" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(3px);">
+      <div style="background:linear-gradient(180deg,#3a5a8b 0%,#2a4a6b 40%,#1a3a5b 60%,#0a2040 100%);border:2px solid #5af;border-radius:10px;padding:30px 40px;max-width:380px;width:90%;text-align:center;box-shadow:0 0 30px rgba(0,0,0,0.8);">
+        <div style="font:700 24px sans-serif;color:#fff;margin-bottom:8px;">Welcome to BlockForge!</div>
+        <div style="font:13px sans-serif;color:#cce;margin-bottom:20px;line-height:1.5;">What name would you like to play as? You can change this later in settings.</div>
+        <input id="name-prompt-input" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Enter your name..." style="width:100%;padding:12px 16px;font:15px sans-serif;background:rgba(255,255,255,0.1);border:1px solid #5af;border-radius:6px;color:#fff;outline:none;text-align:center;margin-bottom:16px;box-sizing:border-box;" />
+        <button id="name-prompt-confirm" style="width:100%;padding:12px;font:700 14px sans-serif;background:linear-gradient(180deg,#3a8b5a 0%,#2a7b4a 40%,#1a7030 60%,#0a5020 100%);border:1px solid #0a5020;border-radius:6px;color:#fff;cursor:pointer;">START PLAYING</button>
+      </div>
+    </div>
+
+    <!-- Chat HUD -->
+    <div id="chat-hud" style="display:none;position:fixed;bottom:52px;left:8px;z-index:15;width:400px;max-height:250px;pointer-events:none;">
+      <div id="chat-messages" style="max-height:200px;overflow-y:auto;font:12px/1.4 monospace;color:#fff;text-shadow:1px 1px 0 #000;padding:4px;scrollbar-width:none;"></div>
+      <div id="chat-input-wrap" style="display:none;pointer-events:auto;background:rgba(0,0,0,0.65);border:1px solid rgba(100,100,100,0.5);border-radius:3px;padding:4px 8px;">
+        <input id="chat-input" type="text" maxlength="100" autocomplete="off" spellcheck="false" style="width:100%;background:transparent;color:#fff;border:none;outline:none;font:13px monospace;"/>
+      </div>
+    </div>
 
     <!-- Achievement Toast Notification -->
     <div id="achievement-toast">
@@ -1022,13 +2250,47 @@
       <button id="ach-close">BACK</button>
     </div>
 
+    <div id="recipe-screen">
+      <h2>RECIPE BOOK</h2>
+      <div class="recipe-tabs">
+        <button class="recipe-tab active" data-cat="all">ALL</button>
+        <button class="recipe-tab" data-cat="tools">TOOLS</button>
+        <button class="recipe-tab" data-cat="armor">ARMOR</button>
+        <button class="recipe-tab" data-cat="blocks">BLOCKS</button>
+        <button class="recipe-tab" data-cat="food">FOOD</button>
+        <button class="recipe-tab" data-cat="misc">MISC</button>
+        <button class="recipe-tab" data-cat="smelting">SMELTING</button>
+      </div>
+      <div id="recipe-list"></div>
+      <button id="recipe-close">BACK</button>
+    </div>
+
+    <div id="stats-screen">
+      <h2>STATISTICS</h2>
+      <div id="stats-list"></div>
+      <button id="stats-close">BACK</button>
+    </div>
+
     <div id="inventory-screen">
-      <h2>INVENTORY</h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button></h2>
       <div id="inv-layout">
-        <div id="creative-browser" style="display:none;">
-          <div class="creative-label">BLOCKS</div>
-          <input id="creative-search" type="text" placeholder="Search blocks..." autocomplete="off" spellcheck="false"/>
-          <div id="creative-grid"></div>
+        <div id="inv-left">
+          <div id="creative-browser" style="display:none;">
+            <div class="creative-label">BLOCKS</div>
+            <input id="creative-search" type="text" placeholder="Search blocks..." autocomplete="off" spellcheck="false"/>
+            <div id="creative-grid"></div>
+          </div>
+          <div id="inv-armor-area">
+            <div class="inv-armor-label">ARMOR</div>
+            <div id="inv-armor-slots">
+              <div class="inv-armor-slot" data-armor-slot="0"><div class="inv-armor-name">Helmet</div></div>
+              <div class="inv-armor-slot" data-armor-slot="1"><div class="inv-armor-name">Chestplate</div></div>
+              <div class="inv-armor-slot" data-armor-slot="2"><div class="inv-armor-name">Leggings</div></div>
+              <div class="inv-armor-slot" data-armor-slot="3"><div class="inv-armor-name">Boots</div></div>
+            </div>
+            <div class="inv-armor-label" style="margin-top:6px;">OFF HAND</div>
+            <div class="inv-armor-slot" data-armor-slot="offhand" style="margin:0 auto;"><div class="inv-armor-name">Off Hand</div></div>
+          </div>
         </div>
         <div id="inv-right">
           <div id="inv-crafting-area">
@@ -1043,6 +2305,7 @@
       <div id="inventory-hint">Click to move items. Click output to craft. Press TAB to close.</div>
     </div>
     <div id="cursor-item"></div>
+    <div id="item-tooltip"></div>
 
     <div id="furnace-screen">
       <h2>FURNACE</h2>
@@ -1073,10 +2336,22 @@
               <polygon points="2,18 7,2 12,18 9,13 5,13" fill="#555" opacity="0.4"/>
               <polygon id="furnace-flame-fill" points="2,18 7,2 12,18 9,13 5,13" fill="#f80" style="display:none"/>
             </svg>
+            <div id="furnace-fuel-bar"><div id="furnace-fuel-bar-fill"></div></div>
           </div>
         </div>
         <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
         <div id="furnace-inv-grid"></div>
+      </div>
+      <div id="inventory-hint">Click to move items. Press TAB to close.</div>
+    </div>
+
+    <div id="chest-screen">
+      <h2>CHEST</h2>
+      <div id="chest-layout">
+        <div id="chest-grid"></div>
+        <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
+        <div id="chest-inv-grid"></div>
+        <div id="chest-hotbar-grid"></div>
       </div>
       <div id="inventory-hint">Click to move items. Press TAB to close.</div>
     </div>
@@ -1215,86 +2490,72 @@
       // overlay-bg is kept transparent so the 3D scene shows through
     </script>
     <script>
-      // Draw pixel-art Steve character on main menu
-      (function() {
-        var canvas = document.getElementById('menu-player-canvas');
-        if (!canvas) return;
-        var x = canvas.getContext('2d');
-        var s = 4; // pixel scale
-
-        // Steve skin colors
-        var SKIN = '#c0906a';
-        var SKIN_S = '#a07050';
-        var HAIR = '#3a2a1a';
-        var EYES = '#fff';
-        var PUPIL = '#335';
-        var SHIRT = '#4abbc0';
-        var SHIRT_S = '#389a9e';
-        var PANTS = '#3a3a7a';
-        var PANTS_S = '#2a2a5a';
-        var SHOE = '#444';
-
-        function px(col, gx, gy) {
-          x.fillStyle = col;
-          x.fillRect(gx * s, gy * s, s, s);
-        }
-
-        // Head (8x8 at y=0)
-        // hair top
-        for (var i = 0; i < 8; i++) px(HAIR, i, 0);
-        // hair sides + face row 1
-        px(HAIR, 0, 1); px(HAIR, 1, 1);
-        px(SKIN, 2, 1); px(SKIN, 3, 1); px(SKIN, 4, 1); px(SKIN, 5, 1);
-        px(HAIR, 6, 1); px(HAIR, 7, 1);
-        // face row 2 (eyes)
-        px(HAIR, 0, 2); px(HAIR, 1, 2);
-        px(SKIN, 2, 2); px(EYES, 3, 2); px(PUPIL, 3, 2);
-        px(EYES, 4, 2); px(PUPIL, 4, 2); px(SKIN, 5, 2);
-        px(HAIR, 6, 2); px(HAIR, 7, 2);
-        // face row 3 (nose/mouth)
-        px(SKIN, 0, 3); px(SKIN, 1, 3);
-        px(SKIN, 2, 3); px(SKIN, 3, 3); px(SKIN_S, 3, 3);
-        px(SKIN, 4, 3); px(SKIN, 5, 3);
-        px(SKIN, 6, 3); px(SKIN, 7, 3);
-        // face row 4 (mouth)
-        px(SKIN, 0, 4); px(SKIN, 1, 4);
-        px(SKIN, 2, 4); px(SKIN_S, 3, 4); px(SKIN_S, 4, 4);
-        px(SKIN, 5, 4); px(SKIN, 6, 4); px(SKIN, 7, 4);
-
-        // Body (8x4 at y=8)
-        for (var by = 0; by < 4; by++) {
-          for (var bx = 0; bx < 8; bx++) {
-            var col = (bx < 2 || bx >= 6) ? SHIRT_S : SHIRT;
-            if (by === 3) col = (bx < 2 || bx >= 6) ? PANTS_S : PANTS;
-            px(col, bx, 8 + by);
-          }
-        }
-
-        // Arms (2x4 on each side at y=8)
-        for (var ay = 0; ay < 4; ay++) {
-          px(SKIN, -2, 8 + ay); px(SKIN, -1, 8 + ay);
-          px(SKIN, 8, 8 + ay); px(SKIN, 9, 8 + ay);
-        }
-
-        // Legs (3x4 at y=12)
-        for (var ly = 0; ly < 4; ly++) {
-          for (var lx = 0; lx < 8; lx++) {
-            var col = (lx < 2 || lx >= 6) ? PANTS_S : PANTS;
-            if (ly >= 3) col = SHOE;
-            px(col, lx, 12 + ly);
-          }
-        }
-      })();
-    </script>
-    <script>
       window.onerror = function(msg, src, line, col, err) {
+        var srcStr = (src || '').toString();
+        // Only surface errors that come from OUR code (Vite dev /src/ or built /assets/).
+        // Ignore CrazyGames SDK, browser extensions, and other external/benign errors.
+        var isOurs = srcStr.indexOf('/src/') !== -1 || srcStr.indexOf('/assets/') !== -1;
+        if (!isOurs) {
+          console.error('[window.onerror]', msg, '|', srcStr + ':' + line);
+          return false;
+        }
+        var m = (msg && msg.message) ? msg.message : (typeof msg === 'string' ? msg : (err && err.message) || 'Unknown error');
         var el = document.createElement('div');
         el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
-        el.textContent = 'ERROR: ' + msg + ' @ ' + (src||'?').split('/').pop() + ':' + line;
+        el.textContent = 'ERROR: ' + m + ' @ ' + srcStr.split('/').pop() + ':' + line;
         document.body.appendChild(el);
         return false;
       };
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e && e.reason;
+        var m = (reason && reason.message) ? reason.message : (typeof reason === 'string' ? reason : 'unknown');
+        // Only show for our own promise rejections
+        console.warn('[unhandledrejection]', m);
+        if (m && (m.indexOf('/src/') !== -1 || m.indexOf('main.js') !== -1)) {
+          var el = document.createElement('div');
+          el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c33;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
+          el.textContent = 'Unhandled Promise: ' + m;
+          document.body.appendChild(el);
+        }
+      });
+    </script>
+    <script>
+      // Item tooltip — shows item name on hover over inventory/hotbar slots
+      (function() {
+        var tooltip = document.getElementById('item-tooltip');
+        if (!tooltip) return;
+        var mx = 0, my = 0;
+        document.addEventListener('mousemove', function(e) {
+          mx = e.clientX; my = e.clientY;
+          if (tooltip.style.display === 'block') {
+            var tx = mx + 14, ty = my + 14;
+            if (tx + tooltip.offsetWidth > window.innerWidth - 4) tx = mx - tooltip.offsetWidth - 4;
+            if (ty + tooltip.offsetHeight > window.innerHeight - 4) ty = my - tooltip.offsetHeight - 4;
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+          }
+        });
+        document.addEventListener('mouseover', function(e) {
+          var el = e.target.closest('.inv-slot, .slot');
+          if (el && el.dataset.itemName) {
+            tooltip.textContent = el.dataset.itemName;
+            tooltip.style.display = 'block';
+            var tx = mx + 14, ty = my + 14;
+            if (tx + tooltip.offsetWidth > window.innerWidth - 4) tx = mx - tooltip.offsetWidth - 4;
+            if (ty + tooltip.offsetHeight > window.innerHeight - 4) ty = my - tooltip.offsetHeight - 4;
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+          }
+        });
+        document.addEventListener('mouseout', function(e) {
+          var el = e.target.closest('.inv-slot, .slot');
+          if (el) tooltip.style.display = 'none';
+        });
+      })();
     </script>
     <script type="module" src="/src/main.js"></script>
+    <!-- CrazyGames SDK (only loaded on CrazyGames domain) -->
+    <script>window.CrazyGames = window.CrazyGames || {};</script>
+    <script>if (location.hostname.endsWith('crazygames.com')) { var s = document.createElement('script'); s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js'; s.async = true; document.body.appendChild(s); }</script>
   </body>
 </html>

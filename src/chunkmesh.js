@@ -24,9 +24,18 @@ export class ChunkMeshManager {
       map: atlasTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.7,
       depthWrite: false,
-      alphaTest: 0.05,
+      side: THREE.FrontSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+    });
+    // Dedicated water material: no vertex colors, uniform blue
+    this.waterMaterial = new THREE.MeshLambertMaterial({
+      color: 0x2f62bc,
+      transparent: true,
+      opacity: 0.55,
+      depthWrite: false,
       side: THREE.DoubleSide,
     });
 
@@ -47,8 +56,9 @@ export class ChunkMeshManager {
       this.scene.remove(entry.group);
       entry.opaque.geometry.dispose();
       if (entry.trans) entry.trans.geometry.dispose();
+      if (entry.water) entry.water.geometry.dispose();
     }
-    const { opaque, trans } = buildChunkGeometry(chunk, this.world);
+    const { opaque, trans, water } = buildChunkGeometry(chunk, this.world);
 
     const og = new THREE.BufferGeometry();
     og.setAttribute('position', new THREE.BufferAttribute(opaque.position, 3));
@@ -76,8 +86,21 @@ export class ChunkMeshManager {
       group.add(transMesh);
     }
 
+    let waterMesh = null;
+    if (water.position.length) {
+      const wg = new THREE.BufferGeometry();
+      wg.setAttribute('position', new THREE.BufferAttribute(water.position, 3));
+      wg.setAttribute('uv', new THREE.BufferAttribute(water.uv, 2));
+      wg.setAttribute('color', new THREE.BufferAttribute(water.color, 3));
+      wg.setAttribute('normal', new THREE.BufferAttribute(water.normal, 3));
+      if (water.index) wg.setIndex(new THREE.BufferAttribute(water.index, 1));
+      waterMesh = new THREE.Mesh(wg, this.waterMaterial);
+      waterMesh.renderOrder = 2;
+      group.add(waterMesh);
+    }
+
     this.scene.add(group);
-    this.meshes.set(k, { group, opaque: opaqueMesh, trans: transMesh });
+    this.meshes.set(k, { group, opaque: opaqueMesh, trans: transMesh, water: waterMesh });
   }
 
   // Immediate build — used by the loader for initial chunk generation only.
@@ -123,7 +146,8 @@ export class ChunkMeshManager {
     if (e) {
       this.scene.remove(e.group);
       e.opaque.geometry.dispose();
-      if (e.trans) e.trans.geometry.dispose();
+      if (e.trans) { e.trans.geometry.dispose(); }
+      if (e.water) { e.water.geometry.dispose(); }
       this.meshes.delete(k);
     }
   }

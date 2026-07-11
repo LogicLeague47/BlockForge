@@ -49,9 +49,31 @@ export const ITEM = {
   IRON_PICKAXE: 520, IRON_AXE: 521, IRON_SHOVEL: 522, IRON_SWORD: 523,
   DIAMOND_PICKAXE: 524, DIAMOND_AXE: 525, DIAMOND_SHOVEL: 526, DIAMOND_SWORD: 527,
   GOLD_PICKAXE: 528, GOLD_AXE: 529, GOLD_SHOVEL: 530, GOLD_SWORD: 531,
+  // armor (532+)
+  LEATHER_HELMET: 532, LEATHER_CHEST: 533, LEATHER_LEGS: 534, LEATHER_BOOTS: 535,
+  CHAIN_HELMET: 536, CHAIN_CHEST: 537, CHAIN_LEGS: 538, CHAIN_BOOTS: 539,
+  IRON_HELMET: 540, IRON_CHEST: 541, IRON_LEGS: 542, IRON_BOOTS: 543,
+  GOLD_HELMET: 544, GOLD_CHEST: 545, GOLD_LEGS: 546, GOLD_BOOTS: 547,
+  DIAMOND_HELMET: 548, DIAMOND_CHEST: 549, DIAMOND_LEGS: 550, DIAMOND_BOOTS: 551,
+  // prismite tools + armor (552+)
+  PRISMITE: 287,
+  PRISMITE_SWORD: 552, PRISMITE_PICKAXE: 553, PRISMITE_AXE: 554, PRISMITE_SHOVEL: 555,
+  PRISMITE_HELMET: 556, PRISMITE_CHEST: 557, PRISMITE_LEGS: 558, PRISMITE_BOOTS: 559,
   // misc
   BUCKET: 283,
   COOKED_APPLE: 284,
+  BED: 285,
+  SPIDER_EYE: 286,
+  // new foods
+  ROTTEN_FLESH: 290,
+  GOLDEN_APPLE: 296,
+  COOKIE: 297,
+  MELON_SLICE: 298,
+  CARROT: 299,
+  POTATO: 300,
+  BAKED_POTATO: 301,
+  PUMPKIN_PIE: 302,
+  GOLDEN_CARROT: 303,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -63,6 +85,15 @@ const FOOD = {
   [ITEM.BEEF_RAW]: 3, [ITEM.BEEF_COOKED]: 8,
   [ITEM.CHICKEN_RAW]: 2, [ITEM.CHICKEN_COOKED]: 6,
   [ITEM.MUTTON_RAW]: 2, [ITEM.MUTTON_COOKED]: 6,
+  [ITEM.ROTTEN_FLESH]: 2,
+  [ITEM.GOLDEN_APPLE]: 4,
+  [ITEM.COOKIE]: 2,
+  [ITEM.MELON_SLICE]: 2,
+  [ITEM.CARROT]: 3,
+  [ITEM.POTATO]: 1,
+  [ITEM.BAKED_POTATO]: 5,
+  [ITEM.PUMPKIN_PIE]: 8,
+  [ITEM.GOLDEN_CARROT]: 6,
 };
 
 // --- fuel: burn time in ticks (20 = 1 second at 20 tps); 0 = not fuel -----
@@ -80,13 +111,14 @@ const TOOL_MATERIALS = {
   IRON:   { harvest: 3, durability: 250, speedMult: 1.33, swordDmg: 4 },
   DIAMOND:{ harvest: 4, durability: 1561, speedMult: 1.46, swordDmg: 5 },
   GOLD:   { harvest: 1, durability: 32,  speedMult: 1.1,  swordDmg: 2 },
+  PRISMITE:{ harvest: 4, durability: 2000, speedMult: 2.0, swordDmg: 25 },
 };
 
 // Map tool id -> { type: 'pickaxe'|'axe'|'shovel'|'sword', material }
 const TOOLS = {};
 (function buildToolTable() {
   const types = ['PICKAXE', 'AXE', 'SHOVEL', 'SWORD'];
-  const mats = ['WOOD', 'STONE', 'IRON', 'DIAMOND', 'GOLD'];
+  const mats = ['WOOD', 'STONE', 'IRON', 'DIAMOND', 'GOLD', 'PRISMITE'];
   for (const m of mats) {
     for (const t of types) {
       const id = ITEM[`${m}_${t}`];
@@ -128,7 +160,59 @@ const NONBLOCK_ITEMS = {
   [ITEM.ARROW]:   { name: 'Arrow', stack: 64 },
   [ITEM.EGG]:     { name: 'Egg', stack: 16 },
   [ITEM.BUCKET]:  { name: 'Bucket', stack: 16 },
+  [ITEM.BED]:     { name: 'Bed', stack: 1 },
+  [ITEM.SPIDER_EYE]: { name: 'Spider Eye', stack: 64, food: 3 },
+  [ITEM.PRISMITE]:   { name: 'Prismite', stack: 64 },
+  [ITEM.ROTTEN_FLESH]: { name: 'Rotten Flesh', stack: 64, food: 2 },
+  [ITEM.GOLDEN_APPLE]:  { name: 'Golden Apple', stack: 64, food: 4 },
+  [ITEM.COOKIE]:       { name: 'Cookie', stack: 64, food: 2 },
+  [ITEM.MELON_SLICE]:   { name: 'Melon Slice', stack: 64, food: 2 },
+  [ITEM.CARROT]:       { name: 'Carrot', stack: 64, food: 3 },
+  [ITEM.POTATO]:       { name: 'Potato', stack: 64, food: 1 },
+  [ITEM.BAKED_POTATO]:  { name: 'Baked Potato', stack: 64, food: 5 },
+  [ITEM.PUMPKIN_PIE]:   { name: 'Pumpkin Pie', stack: 64, food: 8 },
+  [ITEM.GOLDEN_CARROT]: { name: 'Golden Carrot', stack: 64, food: 6 },
 };
+
+// --- armor definitions -------------------------------------------------------
+// armorSlot: 0=helmet, 1=chestplate, 2=leggings, 3=boots
+// defense: total armor points (affects damage reduction)
+const ARMOR_MATERIALS = {
+  LEATHER: { defense: 7,  durability: 55,  slot: 'LEATHER' },
+  CHAIN:   { defense: 12, durability: 165, slot: 'CHAIN' },
+  IRON:    { defense: 15, durability: 225, slot: 'IRON' },
+  GOLD:    { defense: 7,  durability: 77,  slot: 'GOLD' },
+  DIAMOND: { defense: 20, durability: 363, slot: 'DIAMOND' },
+  PRISMITE:{ defense: 999,durability: 9999,slot: 'PRISMITE' },
+};
+
+// Per-piece defense and slot index
+const ARMOR_PIECES = {
+  HELMET:  { slotIdx: 0, defense: 1 },
+  CHEST:   { slotIdx: 1, defense: 3 },
+  LEGS:    { slotIdx: 2, defense: 2 },
+  BOOTS:   { slotIdx: 3, defense: 1 },
+};
+
+const ARMOR = {};
+(function buildArmorTable() {
+  const mats = ['LEATHER', 'CHAIN', 'IRON', 'GOLD', 'DIAMOND', 'PRISMITE'];
+  const pieces = ['HELMET', 'CHEST', 'LEGS', 'BOOTS'];
+  const pieceNames = { HELMET: 'Helmet', CHEST: 'Chestplate', LEGS: 'Leggings', BOOTS: 'Boots' };
+  const matNames = { LEATHER: 'Leather', CHAIN: 'Chainmail', IRON: 'Iron', GOLD: 'Gold', DIAMOND: 'Diamond' };
+  for (const m of mats) {
+    for (const p of pieces) {
+      const id = ITEM[`${m}_${p}`];
+      if (id != null) ARMOR[id] = {
+        material: m, piece: p,
+        slotIdx: ARMOR_PIECES[p].slotIdx,
+        defense: ARMOR_PIECES[p].defense,
+        totalDefense: ARMOR_MATERIALS[m].defense,
+        durability: ARMOR_MATERIALS[m].durability,
+      };
+    }
+  }
+})();
 
 // --- public helpers ---------------------------------------------------------
 export function isBlockItem(id) { return id < 256; }
@@ -146,6 +230,12 @@ export function itemDef(id) {
       stack: 1,
       tool: { type: TOOLS[id].type, material: TOOLS[id].material, durability: mat.durability, maxDurability: mat.durability },
     };
+  }
+  if (ARMOR[id]) {
+    const a = ARMOR[id];
+    const matName = a.material.charAt(0) + a.material.slice(1).toLowerCase();
+    const pieceName = { HELMET: 'Helmet', CHEST: 'Chestplate', LEGS: 'Leggings', BOOTS: 'Boots' }[a.piece];
+    return { name: `${matName} ${pieceName}`, stack: 1, armor: { material: a.material, slotIdx: a.slotIdx, defense: a.defense, durability: a.durability, maxDurability: a.durability } };
   }
   return NONBLOCK_ITEMS[id] || null;
 }
@@ -208,4 +298,24 @@ export function harvestLevelRequired(blockId) {
 export function toolRequired(blockId) {
   if (_blockMeta) return _blockMeta.tool(blockId);
   return null;
+}
+
+// --- armor helpers -----------------------------------------------------------
+export { ARMOR };
+export function isArmor(id) { return !!ARMOR[id]; }
+export function armorInfo(id) { return ARMOR[id] || null; }
+// Total defense points from all equipped armor slots.
+export function totalArmorDefense(armorArray) {
+  let total = 0;
+  let prismiteCount = 0;
+  for (const slot of armorArray) {
+    if (slot && ARMOR[slot.item]) {
+      const piece = ARMOR[slot.item];
+      if (piece.material === 'PRISMITE') prismiteCount++;
+      total += ARMOR_PIECES[piece.piece].defense;
+    }
+  }
+  // Full prismite set = invincible
+  if (prismiteCount >= 4) return 999;
+  return total;
 }

@@ -64,18 +64,32 @@ export class ChunkLoader {
     }
   }
 
-  // Force everything within radius to be ready immediately (used on first spawn).
+  // Force everything within radius to be ready immediately (used on first spawn and teleport).
+  // Phase 1: generate all chunks synchronously (fast, prevents falling through).
+  // Phase 2: build meshes async (heavy, yields to browser).
   prime(pcx, pcz) {
     this.lastPCX = pcx; this.lastPCZ = pcz;
     this.rebuildQueue(pcx, pcz);
-    // generate synchronously for the spawn area so the player doesn't fall
-    let gen = 64;
-    while (gen-- > 0 && this.queue.length) {
-      const k = this.queue.shift();
+    const all = this.queue.splice(0);
+    // Phase 1: generate all synchronously
+    for (const k of all) {
       const [cx, cz] = k.split(',').map(Number);
-      const chunk = this.world.getChunk(cx, cz, true);
-      if (chunk.generated) this.manager.buildOrRefresh(cx, cz);
+      this.world.getChunk(cx, cz, true);
     }
+    // Phase 2: build meshes async (8 per frame)
+    let idx = 0;
+    const budget = 8;
+    const buildStep = () => {
+      let n = budget;
+      while (n-- > 0 && idx < all.length) {
+        const k = all[idx++];
+        const [cx, cz] = k.split(',').map(Number);
+        const chunk = this.world.getChunk(cx, cz);
+        if (chunk.generated) this.manager.buildOrRefresh(cx, cz);
+      }
+      if (idx < all.length) requestAnimationFrame(buildStep);
+    };
+    requestAnimationFrame(buildStep);
   }
 
   // Async prime: yields to the browser between chunks so loading screen can update.

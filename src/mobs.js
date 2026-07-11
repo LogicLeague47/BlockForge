@@ -1,0 +1,1454 @@
+// Passive mob system — cows, pigs, and sheep.
+//
+// Each mob is a simple box model (THREE.Group) with basic AI:
+//   idle → wander → idle … with ground collision.
+// MobManager handles spawning per-chunk, updating, and culling.
+
+import * as THREE from 'three';
+import { BLOCK, BLOCKS } from './blocks.js';
+import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
+import { calcBiome } from './worldgen.js';
+// ── mob type definitions (Minecraft proportions) ─────────────────────
+// Dimensions are (width, height, depth) in blocks.  All mobs stand on the
+// ground plane with their feet at local y=0.
+export const MOB_TYPES = {
+  cow: {
+    name: 'Cow',
+    hp: 10,
+    bodyW: 1.1, bodyH: 0.9, bodyD: 1.6,
+    headW: 0.9, headH: 0.8, headD: 0.9,
+    legW: 0.22, legH: 0.55, legD: 0.22,
+    headOffZ: -1.0,
+    headOffY: -0.35,
+    hasHorns: true,
+    hasEars: true,
+    hasTail: true,
+    tailColor: 0x6b4226,
+    drops: [{ item: 274, count: [0, 2] }, { item: 268, count: [1, 3] }],
+    soundChance: 0.0006,
+  },
+  pig: {
+    name: 'Pig',
+    hp: 10,
+    bodyW: 1.0, bodyH: 0.9, bodyD: 1.4,
+    headW: 0.9, headH: 0.9, headD: 0.9,
+    legW: 0.22, legH: 0.42, legD: 0.22,
+    headOffZ: -0.85,
+    headOffY: -0.35,
+    hasSnout: true,
+    snoutW: 0.36, snoutH: 0.24, snoutD: 0.12,
+    hasPigEars: true,
+    hasTail: true,
+    tailColor: 0xf0a0a0,
+    drops: [{ item: 266, count: [1, 3] }],
+    soundChance: 0.0007,
+  },
+  sheep: {
+    name: 'Sheep',
+    hp: 8,
+    bodyW: 1.0, bodyH: 0.9, bodyD: 1.4,
+    headW: 0.9, headH: 0.9, headD: 0.9,
+    legW: 0.22, legH: 0.55, legD: 0.22,
+    headOffZ: -0.85,
+    headOffY: -0.35,
+    hasTail: true,
+    tailColor: 0xf0f0f0,
+    drops: [{ item: 276, count: [1, 2] }, { item: 272, count: [1, 2] }],
+    soundChance: 0.0005,
+  },
+  spider: {
+    name: 'Spider',
+    hp: 16,
+    hostile: true,
+    hostileAtNight: true,
+    bodyW: 1.4, bodyH: 0.6, bodyD: 1.0,
+    headW: 1.0, headH: 0.6, headD: 0.7,
+    legW: 0.12, legH: 0.3, legD: 0.12,
+    headOffZ: -0.65,
+    has8Legs: true,
+    hasEyes: true,
+    attackDamage: 4,
+    drops: [{ item: 278, count: [0, 2] }, { item: 286, count: [0, 1] }],
+    soundChance: 0.0003,
+  },
+  zombie: {
+    name: 'Zombie',
+    hp: 20,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.6, bodyH: 1.1, bodyD: 0.35,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.22, legH: 0.7, legD: 0.22,
+    headOffY: -0.5,
+    bodyColor: 0x4a7a3a,
+    headColor: 0x5a8a4a,
+    legColor: 0x3a5a2a,
+    attackDamage: 5,
+    drops: [{ item: 290, count: [0, 2] }, { item: 277, count: [0, 2] }],
+    soundChance: 0.0004,
+  },
+  skeleton: {
+    name: 'Skeleton',
+    hp: 16,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.5, bodyH: 1.0, bodyD: 0.3,
+    headW: 0.45, headH: 0.45, headD: 0.45,
+    legW: 0.18, legH: 0.7, legD: 0.18,
+    headOffY: -0.5,
+    bodyColor: 0xe8e8e0,
+    headColor: 0xf2f2ea,
+    legColor: 0xd8d8d0,
+    attackDamage: 4,
+    drops: [{ item: 277, count: [0, 2] }, { item: 281, count: [0, 3] }],
+    soundChance: 0.0003,
+  },
+
+};
+
+const MOB_SPAWN_BIOMES = new Set([
+  BIOMES.PLAINS, BIOMES.FOREST, BIOMES.BIRCH_FOREST,
+  BIOMES.SAVANNA, BIOMES.TAIGA, BIOMES.SNOWY,
+  BIOMES.DARK_FOREST, BIOMES.SWAMP,
+]);
+
+const BIOMES_SPAWN_MIN = 0;
+const BIOMES_SPAWN_MAX = 1;
+const DESERT_SPAWN_MIN = 0;
+const DESERT_SPAWN_MAX = 1;
+const SWAMP_SPAWN_MIN = 0;
+const SWAMP_SPAWN_MAX = 1;
+const MIN_SPAWN_DISTANCE = 8;
+const MAX_MOBS_PER_CHUNK = 2;
+
+const WALK_SPEED = 1.2;
+const MAX_WANDER_DIST = 24;
+const CULL_DIST = CHUNK_SIZE * 8;
+
+// ── deterministic PRNG for spawning ─────────────────────────────────
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+// ── Mob class ────────────────────────────────────────────────────────
+class Mob {
+  constructor(type, x, y, z) {
+    this.type = type;
+    const def = MOB_TYPES[type];
+    this.hp = def.hp;
+    this.maxHp = def.hp;
+    this.position = new THREE.Vector3(x, y, z);
+    this.velocity = new THREE.Vector3();
+    this.yaw = Math.random() * Math.PI * 2;
+    this.spawnPos = new THREE.Vector3(x, y, z);
+
+    // AI state
+    this.state = 'idle';
+    this.stateTimer = 2 + Math.random() * 5;
+    this.targetYaw = this.yaw;
+
+    // visual feedback
+    this.hurtTimer = 0;
+    this.dead = false;
+    this.aggro = false; // true when provoked (hit by player)
+    this.walkPhase = Math.random() * Math.PI * 2;
+    this.legs = [];
+    this.mesh = this._buildMesh(def);
+    this.mesh.position.copy(this.position);
+
+    // Store original body/head positions for bobbing
+    this._origBodyY = 0;
+    this._origHeadY = 0;
+    this.mesh.children.forEach(child => {
+      if (child.name === 'body') this._origBodyY = child.position.y;
+      if (child.name === 'head') this._origHeadY = child.position.y;
+    });
+  }
+
+  // ── Canvas texture helpers ──────────────────────────────────────────
+  _tex(w, h, fn) {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    fn(ctx, w, h);
+    const t = new THREE.CanvasTexture(c);
+    t.magFilter = THREE.NearestFilter;
+    t.minFilter = THREE.NearestFilter;
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }
+
+  _fillTex(ctx, w, h, base) {
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, w, h);
+  }
+
+  _noiseTex(ctx, w, h, base, variance) {
+    const r = (base >> 16) & 0xff, g = (base >> 8) & 0xff, b = base & 0xff;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const v = ((Math.random() - 0.5) * variance) | 0;
+        ctx.fillStyle = `rgb(${Math.min(255, Math.max(0, r + v))},${Math.min(255, Math.max(0, g + v))},${Math.min(255, Math.max(0, b + v))})`;
+        ctx.fillRect(x, y, 1, 1);
+      }
+    }
+  }
+
+  _boxMats(textures) {
+    return textures.map(t => new THREE.MeshLambertMaterial({ map: t }));
+  }
+
+  _buildMesh(def) {
+    const group = new THREE.Group();
+    const tex = def._tex || this._mobTextures(def);
+
+    // ── Body ──
+    const bodyGeo = new THREE.BoxGeometry(def.bodyW, def.bodyH, def.bodyD);
+    const body = new THREE.Mesh(bodyGeo, this._boxMats(tex.body));
+    body.position.y = def.legH + def.bodyH / 2;
+    body.name = 'body';
+    group.add(body);
+
+    // ── Head ──
+    const headGeo = new THREE.BoxGeometry(def.headW, def.headH, def.headD);
+    const head = new THREE.Mesh(headGeo, this._boxMats(tex.head));
+    const headOffY = def.headOffY != null ? def.headOffY : 0;
+    const headY = def.legH + def.bodyH + def.headH / 2 - 0.02 + headOffY;
+    const headOffZ = def.headOffZ != null ? def.headOffZ : 0;
+    // Centered on body by default; headOffZ pushes head forward (negative = forward)
+    const headZ = headOffZ;
+    head.position.set(0, headY, headZ);
+    head.name = 'head';
+    group.add(head);
+
+    // ── Pig snout ──
+    if (def.hasSnout) {
+      const snoutGeo = new THREE.BoxGeometry(def.snoutW, def.snoutH, def.snoutD);
+      const snout = new THREE.Mesh(snoutGeo, this._boxMats(tex.snout));
+      snout.position.set(0, headY - def.headH * 0.15, headZ - def.headD / 2 - def.snoutD / 2);
+      snout.name = 'snout';
+      group.add(snout);
+    }
+
+    // ── Cow horns ──
+    if (def.hasHorns) {
+      const hornGeo = new THREE.BoxGeometry(0.1, 0.2, 0.1);
+      const hornMat = new THREE.MeshLambertMaterial({ color: 0xf5f0e0 });
+      for (const side of [-1, 1]) {
+        const horn = new THREE.Mesh(hornGeo, hornMat);
+        horn.position.set(side * def.headW * 0.38, headY + def.headH * 0.55, headZ);
+        horn.rotation.z = side * -0.3;
+        horn.name = 'horn';
+        group.add(horn);
+      }
+    }
+
+    // ── Cow ears ──
+    if (def.hasEars) {
+      const earGeo = new THREE.BoxGeometry(0.06, 0.14, 0.18);
+      const earMat = new THREE.MeshLambertMaterial({ color: def.headColor });
+      for (const side of [-1, 1]) {
+        const ear = new THREE.Mesh(earGeo, earMat);
+        ear.position.set(side * def.headW * 0.52, headY + def.headH * 0.15, headZ);
+        ear.rotation.z = side * 0.4;
+        ear.name = 'ear';
+        group.add(ear);
+      }
+    }
+
+    // ── Pig ears ──
+    if (def.hasPigEars) {
+      const earGeo = new THREE.BoxGeometry(0.14, 0.22, 0.06);
+      const earMat = new THREE.MeshLambertMaterial({ color: 0xe08888 });
+      for (const side of [-1, 1]) {
+        const ear = new THREE.Mesh(earGeo, earMat);
+        ear.position.set(side * def.headW * 0.42, headY + def.headH * 0.5, headZ + 0.1);
+        ear.rotation.z = side * 0.5;
+        ear.rotation.x = -0.3;
+        ear.name = 'ear';
+        group.add(ear);
+      }
+    }
+
+    // ── Tail ──
+    if (def.hasTail) {
+      const tailGeo = new THREE.BoxGeometry(0.06, 0.06, 0.22);
+      const tailMat = new THREE.MeshLambertMaterial({ color: def.tailColor || def.bodyColor });
+      const tail = new THREE.Mesh(tailGeo, tailMat);
+      tail.position.set(0, def.legH + def.bodyH * 0.65, def.bodyD / 2 + 0.1);
+      tail.rotation.x = 0.4;
+      tail.name = 'tail';
+      group.add(tail);
+    }
+
+    // ── Legs (2 bipedal or 4 quadruped or 8 for spiders, pivoting from hip) ──
+    const legGeo = new THREE.BoxGeometry(def.legW, def.legH, def.legD);
+    const legMats = this._boxMats(tex.leg);
+    const lx = def.bodyW * 0.32;
+    const lz = def.bodyD * 0.3;
+    let legPositions;
+    if (def.bipedalLegs) {
+      legPositions = [[-lx, 0], [lx, 0]];
+    } else if (def.has8Legs) {
+      legPositions = [];
+      for (let i = 0; i < 4; i++) {
+        const zOff = -lz + (def.bodyD * 0.6) * (i / 3);
+        legPositions.push([-lx, zOff]);
+        legPositions.push([lx, zOff]);
+      }
+    } else {
+      legPositions = [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]];
+    }
+    for (const [sx, sz] of legPositions) {
+      const pivot = new THREE.Group();
+      pivot.position.set(sx, def.legH, sz);
+      const leg = new THREE.Mesh(legGeo, legMats);
+      leg.position.y = -def.legH / 2;
+      leg.name = 'leg';
+      pivot.add(leg);
+      group.add(pivot);
+      this.legs.push(pivot);
+    }
+
+    group.castShadow = false;
+    return group;
+  }
+
+  // ── Texture generation per mob type ──────────────────────────────────
+  _mobTextures(def) {
+    if (this.type === 'cow') return this._cowTextures(def);
+    if (this.type === 'pig') return this._pigTextures(def);
+    if (this.type === 'sheep') return this._sheepTextures(def);
+    if (this.type === 'spider') return this._spiderTextures(def);
+    return this._genericTextures(def);
+  }
+
+  _cowTextures(def) {
+    const s = 64;
+    const BROWN = 0x7a4a2e, DARK_BROWN = 0x5a3520, TAN = 0x9c6f52, WHITE = 0xf8f0e8, 
+          BLACK = 0x222222, PINK = 0xd8a0a0;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      // Base gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(BROWN>>16)&0xff},${(BROWN>>8)&0xff},${BROWN&0xff})`);
+      grad.addColorStop(1, `rgb(${(DARK_BROWN>>16)&0xff},${(DARK_BROWN>>8)&0xff},${DARK_BROWN&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      
+      // Noise texture
+      this._noiseTex(ctx, s, s, BROWN, 20);
+      
+      // Large white spots with soft edges
+      const spots = [
+        { x: 8, y: 12, w: 20, h: 16 },
+        { x: 40, y: 24, w: 18, h: 20 },
+        { x: 4, y: 36, w: 12, h: 12 },
+        { x: 36, y: 8, w: 14, h: 10 }
+      ];
+      
+      ctx.fillStyle = `rgb(${(WHITE>>16)&0xff},${(WHITE>>8)&0xff},${WHITE&0xff})`;
+      spots.forEach(spot => {
+        ctx.beginPath();
+        ctx.ellipse(spot.x + spot.w/2, spot.y + spot.h/2, spot.w/2, spot.h/2, 0, 0, Math.PI*2);
+        ctx.fill();
+      });
+      
+      // Add subtle shading to spots
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      spots.forEach(spot => {
+        ctx.beginPath();
+        ctx.ellipse(spot.x + spot.w/2 + 2, spot.y + spot.h/2 + 2, spot.w/2.2, spot.h/2.2, 0, 0, Math.PI*2);
+        ctx.fill();
+      });
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, s, s);
+      grad.addColorStop(0, `rgb(${(BROWN>>16)&0xff + 20},${(BROWN>>8)&0xff + 20},${(BROWN&0xff) + 20})`);
+      grad.addColorStop(1, `rgb(${(BROWN>>16)&0xff},${(BROWN>>8)&0xff},${BROWN&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BROWN, 15);
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(TAN>>16)&0xff},${(TAN>>8)&0xff},${TAN&0xff})`);
+      grad.addColorStop(1, `rgb(${(TAN>>16)&0xff - 20},${(TAN>>8)&0xff - 20},${TAN&0xff - 20})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 12);
+    });
+
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(BROWN>>16)&0xff},${(BROWN>>8)&0xff},${BROWN&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BROWN, 18);
+      
+      // Udder hint (soft pink)
+      ctx.fillStyle = `rgba(${(PINK>>16)&0xff},${(PINK>>8)&0xff},${PINK&0xff},0.6)`;
+      ctx.beginPath();
+      ctx.ellipse(32, 56, 20, 8, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(TAN>>16)&0xff + 10},${(TAN>>8)&0xff + 10},${TAN&0xff + 10})`);
+      grad.addColorStop(1, `rgb(${(TAN>>16)&0xff},${(TAN>>8)&0xff},${TAN&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 15);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(TAN>>16)&0xff + 15},${(TAN>>8)&0xff + 15},${TAN&0xff + 15})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 10);
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(TAN>>16)&0xff - 10},${(TAN>>8)&0xff - 10},${TAN&0xff - 10})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 10);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(TAN>>16)&0xff + 15},${(TAN>>8)&0xff + 15},${TAN&0xff + 15})`);
+      grad.addColorStop(1, `rgb(${(TAN>>16)&0xff - 5},${(TAN>>8)&0xff - 5},${TAN&0xff - 5})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 12);
+      
+      // Detailed eyes
+      const eyeY = 20;
+      // Left eye
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(10, eyeY, 14, 12);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(14, eyeY + 2, 8, 10);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(16, eyeY + 3, 3, 3);
+      ctx.fillRect(19, eyeY + 6, 2, 2);
+      
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(40, eyeY, 14, 12);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(44, eyeY + 2, 8, 10);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(46, eyeY + 3, 3, 3);
+      ctx.fillRect(49, eyeY + 6, 2, 2);
+      
+      // Nose/muzzle
+      ctx.fillStyle = `rgb(${(DARK_BROWN>>16)&0xff},${(DARK_BROWN>>8)&0xff},${DARK_BROWN&0xff})`;
+      ctx.beginPath();
+      ctx.ellipse(32, 48, 18, 12, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nostrils
+      ctx.fillStyle = '#1a1a1a';
+      ctx.beginPath();
+      ctx.ellipse(24, 48, 4, 5, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(40, 48, 4, 5, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nostril highlights
+      ctx.fillStyle = '#444';
+      ctx.beginPath();
+      ctx.ellipse(23, 46, 2, 2, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(39, 46, 2, 2, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(TAN>>16)&0xff},${(TAN>>8)&0xff},${TAN&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TAN, 12);
+    });
+
+    const legTex = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(DARK_BROWN>>16)&0xff + 10},${(DARK_BROWN>>8)&0xff + 10},${DARK_BROWN&0xff + 10})`);
+      grad.addColorStop(1, `rgb(${(DARK_BROWN>>16)&0xff - 10},${(DARK_BROWN>>8)&0xff - 10},${DARK_BROWN&0xff - 10})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK_BROWN, 15);
+      
+      // Hooves
+      ctx.fillStyle = '#2a1a10';
+      ctx.fillRect(0, 52, s, 12);
+      ctx.fillStyle = '#3a2a20';
+      ctx.fillRect(0, 50, s, 4);
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+    // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z. Head faces -Z (forward),
+    // so the -Z face (index 5) needs headFront and +Z (index 4) needs headBack to fix backwards face.
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
+  }
+
+  _pigTextures(def) {
+    const s = 64;
+    const PINK = 0xf5b5b5, DARK_PINK = 0xe8a0a0, SNOUT_PINK = 0xf0c0c0, 
+          DARK_SNOUT = 0xd89090, BLACK = 0x222222;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(PINK>>16)&0xff + 5},${(PINK>>8)&0xff + 5},${PINK&0xff + 5})`);
+      grad.addColorStop(1, `rgb(${(DARK_PINK>>16)&0xff},${(DARK_PINK>>8)&0xff},${DARK_PINK&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 18);
+      
+      // Subtle skin texture (freckles)
+      ctx.fillStyle = 'rgba(200,120,120,0.3)';
+      for (let i = 0; i < 40; i++) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        ctx.beginPath();
+        ctx.arc(x, y, 1 + Math.random() * 1.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(PINK>>16)&0xff + 10},${(PINK>>8)&0xff + 10},${PINK&0xff + 10})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 12);
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(DARK_PINK>>16)&0xff},${(DARK_PINK>>8)&0xff},${DARK_PINK&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK_PINK, 10);
+    });
+
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(PINK>>16)&0xff},${(PINK>>8)&0xff},${PINK&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 15);
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(PINK>>16)&0xff + 8},${(PINK>>8)&0xff + 8},${PINK&0xff + 8})`);
+      grad.addColorStop(1, `rgb(${(PINK>>16)&0xff},${(PINK>>8)&0xff},${PINK&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 12);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(PINK>>16)&0xff + 12},${(PINK>>8)&0xff + 12},${PINK&0xff + 12})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 10);
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(PINK>>16)&0xff - 5},${(PINK>>8)&0xff - 5},${PINK&0xff - 5})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 10);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(PINK>>16)&0xff + 10},${(PINK>>8)&0xff + 10},${PINK&0xff + 10})`);
+      grad.addColorStop(1, `rgb(${(PINK>>16)&0xff},${(PINK>>8)&0xff},${PINK&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 12);
+      
+      // Cute eyes
+      const eyeY = 18;
+      // Left eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(14, eyeY, 10, 9, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(16, eyeY + 1, 6, 7, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(17, eyeY, 3, 3);
+      ctx.fillRect(20, eyeY + 3, 2, 2);
+      
+      // Right eye
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(50, eyeY, 10, 9, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#111';
+      ctx.beginPath();
+      ctx.ellipse(48, eyeY + 1, 6, 7, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(45, eyeY, 3, 3);
+      ctx.fillRect(42, eyeY + 3, 2, 2);
+      
+      // Eyebrows
+      ctx.fillStyle = 'rgba(180,100,100,0.5)';
+      ctx.fillRect(8, 10, 14, 3);
+      ctx.fillRect(42, 10, 14, 3);
+      
+      // Snout base
+      ctx.fillStyle = `rgb(${(SNOUT_PINK>>16)&0xff},${(SNOUT_PINK>>8)&0xff},${SNOUT_PINK&0xff})`;
+      ctx.beginPath();
+      ctx.ellipse(32, 44, 20, 14, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(PINK>>16)&0xff},${(PINK>>8)&0xff},${PINK&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PINK, 12);
+    });
+
+    const legTex = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(DARK_PINK>>16)&0xff + 5},${(DARK_PINK>>8)&0xff + 5},${DARK_PINK&0xff + 5})`);
+      grad.addColorStop(1, `rgb(${(DARK_PINK>>16)&0xff - 10},${(DARK_PINK>>8)&0xff - 10},${DARK_PINK&0xff - 10})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK_PINK, 12);
+      
+      // Trotters
+      ctx.fillStyle = '#c07070';
+      ctx.fillRect(0, 50, s, 14);
+      ctx.fillStyle = '#a06060';
+      ctx.fillRect(0, 48, s, 4);
+    });
+
+    const snoutTex = this._tex(s, s, (ctx) => {
+      const grad = ctx.createRadialGradient(32, 32, 5, 32, 32, 40);
+      grad.addColorStop(0, `rgb(${(SNOUT_PINK>>16)&0xff},${(SNOUT_PINK>>8)&0xff},${SNOUT_PINK&0xff})`);
+      grad.addColorStop(1, `rgb(${(DARK_SNOUT>>16)&0xff},${(DARK_SNOUT>>8)&0xff},${DARK_SNOUT&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SNOUT_PINK, 10);
+      
+      // Large detailed nostrils
+      ctx.fillStyle = '#4a2a2a';
+      ctx.beginPath();
+      ctx.ellipse(20, 32, 8, 10, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(44, 32, 8, 10, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nostril highlights
+      ctx.fillStyle = '#6a4a4a';
+      ctx.beginPath();
+      ctx.ellipse(18, 30, 3, 4, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(42, 30, 3, 4, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nostril depth
+      ctx.fillStyle = '#2a1a1a';
+      ctx.beginPath();
+      ctx.ellipse(20, 34, 5, 6, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(44, 34, 5, 6, 0, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    const snout = [snoutTex, snoutTex, snoutTex, snoutTex, snoutTex, snoutTex];
+    return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex], snout };
+  }
+
+  _sheepTextures(def) {
+    const s = 64;
+    const WOOL = 0xf5f5f5, WOOL_SHADOW = 0xd8d8d8, WOOL_HIGHLIGHT = 0xffffff,
+          FACE = 0x8a8a8a, DARK_FACE = 0x6a6a6a, BLACK = 0x222222;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      // Base wool gradient
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(WOOL_HIGHLIGHT>>16)&0xff},${(WOOL_HIGHLIGHT>>8)&0xff},${WOOL_HIGHLIGHT&0xff})`);
+      grad.addColorStop(1, `rgb(${(WOOL_SHADOW>>16)&0xff},${(WOOL_SHADOW>>8)&0xff},${WOOL_SHADOW&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      
+      this._noiseTex(ctx, s, s, WOOL, 15);
+      
+      // Wool curls (textured bumps)
+      for (let i = 0; i < 35; i++) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const r = 4 + Math.random() * 6;
+        
+        // Highlight
+        ctx.fillStyle = 'rgba(255,255,255,0.4)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r*0.8, 0, 0, Math.PI*2);
+        ctx.fill();
+        
+        // Shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.15)';
+        ctx.beginPath();
+        ctx.ellipse(x + 2, y + 2, r*0.8, r*0.6, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, s, s);
+      grad.addColorStop(0, `rgb(${(WOOL_HIGHLIGHT>>16)&0xff},${(WOOL_HIGHLIGHT>>8)&0xff},${WOOL_HIGHLIGHT&0xff})`);
+      grad.addColorStop(0.5, `rgb(${(WOOL>>16)&0xff},${(WOOL>>8)&0xff},${WOOL&0xff})`);
+      grad.addColorStop(1, `rgb(${(WOOL_SHADOW>>16)&0xff},${(WOOL_SHADOW>>8)&0xff},${WOOL_SHADOW&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WOOL, 12);
+      
+      // Add some wool bumps on top
+      for (let i = 0; i < 25; i++) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const r = 3 + Math.random() * 5;
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r*0.7, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(WOOL_SHADOW>>16)&0xff},${(WOOL_SHADOW>>8)&0xff},${WOOL_SHADOW&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WOOL_SHADOW, 10);
+    });
+
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(WOOL>>16)&0xff},${(WOOL>>8)&0xff},${WOOL&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WOOL, 12);
+      
+      // Front wool curls
+      for (let i = 0; i < 30; i++) {
+        const x = Math.random() * s;
+        const y = Math.random() * s;
+        const r = 3 + Math.random() * 5;
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.beginPath();
+        ctx.ellipse(x, y, r, r*0.75, 0, 0, Math.PI*2);
+        ctx.fill();
+      }
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(FACE>>16)&0xff + 10},${(FACE>>8)&0xff + 10},${FACE&0xff + 10})`);
+      grad.addColorStop(1, `rgb(${(DARK_FACE>>16)&0xff},${(DARK_FACE>>8)&0xff},${DARK_FACE&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, FACE, 12);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(FACE>>16)&0xff + 15},${(FACE>>8)&0xff + 15},${FACE&0xff + 15})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, FACE, 10);
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(DARK_FACE>>16)&0xff},${(DARK_FACE>>8)&0xff},${DARK_FACE&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK_FACE, 10);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(FACE>>16)&0xff + 15},${(FACE>>8)&0xff + 15},${FACE&0xff + 15})`);
+      grad.addColorStop(1, `rgb(${(DARK_FACE>>16)&0xff},${(DARK_FACE>>8)&0xff},${DARK_FACE&0xff})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, FACE, 12);
+      
+      // Expressive sheep eyes
+      const eyeY = 22;
+      
+      // Left eye (white part)
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(14, eyeY, 12, 10, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Left pupil
+      ctx.fillStyle = '#111';
+      ctx.fillRect(10, eyeY - 2, 8, 12);
+      
+      // Left eye highlights
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(12, eyeY - 1, 3, 4);
+      ctx.fillRect(14, eyeY + 4, 2, 2);
+      
+      // Right eye (white part)
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.ellipse(50, eyeY, 12, 10, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Right pupil
+      ctx.fillStyle = '#111';
+      ctx.fillRect(46, eyeY - 2, 8, 12);
+      
+      // Right eye highlights
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(49, eyeY - 1, 3, 4);
+      ctx.fillRect(47, eyeY + 4, 2, 2);
+      
+      // Ears on sides (visual hint)
+      ctx.fillStyle = 'rgba(90,90,90,0.5)';
+      ctx.beginPath();
+      ctx.ellipse(4, eyeY, 6, 12, -0.3, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(60, eyeY, 6, 12, 0.3, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nose/mouth
+      ctx.fillStyle = '#555';
+      ctx.beginPath();
+      ctx.ellipse(32, 46, 10, 6, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Nostrils
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.ellipse(28, 44, 3, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(36, 44, 3, 3, 0, 0, Math.PI*2);
+      ctx.fill();
+      
+      // Mouth
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(28, 50);
+      ctx.quadraticCurveTo(32, 54, 36, 50);
+      ctx.stroke();
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = `rgb(${(FACE>>16)&0xff},${(FACE>>8)&0xff},${FACE&0xff})`;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, FACE, 12);
+    });
+
+    const legTex = this._tex(s, s, (ctx) => {
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, `rgb(${(DARK_FACE>>16)&0xff + 10},${(DARK_FACE>>8)&0xff + 10},${DARK_FACE&0xff + 10})`);
+      grad.addColorStop(1, `rgb(${(DARK_FACE>>16)&0xff - 15},${(DARK_FACE>>8)&0xff - 15},${DARK_FACE&0xff - 15})`);
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK_FACE, 15);
+      
+      // Hooves
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(0, 50, s, 14);
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, 48, s, 4);
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
+  }
+
+  _spiderTextures(def) {
+    const s = 64;
+    const BODY = 0x333333, BODY_DARK = 0x222222, LEG = 0x2a2a2a;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 12);
+      // Stripe pattern
+      for (let i = 0; i < 4; i++) {
+        const y = 8 + i * 14;
+        ctx.fillStyle = 'rgba(60,20,20,0.3)';
+        ctx.fillRect(0, y, s, 4);
+      }
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 10);
+      // Red hourglass marking
+      ctx.fillStyle = '#8b2020';
+      ctx.beginPath();
+      ctx.moveTo(28, 16); ctx.lineTo(36, 16); ctx.lineTo(32, 24);
+      ctx.moveTo(28, 32); ctx.lineTo(36, 32); ctx.lineTo(32, 24);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(28, 32); ctx.lineTo(36, 32); ctx.lineTo(36, 40); ctx.lineTo(28, 40);
+      ctx.fill();
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY_DARK, 8);
+    });
+
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY_DARK, 10);
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 12);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#383838';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 10);
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#222';
+      ctx.fillRect(0, 0, s, s);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 10);
+      // 8 red eyes (4 per side)
+      const eyes = [
+        [12, 14], [16, 10], [22, 10], [26, 14],
+        [38, 14], [42, 10], [48, 10], [52, 14]
+      ];
+      for (const [ex, ey] of eyes) {
+        ctx.fillStyle = '#cc2020';
+        ctx.beginPath();
+        ctx.ellipse(ex, ey, 3, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ff4040';
+        ctx.beginPath();
+        ctx.ellipse(ex - 0.5, ey - 0.5, 1.5, 1.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      // Fangs
+      ctx.fillStyle = '#eee';
+      ctx.fillRect(18, 44, 3, 6);
+      ctx.fillRect(43, 44, 3, 6);
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#333';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BODY, 10);
+    });
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, LEG, 10);
+      // Leg segments
+      ctx.fillStyle = 'rgba(80,40,40,0.3)';
+      ctx.fillRect(0, 16, s, 2);
+      ctx.fillRect(0, 32, s, 2);
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
+  }
+
+  _genericTextures(def) {
+    const s = 8;
+    const t = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.bodyColor.toString(16).padStart(6,'0')); });
+    const h = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.headColor.toString(16).padStart(6,'0')); });
+    const l = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.legColor.toString(16).padStart(6,'0')); });
+    const arr = [t,t,t,t,t,t];
+    return { body: arr, head: [h,h,h,h,h,h], leg: [l,l,l,l,l,l] };
+  }
+
+  takeDamage(amount, fromPos) {
+    this.hp -= amount;
+    this.hurtTimer = 0.15;
+    // Knockback: push away from attacker
+    if (fromPos) {
+      const dx = this.position.x - fromPos.x;
+      const dz = this.position.z - fromPos.z;
+      const len = Math.sqrt(dx * dx + dz * dz) || 1;
+      const force = 3.5;
+      this.velocity.x += (dx / len) * force;
+      this.velocity.z += (dz / len) * force;
+    }
+    if (this.hp <= 0) {
+      this.dead = true;
+    }
+  }
+
+  update(dt, world, noise, playerPos) {
+    if (this.dead) return;
+
+    // Hurt flash
+    if (this.hurtTimer > 0) {
+      this.hurtTimer -= dt;
+      if (this.hurtTimer <= 0) {
+        this.hurtTimer = 0;
+        this._setHurtFlash(false);
+      } else {
+        this._setHurtFlash(true);
+      }
+    }
+
+    // AI timer
+    this.stateTimer -= dt;
+    if (this.stateTimer <= 0) {
+      if (this.state === 'idle') {
+        this.state = 'walking';
+        this.stateTimer = 2 + Math.random() * 4;
+        this.targetYaw = this.yaw + (Math.random() - 0.5) * Math.PI * 1.5;
+      } else {
+        this.state = 'idle';
+        this.stateTimer = 2 + Math.random() * 8;
+        this.velocity.x = 0;
+        this.velocity.z = 0;
+      }
+    }
+
+    // Look at player occasionally (within 8 blocks)
+    if (playerPos) {
+      const pdx = playerPos.x - this.position.x;
+      const pdz = playerPos.z - this.position.z;
+      const playerDist = Math.sqrt(pdx * pdx + pdz * pdz);
+      if (playerDist < 8 && this.state === 'idle' && Math.random() < 0.02) {
+        this.targetYaw = Math.atan2(-pdx, -pdz);
+        this.yaw = this.targetYaw;
+      }
+    }
+
+    // Movement
+    if (this.state === 'walking') {
+      // Smooth turn
+      let dy = this.targetYaw - this.yaw;
+      while (dy > Math.PI) dy -= Math.PI * 2;
+      while (dy < -Math.PI) dy += Math.PI * 2;
+      this.yaw += dy * Math.min(1, dt * 3);
+
+      this.velocity.x = -Math.sin(this.yaw) * WALK_SPEED;
+      this.velocity.z = -Math.cos(this.yaw) * WALK_SPEED;
+
+      // Stay near spawn
+      const dx = this.position.x - this.spawnPos.x;
+      const dz = this.position.z - this.spawnPos.z;
+      if (dx * dx + dz * dz > MAX_WANDER_DIST * MAX_WANDER_DIST) {
+        this.targetYaw = Math.atan2(-dx, -dz);
+      }
+    }
+
+    // Apply velocity with ground collision
+    this.position.x += this.velocity.x * dt;
+    this.position.z += this.velocity.z * dt;
+
+    // Ground snap
+    const bx = Math.floor(this.position.x);
+    const bz = Math.floor(this.position.z);
+    let groundY = -1;
+    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+      const block = world.getBlock(bx, y, bz);
+      if (block !== BLOCK.AIR && block !== BLOCK.WATER && BLOCKS[block]?.solid) {
+        groundY = y + 1;
+        break;
+      }
+    }
+    if (groundY < 0) groundY = SEA_LEVEL;
+
+    // Simple gravity
+    if (this.position.y > groundY) {
+      this.position.y -= 15 * dt;
+      if (this.position.y < groundY) this.position.y = groundY;
+    } else if (this.position.y < groundY) {
+      this.position.y = groundY;
+    }
+
+    // Update mesh transform
+    this.mesh.position.set(this.position.x, this.position.y, this.position.z);
+    this.mesh.rotation.y = this.yaw;
+
+    // Leg walking animation
+    const isMoving = this.state === 'walking' && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01);
+    const moveSpeed = isMoving ? Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z) : 0;
+    if (isMoving) {
+      // Speed proportional to movement velocity
+      this.walkPhase += dt * (4 + moveSpeed * 4);
+    } else {
+      this.walkPhase *= 0.9;
+    }
+
+    // Head and body bobbing when walking
+    const bobAmount = isMoving ? Math.sin(this.walkPhase * 2) * 0.04 : 0;
+    this.mesh.children.forEach(child => {
+      if (child.name === 'body') {
+        child.position.y = this._origBodyY + bobAmount;
+      } else if (child.name === 'head') {
+        child.position.y = this._origHeadY + bobAmount;
+      }
+    });
+
+    // Head tilt forward when walking
+    const headChild = this.mesh.children.find(c => c.name === 'head');
+    if (headChild) {
+      if (isMoving) {
+        headChild.rotation.x = -0.08;
+      } else {
+        headChild.rotation.x *= 0.9;
+      }
+    }
+
+    const swing = Math.sin(this.walkPhase) * 0.5;
+    for (let i = 0; i < this.legs.length; i++) {
+      const leg = this.legs[i];
+      // Quadruped: Front-left (0) & back-right (3) swing together
+      const phase = (i === 0 || i === 3) ? swing : -swing;
+      leg.rotation.x = phase;
+    }
+  }
+
+  _setHurtFlash(on) {
+    this.mesh.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          if (on) {
+            if (!m._savedEmissive) {
+              m._savedEmissive = m.emissive ? m.emissive.getHex() : 0;
+              m._savedEmissiveIntensity = m.emissiveIntensity || 0;
+            }
+            if (m.emissive) {
+              m.emissive.setHex(0xff2222);
+              m.emissiveIntensity = 0.6;
+            }
+          } else if (m._savedEmissive !== undefined) {
+            if (m.emissive) {
+              m.emissive.setHex(m._savedEmissive);
+              m.emissiveIntensity = m._savedEmissiveIntensity;
+            }
+            delete m._savedEmissive;
+            delete m._savedEmissiveIntensity;
+          }
+        }
+      }
+    });
+  }
+
+  // Get list of item drops
+  getDrops() {
+    const def = MOB_TYPES[this.type];
+    const drops = [];
+    for (const d of def.drops) {
+      const count = d.count[0] + Math.floor(Math.random() * (d.count[1] - d.count[0] + 1));
+      if (count > 0) drops.push({ item: d.item, count });
+    }
+    return drops;
+  }
+
+  distanceTo(px, pz) {
+    const dx = this.position.x - px;
+    const dz = this.position.z - pz;
+    return Math.sqrt(dx * dx + dz * dz);
+  }
+
+  dispose() {
+    this.mesh.traverse((child) => {
+      if (child.isMesh) {
+        child.geometry.dispose();
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          if (m.map) m.map.dispose();
+          m.dispose();
+        }
+      }
+    });
+  }
+}
+
+// ── MobManager ───────────────────────────────────────────────────────
+export class MobManager {
+  constructor(scene, world, audio) {
+    this.scene = scene;
+    this.world = world;
+    this.audio = audio;
+    this.mobs = [];
+    this._spawnedChunks = new Set();
+  }
+
+  clear() {
+    for (const mob of this.mobs) {
+      this.scene.remove(mob.mesh);
+      mob.dispose();
+    }
+    this.mobs.length = 0;
+    this._spawnedChunks.clear();
+  }
+
+  // Called when a chunk is first generated/loaded
+  spawnForChunk(cx, cz, isNight = false) {
+    const key = cx + ',' + cz;
+    if (this._spawnedChunks.has(key)) return;
+    this._spawnedChunks.add(key);
+
+    const baseX = cx * CHUNK_SIZE;
+    const baseZ = cz * CHUNK_SIZE;
+    const noise = this.world.noise;
+
+    // Check a few positions in the chunk for biome eligibility
+    const spawnPositions = [];
+    const biomeCounts = {};
+    for (let x = 2; x < CHUNK_SIZE - 2; x += 4) {
+      for (let z = 2; z < CHUNK_SIZE - 2; z += 4) {
+        const wx = baseX + x, wz = baseZ + z;
+        const h = this.world.heightAt(wx, wz);
+        if (h <= SEA_LEVEL || h >= WORLD_HEIGHT - 5) continue;
+        const biome = calcBiome(noise, wx, wz, h);
+        if (!MOB_SPAWN_BIOMES.has(biome)) continue;
+
+        // Scan downward from h to find actual ground (skip leaves, air, water, wood)
+        let groundY = -1;
+        for (let y = Math.min(h + 10, WORLD_HEIGHT - 2); y >= SEA_LEVEL; y--) {
+          const blk = this.world.getBlock(wx, y, wz);
+          if (blk === BLOCK.GRASS || blk === BLOCK.DIRT || blk === BLOCK.SNOW_BLOCK ||
+              blk === BLOCK.SNOW_GRASS || blk === BLOCK.PODZOL || blk === BLOCK.MYCELIUM) {
+            groundY = y;
+            break;
+          }
+        }
+        if (groundY < 0) continue;
+
+        spawnPositions.push({ x: wx + 0.5, z: wz + 0.5, y: groundY + 1, biome });
+        biomeCounts[biome] = (biomeCounts[biome] || 0) + 1;
+      }
+    }
+
+    if (spawnPositions.length === 0) return;
+
+    const seed = ((cx * 73856093) ^ (cz * 19349663)) >>> 0;
+    const rng = mulberry32(seed);
+
+    let dominantBiome = BIOMES.PLAINS;
+    let maxCount = 0;
+    for (const [b, c] of Object.entries(biomeCounts)) {
+      if (c > maxCount) { maxCount = c; dominantBiome = Number(b); }
+    }
+
+    let count;
+    if (dominantBiome === BIOMES.DESERT) {
+      count = DESERT_SPAWN_MIN + Math.floor(rng() * (DESERT_SPAWN_MAX - DESERT_SPAWN_MIN + 1));
+    } else if (dominantBiome === BIOMES.SWAMP) {
+      count = SWAMP_SPAWN_MIN + Math.floor(rng() * (SWAMP_SPAWN_MAX - SWAMP_SPAWN_MIN + 1));
+    } else {
+      count = BIOMES_SPAWN_MIN + Math.floor(rng() * (BIOMES_SPAWN_MAX - BIOMES_SPAWN_MIN + 1));
+    }
+    count = Math.min(count, MAX_MOBS_PER_CHUNK, spawnPositions.length);
+
+    const types = ['cow', 'pig', 'sheep'];
+    // Spiders spawn in dark biomes or at night — add them to pool for forests/caves
+    const spawnTypes = [...types];
+    if (dominantBiome === BIOMES.FOREST || dominantBiome === BIOMES.DARK_FOREST ||
+        dominantBiome === BIOMES.TAIGA || dominantBiome === BIOMES.SWAMP) {
+      spawnTypes.push('spider');
+    }
+    // Hostile mobs (zombie, skeleton, spider) spawn at night everywhere
+    if (isNight) {
+      spawnTypes.push('zombie', 'skeleton', 'spider');
+    }
+    const placed = [];
+
+    for (let i = 0; i < count; i++) {
+      let bestPos = null;
+      let bestIdx = -1;
+      let bestDist = -1;
+
+      for (let j = 0; j < spawnPositions.length; j++) {
+        const pos = spawnPositions[j];
+        let minDist = Infinity;
+        for (const p of placed) {
+          const dx = pos.x - p.x, dz = pos.z - p.z;
+          const d = Math.sqrt(dx * dx + dz * dz);
+          if (d < minDist) minDist = d;
+        }
+        if (minDist > bestDist) {
+          bestDist = minDist;
+          bestPos = pos;
+          bestIdx = j;
+        }
+      }
+
+      if (bestIdx < 0) break;
+      if (bestDist < MIN_SPAWN_DISTANCE && placed.length > 0) break;
+
+      const type = spawnTypes[Math.floor(rng() * spawnTypes.length)];
+      const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z);
+      this.mobs.push(mob);
+      this.scene.add(mob.mesh);
+      placed.push(bestPos);
+      spawnPositions.splice(bestIdx, 1);
+    }
+  }
+
+  update(dt, playerPos, dayTime) {
+    // dayTime: 0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset
+    // Night is when dayTime > DAY_FRAC (10/16 ≈ 0.625)
+    const isNight = dayTime != null && dayTime > 0.625;
+
+    // Update all mobs
+    for (let i = this.mobs.length - 1; i >= 0; i--) {
+      const mob = this.mobs[i];
+      if (mob.dead) continue;
+
+      // Spider hostile AI: chase player at night (or when provoked)
+      const def = MOB_TYPES[mob.type];
+      if (def.hostileAtNight && playerPos) {
+        const dx = playerPos.x - mob.position.x;
+        const dz = playerPos.z - mob.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if ((isNight || mob.aggro) && dist < 16) {
+          // Chase player at night or when provoked
+          mob.state = 'walking';
+          mob.targetYaw = Math.atan2(-dx, -dz);
+          mob.stateTimer = 0.5;
+
+          // Attack if close enough
+          if (dist < 1.8) {
+            mob.attackCooldown = (mob.attackCooldown || 0) - dt;
+            if (mob.attackCooldown <= 0) {
+              mob.attackCooldown = 1.0;
+              return { type: 'attack', damage: def.attackDamage || 4 };
+            }
+          }
+        } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {
+          // Neutral in daylight: run away from player if too close
+          if (dist < 4) {
+            mob.targetYaw = Math.atan2(dx, dz); // face away
+            mob.stateTimer = 2;
+          }
+        }
+      }
+
+      mob.update(dt, this.world, this.world.noise, playerPos);
+
+      // Idle sounds
+      if (this.audio && mob.state === 'idle' && Math.random() < (MOB_TYPES[mob.type].soundChance || 0.003) * dt * 60) {
+        const now = performance.now();
+        if (!this._lastSoundTime || now - this._lastSoundTime > 3000) {
+          this._lastSoundTime = now;
+          this._playAnimalSound(mob.type);
+        }
+      }
+    }
+
+    // Cull mobs too far from player
+    if (playerPos) {
+      for (let i = this.mobs.length - 1; i >= 0; i--) {
+        const mob = this.mobs[i];
+        if (mob.distanceTo(playerPos.x, playerPos.z) > CULL_DIST) {
+          this.scene.remove(mob.mesh);
+          mob.dispose();
+          this.mobs.splice(i, 1);
+        }
+      }
+    }
+  }
+
+  _playAnimalSound(type) {
+    if (!this.audio) return;
+    if (type === 'cow') this.audio.cowSound();
+    else if (type === 'pig') this.audio.pigSound();
+    else if (type === 'sheep') this.audio.sheepSound();
+  }
+
+  playHurtSound(type) {
+    if (!this.audio) return;
+    this.audio.hurtAnimal();
+  }
+
+  // Try to hit a mob using ray-AABB intersection. Returns the hit mob or null.
+  hitTest(playerPos, lookDir, reach) {
+    let best = null;
+    let bestDist = reach * reach;
+
+    for (const mob of this.mobs) {
+      if (mob.dead) continue;
+      const def = MOB_TYPES[mob.type];
+      const totalH = def.legH + def.bodyH + def.headH;
+
+      // Generous AABB — big enough to click easily
+      const halfW = Math.max(def.bodyW, def.headW) / 2 + 0.5;
+      const halfD = Math.max(def.bodyD, def.headD) / 2 + 0.5;
+
+      const minX = mob.position.x - halfW;
+      const maxX = mob.position.x + halfW;
+      const minY = mob.position.y;
+      const maxY = mob.position.y + totalH;
+      const minZ = mob.position.z - halfD;
+      const maxZ = mob.position.z + halfD;
+
+      // Ray-AABB intersection test
+      let tmin = -Infinity, tmax = Infinity;
+      const ox = playerPos.x, oy = playerPos.y + 1.62, oz = playerPos.z;
+      const dx = lookDir.x, dy = lookDir.y, dz = lookDir.z;
+
+      if (dx !== 0) {
+        let t1 = (minX - ox) / dx, t2 = (maxX - ox) / dx;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        tmin = Math.max(tmin, t1);
+        tmax = Math.min(tmax, t2);
+      } else if (ox < minX || ox > maxX) continue;
+      if (dy !== 0) {
+        let t1 = (minY - oy) / dy, t2 = (maxY - oy) / dy;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        tmin = Math.max(tmin, t1);
+        tmax = Math.min(tmax, t2);
+      } else if (oy < minY || oy > maxY) continue;
+      if (dz !== 0) {
+        let t1 = (minZ - oz) / dz, t2 = (maxZ - oz) / dz;
+        if (t1 > t2) { const tmp = t1; t1 = t2; t2 = tmp; }
+        tmin = Math.max(tmin, t1);
+        tmax = Math.min(tmax, t2);
+      } else if (oz < minZ || oz > maxZ) continue;
+
+      if (tmin > tmax || tmax < 0) continue;
+
+      const hitDist = tmin >= 0 ? tmin : tmax;
+      if (hitDist > reach) continue;
+
+      if (hitDist * hitDist < bestDist) {
+        bestDist = hitDist * hitDist;
+        best = mob;
+      }
+    }
+
+    return best;
+  }
+}

@@ -1,4 +1,6 @@
-node_modules
-dist
-.DS_Store
+node_modules/
+dist/
+.vite/
 *.log
+.DS_Store
+__MACOSX/

@@ -28,25 +28,34 @@ function mulberry32(a) {
   };
 }
 
+// Large prime XOR offsets to spread each noise layer across the full 32-bit range
+const LAYER_SEED = [
+  0x9E3779B9, 0xBF58476D, 0x6A09E667, 0xBB67AE85,
+  0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C,
+  0x1F83D9AB, 0x5BE0CD19, 0x243F6A88, 0xC0D16F47,
+  0x7A1542D3, 0x41C63B2D,
+];
+
 export class Noise {
-  constructor(seedStr) {
-    const base = hashSeed(String(seedStr));
-    const rng = mulberry32(base);
-    this.height   = createNoise2D(mulberry32(base + 1));
-    this.detail   = createNoise2D(mulberry32(base + 2));
-    this.ridge    = createNoise2D(mulberry32(base + 3));
-    this.temp     = createNoise2D(mulberry32(base + 4));
-    this.humid    = createNoise2D(mulberry32(base + 5));
-    this.cave      = createNoise3D(mulberry32(base + 6));
-    this.cave2     = createNoise3D(mulberry32(base + 7));
-    this.ore       = createNoise3D(mulberry32(base + 8));
-    this.treeRng   = mulberry32(base + 9);   // deterministic per-block scatter
-    // Minecraft-style biome noise layers
-    this.continentalness = createNoise2D(mulberry32(base + 10));
-    this.erosion         = createNoise2D(mulberry32(base + 11));
-    this.weirdness       = createNoise2D(mulberry32(base + 12));
-    this.depth           = createNoise2D(mulberry32(base + 13));
-    this.rng = rng;
+  constructor(seed) {
+    // Use the raw integer seed directly — no string conversion
+    const base = (typeof seed === 'number') ? (seed | 0) : hashSeed(String(seed));
+
+    // Each noise layer gets its own independent PRNG seeded with XOR of base + unique constant
+    this.height        = createNoise2D(mulberry32(base ^ LAYER_SEED[0]));
+    this.detail        = createNoise2D(mulberry32(base ^ LAYER_SEED[1]));
+    this.ridge         = createNoise2D(mulberry32(base ^ LAYER_SEED[2]));
+    this.temp          = createNoise2D(mulberry32(base ^ LAYER_SEED[3]));
+    this.humid         = createNoise2D(mulberry32(base ^ LAYER_SEED[4]));
+    this.cave          = createNoise3D(mulberry32(base ^ LAYER_SEED[5]));
+    this.cave2         = createNoise3D(mulberry32(base ^ LAYER_SEED[6]));
+    this.ore           = createNoise3D(mulberry32(base ^ LAYER_SEED[7]));
+    this.treeRng       = mulberry32(base ^ LAYER_SEED[8]);
+    this.continentalness = createNoise2D(mulberry32(base ^ LAYER_SEED[9]));
+    this.erosion       = createNoise2D(mulberry32(base ^ LAYER_SEED[10]));
+    this.weirdness     = createNoise2D(mulberry32(base ^ LAYER_SEED[11]));
+    this.depth         = createNoise2D(mulberry32(base ^ LAYER_SEED[12]));
+    this.rng           = mulberry32(base ^ LAYER_SEED[13]);
   }
 
   // Fractal Brownian motion (stacked octaves) in 2D, returns ~[-1,1].
