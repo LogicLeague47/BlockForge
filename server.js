@@ -3,9 +3,9 @@
 
 import { WebSocketServer } from 'ws';
 import http from 'http';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, readFile } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join } from 'path';
+import { dirname, join, extname } from 'path';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 
 // Profanity filter (server-side) — matches expanded client list
@@ -222,15 +222,59 @@ function broadcastPlayerList(room) {
   broadcast(room, { type: 'player_list', players });
 }
 
-// ── HTTP server ───────────────────────────────────────────────────────
+// ── HTTP server (serves the built game + health check) ────────────────
+const MIME = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav',
+  '.ogg': 'audio/ogg',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
+};
+const PUBLIC_DIR = join(__dirname, 'dist');
+
+function serveFile(filePath, res) {
+  readFile(filePath, (err, data) => {
+    if (err) {
+      // SPA fallback → serve index.html
+      readFile(join(PUBLIC_DIR, 'index.html'), (e2, html) => {
+        if (e2) { res.writeHead(404); res.end('Not found'); return; }
+        res.writeHead(200, { 'Content-Type': MIME['.html'] });
+        res.end(html);
+      });
+      return;
+    }
+    const ext = extname(filePath).toLowerCase();
+    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.end(data);
+  });
+}
+
 const server = http.createServer((req, res) => {
   if (req.url === '/health') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ rooms: rooms.size, status: 'ok', uptime: process.uptime() }));
-  } else {
-    res.writeHead(404);
-    res.end();
+    return;
   }
+  // Serve static game files from dist/
+  let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath === '/') urlPath = '/index.html';
+  const filePath = join(PUBLIC_DIR, urlPath);
+  // Prevent path traversal
+  if (!filePath.startsWith(PUBLIC_DIR)) { res.writeHead(403); res.end('Forbidden'); return; }
+  serveFile(filePath, res);
 });
 
 // ── WebSocket server ──────────────────────────────────────────────────
