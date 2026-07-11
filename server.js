@@ -717,7 +717,7 @@ function sendError(ws, text) {
 const IS_LAN = process.argv.includes('--lan');
 loadRooms();
 loadAccounts();
-if (!IS_LAN) ensureOfficialServer();
+ensureOfficialServer();
 server.listen(PORT, () => {
   console.log(`\n  BlockForge Server`);
   console.log(`  ─────────────────`);
