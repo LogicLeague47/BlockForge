@@ -41,10 +41,12 @@ const _urlParams = new URLSearchParams(window.location.search);
 const _serverParam = _urlParams.get('server');
 const MP_SERVER_URL = _serverParam
   ? _serverParam
-  : window.location.hostname === 'localhost'
+  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'ws://localhost:4000'
     : window.location.protocol === 'https:'
-      ? 'wss://blockforge-server.onrender.com'
+      // Auto-detect: connect to the same host we were served from (works on
+      // Render, a Cloudflare tunnel, or any custom domain like blockforge.io)
+      ? `wss://${window.location.hostname}`
       : `ws://${window.location.hostname}:4000`;
 let _mpSendTimer = 0;
 
