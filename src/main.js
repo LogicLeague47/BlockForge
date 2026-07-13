@@ -10,7 +10,7 @@ import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { Audio } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
-import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName } from './items.js';
+import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
@@ -544,6 +544,7 @@ function updateParticles(dt) {
 
 // --- Game state (set by startGame) ---
 let world = null, manager = null, loader = null, player = null, mobManager = null, playerModel = null;
+let _lastLocalArmorKey = '';
 let gameRunning = false;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
@@ -1538,7 +1539,7 @@ function renderServerList(filter, remoteRooms) {
     listEl.innerHTML = '<div style="text-align:center;color:#666;padding:16px;font:12px monospace;">' + (filter ? 'No servers match your search.' : 'No servers found. Create one!') + '</div>';
   } else {
     listEl.innerHTML = servers.map(s => {
-      const isOwner = s.ownerName === playerName;
+      const isOwner = s.ownerName === playerName && s.name !== 'OfficialSMP';
       const isOnline = s._online !== false;
       const playerCount = isOnline && s.players ? s.players.length : 0;
       const isFull = playerCount >= s.maxPlayers;
@@ -1995,6 +1996,8 @@ window._joinServer = (name) => {
 };
 
 window._deleteServer = (name) => {
+  // OfficialSMP is a permanent server and can never be deleted.
+  if (name === 'OfficialSMP') return;
   // Tell server to delete the room (owner only — server enforces this)
   if (network.connected) {
     network._send({ type: 'delete_room', room: name });
@@ -3756,6 +3759,12 @@ function loop() {
       const isBreaking = input.mouseLeftHeld && pointerLocked && breakingTarget != null;
       const isPlacing = placeAnimTimer > 0;
       playerModel.update(dt, player.position, player.yaw, player.velocity, player.onGround, player.sprinting, isBreaking, isPlacing, isSwimming);
+      const armorIds = player.inventory.armor.map(s => s ? s.item : null);
+      const armorKey = armorIds.join(',');
+      if (armorKey !== _lastLocalArmorKey) {
+        _lastLocalArmorKey = armorKey;
+        try { playerModel.setArmor(armorIds, ARMOR); } catch (_) {}
+      }
     }
   }
 

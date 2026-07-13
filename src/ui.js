@@ -1667,6 +1667,18 @@ export class UI {
     } else {
       const s = inv.slots[i];
       if (s) {
+        // Quick-equip: left-clicking an armor piece sends it straight to its
+        // armor slot (swapping whatever is already there back into this slot).
+        const def = itemDef(s.item);
+        if (def && def.armor) {
+          const idx = def.armor.slotIdx;
+          const prev = inv.armor[idx];
+          inv.armor[idx] = { item: s.item, count: 1, ...(s.durability != null ? { durability: s.durability } : {}) };
+          inv.slots[i] = prev ? { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) } : null;
+          this.renderInventoryGrid(inv);
+          this._updateCursorVisual();
+          return;
+        }
         this.cursorItem = { item: s.item, count: s.count, durability: s.durability };
         inv.slots[i] = null;
       }
