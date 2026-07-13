@@ -17,7 +17,7 @@ import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
 import { calcBiome } from './worldgen.js';
-import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin } from './skins.js';
+import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, deleteCustomSkin, setSelectedCustomSkin } from './skins.js';
 import { PlayerModel } from './playermodel.js';
 import { SkinEditor } from './skineditor.js';
 import { getKeybinds, setKeybind, resetKeybinds, keyName, KEYBIND_ACTIONS } from './keybinds.js';
@@ -3334,7 +3334,11 @@ function initMenu() {
   });
 
   // --- Controls / key bindings ---
-  document.getElementById('btn-open-controls').addEventListener('click', () => {
+  // Key bindings don't apply on touch devices — hide the button on mobile.
+  const _controlsBtn = document.getElementById('btn-open-controls');
+  if (_controlsBtn && IS_MOBILE) _controlsBtn.style.display = 'none';
+  _controlsBtn?.addEventListener('click', () => {
+    if (IS_MOBILE) return;
     ui.showMenu('controls');
     renderControls();
   });
@@ -4228,6 +4232,25 @@ function updateMenuPreviewSkin(preset) {
 initMenuPreview();
 
 // --- Skin Picker ---
+// Draw a small front-facing avatar from a 64x64 custom skin data URL.
+function drawMiniCustomSkin(cvs, dataUrl) {
+  const ctx = cvs.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const img = new Image();
+  img.onload = () => {
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+    const draw = (sx, sy, sw, sh, dx, dy) => { try { ctx.drawImage(img, sx, sy, sw, sh, dx, dy, sw, sh); } catch (_) {} };
+    // Front faces from the standard MC layout, composed into a 16x32 avatar.
+    draw(8, 8, 8, 8, 4, 0);    // head
+    draw(20, 20, 8, 12, 4, 8); // body
+    draw(44, 20, 4, 12, 0, 8); // right arm
+    draw(36, 52, 4, 12, 12, 8);// left arm
+    draw(4, 20, 4, 12, 4, 20); // right leg
+    draw(20, 52, 4, 12, 8, 20);// left leg
+  };
+  img.src = dataUrl;
+}
+
 function buildSkinPicker() {
   const boysGrid = document.getElementById('skin-grid-boys');
   const girlsGrid = document.getElementById('skin-grid-girls');
@@ -4235,6 +4258,47 @@ function buildSkinPicker() {
   boysGrid.innerHTML = '';
   girlsGrid.innerHTML = '';
   const current = getSelectedSkin();
+
+  // --- Custom Skins section (saved from the editor) ---
+  const customSection = document.getElementById('skin-custom-section');
+  const customGrid = document.getElementById('skin-grid-custom');
+  if (customGrid) {
+    customGrid.innerHTML = '';
+    const customs = getCustomSkins();
+    if (customSection) customSection.style.display = customs.length ? '' : 'none';
+    customs.forEach((dataUrl, ci) => {
+      const card = document.createElement('div');
+      card.className = 'skin-card' + (current._customIndex === ci ? ' selected' : '');
+      card.style.position = 'relative';
+      const cvs = document.createElement('canvas');
+      cvs.width = 16; cvs.height = 32;
+      cvs.style.width = '48px'; cvs.style.height = '96px';
+      cvs.style.imageRendering = 'pixelated';
+      drawMiniCustomSkin(cvs, dataUrl);
+      card.appendChild(cvs);
+      const label = document.createElement('div');
+      label.className = 'skin-card-name';
+      label.textContent = 'Custom ' + (ci + 1);
+      card.appendChild(label);
+      // delete (x) button
+      const del = document.createElement('div');
+      del.textContent = '✕';
+      del.title = 'Delete';
+      del.style.cssText = 'position:absolute;top:2px;right:2px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;background:rgba(140,40,40,0.85);color:#fff;border-radius:3px;font:bold 11px monospace;cursor:pointer;';
+      del.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Delete Custom ' + (ci + 1) + '?')) { deleteCustomSkin(ci); buildSkinPicker(); updateMenuPreviewSkin(getSelectedSkin()); }
+      });
+      card.appendChild(del);
+      card.addEventListener('click', () => {
+        setSelectedCustomSkin(ci);
+        buildSkinPicker();
+        updateMenuPreviewSkin(getSelectedSkin());
+      });
+      customGrid.appendChild(card);
+    });
+  }
+
   SKIN_PRESETS.forEach((preset, i) => {
     const isGirl = preset.gender === 'girl';
     const targetGrid = isGirl ? girlsGrid : boysGrid;

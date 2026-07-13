@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { PlayerModel } from './playermodel.js';
 import { createSkinCanvas } from './playermodel.js';
-import { getSelectedSkin, saveCustomSkin, reloadCustomSkin } from './skins.js';
+import { getSelectedSkin, addCustomSkin, reloadCustomSkin } from './skins.js';
 
 const SIZE = 64;          // skin canvas is 64x64
 const VIEW = 384;         // on-screen paint area size (px)
@@ -425,9 +425,9 @@ export class SkinEditor {
   _save() {
     try {
       const url = this.skin.toDataURL('image/png');
-      saveCustomSkin(url);
+      addCustomSkin(url); // adds to the Custom Skins library and selects it
       reloadCustomSkin();
-      this._flash('Saved! Your character now uses this skin.');
+      this._flash('Saved to Custom Skins! Now equipped.');
     } catch (_) {
       this._flash('Save failed.', true);
     }

@@ -131,7 +131,59 @@ export const SKIN_PRESETS = [
 ];
 
 const STORAGE_KEY = 'blockforge_skin';
-const STORAGE_KEY_CUSTOM = 'blockforge_custom_skin_data';
+const STORAGE_KEY_CUSTOM = 'blockforge_custom_skin_data'; // legacy single custom skin
+const STORAGE_KEY_CUSTOM_LIST = 'blockforge_custom_skins'; // array of saved custom skins
+
+// --- Saved custom skins library -------------------------------------------
+export function getCustomSkins() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_LIST);
+    if (raw) { const list = JSON.parse(raw); if (Array.isArray(list)) return list; }
+  } catch {}
+  // Migrate a legacy single custom skin into the list.
+  try {
+    const old = localStorage.getItem(STORAGE_KEY_CUSTOM);
+    if (old) { localStorage.setItem(STORAGE_KEY_CUSTOM_LIST, JSON.stringify([old])); return [old]; }
+  } catch {}
+  return [];
+}
+
+function _saveCustomSkins(list) {
+  try { localStorage.setItem(STORAGE_KEY_CUSTOM_LIST, JSON.stringify(list)); } catch {}
+}
+
+// Add a new custom skin to the library and select it. Returns its index.
+export function addCustomSkin(dataUrl) {
+  const list = getCustomSkins();
+  list.push(dataUrl);
+  _saveCustomSkins(list);
+  const idx = list.length - 1;
+  setSelectedCustomSkin(idx);
+  try { localStorage.setItem('bf_custom_skin_created', '1'); } catch {}
+  return idx;
+}
+
+export function deleteCustomSkin(index) {
+  const list = getCustomSkins();
+  if (index < 0 || index >= list.length) return;
+  list.splice(index, 1);
+  _saveCustomSkins(list);
+  // Fix up the current selection if it pointed at/after the removed skin.
+  try {
+    const sel = localStorage.getItem(STORAGE_KEY) || '';
+    if (sel.startsWith('custom:')) {
+      const cur = parseInt(sel.slice(7), 10);
+      if (cur === index) localStorage.setItem(STORAGE_KEY, '0');       // fell back to preset
+      else if (cur > index) localStorage.setItem(STORAGE_KEY, 'custom:' + (cur - 1));
+    }
+  } catch {}
+  reloadCustomSkin();
+}
+
+export function setSelectedCustomSkin(index) {
+  try { localStorage.setItem(STORAGE_KEY, 'custom:' + index); } catch {}
+  reloadCustomSkin();
+}
 
 // Cached custom canvas (loaded async from data URL)
 let _customCanvas = null;
@@ -177,12 +229,16 @@ function _loadCustomCanvas() {
 export function getSelectedSkin() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved && saved.startsWith('custom:')) {
+      const idx = parseInt(saved.slice(7), 10);
+      const list = getCustomSkins();
+      if (list[idx]) return { name: 'Custom ' + (idx + 1), _dataUrl: list[idx], _customIndex: idx };
+      return SKIN_PRESETS[0];
+    }
     if (saved === 'custom') {
-      const dataUrl = localStorage.getItem(STORAGE_KEY_CUSTOM);
-      if (dataUrl) {
-        // Return a skin object that will load the canvas
-        return { name: 'Custom', _dataUrl: dataUrl };
-      }
+      // Legacy single custom skin.
+      const list = getCustomSkins();
+      if (list[0]) return { name: 'Custom 1', _dataUrl: list[0], _customIndex: 0 };
       return SKIN_PRESETS[0];
     }
     if (saved) {
