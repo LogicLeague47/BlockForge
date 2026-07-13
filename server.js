@@ -197,21 +197,38 @@ function resolveRole(cgUsername, playerName) {
 // Prevents name spoofing: to use a username you must know its password.
 let accounts = {}; // { username: { hash, salt } }
 
+// Accounts committed in accounts.json (e.g. LogicLeague) are "source accounts":
+// always loaded from source and never written to Redis, so they survive even if
+// the Redis database is ever lost/crashed.
+let fileAccounts = {};
+
 async function loadAccounts() {
+  try {
+    if (existsSync(ACCOUNTS_FILE)) fileAccounts = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8')) || {};
+  } catch { fileAccounts = {}; }
+
   if (USE_REDIS) {
+    let redisAccounts = {};
     const data = await redisCmd(['GET', 'accounts']);
-    if (data) { try { accounts = JSON.parse(data) || {}; } catch { accounts = {}; } }
-    console.log(`[Data] Loaded ${Object.keys(accounts).length} accounts from Redis`);
+    if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch {} }
+    // Source accounts override Redis so they always come from the committed file.
+    accounts = { ...redisAccounts, ...fileAccounts };
+    console.log(`[Data] Accounts: ${Object.keys(redisAccounts).length} from Redis + ${Object.keys(fileAccounts).length} from source`);
     return;
   }
-  if (!existsSync(ACCOUNTS_FILE)) return;
-  try {
-    accounts = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8')) || {};
-  } catch { accounts = {}; }
+  accounts = { ...fileAccounts };
 }
 
 function saveAccounts() {
-  if (USE_REDIS) { redisSaveDebounced('accounts', () => accounts); return; }
+  if (USE_REDIS) {
+    // Never write source accounts (LogicLeague, etc.) to Redis — keep them in source only.
+    redisSaveDebounced('accounts', () => {
+      const out = {};
+      for (const [k, v] of Object.entries(accounts)) if (!fileAccounts[k]) out[k] = v;
+      return out;
+    });
+    return;
+  }
   try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch {}
 }
 
