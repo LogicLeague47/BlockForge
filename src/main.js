@@ -2858,17 +2858,23 @@ function initMenu() {
   document.getElementById('btn-lan-back')?.addEventListener('click', () => {
     ui.showMenu('main');
   });
+  document.getElementById('btn-lan-copy')?.addEventListener('click', () => {
+    const code = document.getElementById('lan-host-ip')?.textContent || '';
+    const btn = document.getElementById('btn-lan-copy');
+    try { navigator.clipboard?.writeText(code); } catch (_) {}
+    if (btn) { const t = btn.textContent; btn.textContent = 'COPIED'; setTimeout(() => { btn.textContent = t; }, 1200); }
+  });
 
   // LAN Host — start a singleplayer world + connect to local WS server for others to join
   document.getElementById('btn-lan-host')?.addEventListener('click', () => {
     const worldName = (document.getElementById('input-lan-world')?.value || 'LAN World').trim();
     const lanServerUrl = `ws://${_localIP || 'localhost'}:4000`;
 
-    // Show host info
+    // Show host info — display just the plain IP (simpler for friends to type).
     const infoEl = document.getElementById('lan-host-info');
     if (infoEl) infoEl.style.display = '';
     const ipEl = document.getElementById('lan-host-ip');
-    if (ipEl) ipEl.textContent = `ws://${_localIP || 'localhost'}:4000`;
+    if (ipEl) ipEl.textContent = _localIP || 'localhost';
 
     // Connect to local WS server and create the room — onJoined will start the game
     network.connect(lanServerUrl);

@@ -684,8 +684,12 @@ function handleDeleteRoom(ws, msg) {
     return ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'This server is official and cannot be deleted.' }));
   }
 
-  if (room.ownerName !== pd.name) {
-    return ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'Only the server owner can delete this server.' }));
+  // Deletion requires being joined as the verified owner. Owner role is only
+  // granted when the correct ownerSecret was presented at join (see handleJoin),
+  // so this ties deletion to the account/secret, not just a matching name.
+  const isVerifiedOwner = pd.role === ROLE_OWNER && room.ownerName === pd.name;
+  if (!isVerifiedOwner) {
+    return ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'Only the verified server owner can delete this server.' }));
   }
 
   for (const [cws] of room.players) {
