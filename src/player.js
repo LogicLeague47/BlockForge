@@ -17,6 +17,7 @@ import { Inventory } from './inventory.js';
 import { Noise } from './noise.js';
 import { calcHeight } from './worldgen.js';
 import { totalArmorDefense } from './items.js';
+import { getKeybinds } from './keybinds.js';
 
 const EYE_HEIGHT = 1.62;
 const PLAYER_HALF_WIDTH = 0.3;
@@ -47,6 +48,7 @@ export class Player {
     this.pitch = 0;
     this.onGround = false;
     this.flying = false;
+    this.knockback = { x: 0, y: 0, z: 0 }; // decaying impulse separate from input velocity
     this.crouching = false;
     this.sprinting = false;
     this.inWater = false;
@@ -157,6 +159,17 @@ export class Player {
   takeDamage(amount, source = 'generic') {
     if (this.isCreative() || this.isDead()) return;
     if (this.damageTimer > 0) return; // i-frames
+
+    // Knockback: push away from the damage source if it has a position.
+    if (source && typeof source === 'object' && source.x !== undefined) {
+      const dx = this.pos.x - source.x;
+      const dz = this.pos.z - source.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const power = source.knockback ?? 6;
+      this.knockback.x += (dx / len) * power;
+      this.knockback.z += (dz / len) * power;
+      this.knockback.y += 3.2;
+    }
 
     // Armor damage reduction using totalArmorDefense (handles full-set bonuses)
     const armorDef = this.inventory ? totalArmorDefense(this.inventory.armor) : 0;
@@ -295,14 +308,15 @@ export class Player {
     // Head-in-water check (eye level) for drowning.
     this.headInWater = this.eyeBlock() === BLOCK.WATER;
 
-    this.crouching = (!!input.keys['ControlLeft'] || !!input.keys['KeyC']) && !this.flying;
+    const kb = getKeybinds();
+    this.crouching = (!!input.keys[kb.crouch] || !!input.keys['KeyC']) && !this.flying;
     // Sprinting: disabled when hungry, crouching, or eating
     if (this.isSurvival() && this.hunger <= 6) this.sprinting = false;
-    else this.sprinting = !!input.keys['ShiftLeft'] && !this.crouching && !this.eating;
+    else this.sprinting = !!input.keys[kb.sprint] && !this.crouching && !this.eating;
 
     // Double-tap space to start fly in creative (only toggles ON, not OFF)
     // Only detect on initial press, not while held (prevents flicker)
-    if (this.isCreative() && !this.flying && input.keys['Space'] && !this.inWater && !this._spaceHeld) {
+    if (this.isCreative() && !this.flying && input.keys[kb.jump] && !this.inWater && !this._spaceHeld) {
       const now = performance.now();
       if (now - this._lastSpaceTime < 300) {
         this.toggleFly();
@@ -311,7 +325,7 @@ export class Player {
         this._lastSpaceTime = now;
       }
     }
-    this._spaceHeld = !!input.keys['Space'];
+    this._spaceHeld = !!input.keys[kb.jump];
 
     // --- desired horizontal velocity from input ---
     const EAT_SPEED = 1.3;  // slower than crouch when eating
@@ -325,27 +339,27 @@ export class Player {
     const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
     const move = new THREE.Vector3();
-    if (input.keys['KeyW']) move.add(forward);
-    if (input.keys['KeyS']) move.sub(forward);
-    if (input.keys['KeyD']) move.add(right);
-    if (input.keys['KeyA']) move.sub(right);
+    if (input.keys[kb.forward]) move.add(forward);
+    if (input.keys[kb.back]) move.sub(forward);
+    if (input.keys[kb.right]) move.add(right);
+    if (input.keys[kb.left]) move.sub(right);
     if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed);
 
     this.velocity.x = move.x;
     this.velocity.z = move.z;
 
     if (this.flying) {
-      // vertical fly: space up, crouch (C/Ctrl) down
+      // vertical fly: jump up, crouch (C/Ctrl) down
       this.velocity.y = 0;
-      if (input.keys['Space']) this.velocity.y = FLY_SPEED;
-      if (input.keys['ControlLeft'] || input.keys['KeyC']) this.velocity.y = -FLY_SPEED;
+      if (input.keys[kb.jump]) this.velocity.y = FLY_SPEED;
+      if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = -FLY_SPEED;
     } else if (this.inWater) {
       this.velocity.y -= SWIM_GRAVITY * dt;
       this.velocity.y = Math.max(this.velocity.y, -3);
-      if (input.keys['Space']) this.velocity.y = SWIM_SPEED;
+      if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
     } else {
       this.velocity.y -= GRAVITY * dt;
-      if (input.keys['Space'] && this.onGround) {
+      if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
         this.fallStartY = this.position.y;
@@ -369,9 +383,21 @@ export class Player {
     }
 
     // --- integrate with per-axis collision ---
-    const dx = this.velocity.x * dt;
-    const dy = this.velocity.y * dt;
-    const dz = this.velocity.z * dt;
+    let dx = this.velocity.x * dt;
+    let dy = this.velocity.y * dt;
+    let dz = this.velocity.z * dt;
+
+    // Knockback impulse (decays quickly, separate from input velocity).
+    if (Math.abs(this.knockback.x) > 0.001 || this.knockback.y > 0.001 || Math.abs(this.knockback.z) > 0.001) {
+      dx += this.knockback.x * dt;
+      dy += this.knockback.y * dt;
+      dz += this.knockback.z * dt;
+      const decay = Math.exp(-7 * dt);
+      this.knockback.x *= decay;
+      this.knockback.z *= decay;
+      this.knockback.y -= GRAVITY * dt * 0.6; // settle the upward pop
+      if (this.knockback.y < 0) this.knockback.y *= decay;
+    }
 
     this.moveAxis('x', dx);
     this.moveAxis('y', dy);

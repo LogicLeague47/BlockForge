@@ -41,6 +41,13 @@ export class ViewModel {
     this._swingDur = 0.25;
     this._bobPhase = 0;
     this._lastMove = 0;
+    this._clock = 0;
+    this._eatPhase = 0;
+    this._swim = 0;     // smoothed in-water pose factor (0..1)
+    this._fly = 0;      // smoothed flying pose factor (0..1)
+    this._landT = 0;    // landing dip impulse (decays)
+    this._hurtT = 0;    // hurt flinch impulse (decays)
+    this._wasGround = true;
 
     // Main hand resting pose (right of centre)
     this._restPos = new THREE.Vector3(0.55, -0.42, -1.0);
@@ -187,12 +194,37 @@ export class ViewModel {
 
   swing() { this._swingTime = this._swingDur; }
 
-  update(dt, swing, moving, eating) {
+  update(dt, swing, moving, eating, crouching = false, state = {}) {
     if (swing) this.swing();
+    this._clock += dt;
+
+    const inWater = !!state.inWater;
+    const flying = !!state.flying;
+    const onGround = state.onGround !== false;
+    const vy = state.vy || 0;
+    const pitch = state.pitch || 0;            // camera pitch (radians, -up .. +down)
+    const hurt = state.hurt ? 1 : 0;
+    const mining = state.mining ? 1 : 0;
+
+    // Smooth pose factors for swimming / flying.
+    const swimTarget = inWater ? 1 : 0;
+    const flyTarget = flying ? 1 : 0;
+    this._swim += (swimTarget - this._swim) * Math.min(1, dt * 6);
+    this._fly += (flyTarget - this._fly) * Math.min(1, dt * 6);
+
+    // Landing impulse: detect ground transition and briefly dip the arms.
+    if (onGround && !this._wasGround) this._landT = 1;
+    this._wasGround = onGround;
+    this._landT = Math.max(0, this._landT - dt * 4);
+    this._hurtT = Math.max(0, this._hurtT - dt * 3);
+    if (hurt) this._hurtT = 1;
+
+    const crouchDrop = (crouching ? 0.28 : 0) + this._landT * 0.08;
 
     const bobTarget = moving ? 1 : 0;
     this._lastMove += (bobTarget - this._lastMove) * Math.min(1, dt * 10);
-    this._bobPhase += dt * (moving ? 10 : 4);
+    // Slow bob while swimming, normal while walking.
+    this._bobPhase += dt * (inWater ? 6 : moving ? 10 : 4);
 
     // Eating timer for hand bob
     if (eating) {
@@ -208,16 +240,27 @@ export class ViewModel {
       swingT = 1 - this._swingTime / this._swingDur;
     }
 
+    const idle = Math.sin(this._clock * 1.6) * 0.012 * (1 - this._lastMove); // breathing
+    const swimPose = this._swim;
+    const flyPose = this._fly;
+    const lookTilt = pitch * 0.25;        // look up -> arms rise a touch
+    const hurtShake = this._hurtT * (Math.random() - 0.5) * 0.06;
+
     // --- Main hand ---
-    let py = this._restPos.y;
+    let py = this._restPos.y - crouchDrop + idle + lookTilt * 0.15;
     let px = this._restPos.x;
     let rx = this._restRot.x;
     let ry = this._restRot.y;
 
-    const bobAmp = 0.045 * this._lastMove;
+    const bobAmp = 0.045 * this._lastMove * (1 - swimPose);
     py += Math.sin(this._bobPhase) * bobAmp;
     rx += Math.cos(this._bobPhase) * 0.06 * this._lastMove;
     const sway = Math.sin(this._bobPhase * 0.5) * 0.04 * this._lastMove;
+
+    // Jump: raise arms slightly with upward velocity.
+    if (!onGround && vy > 0.5) { py += Math.min(vy, 12) * 0.012; rx -= 0.2; }
+    // Landing dip
+    if (this._landT > 0) { py -= this._landT * 0.12; }
 
     if (swingT > 0) {
       const e = swingT;
@@ -225,6 +268,25 @@ export class ViewModel {
       rx += arc * 1.1;
       py -= arc * 0.18;
       ry += arc * 0.25;
+    }
+
+    // Continuous mining "dig" wobble while breaking a block.
+    if (mining && swingT === 0) {
+      const m = Math.sin(this._clock * 22) * 0.05;
+      py += m; rx += m * 0.4;
+    }
+
+    // Swim pose: arms forward and a bit higher, gentler motion.
+    if (swimPose > 0) {
+      py += swimPose * 0.12;
+      px += swimPose * 0.05;
+      rx -= swimPose * 0.5;
+      ry += swimPose * 0.15;
+    }
+    // Fly pose: arms relax back slightly.
+    if (flyPose > 0) {
+      rx += flyPose * 0.15;
+      px -= flyPose * 0.04;
     }
 
     // Eating animation: hand bobs up toward center of screen (mouth)
@@ -235,17 +297,26 @@ export class ViewModel {
       rx -= eatT * 0.3;
     }
 
+    // Hurt flinch shake
+    px += hurtShake; py += hurtShake;
+
     this.hand.position.set(px + sway, py, this._restPos.z);
     this.hand.rotation.set(rx, ry, this._restRot.z);
 
     // --- Offhand ---
-    let ohPy = this._ohRestPos.y;
+    let ohPy = this._ohRestPos.y - crouchDrop + idle - lookTilt * 0.1;
     let ohRx = this._ohRestRot.x;
     let ohRy = this._ohRestRot.y;
 
     ohPy += Math.sin(this._bobPhase + Math.PI) * bobAmp * 0.7;
     ohRx += Math.cos(this._bobPhase + Math.PI) * 0.04 * this._lastMove;
     const ohSway = Math.sin(this._bobPhase * 0.5 + Math.PI) * 0.03 * this._lastMove;
+
+    if (!onGround && vy > 0.5) { ohPy += Math.min(vy, 12) * 0.012; ohRx -= 0.2; }
+    if (this._landT > 0) { ohPy -= this._landT * 0.12; }
+    if (swimPose > 0) { ohPy += swimPose * 0.12; ohRx -= swimPose * 0.5; ohRy -= swimPose * 0.15; }
+    if (flyPose > 0) { ohRx += flyPose * 0.15; ohRy += flyPose * 0.04; }
+    if (mining && swingT === 0) { const m = Math.sin(this._clock * 22 + 1) * 0.05; ohPy += m; ohRx += m * 0.4; }
 
     this.offhandGroup.position.set(this._ohRestPos.x + ohSway, ohPy, this._ohRestPos.z);
     this.offhandGroup.rotation.set(ohRx, ohRy, this._ohRestRot.z);

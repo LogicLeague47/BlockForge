@@ -5,7 +5,7 @@
 // hit (within `maxDist`), along with the face normal — which tells the caller
 // which adjacent cell to place a new block into.
 
-import { BLOCK } from './blocks.js';
+import { BLOCK, BLOCKS } from './blocks.js';
 
 export function raycastVoxel(world, origin, dir, maxDist = 6) {
   let x = Math.floor(origin.x);
@@ -34,7 +34,9 @@ export function raycastVoxel(world, origin, dir, maxDist = 6) {
 
   while (t <= maxDist) {
     const b = world.getBlock(x, y, z);
-    if (b !== BLOCK.AIR) {
+    // Skip air and non-solid liquids (e.g. water) so you can't target/break
+    // them and can reach the block behind.
+    if (b !== BLOCK.AIR && !BLOCKS[b]?.liquid) {
       return {
         block: b,
         x, y, z,

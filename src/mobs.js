@@ -1344,7 +1344,7 @@ export class MobManager {
             mob.attackCooldown = (mob.attackCooldown || 0) - dt;
             if (mob.attackCooldown <= 0) {
               mob.attackCooldown = 1.0;
-              return { type: 'attack', damage: def.attackDamage || 4 };
+              return { type: 'attack', damage: def.attackDamage || 4, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } };
             }
           }
         } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {

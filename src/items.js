@@ -61,6 +61,7 @@ export const ITEM = {
   PRISMITE_HELMET: 556, PRISMITE_CHEST: 557, PRISMITE_LEGS: 558, PRISMITE_BOOTS: 559,
   // misc
   BUCKET: 283,
+  WATER_BUCKET: 288,
   COOKED_APPLE: 284,
   BED: 285,
   SPIDER_EYE: 286,
@@ -160,6 +161,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.ARROW]:   { name: 'Arrow', stack: 64 },
   [ITEM.EGG]:     { name: 'Egg', stack: 16 },
   [ITEM.BUCKET]:  { name: 'Bucket', stack: 16 },
+  [ITEM.WATER_BUCKET]: { name: 'Water Bucket', stack: 1 },
   [ITEM.BED]:     { name: 'Bed', stack: 1 },
   [ITEM.SPIDER_EYE]: { name: 'Spider Eye', stack: 64, food: 3 },
   [ITEM.PRISMITE]:   { name: 'Prismite', stack: 64 },

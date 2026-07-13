@@ -20,8 +20,9 @@ import { calcBiome } from './worldgen.js';
 import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin } from './skins.js';
 import { PlayerModel } from './playermodel.js';
 import { SkinEditor } from './skineditor.js';
+import { getKeybinds, setKeybind, resetKeybinds, keyName, KEYBIND_ACTIONS } from './keybinds.js';
 import { initMobileControls } from './mobile.js';
-import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER, ROLE_GAMEDEV, resolveCgUsername, getDevTag, setDevTag } from './multiplayer.js';
+import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER, ROLE_GAMEDEV, ROLE_DEV, resolveCgUsername, getDevTag, setDevTag } from './multiplayer.js';
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
@@ -35,6 +36,11 @@ const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
 
 // --- Multiplayer server URL ---
+// The always-on WebSocket backend (Render free tier, kept awake by a GitHub
+// Actions cron ping). When the game is served from GitHub Pages the page host
+// is NOT the server, so we connect here instead. Change this if you rename the
+// Render service.
+const BACKEND_URL = 'wss://blockforge-server.onrender.com';
 // Supports ?server=ws://host:port to explicitly set the multiplayer server
 // (useful when devices are on different networks or accessing via different URLs)
 const _urlParams = new URLSearchParams(window.location.search);
@@ -43,11 +49,14 @@ const MP_SERVER_URL = _serverParam
   ? _serverParam
   : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
     ? 'ws://localhost:4000'
-    : window.location.protocol === 'https:'
-      // Auto-detect: connect to the same host we were served from (works on
-      // Render, a Cloudflare tunnel, or any custom domain like blockforge.io)
-      ? `wss://${window.location.hostname}`
-      : `ws://${window.location.hostname}:4000`;
+    // GitHub Pages (or any host that isn't the server itself) → use the backend.
+    : window.location.hostname.endsWith('github.io')
+      ? BACKEND_URL
+      : window.location.protocol === 'https:'
+        // Auto-detect: connect to the same host we were served from (works on
+        // Render, a Cloudflare tunnel, or any custom domain like blockforge.io)
+        ? `wss://${window.location.hostname}`
+        : `ws://${window.location.hostname}:4000`;
 let _mpSendTimer = 0;
 
 // --- CrazyGames SDK helpers ---
@@ -64,7 +73,11 @@ function cgLoadingStop() {
   try { window.CrazyGames?.SDK?.game?.loadingstop?.(); } catch (_) {}
 }
 function cgMidgameAd(callbacks) {
-  try { window.CrazyGames?.SDK?.ad?.requestAd?.('midgame', callbacks); } catch (_) {
+  const ad = window.CrazyGames?.SDK?.ad;
+  if (ad?.requestAd) {
+    try { ad.requestAd('midgame', callbacks); } catch (_) { callbacks?.adFinished?.(); }
+  } else {
+    // No CrazyGames SDK (e.g. self-hosted tunnel) — just finish immediately.
     callbacks?.adFinished?.();
   }
 }
@@ -72,8 +85,18 @@ const app = document.getElementById('app');
 
 // --- renderer / scene / camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
+
+// Graphics quality controls the internal render resolution (the main FPS lever
+// on high-DPI/Retina screens, where a full-ratio buffer can be 4x the pixels).
+function applyGraphicsQuality() {
+  let pr;
+  if (graphicsQuality === 'low') pr = 1;
+  else if (graphicsQuality === 'high') pr = Math.min(window.devicePixelRatio, 2);
+  else pr = Math.min(window.devicePixelRatio, 1.5); // medium
+  renderer.setPixelRatio(pr);
+}
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 app.appendChild(renderer.domElement);
 
@@ -609,7 +632,8 @@ renderer.domElement.addEventListener('click', () => {
 
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = document.pointerLockElement === renderer.domElement;
-  if (!pointerLocked && gameRunning && !ui.inventoryOpen && !ui.furnaceOpen) {
+  // Don't open the pause menu if another overlay (e.g. death screen) is already up.
+  if (!pointerLocked && gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
     if (!(mobile && mobile.isMobile)) {
       ui.showMenu('pause');
       cgGameplayStop();
@@ -628,8 +652,9 @@ document.addEventListener('mousemove', (e) => {
   player.applyMouse(e.movementX, e.movementY);
 });
 
-document.addEventListener('keydown', (e) => {
+ document.addEventListener('keydown', (e) => {
   if (!gameRunning) return;
+  const kb = getKeybinds();
   // Escape during sleep wakes up
   if (e.code === 'Escape' && sleeping) {
     sleeping = false;
@@ -650,12 +675,12 @@ document.addEventListener('keydown', (e) => {
     }
     return; // let browser handle typing in chat input
   }
-  if (e.code === 'KeyT' && gameRunning && !ui.inventoryOpen && !chatDisabled) {
+  if (e.code === kb.chat && gameRunning && !ui.inventoryOpen && !chatDisabled) {
     e.preventDefault();
     openChat('');
     return;
   }
-  if (e.code === 'Slash' && gameRunning && !ui.inventoryOpen && !chatDisabled) {
+  if (e.code === kb.command && gameRunning && !ui.inventoryOpen && !chatDisabled) {
     e.preventDefault();
     openChat('/');
     return;
@@ -674,54 +699,26 @@ document.addEventListener('keydown', (e) => {
       lockPointer();
     }
   }
-  if (e.code === 'Tab') {
+  if (e.code === kb.playerList) {
     e.preventDefault();
-    if (ui.furnaceOpen) {
-      ui.closeFurnace(); lockPointer();
-    } else if (ui.chestOpen) {
-      ui.closeChest(); lockPointer();
-    } else if (ui.inventoryOpen) {
-      ui.closeInventory(); syncUIMode(); lockPointer();
+    showPlayerList();
+    return;
+  }
+  if (e.code === kb.inventory) {
+    e.preventDefault();
+    if (ui.inventoryOpen) {
+      ui.closeInventory();
+      syncUIMode();
+      lockPointer();
     } else {
       ui.openInventory(player.inventory, 2, player.isCreative());
       achievements.incrementStat('inventoryOpened');
       document.exitPointerLock();
     }
-  }
-  if (e.code === 'KeyE') {
-    const hit = currentTarget();
-    if (hit && hit.block === BLOCK.CRAFTING) {
-      ui.openInventory(player.inventory, 3, false);
-      achievements.incrementStat('inventoryOpened');
-      document.exitPointerLock();
-    } else if (hit && hit.block === BLOCK.FURNACE) {
-      ui.openFurnace(player.inventory);
-      document.exitPointerLock();
-    } else if (hit && hit.block === BLOCK.CHEST) {
-      const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
-      ui.openChest(slots, player.inventory, hit.x, hit.y, hit.z);
-      document.exitPointerLock();
-    } else if (hit && hit.block === BLOCK.BED) {
-      trySleep();
-    } else if (player.isSurvival()) {
-      const slot = player.inventory.getSelected();
-      if (slot && isFood(slot.item)) {
-        if (player.eat(foodValue(slot.item))) {
-          slot.count--;
-          if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
-          syncUIMode();
-          achievements.incrementStat('foodEaten');
-          try { audio.eatBite(); } catch (_) {}
-        }
-      } else {
-        placeBlock();
-      }
-    } else {
-      placeBlock();
-    }
+    return;
   }
   // F3 = debug overlay
-  if (e.code === 'F3') {
+  if (e.code === kb.debug) {
     e.preventDefault();
     const dbg = document.getElementById('debug-overlay');
     if (dbg) dbg.style.display = dbg.style.display === 'none' ? '' : 'none';
@@ -736,7 +733,7 @@ document.addEventListener('keydown', (e) => {
     showHeldItemName();
   }
   // Q = drop item
-  if (e.code === 'KeyQ') {
+  if (e.code === kb.drop) {
     const slot = player.inventory.getSelected();
     if (slot) {
       // Spawn visible dropped entity
@@ -749,7 +746,7 @@ document.addEventListener('keydown', (e) => {
     }
   }
   // F = swap selected hotbar item with offhand (Minecraft Java behavior)
-  if (e.code === 'KeyF' && !ui.inventoryOpen) {
+  if (e.code === kb.swapHands && !ui.inventoryOpen) {
     const sel = player.inventory.selected;
     const curSlot = player.inventory.slots[sel];
     const offhand = player.inventory.offhand;
@@ -759,8 +756,8 @@ document.addEventListener('keydown', (e) => {
       syncUIMode();
     }
   }
-  // P = cycle camera (1st person → 3rd person back → 3rd person front)
-  if (e.code === 'KeyP') {
+  // F5 = cycle camera (1st person → 3rd person back → 3rd person front)
+  if (e.code === kb.perspective) {
     e.preventDefault();
     player.cycleCamera();
     const modes = ['First Person', 'Third Person (Behind)', 'Third Person (Front)'];
@@ -790,7 +787,82 @@ document.addEventListener('keydown', (e) => {
     denyOffer();
   }
 });
-document.addEventListener('keyup', (e) => { input.keys[e.code] = false; });
+document.addEventListener('keyup', (e) => {
+  input.keys[e.code] = false;
+  if (e.code === getKeybinds().playerList) hidePlayerList();
+});
+
+function showPlayerList() {
+  const el = document.getElementById('player-list-overlay');
+  if (!el) return;
+  let names = [];
+  if (isMultiplayer && currentServer && currentServer.players) {
+    names = currentServer.players.map(p => p.name);
+  } else {
+    names = [playerName || 'You'];
+  }
+  const namesEl = el.querySelector('.pl-names');
+  namesEl.innerHTML = '';
+  for (const n of names) {
+    const d = document.createElement('div');
+    d.className = 'pl-row';
+    d.textContent = n;
+    namesEl.appendChild(d);
+  }
+  el.querySelector('.pl-count').textContent =
+    names.length + (names.length === 1 ? ' player online' : ' players online');
+  el.style.display = 'block';
+}
+
+function hidePlayerList() {
+  const el = document.getElementById('player-list-overlay');
+  if (el) el.style.display = 'none';
+}
+
+// --- Controls / key bindings screen ----------------------------------------
+let _rebinding = null;
+
+function renderControls() {
+  const list = document.getElementById('controls-list');
+  if (!list) return;
+  const kb = getKeybinds();
+  list.innerHTML = '';
+  for (const act of KEYBIND_ACTIONS) {
+    const row = document.createElement('div');
+    row.className = 'control-row';
+    const label = document.createElement('label');
+    label.textContent = act.label;
+    const btn = document.createElement('div');
+    btn.className = 'key-btn';
+    btn.textContent = keyName(kb[act.id]);
+    btn.addEventListener('click', () => startRebind(act.id, btn));
+    row.appendChild(label);
+    row.appendChild(btn);
+    list.appendChild(row);
+  }
+}
+
+function startRebind(action, btn) {
+  if (_rebinding && _rebinding.handler) {
+    document.removeEventListener('keydown', _rebinding.handler, true);
+  }
+  _rebinding = { action, btn };
+  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('listening'));
+  btn.classList.add('listening');
+  btn.textContent = 'Press a key…';
+  const handler = (e) => {
+    e.preventDefault();
+    e.stopImmediatePropagation();
+    document.removeEventListener('keydown', handler, true);
+    btn.classList.remove('listening');
+    _rebinding = null;
+    if (e.code === 'Escape') { renderControls(); return; }
+    setKeybind(action, e.code);
+    renderControls();
+  };
+  document.addEventListener('keydown', handler, true);
+  _rebinding.handler = handler;
+}
 
 // mouse wheel cycles hotbar
 window.addEventListener('wheel', (e) => {
@@ -823,6 +895,12 @@ document.addEventListener('mousedown', (e) => {
     }
   } else if (e.button === 2) {
     const hit = currentTarget();
+    const held = player.inventory.getSelected();
+    if (held && (held.item === ITEM.BUCKET || held.item === ITEM.WATER_BUCKET)) {
+      handleBucket(held, hit);
+      e.preventDefault();
+      return;
+    }
     if (hit && hit.block === BLOCK.CRAFTING) {
       ui.openInventory(player.inventory, 3, false);
       achievements.incrementStat('inventoryOpened');
@@ -1052,6 +1130,44 @@ function placeBlock(slotOverride) {
   if (player.isSurvival()) {
     if (player.addXp(1)) ui.showLevelUp(player.level);
   }
+}
+
+// Bucket: empty bucket fills from water, water bucket empties into air.
+// Returns true if an action was performed.
+function handleBucket(held, hit) {
+  if (!hit || !hit.place) return false;
+  const { x, y, z } = hit.place;
+  const sel = player.inventory.selected;
+
+  if (held.item === ITEM.BUCKET) {
+    const atPlace = world.getBlock(x, y, z);
+    const isWater = atPlace === BLOCK.WATER || hit.block === BLOCK.WATER;
+    if (!isWater) return false;
+    held.count--;
+    if (held.count <= 0) player.inventory.slots[sel] = null;
+    player.inventory.add(ITEM.WATER_BUCKET, 1);
+    syncUIMode();
+    audio.place();
+    return true;
+  }
+
+  if (held.item === ITEM.WATER_BUCKET) {
+    // Don't place water inside the player.
+    const px = Math.floor(player.position.x);
+    const py = Math.floor(player.position.y);
+    const pz = Math.floor(player.position.z);
+    if ((x === px && z === pz) && (y === py || y === py + 1)) return false;
+    if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
+    world.setBlock(x, y, z, BLOCK.WATER);
+    if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.WATER);
+    held.count--;
+    if (held.count <= 0) player.inventory.slots[sel] = null;
+    player.inventory.add(ITEM.BUCKET, 1);
+    syncUIMode();
+    audio.place();
+    return true;
+  }
+  return false;
 }
 
 function breakBlock(hit) {
@@ -1341,6 +1457,7 @@ function submitChat() {
     }
     const role = currentServer ? currentServer.getRole(playerName) : null;
     const isGameDev = role === ROLE_GAMEDEV;
+    const isDev = role === ROLE_DEV;
     const isOwner = role === ROLE_OWNER;
     const isAdmin = role === ROLE_ADMIN;
     const isStaff = role === ROLE_STAFF;
@@ -1348,6 +1465,8 @@ function submitChat() {
     let chatHtml;
     if (isGameDev) {
       chatHtml = `<span style="color:#f44">[</span><span style="color:#0ff">${escHtml(getDevTag())}</span><span style="color:#f44">]</span> ${escHtml(playerName)}: ${escHtml(text)}`;
+    } else if (isDev) {
+      chatHtml = `<span style="color:#f44">[</span><span style="color:#0ff">Dev</span><span style="color:#f44">]</span> ${escHtml(playerName)}: ${escHtml(text)}`;
     } else if (isOwner) {
       chatHtml = `<span style="color:#fa0">[Owner]</span> ${escHtml(playerName)}: ${escHtml(text)}`;
     } else if (isAdmin) {
@@ -1644,6 +1763,8 @@ function setupNetworkHandlers() {
       chatHtml = `<span style="color:#aaa;font-style:italic;">${escHtml(safeText)}</span>`;
     } else if (role === ROLE_GAMEDEV) {
       chatHtml = `<span style="color:#f44">[</span><span style="color:#0ff">${escHtml(getDevTag())}</span><span style="color:#f44">]</span> ${escHtml(safeName)}: ${escHtml(safeText)}`;
+    } else if (role === ROLE_DEV) {
+      chatHtml = `<span style="color:#f44">[</span><span style="color:#0ff">Dev</span><span style="color:#f44">]</span> ${escHtml(safeName)}: ${escHtml(safeText)}`;
     } else if (role === ROLE_OWNER) {
       chatHtml = `<span style="color:#fa0">[Owner]</span> ${escHtml(safeName)}: ${escHtml(safeText)}`;
     } else if (role === ROLE_ADMIN) {
@@ -1830,13 +1951,13 @@ function renderAdminPanel(tab) {
 
   if (tab === 'players') {
     el.innerHTML = currentServer.players.map(p => {
-      const roleLabel = p.role === ROLE_OWNER ? 'OWNER' : p.role === ROLE_ADMIN ? 'ADMIN' : p.role === ROLE_STAFF ? 'STAFF' : '';
+      const roleLabel = p.role === ROLE_OWNER ? 'OWNER' : p.role === ROLE_ADMIN ? 'ADMIN' : p.role === ROLE_STAFF ? 'STAFF' : p.role === ROLE_DEV ? 'DEV' : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid rgba(80,80,80,0.3);">
-        <div style="flex:1;">${escHtml(p.name)} <span style="color:${p.role === ROLE_OWNER ? '#fa0' : p.role === ROLE_ADMIN ? '#f55' : p.role === ROLE_STAFF ? '#5af' : '#888'};font-size:10px;">${roleLabel}</span></div>
+        <div style="flex:1;">${escHtml(p.name)} <span style="color:${p.role === ROLE_OWNER ? '#fa0' : p.role === ROLE_ADMIN ? '#f55' : p.role === ROLE_STAFF ? '#5af' : p.role === ROLE_DEV ? '#0ff' : '#888'};font-size:10px;">${roleLabel}</span></div>
       </div>`;
     }).join('') || '<div style="color:#888;text-align:center;padding:10px;">No players online</div>';
   } else if (tab === 'staff') {
-    const staff = currentServer.players.filter(p => p.role !== ROLE_PLAYER);
+    const staff = currentServer.players.filter(p => p.role === ROLE_OWNER || p.role === ROLE_ADMIN || p.role === ROLE_STAFF);
     el.innerHTML = staff.map(p =>
       `<div style="display:flex;align-items:center;gap:8px;padding:6px;border-bottom:1px solid rgba(80,80,80,0.3);">
         <span>${escHtml(p.name)}</span>
@@ -1907,7 +2028,7 @@ let totalDays = 1;
 // --- weather system ---
 let weather = 'clear'; // 'clear' | 'rain' | 'thunder'
 let weatherTimer = 0;
-let weatherDuration = 0;
+let weatherDuration = 300; // starts clear for a while (overridden properly in startGame)
 const WEATHER_MIN_CLEAR = 120;  // min seconds of clear sky
 const WEATHER_MAX_CLEAR = 600;
 const WEATHER_MIN_RAIN = 30;
@@ -2194,12 +2315,15 @@ function startGame(worldId, seed, gamemode, difficulty) {
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
     weather = 'clear';
+    weatherTimer = 0;
+    weatherDuration = WEATHER_MIN_CLEAR + Math.random() * (WEATHER_MAX_CLEAR - WEATHER_MIN_CLEAR);
     try { audio.stopRain(); } catch (_) {}
   }
 
   currentWorldId = worldId;
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || 7;
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
+  applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
   world = new World(seed);
@@ -2703,6 +2827,11 @@ function initMenu() {
     window.__mouseSens = mouseSensitivity;
     try { localStorage.setItem('bf_sensitivity', e.target.value); } catch (_) {}
   });
+  document.getElementById('set-quality')?.addEventListener('change', (e) => {
+    graphicsQuality = e.target.value || 'medium';
+    applyGraphicsQuality();
+    try { localStorage.setItem('bf_quality', graphicsQuality); } catch (_) {}
+  });
 
   // --- Main menu ---
   document.getElementById('btn-play').addEventListener('click', () => {
@@ -3060,6 +3189,19 @@ function initMenu() {
   // --- Settings ---
   document.getElementById('btn-settings-back').addEventListener('click', () => {
     ui.showMenu(ui._prevMenu || 'main');
+  });
+
+  // --- Controls / key bindings ---
+  document.getElementById('btn-open-controls').addEventListener('click', () => {
+    ui.showMenu('controls');
+    renderControls();
+  });
+  document.getElementById('btn-controls-back').addEventListener('click', () => {
+    ui.showMenu('settings');
+  });
+  document.getElementById('btn-controls-reset').addEventListener('click', () => {
+    resetKeybinds();
+    renderControls();
   });
 
   // --- Achievement screen close ---
@@ -3449,6 +3591,7 @@ function loop() {
             if (key !== breakingTarget) {
               breakingTarget = key;
               breakingElapsed = 0;
+              viewmodel.swing();
             }
             const b = world.getBlock(hit.x, hit.y, hit.z);
             // Creative: instant break with brief crack flash
@@ -3685,7 +3828,7 @@ function loop() {
     // Handle mob attacks on player (e.g. spider at night)
     if (mobEvent && mobEvent.type === 'attack') {
       const dmgMult = gameDifficulty === 'hard' ? 1.5 : 1.0;
-      player.takeDamage(Math.round(mobEvent.damage * dmgMult), 'mob');
+      player.takeDamage(Math.round(mobEvent.damage * dmgMult), mobEvent.fromPos || 'mob');
     }
   }
 
@@ -3780,7 +3923,16 @@ function loop() {
   viewmodel.setVisible(!overlayShown && !inThirdPerson);
   if (!overlayShown && !inThirdPerson) {
     const moving = player.onGround && (player.velocity.x !== 0 || player.velocity.z !== 0);
-    viewmodel.update(dt, input.mouseLeftHeld && pointerLocked, moving, player.eating);
+    const mining = input.mouseLeftHeld && pointerLocked && !!breakingTarget;
+    viewmodel.update(dt, false, moving, player.eating, player.crouching, {
+      inWater: player.inWater,
+      flying: player.flying,
+      onGround: player.onGround,
+      vy: player.velocity.y,
+      pitch: player.pitch,
+      hurt: player.damageTimer > 0.3,
+      mining,
+    });
     viewmodel.renderOverlay();
   }
 

@@ -233,6 +233,39 @@ export class Audio {
     }
   }
 
+  // ── WEATHER SOUNDS ──────────────────────────────────────────────────
+
+  // Thunder: a sharp lightning crack followed by a rolling low rumble.
+  thunder() {
+    if (!this.ctx || !this.enabled) return;
+    const sr = this.ctx.sampleRate;
+    const now = this.ctx.currentTime;
+
+    // Rolling low rumble (brown noise through a low-pass).
+    const rumbleLen = Math.floor(sr * 3.5);
+    const rSrc = this._src(this._brownNoise(rumbleLen, sr));
+    const rLp = this._filter('lowpass', 220, 0.7);
+    const rGain = this._gain(0);
+    rGain.gain.setValueAtTime(0, now);
+    rGain.gain.linearRampToValueAtTime(0.5, now + 0.4);
+    rGain.gain.setValueAtTime(0.5, now + 2.2);
+    rGain.gain.linearRampToValueAtTime(0, now + 3.5);
+    rSrc.connect(rLp); rLp.connect(rGain); rGain.connect(this.master);
+    rSrc.start(now); rSrc.stop(now + 3.6);
+
+    // Lightning crack (pink noise burst, high-passed) just after the flash.
+    const crackLen = Math.floor(sr * 0.6);
+    const cSrc = this._src(this._pinkNoise(crackLen, sr));
+    const cHp = this._filter('highpass', 800, 0.7);
+    const cGain = this._gain(0);
+    const ct = now + 0.15;
+    cGain.gain.setValueAtTime(0.001, ct);
+    cGain.gain.linearRampToValueAtTime(0.35, ct + 0.02);
+    cGain.gain.exponentialRampToValueAtTime(0.001, ct + 0.55);
+    cSrc.connect(cHp); cHp.connect(cGain); cGain.connect(this.master);
+    cSrc.start(ct); cSrc.stop(ct + 0.6);
+  }
+
   // ── BLOCK SOUNDS ─────────────────────────────────────────────────────
 
   // STONE: Hard, sharp crunch — heavy impact with gravel scatter

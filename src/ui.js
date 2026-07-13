@@ -155,6 +155,7 @@ export function makeItemIconCanvas(itemId) {
     case 281: drawArrow(x); break;
     case 282: drawEgg(x); break;
     case 283: drawBucket(x); break;
+    case 288: drawWaterBucket(x); break;
     case 285: drawBed(x); break;
     case 286: drawSpiderEye(x); break;
     case 287: drawPrismiteGem(x); break;
@@ -488,6 +489,27 @@ function drawBucket(x) {
   // side shading
   px(x, d, 4, 5, 1, 8); px(x, dk, 10, 6, 1, 6);
   // highlight stripe
+  px(x, '#e8e8e8', 5, 6, 1, 5);
+  // handle
+  px(x, d, 2, 4, 1, 1); px(x, d, 12, 4, 1, 1);
+  px(x, d, 1, 5, 1, 1); px(x, d, 14, 5, 1, 1);
+}
+
+function drawWaterBucket(x) {
+  // Bucket filled with water (blue).
+  const m = '#c8c8c8', d = '#9a9a9a', dk = '#6e6e6e';
+  // water fill
+  px(x, '#2f6fd0', 4, 4, 7, 8);
+  px(x, '#5a9bf0', 4, 4, 7, 1);
+  px(x, '#1f4f9f', 4, 11, 7, 1);
+  px(x, '#3f7fe0', 5, 5, 5, 6);
+  // rim + body
+  px(x, m, 3, 3, 9, 1);
+  px(x, d, 3, 4, 9, 1);
+  px(x, m, 4, 5, 7, 8);
+  px(x, d, 4, 12, 7, 1);
+  px(x, m, 5, 13, 5, 1);
+  px(x, d, 4, 5, 1, 8); px(x, dk, 10, 6, 1, 6);
   px(x, '#e8e8e8', 5, 6, 1, 5);
   // handle
   px(x, d, 2, 4, 1, 1); px(x, d, 12, 4, 1, 1);
