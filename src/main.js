@@ -987,6 +987,15 @@ window.addEventListener('wheel', (e) => {
   showHeldItemName();
 }, { passive: true });
 
+// Tap a hotbar slot to select it (works on mobile + desktop)
+ui.onHotbarSelect = (i) => {
+  if (!gameRunning || !player) return;
+  ui.setActive(i);
+  player.inventory.setSelected(i);
+  syncUIMode();
+  showHeldItemName();
+};
+
 // break / place on mouse buttons
 document.addEventListener('mousedown', (e) => {
   if (!pointerLocked || ui.inventoryOpen || !gameRunning) return;

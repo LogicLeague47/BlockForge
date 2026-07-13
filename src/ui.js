@@ -1046,6 +1046,7 @@ export class UI {
       const icon = makeIcon(blockId, this.atlas);
       slot.appendChild(num);
       slot.appendChild(icon);
+      slot.addEventListener('click', () => { if (this.onHotbarSelect) this.onHotbarSelect(i); });
       this.hotbarEl.appendChild(slot);
       this.slots.push(slot);
     });
@@ -1098,6 +1099,7 @@ export class UI {
         }
       }
       slotEl.appendChild(num);
+      slotEl.addEventListener('click', () => { if (this.onHotbarSelect) this.onHotbarSelect(i); });
       this.hotbarEl.appendChild(slotEl);
       this.slots.push(slotEl);
     }

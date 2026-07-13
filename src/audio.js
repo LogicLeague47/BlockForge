@@ -1,5 +1,10 @@
 // Procedural sound effects + music player via the Web Audio API.
 // 100% open source — every sound synthesized at runtime, no external files needed.
+
+// Resolve asset paths against the page's base path so audio works both at the
+// site root (Render) and under a subpath (GitHub Pages, e.g. /BlockForge/).
+const ASSET_BASE = (typeof location !== 'undefined') ? location.pathname.replace(/[^/]*$/, '') : '/';
+function assetUrl(p) { return ASSET_BASE + String(p).replace(/^\//, ''); }
 //
 // Each block type gets a unique sonic signature:
 //   Stone:   sharp crunch + deep resonance (hard, heavy)
@@ -72,7 +77,7 @@ export class Audio {
     }
     this._musicIdx = (this._musicIdx + 1) % this._musicPaths.length;
     const el = document.createElement('audio');
-    el.src = this._musicPaths[this._musicIdx];
+    el.src = assetUrl(this._musicPaths[this._musicIdx]);
     el.volume = 0;
     el.loop = false;
     this._onMusicEnd = () => {
@@ -586,7 +591,7 @@ export class Audio {
   _animalSound(files) {
     if (!this.enabled) return;
     const src = files[(Math.random() * files.length) | 0];
-    const el = new window.Audio(src);
+    const el = new window.Audio(assetUrl(src));
     el.volume = 0.6;
     el.play().catch(() => {});
   }

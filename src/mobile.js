@@ -35,6 +35,7 @@ export function initMobileControls(playerRef, input, callbacks) {
     _holdTimer: null,
     attackHeld: false,
     jumpHeld: false,
+    sprintOn: false,
   };
 
   if (!isMobile) return state;
@@ -58,12 +59,13 @@ export function initMobileControls(playerRef, input, callbacks) {
     </div>
     <div class="mc-camera-zone"></div>
     <div class="mc-top-buttons">
+      <button class="mc-tbtn mc-btn-inv" data-action="inventory">&#127890;</button>
       <button class="mc-tbtn mc-btn-menu" data-action="menu">&#9208;</button>
       <button class="mc-tbtn mc-btn-chat" data-action="chat">&#128172;</button>
-      <button class="mc-tbtn mc-btn-inv" data-action="inventory">&#127890;</button>
     </div>
     <div class="mc-buttons">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
+      <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
       <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
     </div>
   `;
@@ -197,10 +199,17 @@ export function initMobileControls(playerRef, input, callbacks) {
   }, { passive: true });
 
   // --- Action buttons ---
-  function fireButton(action, down) {
+  function fireButton(action, down, btnEl) {
     if (action === 'jump') {
       state.jumpHeld = down;
       input.keys['Space'] = down;
+    } else if (action === 'sprint') {
+      // Toggle sprint (like Multicraft): tap on/off.
+      if (down) {
+        state.sprintOn = !state.sprintOn;
+        input.keys['ShiftLeft'] = state.sprintOn;
+        if (btnEl) btnEl.classList.toggle('mc-active', state.sprintOn);
+      }
     } else if (action === 'place') {
       if (down && callbacks.onPlace) callbacks.onPlace();
     } else if (down && action === 'menu') {
@@ -214,9 +223,9 @@ export function initMobileControls(playerRef, input, callbacks) {
 
   root.querySelectorAll('[data-action]').forEach((btn) => {
     const action = btn.dataset.action;
-    btn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); fireButton(action, true); }, { passive: false });
-    btn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); fireButton(action, false); }, { passive: false });
-    btn.addEventListener('touchcancel', (e) => { e.stopPropagation(); fireButton(action, false); }, { passive: true });
+    btn.addEventListener('touchstart', (e) => { e.stopPropagation(); e.preventDefault(); fireButton(action, true, btn); }, { passive: false });
+    btn.addEventListener('touchend', (e) => { e.stopPropagation(); e.preventDefault(); fireButton(action, false, btn); }, { passive: false });
+    btn.addEventListener('touchcancel', (e) => { e.stopPropagation(); fireButton(action, false, btn); }, { passive: true });
   });
 
   // --- Update: map joystick to WASD keys ---
