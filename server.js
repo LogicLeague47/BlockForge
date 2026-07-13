@@ -56,10 +56,43 @@ const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
 const FRIENDS_FILE = join(__dirname, 'friends.json');
 
 // ── Persistence ───────────────────────────────────────────────────────
+// Render's free tier has an ephemeral filesystem (wiped on every redeploy), so
+// for durable data we use Upstash Redis (free) when its env vars are present.
+// Falls back to local JSON files for local dev.
+//   Set on Render:  UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
+const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL || '';
+const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const USE_REDIS = !!(REDIS_URL && REDIS_TOKEN);
+
+async function redisCmd(cmd) {
+  if (!USE_REDIS) return null;
+  try {
+    const r = await fetch(REDIS_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${REDIS_TOKEN}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(cmd),
+    });
+    const j = await r.json();
+    return j.result;
+  } catch (e) {
+    console.error('[Redis] command failed:', e.message);
+    return null;
+  }
+}
+// Debounced writer so rapid changes don't spam the free command quota.
+const _redisTimers = {};
+function redisSaveDebounced(key, getValue, ms = 1500) {
+  if (!USE_REDIS) return;
+  clearTimeout(_redisTimers[key]);
+  _redisTimers[key] = setTimeout(() => {
+    redisCmd(['SET', key, JSON.stringify(getValue())]).catch(() => {});
+  }, ms);
+}
+
 let rooms = new Map();
 let serverStats = { dailyUsers: {}, monthlyUsers: {}, serversCreated: 0 };
 
-function saveRooms() {
+function _roomsToObj() {
   const obj = {};
   for (const [name, room] of rooms) {
     obj[name] = {
@@ -74,31 +107,48 @@ function saveRooms() {
       created: room.created
     };
   }
-  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: obj, stats: serverStats }, null, 2)); } catch {}
+  return obj;
 }
 
-function loadRooms() {
+function saveRooms() {
+  if (USE_REDIS) {
+    redisSaveDebounced('server-data', () => ({ rooms: _roomsToObj(), stats: serverStats }));
+    return;
+  }
+  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2)); } catch {}
+}
+
+function _applyRoomsData(data) {
+  if (!data) return;
+  if (data.stats) serverStats = data.stats;
+  if (data.rooms) {
+    for (const [name, r] of Object.entries(data.rooms)) {
+      rooms.set(name, {
+        seed: r.seed,
+        gameMode: r.gameMode,
+        maxPlayers: r.maxPlayers,
+        ownerName: r.ownerName,
+        ownerSecret: r.ownerSecret || null,
+        protected: !!r.protected,
+        private: !!r.private,
+        players: new Map(),
+        banned: new Set(r.banned || []),
+        created: r.created || Date.now()
+      });
+    }
+    console.log(`[Data] Loaded ${rooms.size} rooms`);
+  }
+}
+
+async function loadRooms() {
+  if (USE_REDIS) {
+    const data = await redisCmd(['GET', 'server-data']);
+    if (data) { try { _applyRoomsData(JSON.parse(data)); } catch (e) { console.error('[Data] Redis parse fail', e.message); } }
+    return;
+  }
   if (!existsSync(DATA_FILE)) return;
   try {
-    const data = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
-    if (data.stats) serverStats = data.stats;
-    if (data.rooms) {
-      for (const [name, r] of Object.entries(data.rooms)) {
-        rooms.set(name, {
-          seed: r.seed,
-          gameMode: r.gameMode,
-          maxPlayers: r.maxPlayers,
-          ownerName: r.ownerName,
-          ownerSecret: r.ownerSecret || null,
-          protected: !!r.protected,
-          private: !!r.private,
-          players: new Map(),
-          banned: new Set(r.banned || []),
-          created: r.created || Date.now()
-        });
-      }
-      console.log(`[Data] Loaded ${rooms.size} rooms from disk`);
-    }
+    _applyRoomsData(JSON.parse(readFileSync(DATA_FILE, 'utf8')));
   } catch (e) {
     console.error('[Data] Failed to load:', e.message);
   }
@@ -147,7 +197,13 @@ function resolveRole(cgUsername, playerName) {
 // Prevents name spoofing: to use a username you must know its password.
 let accounts = {}; // { username: { hash, salt } }
 
-function loadAccounts() {
+async function loadAccounts() {
+  if (USE_REDIS) {
+    const data = await redisCmd(['GET', 'accounts']);
+    if (data) { try { accounts = JSON.parse(data) || {}; } catch { accounts = {}; } }
+    console.log(`[Data] Loaded ${Object.keys(accounts).length} accounts from Redis`);
+    return;
+  }
   if (!existsSync(ACCOUNTS_FILE)) return;
   try {
     accounts = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8')) || {};
@@ -155,6 +211,7 @@ function loadAccounts() {
 }
 
 function saveAccounts() {
+  if (USE_REDIS) { redisSaveDebounced('accounts', () => accounts); return; }
   try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch {}
 }
 
@@ -199,11 +256,17 @@ function authAccount(username, password, mode) {
 // friends = { username: { friends: [names], incoming: [names], outgoing: [names] } }
 let friends = {};
 
-function loadFriends() {
+async function loadFriends() {
+  if (USE_REDIS) {
+    const data = await redisCmd(['GET', 'friends']);
+    if (data) { try { friends = JSON.parse(data) || {}; } catch { friends = {}; } }
+    return;
+  }
   if (!existsSync(FRIENDS_FILE)) return;
   try { friends = JSON.parse(readFileSync(FRIENDS_FILE, 'utf8')) || {}; } catch { friends = {}; }
 }
 function saveFriends() {
+  if (USE_REDIS) { redisSaveDebounced('friends', () => friends); return; }
   try { writeFileSync(FRIENDS_FILE, JSON.stringify(friends)); } catch {}
 }
 function _friendRec(name) {
@@ -894,19 +957,22 @@ function sendFriendMsg(ws, text, ok) {
 
 // ── Start ─────────────────────────────────────────────────────────────
 const IS_LAN = process.argv.includes('--lan');
-loadRooms();
-loadAccounts();
-loadFriends();
-ensureOfficialServer();
-server.listen(PORT, () => {
-  console.log(`\n  BlockForge Server`);
-  console.log(`  ─────────────────`);
-  console.log(`  Mode:    ${IS_LAN ? 'LAN (open rooms, no auth)' : 'Public (OfficialSMP only)'}`);
-  console.log(`  HTTP:    http://localhost:${PORT}`);
-  console.log(`  WS:      ws://localhost:${PORT}`);
-  console.log(`  Health:  http://localhost:${PORT}/health`);
-  console.log(`  Rooms:   ${rooms.size}\n`);
-});
+(async () => {
+  await loadRooms();
+  await loadAccounts();
+  await loadFriends();
+  ensureOfficialServer();
+  server.listen(PORT, () => {
+    console.log(`\n  BlockForge Server`);
+    console.log(`  ─────────────────`);
+    console.log(`  Mode:    ${IS_LAN ? 'LAN (open rooms, no auth)' : 'Public (custom + private worlds)'}`);
+    console.log(`  Storage: ${USE_REDIS ? 'Upstash Redis (persistent)' : 'local files (ephemeral)'}`);
+    console.log(`  HTTP:    http://localhost:${PORT}`);
+    console.log(`  WS:      ws://localhost:${PORT}`);
+    console.log(`  Health:  http://localhost:${PORT}/health`);
+    console.log(`  Rooms:   ${rooms.size}\n`);
+  });
+})();
 
 // Save every 30 seconds
 setInterval(saveRooms, 30000);

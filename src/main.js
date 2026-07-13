@@ -843,6 +843,7 @@ function hidePlayerList() {
 
 // ── Friends menu ───────────────────────────────────────────────────────
 let _friendState = { friends: [], incoming: [], outgoing: [] };
+let _backgroundAuth = false; // true when re-authing silently (not from login screen)
 
 function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
@@ -860,14 +861,17 @@ function openFriendsMenu() {
   const msg = document.getElementById('friend-msg');
   if (msg) msg.textContent = '';
   // Ensure we're connected + identified, then fetch the friend list.
+  // Mark auth as background so the auth_result handler doesn't bounce us to the
+  // main menu (that behaviour is only for the login screen).
   if (!network.connected) {
     network.connect(MP_SERVER_URL);
     network.onConnected = () => {
+      _backgroundAuth = true;
       network.sendAuth(playerName, pass, 'login');
       network.friendList();
     };
   } else {
-    if (!network.isInRoom()) network.sendAuth(playerName, pass, 'login');
+    if (!network.isInRoom()) { _backgroundAuth = true; network.sendAuth(playerName, pass, 'login'); }
     network.friendList();
   }
 }
@@ -881,6 +885,8 @@ function renderFriends() {
   // Pending incoming requests
   const incoming = _friendState.incoming || [];
   if (reqBox) reqBox.style.display = incoming.length ? '' : 'none';
+  const reqHeader = document.getElementById('friends-requests-header');
+  if (reqHeader) reqHeader.textContent = `${incoming.length} FRIEND REQUEST${incoming.length === 1 ? '' : 'S'} PENDING`;
   if (reqList) {
     reqList.innerHTML = incoming.map(n => `
       <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(80,80,80,0.25);">
@@ -2007,8 +2013,14 @@ function setupNetworkHandlers() {
       } catch (_) {}
       const nameTag = document.getElementById('menu-player-name');
       if (nameTag) nameTag.textContent = playerName;
-      if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
-      setTimeout(() => { ui.showMenu('main'); }, 600);
+      // Only jump to the main menu when this auth came from the login screen —
+      // not from a background re-auth (e.g. opening the Friends menu).
+      if (_backgroundAuth) {
+        _backgroundAuth = false;
+      } else {
+        if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
+        setTimeout(() => { ui.showMenu('main'); }, 600);
+      }
     } else {
       if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed.'; }
     }
