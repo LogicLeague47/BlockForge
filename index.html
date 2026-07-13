@@ -373,8 +373,8 @@
 
       /* Recipe book screen */
       #recipe-screen {
-        position: fixed; inset: 0; z-index: 55;
-        background: rgba(0,0,0,0.8);
+        position: fixed; inset: 0; z-index: 70;
+        background: rgba(0,0,0,0.85);
         display: none; flex-direction: column;
         align-items: center; justify-content: flex-start;
         color: #fff; font-family: 'Segoe UI', Arial, monospace;
@@ -1087,9 +1087,6 @@
       .menu-btn#btn-multiplayer:hover {
         background: linear-gradient(180deg, #5a7a9a 0%, #4a6a8a 40%, #3a5a7a 60%, #2a4a6a 100%);
       }
-      .menu-btn#btn-lan:hover {
-        background: linear-gradient(180deg, #6a8a4a 0%, #5a7a3a 40%, #4a6a2a 60%, #3a5a1a 100%) !important;
-      }
       .menu-btn .btn-badge {
         position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
         background: #5a5; color: #fff; font-size: 9px; font-weight: bold;
@@ -1528,49 +1525,69 @@
       }
       #mobile-controls * { touch-action: none; user-select: none; -webkit-user-select: none; }
 
-      /* Joystick zone — left 40% of screen */
+      /* Joystick zone — left 45% of screen */
       .mc-joystick-zone {
         position: absolute; left: 0; bottom: 0;
-        width: 40%; height: 50%;
+        width: 45%; height: 55%;
         pointer-events: auto;
         display: flex; align-items: center; justify-content: center;
       }
       .mc-joystick-base {
-        width: 120px; height: 120px;
+        width: 160px; height: 160px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.08);
-        border: 2px solid rgba(255,255,255,0.2);
+        background: rgba(255,255,255,0.1);
+        border: 3px solid rgba(255,255,255,0.28);
         position: relative;
         display: flex; align-items: center; justify-content: center;
       }
       .mc-joystick-knob {
-        width: 48px; height: 48px;
+        width: 66px; height: 66px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.25);
-        border: 2px solid rgba(255,255,255,0.4);
+        background: rgba(255,255,255,0.3);
+        border: 3px solid rgba(255,255,255,0.5);
         transition: transform 0.05s ease-out;
       }
 
-      /* Camera zone — right 60% of screen (upper portion) */
+      /* Camera / break zone — right 60% of screen (upper portion) */
       .mc-camera-zone {
         position: absolute; right: 0; top: 0;
-        width: 60%; height: 60%;
+        width: 60%; height: 62%;
         pointer-events: auto;
       }
 
+      /* Top buttons — menu / chat / inventory */
+      .mc-top-buttons {
+        position: absolute; right: 12px; top: 12px;
+        display: flex; flex-direction: row; gap: 10px;
+        pointer-events: auto;
+      }
+      .mc-tbtn {
+        width: 46px; height: 46px;
+        border-radius: 10px;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.4);
+        color: #fff; font-size: 18px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      }
+      .mc-tbtn:active { background: rgba(255,255,255,0.3); }
+      .mc-btn-menu { border-color: rgba(255,255,255,0.4); }
+      .mc-btn-chat { border-color: rgba(120,180,255,0.5); }
+      .mc-btn-inv { border-color: rgba(255,210,120,0.5); font-size: 15px; }
+
       /* Action buttons — right side */
       .mc-buttons {
-        position: absolute; right: 16px; bottom: 80px;
-        display: flex; flex-direction: column; gap: 12px;
+        position: absolute; right: 20px; bottom: 90px;
+        display: flex; flex-direction: column; gap: 16px;
         pointer-events: auto;
       }
       .mc-btn {
-        width: 56px; height: 56px;
+        width: 64px; height: 64px;
         border-radius: 50%;
         border: 2px solid rgba(255,255,255,0.3);
-        background: rgba(255,255,255,0.12);
+        background: rgba(255,255,255,0.14);
         color: #fff;
-        font-size: 22px;
+        font-size: 24px;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(2px);
         -webkit-backdrop-filter: blur(2px);
@@ -1578,7 +1595,6 @@
       }
       .mc-btn:active { background: rgba(255,255,255,0.35); }
       .mc-btn-jump { border-color: rgba(100,200,100,0.5); }
-      .mc-btn-attack { border-color: rgba(255,80,80,0.5); }
       .mc-btn-place { border-color: rgba(100,150,255,0.5); }
 
       /* Show mobile controls on touch devices */

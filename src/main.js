@@ -83,19 +83,40 @@ function cgMidgameAd(callbacks) {
 }
 const app = document.getElementById('app');
 
+// Mobile devices are far weaker — detect early so we can cap the render
+// resolution and view distance for a playable frame rate.
+const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
 // --- renderer / scene / camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(IS_MOBILE ? 1 : Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 
 // Graphics quality controls the internal render resolution (the main FPS lever
 // on high-DPI/Retina screens, where a full-ratio buffer can be 4x the pixels).
 function applyGraphicsQuality() {
   let pr;
-  if (graphicsQuality === 'low') pr = 1;
+  if (IS_MOBILE) {
+    // Cap the internal buffer well below the device's native (often 2-3x) DPR.
+    pr = graphicsQuality === 'high' ? 1 : 0.75;
+  } else if (graphicsQuality === 'low') pr = 1;
   else if (graphicsQuality === 'high') pr = Math.min(window.devicePixelRatio, 2);
   else pr = Math.min(window.devicePixelRatio, 1.5); // medium
   renderer.setPixelRatio(pr);
+}
+
+// Block iOS/Android double-tap-to-zoom (which can get "stuck" zoomed in since
+// user-scalable=no is ignored on iOS). Only cancels the rapid second tap.
+if (IS_MOBILE) {
+  let _lastTapTime = 0;
+  document.addEventListener('touchend', (e) => {
+    const now = Date.now();
+    if (now - _lastTapTime <= 300) e.preventDefault();
+    _lastTapTime = now;
+  }, { passive: false });
+  // Also block pinch-zoom gestures (iOS Safari).
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('gesturechange', (e) => e.preventDefault());
 }
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 app.appendChild(renderer.domElement);
@@ -2424,6 +2445,8 @@ function startGame(worldId, seed, gamemode, difficulty) {
   currentWorldId = worldId;
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || 7;
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
+  // Mobile: hard-cap view distance so the GPU/CPU isn't meshing far chunks.
+  if (IS_MOBILE) renderDist = Math.min(renderDist, 4);
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
@@ -2507,6 +2530,21 @@ function startGame(worldId, seed, gamemode, difficulty) {
           }
         }
       }
+    },
+    onPause() {
+      if (!gameRunning) return;
+      if (ui.isOverlayShown() || ui.inventoryOpen || ui.furnaceOpen) return;
+      ui.showMenu('pause');
+      cgGameplayStop();
+    },
+    onChat() {
+      if (!gameRunning || chatDisabled) return;
+      openChat('');
+    },
+    onInventory() {
+      if (!gameRunning) return;
+      if (ui.inventoryOpen) { ui.closeInventory(); syncUIMode(); }
+      else { ui.openInventory(player.inventory, 2, player.isCreative()); achievements.incrementStat('inventoryOpened'); }
     },
   });
   if (saved?.player) {
