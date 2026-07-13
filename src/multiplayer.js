@@ -215,7 +215,8 @@ export class Server {
         players: this.players,
         banned: this.banned,
         created: this.created,
-        ownerSecret: this.ownerSecret
+        ownerSecret: this.ownerSecret,
+        isPrivate: !!this.isPrivate
       };
       localStorage.setItem(`bf_server_${this.name}`, JSON.stringify(data));
     } catch (_) {}
@@ -232,6 +233,7 @@ export class Server {
       s.banned = d.banned || [];
       s.created = d.created || Date.now();
       s.ownerSecret = d.ownerSecret || Server.generateSecret();
+      s.isPrivate = !!d.isPrivate;
       return s;
     } catch (_) { return null; }
   }

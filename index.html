@@ -1744,8 +1744,8 @@
           <div class="menu-splash">More Updates Coming Soon!</div>
         </div>
         <button class="menu-btn" id="btn-play">Play</button>
-        <button class="menu-btn" id="btn-lan" style="background:linear-gradient(180deg,#5a7a3a 0%,#4a6a2a 40%,#3a5a1a 60%,#2a4a0a 100%);border-color:#2a4a0a;box-shadow:0 3px 0 #1a3a0a,inset 0 1px 0 rgba(255,255,255,0.12);">LAN</button>
         <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
+        <button class="menu-btn" id="btn-friends">Friends <span class="btn-badge" id="friends-badge" style="display:none;"></span></button>
         <button class="menu-btn" id="btn-achievements">Advancements</button>
         <button class="menu-btn" id="btn-settings">Settings</button>
         <button class="menu-btn" id="btn-feedback">Feedback</button>
@@ -2054,6 +2054,19 @@
               <label>Seed (leave blank for random)</label>
               <input id="input-server-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
             </div>
+            <div class="create-section">
+              <div class="create-section-title">PRIVACY</div>
+              <div class="mode-select" style="flex-direction:column;gap:6px;">
+                <div class="mode-option selected" id="sv-priv-public" style="padding:8px 10px;">
+                  <div class="mo-label">PUBLIC</div>
+                  <div class="mo-desc">Anyone can find & join</div>
+                </div>
+                <div class="mode-option" id="sv-priv-private" style="padding:8px 10px;">
+                  <div class="mo-label">PRIVATE</div>
+                  <div class="mo-desc">Only you & your friends</div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div style="display:flex;gap:8px;justify-content:center;">
@@ -2062,45 +2075,37 @@
         </div>
       </div>
 
-      <!-- Screen: LAN Mode -->
-      <div id="menu-lan" class="menu-screen">
-        <div class="menu-title" style="font-size:32px;">LAN</div>
-        <div style="font:12px monospace;color:#aaa;margin-bottom:6px;text-align:center;">Play with friends on the same Wi-Fi</div>
-        <div style="font:10px monospace;color:#7a8;margin-bottom:16px;text-align:center;max-width:420px;">Want to play with friends anywhere? Use <b style="color:#9c8;">Multiplayer</b> instead.</div>
+      <!-- Screen: Friends -->
+      <div id="menu-friends" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">FRIENDS</div>
+        <div id="friends-login-note" style="display:none;font:12px monospace;color:#fc8;margin-bottom:16px;text-align:center;max-width:420px;">Log in from the Multiplayer screen first to use friends.</div>
 
-        <!-- Mode picker -->
-        <div style="display:flex;gap:8px;max-width:460px;width:100%;margin-bottom:12px;">
-          <button class="lan-tab active" id="lan-tab-host" data-lan="host" style="flex:1;">HOST A WORLD</button>
-          <button class="lan-tab" id="lan-tab-join" data-lan="join" style="flex:1;">JOIN A WORLD</button>
-        </div>
-
-        <!-- Host Section -->
-        <div id="lan-host-section" style="max-width:460px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,120,60,0.4);border-radius:6px;padding:18px;">
-          <div style="font:11px monospace;color:#aaa;margin-bottom:12px;line-height:1.5;">Start a world, then share the code below with friends on your Wi-Fi.</div>
-          <label style="font:10px monospace;color:#888;display:block;margin-bottom:4px;">WORLD NAME</label>
-          <input id="input-lan-world" type="text" value="LAN World" maxlength="32" spellcheck="false" autocomplete="off" placeholder="World name" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
-          <button class="menu-btn" id="btn-lan-host" style="width:100%;margin-top:12px;background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border-color:#2a5a2a;">START HOSTING</button>
-          <div id="lan-host-info" style="display:none;margin-top:14px;background:rgba(0,0,0,0.4);border:1px solid rgba(80,120,60,0.3);border-radius:4px;padding:12px;">
-            <div style="font:10px monospace;color:#9d6;letter-spacing:1px;margin-bottom:8px;">SHARE THIS CODE</div>
-            <div style="display:flex;gap:8px;align-items:center;">
-              <div id="lan-host-ip" style="flex:1;font:bold 20px monospace;color:#fff;word-break:break-all;text-align:center;background:rgba(0,0,0,0.4);padding:10px;border-radius:4px;"></div>
-              <button class="menu-btn" id="btn-lan-copy" style="min-width:70px;padding:10px;font-size:11px;">COPY</button>
+        <!-- Add friend -->
+        <div id="friends-main" style="max-width:460px;width:100%;">
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;margin-bottom:10px;">
+            <div style="font:bold 11px monospace;color:#8bd;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ADD FRIEND</div>
+            <div style="display:flex;gap:8px;">
+              <input id="input-friend-name" type="text" placeholder="Friend's username" maxlength="16" spellcheck="false" autocomplete="off" style="flex:1;padding:10px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
+              <button class="menu-btn" id="btn-friend-add" style="min-width:90px;padding:10px;font-size:11px;">ADD</button>
             </div>
-            <div style="font:10px monospace;color:#888;margin-top:10px;line-height:1.5;">Friends open <b>LAN &rarr; Join a World</b> and type this code.</div>
+            <div id="friend-msg" style="font:11px monospace;color:#8c8;min-height:16px;margin-top:6px;"></div>
+          </div>
+
+          <!-- Pending requests -->
+          <div id="friends-requests-box" style="display:none;background:rgba(0,0,0,0.45);border:1px solid rgba(120,100,60,0.4);border-radius:6px;padding:16px;margin-bottom:10px;">
+            <div style="font:bold 11px monospace;color:#ec8;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">FRIEND REQUESTS</div>
+            <div id="friends-requests-list"></div>
+          </div>
+
+          <!-- Friend list -->
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;">
+            <div style="font:bold 11px monospace;color:#8bd;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">YOUR FRIENDS</div>
+            <div id="friends-list" style="max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
           </div>
         </div>
 
-        <!-- Join Section -->
-        <div id="lan-join-section" style="display:none;max-width:460px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:18px;">
-          <div style="font:11px monospace;color:#aaa;margin-bottom:12px;line-height:1.5;">Ask the host for their code, then type it here to join their world.</div>
-          <label style="font:10px monospace;color:#888;display:block;margin-bottom:4px;">HOST CODE</label>
-          <input id="input-lan-ip" type="text" placeholder="e.g. 192.168.1.100" maxlength="64" spellcheck="false" autocomplete="off" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
-          <div id="lan-error" style="font:11px monospace;color:#f55;min-height:16px;margin-top:6px;"></div>
-          <button class="menu-btn" id="btn-lan-join" style="width:100%;margin-top:8px;background:linear-gradient(180deg,#4a6a8a 0%,#3a5a7a 40%,#2a4a6a 60%,#1a3a5a 100%);border-color:#1a3a5a;">JOIN WORLD</button>
-        </div>
-
         <div style="margin-top:16px;">
-          <button class="menu-btn secondary" id="btn-lan-back" style="min-width:160px;">BACK</button>
+          <button class="menu-btn secondary" id="btn-friends-back" style="min-width:160px;">BACK</button>
         </div>
       </div>
 

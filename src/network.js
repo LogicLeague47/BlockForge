@@ -25,6 +25,8 @@ export class Network {
     this.onAuthResult = null;    // (msg) => {}
     this.onBlockUpdate = null;   // (x, y, z, block) => {}
     this.onBlockBatch = null;    // (edits[]) => {}
+    this.onFriendState = null;   // ({friends, incoming, outgoing}) => {}
+    this.onFriendMsg = null;     // ({text, ok}) => {}
 
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
@@ -167,18 +169,31 @@ export class Network {
       case 'block_batch':
         if (this.onBlockBatch) this.onBlockBatch(msg.edits || []);
         break;
+      case 'friend_state':
+        if (this.onFriendState) this.onFriendState(msg);
+        break;
+      case 'friend_msg':
+        if (this.onFriendMsg) this.onFriendMsg(msg);
+        break;
     }
   }
 
   // ── Public API ──────────────────────────────────────────────────────
 
-  createRoom(name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password) {
-    this._lastJoinInfo = { isNew: true, room: name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password };
+  createRoom(name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password, isPrivate) {
+    this._lastJoinInfo = { isNew: true, room: name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password, isPrivate };
     this._send({
       type: 'create_room',
-      name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password
+      name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password, isPrivate: !!isPrivate
     });
   }
+
+  // ── Friends ─────────────────────────────────────────────────────────
+  friendList() { this._send({ type: 'friend_list' }); }
+  friendRequest(name) { this._send({ type: 'friend_request', name }); }
+  friendAccept(name) { this._send({ type: 'friend_accept', name }); }
+  friendDecline(name) { this._send({ type: 'friend_decline', name }); }
+  friendRemove(name) { this._send({ type: 'friend_remove', name }); }
 
   registerRoom(name, seed, gameMode, maxPlayers, playerName, ownerSecret, password) {
     this._send({

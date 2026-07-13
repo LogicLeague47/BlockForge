@@ -820,6 +820,83 @@ function hidePlayerList() {
   if (el) el.style.display = 'none';
 }
 
+// ── Friends menu ───────────────────────────────────────────────────────
+let _friendState = { friends: [], incoming: [], outgoing: [] };
+
+function openFriendsMenu() {
+  const note = document.getElementById('friends-login-note');
+  const main = document.getElementById('friends-main');
+  let pass = '';
+  try { pass = localStorage.getItem('bf_login_pass') || ''; } catch (_) {}
+  // Friends require a logged-in account.
+  if (!playerName || !pass) {
+    if (note) note.style.display = '';
+    if (main) main.style.display = 'none';
+    return;
+  }
+  if (note) note.style.display = 'none';
+  if (main) main.style.display = '';
+  const msg = document.getElementById('friend-msg');
+  if (msg) msg.textContent = '';
+  // Ensure we're connected + identified, then fetch the friend list.
+  if (!network.connected) {
+    network.connect(MP_SERVER_URL);
+    network.onConnected = () => {
+      network.sendAuth(playerName, pass, 'login');
+      network.friendList();
+    };
+  } else {
+    if (!network.isInRoom()) network.sendAuth(playerName, pass, 'login');
+    network.friendList();
+  }
+}
+
+function renderFriends() {
+  const listEl = document.getElementById('friends-list');
+  const reqBox = document.getElementById('friends-requests-box');
+  const reqList = document.getElementById('friends-requests-list');
+  if (!listEl) return;
+
+  // Pending incoming requests
+  const incoming = _friendState.incoming || [];
+  if (reqBox) reqBox.style.display = incoming.length ? '' : 'none';
+  if (reqList) {
+    reqList.innerHTML = incoming.map(n => `
+      <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(80,80,80,0.25);">
+        <div style="flex:1;font:13px monospace;color:#eee;">${escHtml(n)}</div>
+        <button class="fr-accept menu-btn" data-name="${escHtml(n)}" style="min-width:auto;padding:5px 10px;font-size:10px;background:linear-gradient(180deg,#5a8a5a,#366336);border-color:#2a5a2a;">ACCEPT</button>
+        <button class="fr-decline menu-btn secondary" data-name="${escHtml(n)}" style="min-width:auto;padding:5px 10px;font-size:10px;">DECLINE</button>
+      </div>`).join('');
+  }
+
+  // Friend list (online first)
+  const friendsArr = (_friendState.friends || []).slice().sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name));
+  const outgoing = _friendState.outgoing || [];
+  let html = '';
+  if (friendsArr.length === 0 && outgoing.length === 0) {
+    html = '<div style="font:12px monospace;color:#888;text-align:center;padding:12px;">No friends yet. Add someone above!</div>';
+  }
+  html += friendsArr.map(f => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(80,80,80,0.25);">
+      <div style="width:8px;height:8px;border-radius:50%;background:${f.online ? '#4d4' : '#666'};box-shadow:${f.online ? '0 0 5px #4d4' : 'none'};"></div>
+      <div style="flex:1;font:13px monospace;color:#eee;">${escHtml(f.name)} <span style="font-size:10px;color:${f.online ? '#6c6' : '#777'};">${f.online ? 'online' : 'offline'}</span></div>
+      <button class="fr-remove menu-btn secondary" data-name="${escHtml(f.name)}" style="min-width:auto;padding:5px 9px;font-size:10px;">REMOVE</button>
+    </div>`).join('');
+  // Pending outgoing (sent) requests
+  html += outgoing.map(n => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(80,80,80,0.25);opacity:0.7;">
+      <div style="width:8px;height:8px;border-radius:50%;background:#ca6;"></div>
+      <div style="flex:1;font:13px monospace;color:#ccc;">${escHtml(n)} <span style="font-size:10px;color:#ca6;">request sent</span></div>
+      <button class="fr-decline menu-btn secondary" data-name="${escHtml(n)}" style="min-width:auto;padding:5px 9px;font-size:10px;">CANCEL</button>
+    </div>`).join('');
+  listEl.innerHTML = html;
+
+  // Wire buttons
+  document.querySelectorAll('.fr-accept').forEach(b => b.addEventListener('click', () => network.friendAccept(b.dataset.name)));
+  document.querySelectorAll('.fr-decline').forEach(b => b.addEventListener('click', () => network.friendDecline(b.dataset.name)));
+  document.querySelectorAll('.fr-remove').forEach(b => b.addEventListener('click', () => network.friendRemove(b.dataset.name)));
+}
+
 // --- Controls / key bindings screen ----------------------------------------
 let _rebinding = null;
 
@@ -1682,7 +1759,7 @@ function _doNetworkJoin(name, seed) {
   const localServer = Server.load(name);
   const ownerSecret = localServer ? localServer.ownerSecret : null;
   if (localServer) {
-    network.createRoom(name, localServer.seed || seed || 42, localServer.gameMode, localServer.maxPlayers, playerName, cgUsername, skinIdx, ownerSecret, password);
+    network.createRoom(name, localServer.seed || seed || 42, localServer.gameMode, localServer.maxPlayers, playerName, cgUsername, skinIdx, ownerSecret, password, localServer.isPrivate);
   } else {
     // Remote-only room (from server browser) — no owner secret, so no admin
     network.joinRoom(name, playerName, cgUsername, skinIdx, null, password);
@@ -1691,6 +1768,18 @@ function _doNetworkJoin(name, seed) {
 
 // ── Network event handlers ─────────────────────────────────────────────
 function setupNetworkHandlers() {
+  network.onFriendState = (msg) => {
+    _friendState = { friends: msg.friends || [], incoming: msg.incoming || [], outgoing: msg.outgoing || [] };
+    renderFriends();
+    // Update the badge on the Friends button (pending request count)
+    const badge = document.getElementById('friends-badge');
+    const n = (_friendState.incoming || []).length;
+    if (badge) { badge.textContent = n; badge.style.display = n ? '' : 'none'; }
+  };
+  network.onFriendMsg = (msg) => {
+    const el = document.getElementById('friend-msg');
+    if (el) { el.textContent = msg.text; el.style.color = msg.ok ? '#8c8' : '#f88'; }
+  };
   network.onJoined = (room, seed, gameMode, players, role, maxPlayers, ownerName) => {
     serverName = room;
     isMultiplayer = true;
@@ -1923,12 +2012,13 @@ function _simulateRemotePlayers(dt) {
   }
 }
 
-function createServer(name, maxPlayers, mode, seed) {
+function createServer(name, maxPlayers, mode, seed, isPrivate) {
   // Save locally for role tracking
   let server = Server.load(name);
   if (!server) {
     server = new Server(name, maxPlayers, mode, playerName);
     if (seed) server.seed = seed;
+    server.isPrivate = !!isPrivate;
     server.save();
   }
   trackServerCreated();
@@ -2850,131 +2940,24 @@ function initMenu() {
     renderWorldList();
   });
 
-  // --- LAN menu ---
-  document.getElementById('btn-lan').addEventListener('click', () => {
-    ui.showMenu('lan');
-    _showLanTab('host');
-    const info = document.getElementById('lan-host-info');
-    if (info) info.style.display = 'none';
-    const err = document.getElementById('lan-error');
-    if (err) err.textContent = '';
-    _detectLocalIP();
+  // --- Friends menu ---
+  document.getElementById('btn-friends').addEventListener('click', () => {
+    ui.showMenu('friends');
+    openFriendsMenu();
   });
-  document.getElementById('btn-lan-back')?.addEventListener('click', () => {
+  document.getElementById('btn-friends-back')?.addEventListener('click', () => {
     ui.showMenu('main');
   });
-  // HOST / JOIN tab switcher
-  function _showLanTab(which) {
-    document.querySelectorAll('.lan-tab').forEach(t => t.classList.toggle('active', t.dataset.lan === which));
-    const hostEl = document.getElementById('lan-host-section');
-    const joinEl = document.getElementById('lan-join-section');
-    if (hostEl) hostEl.style.display = which === 'host' ? '' : 'none';
-    if (joinEl) joinEl.style.display = which === 'join' ? '' : 'none';
-  }
-  document.querySelectorAll('.lan-tab').forEach(tab => {
-    tab.addEventListener('click', () => _showLanTab(tab.dataset.lan));
+  document.getElementById('btn-friend-add')?.addEventListener('click', () => {
+    const input = document.getElementById('input-friend-name');
+    const name = (input?.value || '').trim();
+    if (!name) return;
+    network.friendRequest(name);
+    if (input) input.value = '';
   });
-  document.getElementById('btn-lan-copy')?.addEventListener('click', () => {
-    const code = document.getElementById('lan-host-ip')?.textContent || '';
-    const btn = document.getElementById('btn-lan-copy');
-    try { navigator.clipboard?.writeText(code); } catch (_) {}
-    if (btn) { const t = btn.textContent; btn.textContent = 'COPIED'; setTimeout(() => { btn.textContent = t; }, 1200); }
+  document.getElementById('input-friend-name')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-friend-add')?.click();
   });
-
-  // LAN Host — start a singleplayer world + connect to local WS server for others to join
-  document.getElementById('btn-lan-host')?.addEventListener('click', () => {
-    // LAN uses insecure ws:// to a local server. Browsers block ws:// from an
-    // https:// page (mixed content), so LAN can't work on the hosted site.
-    if (window.location.protocol === 'https:') {
-      const infoEl = document.getElementById('lan-host-info');
-      if (infoEl) {
-        infoEl.style.display = '';
-        infoEl.innerHTML = '<div style="font:11px monospace;color:#fc8;line-height:1.5;">LAN needs the game running locally and can\'t work from the website (browsers block local connections over HTTPS).<br><br>To play with friends here, use <b>Multiplayer</b> instead — it works from anywhere, no Wi-Fi needed.</div>';
-      }
-      return;
-    }
-    const worldName = (document.getElementById('input-lan-world')?.value || 'LAN World').trim();
-    const lanServerUrl = `ws://${_localIP || 'localhost'}:4000`;
-
-    // Show host info — display just the plain IP (simpler for friends to type).
-    const infoEl = document.getElementById('lan-host-info');
-    if (infoEl) infoEl.style.display = '';
-    const ipEl = document.getElementById('lan-host-ip');
-    if (ipEl) ipEl.textContent = _localIP || 'localhost';
-
-    // Connect to local WS server and create the room — onJoined will start the game
-    network.connect(lanServerUrl);
-    network.onConnected = () => {
-      const seed = Date.now();
-      network.createRoom(worldName, seed, 'survival', 8, playerName, '', 0, null, '');
-    };
-    network.onError = () => {
-      if (ipEl) ipEl.textContent = _localIP || 'localhost';
-      const noteEl = document.getElementById('lan-host-info');
-      if (noteEl) noteEl.querySelector('div').textContent = 'Could not start the local server. Make sure you ran the game with LAN mode.';
-    };
-  });
-
-  // LAN Join — connect to host's WS server
-  document.getElementById('btn-lan-join')?.addEventListener('click', () => {
-    const ip = (document.getElementById('input-lan-ip')?.value || '').trim();
-    const errEl = document.getElementById('lan-error');
-    if (window.location.protocol === 'https:') {
-      if (errEl) errEl.textContent = 'LAN can\'t connect from the website. Use Multiplayer to play with friends.';
-      return;
-    }
-    if (!ip) { if (errEl) errEl.textContent = 'Enter the host\'s code.'; return; }
-    if (errEl) errEl.textContent = 'Connecting...';
-
-    const url = ip.includes(':') ? `ws://${ip}` : `ws://${ip}:4000`;
-    network.connect(url);
-    network.onConnected = () => {
-      if (errEl) errEl.textContent = '';
-      // List rooms on the host
-      network.listRooms();
-      network.onRoomList = (rooms) => {
-        const roomNames = Object.keys(rooms || {});
-        if (roomNames.length === 0) {
-          if (errEl) errEl.textContent = 'No worlds found on that host.';
-          return;
-        }
-        // Auto-join the first room
-        const roomName = roomNames[0];
-        _doNetworkJoin(roomName, rooms[roomName]?.seed || 42);
-      };
-    };
-    network.onError = () => {
-      if (errEl) errEl.textContent = 'Could not connect. Make sure the host is running and the IP is correct.';
-    };
-  });
-
-  // Detect local IP for LAN hosting
-  let _localIP = '';
-  function _setLocalIP(ip) {
-    if (!ip || _localIP) return;
-    _localIP = ip;
-    const ipEl = document.getElementById('lan-host-ip');
-    if (ipEl) ipEl.textContent = ip; // plain IP, no ws:// or :4000
-  }
-  function _detectLocalIP() {
-    // Best signal: if the page was opened via a LAN IP (i.e. served from a
-    // local server), that IS the address to share.
-    const host = window.location.hostname;
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) { _setLocalIP(host); return; }
-    // Otherwise try WebRTC. Note: many browsers now hide the real IP behind an
-    // mDNS ".local" candidate for privacy, so this can fail — that's expected.
-    try {
-      const pc = new RTCPeerConnection({ iceServers: [] });
-      pc.createDataChannel('');
-      pc.createOffer().then(o => pc.setLocalDescription(o));
-      pc.onicecandidate = (e) => {
-        if (!e.candidate) return;
-        const ip = e.candidate.candidate.match(/(\d{1,3}(?:\.\d{1,3}){3})/)?.[1];
-        if (ip && !ip.startsWith('0.') && !ip.startsWith('127.')) _setLocalIP(ip);
-      };
-      setTimeout(() => pc.close(), 2000);
-    } catch (_) {}
-  }
   // Advancements screen (achievements + statistics tabs)
   function _showAdvTab(which) {
     document.querySelectorAll('.adv-tab').forEach(t => t.classList.toggle('active', t.dataset.adv === which));
@@ -3061,10 +3044,11 @@ function initMenu() {
     const mode = document.getElementById('sv-mode-creative').classList.contains('selected') ? 'creative' : 'survival';
     const pname = (document.getElementById('input-player-name').value || '').trim() || 'Player';
     const seedInput = (document.getElementById('input-server-seed')?.value || '').trim();
+    const isPrivate = document.getElementById('sv-priv-private')?.classList.contains('selected');
     playerName = pname;
     try { localStorage.setItem('bf_player_name', pname); } catch (_) {}
     if (!name) return;
-    createServer(name, maxP, mode, seedInput || undefined);
+    createServer(name, maxP, mode, seedInput || undefined, isPrivate);
   });
   document.getElementById('btn-create-server-back').addEventListener('click', () => {
     showMultiplayerMenu();
@@ -3078,6 +3062,14 @@ function initMenu() {
     document.getElementById('sv-mode-creative').classList.add('selected');
     document.getElementById('sv-mode-survival').classList.remove('selected');
     updateSvInfo();
+  });
+  document.getElementById('sv-priv-public')?.addEventListener('click', () => {
+    document.getElementById('sv-priv-public').classList.add('selected');
+    document.getElementById('sv-priv-private').classList.remove('selected');
+  });
+  document.getElementById('sv-priv-private')?.addEventListener('click', () => {
+    document.getElementById('sv-priv-private').classList.add('selected');
+    document.getElementById('sv-priv-public').classList.remove('selected');
   });
   document.getElementById('tab-players').addEventListener('click', () => renderAdminPanel('players'));
   document.getElementById('tab-staff').addEventListener('click', () => renderAdminPanel('staff'));

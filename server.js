@@ -53,6 +53,7 @@ const PORT = process.env.PORT || 4000;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = join(__dirname, 'server-data.json');
 const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
+const FRIENDS_FILE = join(__dirname, 'friends.json');
 
 // ── Persistence ───────────────────────────────────────────────────────
 let rooms = new Map();
@@ -68,6 +69,7 @@ function saveRooms() {
       ownerName: room.ownerName,
       ownerSecret: room.ownerSecret || null,
       protected: !!room.protected,
+      private: !!room.private,
       banned: [...room.banned],
       created: room.created
     };
@@ -89,6 +91,7 @@ function loadRooms() {
           ownerName: r.ownerName,
           ownerSecret: r.ownerSecret || null,
           protected: !!r.protected,
+          private: !!r.private,
           players: new Map(),
           banned: new Set(r.banned || []),
           created: r.created || Date.now()
@@ -192,6 +195,52 @@ function authAccount(username, password, mode) {
   return { ok: true };
 }
 
+// ── Friends system ────────────────────────────────────────────────────
+// friends = { username: { friends: [names], incoming: [names], outgoing: [names] } }
+let friends = {};
+
+function loadFriends() {
+  if (!existsSync(FRIENDS_FILE)) return;
+  try { friends = JSON.parse(readFileSync(FRIENDS_FILE, 'utf8')) || {}; } catch { friends = {}; }
+}
+function saveFriends() {
+  try { writeFileSync(FRIENDS_FILE, JSON.stringify(friends)); } catch {}
+}
+function _friendRec(name) {
+  if (!friends[name]) friends[name] = { friends: [], incoming: [], outgoing: [] };
+  const r = friends[name];
+  if (!Array.isArray(r.friends)) r.friends = [];
+  if (!Array.isArray(r.incoming)) r.incoming = [];
+  if (!Array.isArray(r.outgoing)) r.outgoing = [];
+  return r;
+}
+// Find the online ws for a given username (any room), or null.
+function _wsForUser(name) {
+  for (const ws of wss.clients) {
+    if (ws._playerData && ws._playerData.name === name) return ws;
+  }
+  return null;
+}
+function _isOnline(name) { return !!_wsForUser(name); }
+
+// Push the caller's current friend state to them.
+function sendFriendState(ws) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const r = _friendRec(pd.name);
+  ws.send(JSON.stringify({
+    type: 'friend_state',
+    friends: r.friends.map(n => ({ name: n, online: _isOnline(n) })),
+    incoming: r.incoming.slice(),
+    outgoing: r.outgoing.slice(),
+  }));
+}
+// Notify a user (if online) to refresh their friend state.
+function notifyFriendState(name) {
+  const w = _wsForUser(name);
+  if (w) sendFriendState(w);
+}
+
 function hasPermission(role, required) {
   return (ROLE_LEVEL[role] || 0) >= (ROLE_LEVEL[required] || 99);
 }
@@ -199,13 +248,17 @@ function hasPermission(role, required) {
 // ── Room helpers ──────────────────────────────────────────────────────
 function getRoom(name) { return rooms.get(name) || null; }
 
-function listRooms() {
+function listRooms(viewerName) {
   const list = [];
   for (const [name, room] of rooms) {
+    // Hide private worlds from everyone except the owner and their friends.
+    if (room.private && viewerName && !canAccessRoom(room, viewerName)) continue;
+    if (room.private && !viewerName) continue;
     list.push({
       name, seed: room.seed, gameMode: room.gameMode,
       maxPlayers: room.maxPlayers, owner: room.ownerName,
-      playerCount: room.players.size, created: room.created
+      playerCount: room.players.size, created: room.created,
+      private: !!room.private
     });
   }
   return list;
@@ -305,12 +358,22 @@ wss.on('connection', (ws) => {
       case 'delete_room': handleDeleteRoom(ws, msg); break;
       case 'get_stats': handleGetStats(ws); break;
       case 'block_update': handleBlockUpdate(ws, msg); break;
+      case 'friend_list': handleFriendList(ws); break;
+      case 'friend_request': handleFriendRequest(ws, msg); break;
+      case 'friend_accept': handleFriendAccept(ws, msg); break;
+      case 'friend_decline': handleFriendDecline(ws, msg); break;
+      case 'friend_remove': handleFriendRemove(ws, msg); break;
     }
   });
 
   ws.on('close', () => {
     console.log(`[Conn] Client disconnected`);
+    const leavingName = ws._playerData && ws._playerData.name;
     handleLeave(ws);
+    // Let this user's friends know they went offline.
+    if (leavingName && friends[leavingName]) {
+      for (const fn of _friendRec(leavingName).friends) notifyFriendState(fn);
+    }
   });
 });
 
@@ -326,6 +389,16 @@ function handleAuth(ws, msg) {
     return;
   }
   const auth = authAccount(playerName, password, mode);
+  // On successful auth, attach a lightweight identity to the socket (no room)
+  // so friend management works from the menu without joining a world.
+  if (auth.ok && !ws._roomName) {
+    ws._playerData = { name: playerName, role: ROLE_PLAYER, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
+    // Let friends know we're online, and send our friend state.
+    if (friends[playerName]) {
+      for (const fn of _friendRec(playerName).friends) notifyFriendState(fn);
+    }
+    sendFriendState(ws);
+  }
   ws.send(JSON.stringify({
     type: 'auth_result',
     ok: auth.ok,
@@ -336,7 +409,7 @@ function handleAuth(ws, msg) {
 }
 
 function handleCreateRoom(ws, msg) {
-  const { name, seed, gameMode, maxPlayers, playerName: rawName, cgUsername, skinIndex, ownerSecret, noOwner, password } = msg;
+  const { name, seed, gameMode, maxPlayers, playerName: rawName, cgUsername, skinIndex, ownerSecret, noOwner, password, isPrivate } = msg;
   const playerName = filterProfanity(rawName);
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
 
@@ -345,9 +418,6 @@ function handleCreateRoom(ws, msg) {
     const auth = authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
-
-  // Only OfficialSMP is allowed on the public server (skip for LAN mode)
-  if (!IS_LAN && name !== 'OfficialSMP') return sendError(ws, 'Only OfficialSMP is available on this server.');
 
   if (rooms.has(name)) {
     // Room exists — try joining instead
@@ -362,6 +432,7 @@ function handleCreateRoom(ws, msg) {
     ownerName: noOwner ? null : playerName,
     ownerSecret: noOwner ? null : (ownerSecret || generateSecret()),
     protected: !!noOwner,
+    private: !!isPrivate, // private = only the owner and their friends can join / see it
     players: new Map(),
     banned: new Set(),
     edits: new Map(),
@@ -402,6 +473,14 @@ function handleRegisterRoom(ws, msg) {
   }
 }
 
+// Private worlds: only the owner and the owner's friends may see/join.
+function canAccessRoom(room, playerName) {
+  if (!room.private) return true;
+  if (room.ownerName === playerName) return true;
+  const ownerFriends = (friends[room.ownerName] && friends[room.ownerName].friends) || [];
+  return ownerFriends.includes(playerName);
+}
+
 function handleJoin(ws, msg) {
   const { room: roomName, playerName: rawName, cgUsername, skinIndex, ownerSecret, password } = msg;
   const playerName = filterProfanity(rawName);
@@ -417,6 +496,9 @@ function handleJoin(ws, msg) {
   if (!room) return sendError(ws, `Room "${roomName}" not found.`);
 
   if (room.banned.has(playerName)) return sendError(ws, 'You are banned from this server.');
+  if (!IS_LAN && !canAccessRoom(room, playerName)) {
+    return sendError(ws, 'This is a private world. Ask the owner to add you as a friend.');
+  }
   if (room.players.size >= room.maxPlayers) return sendError(ws, 'Server is full. Create your own server or try again later.');
 
   for (const [, p] of room.players) {
@@ -451,6 +533,13 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
     players,
     role
   }));
+
+  // Friends: send this player their current friend state, and let their online
+  // friends know they've come online.
+  if (friends[playerName]) {
+    for (const fn of _friendRec(playerName).friends) notifyFriendState(fn);
+  }
+  sendFriendState(ws);
 
   // Send any existing block edits so the new player's world matches the server
   if (room.edits && room.edits.size > 0) {
@@ -501,7 +590,8 @@ function handleLeave(ws) {
 }
 
 function handleListRooms(ws) {
-  ws.send(JSON.stringify({ type: 'room_list', rooms: listRooms() }));
+  const viewer = ws._playerData && ws._playerData.name;
+  ws.send(JSON.stringify({ type: 'room_list', rooms: listRooms(viewer) }));
 }
 
 function handlePosition(ws, msg) {
@@ -719,10 +809,94 @@ function sendError(ws, text) {
   ws.send(JSON.stringify({ type: 'error', text }));
 }
 
+// ── Friend handlers ───────────────────────────────────────────────────
+function handleFriendList(ws) {
+  if (!ws._playerData) return;
+  sendFriendState(ws);
+}
+
+function handleFriendRequest(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const me = pd.name;
+  const target = filterProfanity((msg.name || '').trim());
+  if (!target) return sendFriendMsg(ws, 'Enter a username.', false);
+  if (target === me) return sendFriendMsg(ws, "You can't friend yourself.", false);
+  if (!IS_LAN && !accounts[target]) return sendFriendMsg(ws, `No player named "${target}".`, false);
+
+  const mine = _friendRec(me);
+  const theirs = _friendRec(target);
+  if (mine.friends.includes(target)) return sendFriendMsg(ws, `You're already friends with ${target}.`, false);
+  if (mine.outgoing.includes(target)) return sendFriendMsg(ws, `Request to ${target} already sent.`, false);
+
+  // If they already sent US a request, accept it instead.
+  if (mine.incoming.includes(target)) {
+    return handleFriendAccept(ws, { name: target });
+  }
+
+  mine.outgoing.push(target);
+  theirs.incoming.push(me);
+  saveFriends();
+  sendFriendMsg(ws, `Friend request sent to ${target}.`, true);
+  sendFriendState(ws);
+  notifyFriendState(target);
+}
+
+function handleFriendAccept(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const me = pd.name;
+  const from = filterProfanity((msg.name || '').trim());
+  const mine = _friendRec(me);
+  if (!mine.incoming.includes(from)) return sendFriendMsg(ws, 'No such request.', false);
+  const theirs = _friendRec(from);
+  mine.incoming = mine.incoming.filter(n => n !== from);
+  theirs.outgoing = theirs.outgoing.filter(n => n !== me);
+  if (!mine.friends.includes(from)) mine.friends.push(from);
+  if (!theirs.friends.includes(me)) theirs.friends.push(me);
+  saveFriends();
+  sendFriendMsg(ws, `You are now friends with ${from}.`, true);
+  sendFriendState(ws);
+  notifyFriendState(from);
+}
+
+function handleFriendDecline(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const me = pd.name;
+  const from = filterProfanity((msg.name || '').trim());
+  const mine = _friendRec(me);
+  mine.incoming = mine.incoming.filter(n => n !== from);
+  const theirs = _friendRec(from);
+  theirs.outgoing = theirs.outgoing.filter(n => n !== me);
+  saveFriends();
+  sendFriendState(ws);
+  notifyFriendState(from);
+}
+
+function handleFriendRemove(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const me = pd.name;
+  const other = filterProfanity((msg.name || '').trim());
+  const mine = _friendRec(me);
+  const theirs = _friendRec(other);
+  mine.friends = mine.friends.filter(n => n !== other);
+  theirs.friends = theirs.friends.filter(n => n !== me);
+  saveFriends();
+  sendFriendState(ws);
+  notifyFriendState(other);
+}
+
+function sendFriendMsg(ws, text, ok) {
+  ws.send(JSON.stringify({ type: 'friend_msg', text, ok: !!ok }));
+}
+
 // ── Start ─────────────────────────────────────────────────────────────
 const IS_LAN = process.argv.includes('--lan');
 loadRooms();
 loadAccounts();
+loadFriends();
 ensureOfficialServer();
 server.listen(PORT, () => {
   console.log(`\n  BlockForge Server`);
