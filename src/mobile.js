@@ -235,6 +235,9 @@ export function initMobileControls(playerRef, input, callbacks) {
     input.keys['KeyS'] = dy > DEAD_ZONE;
     input.keys['KeyA'] = dx < -DEAD_ZONE;
     input.keys['KeyD'] = dx > DEAD_ZONE;
+    // Push the stick to its edge to auto-sprint (Bedrock-style) — no button hold.
+    const mag = Math.hypot(dx, dy);
+    input.keys['ShiftLeft'] = state.sprintOn || mag > 0.9;
   };
 
   return state;
