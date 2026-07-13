@@ -384,11 +384,11 @@
       #recipe-screen.open { display: flex; }
       #recipe-screen h2 { font-size: 24px; color: #ddd; margin-bottom: 12px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
       .recipe-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
-      .recipe-tab {
+      .recipe-tab, .adv-tab {
         background: rgba(60,60,60,0.5); border: 1px solid rgba(80,80,80,0.4);
         color: #ccc; cursor: pointer; font: bold 10px monospace; padding: 5px 10px; border-radius: 3px;
       }
-      .recipe-tab.active { background: rgba(100,150,200,0.4); border-color: #8af; color: #fff; }
+      .recipe-tab.active, .adv-tab.active { background: rgba(100,150,200,0.4); border-color: #8af; color: #fff; }
       #recipe-list {
         display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 8px; width: 100%; max-width: 800px; padding: 4px;
@@ -1739,9 +1739,7 @@
         <button class="menu-btn" id="btn-play">Play</button>
         <button class="menu-btn" id="btn-lan" style="background:linear-gradient(180deg,#5a7a3a 0%,#4a6a2a 40%,#3a5a1a 60%,#2a4a0a 100%);border-color:#2a4a0a;box-shadow:0 3px 0 #1a3a0a,inset 0 1px 0 rgba(255,255,255,0.12);">LAN</button>
         <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
-        <button class="menu-btn" id="btn-achievements">Achievements</button>
-        <button class="menu-btn" id="btn-recipes">Recipe Book</button>
-        <button class="menu-btn" id="btn-stats">Statistics</button>
+        <button class="menu-btn" id="btn-achievements">Advancements</button>
         <button class="menu-btn" id="btn-settings">Settings</button>
         <button class="menu-btn" id="btn-feedback">Feedback</button>
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
@@ -2279,10 +2277,19 @@
 
     <!-- Achievement List Screen -->
     <div id="achievement-screen">
-      <h2>ACHIEVEMENTS</h2>
-      <div id="ach-progress-bar"><div id="ach-progress-fill"></div></div>
-      <div id="ach-progress-text">0 / 0</div>
-      <div id="ach-list"></div>
+      <h2>ADVANCEMENTS</h2>
+      <div class="recipe-tabs">
+        <button class="adv-tab active" data-adv="achievements">ACHIEVEMENTS</button>
+        <button class="adv-tab" data-adv="statistics">STATISTICS</button>
+      </div>
+      <div id="adv-achievements">
+        <div id="ach-progress-bar"><div id="ach-progress-fill"></div></div>
+        <div id="ach-progress-text">0 / 0</div>
+        <div id="ach-list"></div>
+      </div>
+      <div id="adv-statistics" style="display:none;">
+        <div id="stats-list"></div>
+      </div>
       <button id="ach-close">BACK</button>
     </div>
 
@@ -2301,14 +2308,8 @@
       <button id="recipe-close">BACK</button>
     </div>
 
-    <div id="stats-screen">
-      <h2>STATISTICS</h2>
-      <div id="stats-list"></div>
-      <button id="stats-close">BACK</button>
-    </div>
-
     <div id="inventory-screen">
-      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button></h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button></h2>
       <div id="inv-layout">
         <div id="inv-left">
           <div id="creative-browser" style="display:none;">

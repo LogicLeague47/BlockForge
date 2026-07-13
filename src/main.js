@@ -2867,6 +2867,16 @@ function initMenu() {
 
   // LAN Host — start a singleplayer world + connect to local WS server for others to join
   document.getElementById('btn-lan-host')?.addEventListener('click', () => {
+    // LAN uses insecure ws:// to a local server. Browsers block ws:// from an
+    // https:// page (mixed content), so LAN can't work on the hosted site.
+    if (window.location.protocol === 'https:') {
+      const infoEl = document.getElementById('lan-host-info');
+      if (infoEl) {
+        infoEl.style.display = '';
+        infoEl.innerHTML = '<div style="font:11px monospace;color:#fc8;line-height:1.5;">LAN needs the game running locally and can\'t work from the website (browsers block local connections over HTTPS).<br><br>To play with friends here, use <b>Multiplayer</b> instead — it works from anywhere, no Wi-Fi needed.</div>';
+      }
+      return;
+    }
     const worldName = (document.getElementById('input-lan-world')?.value || 'LAN World').trim();
     const lanServerUrl = `ws://${_localIP || 'localhost'}:4000`;
 
@@ -2882,13 +2892,22 @@ function initMenu() {
       const seed = Date.now();
       network.createRoom(worldName, seed, 'survival', 8, playerName, '', 0, null, '');
     };
+    network.onError = () => {
+      if (ipEl) ipEl.textContent = _localIP || 'localhost';
+      const noteEl = document.getElementById('lan-host-info');
+      if (noteEl) noteEl.querySelector('div').textContent = 'Could not start the local server. Make sure you ran the game with LAN mode.';
+    };
   });
 
   // LAN Join — connect to host's WS server
   document.getElementById('btn-lan-join')?.addEventListener('click', () => {
     const ip = (document.getElementById('input-lan-ip')?.value || '').trim();
     const errEl = document.getElementById('lan-error');
-    if (!ip) { if (errEl) errEl.textContent = 'Enter the host\'s IP address.'; return; }
+    if (window.location.protocol === 'https:') {
+      if (errEl) errEl.textContent = 'LAN can\'t connect from the website. Use Multiplayer to play with friends.';
+      return;
+    }
+    if (!ip) { if (errEl) errEl.textContent = 'Enter the host\'s code.'; return; }
     if (errEl) errEl.textContent = 'Connecting...';
 
     const url = ip.includes(':') ? `ws://${ip}` : `ws://${ip}:4000`;
@@ -2915,43 +2934,60 @@ function initMenu() {
 
   // Detect local IP for LAN hosting
   let _localIP = '';
+  function _setLocalIP(ip) {
+    if (!ip || _localIP) return;
+    _localIP = ip;
+    const ipEl = document.getElementById('lan-host-ip');
+    if (ipEl) ipEl.textContent = ip; // plain IP, no ws:// or :4000
+  }
   function _detectLocalIP() {
+    // Best signal: if the page was opened via a LAN IP (i.e. served from a
+    // local server), that IS the address to share.
+    const host = window.location.hostname;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) { _setLocalIP(host); return; }
+    // Otherwise try WebRTC. Note: many browsers now hide the real IP behind an
+    // mDNS ".local" candidate for privacy, so this can fail — that's expected.
     try {
       const pc = new RTCPeerConnection({ iceServers: [] });
       pc.createDataChannel('');
       pc.createOffer().then(o => pc.setLocalDescription(o));
-      pc.onicechange = (e) => {
-        const ip = e.candidate?.candidate?.match(/(\d+\.\d+\.\d+\.\d+)/)?.[1];
-        if (ip && !_localIP) {
-          _localIP = ip;
-          const ipEl = document.getElementById('lan-host-ip');
-          if (ipEl) ipEl.textContent = `ws://${ip}:4000`;
-        }
+      pc.onicecandidate = (e) => {
+        if (!e.candidate) return;
+        const ip = e.candidate.candidate.match(/(\d{1,3}(?:\.\d{1,3}){3})/)?.[1];
+        if (ip && !ip.startsWith('0.') && !ip.startsWith('127.')) _setLocalIP(ip);
       };
       setTimeout(() => pc.close(), 2000);
-    } catch (_) {
-      _localIP = window.location.hostname || 'localhost';
-      const ipEl = document.getElementById('lan-host-ip');
-      if (ipEl) ipEl.textContent = `ws://${_localIP}:4000`;
+    } catch (_) {}
+  }
+  // Advancements screen (achievements + statistics tabs)
+  function _showAdvTab(which) {
+    document.querySelectorAll('.adv-tab').forEach(t => t.classList.toggle('active', t.dataset.adv === which));
+    const achEl = document.getElementById('adv-achievements');
+    const statEl = document.getElementById('adv-statistics');
+    if (which === 'statistics') {
+      renderStatsScreen();
+      if (achEl) achEl.style.display = 'none';
+      if (statEl) statEl.style.display = '';
+    } else {
+      renderAchievementScreen();
+      if (achEl) achEl.style.display = '';
+      if (statEl) statEl.style.display = 'none';
     }
   }
   document.getElementById('btn-achievements').addEventListener('click', () => {
-    renderAchievementScreen();
+    _showAdvTab('achievements');
     document.getElementById('achievement-screen').classList.add('open');
   });
-  document.getElementById('btn-recipes')?.addEventListener('click', () => {
+  document.querySelectorAll('.adv-tab').forEach(tab => {
+    tab.addEventListener('click', () => _showAdvTab(tab.dataset.adv));
+  });
+  // Recipe book — opened from inventory / crafting table only.
+  document.getElementById('btn-inv-recipes')?.addEventListener('click', () => {
     renderRecipeBook('all');
     document.getElementById('recipe-screen').classList.add('open');
   });
   document.getElementById('recipe-close')?.addEventListener('click', () => {
     document.getElementById('recipe-screen').classList.remove('open');
-  });
-  document.getElementById('btn-stats')?.addEventListener('click', () => {
-    renderStatsScreen();
-    document.getElementById('stats-screen').classList.add('open');
-  });
-  document.getElementById('stats-close')?.addEventListener('click', () => {
-    document.getElementById('stats-screen').classList.remove('open');
   });
   document.querySelectorAll('.recipe-tab').forEach(tab => {
     tab.addEventListener('click', () => {
