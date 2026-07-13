@@ -864,6 +864,14 @@ function startRebind(action, btn) {
   _rebinding.handler = handler;
 }
 
+function cancelRebind() {
+  if (_rebinding && _rebinding.handler) {
+    document.removeEventListener('keydown', _rebinding.handler, true);
+  }
+  _rebinding = null;
+  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('listening'));
+}
+
 // mouse wheel cycles hotbar
 window.addEventListener('wheel', (e) => {
   if (!pointerLocked || !gameRunning) return;
@@ -3197,9 +3205,11 @@ function initMenu() {
     renderControls();
   });
   document.getElementById('btn-controls-back').addEventListener('click', () => {
+    cancelRebind();
     ui.showMenu('settings');
   });
   document.getElementById('btn-controls-reset').addEventListener('click', () => {
+    cancelRebind();
     resetKeybinds();
     renderControls();
   });
@@ -3647,6 +3657,13 @@ function loop() {
     const dist = Math.sqrt(dx * dx + dz * dz);
     if (dist > 0.01) achievements.setStat('distanceTraveled', (achievements.stats.distanceTraveled || 0) + dist);
     _prevPlayerPos.copy(player.position);
+  }
+
+  // Block movement input while a menu is open / the game isn't focused.
+  // On desktop that's exactly when the pointer isn't locked; mobile forces
+  // pointerLocked = true above so touch controls still work.
+  if (!pointerLocked) {
+    for (const k in input.keys) input.keys[k] = false;
   }
 
   // player physics (skip during sleep)
