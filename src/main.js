@@ -2853,10 +2853,26 @@ function initMenu() {
   // --- LAN menu ---
   document.getElementById('btn-lan').addEventListener('click', () => {
     ui.showMenu('lan');
+    _showLanTab('host');
+    const info = document.getElementById('lan-host-info');
+    if (info) info.style.display = 'none';
+    const err = document.getElementById('lan-error');
+    if (err) err.textContent = '';
     _detectLocalIP();
   });
   document.getElementById('btn-lan-back')?.addEventListener('click', () => {
     ui.showMenu('main');
+  });
+  // HOST / JOIN tab switcher
+  function _showLanTab(which) {
+    document.querySelectorAll('.lan-tab').forEach(t => t.classList.toggle('active', t.dataset.lan === which));
+    const hostEl = document.getElementById('lan-host-section');
+    const joinEl = document.getElementById('lan-join-section');
+    if (hostEl) hostEl.style.display = which === 'host' ? '' : 'none';
+    if (joinEl) joinEl.style.display = which === 'join' ? '' : 'none';
+  }
+  document.querySelectorAll('.lan-tab').forEach(tab => {
+    tab.addEventListener('click', () => _showLanTab(tab.dataset.lan));
   });
   document.getElementById('btn-lan-copy')?.addEventListener('click', () => {
     const code = document.getElementById('lan-host-ip')?.textContent || '';
