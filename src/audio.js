@@ -65,6 +65,9 @@ export class Audio {
     this._musicPaths = [
       '/Music/Main1.mp3',
       '/Music/Main2.mp3',
+      '/Music/Calm1.mp3',   // CC0 — josepharaoh99 "Calm Ambient 1"
+      '/Music/Calm2.mp3',   // CC0 — josepharaoh99 "Calm Piano 1"
+      '/Music/Calm3.mp3',   // CC0 — josepharaoh99 "Calm Ambient 3"
     ];
     this._musicIdx = (Math.random() * this._musicPaths.length) | 0;
   }
