@@ -5,6 +5,7 @@ import { Noise } from './noise.js';
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { generateColumn, generateFeatures, calcBiome, calcHeight } from './worldgen.js';
+import { generateVillages } from './structures.js';
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
 export class Chunk {
@@ -99,6 +100,9 @@ export class World {
     }
 
     generateFeatures(chunk, baseX, baseZ, n);
+
+    // Structures (villages) — placed after terrain/features, before player edits.
+    try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { /* never break chunk gen */ }
 
     for (const [key, v] of this.edits) {
       const [ex, ey, ez] = key.split(',').map(Number);

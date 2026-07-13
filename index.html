@@ -1404,32 +1404,40 @@
       }
       #loading-tip span { color: #fff; font-weight: bold; }
       #loading-bar-wrap {
-        width: min(520px, 85vw); height: 12px;
-        background: rgba(0,0,0,0.6);
-        border: 2px solid rgba(50,50,50,0.7);
-        border-radius: 2px;
+        width: min(520px, 85vw); height: 16px;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(120,180,90,0.35);
+        border-radius: 8px;
         overflow: hidden;
         position: relative;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
       }
       #loading-bar-fill {
         height: 100%; width: 0%;
-        transition: width 0.25s ease-out;
-        display: flex; gap: 3px;
-        padding: 0 2px;
-        box-sizing: border-box;
-      }
-      .load-seg {
-        flex: 1; min-width: 0;
-        background: linear-gradient(180deg, #7bc547 0%, #5aaa30 40%, #4a9a28 60%, #3d8520 100%);
-        border-radius: 1px;
+        border-radius: 8px;
+        transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
         position: relative;
+        background: linear-gradient(180deg, #8ce05a 0%, #63c23c 45%, #4ba82c 55%, #3d9024 100%);
+        box-shadow: 0 0 10px rgba(120,220,90,0.6), inset 0 1px 0 rgba(255,255,255,0.4);
+        overflow: hidden;
       }
-      .load-seg::after {
+      /* Glossy top highlight */
+      #loading-bar-fill::before {
         content: '';
-        position: absolute; top: 0; left: 0; right: 0;
-        height: 45%;
-        background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 100%);
-        border-radius: 1px;
+        position: absolute; left: 0; right: 0; top: 0; height: 45%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 100%);
+      }
+      /* Flowing shine sweep */
+      #loading-bar-fill::after {
+        content: '';
+        position: absolute; top: 0; bottom: 0; width: 60px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+        transform: skewX(-20deg);
+        animation: loadShine 1.2s linear infinite;
+      }
+      @keyframes loadShine {
+        0% { left: -80px; }
+        100% { left: 120%; }
       }
       #loading-bar-pct {
         font-size: 12px; color: #aaa;
@@ -2344,7 +2352,7 @@
     </div>
 
     <div id="inventory-screen">
-      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button></h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button> <button id="btn-close-inv" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
       <div id="inv-layout">
         <div id="inv-left">
           <div id="creative-browser" style="display:none;">
@@ -2380,7 +2388,7 @@
     <div id="item-tooltip"></div>
 
     <div id="furnace-screen">
-      <h2>FURNACE</h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">FURNACE <button id="btn-close-furnace" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
       <div id="furnace-layout">
         <div id="furnace-top">
           <div id="furnace-left">
@@ -2418,7 +2426,7 @@
     </div>
 
     <div id="chest-screen">
-      <h2>CHEST</h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">CHEST <button id="btn-close-chest" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
       <div id="chest-layout">
         <div id="chest-grid"></div>
         <div class="inv-separator" style="width:100%;margin:8px 0;"></div>

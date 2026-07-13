@@ -115,7 +115,8 @@ export function initMobileControls(playerRef, input, callbacks) {
   function startBreak() {
     if (state._breaking) return;
     state._breaking = true;
-    input.mouseLeftHeld = true; // main loop breaks the targeted block / attacks
+    state._brokeWhileHolding = true; // so the release doesn't also place a block
+    input.mouseLeftHeld = true; // main loop breaks the targeted block
   }
   function stopBreak() {
     state._breaking = false;
@@ -167,13 +168,15 @@ export function initMobileControls(playerRef, input, callbacks) {
   function endCameraTouch() {
     const heldMs = Date.now() - state._camStartTime;
     if (state._holdTimer) { clearTimeout(state._holdTimer); state._holdTimer = null; }
-    // A quick, still tap = a single break/attack action.
-    if (!state._camMoved && heldMs < HOLD_BREAK_TIME) {
-      if (callbacks.onAttack) callbacks.onAttack();
-      input.mouseLeftHeld = true;
-      setTimeout(() => { if (!state._breaking) input.mouseLeftHeld = false; }, 120);
+    // A quick, still tap:
+    //   - if it hits an enemy  → attack
+    //   - otherwise            → place a block / interact
+    if (!state._camMoved && heldMs < HOLD_BREAK_TIME && !state._brokeWhileHolding) {
+      const hitEnemy = callbacks.onTapTarget ? callbacks.onTapTarget() : false;
+      if (!hitEnemy && callbacks.onPlace) callbacks.onPlace();
     }
     if (state._breaking) stopBreak();
+    state._brokeWhileHolding = false;
     state._cameraActive = false;
     state._cameraTouchId = null;
     state._camMoved = false;

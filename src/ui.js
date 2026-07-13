@@ -1311,15 +1311,9 @@ export class UI {
     const el = document.getElementById('loading-screen');
     if (el) el.classList.add('active');
     this._loadingEl = el;
-    // Populate the loading bar with green segments
+    // Smooth flowing green bar — no segments.
     const fill = document.getElementById('loading-bar-fill');
-    if (fill && !fill.children.length) {
-      for (let i = 0; i < 12; i++) {
-        const seg = document.createElement('div');
-        seg.className = 'load-seg';
-        fill.appendChild(seg);
-      }
-    }
+    if (fill) fill.innerHTML = '';
   }
   hideLoading() {
     const el = this._loadingEl || document.getElementById('loading-screen');

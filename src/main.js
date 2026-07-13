@@ -2543,6 +2543,28 @@ function startGame(worldId, seed, gamemode, difficulty) {
         }
       }
     },
+    onTapTarget() {
+      // Returns true if the tap hit a mob (so it's an attack, not a place).
+      if (!gameRunning || !mobManager || !player) return false;
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const mobHit = mobManager.hitTest(camera.position, dir, REACH);
+      if (!mobHit) return false;
+      const atkSlot = player.inventory.getSelected();
+      const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
+      const attackDamage = atkTool ? atkTool.swordDmg || 1 : 1;
+      mobHit.takeDamage(attackDamage, camera.position);
+      audio.hit();
+      viewmodel.swing();
+      mobManager.playHurtSound(mobHit.type);
+      if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton') mobHit.aggro = true;
+      if (mobHit.dead) {
+        if (player.isSurvival()) { for (const drop of mobHit.getDrops()) { player.inventory.add(drop.item, drop.count); syncUIMode(); } }
+        scene.remove(mobHit.mesh); mobHit.dispose();
+        const idx = mobManager.mobs.indexOf(mobHit); if (idx >= 0) mobManager.mobs.splice(idx, 1);
+      }
+      return true;
+    },
     onPause() {
       if (!gameRunning) return;
       if (ui.isOverlayShown() || ui.inventoryOpen || ui.furnaceOpen) return;
@@ -4288,6 +4310,17 @@ document.getElementById('btn-sort-inv')?.addEventListener('click', () => {
     syncUIMode();
     if (ui.inventoryOpen) ui.renderInventoryGrid(player.inventory);
   }
+});
+
+// --- Close buttons (needed on mobile where there's no Tab/Esc) ---
+document.getElementById('btn-close-inv')?.addEventListener('click', () => {
+  ui.closeInventory(); syncUIMode(); lockPointer();
+});
+document.getElementById('btn-close-furnace')?.addEventListener('click', () => {
+  ui.closeFurnace(); lockPointer();
+});
+document.getElementById('btn-close-chest')?.addEventListener('click', () => {
+  ui.closeChest(); lockPointer();
 });
 
 
