@@ -4303,6 +4303,7 @@ let skinEditor = null;
 document.getElementById('btn-skins-edit')?.addEventListener('click', () => {
   ui.showMenu('skin-editor');
   setTimeout(() => {
+    if (skinEditor) { try { skinEditor.destroy(); } catch (_) {} }
     skinEditor = new SkinEditor();
     skinEditor.init();
   }, 50);

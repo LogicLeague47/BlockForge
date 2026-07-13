@@ -9,7 +9,7 @@ const BODY = { w: 8, h: 12, d: 4 };
 const ARM  = { w: 4, h: 12, d: 4 };
 const LEG  = { w: 4, h: 12, d: 4 };
 
-function createSkinCanvas(preset) {
+export function createSkinCanvas(preset) {
   // If preset has a custom canvas (from the 3D skin editor), use it directly
   if (preset && preset._customCanvas) {
     return preset._customCanvas;

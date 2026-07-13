@@ -1087,6 +1087,7 @@
       .menu-btn#btn-multiplayer:hover {
         background: linear-gradient(180deg, #5a7a9a 0%, #4a6a8a 40%, #3a5a7a 60%, #2a4a6a 100%);
       }
+      .menu-btn.sel { background: rgba(120,180,255,0.35) !important; border-color: #8cf !important; box-shadow: 0 0 6px rgba(120,180,255,0.5); }
       .menu-btn .btn-badge {
         position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
         background: #5a5; color: #fff; font-size: 9px; font-weight: bold;
@@ -2164,68 +2165,11 @@
         </div>
       </div>
 
-      <!-- Screen: Skin Editor -->
+      <!-- Screen: Skin Editor (built by skineditor.js) -->
       <div id="menu-skin-editor" class="menu-screen">
-        <div class="menu-title" style="font-size:22px;">SKIN EDITOR</div>
-        <div class="skin-editor-layout">
-          <div class="skin-editor-main">
-            <div class="skin-editor-preview-wrap">
-              <div class="skin-editor-preview-box">
-              </div>
-            </div>
-            <div class="skin-editor-grid-section">
-              <div class="skin-grid-editor-wrap" style="position:relative;border:1px solid rgba(80,80,80,0.4);background:rgba(0,0,0,0.4);border-radius:3px;overflow:hidden;cursor:crosshair;width:140px;height:140px;flex-shrink:0;">
-                <canvas id="skin-grid-canvas" width="448" height="448" style="display:block;image-rendering:pixelated;width:140px;height:140px;"></canvas>
-                <div id="skin-grid-overlay" style="position:absolute;top:0;left:0;width:140px;height:140px;pointer-events:none;"></div>
-              </div>
-              <div class="skin-editor-tools">
-                <button data-skin-tool="brush" class="skin-tool-btn active" title="Brush">B</button>
-                <button data-skin-tool="eraser" class="skin-tool-btn" title="Eraser">E</button>
-                <button data-skin-tool="fill" class="skin-tool-btn" title="Fill">F</button>
-                <button data-skin-tool="eyedropper" class="skin-tool-btn" title="Eyedropper">I</button>
-                <button id="skin-fill-all" class="skin-tool-btn wide" title="Fill All">Fill All</button>
-                <button id="skin-clear" class="skin-tool-btn wide" title="Clear All">Clear</button>
-              </div>
-              <span class="skin-preview-hint">Click pixels to edit. Drag preview to rotate.</span>
-            </div>
-          </div>
-          <div class="skin-editor-sidebar">
-            <div class="skin-palette-section">
-              <div class="skin-palette-label">SELECT COLOR</div>
-              <div class="skin-color-picker-area" style="display:flex;gap:6px;align-items:flex-start;">
-                <div style="position:relative;border:1px solid rgba(80,80,80,0.5);border-radius:3px;cursor:crosshair;" class="skin-sat-bright-wrap">
-                  <canvas id="skin-sat-bright" width="110" height="110" style="display:block;border-radius:3px;"></canvas>
-                  <div id="skin-sb-cursor" style="position:absolute;width:10px;height:10px;border:2px solid #fff;border-radius:50%;box-shadow:0 0 2px rgba(0,0,0,0.8);pointer-events:none;transform:translate(-50%,-50%);"></div>
-                </div>
-                <div style="position:relative;width:16px;height:110px;flex-shrink:0;border:1px solid rgba(80,80,80,0.5);border-radius:3px;cursor:pointer;">
-                  <canvas id="skin-hue-bar" width="16" height="110" style="display:block;border-radius:3px;"></canvas>
-                  <div id="skin-hue-cursor" style="position:absolute;left:-2px;width:22px;height:4px;background:#fff;border:1px solid #000;border-radius:2px;pointer-events:none;transform:translateY(-50%);"></div>
-                </div>
-              </div>
-            </div>
-            <div class="skin-current-color" style="display:flex;align-items:center;gap:6px;background:rgba(0,0,0,0.3);padding:3px 6px;border-radius:3px;">
-              <div id="skin-color-swatch" style="width:24px;height:24px;border:2px solid rgba(200,200,200,0.3);border-radius:3px;flex-shrink:0;"></div>
-              <div id="skin-color-hex" style="font:10px monospace;color:#ccc;">#c0906a</div>
-            </div>
-            <div class="skin-palette-section">
-              <div class="skin-palette-label">PRESET COLORS</div>
-              <div id="skin-preset-colors" class="skin-color-grid"></div>
-            </div>
-            <div style="display:flex;gap:3px;">
-              <button id="skin-undo" class="skin-act-btn">Undo</button>
-              <button id="skin-redo" class="skin-act-btn">Redo</button>
-            </div>
-            <div style="display:flex;gap:3px;">
-              <button id="skin-save" class="skin-act-btn primary">Save</button>
-              <button id="skin-load-preset" class="skin-act-btn">Load</button>
-            </div>
-            <div style="display:flex;gap:3px;">
-              <button id="skin-export" class="skin-act-btn">Export</button>
-              <button id="skin-import" class="skin-act-btn">Import</button>
-            </div>
-          </div>
-        </div>
-        <button class="menu-btn secondary" id="btn-skin-editor-back">BACK</button>
+        <div class="menu-title" style="font-size:24px;">SKIN EDITOR</div>
+        <div id="skin-editor-root"></div>
+        <button class="menu-btn secondary" id="btn-skin-editor-back" style="margin-top:12px;">BACK</button>
       </div>
 
       <!-- Screen: Developer Panel (GameDev account only) -->

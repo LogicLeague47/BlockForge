@@ -66,7 +66,6 @@ export function initMobileControls(playerRef, input, callbacks) {
     <div class="mc-buttons">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
       <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
-      <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
     </div>
   `;
   document.body.appendChild(root);
