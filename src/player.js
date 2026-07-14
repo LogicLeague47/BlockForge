@@ -116,6 +116,7 @@ export class Player {
   }
 
   setGamemode(mode) {
+    const prev = this.gamemode;
     this.gamemode = mode;
     if (mode === 'creative') {
       this.health = this.maxHealth;
@@ -123,11 +124,17 @@ export class Player {
       this.saturation = 5;
       this.air = MAX_AIR;
       this.flying = false;
+    } else if (mode === 'spectator') {
+      this.flying = true;
+    } else if (mode === 'adventure') {
+      // adventure: can't break blocks by hand, same as survival otherwise
     }
   }
 
   isCreative() { return this.gamemode === 'creative'; }
   isSurvival() { return this.gamemode === 'survival'; }
+  isAdventure() { return this.gamemode === 'adventure'; }
+  isSpectator() { return this.gamemode === 'spectator'; }
   isDead() { return this.health <= 0; }
 
   spawn() {

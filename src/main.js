@@ -1042,6 +1042,7 @@ ui.onHotbarSelect = (i) => {
 // break / place on mouse buttons
 document.addEventListener('mousedown', (e) => {
   if (!pointerLocked || ui.inventoryOpen || !gameRunning) return;
+  if (player && player.isSpectator()) return; // no interactions in spectator
   audio.resume();
   viewmodel.swing();
   if (e.button === 0) {
@@ -1160,19 +1161,21 @@ document.addEventListener('mouseup', (e) => {
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 // --- gamemode toggle ---
+const GAMEMODE_CYCLE = ['creative', 'survival', 'adventure', 'spectator'];
 function toggleGamemode() {
-  if (player.isCreative()) {
-    player.setGamemode('survival');
-  } else {
-    player.setGamemode('creative');
-  }
+  const cur = player.gamemode || 'survival';
+  const idx = GAMEMODE_CYCLE.indexOf(cur);
+  const next = GAMEMODE_CYCLE[(idx + 1) % GAMEMODE_CYCLE.length];
+  player.setGamemode(next);
   syncUIMode();
+  addChatLine(`Gamemode set to ${next}.`, '#5f5');
 }
 
 function syncUIMode() {
   if (!player) return;
   const creative = player.isCreative();
   ui.creative = creative;
+  ui.spectator = player.isSpectator();
   ui.buildHotbarFromInventory(player.inventory);
 }
 
@@ -1392,6 +1395,7 @@ function handleBucket(held, hit) {
 function breakBlock(hit) {
   const b = world.getBlock(hit.x, hit.y, hit.z);
   if (b === BLOCK.AIR || b === BLOCK.BEDROCK || b === BLOCK.WATER) return;
+  if (player && player.isAdventure()) return; // adventure mode: can't break blocks
 
   // tool speed
   const slot = player.inventory.getSelected();
@@ -1694,6 +1698,135 @@ function submitChat() {
       const sy = player.position.y;
       mobManager.spawnAt(animal, sx, sy, sz);
       addChatLine(`Spawned ${animal} at (${Math.floor(sx)}, ${Math.floor(sy)}, ${Math.floor(sz)}).`, '#5f5');
+      return;
+    }
+    // /gamemode command — works in singleplayer and multiplayer
+    if (cmdPart === 'gamemode') {
+      const mode = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      const VALID_MODES = ['creative', 'survival', 'adventure', 'spectator'];
+      if (!mode || !VALID_MODES.includes(mode)) {
+        addChatLine('Usage: /gamemode <creative|survival|adventure|spectator>', '#f55');
+        return;
+      }
+      if (player) {
+        player.setGamemode(mode);
+        syncUIMode();
+      }
+      if (currentServer) {
+        currentServer.gameMode = mode;
+        currentServer.save();
+      }
+      if (network.connected && network.roomName) {
+        network.sendCommand(text);
+      }
+      addChatLine(`Gamemode set to ${mode}.`, '#5f5');
+      return;
+    }
+    // /give command — works in singleplayer
+    if (cmdPart === 'give') {
+      const args = text.slice(1).trim().split(/\s+/);
+      const itemName = (args[1] || '').toUpperCase().replace(/ /g, '_');
+      const count = parseInt(args[2]) || 1;
+      if (!itemName) {
+        addChatLine('Usage: /give <item> [count]', '#f55');
+        return;
+      }
+      // Search for item by name in ITEM enum
+      let foundId = null;
+      for (const [key, val] of Object.entries(ITEM)) {
+        if (key === itemName) { foundId = val; break; }
+      }
+      if (foundId == null) {
+        addChatLine(`Unknown item: ${itemName}`, '#f55');
+        return;
+      }
+      if (player) {
+        player.inventory.add({ item: foundId, count });
+        syncUIMode();
+      }
+      addChatLine(`Gave ${count}x ${itemName}.`, '#5f5');
+      return;
+    }
+    // /time command
+    if (cmdPart === 'time') {
+      const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      if (val === 'day' || val === '0') { dayTime = 0.01; addChatLine('Time set to day.', '#5f5'); }
+      else if (val === 'night' || val === '13000') { dayTime = 0.625; addChatLine('Time set to night.', '#5f5'); }
+      else if (val === 'noon') { dayTime = 0.5; addChatLine('Time set to noon.', '#5f5'); }
+      else if (val === 'midnight') { dayTime = 0; addChatLine('Time set to midnight.', '#5f5'); }
+      else addChatLine('Usage: /time <day|noon|night|midnight>', '#f55');
+      return;
+    }
+    // /difficulty command
+    if (cmdPart === 'difficulty') {
+      const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      const VALID_DIFF = ['peaceful', 'easy', 'normal', 'hard'];
+      if (!val || !VALID_DIFF.includes(val)) {
+        addChatLine('Usage: /difficulty <peaceful|easy|normal|hard>', '#f55');
+        return;
+      }
+      gameDifficulty = val;
+      if (player) player.difficulty = val;
+      addChatLine(`Difficulty set to ${val}.`, '#5f5');
+      return;
+    }
+    // /tp command — singleplayer
+    if (cmdPart === 'tp') {
+      const args = text.slice(1).trim().split(/\s+/);
+      if (args.length >= 4 && player) {
+        const x = parseFloat(args[1]) || 0;
+        const y = parseFloat(args[2]) || 0;
+        const z = parseFloat(args[3]) || 0;
+        player.position.set(x, y, z);
+        addChatLine(`Teleported to (${x}, ${y}, ${z}).`, '#5f5');
+        return;
+      }
+      addChatLine('Usage: /tp <x> <y> <z>', '#f55');
+      return;
+    }
+    // /heal command — singleplayer
+    if (cmdPart === 'heal') {
+      if (player) {
+        player.health = player.maxHealth;
+        player.hunger = player.maxHunger;
+        player.saturation = 5;
+        player.air = 300;
+        player.damageTimer = 0;
+        addChatLine('Health restored.', '#5f5');
+      }
+      return;
+    }
+    // /kill command
+    if (cmdPart === 'kill') {
+      if (player) {
+        player.health = 0;
+        addChatLine('You died.', '#f55');
+      }
+      return;
+    }
+    // /weather command
+    if (cmdPart === 'weather') {
+      const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      if (val === 'clear') { weather = 'clear'; addChatLine('Weather set to clear.', '#5f5'); }
+      else if (val === 'rain' || val === 'rainy') { weather = 'rain'; addChatLine('Weather set to rain.', '#5f5'); }
+      else if (val === 'thunder' || val === 'storm') { weather = 'thunder'; addChatLine('Weather set to thunder.', '#5f5'); }
+      else addChatLine('Usage: /weather <clear|rain|thunder>', '#f55');
+      return;
+    }
+    // /help command — singleplayer
+    if (cmdPart === 'help') {
+      const cmds = [
+        '/gamemode <creative|survival|adventure|spectator>',
+        '/give <item> [count]',
+        '/tp <x> <y> <z>',
+        '/time <day|noon|night|midnight>',
+        '/difficulty <peaceful|easy|normal|hard>',
+        '/weather <clear|rain|thunder>',
+        '/heal — Restore health',
+        '/kill — Die',
+        '/help — Show this help',
+      ];
+      addChatLine(cmds.join('\n'), '#5f5');
       return;
     }
     if (network.connected && network.roomName) {
