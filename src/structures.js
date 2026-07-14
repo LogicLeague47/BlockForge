@@ -237,20 +237,111 @@ function buildLamp(set, ox, y, oz) {
 }
 
 function buildTower(set, ox, y, oz) {
-  const r = 3, h = 14;
-  for (let dy = 0; dy < h; dy++) {
-    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
-      const edge = Math.abs(dx) === r || Math.abs(dz) === r;
-      if (dy === 0) foundation(set, ox + dx, y, oz + dz, BLOCK.COBBLESTONE);
-      else if (edge) set(ox + dx, y + dy, oz + dz, dy % 4 === 3 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.STONE);
-      else set(ox + dx, y + dy, oz + dz, BLOCK.AIR);
+  // Reference: abandoned stone watchtower with wooden pagoda roof
+  // Wide stone base → tapered shaft → open observation deck → layered roof
+
+  // --- Foundation (7×7) ---
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    foundation(set, ox + dx, y, oz + dz, BLOCK.COBBLESTONE);
+  }
+
+  // --- Base section (y+1 to y+3): solid stone with mossy accents ---
+  for (let dy = 1; dy <= 3; dy++) {
+    for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+      const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+      if (edge) {
+        set(ox + dx, y + dy, oz + dz, dy === 1 ? BLOCK.COBBLESTONE : (dx + dz) % 3 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.STONE);
+      } else {
+        set(ox + dx, y + dy, oz + dz, BLOCK.AIR);
+      }
     }
   }
-  // battlements
-  for (let dx = -r; dx <= r; dx += 2) { set(ox + dx, y + h, oz - r, BLOCK.COBBLESTONE); set(ox + dx, y + h, oz + r, BLOCK.COBBLESTONE); }
-  for (let dz = -r; dz <= r; dz += 2) { set(ox - r, y + h, oz + dz, BLOCK.COBBLESTONE); set(ox + r, y + h, oz + dz, BLOCK.COBBLESTONE); }
-  set(ox, y + 1, oz - r, BLOCK.AIR); set(ox, y + 2, oz - r, BLOCK.AIR); // door
-  set(ox, y + h - 1, oz, BLOCK.TORCH);
+  // door
+  set(ox, y + 1, oz - 3, BLOCK.AIR); set(ox, y + 2, oz - 3, BLOCK.AIR);
+
+  // --- Shaft (y+4 to y+10): 5×5 walls with window gaps ---
+  for (let dy = 4; dy <= 10; dy++) {
+    for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+      const edge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+      if (edge) {
+        // window gaps: small openings every 3 blocks
+        const isWindow = dy >= 5 && dy <= 9 && (dx === 0 || dz === 0) && dy % 3 === 0 && (Math.abs(dx) === 2 || Math.abs(dz) === 2);
+        set(ox + dx, y + dy, oz + dz,
+          isWindow ? BLOCK.AIR :
+          dy % 5 === 0 ? BLOCK.COBBLESTONE :
+          (dx + dz + dy) % 4 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.STONE);
+      } else {
+        set(ox + dx, y + dy, oz + dz, BLOCK.AIR);
+      }
+    }
+  }
+
+  // --- Observation deck platform (y+11): wider stone lip ---
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    const edge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+    if (edge && Math.abs(dx) <= 3 && Math.abs(dz) <= 3) {
+      set(ox + dx, y + 11, oz + dz, (dx + dz) % 2 === 0 ? BLOCK.COBBLESTONE : BLOCK.MOSSY_COBBLESTONE);
+    } else if (!edge) {
+      set(ox + dx, y + 11, oz + dz, BLOCK.PLANKS);
+    }
+  }
+
+  // --- Pillars (y+12 to y+14): corner and mid-edge stone pillars ---
+  const pillarPositions = [
+    [-3,-3],[-3,0],[-3,3],[0,-3],[0,3],[3,-3],[3,0],[3,3]
+  ];
+  for (let dy = 12; dy <= 14; dy++) {
+    for (const [px, pz] of pillarPositions) {
+      set(ox + px, y + dy, oz + pz, dy === 14 ? BLOCK.COBBLESTONE : BLOCK.STONE);
+    }
+  }
+
+  // Torches on pillars
+  set(ox - 3, y + 13, oz, BLOCK.TORCH);
+  set(ox + 3, y + 13, oz, BLOCK.TORCH);
+  set(ox, y + 13, oz - 3, BLOCK.TORCH);
+  set(ox, y + 13, oz + 3, BLOCK.TORCH);
+
+  // --- Roof layer 1 (y+15): 9×9 plank overhang ---
+  for (let dx = -4; dx <= 4; dx++) for (let dz = -4; dz <= 4; dz++) {
+    if (Math.abs(dx) <= 3 && Math.abs(dz) <= 3) {
+      set(ox + dx, y + 15, oz + dz, BLOCK.PLANKS);
+    } else {
+      // corner fill for the overhang
+      set(ox + dx, y + 15, oz + dz, (dx + dz) % 2 === 0 ? BLOCK.PLANKS : BLOCK.WOOD);
+    }
+  }
+  // Wood trim around roof layer 1
+  for (let dx = -4; dx <= 4; dx++) {
+    set(ox + dx, y + 15, oz - 4, BLOCK.WOOD);
+    set(ox + dx, y + 15, oz + 4, BLOCK.WOOD);
+  }
+  for (let dz = -4; dz <= 4; dz++) {
+    set(ox - 4, y + 15, oz + dz, BLOCK.WOOD);
+    set(ox + 4, y + 15, oz + dz, BLOCK.WOOD);
+  }
+
+  // --- Roof layer 2 (y+16): 7×7, inset ---
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    set(ox + dx, y + 16, oz + dz, (dx + dz) % 2 === 0 ? BLOCK.PLANKS : BLOCK.WOOD);
+  }
+  // Wood trim
+  for (let dx = -3; dx <= 3; dx++) {
+    set(ox + dx, y + 16, oz - 3, BLOCK.WOOD);
+    set(ox + dx, y + 16, oz + 3, BLOCK.WOOD);
+  }
+  for (let dz = -3; dz <= 3; dz++) {
+    set(ox - 3, y + 16, oz + dz, BLOCK.WOOD);
+    set(ox + 3, y + 16, oz + dz, BLOCK.WOOD);
+  }
+
+  // --- Roof peak (y+17): 3×3 cap ---
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    set(ox + dx, y + 17, oz + dz, BLOCK.PLANKS);
+  }
+  // Finial
+  set(ox, y + 18, oz, BLOCK.WOOD);
+  set(ox, y + 19, oz, BLOCK.TORCH);
 }
 
 // Place a single structure at a world position (used by the dev tools).

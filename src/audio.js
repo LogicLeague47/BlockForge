@@ -406,21 +406,28 @@ export class Audio {
     ]);
   }
 
+  _glass_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.03, gain: 0.2, hp: 5000, hq: 1.5, atk: 0.001, rel: 0.04 },
+      { wave: 'sine', freq: 2000, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.05 },
+    ]);
+  }
+
   // ── PUBLIC API ───────────────────────────────────────────────────────
 
   dig(blockId) {
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32: // stone, cobble, ores, obsidian, terracotta, furnace
+      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: // stone, cobble, coal ore, iron ore, gold ore, diamond ore, obsidian, terracotta, furnace, stone button, lever, stone pressure plate, copper ore, emerald ore, flower pot, iron door, greenstone ore, greenstone block, greenstone lamp
         return this._stone_dig();
-      case 1: case 2: case 33: case 34: // grass, dirt, podzol, mycelium
+      case 1: case 2: case 33: case 34: case 66: case 69: case 75: // grass, dirt, podzol, mycelium, carpet, wool, greenstone wire
         return this._dirt_dig();
-      case 5: case 10: case 11: case 16: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: // wood, planks, glass, pumpkin, cactus, bookshelf, TNT, crafting, netherrack, jungle wood
+      case 5: case 10: case 11: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79: // wood, planks, pumpkin, cactus, bookshelf, TNT, crafting, netherrack, jungle wood, ladder, fence, door, sign, painting, greenstone torch, piston, sticky piston
         return this._wood_dig();
       case 6: case 36: // leaves, dark oak leaves
         return this._leaves_dig();
       case 7: case 29: // sand, red sand
         return this._sand_dig();
-      case 9: // glass
+      case 16: case 46: // glass, glass pane
         return this._glass_dig();
       case 8: // water
         return this.splash();
@@ -442,16 +449,18 @@ export class Audio {
     this._stepCooldown = now;
 
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32:
+      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77:
         return this._stone_step();
-      case 1: case 2: case 33: case 34:
+      case 1: case 2: case 33: case 34: case 66: case 69: case 75:
         return this._dirt_step();
-      case 5: case 10: case 11: case 16: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35:
+      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
         return this._wood_step();
       case 6: case 36:
         return this._leaves_step();
       case 7: case 29: case 18:
         return this._sand_step();
+      case 16: case 46:
+        return this._glass_step ? this._glass_step() : this._wood_step();
       case 15: case 31: case 37:
         return this._dirt_step();
       default:
@@ -459,24 +468,24 @@ export class Audio {
     }
   }
 
-  place() {
-    // determine material from last-placed block (approximate with dirt default)
+  place(blockId) {
+    if (blockId) return this.placeBlock(blockId);
     this._dirt_place();
   }
 
   placeBlock(blockId) {
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32:
+      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77:
         return this._stone_place();
-      case 1: case 2: case 33: case 34:
+      case 1: case 2: case 33: case 34: case 66: case 69: case 75:
         return this._dirt_place();
-      case 5: case 10: case 11: case 16: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35:
+      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
         return this._wood_place();
       case 6: case 36:
         return this._leaves_place();
       case 7: case 29:
         return this._sand_place();
-      case 9:
+      case 16: case 46:
         return this._glass_place();
       case 15: case 31: case 37:
         return this._dirt_place();

@@ -36,6 +36,7 @@ export function initMobileControls(playerRef, input, callbacks) {
     attackHeld: false,
     jumpHeld: false,
     sprintOn: false,
+    crouchOn: false,
   };
 
   if (!isMobile) return state;
@@ -65,6 +66,7 @@ export function initMobileControls(playerRef, input, callbacks) {
     </div>
     <div class="mc-buttons">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
+      <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
       <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
     </div>
   `;
@@ -208,6 +210,12 @@ export function initMobileControls(playerRef, input, callbacks) {
         state.sprintOn = !state.sprintOn;
         input.keys['ShiftLeft'] = state.sprintOn;
         if (btnEl) btnEl.classList.toggle('mc-active', state.sprintOn);
+      }
+    } else if (action === 'crouch') {
+      if (down) {
+        state.crouchOn = !state.crouchOn;
+        input.keys['ControlLeft'] = state.crouchOn;
+        if (btnEl) btnEl.classList.toggle('mc-active', state.crouchOn);
       }
     } else if (action === 'place') {
       if (down && callbacks.onPlace) callbacks.onPlace();

@@ -169,6 +169,18 @@ export function makeItemIconCanvas(itemId) {
     case 301: drawPotato(x, '#d8c088', '#a89050'); break;
     case 302: drawPumpkinPie(x); break;
     case 303: drawCarrot(x, '#f5d020', '#c8a410'); break;
+    // New materials
+    case 304: drawIngot(x, '#e89050', '#c87030', '#a05020'); break;       // copper ingot
+    case 305: drawEmerald(x); break;                                       // emerald
+    case 306: drawDye(x, '#90c840'); break;                               // lime dye
+    case 307: drawDye(x, '#e87098'); break;                               // pink dye
+    case 308: drawDye(x, '#3060d0'); break;                               // blue dye
+    case 309: drawBoneMeal(x); break;                                      // bone meal
+    case 310: drawNameTag(x); break;                                       // name tag
+    case 311: drawSaddle(x); break;                                        // saddle
+    case 312: drawLead(x); break;                                          // lead
+    case 314: drawGreenstoneDust(x); break;
+    case 315: drawSlimeBall(x); break;
     default: {
       // Fallback: a subtle gem-stone so unknown items still read nicely.
       x.fillStyle = '#888';
@@ -638,6 +650,116 @@ function drawPumpkinPie(x) {
   px(x, '#fff0e0', 7, 4, 2, 2);    // whipped cream
 }
 
+function drawEmerald(x) {
+  // Emerald gem — hexagonal gem with facet shine
+  px(x, '#1a7a30', 5, 4, 6, 8);   // body
+  px(x, '#30b050', 5, 4, 6, 2);    // top face
+  px(x, '#50d870', 6, 5, 4, 4);    // lit facet
+  px(x, '#80f898', 6, 5, 2, 2);    // specular highlight
+  px(x, '#0e5a20', 5, 11, 6, 1);   // bottom edge
+  // crown
+  px(x, '#30b050', 6, 3, 4, 1);
+  px(x, '#1a7a30', 7, 2, 2, 1);
+}
+
+function drawDye(x, col) {
+  // Small pile of dye powder
+  px(x, col, 5, 8, 6, 4);          // base pile
+  px(x, col, 6, 7, 4, 1);          // top of pile
+  px(x, col, 7, 6, 2, 1);          // peak
+  // lighter highlight on top
+  const hi = col.replace(/[0-9a-f]{2}$/i, (m) => {
+    const v = Math.min(255, parseInt(m, 16) + 60);
+    return v.toString(16).padStart(2, '0');
+  });
+  px(x, hi, 7, 7, 2, 1);
+  // dark shadow on bottom
+  px(x, '#2a2a2a', 5, 12, 6, 1);
+}
+
+function drawBoneMeal(x) {
+  // White powder pile
+  px(x, '#e8e0d0', 5, 8, 6, 4);
+  px(x, '#e8e0d0', 6, 7, 4, 1);
+  px(x, '#e8e0d0', 7, 6, 2, 1);
+  px(x, '#f8f0e0', 7, 7, 2, 1);    // highlight
+  px(x, '#c8c0b0', 5, 12, 6, 1);   // shadow
+}
+
+function drawNameTag(x) {
+  // Rectangular tag with string
+  px(x, '#d8b870', 4, 3, 8, 10);   // tag body
+  px(x, '#e8c880', 4, 3, 8, 1);    // top highlight
+  px(x, '#a88840', 4, 12, 8, 1);   // bottom shadow
+  px(x, '#a88840', 11, 3, 1, 10);  // right edge
+  // hole
+  px(x, '#4a3618', 7, 4, 2, 2);
+  // string loop
+  px(x, '#8a8a8a', 7, 1, 2, 3);
+  px(x, '#6a6a6a', 7, 1, 1, 3);
+  // text lines
+  px(x, '#5a3a10', 5, 8, 5, 1);
+  px(x, '#5a3a10', 5, 10, 4, 1);
+}
+
+function drawSaddle(x) {
+  // Leather saddle with iron stirrups
+  px(x, '#8a5020', 3, 6, 10, 4);   // seat
+  px(x, '#a06830', 3, 6, 10, 2);   // seat highlight
+  px(x, '#6a3818', 3, 9, 10, 1);   // seat shadow
+  // flaps
+  px(x, '#8a5020', 2, 5, 2, 5);
+  px(x, '#a06830', 2, 5, 1, 5);
+  px(x, '#8a5020', 12, 5, 2, 5);
+  px(x, '#a06830', 12, 5, 1, 5);
+  // stirrups
+  px(x, '#888', 2, 11, 2, 2);
+  px(x, '#aaa', 2, 11, 2, 1);
+  px(x, '#888', 12, 11, 2, 2);
+  px(x, '#aaa', 12, 11, 2, 1);
+  // strap
+  px(x, '#6a3818', 4, 11, 8, 1);
+}
+
+function drawLead(x) {
+  // Lead/leash — coiled rope with hook
+  px(x, '#8a7a5a', 5, 6, 6, 5);    // coiled rope body
+  px(x, '#a09070', 5, 6, 6, 2);    // top highlight
+  px(x, '#6a5a3a', 5, 10, 6, 1);   // bottom shadow
+  px(x, '#a09070', 6, 7, 4, 3);    // inner coil
+  // hook at end
+  px(x, '#888', 12, 4, 1, 3);
+  px(x, '#aaa', 12, 4, 1, 1);
+  px(x, '#888', 11, 3, 2, 1);
+  px(x, '#888', 11, 7, 2, 1);
+}
+
+function drawGreenstoneDust(x) {
+  // Small pile of glowing green dust particles
+  px(x, '#20c040', 5, 8, 6, 4);   // base pile
+  px(x, '#20c040', 6, 7, 4, 1);
+  px(x, '#20c040', 7, 6, 2, 1);
+  px(x, '#40e860', 6, 8, 4, 2);   // glow highlight
+  px(x, '#60ff80', 7, 7, 2, 1);   // bright speck
+  px(x, '#108020', 5, 12, 6, 1);  // shadow
+  // scattered dust particles
+  px(x, '#30d050', 3, 9, 1, 1);
+  px(x, '#30d050', 12, 10, 1, 1);
+  px(x, '#50e070', 4, 11, 1, 1);
+}
+
+function drawSlimeBall(x) {
+  // Green slime ball — roundish blob
+  px(x, '#40c020', 5, 5, 6, 7);    // body
+  px(x, '#40c020', 4, 6, 1, 5);
+  px(x, '#40c020', 11, 6, 1, 5);
+  px(x, '#40c020', 6, 4, 4, 1);
+  px(x, '#60e040', 5, 5, 4, 4);    // highlight
+  px(x, '#80ff60', 6, 5, 2, 2);    // specular
+  px(x, '#308010', 5, 11, 6, 1);   // shadow
+  px(x, '#308010', 4, 10, 1, 2);
+}
+
 // ---- armor icons -----------------------------------------------------------
 function drawArmorIcon(x, armorInfo, itemId) {
   // Color palettes per material
@@ -778,6 +900,8 @@ const TOOL_PALETTES = {
   DIAMOND: { head: '#5fe3c0', mid: '#3fb89a', dark: '#247a64', lit: '#8ff0d8' },
   GOLD:    { head: '#fce74a', mid: '#d8b620', dark: '#a07e10', lit: '#fff48a' },
   PRISMITE:{ head: '#40c850', mid: '#2a9038', dark: '#186820', lit: '#60e870' },
+  COPPER:  { head: '#e89050', mid: '#c87030', dark: '#a05020', lit: '#f0a868' },
+  EMERALD: { head: '#50d870', mid: '#30b050', dark: '#1a7a30', lit: '#80f898' },
 };
 
 function drawHandle(x, gx, gy, len) {

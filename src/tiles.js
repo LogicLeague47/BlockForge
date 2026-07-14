@@ -943,72 +943,65 @@ const PAINTERS = {
   },
 
   // ── BED textures ──────────────────────────────────────────────────
-  // Green bedspread, white pillow, oak wood frame — Minecraft style.
+  // Red bedspread, white pillow, oak wood frame — Minecraft style.
+  // The top texture shows the full bed from above (pillow at top, blanket below).
+  // Both blocks use the same textures but orientation makes them look correct.
 
   bed_top(ctx, x0, y0, rng) {
     const S = TILE;
-    // Oak wood frame border (2px)
-    const m = 2;
+    // Oak wood frame border (1px)
+    const m = 1;
     noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
-    // Red bedspread (Minecraft red bed)
+    // Red bedspread fill
     noisy(ctx, x0 + m, y0 + m, [180, 40, 30], 0.06, rng);
-    // Quilting / texture variation
-    for (let i = 0; i < 10; i++) {
-      const x = x0 + m + 2 + (rng() * (S - m * 2 - 6) | 0);
-      const y = y0 + m + 8 + (rng() * (S - m * 2 - 12) | 0);
-      ctx.fillStyle = 'rgba(140,30,20,0.3)';
-      ctx.fillRect(x, y, 3 + (rng() * 3 | 0), 3 + (rng() * 3 | 0));
+    // Quilting lines on blanket
+    for (let i = 0; i < 4; i++) {
+      const ly = y0 + m + 10 + i * 3;
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0 + m, ly, S - m * 2, 1);
     }
     // Subtle highlights on blanket
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = 'rgba(220,70,60,0.4)';
-      ctx.fillRect(x0 + m + (rng() * (S - m * 2) | 0), y0 + m + 10 + (rng() * (S - m * 2 - 10) | 0), 2, 2);
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = 'rgba(220,70,60,0.3)';
+      ctx.fillRect(x0 + m + 2 + (rng() * (S - m * 2 - 6) | 0), y0 + m + 12 + (rng() * (S - m * 2 - 12) | 0), 2, 2);
     }
-    // White pillow area (top 8px)
-    const ph = 8;
-    ctx.fillStyle = 'rgb(240,240,245)';
-    ctx.fillRect(x0 + m, y0 + m, S - m * 2, ph);
-    // Pillow shading — subtle creases
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = 'rgba(210,210,220,0.4)';
-      ctx.fillRect(x0 + m + 1 + (rng() * (S - m * 2 - 2) | 0), y0 + m + (rng() * ph | 0), 2, 2);
-    }
-    // Pillow border line
-    ctx.fillStyle = 'rgb(190,190,200)';
-    ctx.fillRect(x0 + m, y0 + m + ph, S - m * 2, 1);
-    // Small pillow indent in center
-    ctx.fillStyle = 'rgba(200,200,210,0.5)';
-    ctx.fillRect(x0 + m + 4, y0 + m + 2, S - m * 2 - 8, 4);
+    // White pillow area (top 5px)
+    const ph = 5;
+    ctx.fillStyle = 'rgb(245,245,250)';
+    ctx.fillRect(x0 + m + 1, y0 + m, S - m * 2 - 2, ph);
+    // Pillow shading — indent
+    ctx.fillStyle = 'rgba(210,210,220,0.5)';
+    ctx.fillRect(x0 + m + 3, y0 + m + 1, S - m * 2 - 6, ph - 2);
+    // Pillow border
+    ctx.fillStyle = 'rgb(200,200,210)';
+    ctx.fillRect(x0 + m + 1, y0 + m + ph, S - m * 2 - 2, 1);
   },
 
   bed_side(ctx, x0, y0, rng) {
     const S = TILE;
-    // Bottom half: oak wood frame
-    const woodH = Math.floor(S * 0.45);
+    // Bottom half: oak wood frame (legs)
+    const woodH = Math.floor(S * 0.5);
     const woodY = S - woodH;
     noisy(ctx, x0, y0 + woodY, [139, 90, 43], 0.06, rng);
-    // Wood grain lines
-    for (let i = 0; i < 4; i++) {
+    // Wood grain
+    for (let i = 0; i < 3; i++) {
       const gy = y0 + woodY + 2 + (rng() * (woodH - 4) | 0);
-      ctx.fillStyle = 'rgba(110,70,30,0.4)';
+      ctx.fillStyle = 'rgba(110,70,30,0.35)';
       ctx.fillRect(x0, gy, S, 1);
     }
     // Wood plank divisions
-    ctx.fillStyle = 'rgba(100,65,28,0.3)';
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
     ctx.fillRect(x0 + (S / 3 | 0), y0 + woodY, 1, woodH);
     ctx.fillRect(x0 + (S * 2 / 3 | 0), y0 + woodY, 1, woodH);
-    // Top half: red bedspread draping over
+    // Top half: red blanket draping over
     const blanketH = S - woodH;
     noisy(ctx, x0, y0, [180, 40, 30], 0.06, rng);
-    for (let i = 0; i < 5; i++) {
-      ctx.fillStyle = 'rgba(140,30,20,0.3)';
-      ctx.fillRect(x0 + (rng() * S | 0), y0 + (rng() * blanketH | 0), 3, 2);
+    // Blanket fold lines
+    for (let i = 0; i < 3; i++) {
+      const fy = y0 + 1 + (rng() * (blanketH - 2) | 0);
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0, fy, S, 1);
     }
-    // Pillow visible at left end (white strip)
-    ctx.fillStyle = 'rgb(240,240,245)';
-    ctx.fillRect(x0, y0, 6, blanketH);
-    ctx.fillStyle = 'rgb(190,190,200)';
-    ctx.fillRect(x0 + 6, y0, 1, blanketH);
     // Frame edge highlight
     ctx.fillStyle = 'rgba(170,115,55,0.4)';
     ctx.fillRect(x0, y0 + woodY, S, 1);
@@ -1016,29 +1009,64 @@ const PAINTERS = {
 
   bed_foot(ctx, x0, y0, rng) {
     const S = TILE;
-    // Oak wood frame — footboard
+    // Oak wood footboard — solid wood face
     noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
     // Wood grain
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       const gy = y0 + 2 + (rng() * (S - 4) | 0);
-      ctx.fillStyle = 'rgba(110,70,30,0.35)';
+      ctx.fillStyle = 'rgba(110,70,30,0.3)';
       ctx.fillRect(x0, gy, S, 1);
     }
     // Plank divisions
-    ctx.fillStyle = 'rgba(100,65,28,0.3)';
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
     ctx.fillRect(x0 + (S / 3 | 0), y0, 1, S);
     ctx.fillRect(x0 + (S * 2 / 3 | 0), y0, 1, S);
-    // Red blanket visible in centre (smaller than frame)
-    const m = 5;
+    // Top edge
+    ctx.fillStyle = 'rgba(170,115,55,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+  },
+
+  bed_foot_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Foot block top: blanket only (no pillow) — red blanket with wood frame edges
+    const m = 1;
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
     noisy(ctx, x0 + m, y0 + m, [180, 40, 30], 0.06, rng);
-    for (let i = 0; i < 3; i++) {
-      ctx.fillStyle = 'rgba(140,30,20,0.3)';
-      ctx.fillRect(x0 + m + (rng() * (S - m * 2) | 0), y0 + m + (rng() * (S - m * 2) | 0), 2, 2);
+    // Quilting lines
+    for (let i = 0; i < 4; i++) {
+      const ly = y0 + m + 2 + i * 3;
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0 + m, ly, S - m * 2, 1);
     }
-    // Leg posts at bottom corners
-    ctx.fillStyle = 'rgb(120,78,36)';
-    ctx.fillRect(x0 + 1, y0 + S - 3, 3, 3);
-    ctx.fillRect(x0 + S - 4, y0 + S - 3, 3, 3);
+    // Blanket highlights
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = 'rgba(220,70,60,0.3)';
+      ctx.fillRect(x0 + m + 2 + (rng() * (S - m * 2 - 6) | 0), y0 + m + 3 + (rng() * (S - m * 2 - 6) | 0), 2, 2);
+    }
+    // Blanket tuck lines at bottom edge
+    ctx.fillStyle = 'rgba(140,30,20,0.3)';
+    ctx.fillRect(x0 + m, y0 + S - m - 2, S - m * 2, 1);
+  },
+
+  bed_foot_side(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Foot side: wooden footboard (full height) with no pillow
+    const woodH = S;
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
+    for (let i = 0; i < 5; i++) {
+      const gy = y0 + 2 + (rng() * (S - 4) | 0);
+      ctx.fillStyle = 'rgba(110,70,30,0.3)';
+      ctx.fillRect(x0, gy, S, 1);
+    }
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
+    ctx.fillRect(x0 + (S / 3 | 0), y0, 1, S);
+    ctx.fillRect(x0 + (S * 2 / 3 | 0), y0, 1, S);
+    // Top edge highlight
+    ctx.fillStyle = 'rgba(170,115,55,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+    // Bottom edge highlight
+    ctx.fillStyle = 'rgba(100,65,28,0.3)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
   },
 
   // ── PRISMITE ORE ──────────────────────────────────────────────────
@@ -1296,6 +1324,348 @@ const PAINTERS = {
     ctx.fillRect(x0 + 13, y0 + 2, 6, 2);
     ctx.fillStyle = 'rgba(180,178,174,0.7)';
     ctx.fillRect(x0 + 13, y0 + TILE - 4, 6, 2);
+  },
+
+  ladder(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Side rails (dark brown wood).
+    ctx.fillStyle = 'rgb(100,72,38)';
+    ctx.fillRect(x0 + 4, y0, 2, S);
+    ctx.fillRect(x0 + S - 6, y0, 2, S);
+    // Rail highlight.
+    ctx.fillStyle = 'rgb(140,104,56)';
+    ctx.fillRect(x0 + 4, y0, 1, S);
+    ctx.fillRect(x0 + S - 6, y0, 1, S);
+    // Rail shadow.
+    ctx.fillStyle = 'rgb(72,50,24)';
+    ctx.fillRect(x0 + 5, y0, 1, S);
+    ctx.fillRect(x0 + S - 5, y0, 1, S);
+    // Horizontal rungs.
+    for (let y = 2; y < S; y += 6) {
+      ctx.fillStyle = 'rgb(120,88,46)';
+      ctx.fillRect(x0 + 6, y0 + y, S - 12, 2);
+      ctx.fillStyle = 'rgb(150,114,62)';
+      ctx.fillRect(x0 + 6, y0 + y, S - 12, 1);
+      ctx.fillStyle = 'rgb(88,62,30)';
+      ctx.fillRect(x0 + 6, y0 + y + 1, S - 12, 1);
+    }
+    // Wood grain noise on rungs.
+    speckle(ctx, x0, y0, rng, 12, ['rgb(100,72,38)', 'rgb(140,104,56)']);
+  },
+
+  copper_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    // Stone mottling.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Copper ore blobs (orange-brown).
+    const blobs = 4 + (rng() * 2 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(196 * f)},${clamp(118 * f)},${clamp(56 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    // Dark specks in stone.
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  emerald_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    // Stone mottling.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Emerald ore blobs (bright green).
+    const blobs = 3 + (rng() * 2 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(40 * f)},${clamp(200 * f)},${clamp(80 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    // Dark specks in stone.
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  wool(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [238, 236, 232], 0.03, rng);
+    // Soft fiber noise — subtle tonal variation.
+    for (let i = 0; i < 20; i++) {
+      const x = (rng() * S) | 0, y = (rng() * S) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(250,248,244)' : 'rgb(226,222,218)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Faint woven cross-hatch lines (fabric texture).
+    ctx.fillStyle = 'rgba(210,206,200,0.25)';
+    for (let y = 3; y < S; y += 4) ctx.fillRect(x0, y0 + y, S, 1);
+    for (let x = 3; x < S; x += 4) ctx.fillRect(x0 + x, y0, 1, S);
+    // A few brighter specks (lint / highlight).
+    speckle(ctx, x0, y0, rng, 8, ['rgb(255,255,255)']);
+  },
+
+  // ── GREENSTONE ──────────────────────────────────────────────────
+  greenstone_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Stone base (same style as iron_ore).
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Bright green ore blobs.
+    const blobs = 4 + (rng() * 3 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(32 * f)},${clamp(192 * f)},${clamp(64 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      // Specular highlight.
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  greenstone_block(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Solid bright green base.
+    noisy(ctx, x0, y0, [32, 192, 64], 0.06, rng);
+    // Darker green crosshatch pattern.
+    ctx.fillStyle = 'rgba(24,128,48,0.4)';
+    for (let y = 3; y < S; y += 5) ctx.fillRect(x0, y0 + y, S, 1);
+    for (let x = 3; x < S; x += 5) ctx.fillRect(x0 + x, y0, 1, S);
+    // Subtle noise specks.
+    speckle(ctx, x0, y0, rng, 14, ['rgb(48,210,80)', 'rgb(20,140,44)']);
+    // Bevel border.
+    ctx.fillStyle = 'rgba(80,240,120,0.4)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillStyle = 'rgba(16,100,36,0.5)';
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+  },
+
+  greenstone_lamp_off(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Dark wood frame border (2px wide).
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Inner dark area with faint green tint (unpowered).
+    ctx.fillStyle = 'rgb(42,42,42)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // Faint green tint overlay.
+    ctx.fillStyle = 'rgba(26,48,32,0.5)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // Frame highlight (top-left bevel).
+    ctx.fillStyle = 'rgba(150,120,72,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+    ctx.fillRect(x0, y0, 1, S);
+    // Frame shadow (bottom-right bevel).
+    ctx.fillStyle = 'rgba(70,50,26,0.5)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
+    ctx.fillRect(x0 + S - 1, y0, 1, S);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(60,60,60)', 'rgb(30,42,34)']);
+  },
+
+  greenstone_lamp_on(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Same wood frame as _off.
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Bright glowing green inner area.
+    ctx.fillStyle = 'rgb(64,224,96)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // White-hot centre glow.
+    ctx.fillStyle = 'rgb(192,255,192)';
+    ctx.fillRect(x0 + 10, y0 + 10, S - 20, S - 20);
+    ctx.fillStyle = 'rgb(230,255,230)';
+    ctx.fillRect(x0 + 12, y0 + 12, S - 24, S - 24);
+    // Outer glow halo on the frame.
+    ctx.fillStyle = 'rgba(64,224,96,0.35)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Frame bevel.
+    ctx.fillStyle = 'rgba(150,120,72,0.4)';
+    ctx.fillRect(x0, y0, S, 1);
+    ctx.fillRect(x0, y0, 1, S);
+    ctx.fillStyle = 'rgba(30,100,50,0.5)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
+    ctx.fillRect(x0 + S - 1, y0, 1, S);
+  },
+
+  // ── PISTON ──────────────────────────────────────────────────────
+  piston_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Square piston head in centre (iron-block colour).
+    const hs = 8;
+    const cx = (S - hs) / 2;
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, hs);
+    // Head bevel highlight.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, 2);
+    ctx.fillRect(x0 + cx, y0 + cx, 2, hs);
+    // Head shadow.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0 + cx, y0 + cx + hs - 2, hs, 2);
+    ctx.fillRect(x0 + cx + hs - 2, y0 + cx, 2, hs);
+  },
+
+  piston_side(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Horizontal piston arm groove (iron stripe in middle third).
+    const y1 = Math.floor(S / 3);
+    const y2 = Math.floor(S * 2 / 3);
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0, y0 + y1, S, y2 - y1);
+    // Top edge highlight of stripe.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0, y0 + y1, S, 2);
+    // Bottom edge shadow of stripe.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0, y0 + y2 - 2, S, 2);
+    // Faint vertical groove lines in the arm.
+    ctx.fillStyle = 'rgba(130,130,130,0.3)';
+    for (let x = 6; x < S; x += 8) ctx.fillRect(x0 + x, y0 + y1, 1, y2 - y1);
+  },
+
+  piston_bottom(ctx, x0, y0, rng) {
+    planksBody(ctx, x0, y0, rng);
+  },
+
+  sticky_piston_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Square piston head in centre (iron-block colour).
+    const hs = 8;
+    const cx = (S - hs) / 2;
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, hs);
+    // Head bevel highlight.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, 2);
+    ctx.fillRect(x0 + cx, y0 + cx, 2, hs);
+    // Head shadow.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0 + cx, y0 + cx + hs - 2, hs, 2);
+    ctx.fillRect(x0 + cx + hs - 2, y0 + cx, 2, hs);
+    // Green slime dot in the centre of the piston head.
+    const d = 3;
+    const dcx = cx + hs / 2, dcy = cx + hs / 2;
+    ctx.fillStyle = 'rgb(64,160,32)';
+    ctx.beginPath();
+    ctx.arc(x0 + dcx, y0 + dcy, d, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(90,200,50)';
+    ctx.beginPath();
+    ctx.arc(x0 + dcx - 0.5, y0 + dcy - 0.5, d - 1, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  // ── GREENSTONE TORCH & WIRE ─────────────────────────────────────
+  greenstone_torch(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Thin wooden stick.
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0 + 14, y0 + 14, 2, 14);
+    ctx.fillStyle = 'rgb(80,58,32)';
+    ctx.fillRect(x0 + 14, y0 + 14, 1, 14);
+    ctx.fillStyle = 'rgb(140,108,64)';
+    ctx.fillRect(x0 + 15, y0 + 14, 1, 14);
+    // Bright green flame tip.
+    ctx.fillStyle = 'rgb(64,224,96)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 15, y0 + 11, 4, 7, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // White-hot centre.
+    ctx.fillStyle = 'rgb(192,255,192)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 15, y0 + 12, 2, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(220,255,220)';
+    ctx.fillRect(x0 + 14, y0 + 12, 2, 3);
+  },
+
+  greenstone_wire(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Cross-shaped green wire pattern (like redstone wire).
+    ctx.fillStyle = 'rgb(32,192,64)';
+    // Horizontal bar.
+    ctx.fillRect(x0, y0 + S / 2 - 1, S, 2);
+    // Vertical bar.
+    ctx.fillRect(x0 + S / 2 - 1, y0, 2, S);
+    // Brighter centre dot.
+    ctx.fillStyle = 'rgb(80,240,120)';
+    ctx.fillRect(x0 + S / 2 - 1, y0 + S / 2 - 1, 2, 2);
+    // Subtle darker outline on wire edges.
+    ctx.fillStyle = 'rgba(20,120,40,0.5)';
+    ctx.fillRect(x0, y0 + S / 2 - 2, S, 1);
+    ctx.fillRect(x0, y0 + S / 2 + 1, S, 1);
+    ctx.fillRect(x0 + S / 2 - 2, y0, 1, S);
+    ctx.fillRect(x0 + S / 2 + 1, y0, 1, S);
+    // Tiny brightness specks along the wire.
+    for (let i = 0; i < 4; i++) {
+      const x = (rng() * S) | 0, y = (rng() * S) | 0;
+      // Only place on the cross.
+      if (Math.abs(x - S / 2) <= 1 || Math.abs(y - S / 2) <= 1) {
+        ctx.fillStyle = 'rgb(100,255,140)';
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
   },
 };
 

@@ -80,6 +80,8 @@ export class ViewModel {
 
     if (isBlockItem(itemId)) {
       this.heldMesh = this._buildBlockMesh(itemId);
+    } else if (isTool(itemId)) {
+      this.heldMesh = this._buildToolMesh(itemId);
     } else {
       this.heldMesh = this._buildItemMesh(itemId);
     }
@@ -147,25 +149,12 @@ export class ViewModel {
   // Food / materials / other items (id 256-511): held flatter, like a small item
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
-    const def = itemDef(itemId);
-    const isToolOrSword = isTool(itemId) || (def && def.tool);
+    const mesh = this._planeFromCanvas(canvas, 0.5, true);
     const wrap = new THREE.Group();
-
-    if (isToolOrSword) {
-      // Tools/swords: held diagonally in the fist, pointing up-forward, like
-      // Minecraft's first-person view (the icon is drawn corner-to-corner, so we
-      // rotate it to align that diagonal with the grip).
-      const mesh = this._planeFromCanvas(canvas, 0.62, true);
-      wrap.add(mesh);
-      wrap.rotation.set(-0.25, -0.5, -0.7);
-      wrap.position.set(-0.02, -0.08, 0.02);
-    } else {
-      // Flat items (food, ingots, etc.): angled slightly toward the player.
-      const mesh = this._planeFromCanvas(canvas, 0.5, true);
-      wrap.add(mesh);
-      wrap.rotation.set(-0.45, 0.35, 0.15);
-      wrap.position.set(0, -0.05, 0);
-    }
+    wrap.add(mesh);
+    // Flat items (food, ingots, etc.): angled slightly toward the player.
+    wrap.rotation.set(-0.45, 0.35, 0.15);
+    wrap.position.set(0, -0.05, 0);
     return wrap;
   }
 

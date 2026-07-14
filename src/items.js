@@ -75,6 +75,22 @@ export const ITEM = {
   BAKED_POTATO: 301,
   PUMPKIN_PIE: 302,
   GOLDEN_CARROT: 303,
+  COPPER_INGOT: 304,
+  EMERALD: 305,
+  LIME_DYE: 306,
+  PINK_DYE: 307,
+  BLUE_DYE: 308,
+  BONE_MEAL: 309,
+  NAME_TAG: 310,
+  SADDLE: 311,
+  LEAD: 312,
+  TRIDENT: 313,
+  GREENSTONE_DUST: 314,
+  SLIME_BALL: 315,
+  // copper tools (564+)
+  COPPER_PICKAXE: 564, COPPER_AXE: 565, COPPER_SHOVEL: 566, COPPER_SWORD: 567,
+  // emerald tools (568+)
+  EMERALD_PICKAXE: 568, EMERALD_AXE: 569, EMERALD_SHOVEL: 570, EMERALD_SWORD: 571,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -112,6 +128,8 @@ const TOOL_MATERIALS = {
   IRON:   { harvest: 3, durability: 250, speedMult: 1.33, swordDmg: 4 },
   DIAMOND:{ harvest: 4, durability: 1561, speedMult: 1.46, swordDmg: 5 },
   GOLD:   { harvest: 1, durability: 32,  speedMult: 1.1,  swordDmg: 2 },
+  COPPER: { harvest: 3, durability: 200, speedMult: 1.3,  swordDmg: 4 },
+  EMERALD:{ harvest: 4, durability: 1561,speedMult: 1.46, swordDmg: 5 },
   PRISMITE:{ harvest: 4, durability: 2000, speedMult: 2.0, swordDmg: 25 },
 };
 
@@ -119,13 +137,15 @@ const TOOL_MATERIALS = {
 const TOOLS = {};
 (function buildToolTable() {
   const types = ['PICKAXE', 'AXE', 'SHOVEL', 'SWORD'];
-  const mats = ['WOOD', 'STONE', 'IRON', 'DIAMOND', 'GOLD', 'PRISMITE'];
+  const mats = ['WOOD', 'STONE', 'IRON', 'DIAMOND', 'GOLD', 'COPPER', 'EMERALD', 'PRISMITE'];
   for (const m of mats) {
     for (const t of types) {
       const id = ITEM[`${m}_${t}`];
       if (id != null) TOOLS[id] = { type: t.toLowerCase(), material: m };
     }
   }
+  // trident (special, no material tier)
+  TOOLS[ITEM.TRIDENT] = { type: 'trident', material: 'PRISMITE' };
 })();
 
 // --- master ITEMS table -----------------------------------------------------
@@ -174,6 +194,17 @@ const NONBLOCK_ITEMS = {
   [ITEM.BAKED_POTATO]:  { name: 'Baked Potato', stack: 64, food: 5 },
   [ITEM.PUMPKIN_PIE]:   { name: 'Pumpkin Pie', stack: 64, food: 8 },
   [ITEM.GOLDEN_CARROT]: { name: 'Golden Carrot', stack: 64, food: 6 },
+  [ITEM.COPPER_INGOT]:  { name: 'Copper Ingot', stack: 64 },
+  [ITEM.EMERALD]:       { name: 'Emerald', stack: 64 },
+  [ITEM.LIME_DYE]:      { name: 'Lime Dye', stack: 64 },
+  [ITEM.PINK_DYE]:      { name: 'Pink Dye', stack: 64 },
+  [ITEM.BLUE_DYE]:      { name: 'Blue Dye', stack: 64 },
+  [ITEM.BONE_MEAL]:     { name: 'Bone Meal', stack: 64 },
+  [ITEM.NAME_TAG]:      { name: 'Name Tag', stack: 1 },
+  [ITEM.SADDLE]:        { name: 'Saddle', stack: 1 },
+  [ITEM.LEAD]:          { name: 'Lead', stack: 1 },
+  [ITEM.GREENSTONE_DUST]: { name: 'Greenstone Dust', stack: 64 },
+  [ITEM.SLIME_BALL]: { name: 'Slime Ball', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------

@@ -85,7 +85,7 @@ export const MOB_TYPES = {
     headColor: 0x5a8a4a,
     legColor: 0x3a5a2a,
     attackDamage: 5,
-    drops: [{ item: 290, count: [0, 2] }, { item: 277, count: [0, 2] }],
+    drops: [{ item: 290, count: [0, 2] }, { item: 277, count: [0, 2] }, { item: 315, count: [0, 1] }],
     soundChance: 0.0004,
   },
   skeleton: {
@@ -103,6 +103,34 @@ export const MOB_TYPES = {
     legColor: 0xd8d8d0,
     attackDamage: 4,
     drops: [{ item: 277, count: [0, 2] }, { item: 281, count: [0, 3] }],
+    soundChance: 0.0003,
+  },
+
+  villager: {
+    name: 'Villager',
+    hp: 20,
+    passive: true,
+    bipedalLegs: true,
+    bodyW: 0.5, bodyH: 0.75, bodyD: 0.25,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.25, legH: 0.75, legD: 0.25,
+    headOffY: -0.25,
+    bodyColor: 0x7C6A4B,
+    headColor: 0xD9A57A,
+    legColor: 0x5A4632,
+    hasArms: true,
+    armW: 0.25, armH: 0.75, armD: 0.25,
+    armColor: 0x7C6A4B,
+    hasHood: true,
+    hoodColor: 0x5D503D,
+    hasSatchel: true,
+    satchelColor: 0x71563A,
+    hasBelt: true,
+    beltColor: 0x4E3523,
+    hasBeard: true,
+    beardColor: 0x8B7355,
+    variant: 'farmer',
+    drops: [],
     soundChance: 0.0003,
   },
 
@@ -319,8 +347,61 @@ class Mob {
       this.legs.push(pivot);
     }
 
-    group.castShadow = false;
-    return group;
+    // ── Villager arms ──
+    if (def.hasArms) {
+      const armGeo = new THREE.BoxGeometry(def.armW, def.armH, def.armD);
+      const armMat = new THREE.MeshLambertMaterial({ color: def.armColor || def.bodyColor });
+      for (const side of [-1, 1]) {
+        const pivot = new THREE.Group();
+        pivot.position.set(side * (def.bodyW / 2 + def.armW / 2), def.legH + def.bodyH - 0.05, 0);
+        const arm = new THREE.Mesh(armGeo, armMat);
+        arm.position.y = -def.armH / 2;
+        arm.name = 'arm';
+        pivot.add(arm);
+        group.add(pivot);
+        this.legs.push(pivot); // reuse legs array for walk animation
+      }
+    }
+
+    // ── Villager hood ──
+    if (def.hasHood) {
+      const hoodGeo = new THREE.BoxGeometry(def.headW + 0.06, def.headH + 0.06, def.headD + 0.06);
+      const hoodMat = new THREE.MeshLambertMaterial({ color: def.hoodColor || 0x5D503D });
+      const hood = new THREE.Mesh(hoodGeo, hoodMat);
+      hood.position.set(0, headY + 0.04, 0.03);
+      hood.name = 'hood';
+      group.add(hood);
+    }
+
+    // ── Villager belt ──
+    if (def.hasBelt) {
+      const beltGeo = new THREE.BoxGeometry(def.bodyW + 0.02, 0.06, def.bodyD + 0.02);
+      const beltMat = new THREE.MeshLambertMaterial({ color: def.beltColor || 0x4E3523 });
+      const belt = new THREE.Mesh(beltGeo, beltMat);
+      belt.position.y = def.legH + def.bodyH * 0.1;
+      belt.name = 'belt';
+      group.add(belt);
+    }
+
+    // ── Villager satchel ──
+    if (def.hasSatchel) {
+      const satchelGeo = new THREE.BoxGeometry(0.25, 0.3, 0.12);
+      const satchelMat = new THREE.MeshLambertMaterial({ color: def.satchelColor || 0x71563A });
+      const satchel = new THREE.Mesh(satchelGeo, satchelMat);
+      satchel.position.set(def.bodyW / 2 + 0.12, def.legH + def.bodyH * 0.3, 0.15);
+      satchel.name = 'satchel';
+      group.add(satchel);
+    }
+
+    // ── Villager beard ──
+    if (def.hasBeard) {
+      const beardGeo = new THREE.BoxGeometry(0.25, 0.18, 0.06);
+      const beardMat = new THREE.MeshLambertMaterial({ color: def.beardColor || 0x8B7355 });
+      const beard = new THREE.Mesh(beardGeo, beardMat);
+      beard.position.set(0, headY - def.headH * 0.35, headZ - def.headD / 2 - 0.03);
+      beard.name = 'beard';
+      group.add(beard);
+    }
   }
 
   // ── Texture generation per mob type ──────────────────────────────────
@@ -329,6 +410,7 @@ class Mob {
     if (this.type === 'pig') return this._pigTextures(def);
     if (this.type === 'sheep') return this._sheepTextures(def);
     if (this.type === 'spider') return this._spiderTextures(def);
+    if (this.type === 'villager') return this._villagerTextures(def);
     return this._genericTextures(def);
   }
 
@@ -984,6 +1066,93 @@ class Mob {
     return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
   }
 
+  _villagerTextures(def) {
+    const s = 64;
+    const SKIN = def.headColor || 0xD9A57A;
+    const TUNIC = def.bodyColor || 0x7C6A4B;
+    const BELT = def.beltColor || 0x4E3523;
+    const BOOTS = def.legColor || 0x5A4632;
+    const HOOD = def.hoodColor || 0x5D503D;
+
+    const skinSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + SKIN.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SKIN, 12);
+    });
+
+    const skinTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + HOOD.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, HOOD, 10);
+    });
+
+    const skinFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + SKIN.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SKIN, 10);
+      // Eyes
+      const eyeY = 22;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(10, eyeY, 14, 12);
+      ctx.fillRect(40, eyeY, 14, 12);
+      ctx.fillStyle = '#3a2510';
+      ctx.fillRect(14, eyeY + 2, 8, 8);
+      ctx.fillRect(44, eyeY + 2, 8, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(16, eyeY + 3, 3, 3);
+      ctx.fillRect(46, eyeY + 3, 3, 3);
+      // Nose
+      ctx.fillStyle = '#c0906a';
+      ctx.fillRect(28, 32, 8, 6);
+      // Mouth
+      ctx.fillStyle = '#8b6340';
+      ctx.fillRect(24, 40, 16, 4);
+    });
+
+    const skinBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + HOOD.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, HOOD, 10);
+    });
+
+    const head = [skinSide, skinSide, skinTop, skinSide, skinBack, skinFront];
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TUNIC, 15);
+      // Belt stripe
+      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
+      ctx.fillRect(0, s - 8, s, 8);
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TUNIC, 10);
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BELT, 8);
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + BOOTS.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BOOTS, 12);
+      // Boot top
+      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, 8);
+    });
+
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
   _genericTextures(def) {
     const s = 8;
     const t = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.bodyColor.toString(16).padStart(6,'0')); });
@@ -995,15 +1164,27 @@ class Mob {
 
   takeDamage(amount, fromPos) {
     this.hp -= amount;
-    this.hurtTimer = 0.15;
+    this.hurtTimer = 0.35;
+    this._hurtFlashOn = false;
     // Provoke: hostile mobs retaliate after being hit (see MobManager.update).
     this.aggro = true;
+    // Flee: passive mobs run away from attacker
+    if (!this.type || !MOB_TYPES[this.type]?.hostile) {
+      if (fromPos) {
+        const dx = this.position.x - fromPos.x;
+        const dz = this.position.z - fromPos.z;
+        const len = Math.sqrt(dx * dx + dz * dz) || 1;
+        this.targetYaw = Math.atan2(dx, dz);
+        this.state = 'fleeing';
+        this.stateTimer = 2 + Math.random() * 2;
+      }
+    }
     // Knockback: push away from attacker
     if (fromPos) {
       const dx = this.position.x - fromPos.x;
       const dz = this.position.z - fromPos.z;
       const len = Math.sqrt(dx * dx + dz * dz) || 1;
-      const force = 3.5;
+      const force = 4.0;
       this.velocity.x += (dx / len) * force;
       this.velocity.z += (dz / len) * force;
     }
@@ -1070,9 +1251,9 @@ class Mob {
       }
     }
 
-    // AI timer
+    // AI timer — don't interrupt flee state
     this.stateTimer -= dt;
-    if (this.stateTimer <= 0) {
+    if (this.stateTimer <= 0 && this.state !== 'fleeing') {
       if (this.state === 'idle') {
         this.state = 'walking';
         this.stateTimer = 2 + Math.random() * 4;
@@ -1083,6 +1264,11 @@ class Mob {
         this.velocity.x = 0;
         this.velocity.z = 0;
       }
+    } else if (this.stateTimer <= 0 && this.state === 'fleeing') {
+      this.state = 'idle';
+      this.stateTimer = 1 + Math.random() * 3;
+      this.velocity.x = 0;
+      this.velocity.z = 0;
     }
 
     // Look at player occasionally (within 8 blocks)
@@ -1097,15 +1283,17 @@ class Mob {
     }
 
     // Movement
-    if (this.state === 'walking') {
+    if (this.state === 'walking' || this.state === 'fleeing') {
       // Smooth turn
       let dy = this.targetYaw - this.yaw;
       while (dy > Math.PI) dy -= Math.PI * 2;
       while (dy < -Math.PI) dy += Math.PI * 2;
-      this.yaw += dy * Math.min(1, dt * 3);
+      const turnSpeed = this.state === 'fleeing' ? 5 : 3;
+      this.yaw += dy * Math.min(1, dt * turnSpeed);
 
-      this.velocity.x = -Math.sin(this.yaw) * WALK_SPEED;
-      this.velocity.z = -Math.cos(this.yaw) * WALK_SPEED;
+      const moveSpeed = this.state === 'fleeing' ? WALK_SPEED * 2.2 : WALK_SPEED;
+      this.velocity.x = -Math.sin(this.yaw) * moveSpeed;
+      this.velocity.z = -Math.cos(this.yaw) * moveSpeed;
 
       // Stay near spawn
       const dx = this.position.x - this.spawnPos.x;
@@ -1188,21 +1376,11 @@ class Mob {
         const mats = Array.isArray(child.material) ? child.material : [child.material];
         for (const m of mats) {
           if (on) {
-            if (!m._savedEmissive) {
-              m._savedEmissive = m.emissive ? m.emissive.getHex() : 0;
-              m._savedEmissiveIntensity = m.emissiveIntensity || 0;
-            }
-            if (m.emissive) {
-              m.emissive.setHex(0xff2222);
-              m.emissiveIntensity = 0.6;
-            }
-          } else if (m._savedEmissive !== undefined) {
-            if (m.emissive) {
-              m.emissive.setHex(m._savedEmissive);
-              m.emissiveIntensity = m._savedEmissiveIntensity;
-            }
-            delete m._savedEmissive;
-            delete m._savedEmissiveIntensity;
+            if (m._savedColor === undefined) m._savedColor = m.color.getHex();
+            m.color.setHex(0xff3333);
+          } else if (m._savedColor !== undefined) {
+            m.color.setHex(m._savedColor);
+            delete m._savedColor;
           }
         }
       }
@@ -1293,6 +1471,15 @@ export class MobManager {
     }
     this.mobs.length = 0;
     this._spawnedChunks.clear();
+  }
+
+  // Spawn a specific mob type at a world position (for dev commands).
+  spawnAt(type, x, y, z) {
+    if (!MOB_TYPES[type]) return null;
+    const mob = new Mob(type, x, y, z);
+    this.mobs.push(mob);
+    this.scene.add(mob.mesh);
+    return mob;
   }
 
   // Called when a chunk is first generated/loaded

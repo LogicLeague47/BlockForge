@@ -30,8 +30,9 @@ import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
+import { GreenstoneSystem } from './greenstone.js';
 
-const REACH = 6;
+const REACH = 7;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
 const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
@@ -49,7 +50,7 @@ const _serverParam = _urlParams.get('server');
 const MP_SERVER_URL = _serverParam
   ? _serverParam
   : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'ws://localhost:4000'
+    ? 'ws://localhost:3000'
     // GitHub Pages (or any host that isn't the server itself) → use the backend.
     : window.location.hostname.endsWith('github.io')
       ? BACKEND_URL
@@ -509,8 +510,30 @@ const BLOCK_COLORS = {
   [BLOCK.TNT]: 0xcc3333,
   [BLOCK.CRAFTING]: 0x8a6a44,
   [BLOCK.BED]: 0xaa3333,
+  [BLOCK.BED_FOOT]: 0xaa3333,
   [BLOCK.PODZOL]: 0x6a5030,
   [BLOCK.MYCELIUM]: 0x7a7a8a,
+  [BLOCK.LADDER]: 0x8a6a3c,
+  [BLOCK.OAK_FENCE]: 0xbc9458,
+  [BLOCK.OAK_DOOR]: 0xbc9458,
+  [BLOCK.STONE_BUTTON]: 0x8a8a8a,
+  [BLOCK.LEVER]: 0x8a8a8a,
+  [BLOCK.OAK_SIGN]: 0xbc9458,
+  [BLOCK.STONE_PRESSURE_PLATE]: 0x8a8a8a,
+  [BLOCK.COPPER_ORE]: 0xb07040,
+  [BLOCK.EMERALD_ORE]: 0x40b060,
+  [BLOCK.FLOWER_POT]: 0xa06830,
+  [BLOCK.CARPET]: 0xe8e0d0,
+  [BLOCK.PAINTING]: 0xbc9458,
+  [BLOCK.IRON_DOOR]: 0xb8b8b8,
+  [BLOCK.WOOL]: 0xe8e0d0,
+  [BLOCK.GREENSTONE_ORE]: 0x20c040,
+  [BLOCK.GREENSTONE_BLOCK]: 0x20c040,
+  [BLOCK.GREENSTONE_WIRE]: 0x20c040,
+  [BLOCK.GREENSTONE_TORCH]: 0x40e060,
+  [BLOCK.GREENSTONE_LAMP]: 0x40e060,
+  [BLOCK.PISTON]: 0xbc9458,
+  [BLOCK.STICKY_PISTON]: 0xbc9458,
 };
 
 function spawnBreakParticles(x, y, z, blockId) {
@@ -578,6 +601,18 @@ let isMultiplayer = false;
 let droppedItemManager = null;
 let mpRenderer = null;
 let breakParticles = null, ambientParticles = null, cloudSystem = null;
+
+// --- door open/close state ---
+const doorStates = new Map(); // key: "x,y,z" -> { blockId }
+
+// --- redstone states (buttons, levers, pressure plates) ---
+const redstoneStates = new Map(); // key: "x,y,z" -> { blockId, expiresAt }
+
+// --- piston facing directions ---
+const pistonFacings = new Map(); // key: "x,y,z" -> 'north'|'south'|'east'|'west'
+
+// --- greenstone system ---
+const greenstoneSystem = new GreenstoneSystem();
 
 // --- multiplayer / chat state ---
 let playerName = 'Player';
@@ -650,8 +685,9 @@ let placeAnimTimer = 0;
 
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
-  const p = renderer.domElement.requestPointerLock();
-  if (p && p.catch) p.catch(() => {});
+  try {
+    renderer.domElement.requestPointerLock();
+  } catch (_) {}
 }
 
 renderer.domElement.addEventListener('click', () => {
@@ -1041,8 +1077,40 @@ document.addEventListener('mousedown', (e) => {
       const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
       ui.openChest(slots, player.inventory, hit.x, hit.y, hit.z);
       document.exitPointerLock();
-    } else if (hit && hit.block === BLOCK.BED) {
+    } else if (hit && (hit.block === BLOCK.BED || hit.block === BLOCK.BED_FOOT)) {
       trySleep();
+    } else if (hit && (hit.block === BLOCK.OAK_DOOR || hit.block === BLOCK.IRON_DOOR)) {
+      const doorKey = `${hit.x},${hit.y},${hit.z}`;
+      const state = doorStates.get(doorKey);
+      if (state) {
+        // Door is open — close it (restore original block)
+        world.setBlock(hit.x, hit.y, hit.z, state.blockId);
+        doorStates.delete(doorKey);
+      } else {
+        // Door is closed — open it (set to air so player can walk through)
+        doorStates.set(doorKey, { blockId: hit.block });
+        world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+      }
+      manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+    } else if (hit && hit.block === BLOCK.LEVER) {
+      const leverKey = `${hit.x},${hit.y},${hit.z}`;
+      const existing = redstoneStates.get(leverKey);
+      if (existing && existing.expiresAt === Infinity) {
+        // Lever is on — turn off
+        redstoneStates.delete(leverKey);
+        greenstoneSystem.clearPower(hit.x, hit.y, hit.z);
+      } else {
+        // Lever is off — turn on (persistent, never expires)
+        redstoneStates.set(leverKey, { blockId: hit.block, expiresAt: Infinity });
+        greenstoneSystem.setPower(hit.x, hit.y, hit.z, 15);
+      }
+    } else if (hit && hit.block === BLOCK.STONE_BUTTON) {
+      const btnKey = `${hit.x},${hit.y},${hit.z}`;
+      if (!redstoneStates.has(btnKey)) {
+        // Button not pressed — activate for 1.5 seconds
+        redstoneStates.set(btnKey, { blockId: hit.block, expiresAt: performance.now() + 1500 });
+        greenstoneSystem.setPower(hit.x, hit.y, hit.z, 15);
+      }
     } else {
       // Minecraft Java right-click: main hand first, then off-hand fallback
       let used = false;
@@ -1153,6 +1221,8 @@ const STEP_COLORS = {
   [BLOCK.PODZOL]: [0.45, 0.32, 0.18],
   [BLOCK.COBBLESTONE]: [0.5, 0.5, 0.5],
   [BLOCK.PLANKS]: [0.72, 0.58, 0.36],
+  [BLOCK.WOOL]: [0.91, 0.88, 0.82],
+  [BLOCK.CARPET]: [0.91, 0.88, 0.82],
 };
 
 function spawnStepParticles(bx, by, bz, blockId) {
@@ -1222,6 +1292,26 @@ function placeBlock(slotOverride) {
 
   world.setBlock(x, y, z, itemId);
   if (network.isInRoom()) network.sendBlockUpdate(x, y, z, itemId);
+
+  // Pistons: store facing direction based on player look
+  if (itemId === BLOCK.PISTON || itemId === BLOCK.STICKY_PISTON) {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    const ax = Math.abs(dir.x), az = Math.abs(dir.z);
+    let facing;
+    if (az >= ax) {
+      facing = dir.z < 0 ? 'north' : 'south';
+    } else {
+      facing = dir.x > 0 ? 'east' : 'west';
+    }
+    pistonFacings.set(`${x},${y},${z}`, facing);
+  }
+
+  // Greenstone wire: trigger power recalculation
+  if (itemId === BLOCK.GREENSTONE_WIRE) {
+    greenstoneSystem.onBlockChange(x, y, z, itemId, world);
+  }
+
   // Beds are 2 blocks wide — place foot block perpendicular to player facing
   if (itemId === BLOCK.BED) {
     const dirX = Math.round(-Math.sin(player.yaw));
@@ -1230,8 +1320,8 @@ function placeBlock(slotOverride) {
     const footX = x + (Math.abs(dirX) > Math.abs(dirZ) ? 0 : 1);
     const footZ = z + (Math.abs(dirX) > Math.abs(dirZ) ? (dirX >= 0 ? 1 : -1) : 0);
     if (world.getBlock(footX, y, footZ) === BLOCK.AIR) {
-      world.setBlock(footX, y, footZ, itemId);
-      if (network.isInRoom()) network.sendBlockUpdate(footX, y, footZ, itemId);
+      world.setBlock(footX, y, footZ, BLOCK.BED_FOOT);
+      if (network.isInRoom()) network.sendBlockUpdate(footX, y, footZ, BLOCK.BED_FOOT);
     }
   }
   viewmodel.swing();
@@ -1413,7 +1503,7 @@ function doBreak(hit, b) {
   audio.dig(b);
   player.addExhaustion(0.05);
   // XP for mining: ore blocks give more
-  const oreXp = { [BLOCK.COAL_ORE]: 2, [BLOCK.IRON_ORE]: 3, [BLOCK.GOLD_ORE]: 5, [BLOCK.DIAMOND_ORE]: 7, [BLOCK.PRISMITE_ORE]: 10 };
+  const oreXp = { [BLOCK.COAL_ORE]: 2, [BLOCK.IRON_ORE]: 3, [BLOCK.GOLD_ORE]: 5, [BLOCK.DIAMOND_ORE]: 7, [BLOCK.COPPER_ORE]: 3, [BLOCK.EMERALD_ORE]: 7, [BLOCK.PRISMITE_ORE]: 10 };
   const xpGain = oreXp[b] || 1;
   if (player.isSurvival()) {
     if (player.addXp(xpGain)) {
@@ -1426,7 +1516,7 @@ function doBreak(hit, b) {
 function trySleep() {
   if (sleeping) return;
   const hit = currentTarget();
-  if (!hit || hit.block !== BLOCK.BED) return;
+  if (!hit || (hit.block !== BLOCK.BED && hit.block !== BLOCK.BED_FOOT)) return;
   if (dayTime <= DAY_FRAC) {
     showSleepMessage("You can only sleep at night");
     return;
@@ -1588,6 +1678,22 @@ function submitChat() {
         }
       }
       addChatLine(`Placed ${cmdPart} at (${ox}, ${oy}, ${oz}).`, '#5f5');
+      return;
+    }
+    // Dev spawn animal commands (dev world only)
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'villager'];
+    if (isDevWorld && cmdPart === 'spawn') {
+      const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      if (!animal || !SPAWN_ANIMALS.includes(animal)) {
+        addChatLine(`Usage: /spawn <${SPAWN_ANIMALS.join('|')}>`, '#f55');
+        return;
+      }
+      if (!mobManager || !player) return;
+      const sx = player.position.x + -Math.sin(player.yaw) * 3;
+      const sz = player.position.z + -Math.cos(player.yaw) * 3;
+      const sy = player.position.y;
+      mobManager.spawnAt(animal, sx, sy, sz);
+      addChatLine(`Spawned ${animal} at (${Math.floor(sx)}, ${Math.floor(sy)}, ${Math.floor(sz)}).`, '#5f5');
       return;
     }
     if (network.connected && network.roomName) {
@@ -2549,8 +2655,35 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       } else if (hit && hit.block === BLOCK.CHEST) {
         const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
         ui.openChest(slots, player.inventory, hit.x, hit.y, hit.z);
-      } else if (hit && hit.block === BLOCK.BED) {
+      } else if (hit && (hit.block === BLOCK.BED || hit.block === BLOCK.BED_FOOT)) {
         trySleep();
+      } else if (hit && (hit.block === BLOCK.OAK_DOOR || hit.block === BLOCK.IRON_DOOR)) {
+        const doorKey = `${hit.x},${hit.y},${hit.z}`;
+        const state = doorStates.get(doorKey);
+        if (state) {
+          world.setBlock(hit.x, hit.y, hit.z, state.blockId);
+          doorStates.delete(doorKey);
+        } else {
+          doorStates.set(doorKey, { blockId: hit.block });
+          world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+        }
+        manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+      } else if (hit && hit.block === BLOCK.LEVER) {
+        const leverKey = `${hit.x},${hit.y},${hit.z}`;
+        const existing = redstoneStates.get(leverKey);
+        if (existing && existing.expiresAt === Infinity) {
+          redstoneStates.delete(leverKey);
+          greenstoneSystem.clearPower(hit.x, hit.y, hit.z);
+        } else {
+          redstoneStates.set(leverKey, { blockId: hit.block, expiresAt: Infinity });
+          greenstoneSystem.setPower(hit.x, hit.y, hit.z, 15);
+        }
+      } else if (hit && hit.block === BLOCK.STONE_BUTTON) {
+        const btnKey = `${hit.x},${hit.y},${hit.z}`;
+        if (!redstoneStates.has(btnKey)) {
+          redstoneStates.set(btnKey, { blockId: hit.block, expiresAt: performance.now() + 1500 });
+          greenstoneSystem.setPower(hit.x, hit.y, hit.z, 15);
+        }
       } else {
         let used = false;
         const slot = player.inventory.getSelected();
@@ -3987,6 +4120,42 @@ function loop() {
     }
   }
 
+  // --- Redstone: auto-reset expired buttons ---
+  const nowMs = performance.now();
+  for (const [key, state] of redstoneStates) {
+    if (state.expiresAt !== Infinity && nowMs >= state.expiresAt) {
+      const [bx, by, bz] = key.split(',').map(Number);
+      redstoneStates.delete(key);
+      greenstoneSystem.clearPower(bx, by, bz);
+    }
+  }
+
+  // --- Pressure plate detection ---
+  if (player && !sleeping) {
+    const plateX = Math.floor(player.position.x);
+    const plateY = Math.floor(player.position.y - 0.05);
+    const plateZ = Math.floor(player.position.z);
+    const plateBlock = world.getBlock(plateX, plateY, plateZ);
+    if (plateBlock === BLOCK.STONE_PRESSURE_PLATE) {
+      const plateKey = `${plateX},${plateY},${plateZ}`;
+      if (!redstoneStates.has(plateKey)) {
+        redstoneStates.set(plateKey, { blockId: plateBlock, expiresAt: Infinity });
+        console.log(`[Redstone] Pressure plate activated at ${plateKey}`);
+      }
+    } else {
+      // Check if player stepped off a previously active pressure plate
+      for (const [key, state] of redstoneStates) {
+        if (state.blockId === BLOCK.STONE_PRESSURE_PLATE) {
+          const [kx, ky, kz] = key.split(',').map(Number);
+          const currentBlock = world.getBlock(kx, ky, kz);
+          if (currentBlock !== BLOCK.STONE_PRESSURE_PLATE) {
+            redstoneStates.delete(key);
+          }
+        }
+      }
+    }
+  }
+
   loader.update(player.position.x, player.position.z);
   manager.tick();
 
@@ -4005,6 +4174,7 @@ function loop() {
 
   updateSky(dt);
   updateWeather(dt);
+  greenstoneSystem.update(dt, world);
   updateCoordsHud(dt);
   updateTimeHud();
 
@@ -4140,6 +4310,7 @@ function loop() {
       inWater: player.inWater,
       flying: player.flying,
       onGround: player.onGround,
+      onLadder: player.onLadder,
       vy: player.velocity.y,
       pitch: player.pitch,
       hurt: player.damageTimer > 0.3,

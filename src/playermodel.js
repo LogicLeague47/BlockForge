@@ -302,7 +302,7 @@ export class PlayerModel {
     this.leftArm.userData.partName = 'leftArm';
     this.leftArm.geometry.translate(0, -px(ARM.h / 2), 0);
     this.leftArmPivot = new THREE.Group();
-    this.leftArmPivot.position.set(px(-BODY.w / 2 - ARM.w / 2), px(LEG.h + BODY.h + 6.2), 0);
+    this.leftArmPivot.position.set(px(-BODY.w / 2 - ARM.w / 2), px(LEG.h + BODY.h), 0);
     this.leftArmPivot.add(this.leftArm);
 
     const legGeo = new THREE.BoxGeometry(px(LEG.w), px(LEG.h), px(LEG.d));
@@ -439,18 +439,12 @@ export class PlayerModel {
       GOLD: '#FFD700', DIAMOND: '#00CED1', PRISMITE: '#B060E0',
     };
 
-    const addArmor = (geoFn, slotIdx, yOffset) => {
-      const id = armorSlots[slotIdx];
-      if (id == null || !ARMOR[id]) return;
-      const mat = ARMOR[id].material;
-      const color = ARMOR_COLORS[mat] || '#888';
-      const { geo, offset } = geoFn();
+    const _makeArmorMat = (color) => {
       const canvas = document.createElement('canvas');
       canvas.width = 4; canvas.height = 4;
       const ctx = canvas.getContext('2d');
       ctx.fillStyle = color;
       ctx.fillRect(0, 0, 4, 4);
-      // Slightly darken edges for definition
       ctx.fillStyle = 'rgba(0,0,0,0.15)';
       ctx.fillRect(0, 0, 1, 4);
       ctx.fillRect(3, 0, 1, 4);
@@ -458,79 +452,66 @@ export class PlayerModel {
       ctx.fillRect(0, 3, 4, 1);
       const tex = new THREE.CanvasTexture(canvas);
       tex.magFilter = THREE.NearestFilter;
-      const material = new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.85 });
-      const mesh = new THREE.Mesh(geo, material);
-      mesh.position.copy(offset);
-      mesh.userData.partName = 'armor';
-      this.group.add(mesh);
-      this._armorMeshes.push(mesh);
+      return new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.85 });
     };
 
-    // Helmet — slightly larger than head
-    addArmor(() => ({
-      geo: new THREE.BoxGeometry(px(HEAD.w + 1), px(HEAD.h + 1), px(HEAD.d + 1)),
-      offset: new THREE.Vector3(0, px(LEG.h + BODY.h + HEAD.h / 2), 0),
-    }), 0);
-
-    // Chestplate — body + shoulder caps
-    addArmor(() => ({
-      geo: new THREE.BoxGeometry(px(BODY.w + 1), px(BODY.h), px(BODY.d + 1)),
-      offset: new THREE.Vector3(0, px(LEG.h + BODY.h / 2), 0),
-    }), 1);
-
-    // Leggings — legs (both)
-    const legGeo = new THREE.BoxGeometry(px(LEG.w + 1), px(LEG.h), px(LEG.d + 1));
-    const addLegArmor = (xPos) => {
-      const id = armorSlots[2];
-      if (id == null || !ARMOR[id]) return;
-      const mat = ARMOR[id].material;
-      const color = ARMOR_COLORS[mat] || '#888';
-      const canvas = document.createElement('canvas');
-      canvas.width = 4; canvas.height = 4;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 4, 4);
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(0, 0, 1, 4);
-      ctx.fillRect(3, 0, 1, 4);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      const material = new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.85 });
-      const mesh = new THREE.Mesh(legGeo.clone(), material);
-      mesh.position.set(xPos, px(LEG.h / 2), 0);
+    // Helmet — child of head, follows head rotation
+    const helmetId = armorSlots[0];
+    if (helmetId != null && ARMOR[helmetId]) {
+      const color = ARMOR_COLORS[ARMOR[helmetId].material] || '#888';
+      const geo = new THREE.BoxGeometry(px(HEAD.w + 1), px(HEAD.h + 1), px(HEAD.d + 1));
+      const mesh = new THREE.Mesh(geo, _makeArmorMat(color));
       mesh.userData.partName = 'armor';
-      this.group.add(mesh);
+      this.head.add(mesh);
       this._armorMeshes.push(mesh);
-    };
-    addLegArmor(px(BODY.w / 2 - LEG.w / 2));
-    addLegArmor(px(-BODY.w / 2 + LEG.w / 2));
+    }
 
-    // Boots — bottom of legs
-    const bootGeo = new THREE.BoxGeometry(px(LEG.w + 1), px(4), px(LEG.d + 1));
-    const addBoot = (xPos) => {
-      const id = armorSlots[3];
-      if (id == null || !ARMOR[id]) return;
-      const mat = ARMOR[id].material;
-      const color = ARMOR_COLORS[mat] || '#888';
-      const canvas = document.createElement('canvas');
-      canvas.width = 4; canvas.height = 4;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 4, 4);
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(0, 0, 1, 4);
-      ctx.fillRect(3, 0, 1, 4);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      const material = new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.85 });
-      const mesh = new THREE.Mesh(bootGeo.clone(), material);
-      mesh.position.set(xPos, px(2), 0);
+    // Chestplate — child of body, follows body tilt
+    const chestId = armorSlots[1];
+    if (chestId != null && ARMOR[chestId]) {
+      const color = ARMOR_COLORS[ARMOR[chestId].material] || '#888';
+      const geo = new THREE.BoxGeometry(px(BODY.w + 1), px(BODY.h), px(BODY.d + 1));
+      const mesh = new THREE.Mesh(geo, _makeArmorMat(color));
       mesh.userData.partName = 'armor';
-      this.group.add(mesh);
+      this.body.add(mesh);
       this._armorMeshes.push(mesh);
-    };
-    addBoot(px(BODY.w / 2 - LEG.w / 2));
-    addBoot(px(-BODY.w / 2 + LEG.w / 2));
+    }
+
+    // Leggings — children of leg pivots, follow leg swing
+    const leggingId = armorSlots[2];
+    if (leggingId != null && ARMOR[leggingId]) {
+      const color = ARMOR_COLORS[ARMOR[leggingId].material] || '#888';
+      const geo = new THREE.BoxGeometry(px(LEG.w + 1), px(LEG.h), px(LEG.d + 1));
+      const meshR = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
+      meshR.position.set(0, -px(LEG.h / 2), 0);
+      meshR.userData.partName = 'armor';
+      this.rightLegPivot.add(meshR);
+      this._armorMeshes.push(meshR);
+
+      const meshL = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
+      meshL.position.set(0, -px(LEG.h / 2), 0);
+      meshL.userData.partName = 'armor';
+      this.leftLegPivot.add(meshL);
+      this._armorMeshes.push(meshL);
+    }
+
+    // Boots — children of leg pivots, follow leg swing
+    const bootId = armorSlots[3];
+    if (bootId != null && ARMOR[bootId]) {
+      const color = ARMOR_COLORS[ARMOR[bootId].material] || '#888';
+      const geo = new THREE.BoxGeometry(px(LEG.w + 1), px(4), px(LEG.d + 1));
+      const meshR = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
+      meshR.position.set(0, -px(LEG.h - 2), 0);
+      meshR.userData.partName = 'armor';
+      this.rightLegPivot.add(meshR);
+      this._armorMeshes.push(meshR);
+
+      const meshL = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
+      meshL.position.set(0, -px(LEG.h - 2), 0);
+      meshL.userData.partName = 'armor';
+      this.leftLegPivot.add(meshL);
+      this._armorMeshes.push(meshL);
+    }
   }
 
   dispose() {

@@ -227,6 +227,85 @@ export const RECIPES = [
     pattern: ['GGG', 'GAG', 'GGG'], key: { G: I.GOLD_INGOT, A: I.APPLE } }),
   shaped({ out: { id: I.PUMPKIN_PIE, count: 1 },
     pattern: ['P', 'E', 'W'], key: { P: B.PUMPKIN, E: I.EGG, W: I.WHEAT } }),
+
+  // ---- Copper tools ----
+  shaped({ out: { id: I.COPPER_PICKAXE, count: 1, durability: true },
+    pattern: ['CCC', ' S ', ' S '], key: { C: I.COPPER_INGOT, S: I.STICK } }),
+  shaped({ out: { id: I.COPPER_AXE, count: 1, durability: true },
+    pattern: ['CC', 'CS', ' S'], key: { C: I.COPPER_INGOT, S: I.STICK } }),
+  shaped({ out: { id: I.COPPER_SHOVEL, count: 1, durability: true },
+    pattern: ['C', 'S', 'S'], key: { C: I.COPPER_INGOT, S: I.STICK } }),
+  shaped({ out: { id: I.COPPER_SWORD, count: 1, durability: true },
+    pattern: ['C', 'C', 'S'], key: { C: I.COPPER_INGOT, S: I.STICK } }),
+
+  // ---- Emerald tools ----
+  shaped({ out: { id: I.EMERALD_PICKAXE, count: 1, durability: true },
+    pattern: ['EEE', ' S ', ' S '], key: { E: I.EMERALD, S: I.STICK } }),
+  shaped({ out: { id: I.EMERALD_AXE, count: 1, durability: true },
+    pattern: ['EE', 'ES', ' S'], key: { E: I.EMERALD, S: I.STICK } }),
+  shaped({ out: { id: I.EMERALD_SHOVEL, count: 1, durability: true },
+    pattern: ['E', 'S', 'S'], key: { E: I.EMERALD, S: I.STICK } }),
+  shaped({ out: { id: I.EMERALD_SWORD, count: 1, durability: true },
+    pattern: ['E', 'E', 'S'], key: { E: I.EMERALD, S: I.STICK } }),
+
+  // ---- Ladder ----
+  shaped({ out: { id: B.LADDER, count: 3 },
+    pattern: ['S S', 'SSS', 'S S'], key: { S: I.STICK } }),
+
+  // ---- Oak Fence ----
+  shaped({ out: { id: B.OAK_FENCE, count: 3 },
+    pattern: ['PSP', 'PSP'], key: { P: B.PLANKS, S: I.STICK } }),
+
+  // ---- Oak Door ----
+  shaped({ out: { id: B.OAK_DOOR, count: 1 },
+    pattern: ['PP', 'PP', 'PP'], key: { P: B.PLANKS } }),
+
+  // ---- Iron Door ----
+  shaped({ out: { id: B.IRON_DOOR, count: 1 },
+    pattern: ['II', 'II', 'II'], key: { I: I.IRON_INGOT } }),
+
+  // ---- Stone Button ----
+  shaped({ out: { id: B.STONE_BUTTON, count: 1 },
+    pattern: ['S'], key: { S: B.COBBLESTONE } }),
+
+  // ---- Lever ----
+  shaped({ out: { id: B.LEVER, count: 1 },
+    pattern: ['S', 'C'], key: { S: I.STICK, C: B.COBBLESTONE } }),
+
+  // ---- Oak Sign ----
+  shaped({ out: { id: B.OAK_SIGN, count: 1 },
+    pattern: ['PPP', 'PPP', ' S '], key: { P: B.PLANKS, S: I.STICK } }),
+
+  // ---- Stone Pressure Plate ----
+  shaped({ out: { id: B.STONE_PRESSURE_PLATE, count: 1 },
+    pattern: ['SS'], key: { S: B.COBBLESTONE } }),
+
+  // ---- Carpet ----
+  shaped({ out: { id: B.CARPET, count: 3 },
+    pattern: ['WW'], key: { W: I.WOOL } }),
+
+  // ---- Wool from string ----
+  shaped({ out: { id: I.WOOL, count: 1 },
+    pattern: ['SS', 'SS'], key: { S: I.STRING } }),
+
+  // ---- Dye recipes ----
+  shapeless({ out: { id: I.BONE_MEAL, count: 3 }, ingredients: [I.BONE] }),
+
+  // ---- Greenstone ----
+  shaped({ out: { id: B.GREENSTONE_BLOCK, count: 1 },
+    pattern: ['GGG', 'GGG', 'GGG'], key: { G: I.GREENSTONE_DUST } }),
+  shaped({ out: { id: I.GREENSTONE_DUST, count: 9 },
+    pattern: ['G'], key: { G: B.GREENSTONE_BLOCK } }),
+  shaped({ out: { id: B.GREENSTONE_TORCH, count: 1 },
+    pattern: ['G', 'S'], key: { G: I.GREENSTONE_DUST, S: I.STICK } }),
+  shaped({ out: { id: B.GREENSTONE_LAMP, count: 1 },
+    pattern: ['GGG', 'GTG', 'GGG'], key: { G: I.GREENSTONE_DUST, T: B.TORCH } }),
+
+  // ---- Pistons ----
+  shaped({ out: { id: B.PISTON, count: 1 },
+    pattern: ['PPP', 'CIC', 'CSC'], key: { P: B.PLANKS, C: B.COBBLESTONE, I: I.IRON_INGOT, S: I.STICK } }),
+  shaped({ out: { id: B.STICKY_PISTON, count: 1 },
+    pattern: ['S', 'P'], key: { S: I.SLIME_BALL, P: B.PISTON } }),
 ];
 
 // Smelting recipes: input item id -> output item id.
@@ -250,6 +329,9 @@ export const SMELTING = {
   [I.MUTTON_RAW]: I.MUTTON_COOKED,
   [B.NETHERRACK]: B.NETHER_BRICK,
   [B.QUARTZ_BLOCK]: B.QUARTZ_BLOCK,
+  [B.COPPER_ORE]: I.COPPER_INGOT,
+  [B.EMERALD_ORE]: I.EMERALD,
+  [B.GREENSTONE_ORE]: I.GREENSTONE_DUST,
 };
 
 // --- recipe builders --------------------------------------------------------

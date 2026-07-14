@@ -72,6 +72,9 @@ export class Player {
     this.cameraMode = 0;      // 0 = first person, 1 = 3rd person back, 2 = 3rd person front
     this.cameraOffset = new THREE.Vector3();
 
+    // --- ladder state ---
+    this.onLadder = false;
+
     // --- eating state ---
     this.eating = false;
     this.eatTimer = 0;
@@ -314,14 +317,15 @@ export class Player {
     if (this.isSurvival() && this.hunger <= 6) this.sprinting = false;
     else this.sprinting = !!input.keys[kb.sprint] && !this.crouching && !this.eating;
 
-    // Double-tap space to start fly in creative (only toggles ON, not OFF)
+    // Double-tap space to toggle fly in creative
     // Only detect on initial press, not while held (prevents flicker)
-    if (this.isCreative() && !this.flying && input.keys[kb.jump] && !this.inWater && !this._spaceHeld) {
+    // When already flying in the air, space goes up instead of toggling off
+    if (this.isCreative() && input.keys[kb.jump] && !this.inWater && !this._spaceHeld) {
       const now = performance.now();
-      if (now - this._lastSpaceTime < 300) {
+      if (now - this._lastSpaceTime < 300 && (!this.flying || this.onGround)) {
         this.toggleFly();
         this._lastSpaceTime = 0;
-      } else {
+      } else if (!this.flying || this.onGround) {
         this._lastSpaceTime = now;
       }
     }
@@ -348,11 +352,27 @@ export class Player {
     this.velocity.x = move.x;
     this.velocity.z = move.z;
 
+    // --- ladder detection ---
+    const feetBlockX = Math.floor(this.position.x);
+    const feetBlockY = Math.floor(this.position.y);
+    const feetBlockZ = Math.floor(this.position.z);
+    const blockAtFeet = this.world.getBlock(feetBlockX, feetBlockY, feetBlockZ);
+    const blockAtHead = this.world.getBlock(feetBlockX, feetBlockY + 1, feetBlockZ);
+    this.onLadder = (blockAtFeet === BLOCK.LADDER || blockAtHead === BLOCK.LADDER);
+
     if (this.flying) {
       // vertical fly: jump up, crouch (C/Ctrl) down
       this.velocity.y = 0;
       if (input.keys[kb.jump]) this.velocity.y = FLY_SPEED;
       if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = -FLY_SPEED;
+    } else if (this.onLadder) {
+      // Ladder physics: no gravity, climb with jump, slow descent with crouch
+      this.velocity.y = 0;
+      if (input.keys[kb.jump]) {
+        this.velocity.y = CROUCH_SPEED * 2;
+      } else if (input.keys[kb.crouch] || input.keys['KeyC']) {
+        this.velocity.y = -CROUCH_SPEED;
+      }
     } else if (this.inWater) {
       this.velocity.y -= SWIM_GRAVITY * dt;
       this.velocity.y = Math.max(this.velocity.y, -3);

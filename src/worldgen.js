@@ -9,9 +9,12 @@ import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 // Gold: Y 1-32, uncommon. Diamond: Y 1-16, very rare.
 const ORE_SPEC = [
   { block: BLOCK.COAL_ORE,    surfaceDepth: 2,  threshold: 0.80, min: 1, max: 96 },
+  { block: BLOCK.COPPER_ORE,  surfaceDepth: 5,  threshold: 0.84, min: 1, max: 64 },
   { block: BLOCK.IRON_ORE,    surfaceDepth: 5,  threshold: 0.85, min: 1, max: 64 },
   { block: BLOCK.GOLD_ORE,    surfaceDepth: 10, threshold: 0.90, min: 1, max: 32 },
+  { block: BLOCK.GREENSTONE_ORE, surfaceDepth: 8, threshold: 0.88, min: 1, max: 48 },
   { block: BLOCK.DIAMOND_ORE, surfaceDepth: 16, threshold: 0.95, min: 1, max: 16 },
+  { block: BLOCK.EMERALD_ORE, surfaceDepth: 16, threshold: 0.96, min: 1, max: 20 },
   { block: BLOCK.PRISMITE_ORE,surfaceDepth: 16, threshold: 0.992, min: 1, max: 12 },
 ];
 
