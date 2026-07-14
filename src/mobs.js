@@ -402,6 +402,8 @@ class Mob {
       beard.name = 'beard';
       group.add(beard);
     }
+
+    return group;
   }
 
   // ── Texture generation per mob type ──────────────────────────────────

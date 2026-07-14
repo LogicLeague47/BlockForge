@@ -3536,6 +3536,9 @@ function initMenu() {
   // --- World list ---
   document.getElementById('btn-new-world').addEventListener('click', () => {
     ui.showMenu('create');
+    // Auto-check superflat for dev accounts
+    const cb = document.getElementById('cb-flat-world');
+    if (cb) cb.checked = (playerName === DEV_ACCOUNT);
   });
   document.getElementById('btn-worlds-back').addEventListener('click', () => {
     ui.showMenu('main');
@@ -3560,8 +3563,9 @@ function initMenu() {
     }
     const mode = document.querySelector('.mode-option.selected')?.dataset.mode || 'creative';
     const diff = document.querySelector('.mode-option[data-diff].selected')?.dataset.diff || 'normal';
-    const w = createWorld(name, seed, mode, diff);
-    startGame(w.id, w.seed, w.gamemode, w.difficulty);
+    const flatWorld = document.getElementById('cb-flat-world')?.checked || false;
+    const w = createWorld(name, seed, mode, diff, { flat: flatWorld });
+    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: w.flat });
   });
   document.getElementById('btn-create-back').addEventListener('click', () => {
     ui.showMenu('worlds');
@@ -3922,7 +3926,7 @@ function renderWorldList() {
       renderWorldList();
     });
     card.addEventListener('click', () => {
-      startGame(w.id, w.seed, w.gamemode, w.difficulty);
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat });
     });
     list.appendChild(card);
   }

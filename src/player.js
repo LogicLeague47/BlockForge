@@ -326,13 +326,12 @@ export class Player {
 
     // Double-tap space to toggle fly in creative
     // Only detect on initial press, not while held (prevents flicker)
-    // When already flying in the air, space goes up instead of toggling off
     if (this.isCreative() && input.keys[kb.jump] && !this.inWater && !this._spaceHeld) {
       const now = performance.now();
-      if (now - this._lastSpaceTime < 300 && (!this.flying || this.onGround)) {
+      if (now - this._lastSpaceTime < 300) {
         this.toggleFly();
         this._lastSpaceTime = 0;
-      } else if (!this.flying || this.onGround) {
+      } else {
         this._lastSpaceTime = now;
       }
     }

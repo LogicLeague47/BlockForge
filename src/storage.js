@@ -42,7 +42,7 @@ export function saveWorldList(list) {
   sdkSet(listKey(), json);
 }
 
-export function createWorld(name, seed, gamemode, difficulty) {
+export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   let finalSeed = seed;
   if (finalSeed == null || finalSeed === undefined) {
@@ -56,6 +56,7 @@ export function createWorld(name, seed, gamemode, difficulty) {
     seed: finalSeed,
     gamemode: gamemode || 'creative',
     difficulty: difficulty || 'normal',
+    flat: !!opts.flat,
     createdAt: Date.now(),
   };
   const list = getWorldList();
