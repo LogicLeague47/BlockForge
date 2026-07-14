@@ -487,7 +487,7 @@ export class PlayerModel {
     });
   }
 
-  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming) {
+  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating) {
     if (!this.group.visible) return;
 
     this.group.position.set(playerPos.x, playerPos.y, playerPos.z);
@@ -548,17 +548,27 @@ export class PlayerModel {
       this.leftLegPivot.rotation.x = swing;
       this.rightLegPivot.rotation.x = -swing;
 
-      if (breaking) {
+      if (eating) {
+        // Eating: right arm moves towards face, head tilts slightly
+        const eatPhase = performance.now() * 0.01;
+        const eatBob = Math.sin(eatPhase) * 0.1;
+        this.rightArmPivot.rotation.x = -1.2 + eatBob;
+        this.rightArmPivot.rotation.y = 0.5;
+        this.head.rotation.x = 0.2 + eatBob * 0.2;
+      } else if (breaking) {
         // Mining: right arm swings overhead repeatedly (90° up and back)
         const mineSwing = Math.sin(this.animPhase * 4) * 1.57;
         this.rightArmPivot.rotation.x = mineSwing;
+        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -0.2;
       } else if (placing) {
         // Placing: right arm swings overhead once then holds
         this.rightArmPivot.rotation.x = -1.57;
+        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -swing;
       } else {
         // Normal: arms swing opposite to legs
+        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -swing;
         this.rightArmPivot.rotation.x = swing;
       }

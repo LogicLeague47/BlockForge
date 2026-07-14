@@ -1281,35 +1281,50 @@ const PAINTERS = {
     speckle(ctx, x0, y0, rng, 18, ['rgb(70,70,76)', 'rgb(20,20,24)']);
   },
   iron_block(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [218, 218, 222], 0.03, rng);
-    // Bevel border.
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    // Brushed metal base
+    noisy(ctx, x0, y0, [200, 200, 205], 0.04, rng);
+    // Grid pattern
+    ctx.fillStyle = 'rgba(150,150,160,0.5)';
+    ctx.fillRect(x0 + 15, y0, 2, TILE);
+    ctx.fillRect(x0, y0 + 15, TILE, 2);
+    // Bevels
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fillRect(x0, y0, TILE, 2);
     ctx.fillRect(x0, y0, 2, TILE);
-    ctx.fillStyle = 'rgba(150,150,156,0.6)';
+    ctx.fillStyle = 'rgba(80,80,90,0.4)';
     ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
     ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
   },
   gold_block(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [248, 222, 92], 0.03, rng);
-    ctx.fillStyle = 'rgba(255,250,200,0.7)';
+    // Rich gold base
+    noisy(ctx, x0, y0, [240, 210, 60], 0.05, rng);
+    // Inset pattern
+    ctx.fillStyle = 'rgba(180,150,30,0.4)';
+    ctx.fillRect(x0 + 4, y0 + 4, TILE - 8, TILE - 8);
+    // Shiny bevels
+    ctx.fillStyle = 'rgba(255,255,180,0.6)';
     ctx.fillRect(x0, y0, TILE, 2);
     ctx.fillRect(x0, y0, 2, TILE);
-    ctx.fillStyle = 'rgba(200,170,40,0.7)';
+    ctx.fillStyle = 'rgba(160,130,20,0.5)';
     ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
     ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
   },
   diamond_block(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [120, 232, 224], 0.04, rng);
-    ctx.fillStyle = 'rgba(220,255,252,0.8)';
+    // Diamond blue base
+    noisy(ctx, x0, y0, [100, 200, 220], 0.06, rng);
+    // Faceted look
+    ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + TILE, y0 + TILE);
+    ctx.moveTo(x0 + TILE, y0); ctx.lineTo(x0, y0 + TILE);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.stroke();
+    // Bevel border
+    ctx.fillStyle = 'rgba(220,255,255,0.4)';
     ctx.fillRect(x0, y0, TILE, 2);
     ctx.fillRect(x0, y0, 2, TILE);
-    ctx.fillStyle = 'rgba(60,180,172,0.8)';
+    ctx.fillStyle = 'rgba(40,120,150,0.5)';
     ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
     ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
-    // Sparkle.
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillRect(x0 + 14, y0 + 10, 2, 2);
   },
   end_stone(ctx, x0, y0, rng) {
     noisy(ctx, x0, y0, [222, 220, 168], 0.05, rng);

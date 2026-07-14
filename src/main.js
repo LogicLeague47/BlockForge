@@ -4308,7 +4308,7 @@ function loop() {
       const isSwimming = eye === BLOCK.WATER;
       const isBreaking = input.mouseLeftHeld && pointerLocked && breakingTarget != null;
       const isPlacing = placeAnimTimer > 0;
-      playerModel.update(dt, player.position, player.yaw, player.velocity, player.onGround, player.sprinting, isBreaking, isPlacing, isSwimming);
+       playerModel.update(dt, player.position, player.yaw, player.velocity, player.onGround, player.sprinting, isBreaking, isPlacing, isSwimming, player.eating);
       const armorIds = player.inventory.armor.map(s => s ? s.item : null);
       const armorKey = armorIds.join(',');
       if (armorKey !== _lastLocalArmorKey) {
