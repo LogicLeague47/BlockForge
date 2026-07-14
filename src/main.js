@@ -3774,14 +3774,12 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
-  // --- Dev World (creative superflat test world) — dev account only ---
+  // --- Dev World — dev account can create/manage test worlds ---
   const devWorldBtn = document.getElementById('btn-dev-world');
   if (devWorldBtn) {
     devWorldBtn.addEventListener('click', () => {
-      isMultiplayer = false;
-      serverName = null;
-      currentServer = null;
-      startGame('__devworld__', 1337, 'creative', 'normal', { flat: true, dev: true });
+      ui.showMenu('worlds');
+      renderWorldList();
     });
   }
 
