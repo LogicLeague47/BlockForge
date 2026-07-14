@@ -311,6 +311,10 @@ export const RECIPES = [
     pattern: ['PPP', 'CIC', 'CSC'], key: { P: B.PLANKS, C: B.COBBLESTONE, I: I.IRON_INGOT, S: I.STICK } }),
   shaped({ out: { id: B.STICKY_PISTON, count: 1 },
     pattern: ['S', 'P'], key: { S: I.SLIME_BALL, P: B.PISTON } }),
+
+  // ---- Eye of Ender ----
+  shaped({ out: { id: I.EYE_OF_ENDER, count: 1 },
+    pattern: ['E', 'P'], key: { E: I.ENDER_PEARL, P: I.GREENSTONE_DUST } }),
 ];
 
 // Smelting recipes: input item id -> output item id.

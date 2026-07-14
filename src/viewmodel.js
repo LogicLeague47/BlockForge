@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, itemDef } from './items.js';
-import { makeItemIconCanvas } from './ui.js';
+import { makeItemIconCanvas, TOOL_PALETTES } from './ui.js';
 
 const TILE = 32;
 
@@ -100,6 +100,8 @@ export class ViewModel {
 
     if (isBlockItem(itemId)) {
       this.offhandMesh = this._buildBlockMesh(itemId);
+    } else if (isTool(itemId)) {
+      this.offhandMesh = this._buildToolMesh(itemId);
     } else {
       this.offhandMesh = this._buildItemMesh(itemId);
     }
@@ -134,15 +136,106 @@ export class ViewModel {
     return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   }
 
-  // Tools / weapons (id >= 512): held at a diagonal with the head up-left
+  // Tools / weapons (id >= 512): proper 3D shape with head + handle
   _buildToolMesh(itemId) {
-    const canvas = makeItemIconCanvas(itemId);
-    const mesh = this._planeFromCanvas(canvas, 0.66, true);
+    const def = itemDef(itemId);
+    if (!def?.tool) return this._buildItemMesh(itemId);
+    const p = TOOL_PALETTES[def.tool.material] || TOOL_PALETTES.IRON;
     const wrap = new THREE.Group();
-    wrap.add(mesh);
-    // Tool pose: handle in palm, head up-left
-    wrap.rotation.set(-1.3, 0.5, 0.15);
-    wrap.position.set(0, 0, 0);
+
+    const mkMat = (color) => new THREE.MeshLambertMaterial({ color, fog: false });
+    const headMat = mkMat(p.head);
+    const darkMat = mkMat(p.dark);
+    const midMat = mkMat(p.mid);
+    const litMat = mkMat(p.lit);
+    const stickMat = mkMat('#6e5230');
+    const stickLit = mkMat('#8a6a3c');
+
+    const type = def.tool.type;
+
+    if (type === 'sword') {
+      // Blade: tall thin box
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.015), [litMat, midMat, headMat, headMat, litMat, midMat]);
+      blade.position.y = 0.27;
+      wrap.add(blade);
+      // Crossguard: wide flat box
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.035), mkMat('#8a6a3c'));
+      guard.position.y = 0.04;
+      wrap.add(guard);
+      // Handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.03;
+      wrap.add(handle);
+      // Pommel
+      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.04), darkMat);
+      pommel.position.y = -0.09;
+      wrap.add(pommel);
+      wrap.rotation.set(-0.18, -0.55, 0.05);
+
+    } else if (type === 'pickaxe') {
+      // Handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.08;
+      wrap.add(handle);
+      // Head: horizontal bar
+      const headBar = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.055, 0.035), [headMat, darkMat, litMat, midMat, headMat, headMat]);
+      headBar.position.y = 0.14;
+      wrap.add(headBar);
+      // Left prong
+      const lProng = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.035), darkMat);
+      lProng.position.set(-0.15, 0.09, 0);
+      wrap.add(lProng);
+      // Right prong
+      const rProng = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.035), darkMat);
+      rProng.position.set(0.15, 0.09, 0);
+      wrap.add(rProng);
+      // Binding
+      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 0.04), darkMat);
+      binding.position.y = 0.105;
+      wrap.add(binding);
+      wrap.rotation.set(-0.15, -0.5, 0.05);
+
+    } else if (type === 'axe') {
+      // Handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.38, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.08;
+      wrap.add(handle);
+      // Axe head: thick chunk on the left
+      const axeHead = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.17, 0.035), [litMat, darkMat, headMat, midMat, headMat, headMat]);
+      axeHead.position.set(-0.03, 0.17, 0);
+      wrap.add(axeHead);
+      // Sharp edge (front face of axe, slightly lighter)
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.13, 0.038), litMat);
+      edge.position.set(-0.10, 0.18, 0);
+      wrap.add(edge);
+      // Binding
+      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.02, 0.04), darkMat);
+      binding.position.y = 0.07;
+      wrap.add(binding);
+      wrap.rotation.set(-0.15, -0.5, 0.05);
+
+    } else if (type === 'shovel') {
+      // Handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.06;
+      wrap.add(handle);
+      // Shovel head: wider flat box at top
+      const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.025), [midMat, darkMat, headMat, litMat, headMat, headMat]);
+      shovelHead.position.y = 0.18;
+      wrap.add(shovelHead);
+      // Socket
+      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.035), midMat);
+      socket.position.y = 0.11;
+      wrap.add(socket);
+      wrap.rotation.set(-0.18, -0.55, 0.05);
+
+    } else {
+      // Fallback: flat plane (trident, etc.)
+      const canvas = makeItemIconCanvas(itemId);
+      const mesh = this._planeFromCanvas(canvas, 0.66, true);
+      wrap.add(mesh);
+      wrap.rotation.set(-1.3, 0.5, 0.15);
+    }
     return wrap;
   }
 

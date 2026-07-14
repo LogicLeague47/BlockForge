@@ -3,7 +3,8 @@
 
 import * as THREE from 'three';
 import { isBlockItem, itemDef } from './items.js';
-import { buildAtlas, makeIcon } from './tiles.js';
+import { makeIcon } from './tiles.js';
+import { TILES, tileNameFor } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
 
 const COLLECT_RANGE = 1.5;
@@ -24,48 +25,53 @@ export class DroppedItem {
     this.z = z;
     this.age = 0;
     this.collected = false;
+    this._atlasCanvas = atlasCanvas;
 
     // Create 3D representation
     this.group = new THREE.Group();
     this.group.position.set(this.x, this.y, this.z);
 
-    // Use a small plane with the item texture
-    const canvas = document.createElement('canvas');
-    canvas.width = 32;
-    canvas.height = 32;
-    const ctx = canvas.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-
     if (isBlockItem(itemId)) {
-      // Draw block as small isometric cube approximation
-      const iconCanvas = makeIcon(itemId, atlasCanvas);
-      if (iconCanvas) {
-        ctx.drawImage(iconCanvas, 0, 0, 32, 32);
-      }
+      // Render as miniature 3D cube with atlas textures
+      const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
+      const topTex = this._atlasTex(tileNameFor(itemId, 'top'));
+      const botTex = this._atlasTex(tileNameFor(itemId, 'bottom'));
+      const mkMat = (t) => new THREE.MeshBasicMaterial({ map: t, fog: false });
+      const materials = [mkMat(sideTex), mkMat(sideTex), mkMat(topTex), mkMat(botTex), mkMat(sideTex), mkMat(sideTex)];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), materials);
+      this.group.add(mesh);
     } else {
-      const iconCanvas = makeItemIconCanvas(itemId);
-      if (iconCanvas) {
-        ctx.drawImage(iconCanvas, 0, 0, 32, 32);
-      }
+      // Non-block items: two crossed flat planes (visible from all angles while spinning)
+      const canvas = makeItemIconCanvas(itemId);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
+      const geo = new THREE.PlaneGeometry(0.35, 0.35);
+      const front = new THREE.Mesh(geo, mat);
+      this.group.add(front);
+      const back = new THREE.Mesh(geo, mat);
+      back.rotation.y = Math.PI / 2;
+      this.group.add(back);
     }
-
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-
-    // Front face
-    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-    const geo = new THREE.PlaneGeometry(0.35, 0.35);
-    const front = new THREE.Mesh(geo, mat);
-    this.group.add(front);
-
-    // Back face (rotated 90° so item is visible from multiple angles)
-    const back = new THREE.Mesh(geo, mat);
-    back.rotation.y = Math.PI / 2;
-    this.group.add(back);
 
     this.group.renderOrder = 1;
     this.scene.add(this.group);
+  }
+
+  _atlasTex(name) {
+    const t = TILES[name];
+    if (!t || !this._atlasCanvas) return null;
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(this._atlasCanvas, t[0] * 32, t[1] * 32, 32, 32, 0, 0, 16, 16);
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    return tex;
   }
 
   update(dt, playerPos) {

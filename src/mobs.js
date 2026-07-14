@@ -153,6 +153,66 @@ export const MOB_TYPES = {
     soundChance: 0.0003,
   },
 
+  chicken: {
+    name: 'Chicken',
+    hp: 4,
+    bodyW: 0.4, bodyH: 0.6, bodyD: 0.5,
+    headW: 0.35, headH: 0.35, headD: 0.35,
+    legW: 0.08, legH: 0.3, legD: 0.08,
+    headOffZ: -0.35,
+    headOffY: -0.2,
+    hasBeak: true,
+    hasWattle: true,
+    hasComb: true,
+    hasTail: true,
+    tailColor: 0xf8f8f8,
+    drops: [{ item: 275, count: [0, 2] }, { item: 270, count: [1, 1] }], // feather + raw chicken
+    soundChance: 0.0008,
+    layEggChance: 0.00005, // chance per tick to lay an egg
+  },
+
+  enderman: {
+    name: 'Enderman',
+    hp: 40,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.6, bodyH: 1.2, bodyD: 0.35,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.22, legH: 0.8, legD: 0.22,
+    headOffY: -0.6,
+    bodyColor: 0x1a0a2a,
+    headColor: 0x1a0a2a,
+    legColor: 0x0a0020,
+    hasEyes: true,
+    eyeColor: 0xcc44ff,
+    attackDamage: 7,
+    teleportChance: 0.02, // chance per second to teleport when idle
+    drops: [{ item: 317, count: [0, 1] }], // ender pearl
+    soundChance: 0.0002,
+  },
+
+  slime: {
+    name: 'Slime',
+    hp: 16,
+    hostile: true,
+    hostileAtNight: true,
+    bodyW: 1.0, bodyH: 1.0, bodyD: 1.0,
+    headW: 1.0, headH: 1.0, headD: 1.0,
+    legW: 0.0, legH: 0.0, legD: 0.0, // no legs
+    headOffY: 0,
+    bodyColor: 0x40c040,
+    headColor: 0x40c040,
+    legColor: 0x40c040,
+    hasEyes: true,
+    eyeColor: 0x111111,
+    isSlime: true,
+    splitCount: 2, // splits into 2 smaller slimes
+    attackDamage: 4,
+    drops: [{ item: 315, count: [0, 2] }], // slimeball
+    soundChance: 0.0004,
+  },
+
 };
 
 const MOB_SPAWN_BIOMES = new Set([
@@ -347,37 +407,40 @@ class Mob {
     }
 
     // ── Legs (2 bipedal or 4 quadruped or 8 for spiders, pivoting from hip) ──
-    const legGeo = new THREE.BoxGeometry(def.legW, def.legH, def.legD);
-    const legMats = this._boxMats(tex.leg);
-    let legPositions;
-    if (def.legPositions) {
-      legPositions = def.legPositions;
-    } else if (def.bipedalLegs) {
-      const lx = def.bodyW * 0.32;
-      legPositions = [[-lx, 0], [lx, 0]];
-    } else if (def.has8Legs) {
-      const lx = def.bodyW * 0.32;
-      const lz = def.bodyD * 0.3;
-      legPositions = [];
-      for (let i = 0; i < 4; i++) {
-        const zOff = -lz + (def.bodyD * 0.6) * (i / 3);
-        legPositions.push([-lx, zOff]);
-        legPositions.push([lx, zOff]);
+    // Skip legs for mobs with no legs (e.g. slime)
+    if (def.legW > 0 && def.legH > 0) {
+      const legGeo = new THREE.BoxGeometry(def.legW, def.legH, def.legD);
+      const legMats = this._boxMats(tex.leg);
+      let legPositions;
+      if (def.legPositions) {
+        legPositions = def.legPositions;
+      } else if (def.bipedalLegs) {
+        const lx = def.bodyW * 0.32;
+        legPositions = [[-lx, 0], [lx, 0]];
+      } else if (def.has8Legs) {
+        const lx = def.bodyW * 0.32;
+        const lz = def.bodyD * 0.3;
+        legPositions = [];
+        for (let i = 0; i < 4; i++) {
+          const zOff = -lz + (def.bodyD * 0.6) * (i / 3);
+          legPositions.push([-lx, zOff]);
+          legPositions.push([lx, zOff]);
+        }
+      } else {
+        const lx = def.bodyW * 0.32;
+        const lz = def.bodyD * 0.3;
+        legPositions = [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]];
       }
-    } else {
-      const lx = def.bodyW * 0.32;
-      const lz = def.bodyD * 0.3;
-      legPositions = [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]];
-    }
-    for (const [sx, sz] of legPositions) {
-      const pivot = new THREE.Group();
-      pivot.position.set(sx, def.legH, sz);
-      const leg = new THREE.Mesh(legGeo, legMats);
-      leg.position.y = -def.legH / 2;
-      leg.name = 'leg';
-      pivot.add(leg);
-      group.add(pivot);
-      this.legs.push(pivot);
+      for (const [sx, sz] of legPositions) {
+        const pivot = new THREE.Group();
+        pivot.position.set(sx, def.legH, sz);
+        const leg = new THREE.Mesh(legGeo, legMats);
+        leg.position.y = -def.legH / 2;
+        leg.name = 'leg';
+        pivot.add(leg);
+        group.add(pivot);
+        this.legs.push(pivot);
+      }
     }
 
     // ── Villager arms ──
@@ -444,10 +507,13 @@ class Mob {
     if (this.type === 'cow') return this._cowTextures(def);
     if (this.type === 'pig') return this._pigTextures(def);
     if (this.type === 'sheep') return this._sheepTextures(def);
+    if (this.type === 'chicken') return this._chickenTextures(def);
     if (this.type === 'spider') return this._spiderTextures(def);
     if (this.type === 'zombie') return this._zombieTextures(def);
     if (this.type === 'skeleton') return this._skeletonTextures(def);
     if (this.type === 'creeper') return this._creeperTextures(def);
+    if (this.type === 'enderman') return this._endermanTextures(def);
+    if (this.type === 'slime') return this._slimeTextures(def);
     if (this.type === 'villager') return this._villagerTextures(def);
     return this._genericTextures(def);
   }
@@ -1314,6 +1380,159 @@ class Mob {
     return { body, head, leg };
   }
 
+  _chickenTextures(def) {
+    const s = 64;
+    const WHITE = 0xf8f8f8;
+    const CREAM = 0xf0e8d8;
+    const RED = 0xcc2222;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WHITE, 12);
+      // Wing detail
+      ctx.fillStyle = 'rgba(220,210,200,0.3)';
+      ctx.fillRect(8, 12, 20, 28);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WHITE, 8);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f0e8d8';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WHITE, 10);
+      // Eyes
+      ctx.fillStyle = '#111';
+      ctx.fillRect(12, 20, 6, 6);
+      ctx.fillRect(46, 20, 6, 6);
+      // Beak
+      ctx.fillStyle = '#e8a020';
+      ctx.fillRect(24, 32, 16, 8);
+      // Wattle
+      ctx.fillStyle = '#cc2222';
+      ctx.fillRect(28, 40, 8, 10);
+      // Comb
+      ctx.fillStyle = '#cc2222';
+      ctx.fillRect(20, 4, 8, 12);
+      ctx.fillRect(32, 6, 8, 10);
+    });
+    const head = [bodySide, bodySide, bodyTop, bodyBot, bodySide, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e8a020';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body: [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide], head, leg };
+  }
+
+  _endermanTextures(def) {
+    const s = 64;
+    const DARK = 0x1a0a2a;
+    const DARKER = 0x0a0020;
+    const PURPLE = 0xcc44ff;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 15);
+      // Subtle purple particles
+      ctx.fillStyle = 'rgba(180,60,255,0.15)';
+      for (let i = 0; i < 8; i++) {
+        const px = (i * 11 + 3) % s, py = (i * 13 + 7) % s;
+        ctx.fillRect(px, py, 3, 3);
+      }
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#0a0020';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 10);
+      // Glowing purple eyes
+      ctx.fillStyle = '#cc44ff';
+      ctx.fillRect(10, 22, 14, 8);
+      ctx.fillRect(40, 22, 14, 8);
+      // Eye glow
+      ctx.fillStyle = '#ee88ff';
+      ctx.fillRect(14, 24, 6, 4);
+      ctx.fillRect(44, 24, 6, 4);
+    });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const head = [bodySide, bodySide, bodyTop, bodyBot, headBack, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#0a0020';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARKER, 10);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body: [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide], head, leg };
+  }
+
+  _slimeTextures(def) {
+    const s = 64;
+    const GREEN = 0x40c040;
+    const GREEN_DARK = 0x2a8a2a;
+    const GREEN_LIGHT = 0x60e060;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      // Translucent green slime
+      const grad = ctx.createLinearGradient(0, 0, 0, s);
+      grad.addColorStop(0, 'rgba(64,192,64,0.85)');
+      grad.addColorStop(0.7, 'rgba(42,138,42,0.9)');
+      grad.addColorStop(1, 'rgba(30,100,30,0.95)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 20);
+      // Inner body visible through slime
+      ctx.fillStyle = 'rgba(30,80,30,0.3)';
+      ctx.fillRect(16, 16, 32, 32);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgba(80,220,80,0.8)';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN_LIGHT, 15);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgba(30,100,30,0.9)';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const faceFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgba(64,192,64,0.85)';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 15);
+      // Eyes
+      ctx.fillStyle = '#111';
+      ctx.fillRect(14, 20, 10, 10);
+      ctx.fillRect(40, 20, 10, 10);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(16, 22, 4, 4);
+      ctx.fillRect(42, 22, 4, 4);
+      // Mouth
+      ctx.fillStyle = '#2a6a2a';
+      ctx.fillRect(22, 42, 20, 6);
+    });
+    const head = [bodySide, bodySide, bodyTop, bodyBot, bodySide, faceFront];
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, faceFront];
+    return { body, head, leg: [] };
+  }
+
   _villagerTextures(def) {
     const s = 64;
     const SKIN = def.headColor || 0xD9A57A;
@@ -1700,6 +1919,63 @@ class Mob {
       if (!MOB_TYPES[this.type]?.bipedalLegs && !MOB_TYPES[this.type]?.has8Legs) {
         const body = this.mesh.children.find(c => c.name === 'body');
         if (body) body.position.z = -this.attackAnim * 0.15;
+      }
+    }
+
+    // ── CHICKEN: lay eggs occasionally ──
+    if (this.type === 'chicken' && !this.dead) {
+      const def = MOB_TYPES.chicken;
+      if (Math.random() < (def.layEggChance || 0) * dt * 60) {
+        this._eggDrop = true; // signal to MobManager to spawn egg item
+      }
+    }
+
+    // ── ENDERMAN: teleport when idle ──
+    if (this.type === 'enderman' && !this.dead && this.state === 'idle') {
+      const def = MOB_TYPES.enderman;
+      if (Math.random() < (def.teleportChance || 0) * dt) {
+        // Teleport to a random nearby position
+        const range = 8;
+        const nx = this.position.x + (Math.random() - 0.5) * range * 2;
+        const nz = this.position.z + (Math.random() - 0.5) * range * 2;
+        // Find ground at new position
+        const bx = Math.floor(nx), bz = Math.floor(nz);
+        let groundY = -1;
+        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+          const blk = world.getBlock(bx, y, bz);
+          if (blk !== BLOCK.AIR && blk !== BLOCK.WATER && BLOCKS[blk]?.solid) {
+            groundY = y + 1;
+            break;
+          }
+        }
+        if (groundY > 0 && groundY < WORLD_HEIGHT - 2) {
+          // Spawn purple particles at old position
+          this._teleportFrom = { x: this.position.x, y: this.position.y, z: this.position.z };
+          this.position.set(nx, groundY, nz);
+          this._teleportTo = { x: nx, y: groundY, z: nz };
+        }
+      }
+    }
+
+    // ── SLIME: bounce when walking ──
+    if (this.type === 'slime' && !this.dead && isMoving) {
+      const body = this.mesh.children.find(c => c.name === 'body');
+      if (body) {
+        const bounce = Math.abs(Math.sin(this.walkPhase * 2)) * 0.3;
+        body.position.y = this._origBodyY + bounce;
+        // Squash and stretch
+        body.scale.y = 1 + bounce * 0.3;
+        body.scale.x = 1 - bounce * 0.15;
+        body.scale.z = 1 - bounce * 0.15;
+      }
+    } else if (this.type === 'slime' && !this.dead) {
+      const body = this.mesh.children.find(c => c.name === 'body');
+      if (body) {
+        // Idle squish
+        const squish = Math.sin(performance.now() * 0.003) * 0.05;
+        body.scale.y = 1 + squish;
+        body.scale.x = 1 - squish * 0.5;
+        body.scale.z = 1 - squish * 0.5;
       }
     }
   }
@@ -2096,9 +2372,39 @@ export class MobManager {
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
       if (mob.dead && mob.deathTimer > 0.6) {
+        // Slime split: spawn 2 smaller slimes on death
+        if (mob.type === 'slime' && mob._slimeSize !== 'small') {
+          for (let j = 0; j < 2; j++) {
+            const ox = (Math.random() - 0.5) * 1.5;
+            const oz = (Math.random() - 0.5) * 1.5;
+            const baby = new Mob('slime', mob.position.x + ox, mob.position.y, mob.position.z + oz);
+            baby._slimeSize = 'small';
+            baby.hp = 8;
+            baby.maxHp = 8;
+            // Scale down the mesh
+            if (baby.mesh) baby.mesh.scale.set(0.5, 0.5, 0.5);
+            this.mobs.push(baby);
+            this.scene.add(baby.mesh);
+          }
+        }
+        // Chicken egg drop
+        if (mob.type === 'chicken' && mob._eggDrop) {
+          // Signal to main.js to drop an egg item
+          this._eggDrops = this._eggDrops || [];
+          this._eggDrops.push({ x: mob.position.x, y: mob.position.y, z: mob.position.z });
+        }
         this.scene.remove(mob.mesh);
         mob.dispose();
         this.mobs.splice(i, 1);
+      }
+    }
+
+    // Check for chicken egg laying (alive chickens)
+    for (const mob of this.mobs) {
+      if (mob.type === 'chicken' && mob._eggDrop) {
+        mob._eggDrop = false;
+        this._eggDrops = this._eggDrops || [];
+        this._eggDrops.push({ x: mob.position.x, y: mob.position.y, z: mob.position.z });
       }
     }
 

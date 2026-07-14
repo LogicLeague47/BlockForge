@@ -910,7 +910,7 @@ function drawArmorIcon(x, armorInfo, itemId) {
 
 // ---- tools ------------------------------------------------------------------
 // Shared handle drawing; the per-material palette drives colour and shading.
-const TOOL_PALETTES = {
+export const TOOL_PALETTES = {
   WOOD:    { head: '#9c6b3a', mid: '#7a4f24', dark: '#523018', lit: '#b88a52' },
   STONE:   { head: '#9a9a9a', mid: '#7c7c7c', dark: '#545454', lit: '#b6b6b6' },
   IRON:    { head: '#e2e2e2', mid: '#b8b8b8', dark: '#828282', lit: '#f4f4f4' },

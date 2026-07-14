@@ -1,4 +1,7 @@
 import * as THREE from 'three';
+import { isBlockItem, isTool, itemDef } from './items.js';
+import { TOOL_PALETTES, makeItemIconCanvas } from './ui.js';
+import { TILES, tileNameFor } from './blocks.js';
 
 const SCALE = 1 / 16;
 function px(v) { return v * SCALE; }
@@ -257,12 +260,13 @@ function leftLegParts(skin) {
 }
 
 export class PlayerModel {
-  constructor(scene, preset) {
+  constructor(scene, preset, atlasCanvas) {
     this.scene = scene;
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
     this.animPhase = 0;
+    this._atlasCanvas = atlasCanvas;
 
     this.skin = createSkinCanvas(preset);
     this._buildBody();
@@ -357,6 +361,130 @@ export class PlayerModel {
   setSkin(preset) {
     this.skin = createSkinCanvas(preset);
     this._updateSkinTexture();
+  }
+
+  setHeld(itemId) {
+    if (itemId === this._heldId) return;
+    this._heldId = itemId;
+    if (this._heldMesh) {
+      this.rightArm.remove(this._heldMesh);
+      this._disposeMesh(this._heldMesh);
+      this._heldMesh = null;
+    }
+    if (itemId == null) return;
+
+    const mkMat = (color) => new THREE.MeshLambertMaterial({ color, fog: false });
+    const wrap = new THREE.Group();
+
+    if (isBlockItem(itemId)) {
+      const sideCanvas = this._getBlockCanvas(itemId, 'side');
+      const topCanvas = this._getBlockCanvas(itemId, 'top');
+      const sideTex = this._canvasTex(sideCanvas);
+      const topTex = this._canvasTex(topCanvas);
+      const botTex = this._canvasTex(sideCanvas);
+      const mats = [
+        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+        new THREE.MeshLambertMaterial({ map: topTex, fog: false }),
+        new THREE.MeshLambertMaterial({ map: botTex, fog: false }),
+        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+      ];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(8)), mats);
+      wrap.add(mesh);
+    } else if (isTool(itemId)) {
+      const def = itemDef(itemId);
+      const p = TOOL_PALETTES[def?.tool?.material] || TOOL_PALETTES.IRON;
+      const type = def?.tool?.type || 'sword';
+
+      if (type === 'sword') {
+        const blade = new THREE.Mesh(new THREE.BoxGeometry(px(1), px(11), px(0.5)), [mkMat(p.lit), mkMat(p.mid), mkMat(p.head), mkMat(p.head), mkMat(p.lit), mkMat(p.mid)]);
+        blade.position.y = px(6);
+        wrap.add(blade);
+        const guard = new THREE.Mesh(new THREE.BoxGeometry(px(3), px(0.8), px(1)), mkMat('#8a6a3c'));
+        guard.position.y = px(-0.5);
+        wrap.add(guard);
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(3), px(0.8)), mkMat('#6e5230'));
+        handle.position.y = px(-2.5);
+        wrap.add(handle);
+      } else if (type === 'pickaxe') {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
+        handle.position.y = px(-1);
+        wrap.add(handle);
+        const headBar = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(1.5), px(1)), [mkMat(p.head), mkMat(p.dark), mkMat(p.lit), mkMat(p.mid), mkMat(p.head), mkMat(p.head)]);
+        headBar.position.y = px(4);
+        wrap.add(headBar);
+      } else if (type === 'axe') {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
+        handle.position.y = px(-1);
+        wrap.add(handle);
+        const axeHead = new THREE.Mesh(new THREE.BoxGeometry(px(4), px(4.5), px(1)), [mkMat(p.lit), mkMat(p.dark), mkMat(p.head), mkMat(p.mid), mkMat(p.head), mkMat(p.head)]);
+        axeHead.position.set(px(-0.8), px(4.5), 0);
+        wrap.add(axeHead);
+      } else if (type === 'shovel') {
+        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
+        handle.position.y = px(-1);
+        wrap.add(handle);
+        const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(px(3), px(3), px(0.8)), [mkMat(p.mid), mkMat(p.dark), mkMat(p.head), mkMat(p.lit), mkMat(p.head), mkMat(p.head)]);
+        shovelHead.position.y = px(5);
+        wrap.add(shovelHead);
+      } else {
+        // trident / other: flat plane
+        const canvas = this._getItemCanvas(itemId);
+        const tex = this._canvasTex(canvas);
+        const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, fog: false, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(12), px(12)), mat);
+        wrap.add(mesh);
+      }
+    } else {
+      // Non-block, non-tool items: flat plane
+      const canvas = this._getItemCanvas(itemId);
+      const tex = this._canvasTex(canvas);
+      const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, fog: false, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(10), px(10)), mat);
+      wrap.add(mesh);
+    }
+
+    // Position at the bottom of the arm (the hand)
+    wrap.position.set(0, -px(ARM.h / 2) + px(2), px(1));
+    this._heldMesh = wrap;
+    this.rightArm.add(wrap);
+  }
+
+  _getBlockCanvas(blockId, face) {
+    const t = TILES[tileNameFor(blockId, face)];
+    const c = document.createElement('canvas');
+    c.width = 16; c.height = 16;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    if (t && this._atlasCanvas) ctx.drawImage(this._atlasCanvas, t[0] * 32, t[1] * 32, 32, 32, 0, 0, 16, 16);
+    return c;
+  }
+
+  _getItemCanvas(itemId) {
+    return makeItemIconCanvas(itemId);
+  }
+
+  _canvasTex(canvas) {
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  }
+
+  _disposeMesh(m) {
+    m.traverse?.((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const mat of mats) {
+          if (mat.map) mat.map.dispose();
+          mat.dispose();
+        }
+      }
+    });
   }
 
   update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming) {

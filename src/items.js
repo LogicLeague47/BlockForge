@@ -88,6 +88,9 @@ export const ITEM = {
   GREENSTONE_DUST: 314,
   SLIME_BALL: 315,
   FLINT_STEEL: 316,
+  ENDER_PEARL: 317,
+  EYE_OF_ENDER: 318,
+  END_STONE_ITEM: 319,
   // copper tools (564+)
   COPPER_PICKAXE: 564, COPPER_AXE: 565, COPPER_SHOVEL: 566, COPPER_SWORD: 567,
   // emerald tools (568+)
@@ -207,6 +210,9 @@ const NONBLOCK_ITEMS = {
   [ITEM.GREENSTONE_DUST]: { name: 'Greenstone Dust', stack: 64 },
   [ITEM.SLIME_BALL]: { name: 'Slime Ball', stack: 64 },
   [ITEM.FLINT_STEEL]: { name: 'Flint and Steel', stack: 1 },
+  [ITEM.ENDER_PEARL]: { name: 'Ender Pearl', stack: 16 },
+  [ITEM.EYE_OF_ENDER]: { name: 'Eye of Ender', stack: 16 },
+  [ITEM.END_STONE_ITEM]: { name: 'End Stone', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------

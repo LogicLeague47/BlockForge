@@ -2849,7 +2849,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   ambientParticles = new AmbientParticles(scene);
   cloudSystem = new CloudSystem(scene);
   initRain();
-  playerModel = new PlayerModel(scene, getSelectedSkin());
+  playerModel = new PlayerModel(scene, getSelectedSkin(), atlasCanvas);
 
   scene.fog.far = 16 * (renderDist + 2);
   scene.fog.near = 16 * 5;
@@ -4456,6 +4456,29 @@ function loop() {
         }
       }
     }
+    // Handle chicken egg drops
+    if (mobManager._eggDrops && mobManager._eggDrops.length > 0) {
+      for (const egg of mobManager._eggDrops) {
+        droppedItemManager?.drop(ITEM.EGG, 1, egg.x, egg.y, egg.z);
+      }
+      mobManager._eggDrops.length = 0;
+    }
+    // Handle enderman teleport particles
+    for (const mob of mobManager.mobs) {
+      if (mob.type === 'enderman' && mob._teleportFrom) {
+        const from = mob._teleportFrom;
+        // Purple particles at old position
+        for (let i = 0; i < 8; i++) {
+          const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+          const mat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
+          const m = new THREE.Mesh(geo, mat);
+          m.position.set(from.x + (Math.random()-0.5)*0.5, from.y + Math.random()*2, from.z + (Math.random()-0.5)*0.5);
+          scene.add(m);
+          _particles.push({ mesh: m, vx: (Math.random()-0.5)*2, vy: 1+Math.random()*2, vz: (Math.random()-0.5)*2, life: 0.5, maxLife: 0.5 });
+        }
+        mob._teleportFrom = null;
+      }
+    }
   }
 
   // Update explosion particles
@@ -4618,6 +4641,7 @@ function loop() {
   // First-person held item: sync both hands with inventory, render overlay.
   const heldId = getHeldItemId();
   viewmodel.setHeld(heldId);
+  if (playerModel) playerModel.setHeld(heldId);
   const ohSlot = player.inventory.offhand;
   viewmodel.setOffhand(ohSlot ? ohSlot.item : null);
   const overlayShown = ui.isOverlayShown() || ui.inventoryOpen || ui.furnaceOpen;
@@ -4748,7 +4772,7 @@ function initMenuPreview() {
   dir.position.set(2, 4, 3);
   menuPreviewScene.add(dir);
   menuPreviewSkin = getSelectedSkin();
-  menuPreviewModel = new PlayerModel(menuPreviewScene, menuPreviewSkin);
+  menuPreviewModel = new PlayerModel(menuPreviewScene, menuPreviewSkin, atlasCanvas);
   menuPreviewModel.setVisible(true);
   menuPreviewModel.group.position.set(0, 0, 0);
   menuPreviewModel.group.rotation.y = 0.3;
