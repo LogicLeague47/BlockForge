@@ -206,14 +206,18 @@ class Mob {
     // visual feedback
     this.hurtTimer = 0;
     this.dead = false;
+    this.deathTimer = 0; // death animation timer (0 = no animation)
     this.aggro = false; // true when provoked (hit by player)
     this.walkPhase = Math.random() * Math.PI * 2;
     this.legs = [];
+    // Attack animation state
+    this.attackAnim = 0; // arm swing progress (0 = idle, 1 = peak)
     // Creeper-specific state
     this.fusing = false;
     this.fuseTimer = 0;
     this.exploded = false;
     this._fuseFlashPhase = 0;
+    this._fuseSwell = 0; // body swell during fuse
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
 
@@ -1482,7 +1486,26 @@ class Mob {
   }
 
   update(dt, world, noise, playerPos) {
-    if (this.dead) return;
+    // Death animation: fall over + fade out over 0.6s
+    if (this.dead) {
+      this.deathTimer += dt;
+      if (this.mesh) {
+        // Fall sideways
+        const t = Math.min(this.deathTimer / 0.6, 1);
+        this.mesh.rotation.x = t * Math.PI / 2;
+        // Rise up slightly then sink
+        this.mesh.position.y = this.position.y + (t < 0.3 ? t * 0.3 : (1 - t) * 0.3);
+        // Fade out
+        const opacity = 1 - t;
+        this.mesh.traverse((child) => {
+          if (child.isMesh && child.material) {
+            child.material.transparent = opacity < 1;
+            child.material.opacity = opacity;
+          }
+        });
+      }
+      return;
+    }
 
     // Hurt flash
     if (this.hurtTimer > 0) {
@@ -1515,14 +1538,26 @@ class Mob {
       this.velocity.z = 0;
     }
 
-    // Look at player occasionally (within 8 blocks)
+    // Look at player (smooth tracking when within 8 blocks)
     if (playerPos) {
       const pdx = playerPos.x - this.position.x;
       const pdz = playerPos.z - this.position.z;
       const playerDist = Math.sqrt(pdx * pdx + pdz * pdz);
-      if (playerDist < 8 && this.state === 'idle' && Math.random() < 0.02) {
-        this.targetYaw = Math.atan2(-pdx, -pdz);
-        this.yaw = this.targetYaw;
+      if (playerDist < 8) {
+        // Smoothly turn toward player
+        const lookYaw = Math.atan2(-pdx, -pdz);
+        let dy = lookYaw - this.yaw;
+        while (dy > Math.PI) dy -= Math.PI * 2;
+        while (dy < -Math.PI) dy += Math.PI * 2;
+        this.yaw += dy * Math.min(1, dt * 2);
+        // Head tilt toward player (vertical look)
+        const headChild = this.mesh.children.find(c => c.name === 'head');
+        if (headChild) {
+          const eyeY = this.position.y + (MOB_TYPES[this.type]?.legH || 0) + (MOB_TYPES[this.type]?.bodyH || 0) + (MOB_TYPES[this.type]?.headH || 0) * 0.5;
+          const vertDy = (playerPos.y + 1.6) - eyeY;
+          const vertAngle = Math.atan2(vertDy, playerDist) * 0.3;
+          headChild.rotation.x += (vertAngle - headChild.rotation.x) * dt * 3;
+        }
       }
     }
 
@@ -1587,11 +1622,38 @@ class Mob {
 
     // Head and body bobbing when walking
     const bobAmount = isMoving ? Math.sin(this.walkPhase * 2) * 0.04 : 0;
+    // Idle breathing bob (all mobs)
+    const breathe = Math.sin(performance.now() * 0.002) * 0.008;
     this.mesh.children.forEach(child => {
       if (child.name === 'body') {
-        child.position.y = this._origBodyY + bobAmount;
+        child.position.y = this._origBodyY + bobAmount + breathe;
+        // Sheep wool jiggle when walking
+        if (this.type === 'sheep' && isMoving) {
+          child.scale.y = 1 + Math.abs(Math.sin(this.walkPhase * 3)) * 0.04;
+          child.scale.x = 1 - Math.abs(Math.sin(this.walkPhase * 3)) * 0.02;
+        } else if (this.type === 'sheep') {
+          child.scale.y = 1 + breathe * 0.5;
+          child.scale.x = 1;
+        }
+        // Creeper body swell during fuse
+        if (this.type === 'creeper' && this.fusing) {
+          this._fuseSwell = Math.min(this._fuseSwell + dt * 0.6, 0.15);
+          const swell = 1 + this._fuseSwell;
+          child.scale.set(swell, swell, swell);
+        } else if (this.type === 'creeper') {
+          this._fuseSwell = 0;
+          child.scale.set(1, 1, 1);
+        }
       } else if (child.name === 'head') {
-        child.position.y = this._origHeadY + bobAmount;
+        child.position.y = this._origHeadY + bobAmount + breathe;
+        // Pig snout wiggle
+        if (this.type === 'pig') {
+          const snout = this.mesh.children.find(c => c.name === 'snout');
+          if (snout) {
+            const wiggle = isMoving ? Math.sin(this.walkPhase * 4) * 0.06 : Math.sin(performance.now() * 0.003) * 0.02;
+            snout.position.x = wiggle;
+          }
+        }
       }
     });
 
@@ -1603,6 +1665,19 @@ class Mob {
       } else {
         headChild.rotation.x *= 0.9;
       }
+      // Spider head bob when idle
+      if (this.type === 'spider' && !isMoving) {
+        headChild.rotation.y = Math.sin(performance.now() * 0.001) * 0.15;
+      }
+    }
+
+    // Villager idle arm fold: arms cross in front when not moving
+    if (this.type === 'villager' && !isMoving) {
+      const armPivots = this.legs.slice(-2); // last 2 in legs array are arms
+      for (let i = 0; i < armPivots.length; i++) {
+        const target = i === 0 ? 0.3 : -0.3;
+        armPivots[i].rotation.x += (target - armPivots[i].rotation.x) * dt * 3;
+      }
     }
 
     const swing = Math.sin(this.walkPhase) * 0.5;
@@ -1611,6 +1686,21 @@ class Mob {
       // Quadruped: Front-left (0) & back-right (3) swing together
       const phase = (i === 0 || i === 3) ? swing : -swing;
       leg.rotation.x = phase;
+    }
+
+    // Attack arm swing animation (zombie/skeleton)
+    if (this.attackAnim > 0) {
+      this.attackAnim = Math.max(0, this.attackAnim - dt * 5);
+      // Bipedal mobs: swing right arm (last leg in array for bipeds = right arm)
+      if (MOB_TYPES[this.type]?.bipedalLegs && this.legs.length >= 2) {
+        const arm = this.legs[this.legs.length - 1]; // right arm
+        arm.rotation.x = -this.attackAnim * 2.5; // swing forward
+      }
+      // Quadruped mobs: lunge body forward
+      if (!MOB_TYPES[this.type]?.bipedalLegs && !MOB_TYPES[this.type]?.has8Legs) {
+        const body = this.mesh.children.find(c => c.name === 'body');
+        if (body) body.position.z = -this.attackAnim * 0.15;
+      }
     }
   }
 
@@ -1957,6 +2047,7 @@ export class MobManager {
             mob.attackCooldown = (mob.attackCooldown || 0) - dt;
             if (mob.attackCooldown <= 0) {
               mob.attackCooldown = 1.0;
+              mob.attackAnim = 1; // trigger arm swing
               attackEvents.push({ type: 'attack', damage: def.attackDamage || 4, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } });
             }
           }
@@ -2001,10 +2092,10 @@ export class MobManager {
       }
     }
 
-    // Remove dead mobs
+    // Remove dead mobs (after death animation completes)
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
-      if (mob.dead) {
+      if (mob.dead && mob.deathTimer > 0.6) {
         this.scene.remove(mob.mesh);
         mob.dispose();
         this.mobs.splice(i, 1);

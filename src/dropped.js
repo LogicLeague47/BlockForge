@@ -7,6 +7,7 @@ import { buildAtlas, makeIcon } from './tiles.js';
 import { makeItemIconCanvas } from './ui.js';
 
 const COLLECT_RANGE = 1.5;
+const MAGNET_RANGE = 4.0; // start lerping toward player at this distance
 const FLOAT_HEIGHT = 0.3;
 const SPIN_SPEED = 2.0;
 const BOB_SPEED = 2.5;
@@ -67,7 +68,7 @@ export class DroppedItem {
     this.scene.add(this.group);
   }
 
-  update(dt) {
+  update(dt, playerPos) {
     this.age += dt;
     if (this.age > DESPAWN_TIME) {
       this.collected = true;
@@ -77,6 +78,25 @@ export class DroppedItem {
     this.group.rotation.y += SPIN_SPEED * dt;
     // Bob
     this.group.position.y = this.y + Math.sin(this.age * BOB_SPEED) * BOB_AMP;
+
+    // Magnet: lerp toward player when within MAGNET_RANGE
+    if (playerPos && !this.collected) {
+      const dx = playerPos.x - this.x;
+      const dy = (playerPos.y + 0.5) - this.y;
+      const dz = playerPos.z - this.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (dist < MAGNET_RANGE && dist > 0.1) {
+        const speed = Math.max(6, 20 - dist * 3); // faster as closer
+        const t = Math.min(1, dt * speed);
+        this.x += dx * t;
+        this.y += dy * t;
+        this.z += dz * t;
+        this.group.position.set(this.x, this.y + Math.sin(this.age * BOB_SPEED) * BOB_AMP, this.z);
+        // Scale up slightly as it approaches (suck-in feel)
+        const scale = 1 + (1 - dist / MAGNET_RANGE) * 0.2;
+        this.group.scale.setScalar(scale);
+      }
+    }
   }
 
   checkCollect(px, py, pz) {
@@ -127,7 +147,7 @@ export class DroppedItemManager {
   update(dt, playerPos) {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
-      item.update(dt);
+      item.update(dt, playerPos);
       if (item.collected) {
         item.dispose();
         this.items.splice(i, 1);

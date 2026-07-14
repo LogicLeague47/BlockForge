@@ -433,7 +433,7 @@ scene.add(crackPlane);
 function updateBreaking(progress, hit) {
   if (progress <= 0 || !hit) { crackPlane.visible = false; return; }
   crackPlane.visible = true;
-  drawCrack(crackCanvas, Math.min(3, Math.floor(progress * 4)));
+  drawCrack(crackCanvas, Math.min(10, Math.floor(progress * 10) + 1));
   crackTexture.needsUpdate = true;
   crackPlane.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
   const dir = new THREE.Vector3();
@@ -591,6 +591,9 @@ function updateParticles(dt) {
 // --- Game state (set by startGame) ---
 let world = null, manager = null, loader = null, player = null, mobManager = null, explosionManager = null, playerModel = null;
 let _lastLocalArmorKey = '';
+let _particles = [];
+let _sprintParticleTimer = 0;
+let _waterSplashTimer = 0;
 let gameRunning = false;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
@@ -1317,6 +1320,7 @@ function igniteTNT(x, y, z) {
     if (player) {
       const dmg = ExplosionManager.calcDamage(x + 0.5, y + 0.5, z + 0.5, player.position, 4);
       if (dmg > 0) player.takeDamage(dmg, { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+      if (playerModel) playerModel.triggerHurt();
     }
   }, 1500);
 }
@@ -1344,6 +1348,25 @@ function placeBlock(slotOverride) {
 
   world.setBlock(x, y, z, itemId);
   if (network.isInRoom()) network.sendBlockUpdate(x, y, z, itemId);
+
+  // Block place particles: small dust puff
+  if (graphicsQuality !== 'low') {
+    for (let i = 0; i < 4; i++) {
+      const geo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+      const col = BLOCK_COLORS[itemId] || 0x888888;
+      const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(x + 0.5, y + 0.5, z + 0.5);
+      scene.add(m);
+      _particles.push({
+        mesh: m,
+        vx: (Math.random() - 0.5) * 2,
+        vy: 1 + Math.random() * 2,
+        vz: (Math.random() - 0.5) * 2,
+        life: 0.4, maxLife: 0.4
+      });
+    }
+  }
 
   // Pistons: store facing direction based on player look
   if (itemId === BLOCK.PISTON || itemId === BLOCK.STICKY_PISTON) {
@@ -2318,6 +2341,7 @@ function setupNetworkHandlers() {
   network.onPlayerDamage = (from, damage) => {
     if (player && !player.isDead()) {
       player.takeDamage(damage, 'player');
+      if (playerModel) playerModel.triggerHurt();
       addChatLine(`${from} hit you for ${damage} damage!`, '#f55');
     }
   };
@@ -2559,9 +2583,20 @@ function updateWeather(dt) {
     if (isRaining && player) {
       const pos = rainDrops.geometry.attributes.position.array;
       const px = player.position.x, pz = player.position.z;
+      _rainSplashTimer = (_rainSplashTimer || 0) - dt;
       for (let i = 0; i < RAIN_COUNT; i++) {
         pos[i * 3 + 1] -= rainVelocities[i] * dt;
         if (pos[i * 3 + 1] < -2) {
+          // Spawn splash particle at impact (only a few per frame)
+          if (_rainSplashTimer <= 0 && graphicsQuality !== 'low' && Math.random() < 0.05) {
+            _rainSplashTimer = 0.08;
+            const geo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
+            const mat = new THREE.MeshBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.4 });
+            const m = new THREE.Mesh(geo, mat);
+            m.position.set(pos[i * 3], 0.1, pos[i * 3 + 2]);
+            scene.add(m);
+            _particles.push({ mesh: m, vx: (Math.random()-0.5)*0.5, vy: 0.8+Math.random()*0.5, vz: (Math.random()-0.5)*0.5, life: 0.3, maxLife: 0.3 });
+          }
           pos[i * 3] = px + (Math.random() - 0.5) * 80;
           pos[i * 3 + 1] = 30 + Math.random() * 10;
           pos[i * 3 + 2] = pz + (Math.random() - 0.5) * 80;
@@ -2717,9 +2752,11 @@ function updateSky(dt) {
 
   // Stars: visible only at night, fade in/out with twilight.
   // Rendered as a 3D star field in the sky (follows the camera like a skybox).
+  // Twinkle: vary size subtly over time
   if (starField) {
     const nightAlpha = sinA < 0 ? Math.min(1, (-sinA) / 0.3) : 0;
     starField.material.opacity = nightAlpha;
+    starField.material.size = 2.2 + Math.sin(performance.now() * 0.001) * 0.3;
     if (player) starField.position.copy(player.position);
     else if (camera) starField.position.copy(camera.position);
   }
@@ -4406,12 +4443,16 @@ function loop() {
       if (mobEvent.attack) {
         const dmgMult = gameDifficulty === 'hard' ? 1.5 : 1.0;
         player.takeDamage(Math.round(mobEvent.attack.damage * dmgMult), mobEvent.attack.fromPos || 'mob');
+        if (playerModel) playerModel.triggerHurt();
       }
       // Handle creeper explosions
       if (mobEvent.explosions) {
         for (const exp of mobEvent.explosions) {
           const dmg = ExplosionManager.calcDamage(exp.x, exp.y, exp.z, player.position, exp.power);
-          if (dmg > 0) player.takeDamage(dmg, { x: exp.x, y: exp.y, z: exp.z });
+          if (dmg > 0) {
+            player.takeDamage(dmg, { x: exp.x, y: exp.y, z: exp.z });
+            if (playerModel) playerModel.triggerHurt();
+          }
         }
       }
     }
@@ -4420,6 +4461,77 @@ function loop() {
   // Update explosion particles
   if (explosionManager) {
     explosionManager.update(dt);
+  }
+
+  // ── SPRINT TRAIL PARTICLES ──
+  if (player && player.sprinting && player.onGround && graphicsQuality !== 'low') {
+    _sprintParticleTimer = (_sprintParticleTimer || 0) - dt;
+    if (_sprintParticleTimer <= 0) {
+      _sprintParticleTimer = 0.05;
+      const px = player.position.x + (Math.random() - 0.5) * 0.4;
+      const py = player.position.y + 0.1;
+      const pz = player.position.z + (Math.random() - 0.5) * 0.4;
+      const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+      const mat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(px, py, pz);
+      scene.add(m);
+      _particles.push({ mesh: m, vx: 0, vy: 1.5, vz: 0, life: 0.4, maxLife: 0.4 });
+    }
+  }
+
+  // ── WATER SPLASH PARTICLES (when walking through water) ──
+  if (player && player.onGround && graphicsQuality !== 'low') {
+    const pEye = player.eyeBlock();
+    if (pEye === BLOCK.WATER) {
+      _waterSplashTimer = (_waterSplashTimer || 0) - dt;
+      if (_waterSplashTimer <= 0) {
+        _waterSplashTimer = 0.15;
+        for (let i = 0; i < 3; i++) {
+          const geo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+          const mat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
+          const m = new THREE.Mesh(geo, mat);
+          m.position.set(
+            player.position.x + (Math.random() - 0.5) * 0.6,
+            player.position.y + 0.2,
+            player.position.z + (Math.random() - 0.5) * 0.6
+          );
+          scene.add(m);
+          _particles.push({
+            mesh: m,
+            vx: (Math.random() - 0.5) * 2,
+            vy: 2 + Math.random() * 2,
+            vz: (Math.random() - 0.5) * 2,
+            life: 0.5, maxLife: 0.5
+          });
+        }
+      }
+    }
+  }
+
+  // ── BREAKING BLOCK WOBBLE ──
+  if (breakingTarget && breakParticles) {
+    const wobble = Math.sin(performance.now() * 0.02) * 0.015;
+    crackPlane.position.x += wobble;
+    crackPlane.position.z += wobble * 0.7;
+  }
+
+  // ── GENERIC PARTICLE SYSTEM (sprint, water splash, etc.) ──
+  for (let i = (_particles || []).length - 1; i >= 0; i--) {
+    const p = _particles[i];
+    p.life -= dt;
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      p.mesh.geometry.dispose();
+      p.mesh.material.dispose();
+      _particles.splice(i, 1);
+      continue;
+    }
+    p.vy -= 8 * dt;
+    p.mesh.position.x += p.vx * dt;
+    p.mesh.position.y += p.vy * dt;
+    p.mesh.position.z += p.vz * dt;
+    p.mesh.material.opacity = (p.life / p.maxLife) * 0.6;
   }
 
   // underwater tint

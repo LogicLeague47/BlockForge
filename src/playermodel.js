@@ -378,6 +378,25 @@ export class PlayerModel {
     const swing = Math.sin(this.animPhase) * 0.7;
     const armSwing = Math.sin(this.animPhase) * 0.5;
 
+    // Landing squash: when player just landed, squash body down briefly
+    if (this._landingSquash == null) this._landingSquash = 0;
+    if (onGround && !this._wasOnGround) {
+      this._landingSquash = 0.3; // trigger squash
+    }
+    this._wasOnGround = onGround;
+    if (this._landingSquash > 0) {
+      this._landingSquash = Math.max(0, this._landingSquash - dt * 3);
+    }
+
+    // Hurt tilt: tilt body back when taking damage
+    if (this._hurtTilt == null) this._hurtTilt = 0;
+    if (this._hurtTilt > 0) {
+      this._hurtTilt = Math.max(0, this._hurtTilt - dt * 4);
+    }
+
+    // Idle breathing
+    const breathe = Math.sin(performance.now() * 0.002) * 0.01;
+
     if (swimming) {
       // Swimming: body tilted forward, limbs cycle in a crawl
       const swimPhase = this.animPhase;
@@ -389,7 +408,13 @@ export class PlayerModel {
       this.leftLegPivot.rotation.x = -swimSwing * 0.6;
       this.rightLegPivot.rotation.x = swimSwing * 0.6;
     } else {
-      this.body.rotation.x *= 0.9;
+      this.body.rotation.x = this._hurtTilt * -0.4; // hurt tilt
+
+      // Landing squash on body
+      const squash = this._landingSquash;
+      this.body.scale.y = 1 - squash * 0.3;
+      this.body.scale.x = 1 + squash * 0.15;
+      this.body.scale.z = 1 + squash * 0.15;
 
       // Legs always walk when moving
       this.leftLegPivot.rotation.x = swing;
@@ -410,13 +435,18 @@ export class PlayerModel {
         this.rightArmPivot.rotation.x = swing;
       }
 
-      this.head.rotation.x = Math.sin(this.animPhase * 2) * 0.03;
+      this.head.rotation.x = Math.sin(this.animPhase * 2) * 0.03 + breathe;
 
       if (sprinting && moving) {
-        this.body.rotation.x = 0.08;
+        this.body.rotation.x += 0.08;
         this.head.rotation.x += 0.08;
       }
     }
+  }
+
+  // Trigger hurt tilt animation (called when player takes damage)
+  triggerHurt() {
+    this._hurtTilt = 1.0;
   }
 
   // ── Armour overlay rendering ──────────────────────────────────────────
