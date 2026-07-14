@@ -8,6 +8,13 @@ import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
+
+function hexToRgb(hex) {
+  return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
+}
+
+// Texture cache per mob type to avoid creating duplicate textures
+const _texCache = {};
 // ── mob type definitions (Minecraft proportions) ─────────────────────
 // Dimensions are (width, height, depth) in blocks.  All mobs stand on the
 // ground plane with their feet at local y=0.
@@ -281,6 +288,19 @@ class Mob {
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
 
+    // Cache all materials for fast hurt/flash (avoids mesh.traverse)
+    this._allMats = [];
+    this._savedColors = [];
+    this.mesh.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const mats = Array.isArray(child.material) ? child.material : [child.material];
+        for (const m of mats) {
+          this._allMats.push(m);
+          this._savedColors.push(m.color.getHex());
+        }
+      }
+    });
+
     // Store original body/head positions for bobbing
     this._origBodyY = 0;
     this._origHeadY = 0;
@@ -304,19 +324,25 @@ class Mob {
   }
 
   _fillTex(ctx, w, h, base) {
-    ctx.fillStyle = base;
-    ctx.fillRect(0, 0, w, h);
+    const id = ctx.createImageData(w, h);
+    const m = hexToRgb(base);
+    const d = id.data;
+    for (let i = 0; i < d.length; i += 4) { d[i] = m[0]; d[i+1] = m[1]; d[i+2] = m[2]; d[i+3] = 255; }
+    ctx.putImageData(id, 0, 0);
   }
 
   _noiseTex(ctx, w, h, base, variance) {
-    const r = (base >> 16) & 0xff, g = (base >> 8) & 0xff, b = base & 0xff;
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const v = ((Math.random() - 0.5) * variance) | 0;
-        ctx.fillStyle = `rgb(${Math.min(255, Math.max(0, r + v))},${Math.min(255, Math.max(0, g + v))},${Math.min(255, Math.max(0, b + v))})`;
-        ctx.fillRect(x, y, 1, 1);
-      }
+    const id = ctx.createImageData(w, h);
+    const d = id.data;
+    const r0 = (base >> 16) & 0xff, g0 = (base >> 8) & 0xff, b0 = base & 0xff;
+    for (let i = 0; i < d.length; i += 4) {
+      const v = ((Math.random() - 0.5) * variance * 2) | 0;
+      d[i]   = Math.min(255, Math.max(0, r0 + v));
+      d[i+1] = Math.min(255, Math.max(0, g0 + v));
+      d[i+2] = Math.min(255, Math.max(0, b0 + v));
+      d[i+3] = 255;
     }
+    ctx.putImageData(id, 0, 0);
   }
 
   _boxMats(textures) {
@@ -326,6 +352,9 @@ class Mob {
   _buildMesh(def) {
     const group = new THREE.Group();
     const tex = def._tex || this._mobTextures(def);
+
+    // Cache textures on the MOB_TYPES definition so all mobs of same type share textures
+    if (!def._tex) def._tex = tex;
 
     // ── Body ──
     const bodyGeo = new THREE.BoxGeometry(def.bodyW, def.bodyH, def.bodyD);
@@ -1981,20 +2010,15 @@ class Mob {
   }
 
   _setHurtFlash(on) {
-    this.mesh.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const mats = Array.isArray(child.material) ? child.material : [child.material];
-        for (const m of mats) {
-          if (on) {
-            if (m._savedColor === undefined) m._savedColor = m.color.getHex();
-            m.color.setHex(0xff3333);
-          } else if (m._savedColor !== undefined) {
-            m.color.setHex(m._savedColor);
-            delete m._savedColor;
-          }
-        }
+    const mats = this._allMats;
+    const colors = this._savedColors;
+    for (let i = 0; i < mats.length; i++) {
+      if (on) {
+        mats[i].color.setHex(0xff3333);
+      } else {
+        mats[i].color.setHex(colors[i]);
       }
-    });
+    }
   }
 
   // Get list of item drops
@@ -2248,23 +2272,13 @@ export class MobManager {
             mob.fuseTimer -= dt;
             mob._fuseFlashPhase += dt * 12;
 
-            // Flash red/white during fuse
-            if (mob.mesh) {
+            // Flash red/white during fuse (using cached materials)
+            if (mob._allMats) {
               const flashOn = Math.sin(mob._fuseFlashPhase) > 0;
-              mob.mesh.traverse((child) => {
-                if (child.isMesh && child.material) {
-                  const mats = Array.isArray(child.material) ? child.material : [child.material];
-                  for (const m of mats) {
-                    if (flashOn) {
-                      if (m._savedColor === undefined) m._savedColor = m.color.getHex();
-                      m.color.setHex(0xff4444);
-                    } else if (m._savedColor !== undefined) {
-                      m.color.setHex(m._savedColor);
-                      delete m._savedColor;
-                    }
-                  }
-                }
-              });
+              const flashColor = flashOn ? 0xff4444 : 0xffffff;
+              for (let i = 0; i < mob._allMats.length; i++) {
+                mob._allMats[i].color.setHex(flashOn ? 0xff4444 : mob._savedColors[i]);
+              }
             }
 
             // Cancel fuse if player moves far away

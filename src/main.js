@@ -592,6 +592,9 @@ function updateParticles(dt) {
 let world = null, manager = null, loader = null, player = null, mobManager = null, explosionManager = null, playerModel = null;
 let _lastLocalArmorKey = '';
 let _particles = [];
+const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
 let _sprintParticleTimer = 0;
 let _waterSplashTimer = 0;
 let gameRunning = false;
@@ -1352,10 +1355,9 @@ function placeBlock(slotOverride) {
   // Block place particles: small dust puff
   if (graphicsQuality !== 'low') {
     for (let i = 0; i < 4; i++) {
-      const geo = new THREE.BoxGeometry(0.05, 0.05, 0.05);
       const col = BLOCK_COLORS[itemId] || 0x888888;
       const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
-      const m = new THREE.Mesh(geo, mat);
+      const m = new THREE.Mesh(_particleGeoSmall, mat);
       m.position.set(x + 0.5, y + 0.5, z + 0.5);
       scene.add(m);
       _particles.push({
@@ -2590,9 +2592,8 @@ function updateWeather(dt) {
           // Spawn splash particle at impact (only a few per frame)
           if (_rainSplashTimer <= 0 && graphicsQuality !== 'low' && Math.random() < 0.05) {
             _rainSplashTimer = 0.08;
-            const geo = new THREE.BoxGeometry(0.03, 0.03, 0.03);
             const mat = new THREE.MeshBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.4 });
-            const m = new THREE.Mesh(geo, mat);
+            const m = new THREE.Mesh(_particleGeoTiny, mat);
             m.position.set(pos[i * 3], 0.1, pos[i * 3 + 2]);
             scene.add(m);
             _particles.push({ mesh: m, vx: (Math.random()-0.5)*0.5, vy: 0.8+Math.random()*0.5, vz: (Math.random()-0.5)*0.5, life: 0.3, maxLife: 0.3 });
@@ -4469,9 +4470,8 @@ function loop() {
         const from = mob._teleportFrom;
         // Purple particles at old position
         for (let i = 0; i < 8; i++) {
-          const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
           const mat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
-          const m = new THREE.Mesh(geo, mat);
+          const m = new THREE.Mesh(_particleGeoMed, mat);
           m.position.set(from.x + (Math.random()-0.5)*0.5, from.y + Math.random()*2, from.z + (Math.random()-0.5)*0.5);
           scene.add(m);
           _particles.push({ mesh: m, vx: (Math.random()-0.5)*2, vy: 1+Math.random()*2, vz: (Math.random()-0.5)*2, life: 0.5, maxLife: 0.5 });
@@ -4494,7 +4494,7 @@ function loop() {
       const px = player.position.x + (Math.random() - 0.5) * 0.4;
       const py = player.position.y + 0.1;
       const pz = player.position.z + (Math.random() - 0.5) * 0.4;
-      const geo = new THREE.BoxGeometry(0.06, 0.06, 0.06);
+      const geo = _particleGeoMed;
       const mat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
       const m = new THREE.Mesh(geo, mat);
       m.position.set(px, py, pz);
@@ -4511,7 +4511,7 @@ function loop() {
       if (_waterSplashTimer <= 0) {
         _waterSplashTimer = 0.15;
         for (let i = 0; i < 3; i++) {
-          const geo = new THREE.BoxGeometry(0.04, 0.04, 0.04);
+          const geo = _particleGeoSmall;
           const mat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
           const m = new THREE.Mesh(geo, mat);
           m.position.set(
@@ -4545,8 +4545,7 @@ function loop() {
     p.life -= dt;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
+      if (p.mesh.material) p.mesh.material.dispose();
       _particles.splice(i, 1);
       continue;
     }

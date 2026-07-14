@@ -64,6 +64,8 @@ export class BreakParticles {
     this.group = new THREE.Group();
     this.group.renderOrder = 5;
     scene.add(this.group);
+    // Shared geometry for all break particles
+    this._geo = new THREE.BoxGeometry(1, 1, 1);
   }
 
   emit(blockId, x, y, z, count) {
@@ -71,7 +73,6 @@ export class BreakParticles {
     const color = getBlockColor(blockId);
     for (let i = 0; i < count; i++) {
       const size = 0.04 + Math.random() * 0.06;
-      const geo = new THREE.BoxGeometry(size, size, size);
       const mat = new THREE.MeshLambertMaterial({
         color: new THREE.Color(
           color[0] * (0.8 + Math.random() * 0.4),
@@ -79,7 +80,8 @@ export class BreakParticles {
           color[2] * (0.8 + Math.random() * 0.4)
         ),
       });
-      const mesh = new THREE.Mesh(geo, mat);
+      const mesh = new THREE.Mesh(this._geo, mat);
+      mesh.scale.set(size, size, size);
       mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
 
       // Random velocity — burst outward and up
@@ -103,7 +105,6 @@ export class BreakParticles {
       p.age += dt;
       if (p.age >= p.life) {
         this.group.remove(p.mesh);
-        p.mesh.geometry.dispose();
         p.mesh.material.dispose();
         this.particles.splice(i, 1);
         continue;
@@ -125,8 +126,7 @@ export class BreakParticles {
   clear() {
     for (const p of this.particles) {
       this.group.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
+      if (p.mesh.material) p.mesh.material.dispose();
     }
     this.particles.length = 0;
   }
@@ -143,6 +143,7 @@ export class AmbientParticles {
     scene.add(this.group);
     this.spawnTimer = 0;
     this.currentBiome = BIOMES.PLAINS;
+    this._geo = new THREE.BoxGeometry(1, 1, 1);
   }
 
   setBiome(biomeId) {
@@ -188,8 +189,8 @@ export class AmbientParticles {
       mat = new THREE.MeshBasicMaterial({ color: new THREE.Color(...color), transparent: true });
     }
 
-    const geo = new THREE.BoxGeometry(size, size, size);
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(this._geo, mat);
+    mesh.scale.set(size, size, size);
     mesh.position.set(x, y, z);
     this.group.add(mesh);
 
@@ -224,8 +225,7 @@ export class AmbientParticles {
       p.age += dt;
       if (p.age >= p.life) {
         this.group.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
+        if (p.mesh.material) p.mesh.material.dispose();
         this.particles.splice(i, 1);
         continue;
       }
@@ -254,8 +254,7 @@ export class AmbientParticles {
       const dz = p.mesh.position.z - playerPos.z;
       if (dx * dx + dz * dz > 400) {
         this.group.remove(p.mesh);
-        p.mesh.geometry.dispose();
-        p.mesh.material.dispose();
+        if (p.mesh.material) p.mesh.material.dispose();
         this.particles.splice(i, 1);
       }
     }
@@ -264,8 +263,7 @@ export class AmbientParticles {
   clear() {
     for (const p of this.particles) {
       this.group.remove(p.mesh);
-      p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
+      if (p.mesh.material) p.mesh.material.dispose();
     }
     this.particles.length = 0;
   }

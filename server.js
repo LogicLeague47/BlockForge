@@ -8,7 +8,15 @@ import { fileURLToPath } from 'url';
 import { dirname, join, extname } from 'path';
 import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
 
-// Profanity filter (server-side) — matches expanded client list
+async function getPlayerData(username) {
+  const data = await redisCmd(['GET', `player_data:${username}`]);
+  return data ? JSON.parse(data) : { stats: {}, settings: {} };
+}
+
+async function setPlayerData(username, data) {
+  await redisCmd(['SET', `player_data:${username}`, JSON.stringify(data)]);
+}
+
 const PROFANITY_WORDS = [
   'fuck','fucker','fuckers','fuckface','fuckhead','fuckhole','fucking',
   'fuckboy','fuckbuddy','fuckstick','fucktard','fuckwit','fucked','fuckedup',
@@ -453,6 +461,11 @@ wss.on('connection', (ws) => {
       case 'friend_accept': handleFriendAccept(ws, msg); break;
       case 'friend_decline': handleFriendDecline(ws, msg); break;
       case 'friend_remove': handleFriendRemove(ws, msg); break;
+      case 'player_stats_get': handlePlayerStatsGet(ws, msg); break;
+      case 'player_stats_set': handlePlayerStatsSet(ws, msg); break;
+      case 'player_settings_get': handlePlayerSettingsGet(ws, msg); break;
+      case 'player_settings_set': handlePlayerSettingsSet(ws, msg); break;
+      case 'dev_get_all_players': handleDevGetAllPlayers(ws, msg); break;
     }
   });
 
