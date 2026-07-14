@@ -22,13 +22,13 @@ export class Chunk {
 }
 
 export class World {
-  constructor(seed) {
+  constructor(seed, opts = {}) {
     this.seed = seed || Math.floor(Math.random() * 1e9);
     this.noise = new Noise(this.seed);
     this.chunks = new Map();
     this.edits = new Map();
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
-
+    this.flat = !!opts.flat; // superflat dev/test world
   }
 
   getChest(x, y, z) {
@@ -90,19 +90,34 @@ export class World {
     const baseZ = chunk.cz * CHUNK_SIZE;
     const n = this.noise;
 
-    for (let x = 0; x < CHUNK_SIZE; x++) {
-      for (let z = 0; z < CHUNK_SIZE; z++) {
-        const wx = baseX + x, wz = baseZ + z;
-        const result = generateColumn(n, chunk, x, z, wx, wz);
-        chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
-        chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
+    if (this.flat) {
+      // Superflat: bedrock, 2 dirt, grass on top at y=3. Great for testing.
+      const FLAT_TOP = 3;
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          chunk.set(x, 0, z, BLOCK.BEDROCK);
+          chunk.set(x, 1, z, BLOCK.DIRT);
+          chunk.set(x, 2, z, BLOCK.DIRT);
+          chunk.set(x, FLAT_TOP, z, BLOCK.GRASS);
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = FLAT_TOP;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = BIOMES.PLAINS;
+        }
       }
+    } else {
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          const wx = baseX + x, wz = baseZ + z;
+          const result = generateColumn(n, chunk, x, z, wx, wz);
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
+        }
+      }
+
+      generateFeatures(chunk, baseX, baseZ, n);
+
+      // Structures (villages) — placed after terrain/features, before player edits.
+      try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { /* never break chunk gen */ }
     }
-
-    generateFeatures(chunk, baseX, baseZ, n);
-
-    // Structures (villages) — placed after terrain/features, before player edits.
-    try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { /* never break chunk gen */ }
 
     for (const [key, v] of this.edits) {
       const [ex, ey, ez] = key.split(',').map(Number);
@@ -115,9 +130,38 @@ export class World {
     chunk.generated = true;
   }
 
-  heightAt(wx, wz) { return calcHeight(this.noise, wx, wz); }
+  // Evict generated chunk data (not meshes) outside the given chunk radius.
+  // Edits, chests, and the RNG seed live elsewhere, so evicted chunks
+  // regenerate identically on demand. Prevents unbounded memory growth.
+  evictFar(pcx, pcz, limit) {
+    for (const k of this.chunks.keys()) {
+      const ci = k.indexOf(',');
+      const cx = +k.slice(0, ci), cz = +k.slice(ci + 1);
+      if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
+        this.chunks.delete(k);
+      }
+    }
+  }
 
-  biomeAt(wx, wz, y) { return calcBiome(this.noise, wx, wz, y); }
+  heightAt(wx, wz) {
+    const cx = Math.floor(wx / CHUNK_SIZE), cz = Math.floor(wz / CHUNK_SIZE);
+    const c = this.chunks.get(this.key(cx, cz));
+    if (c && c.generated) {
+      const lx = wx - cx * CHUNK_SIZE, lz = wz - cz * CHUNK_SIZE;
+      return c.surfaceMap[lz * CHUNK_SIZE + lx];
+    }
+    return calcHeight(this.noise, wx, wz);
+  }
+
+  biomeAt(wx, wz, y) {
+    const cx = Math.floor(wx / CHUNK_SIZE), cz = Math.floor(wz / CHUNK_SIZE);
+    const c = this.chunks.get(this.key(cx, cz));
+    if (c && c.generated) {
+      const lx = wx - cx * CHUNK_SIZE, lz = wz - cz * CHUNK_SIZE;
+      return c.biomeMap[lz * CHUNK_SIZE + lx];
+    }
+    return calcBiome(this.noise, wx, wz, y);
+  }
 
   serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests() }; }
   loadEdits(obj) { if (!obj || obj.edits == null) return; for (const [k, v] of obj.edits) this.edits.set(k, v); this.loadChests(obj.chests); }

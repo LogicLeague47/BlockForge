@@ -235,3 +235,54 @@ function buildLamp(set, ox, y, oz) {
   set(ox, y + 5, oz, BLOCK.GLASS);
   set(ox, y + 6, oz, BLOCK.TORCH);
 }
+
+function buildTower(set, ox, y, oz) {
+  const r = 3, h = 14;
+  for (let dy = 0; dy < h; dy++) {
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      const edge = Math.abs(dx) === r || Math.abs(dz) === r;
+      if (dy === 0) foundation(set, ox + dx, y, oz + dz, BLOCK.COBBLESTONE);
+      else if (edge) set(ox + dx, y + dy, oz + dz, dy % 4 === 3 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.STONE);
+      else set(ox + dx, y + dy, oz + dz, BLOCK.AIR);
+    }
+  }
+  // battlements
+  for (let dx = -r; dx <= r; dx += 2) { set(ox + dx, y + h, oz - r, BLOCK.COBBLESTONE); set(ox + dx, y + h, oz + r, BLOCK.COBBLESTONE); }
+  for (let dz = -r; dz <= r; dz += 2) { set(ox - r, y + h, oz + dz, BLOCK.COBBLESTONE); set(ox + r, y + h, oz + dz, BLOCK.COBBLESTONE); }
+  set(ox, y + 1, oz - r, BLOCK.AIR); set(ox, y + 2, oz - r, BLOCK.AIR); // door
+  set(ox, y + h - 1, oz, BLOCK.TORCH);
+}
+
+// Place a single structure at a world position (used by the dev tools).
+// Returns a bounding box { minX, maxX, minZ, maxZ } for chunk refresh.
+export function placeStructure(world, type, ox, oy, oz) {
+  const set = (wx, wy, wz, b) => world.setBlock(wx, wy, wz, b);
+  const seed = (ox * 31 + oz * 17) | 0;
+  let bb = { minX: ox - 12, maxX: ox + 12, minZ: oz - 12, maxZ: oz + 12 };
+  switch (type) {
+    case 'house': buildHouse(set, ox, oy, oz, 7, 7, 4, BLOCK.PLANKS, BLOCK.WOOD, seed); break;
+    case 'house_medium': case 'house2': buildHouse(set, ox, oy, oz, 9, 9, 5, BLOCK.PLANKS, BLOCK.WOOD, seed); break;
+    case 'blacksmith': buildBlacksmith(set, ox, oy, oz, world); break;
+    case 'well': buildWell(set, ox, oy, oz); break;
+    case 'farm': buildFarm(set, ox, oy, oz); break;
+    case 'lamp': buildLamp(set, ox, oy, oz); break;
+    case 'tower': buildTower(set, ox, oy, oz); break;
+    case 'village': {
+      buildWell(set, ox - 2, oy, oz - 2);
+      buildHouse(set, ox - 14, oy, oz - 14, 7, 7, 4, BLOCK.PLANKS, BLOCK.WOOD, seed);
+      buildHouse(set, ox + 8, oy, oz - 14, 9, 9, 5, BLOCK.PLANKS, BLOCK.WOOD, seed + 1);
+      buildBlacksmith(set, ox + 10, oy, oz + 6, world);
+      buildFarm(set, ox - 14, oy, oz + 8);
+      buildLamp(set, ox + 4, oy, oz + 4);
+      buildLamp(set, ox - 5, oy, oz + 4);
+      // roads
+      for (const [bx, bz] of [[-11, -11], [12, -10], [14, 10], [-11, 11]]) layPath(set, ox, oz, ox + bx, oz + bz, oy);
+      bb = { minX: ox - 24, maxX: ox + 24, minZ: oz - 24, maxZ: oz + 24 };
+      break;
+    }
+    default: return null;
+  }
+  return bb;
+}
+
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower'];

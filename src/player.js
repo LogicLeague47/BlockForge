@@ -162,8 +162,8 @@ export class Player {
 
     // Knockback: push away from the damage source if it has a position.
     if (source && typeof source === 'object' && source.x !== undefined) {
-      const dx = this.pos.x - source.x;
-      const dz = this.pos.z - source.z;
+      const dx = this.position.x - source.x;
+      const dz = this.position.z - source.z;
       const len = Math.hypot(dx, dz) || 1;
       const power = source.knockback ?? 6;
       this.knockback.x += (dx / len) * power;

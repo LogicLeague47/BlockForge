@@ -44,7 +44,7 @@ export class ChunkMeshManager {
     // Dirty chunk queue: rebuilds are deferred and processed with a time budget
     this._dirtySet = new Set();
     this._dirtyList = [];
-    this.MESH_BUDGET_MS = 8;
+    this.MESH_BUDGET_MS = 12;
   }
 
   _buildChunk(cx, cz) {

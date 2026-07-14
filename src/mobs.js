@@ -122,6 +122,8 @@ const SWAMP_SPAWN_MIN = 0;
 const SWAMP_SPAWN_MAX = 1;
 const MIN_SPAWN_DISTANCE = 8;
 const MAX_MOBS_PER_CHUNK = 2;
+const MAX_NIGHT_HOSTILES = 12;   // cap on hostiles spawned by the night pass
+const NIGHT_SPAWN_INTERVAL = 4;  // seconds between night spawn attempts
 
 const WALK_SPEED = 1.2;
 const MAX_WANDER_DIST = 24;
@@ -994,6 +996,8 @@ class Mob {
   takeDamage(amount, fromPos) {
     this.hp -= amount;
     this.hurtTimer = 0.15;
+    // Provoke: hostile mobs retaliate after being hit (see MobManager.update).
+    this.aggro = true;
     // Knockback: push away from attacker
     if (fromPos) {
       const dx = this.position.x - fromPos.x;
@@ -1005,6 +1009,50 @@ class Mob {
     }
     if (this.hp <= 0) {
       this.dead = true;
+    }
+  }
+
+  _solid(world, bx, by, bz) {
+    const b = world.getBlock(bx, by, bz);
+    return !!(BLOCKS[b]?.solid);
+  }
+
+  // Resolve horizontal movement against solid voxels so mobs can't walk
+  // through walls. Uses a simple AABB (width = body, height = body+head).
+  _moveHoriz(world, dx, dz) {
+    const def = MOB_TYPES[this.type];
+    const hw = def.bodyW / 2 + 0.02;
+    const hd = def.bodyD / 2 + 0.02;
+    const height = def.bodyH + def.headH;
+    const minY = Math.floor(this.position.y);
+    const maxY = Math.floor(this.position.y + height);
+
+    // X axis
+    this.position.x += dx;
+    if (dx > 0) {
+      const x = Math.floor(this.position.x + hw);
+      for (let y = minY; y <= maxY; y++)
+        for (let z = Math.floor(this.position.z - hd); z <= Math.floor(this.position.z + hd); z++)
+          if (this._solid(world, x, y, z)) { this.position.x = x - hw - 0.001; this.velocity.x = 0; break; }
+    } else if (dx < 0) {
+      const x = Math.floor(this.position.x - hw);
+      for (let y = minY; y <= maxY; y++)
+        for (let z = Math.floor(this.position.z - hd); z <= Math.floor(this.position.z + hd); z++)
+          if (this._solid(world, x, y, z)) { this.position.x = x + 1 + hw + 0.001; this.velocity.x = 0; break; }
+    }
+
+    // Z axis
+    this.position.z += dz;
+    if (dz > 0) {
+      const z = Math.floor(this.position.z + hd);
+      for (let y = minY; y <= maxY; y++)
+        for (let x = Math.floor(this.position.x - hw); x <= Math.floor(this.position.x + hw); x++)
+          if (this._solid(world, x, y, z)) { this.position.z = z - hd - 0.001; this.velocity.z = 0; break; }
+    } else if (dz < 0) {
+      const z = Math.floor(this.position.z - hd);
+      for (let y = minY; y <= maxY; y++)
+        for (let x = Math.floor(this.position.x - hw); x <= Math.floor(this.position.x + hw); x++)
+          if (this._solid(world, x, y, z)) { this.position.z = z + 1 + hd + 0.001; this.velocity.z = 0; break; }
     }
   }
 
@@ -1067,9 +1115,8 @@ class Mob {
       }
     }
 
-    // Apply velocity with ground collision
-    this.position.x += this.velocity.x * dt;
-    this.position.z += this.velocity.z * dt;
+    // Apply velocity with horizontal + ground collision
+    this._moveHoriz(world, this.velocity.x * dt, this.velocity.z * dt);
 
     // Ground snap
     const bx = Math.floor(this.position.x);
@@ -1201,6 +1248,42 @@ export class MobManager {
     this.audio = audio;
     this.mobs = [];
     this._spawnedChunks = new Set();
+    this._nightSpawnTimer = 0;
+  }
+
+  // Periodic night pass: spawn hostile mobs in a ring around the player so that
+  // chunks loaded during the day still see monsters after nightfall.
+  spawnNightHostiles(playerPos) {
+    if (!playerPos) return;
+    let hostiles = 0;
+    for (const m of this.mobs) if (MOB_TYPES[m.type]?.hostileAtNight) hostiles++;
+    if (hostiles >= MAX_NIGHT_HOSTILES) return;
+
+    const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
+    const rng = mulberry32(seed);
+    const attempts = 4;
+    const types = ['zombie', 'skeleton', 'spider'];
+    for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
+      // Ring 24-40 blocks from the player.
+      const ang = rng() * Math.PI * 2;
+      const dist = 24 + rng() * 16;
+      const wx = Math.floor(playerPos.x + Math.cos(ang) * dist);
+      const wz = Math.floor(playerPos.z + Math.sin(ang) * dist);
+      const h = this.world.heightAt(wx, wz);
+      if (h <= SEA_LEVEL || h >= WORLD_HEIGHT - 5) continue;
+      let groundY = -1;
+      for (let y = Math.min(h + 6, WORLD_HEIGHT - 2); y >= SEA_LEVEL; y--) {
+        const blk = this.world.getBlock(wx, y, wz);
+        if (BLOCKS[blk]?.solid && blk !== BLOCK.WATER) { groundY = y; break; }
+      }
+      if (groundY < 0) continue;
+      const type = types[Math.floor(rng() * types.length)];
+      if (!MOB_TYPES[type]) continue;
+      const mob = new Mob(type, wx + 0.5, groundY + 1, wz + 0.5);
+      this.mobs.push(mob);
+      this.scene.add(mob.mesh);
+      hostiles++;
+    }
   }
 
   clear() {
@@ -1321,6 +1404,19 @@ export class MobManager {
     // Night is when dayTime > DAY_FRAC (10/16 ≈ 0.625)
     const isNight = dayTime != null && dayTime > 0.625;
 
+    // Periodic night hostile spawns near the player.
+    if (isNight) {
+      this._nightSpawnTimer -= dt;
+      if (this._nightSpawnTimer <= 0) {
+        this._nightSpawnTimer = NIGHT_SPAWN_INTERVAL;
+        this.spawnNightHostiles(playerPos);
+      }
+    } else {
+      this._nightSpawnTimer = 0;
+    }
+
+    const attackEvents = [];
+
     // Update all mobs
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
@@ -1344,7 +1440,7 @@ export class MobManager {
             mob.attackCooldown = (mob.attackCooldown || 0) - dt;
             if (mob.attackCooldown <= 0) {
               mob.attackCooldown = 1.0;
-              return { type: 'attack', damage: def.attackDamage || 4, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } };
+              attackEvents.push({ type: 'attack', damage: def.attackDamage || 4, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } });
             }
           }
         } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {
@@ -1379,6 +1475,10 @@ export class MobManager {
         }
       }
     }
+
+    // Return the strongest attack this tick (backward-compatible with single-event callers)
+    if (attackEvents.length === 0) return null;
+    return attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a));
   }
 
   _playAnimalSound(type) {

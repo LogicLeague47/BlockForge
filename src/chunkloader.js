@@ -62,34 +62,9 @@ export class ChunkLoader {
         this.manager.remove(cx, cz);
       }
     }
-  }
-
-  // Force everything within radius to be ready immediately (used on first spawn and teleport).
-  // Phase 1: generate all chunks synchronously (fast, prevents falling through).
-  // Phase 2: build meshes async (heavy, yields to browser).
-  prime(pcx, pcz) {
-    this.lastPCX = pcx; this.lastPCZ = pcz;
-    this.rebuildQueue(pcx, pcz);
-    const all = this.queue.splice(0);
-    // Phase 1: generate all synchronously
-    for (const k of all) {
-      const [cx, cz] = k.split(',').map(Number);
-      this.world.getChunk(cx, cz, true);
-    }
-    // Phase 2: build meshes async (8 per frame)
-    let idx = 0;
-    const budget = 8;
-    const buildStep = () => {
-      let n = budget;
-      while (n-- > 0 && idx < all.length) {
-        const k = all[idx++];
-        const [cx, cz] = k.split(',').map(Number);
-        const chunk = this.world.getChunk(cx, cz);
-        if (chunk.generated) this.manager.buildOrRefresh(cx, cz);
-      }
-      if (idx < all.length) requestAnimationFrame(buildStep);
-    };
-    requestAnimationFrame(buildStep);
+    // Also evict the underlying chunk data (kept a bit further out than meshes
+    // so nearby back-and-forth movement doesn't thrash regeneration).
+    if (this.world.evictFar) this.world.evictFar(pcx, pcz, this.radius + 5);
   }
 
   // Async prime: yields to the browser between chunks so loading screen can update.

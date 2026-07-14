@@ -245,8 +245,8 @@ export const ACHIEVEMENTS = [
     check: s => s.smelted[`${BLOCK.IRON_ORE}`] >= 10,
   },
   {
-    id: 'monster_hunter',
-    name: 'Monster Hunter',
+    id: 'hostile_slayer',
+    name: 'Hostile Slayer',
     desc: 'Kill any hostile mob',
     icon: ITEM.BONE,
     category: 'challenge',
@@ -263,7 +263,7 @@ export const ACHIEVEMENTS = [
   // ── New achievements ──
   {
     id: 'craft_wood_pickaxe',
-    name: 'Getting Wood',
+    name: 'Getting an Upgrade',
     desc: 'Craft a wooden pickaxe',
     icon: ITEM.WOOD_PICKAXE,
     category: 'story',

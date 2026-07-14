@@ -50,8 +50,8 @@ export const RECIPES = [
   // ---- storage blocks ----
   shaped({
     out: { id: B.BOOKSHELF, count: 1 },
-    pattern: ['PPP', 'BBB', 'PPP'],
-    key: { P: B.PLANKS, B: 'book' }, // book not craftable yet; placeholder
+    pattern: ['PPP', 'LLL', 'PPP'],
+    key: { P: B.PLANKS, L: I.LEATHER }, // leather stands in for books (no book item yet)
   }),
   shaped({
     out: { id: B.BRICK, count: 1 },
@@ -253,7 +253,7 @@ export const SMELTING = {
 };
 
 // --- recipe builders --------------------------------------------------------
-function shaped({ out, pattern, key }) {
+function shaped({ out, pattern, key, _disabled }) {
   // Convert the string pattern into a normalized 2D grid of item ids (or null).
   // pattern: ['PPP',' S ',' S ']; key: { P: id, S: id }
   const grid = pattern.map(row =>
@@ -263,7 +263,12 @@ function shaped({ out, pattern, key }) {
       return v == null ? null : v;
     })
   );
-  return { type: 'shaped', out, grid };
+  return { type: 'shaped', out, grid, _disabled: !!_disabled };
+}
+
+// Shapeless recipe: order-independent multiset of ingredient item ids.
+function shapeless({ out, ingredients, _disabled }) {
+  return { type: 'shapeless', out, ingredients: ingredients.slice().sort((a, b) => a - b), _disabled: !!_disabled };
 }
 
 // --- matching ---------------------------------------------------------------
@@ -311,8 +316,15 @@ function gridsEqual(a, b) {
 export function matchRecipe(flat, size) {
   const norm = normalizeGrid(flat, size);
   if (!norm) return null;
+  // Multiset of non-empty ingredient ids for shapeless matching.
+  const bag = flat.filter(s => s && s.item != null).map(s => s.item).sort((a, b) => a - b);
   for (const r of RECIPES) {
+    if (r._disabled) continue;
     if (r.type === 'shaped' && gridsEqual(norm, r.grid)) {
+      return r.out;
+    }
+    if (r.type === 'shapeless' && bag.length === r.ingredients.length &&
+        bag.every((v, i) => v === r.ingredients[i])) {
       return r.out;
     }
   }

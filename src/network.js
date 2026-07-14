@@ -32,6 +32,7 @@ export class Network {
     this._reconnectDelay = 1000;
     this._intentionalClose = false;
     this._lastJoinInfo = null; // stored for auto-rejoin after reconnect
+    this._queue = [];          // messages buffered while the socket is connecting
   }
 
   // Connect to WebSocket server
@@ -75,6 +76,13 @@ export class Network {
           skinIndex: j.skinIndex,
         });
       }
+      // Flush any messages buffered while we were connecting/reconnecting.
+      if (this._queue.length) {
+        const pending = this._queue.splice(0);
+        for (const m of pending) this._send(m);
+      }
+      // After an auto-rejoin, refresh friend state (onConnected only fires once).
+      if (this._lastJoinInfo && this.roomName) this._send({ type: 'friend_list' });
       if (this.onConnected) { const cb = this.onConnected; this.onConnected = null; cb(); }
     };
 
@@ -121,6 +129,12 @@ export class Network {
   _send(msg) {
     if (this.ws && this.ws.readyState === 1) {
       this.ws.send(JSON.stringify(msg));
+      return;
+    }
+    // Not ready yet. Buffer everything except continuous position updates
+    // (those become stale instantly, so dropping them is fine).
+    if (msg.type !== 'position' && this._queue.length < 100) {
+      this._queue.push(msg);
     }
   }
 

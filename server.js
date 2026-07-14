@@ -104,6 +104,7 @@ function _roomsToObj() {
       protected: !!room.protected,
       private: !!room.private,
       banned: [...room.banned],
+      edits: room.edits ? [...room.edits] : [],
       created: room.created
     };
   }
@@ -116,6 +117,14 @@ function saveRooms() {
     return;
   }
   try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2)); } catch {}
+}
+
+// Debounced room save for high-frequency events (block edits) so a crash loses
+// at most a few seconds of building instead of up to the 30s autosave window.
+let _saveRoomsTimer = null;
+function scheduleSaveRooms(ms = 5000) {
+  if (_saveRoomsTimer) return;
+  _saveRoomsTimer = setTimeout(() => { _saveRoomsTimer = null; saveRooms(); }, ms);
 }
 
 function _applyRoomsData(data) {
@@ -133,6 +142,7 @@ function _applyRoomsData(data) {
         private: !!r.private,
         players: new Map(),
         banned: new Set(r.banned || []),
+        edits: new Map(r.edits || []),
         created: r.created || Date.now()
       });
     }
@@ -650,6 +660,7 @@ function handleBlockUpdate(ws, msg) {
   room.edits.set(`${x},${y},${z}`, block);
   // Broadcast to everyone else in the room
   broadcast(room, { type: 'block_update', x, y, z, block }, ws);
+  scheduleSaveRooms();
 }
 
 function handleLeave(ws) {

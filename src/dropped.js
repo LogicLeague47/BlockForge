@@ -82,7 +82,7 @@ export class DroppedItem {
   checkCollect(px, py, pz) {
     if (this.collected) return false;
     const dx = this.x - px;
-    const dy = (this.y + FLOAT_HEIGHT) - py;
+    const dy = this.y - py;
     const dz = this.z - pz;
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (dist < COLLECT_RANGE) {

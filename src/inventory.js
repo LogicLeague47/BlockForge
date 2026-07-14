@@ -149,14 +149,9 @@ export class Inventory {
     // Group by item id, merging counts up to max stack
     const byId = new Map();
     for (const s of items) {
-      const cap = maxStack(s.item);
       if (!byId.has(s.item)) byId.set(s.item, { item: s.item, count: 0, durability: s.durability });
       const entry = byId.get(s.item);
       entry.count += s.count;
-      if (entry.count > cap) {
-        // overflow: push extras back as separate stacks later
-        this._overflow = this._overflow || [];
-      }
     }
     // Rebuild slots in order
     const sortedSlots = [];

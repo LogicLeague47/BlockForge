@@ -22,6 +22,7 @@ export class RemotePlayer {
     this.skinIndex = skinIndex || 0;
     this.role = 'player'; // owner, admin, staff, player
     this.visible = true;
+    this._placed = false; // becomes true on the first server position (avoids pop-in)
 
     // Get skin preset
     const skin = SKIN_PRESETS[skinIndex] || SKIN_PRESETS[0];
@@ -128,7 +129,13 @@ export class RemotePlayer {
 
   setRole(role) {
     this.role = role;
-    if (this.roleBadge.parent) this.roleBadge.parent.remove(this.roleBadge);
+    if (this.roleBadge) {
+      if (this.roleBadge.parent) this.roleBadge.parent.remove(this.roleBadge);
+      if (this.roleBadge.material) {
+        if (this.roleBadge.material.map) this.roleBadge.material.map.dispose();
+        this.roleBadge.material.dispose();
+      }
+    }
     this.roleBadge = this._createRoleBadge(role);
     this.roleBadge.position.copy(this.nameTag.position);
     this.roleBadge.position.y += 0.25;
@@ -142,6 +149,13 @@ export class RemotePlayer {
     if (yaw !== undefined) this.targetYaw = yaw;
     this.targetCrouching = !!crouching;
     if (armor !== undefined) this.armor = armor;
+    // First authoritative position: snap instead of lerping from the
+    // provisional spawn location, so the player doesn't slide in from afar.
+    if (!this._placed) {
+      this._placed = true;
+      this.x = x; this.y = y; this.z = z;
+      if (yaw !== undefined) this.yaw = yaw;
+    }
   }
 
   update(dt) {
@@ -189,8 +203,14 @@ export class RemotePlayer {
 
   dispose() {
     if (this.model) this.model.dispose();
-    if (this.nameTag && this.nameTag.parent) this.nameTag.parent.remove(this.nameTag);
-    if (this.roleBadge && this.roleBadge.parent) this.roleBadge.parent.remove(this.roleBadge);
+    for (const obj of [this.nameTag, this.roleBadge]) {
+      if (!obj) continue;
+      if (obj.parent) obj.parent.remove(obj);
+      if (obj.material) {
+        if (obj.material.map) obj.material.map.dispose();
+        obj.material.dispose();
+      }
+    }
   }
 }
 

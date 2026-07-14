@@ -25,6 +25,7 @@ import { initMobileControls } from './mobile.js';
 import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER, ROLE_GAMEDEV, ROLE_DEV, resolveCgUsername, getDevTag, setDevTag } from './multiplayer.js';
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
+import { placeStructure, DEV_STRUCTURES } from './structures.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
@@ -580,6 +581,11 @@ let breakParticles = null, ambientParticles = null, cloudSystem = null;
 
 // --- multiplayer / chat state ---
 let playerName = 'Player';
+const DEV_ACCOUNT = 'LogicLeague';
+function _refreshDevButtons() {
+  const b = document.getElementById('btn-dev-world');
+  if (b) b.style.display = (playerName === DEV_ACCOUNT) ? '' : 'none';
+}
 let serverName = '';
 let currentServer = null;
 let staffList = [];
@@ -618,6 +624,7 @@ try {
 
 // --- sleep state ---
 let sleeping = false;
+let isDevWorld = false; // dev creative superflat test world
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
 let sleepTimer = 0;
 let bedSpawnPoint = null;
@@ -1561,6 +1568,28 @@ function submitChat() {
 
   if (text.startsWith('/')) {
     // Command
+    const cmdPart = text.slice(1).trim().split(/\s+/)[0].toLowerCase();
+    // Dev structure spawn commands (dev world only)
+    if (isDevWorld && DEV_STRUCTURES.includes(cmdPart)) {
+      if (!world) return;
+      const ox = Math.floor(player.position.x);
+      const oy = Math.floor(player.position.y);
+      const oz = Math.floor(player.position.z);
+      const bb = placeStructure(world, cmdPart, ox, oy, oz);
+      if (bb) {
+        const cx1 = Math.floor((bb.minX - 1) / CHUNK_SIZE);
+        const cx2 = Math.floor((bb.maxX + 1) / CHUNK_SIZE);
+        const cz1 = Math.floor((bb.minZ - 1) / CHUNK_SIZE);
+        const cz2 = Math.floor((bb.maxZ + 1) / CHUNK_SIZE);
+        for (let cx = cx1; cx <= cx2; cx++) {
+          for (let cz = cz1; cz <= cz2; cz++) {
+            manager.refreshAround(cx, cz);
+          }
+        }
+      }
+      addChatLine(`Placed ${cmdPart} at (${ox}, ${oy}, ${oz}).`, '#5f5');
+      return;
+    }
     if (network.connected && network.roomName) {
       network.sendCommand(text);
     } else if (currentServer) {
@@ -2022,6 +2051,7 @@ function setupNetworkHandlers() {
       } catch (_) {}
       const nameTag = document.getElementById('menu-player-name');
       if (nameTag) nameTag.textContent = playerName;
+      _refreshDevButtons();
       // Only jump to the main menu when this auth came from the login screen —
       // not from a background re-auth (e.g. opening the Friends menu).
       if (_backgroundAuth) {
@@ -2444,7 +2474,8 @@ const LOADING_TIPS = [
   'Diamonds are found deep underground near lava level.',
 ];
 
-function startGame(worldId, seed, gamemode, difficulty) {
+function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
+  isDevWorld = !!opts.dev;
   // Tear down previous game
   if (gameRunning) {
     if (player) saveCurrentWorld();
@@ -2471,7 +2502,7 @@ function startGame(worldId, seed, gamemode, difficulty) {
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
-  world = new World(seed);
+  world = new World(seed, { flat: !!opts.flat });
   const saved = loadWorld(worldId);
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture);
@@ -2613,6 +2644,14 @@ function startGame(worldId, seed, gamemode, difficulty) {
   } else {
     player.setGamemode(gamemode);
     player.spawn();
+  }
+
+  // Dev world is always creative and spawns on the flat surface.
+  if (isDevWorld) {
+    player.setGamemode('creative');
+    player.position.set(0.5, 6, 0.5);
+    player.velocity.set(0, 0, 0);
+    player.spawnPoint.set(0.5, 6, 0.5);
   }
 
   // Show loading screen
@@ -3456,6 +3495,17 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
+  // --- Dev World (creative superflat test world) — dev account only ---
+  const devWorldBtn = document.getElementById('btn-dev-world');
+  if (devWorldBtn) {
+    devWorldBtn.addEventListener('click', () => {
+      isMultiplayer = false;
+      serverName = null;
+      currentServer = null;
+      startGame('__devworld__', 1337, 'creative', 'normal', { flat: true, dev: true });
+    });
+  }
+
   // --- Login screen (account required before main menu) ---
   const loginUser = document.getElementById('login-username');
   const loginPass = document.getElementById('login-password');
@@ -3468,6 +3518,7 @@ function initMenu() {
     const savedUser = localStorage.getItem('bf_login_user');
     if (savedUser && loginUser) loginUser.value = savedUser;
   } catch (_) {}
+  _refreshDevButtons();
 
   function setLoginDisabled(disabled) {
     if (loginCreateBtn) loginCreateBtn.disabled = disabled;

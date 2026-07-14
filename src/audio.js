@@ -68,6 +68,9 @@ export class Audio {
       '/Music/Calm1.mp3',   // CC0 — josepharaoh99 "Calm Ambient 1"
       '/Music/Calm2.mp3',   // CC0 — josepharaoh99 "Calm Piano 1"
       '/Music/Calm3.mp3',   // CC0 — josepharaoh99 "Calm Ambient 3"
+      '/Music/ANewTown.mp3',  // CC0 — cynicmusic "A New Town (RPG Theme)"
+      '/Music/CalmPiano.mp3', // CC0 — cynicmusic "Calm Piano 1 (Vaporware)"
+      '/Music/AnotherAugust.mp3', // CC0 — cynicmusic "Another August"
     ];
     this._musicIdx = (Math.random() * this._musicPaths.length) | 0;
   }
@@ -244,36 +247,6 @@ export class Audio {
   // ── WEATHER SOUNDS ──────────────────────────────────────────────────
 
   // Thunder: a sharp lightning crack followed by a rolling low rumble.
-  thunder() {
-    if (!this.ctx || !this.enabled) return;
-    const sr = this.ctx.sampleRate;
-    const now = this.ctx.currentTime;
-
-    // Rolling low rumble (brown noise through a low-pass).
-    const rumbleLen = Math.floor(sr * 3.5);
-    const rSrc = this._src(this._brownNoise(rumbleLen, sr));
-    const rLp = this._filter('lowpass', 220, 0.7);
-    const rGain = this._gain(0);
-    rGain.gain.setValueAtTime(0, now);
-    rGain.gain.linearRampToValueAtTime(0.5, now + 0.4);
-    rGain.gain.setValueAtTime(0.5, now + 2.2);
-    rGain.gain.linearRampToValueAtTime(0, now + 3.5);
-    rSrc.connect(rLp); rLp.connect(rGain); rGain.connect(this.master);
-    rSrc.start(now); rSrc.stop(now + 3.6);
-
-    // Lightning crack (pink noise burst, high-passed) just after the flash.
-    const crackLen = Math.floor(sr * 0.6);
-    const cSrc = this._src(this._pinkNoise(crackLen, sr));
-    const cHp = this._filter('highpass', 800, 0.7);
-    const cGain = this._gain(0);
-    const ct = now + 0.15;
-    cGain.gain.setValueAtTime(0.001, ct);
-    cGain.gain.linearRampToValueAtTime(0.35, ct + 0.02);
-    cGain.gain.exponentialRampToValueAtTime(0.001, ct + 0.55);
-    cSrc.connect(cHp); cHp.connect(cGain); cGain.connect(this.master);
-    cSrc.start(ct); cSrc.stop(ct + 0.6);
-  }
-
   // ── BLOCK SOUNDS ─────────────────────────────────────────────────────
 
   // STONE: Hard, sharp crunch — heavy impact with gravel scatter
@@ -437,7 +410,7 @@ export class Audio {
 
   dig(blockId) {
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 15: case 25: case 30: case 32: // stone, cobble, ores, obsidian, terracotta, furnace
+      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32: // stone, cobble, ores, obsidian, terracotta, furnace
         return this._stone_dig();
       case 1: case 2: case 33: case 34: // grass, dirt, podzol, mycelium
         return this._dirt_dig();
@@ -469,7 +442,7 @@ export class Audio {
     this._stepCooldown = now;
 
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 15: case 25: case 30: case 32:
+      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32:
         return this._stone_step();
       case 1: case 2: case 33: case 34:
         return this._dirt_step();
@@ -493,7 +466,7 @@ export class Audio {
 
   placeBlock(blockId) {
     switch (blockId) {
-      case 3: case 4: case 12: case 13: case 14: case 15: case 25: case 30: case 32:
+      case 3: case 4: case 12: case 13: case 14: case 25: case 30: case 32:
         return this._stone_place();
       case 1: case 2: case 33: case 34:
         return this._dirt_place();
