@@ -1642,6 +1642,14 @@ function openChat(prefix) {
   if (hud) hud.style.display = '';
   if (wrap) wrap.style.display = '';
   if (inp) { inp.value = prefix || ''; inp.focus(); }
+  // Release pointer lock so WASD/camera controls stop
+  if (document.pointerLockElement) {
+    document.exitPointerLock();
+  }
+  // Clear all held keys so player stops moving
+  for (const k in input.keys) input.keys[k] = false;
+  input.mouseLeftHeld = false;
+  input.mouseRightHeld = false;
 }
 
 function closeChat() {
