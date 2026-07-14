@@ -619,6 +619,120 @@ export class Audio {
     ]);
   }
 
+  // ── HOSTILE MOB SOUNDS (procedural) ────────────────────────────────
+
+  zombieSound() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    // Low groan: filtered noise + low sine
+    const dur = 0.6;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const lp = this._filter('lowpass', 300, 0.8);
+    const g = this._gain(0);
+    this._envGain(g, 0.15, dur, 0.05, 0.3);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    // Add low moan
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(80, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(55, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.08, dur, 0.05, 0.3);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  skeletonSound() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    // Bone rattle: short noise bursts
+    const dur = 0.3;
+    for (let i = 0; i < 3; i++) {
+      const t = ctx.currentTime + i * 0.08;
+      const buf = this._noise(Math.floor(ctx.sampleRate * 0.06), ctx.sampleRate);
+      const src = this._src(buf);
+      const bp = this._filter('bandpass', 2000 + i * 500, 0.8);
+      const g = this._gain(0);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.02);
+      g.gain.linearRampToValueAtTime(0, t + 0.06);
+      src.connect(bp); bp.connect(g); g.connect(this.master);
+      src.start(t); src.stop(t + 0.07);
+    }
+  }
+
+  spiderSound() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    // Hiss: high-pass noise
+    const dur = 0.4;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const hp = this._filter('highpass', 3000, 0.5);
+    const lp = this._filter('lowpass', 6000, 0.3);
+    const g = this._gain(0);
+    this._envGain(g, 0.1, dur, 0.02, 0.2);
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  creeperHiss() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    // Sharp hiss — escalating
+    const dur = 0.5;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const hp = this._filter('highpass', 2000, 0.6);
+    const lp = this._filter('lowpass', 8000, 0.4);
+    const g = this._gain(0);
+    // Crescendo
+    const t = ctx.currentTime;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.25, t + dur * 0.8);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  explosionSound() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    // Deep boom + debris
+    const dur = 0.8;
+    // Low boom
+    const boomBuf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const boomSrc = this._src(boomBuf);
+    const boomLp = this._filter('lowpass', 250, 0.5);
+    const boomG = this._gain(0);
+    this._envGain(boomG, 0.6, dur, 0.01, 0.5);
+    boomSrc.connect(boomLp); boomLp.connect(boomG); boomG.connect(this.master);
+    boomSrc.start(); boomSrc.stop(ctx.currentTime + dur + 0.05);
+    // Sharp crack
+    const crackBuf = this._noise(Math.floor(ctx.sampleRate * 0.15), ctx.sampleRate);
+    const crackSrc = this._src(crackBuf);
+    const crackHp = this._filter('highpass', 800, 0.6);
+    const crackG = this._gain(0);
+    this._envGain(crackG, 0.4, 0.15, 0.005, 0.1);
+    crackSrc.connect(crackHp); crackHp.connect(crackG); crackG.connect(this.master);
+    crackSrc.start(); crackSrc.stop(ctx.currentTime + 0.2);
+  }
+
+  hurtHostile() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.2;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 1200, 0.6);
+    const g = this._gain(0);
+    this._envGain(g, 0.2, dur, 0.01, 0.15);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
   // ── AMBIENT WIND ─────────────────────────────────────────────────────
 
   startWind() {

@@ -27,6 +27,7 @@ import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
+import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
@@ -588,7 +589,7 @@ function updateParticles(dt) {
 }
 
 // --- Game state (set by startGame) ---
-let world = null, manager = null, loader = null, player = null, mobManager = null, playerModel = null;
+let world = null, manager = null, loader = null, player = null, mobManager = null, explosionManager = null, playerModel = null;
 let _lastLocalArmorKey = '';
 let gameRunning = false;
 let renderDist = 7;
@@ -1122,8 +1123,22 @@ document.addEventListener('mousedown', (e) => {
       let used = false;
       const slot = player.inventory.getSelected();
 
+      // Flint and Steel: ignite TNT
+      if (slot && slot.item === ITEM.FLINT_STEEL) {
+        const hit = currentTarget();
+        if (hit && hit.block === BLOCK.TNT) {
+          igniteTNT(hit.x, hit.y, hit.z);
+          if (player.isSurvival()) {
+            slot.count--;
+            if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+            syncUIMode();
+          }
+          used = true;
+        }
+      }
+
       // Main hand: eat food or place block
-      if (player.isSurvival() && slot && isFood(slot.item)) {
+      if (!used && player.isSurvival() && slot && isFood(slot.item)) {
         if (player.eat(foodValue(slot.item))) {
           slot.count--;
           if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
@@ -1138,10 +1153,21 @@ document.addEventListener('mousedown', (e) => {
       }
       // Note: empty main hand does NOT set used=true so off-hand can try
 
-      // Off-hand fallback: eat food or place block
+      // Off-hand fallback: eat food, ignite TNT, or place block
       if (!used && player.inventory.offhand) {
         const oh = player.inventory.offhand;
-        if (player.isSurvival() && isFood(oh.item)) {
+        if (oh.item === ITEM.FLINT_STEEL) {
+          const hit = currentTarget();
+          if (hit && hit.block === BLOCK.TNT) {
+            igniteTNT(hit.x, hit.y, hit.z);
+            if (player.isSurvival()) {
+              oh.count--;
+              if (oh.count <= 0) player.inventory.offhand = null;
+              syncUIMode();
+            }
+            used = true;
+          }
+        } else if (player.isSurvival() && isFood(oh.item)) {
           if (player.eat(foodValue(oh.item))) {
             oh.count--;
             if (oh.count <= 0) player.inventory.offhand = null;
@@ -1275,6 +1301,24 @@ function updateStepParticles(dt) {
   }
   _stepGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   _stepGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+}
+
+// ── TNT ignition ─────────────────────────────────────────────────────
+function igniteTNT(x, y, z) {
+  // Replace TNT block with air and schedule explosion
+  world.setBlock(x, y, z, BLOCK.AIR);
+  try { audio.creeperHiss(); } catch (_) {}
+  // Fuse: 1.5 seconds
+  setTimeout(() => {
+    if (explosionManager) {
+      explosionManager.explode(x + 0.5, y + 0.5, z + 0.5, 4);
+    }
+    // Damage player if nearby
+    if (player) {
+      const dmg = ExplosionManager.calcDamage(x + 0.5, y + 0.5, z + 0.5, player.position, 4);
+      if (dmg > 0) player.takeDamage(dmg, { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+    }
+  }, 1500);
 }
 
 function placeBlock(slotOverride) {
@@ -1698,7 +1742,7 @@ function submitChat() {
       return;
     }
     // Dev spawn animal commands (dev world only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'villager'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'creeper', 'villager'];
     if (isDevWorld && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
@@ -2733,6 +2777,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (player) saveCurrentWorld();
     manager?.clear?.();
     if (mobManager) { mobManager.clear(); mobManager = null; }
+    if (explosionManager) { explosionManager.clear(); explosionManager = null; }
     if (playerModel) { playerModel.dispose(); playerModel = null; }
     if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
     if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
@@ -2759,7 +2804,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture);
   loader = new ChunkLoader(world, manager, renderDist);
-  mobManager = new MobManager(scene, world, audio);
+  explosionManager = new ExplosionManager(scene, world, audio);
+  mobManager = new MobManager(scene, world, audio, explosionManager);
   droppedItemManager = new DroppedItemManager(scene, atlasCanvas);
   mpRenderer = new MultiplayerRenderer(scene);
   breakParticles = new BreakParticles(scene);
@@ -4355,11 +4401,25 @@ function loop() {
   // Update mobs
   if (mobManager) {
     const mobEvent = mobManager.update(dt, player.position, dayTime);
-    // Handle mob attacks on player (e.g. spider at night)
-    if (mobEvent && mobEvent.type === 'attack') {
-      const dmgMult = gameDifficulty === 'hard' ? 1.5 : 1.0;
-      player.takeDamage(Math.round(mobEvent.damage * dmgMult), mobEvent.fromPos || 'mob');
+    if (mobEvent) {
+      // Handle mob attacks on player
+      if (mobEvent.attack) {
+        const dmgMult = gameDifficulty === 'hard' ? 1.5 : 1.0;
+        player.takeDamage(Math.round(mobEvent.attack.damage * dmgMult), mobEvent.attack.fromPos || 'mob');
+      }
+      // Handle creeper explosions
+      if (mobEvent.explosions) {
+        for (const exp of mobEvent.explosions) {
+          const dmg = ExplosionManager.calcDamage(exp.x, exp.y, exp.z, player.position, exp.power);
+          if (dmg > 0) player.takeDamage(dmg, { x: exp.x, y: exp.y, z: exp.z });
+        }
+      }
     }
+  }
+
+  // Update explosion particles
+  if (explosionManager) {
+    explosionManager.update(dt);
   }
 
   // underwater tint

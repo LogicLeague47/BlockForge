@@ -105,6 +105,25 @@ export const MOB_TYPES = {
     drops: [{ item: 277, count: [0, 2] }, { item: 281, count: [0, 3] }],
     soundChance: 0.0003,
   },
+  creeper: {
+    name: 'Creeper',
+    hp: 20,
+    hostile: true,
+    hostileAtNight: true,
+    bodyW: 0.6, bodyH: 1.0, bodyD: 0.6,
+    headW: 0.6, headH: 0.6, headD: 0.6,
+    legW: 0.25, legH: 0.5, legD: 0.25,
+    legPositions: [[-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]],
+    headOffY: -0.4,
+    bodyColor: 0x3baa3b,
+    headColor: 0x3baa3b,
+    legColor: 0x2d8a2d,
+    attackDamage: 0, // creeper doesn't melee — it explodes
+    fuseTime: 1.5,   // seconds from hiss to boom
+    explosionPower: 3,
+    drops: [{ item: 279, count: [0, 2] }], // gunpowder
+    soundChance: 0.0002,
+  },
 
   villager: {
     name: 'Villager',
@@ -190,6 +209,11 @@ class Mob {
     this.aggro = false; // true when provoked (hit by player)
     this.walkPhase = Math.random() * Math.PI * 2;
     this.legs = [];
+    // Creeper-specific state
+    this.fusing = false;
+    this.fuseTimer = 0;
+    this.exploded = false;
+    this._fuseFlashPhase = 0;
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
 
@@ -321,12 +345,15 @@ class Mob {
     // ── Legs (2 bipedal or 4 quadruped or 8 for spiders, pivoting from hip) ──
     const legGeo = new THREE.BoxGeometry(def.legW, def.legH, def.legD);
     const legMats = this._boxMats(tex.leg);
-    const lx = def.bodyW * 0.32;
-    const lz = def.bodyD * 0.3;
     let legPositions;
-    if (def.bipedalLegs) {
+    if (def.legPositions) {
+      legPositions = def.legPositions;
+    } else if (def.bipedalLegs) {
+      const lx = def.bodyW * 0.32;
       legPositions = [[-lx, 0], [lx, 0]];
     } else if (def.has8Legs) {
+      const lx = def.bodyW * 0.32;
+      const lz = def.bodyD * 0.3;
       legPositions = [];
       for (let i = 0; i < 4; i++) {
         const zOff = -lz + (def.bodyD * 0.6) * (i / 3);
@@ -334,6 +361,8 @@ class Mob {
         legPositions.push([lx, zOff]);
       }
     } else {
+      const lx = def.bodyW * 0.32;
+      const lz = def.bodyD * 0.3;
       legPositions = [[-lx, -lz], [lx, -lz], [-lx, lz], [lx, lz]];
     }
     for (const [sx, sz] of legPositions) {
@@ -412,6 +441,9 @@ class Mob {
     if (this.type === 'pig') return this._pigTextures(def);
     if (this.type === 'sheep') return this._sheepTextures(def);
     if (this.type === 'spider') return this._spiderTextures(def);
+    if (this.type === 'zombie') return this._zombieTextures(def);
+    if (this.type === 'skeleton') return this._skeletonTextures(def);
+    if (this.type === 'creeper') return this._creeperTextures(def);
     if (this.type === 'villager') return this._villagerTextures(def);
     return this._genericTextures(def);
   }
@@ -1068,6 +1100,216 @@ class Mob {
     return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
   }
 
+  _zombieTextures(def) {
+    const s = 64;
+    const SKIN = 0x5a8a4a;
+    const SHIRT = 0x4a7a3a;
+    const PANTS = 0x3a5a2a;
+
+    const skinSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a8a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SKIN, 14);
+    });
+    const skinTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3520';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x4a3520, 10);
+    });
+    const skinBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a8a4a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const skinFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a8a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SKIN, 12);
+      // Eyes (white with dark pupils, sunken look)
+      const eyeY = 22;
+      ctx.fillStyle = '#ddd';
+      ctx.fillRect(10, eyeY, 16, 10);
+      ctx.fillRect(38, eyeY, 16, 10);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(14, eyeY + 2, 8, 6);
+      ctx.fillRect(42, eyeY + 2, 8, 6);
+      // Mouth (open, showing teeth)
+      ctx.fillStyle = '#2a1a10';
+      ctx.fillRect(20, 42, 24, 12);
+      ctx.fillStyle = '#eee';
+      ctx.fillRect(22, 42, 4, 4);
+      ctx.fillRect(30, 42, 4, 4);
+      ctx.fillRect(38, 42, 4, 4);
+    });
+    const skinBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3520';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x4a3520, 10);
+    });
+    const head = [skinSide, skinSide, skinTop, skinBot, skinBack, skinFront];
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a7a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SHIRT, 15);
+      // Torn shirt effect
+      ctx.fillStyle = 'rgba(60,90,50,0.4)';
+      ctx.fillRect(0, s * 0.6, s, s * 0.4);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a7a3a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a5a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a7a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SHIRT, 12);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a5a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PANTS, 12);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
+  _skeletonTextures(def) {
+    const s = 64;
+    const BONE = 0xf2f2ea;
+    const BONE_DARK = 0xd8d8d0;
+
+    const boneSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f2f2ea';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 12);
+      // Rib-like lines
+      ctx.strokeStyle = 'rgba(180,180,170,0.4)';
+      ctx.lineWidth = 2;
+      for (let y = 12; y < s; y += 12) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke();
+      }
+    });
+    const boneTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f2f2ea';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 10);
+    });
+    const boneBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e0e0d8';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const boneFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f2f2ea';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 10);
+      // Skull face
+      const eyeY = 22;
+      ctx.fillStyle = '#222';
+      ctx.fillRect(10, eyeY, 14, 12);
+      ctx.fillRect(40, eyeY, 14, 12);
+      // Eye glow
+      ctx.fillStyle = '#555';
+      ctx.fillRect(14, eyeY + 2, 6, 8);
+      ctx.fillRect(44, eyeY + 2, 6, 8);
+      // Nose hole
+      ctx.fillStyle = '#333';
+      ctx.fillRect(28, 36, 8, 6);
+      // Jaw / teeth
+      ctx.fillStyle = '#ddd';
+      ctx.fillRect(18, 44, 28, 4);
+      ctx.fillStyle = '#222';
+      for (let x = 18; x < 46; x += 5) {
+        ctx.fillRect(x, 44, 2, 4);
+      }
+    });
+    const boneBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f2f2ea';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 10);
+      // Spine
+      ctx.fillStyle = 'rgba(180,180,170,0.5)';
+      ctx.fillRect(26, 0, 12, s);
+    });
+    const head = [boneSide, boneSide, boneTop, boneBot, boneBack, boneFront];
+
+    const body = [boneSide, boneSide, boneTop, boneBot, boneFront, boneFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f2f2ea';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE_DARK, 10);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
+  _creeperTextures(def) {
+    const s = 64;
+    const GREEN = 0x3baa3b;
+    const GREEN_DARK = 0x2d8a2d;
+
+    const greenSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3baa3b';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 18);
+      // Mottled darker patches
+      ctx.fillStyle = 'rgba(30,100,30,0.3)';
+      for (let i = 0; i < 6; i++) {
+        const px = (i * 13 + 5) % s, py = (i * 17 + 8) % s;
+        ctx.fillRect(px, py, 8 + (i % 3) * 4, 6 + (i % 2) * 4);
+      }
+    });
+    const greenTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3baa3b';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 14);
+    });
+    const greenBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2d8a2d';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const faceFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3baa3b';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 14);
+      // Creeper face: two black eyes + frown mouth
+      const eyeY = 20;
+      ctx.fillStyle = '#111';
+      // Left eye
+      ctx.fillRect(12, eyeY, 12, 12);
+      // Right eye
+      ctx.fillRect(40, eyeY, 12, 12);
+      // Mouth (upside-down T / frown)
+      ctx.fillStyle = '#111';
+      ctx.fillRect(24, 40, 16, 6);  // horizontal bar
+      ctx.fillRect(28, 46, 8, 10);   // vertical drop
+      ctx.fillRect(24, 46, 4, 8);
+      ctx.fillRect(36, 46, 4, 8);
+    });
+    const faceBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3baa3b';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 14);
+    });
+    const head = [greenSide, greenSide, greenTop, greenBot, faceBack, faceFront];
+
+    const body = [greenSide, greenSide, greenTop, greenBot, greenSide, greenSide];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2d8a2d';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN_DARK, 12);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
   _villagerTextures(def) {
     const s = 64;
     const SKIN = def.headColor || 0xD9A57A;
@@ -1422,10 +1664,11 @@ class Mob {
 
 // ── MobManager ───────────────────────────────────────────────────────
 export class MobManager {
-  constructor(scene, world, audio) {
+  constructor(scene, world, audio, explosionManager) {
     this.scene = scene;
     this.world = world;
     this.audio = audio;
+    this.explosionManager = explosionManager;
     this.mobs = [];
     this._spawnedChunks = new Set();
     this._nightSpawnTimer = 0;
@@ -1442,7 +1685,7 @@ export class MobManager {
     const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
     const rng = mulberry32(seed);
     const attempts = 4;
-    const types = ['zombie', 'skeleton', 'spider'];
+    const types = ['zombie', 'skeleton', 'spider', 'creeper'];
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -1552,7 +1795,7 @@ export class MobManager {
     }
     // Hostile mobs (zombie, skeleton, spider) spawn at night everywhere
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider');
+      spawnTypes.push('zombie', 'skeleton', 'spider', 'creeper');
     }
     const placed = [];
 
@@ -1605,21 +1848,106 @@ export class MobManager {
     }
 
     const attackEvents = [];
+    const explosions = [];
 
     // Update all mobs
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
       if (mob.dead) continue;
 
-      // Spider hostile AI: chase player at night (or when provoked)
       const def = MOB_TYPES[mob.type];
-      if (def.hostileAtNight && playerPos) {
+
+      // ── CREEPER AI ──
+      if (mob.type === 'creeper' && playerPos) {
+        const dx = playerPos.x - mob.position.x;
+        const dz = playerPos.z - mob.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        if ((isNight || mob.aggro) && dist < 16 && !mob.exploded) {
+          mob.state = 'walking';
+          mob.targetYaw = Math.atan2(-dx, -dz);
+          mob.stateTimer = 0.5;
+
+          // Start fuse when close enough
+          if (dist < 3.0 && !mob.fusing) {
+            mob.fusing = true;
+            mob.fuseTimer = def.fuseTime || 1.5;
+            mob._fuseFlashPhase = 0;
+            // Play hiss
+            if (this.audio) this.audio.creeperHiss();
+          }
+
+          // Update fuse
+          if (mob.fusing) {
+            mob.fuseTimer -= dt;
+            mob._fuseFlashPhase += dt * 12;
+
+            // Flash red/white during fuse
+            if (mob.mesh) {
+              const flashOn = Math.sin(mob._fuseFlashPhase) > 0;
+              mob.mesh.traverse((child) => {
+                if (child.isMesh && child.material) {
+                  const mats = Array.isArray(child.material) ? child.material : [child.material];
+                  for (const m of mats) {
+                    if (flashOn) {
+                      if (m._savedColor === undefined) m._savedColor = m.color.getHex();
+                      m.color.setHex(0xff4444);
+                    } else if (m._savedColor !== undefined) {
+                      m.color.setHex(m._savedColor);
+                      delete m._savedColor;
+                    }
+                  }
+                }
+              });
+            }
+
+            // Cancel fuse if player moves far away
+            if (dist > 5.0) {
+              mob.fusing = false;
+              mob.fuseTimer = 0;
+              mob._fuseFlashPhase = 0;
+              // Restore colors
+              if (mob.mesh) {
+                mob.mesh.traverse((child) => {
+                  if (child.isMesh && child.material) {
+                    const mats = Array.isArray(child.material) ? child.material : [child.material];
+                    for (const m of mats) {
+                      if (m._savedColor !== undefined) {
+                        m.color.setHex(m._savedColor);
+                        delete m._savedColor;
+                      }
+                    }
+                  }
+                });
+              }
+            }
+
+            // Explode!
+            if (mob.fuseTimer <= 0) {
+              mob.exploded = true;
+              mob.dead = true;
+              explosions.push({
+                x: mob.position.x,
+                y: mob.position.y + 0.5,
+                z: mob.position.z,
+                power: def.explosionPower || 3
+              });
+            }
+          }
+        } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {
+          if (dist < 4) {
+            mob.targetYaw = Math.atan2(dx, dz);
+            mob.stateTimer = 2;
+          }
+        }
+      }
+      // ── OTHER HOSTILE AI (zombie, skeleton, spider) ──
+      else if (def.hostileAtNight && playerPos) {
         const dx = playerPos.x - mob.position.x;
         const dz = playerPos.z - mob.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
 
         if ((isNight || mob.aggro) && dist < 16) {
-          // Chase player at night or when provoked
           mob.state = 'walking';
           mob.targetYaw = Math.atan2(-dx, -dz);
           mob.stateTimer = 0.5;
@@ -1633,9 +1961,8 @@ export class MobManager {
             }
           }
         } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {
-          // Neutral in daylight: run away from player if too close
           if (dist < 4) {
-            mob.targetYaw = Math.atan2(dx, dz); // face away
+            mob.targetYaw = Math.atan2(dx, dz);
             mob.stateTimer = 2;
           }
         }
@@ -1643,13 +1970,22 @@ export class MobManager {
 
       mob.update(dt, this.world, this.world.noise, playerPos);
 
-      // Idle sounds
-      if (this.audio && mob.state === 'idle' && Math.random() < (MOB_TYPES[mob.type].soundChance || 0.003) * dt * 60) {
-        const now = performance.now();
-        if (!this._lastSoundTime || now - this._lastSoundTime > 3000) {
-          this._lastSoundTime = now;
-          this._playAnimalSound(mob.type);
+      // Idle sounds (passive + hostile)
+      if (this.audio && mob.state === 'idle' && !mob.dead) {
+        if (Math.random() < (MOB_TYPES[mob.type].soundChance || 0.003) * dt * 60) {
+          const now = performance.now();
+          if (!this._lastSoundTime || now - this._lastSoundTime > 3000) {
+            this._lastSoundTime = now;
+            this._playMobSound(mob.type);
+          }
         }
+      }
+    }
+
+    // Process explosions
+    for (const exp of explosions) {
+      if (this.explosionManager) {
+        this.explosionManager.explode(exp.x, exp.y, exp.z, exp.power);
       }
     }
 
@@ -1665,21 +2001,46 @@ export class MobManager {
       }
     }
 
+    // Remove dead mobs
+    for (let i = this.mobs.length - 1; i >= 0; i--) {
+      const mob = this.mobs[i];
+      if (mob.dead) {
+        this.scene.remove(mob.mesh);
+        mob.dispose();
+        this.mobs.splice(i, 1);
+      }
+    }
+
     // Return the strongest attack this tick (backward-compatible with single-event callers)
-    if (attackEvents.length === 0) return null;
-    return attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a));
+    if (attackEvents.length === 0 && explosions.length === 0) return null;
+    const result = {};
+    if (attackEvents.length > 0) {
+      result.attack = attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a));
+    }
+    if (explosions.length > 0) {
+      result.explosions = explosions;
+    }
+    return result;
   }
 
-  _playAnimalSound(type) {
+  _playMobSound(type) {
     if (!this.audio) return;
     if (type === 'cow') this.audio.cowSound();
     else if (type === 'pig') this.audio.pigSound();
     else if (type === 'sheep') this.audio.sheepSound();
+    else if (type === 'zombie') this.audio.zombieSound();
+    else if (type === 'skeleton') this.audio.skeletonSound();
+    else if (type === 'spider') this.audio.spiderSound();
+    else if (type === 'creeper') this.audio.creeperHiss();
   }
 
   playHurtSound(type) {
     if (!this.audio) return;
-    this.audio.hurtAnimal();
+    if (type === 'zombie' || type === 'skeleton' || type === 'spider' || type === 'creeper') {
+      this.audio.hurtHostile();
+    } else {
+      this.audio.hurtAnimal();
+    }
   }
 
   // Try to hit a mob using ray-AABB intersection. Returns the hit mob or null.

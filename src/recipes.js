@@ -46,6 +46,11 @@ export const RECIPES = [
     pattern: ['GG', 'SS', 'GG'],
     key: { G: I.GUNPOWDER, S: B.SAND },
   }),
+  shaped({
+    out: { id: I.FLINT_STEEL, count: 1 },
+    pattern: ['F', 'I'],
+    key: { F: I.FLINT, I: I.IRON_INGOT },
+  }),
 
   // ---- storage blocks ----
   shaped({

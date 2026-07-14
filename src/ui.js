@@ -181,6 +181,7 @@ export function makeItemIconCanvas(itemId) {
     case 312: drawLead(x); break;                                          // lead
     case 314: drawGreenstoneDust(x); break;
     case 315: drawSlimeBall(x); break;
+    case 316: drawFlintSteel(x); break;
     default: {
       // Fallback: a subtle gem-stone so unknown items still read nicely.
       x.fillStyle = '#888';
@@ -758,6 +759,22 @@ function drawSlimeBall(x) {
   px(x, '#80ff60', 6, 5, 2, 2);    // specular
   px(x, '#308010', 5, 11, 6, 1);   // shadow
   px(x, '#308010', 4, 10, 1, 2);
+}
+
+function drawFlintSteel(x) {
+  // Flint and steel — L-shaped iron piece + flint
+  // Iron (silver) part
+  px(x, '#c0c0c0', 6, 2, 4, 3);
+  px(x, '#a0a0a0', 6, 5, 2, 6);
+  px(x, '#c0c0c0', 5, 5, 1, 5);
+  px(x, '#e0e0e0', 7, 3, 2, 1);   // highlight
+  // Flint (dark gray)
+  px(x, '#555', 9, 2, 3, 3);
+  px(x, '#666', 10, 1, 2, 1);
+  px(x, '#444', 9, 5, 3, 1);
+  // Spark
+  px(x, '#ff8800', 8, 1, 1, 1);
+  px(x, '#ffcc00', 9, 0, 1, 1);
 }
 
 // ---- armor icons -----------------------------------------------------------
