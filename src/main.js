@@ -830,6 +830,11 @@ document.addEventListener('mousemove', (e) => {
     ui.itemNameEl.classList.add('visible');
     _itemNameTimer = 1.5;
   }
+  // F = toggle fly in creative
+  if (e.code === 'KeyF' && player && player.isCreative()) {
+    e.preventDefault();
+    player.toggleFly();
+  }
   // F7 = toggle gamemode (singleplayer only)
   if (e.code === 'F7') {
     e.preventDefault();
