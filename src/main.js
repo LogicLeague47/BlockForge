@@ -12,7 +12,7 @@ import { Audio } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -1307,6 +1307,15 @@ function showHeldItemName() {
   ui.itemNameEl.textContent = name;
   ui.itemNameEl.classList.add('visible');
   _itemNameTimer = 1.5;
+}
+
+// Show a temporary toast message
+function showToast(msg, color = '#0f0', duration = 2) {
+  if (!ui || !ui.itemNameEl) return;
+  ui.itemNameEl.textContent = msg;
+  ui.itemNameEl.style.color = color;
+  ui.itemNameEl.classList.add('visible');
+  _itemNameTimer = duration;
 }
 
 // ── Footstep particles ──────────────────────────────────────────────────────
@@ -3563,9 +3572,43 @@ function initMenu() {
   document.getElementById('btn-minigames-back')?.addEventListener('click', () => {
     ui.showMenu('main');
   });
+
+  // Coming-soon minigames
+  const MG_COMING = ['bedwars','skywars','murder','blockzones','99nights','gunaffairs','miningsim','gunsurvival'];
+  for (const id of MG_COMING) {
+    document.getElementById('btn-minigame-' + id)?.addEventListener('click', (e) => {
+      const names = { bedwars:'BedWars', skywars:'SkyWars', murder:'Murder Mystery', blockzones:'BlockZones',
+        '99nights':'99 Nights', gunaffairs:'Gun Affairs', miningsim:'Mining Sim', gunsurvival:'Gun Survival' };
+      showToast(names[id] + ' — Coming Soon!', '#fa0');
+    });
+  }
+
+  // Parkour → mode select
   document.getElementById('btn-minigame-parkour')?.addEventListener('click', () => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
+    ui.showMenu('parkour-select');
+  });
+  document.getElementById('btn-pk-back')?.addEventListener('click', () => {
+    ui.showMenu('minigames');
+  });
+
+  // Parkour singleplayer → worlds list
+  document.getElementById('btn-pk-singleplayer')?.addEventListener('click', () => {
+    renderParkourWorldList();
+    ui.showMenu('parkour-worlds');
+  });
+  document.getElementById('btn-pk-worlds-back')?.addEventListener('click', () => {
+    ui.showMenu('parkour-select');
+  });
+
+  // New parkour world
+  document.getElementById('btn-new-pk-world')?.addEventListener('click', () => {
+    const w = createWorld('Parkour World', Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
+    startGame(w.id, w.seed, 'adventure', 'peaceful', { parkour: true });
+  });
+
+  // Parkour multiplayer → quick-join a parkour server
+  document.getElementById('btn-pk-multiplayer')?.addEventListener('click', () => {
+    showToast('Multiplayer Parkour — Coming Soon!', '#5f5');
   });
 
   // --- Friends menu ---
@@ -4199,6 +4242,41 @@ function renderDevWorldList() {
     });
     card.addEventListener('click', () => {
       startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, dev: true });
+    });
+    list.appendChild(card);
+  }
+}
+
+function renderParkourWorldList() {
+  const list = document.getElementById('parkour-world-list');
+  if (!list) return;
+  const worlds = getParkourWorldList();
+  list.innerHTML = '';
+  if (worlds.length === 0) {
+    list.innerHTML = '<div style="color:#777;font-size:12px;padding:20px;">No parkour worlds yet. Create one!</div>';
+    return;
+  }
+  for (const w of worlds) {
+    const card = document.createElement('div');
+    card.className = 'world-card';
+    const date = new Date(w.createdAt).toLocaleDateString();
+    card.innerHTML = `
+      <div class="wc-info">
+        <div class="wc-name">${w.name}</div>
+        <div class="wc-meta">Seed: ${w.seed} &middot; ${date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="wc-mode adventure">PARKOUR</span>
+        <button class="wc-delete" title="Delete world">&times;</button>
+      </div>
+    `;
+    card.querySelector('.wc-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteWorld(w.id, false, true);
+      renderParkourWorldList();
+    });
+    card.addEventListener('click', () => {
+      startGame(w.id, w.seed, 'adventure', 'peaceful', { parkour: true });
     });
     list.appendChild(card);
   }

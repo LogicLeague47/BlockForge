@@ -29,6 +29,7 @@ async function sdkRemove(key) {
 
 function listKey() { return 'mc-clone-worlds'; }
 function devListKey() { return 'mc-clone-dev-worlds'; }
+function parkourListKey() { return 'mc-clone-parkour-worlds'; }
 
 export function getWorldList() {
   try {
@@ -52,6 +53,14 @@ function _saveList(key, list) {
 
 export function saveWorldList(list) { _saveList(listKey(), list); }
 export function saveDevWorldList(list) { _saveList(devListKey(), list); }
+export function saveParkourWorldList(list) { _saveList(parkourListKey(), list); }
+
+export function getParkourWorldList() {
+  try {
+    const raw = localStorage.getItem(parkourListKey());
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
 
 export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -74,6 +83,10 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
     const list = getDevWorldList();
     list.unshift(world);
     saveDevWorldList(list);
+  } else if (opts.parkour) {
+    const list = getParkourWorldList();
+    list.unshift(world);
+    saveParkourWorldList(list);
   } else {
     const list = getWorldList();
     list.unshift(world);
@@ -82,8 +95,11 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
   return world;
 }
 
-export function deleteWorld(id, dev = false) {
-  if (dev) {
+export function deleteWorld(id, dev = false, parkour = false) {
+  if (parkour) {
+    const list = getParkourWorldList().filter(w => w.id !== id);
+    saveParkourWorldList(list);
+  } else if (dev) {
     const list = getDevWorldList().filter(w => w.id !== id);
     saveDevWorldList(list);
   } else {
