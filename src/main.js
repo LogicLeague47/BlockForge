@@ -874,6 +874,21 @@ document.addEventListener('mousemove', (e) => {
       _itemNameTimer = 2;
     }
   }
+  // T = toggle parkour training mode
+  if (e.code === 'KeyT' && parkourGame && isParkour) {
+    e.preventDefault();
+    parkourGame.toggleTraining();
+  }
+  // F8 = parkour savestate
+  if (e.code === 'F8' && parkourGame && isParkour) {
+    e.preventDefault();
+    parkourGame.saveState();
+  }
+  // L = load parkour savestate
+  if (e.code === 'KeyL' && parkourGame && isParkour) {
+    e.preventDefault();
+    parkourGame.loadState();
+  }
   // Y = accept offer banner
   if (e.code === 'KeyY' && offerActive) {
     e.preventDefault();

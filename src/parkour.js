@@ -1,6 +1,8 @@
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE } from './constants.js';
 
+const PK_KEY = 'blockforge_parkour_pbs';
+
 // ─── Level Definitions ───────────────────────────────────────────────
 export const PARKOUR_LEVELS = [
   { id: 1, name: 'First Steps',     desc: 'Simple 2-block gaps' },
@@ -35,13 +37,11 @@ function fillBox(world, x, y, z, w, d, h, block) {
         world.setBlock(x + dx, y + dy, z + dz, block);
 }
 
-// ─── Build one level, returns {x, y, z} of the finish trigger ────────
 export function buildParkourLevel(world, levelNum, ox, oy, oz) {
   const cfg = DIFFICULTY[levelNum] || DIFFICULTY[1];
   const b = cfg.block, a = cfg.accent;
   const startW = 5, startD = 4;
 
-  // Start platform
   fillBox(world, ox - 2, oy, oz, startW, startD, 1, BLOCK.GRASS);
   for (let dx = -2; dx <= 2; dx++)
     for (let dz = -1; dz <= 2; dz++)
@@ -50,7 +50,6 @@ export function buildParkourLevel(world, levelNum, ox, oy, oz) {
 
   let px = 0, pz = 0;
 
-  // ── Ladder climb ──────────────────────────────────────────────
   if (cfg.ladder) {
     for (let i = 0; i < cfg.count; i++) {
       const lx = ox + px, lz = oz + pz + i * (cfg.d + cfg.gap);
@@ -66,7 +65,6 @@ export function buildParkourLevel(world, levelNum, ox, oy, oz) {
     return { x: fx + 1, y: oy + cfg.count * 3 + 2, z: fz + 1 };
   }
 
-  // ── Standard / zigzag / staircase / corners ──────────────────
   let dir = 1, angle = 0, cx = ox, cz = oz;
 
   for (let i = 0; i < cfg.count; i++) {
@@ -89,52 +87,64 @@ export function buildParkourLevel(world, levelNum, ox, oy, oz) {
     world.setBlock(cx + Math.floor(cfg.w / 2), wy + 1, cz + Math.floor(cfg.d / 2), a);
   }
 
-  // Finish platform
   fillBox(world, cx - 2, oy + (cfg.staircase ? cfg.count : 0), cz - 1, 5, 4, 1, BLOCK.GOLD_BLOCK);
   return { x: cx + 1, y: oy + (cfg.staircase ? cfg.count : 0) + 2, z: cz + 1 };
 }
 
-// ─── Build the parkour lobby ─────────────────────────────────────────
 export function buildParkourLobby(world, ox, oy, oz) {
   const half = 12;
-  // Glass floor
   fillBox(world, ox - half, oy, oz - half, half * 2 + 1, half * 2 + 1, 1, BLOCK.VOID_GLASS);
-  // Glass walls with a doorway on the -X side (toward level 1)
   for (let dx = -half; dx <= half; dx++)
     for (let dz = -half; dz <= half; dz++)
       if (Math.abs(dx) === half || Math.abs(dz) === half) {
-        // Skip blocks for the doorway
         if (dx === -half && dz >= -2 && dz <= 2) continue;
         fillBox(world, ox + dx, oy + 1, oz + dz, 1, 1, 4, BLOCK.GLASS);
       }
-  // Doorway floor accent
   for (let dz = -2; dz <= 2; dz++)
     for (let dy = 0; dy < 4; dy++)
       world.setBlock(ox - half, oy + 1 + dy, oz + dz, BLOCK.AIR);
-  // Gold block step at doorway
   fillBox(world, ox - half - 1, oy, oz - 2, 1, 5, 1, BLOCK.GOLD_BLOCK);
 
-  // Coloured guide path on floor leading to the exit portal
   for (let dx = -2; dx <= 2; dx++)
     for (let dz = 0; dz <= 8; dz++)
       world.setBlock(ox + dx, oy + 1, oz + dz, BLOCK.WOOL);
-  // Outer glow ring
   for (let dx = -6; dx <= 6; dx++) {
     world.setBlock(ox + dx, oy + 1, oz - half + 1, BLOCK.GOLD_BLOCK);
     world.setBlock(ox + dx, oy + 1, oz + half - 1, BLOCK.GOLD_BLOCK);
     world.setBlock(ox - half + 1, oy + 1, oz + dx, BLOCK.GOLD_BLOCK);
     world.setBlock(ox + half - 1, oy + 1, oz + dx, BLOCK.GOLD_BLOCK);
   }
-  // Centre pillar
   fillBox(world, ox - 1, oy + 1, oz - 1, 3, 3, 5, BLOCK.QUARTZ_BLOCK);
   world.setBlock(ox, oy + 6, oz, BLOCK.GOLD_BLOCK);
-  // Torches at entrance
   world.setBlock(ox + half + 1, oy + 2, oz, BLOCK.TORCH);
   world.setBlock(ox + half + 1, oy + 2, oz - 1, BLOCK.TORCH);
-  // Information sign — a wool wall
   for (let dy = 1; dy <= 3; dy++)
     world.setBlock(ox - half - 1, oy + dy, oz, BLOCK.WOOL);
   world.setBlock(ox - half - 1, oy + 2, oz + 1, BLOCK.WOOL);
+}
+
+export function loadParkourPBs() {
+  try { return JSON.parse(localStorage.getItem(PK_KEY)) || {}; }
+  catch { return {}; }
+}
+function saveParkourPBs(pbs) {
+  try { localStorage.setItem(PK_KEY, JSON.stringify(pbs)); }
+  catch {}
+}
+
+function timeStr(t) {
+  const m = Math.floor(t / 60);
+  const s = Math.floor(t % 60);
+  const ms = Math.floor((t % 1) * 100);
+  return `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
+}
+
+function gradeFor(t) {
+  if (t < 30) return { g: 'S', c: '#ffd700' };
+  if (t < 60) return { g: 'A', c: '#ff4444' };
+  if (t < 120) return { g: 'B', c: '#44aa44' };
+  if (t < 240) return { g: 'C', c: '#4488ff' };
+  return { g: 'D', c: '#888' };
 }
 
 // ─── Parkour Game State ──────────────────────────────────────────────
@@ -150,6 +160,10 @@ export class ParkourGame {
     this.levelPositions = [];
     this.finished = false;
     this.active = false;
+    this.training = false;
+    this.savestate = null;
+    this.pbData = loadParkourPBs();
+    this._toastTimer = 0;
   }
 
   start(levelPositions) {
@@ -160,24 +174,57 @@ export class ParkourGame {
     this.startTime = performance.now();
     this.finished = false;
     this.active = true;
-    // No teleport — player already at lobby, walks to level 1
+    this.training = false;
+    this.savestate = null;
   }
 
-  // Called when player reaches a finish trigger
+  toggleTraining() {
+    this.training = !this.training;
+    this.showToast(this.training ? '✈ Training Mode ON — no deaths counted' : '⚔ Training Mode OFF');
+  }
+
+  saveState() {
+    if (!this.active) return;
+    const p = this.player.position;
+    this.savestate = { x: p.x, y: p.y, z: p.z, vx: this.player.velocity.x, vy: this.player.velocity.y, vz: this.player.velocity.z };
+    this.showToast('📸 Position saved (press L to load)');
+  }
+
+  loadState() {
+    if (!this.active || !this.savestate) return;
+    const s = this.savestate;
+    this.player.position.set(s.x, s.y, s.z);
+    this.player.velocity.set(s.vx || 0, s.vy || 0, s.vz || 0);
+    this.showToast('↩ Savestate loaded');
+  }
+
+  showToast(msg, color = '#0f0') {
+    const el = this.ui?.itemNameEl;
+    if (!el) return;
+    el.textContent = msg;
+    el.style.color = color;
+    el.classList.add('visible');
+    this._toastTimer = 2.5;
+  }
+
   onFinishTrigger() {
     if (!this.active || this.finished) return;
-    const next = this.currentLevel + 1;
-    // Show level complete toast
-    const lvl = PARKOUR_LEVELS[this.currentLevel];
-    if (lvl && this.ui && this.ui.itemNameEl) {
-      this.ui.itemNameEl.textContent = `✔ Level ${lvl.id} Complete!`;
-      this.ui.itemNameEl.style.color = '#0f0';
-      this.ui.itemNameEl.classList.add('visible');
-      setTimeout(() => {
-        this.ui.itemNameEl.classList.remove('visible');
-        this.ui.itemNameEl.style.color = '#fff';
-      }, 1500);
+    if (this.training) {
+      this.showToast('✔ Level would be complete! (Exit training to progress)');
+      return;
     }
+    const next = this.currentLevel + 1;
+    const lvl = PARKOUR_LEVELS[this.currentLevel];
+    if (lvl) {
+      // Record PB for this level
+      const key = String(lvl.id);
+      const t = this.elapsed;
+      if (!this.pbData[key] || t < this.pbData[key]) {
+        this.pbData[key] = t;
+        saveParkourPBs(this.pbData);
+      }
+    }
+    this.showToast(`✔ Level ${lvl.id} Complete!`, '#0f0');
     if (next >= this.levelPositions.length) {
       this.finish();
       return;
@@ -194,12 +241,10 @@ export class ParkourGame {
     if (!this.active || this.finished) return;
     this.elapsed = (performance.now() - this.startTime) / 1000;
 
-    // Keep player at full health — no fall damage in parkour
     this.player.health = this.player.maxHealth;
 
-    // Void death
     if (this.player.position.y < -10) {
-      this.deaths++;
+      if (!this.training) this.deaths++;
       const pos = this.levelPositions[this.currentLevel];
       if (pos) {
         this.player.position.set(pos.x, pos.y, pos.z);
@@ -208,7 +253,6 @@ export class ParkourGame {
       }
     }
 
-    // Check if player is near the next level's finish trigger
     const pos = this.levelPositions[this.currentLevel];
     if (pos) {
       const dx = this.player.position.x - pos.x;
@@ -230,8 +274,11 @@ export class ParkourGame {
     if (!el) return;
     el.style.display = 'block';
     const lvl = PARKOUR_LEVELS[this.currentLevel];
-    el.innerHTML = `<div class="pk-hud-level">Level ${this.currentLevel + 1}${lvl ? ': ' + lvl.name : ''}</div>
-<div class="pk-hud-time">⏱ ${time}</div>
+    const pbKey = lvl ? String(lvl.id) : null;
+    const pb = pbKey && this.pbData[pbKey] ? timeStr(this.pbData[pbKey]) : null;
+    const trainTag = this.training ? ' [TRAINING]' : '';
+    el.innerHTML = `<div class="pk-hud-level">Level ${this.currentLevel + 1}${lvl ? ': ' + lvl.name : ''}${trainTag}</div>
+<div class="pk-hud-time">⏱ ${time}${pb ? ` <span class="pk-hud-pb">(PB: ${pb})</span>` : ''}</div>
 <div class="pk-hud-deaths">💀 ${this.deaths}</div>`;
   }
 
@@ -239,24 +286,17 @@ export class ParkourGame {
     this.finished = true;
     this.active = false;
     this.elapsed = (performance.now() - this.startTime) / 1000;
-    const m = Math.floor(this.elapsed / 60);
-    const s = Math.floor(this.elapsed % 60);
-    const ms = Math.floor((this.elapsed % 1) * 100);
-    const timeStr = `${m}:${String(s).padStart(2,'0')}.${String(ms).padStart(2,'0')}`;
-
-    let grade = 'D', gradeColor = '#888';
-    if (this.elapsed < 30) { grade = 'S'; gradeColor = '#ffd700'; }
-    else if (this.elapsed < 60) { grade = 'A'; gradeColor = '#ff4444'; }
-    else if (this.elapsed < 120) { grade = 'B'; gradeColor = '#44aa44'; }
-    else if (this.elapsed < 240) { grade = 'C'; gradeColor = '#4488ff'; }
+    const t = this.elapsed;
+    const gr = gradeFor(t);
+    const timeS = timeStr(t);
 
     document.getElementById('parkour-hud').style.display = 'none';
     const el = document.getElementById('parkour-finish');
     if (!el) return;
     el.style.display = 'flex';
     el.innerHTML = `<div class="pk-finish-title">🏁 Course Complete!</div>
-<div class="pk-finish-grade" style="color:${gradeColor}">Rank: ${grade}</div>
-<div class="pk-finish-time">${timeStr}</div>
+<div class="pk-finish-grade" style="color:${gr.c}">Rank: ${gr.g}</div>
+<div class="pk-finish-time">${timeS}</div>
 <div class="pk-finish-deaths">Deaths: ${this.deaths}</div>
 <button class="pk-finish-btn" id="btn-pk-exit">Back to Menu</button>`;
     document.getElementById('btn-pk-exit')?.addEventListener('click', () => {
