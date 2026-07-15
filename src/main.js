@@ -3317,6 +3317,11 @@ function initMenu() {
     });
   } catch (_) {}
 
+  // Client-side keepalive: ping server every 5 min while tab is open
+  setInterval(() => {
+    fetch(MP_SERVER_URL + '/health').catch(() => {});
+  }, 300000);
+
   // Check if joining via CrazyGames invite link (instant multiplayer)
   setTimeout(() => {
     try {
