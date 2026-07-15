@@ -3116,7 +3116,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     }
   } else {
     player.setGamemode(gamemode);
-    player.spawn();
+    if (!isParkour) player.spawn();
   }
 
   // Dev world is always creative and spawns on the flat surface.
@@ -3130,17 +3130,24 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   // ── Parkour mode ───
   if (isParkour) {
     player.setGamemode('adventure');
-    // Clear mobs — no enemies in parkour
     if (mobManager) { mobManager.clear(); }
-    // Always daytime, clear weather
     dayTime = 0.3;
     weather = 'clear';
     weatherTimer = 0;
-    // Clear inventory — no blocks to place
     if (player.inventory) {
       player.inventory.slots.fill(null);
       player.inventory.offhand = null;
     }
+    player.position.set(0.5, 65, 0.5);
+    player.velocity.set(0, 0, 0);
+    player.spawnPoint.set(0.5, 65, 0.5);
+
+    // Build lobby centre as spawn platform
+    for (let dx = -1; dx <= 1; dx++)
+      for (let dz = -1; dz <= 1; dz++)
+        world.setBlock(dx, 64, dz, BLOCK.VOID_GLASS);
+    world.setBlock(0, 65, 0, BLOCK.GOLD_BLOCK);
+
     // Build parkour lobby and levels
     buildParkourLobby(world, 0, 64, 0);
     const levelPositions = [];
@@ -3155,20 +3162,25 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const pos = buildParkourLevel(world, i + 1, ox, 64, oz);
       levelPositions.push(pos);
     }
-    // Build a path from lobby doorway to first level
-    const pathY = 64;
-    for (let x = -13; x >= -60; x--) {
-      world.setBlock(x, pathY, 0, BLOCK.VOID_GLASS);
-      world.setBlock(x, pathY + 1, 0, BLOCK.GOLD_BLOCK);
+    // Guide path from lobby to level 1
+    for (let x = -12; x >= -62; x--) {
+      world.setBlock(x, 64, 0, BLOCK.VOID_GLASS);
     }
-    // Spawn at lobby centre
-    player.position.set(0.5, 66, 0.5);
-    player.velocity.set(0, 0, 0);
-    player.spawnPoint.set(0.5, 66, 0.5);
-    // Create parkour game instance
+
+    // Force all affected chunks to remesh
+    if (manager) {
+      const affected = new Set();
+      for (let cx = -5; cx <= 5; cx++)
+        for (let cz = -5; cz <= 5; cz++)
+          affected.add(cx + ',' + cz);
+      for (const k of affected) {
+        const [cx, cz] = k.split(',').map(Number);
+        manager.buildOrRefresh(cx, cz);
+      }
+    }
+
     parkourGame = new ParkourGame(world, player, ui);
     parkourGame.start(levelPositions);
-    // Hide health/hunger/armor — parkour has its own HUD
     document.getElementById('status-bars').style.display = 'none';
     document.getElementById('armor-bar').style.display = 'none';
     document.getElementById('hunger-bar')?.remove();
@@ -3613,16 +3625,20 @@ function initMenu() {
     ui.showMenu('minigames');
   });
 
-  // Parkour singleplayer → worlds list
+  // Parkour singleplayer — start fresh game directly
   document.getElementById('btn-pk-singleplayer')?.addEventListener('click', () => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
+  });
+  // Parkour saved worlds list
+  document.getElementById('btn-pk-worlds')?.addEventListener('click', () => {
     renderParkourWorldList();
     ui.showMenu('parkour-worlds');
   });
+  // Parkour worlds list (saved worlds)
   document.getElementById('btn-pk-worlds-back')?.addEventListener('click', () => {
     ui.showMenu('parkour-select');
   });
-
-  // New parkour world
   document.getElementById('btn-new-pk-world')?.addEventListener('click', () => {
     const w = createWorld('Parkour World', Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
     startGame(w.id, w.seed, 'adventure', 'peaceful', { parkour: true });
