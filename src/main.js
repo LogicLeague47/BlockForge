@@ -753,6 +753,14 @@ document.addEventListener('mousemove', (e) => {
     }
     return; // let browser handle typing in chat input
   }
+  // Block game keys while any text input is focused (creative search, etc.)
+  if (document.activeElement && (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA')) {
+    if (e.code === 'Escape') {
+      document.activeElement.blur();
+      e.preventDefault();
+    }
+    return;
+  }
   if (e.code === kb.chat && gameRunning && !ui.inventoryOpen && !chatDisabled) {
     e.preventDefault();
     openChat('');
