@@ -5029,7 +5029,7 @@ document.getElementById('btn-close-chest')?.addEventListener('click', () => {
 });
 
 
-let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false;
+let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false, _mobSpawnTimer = 0;
 const _prevPlayerPos = new THREE.Vector3();
 let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true;
 function facingName(yaw) {
