@@ -3096,6 +3096,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 }
 
 function saveCurrentWorld() {
+  if (isDevWorld) return;
   if (!currentWorldId || !world || !player) return;
   saveWorld(currentWorldId, {
     ...world.serializeEdits(),
@@ -3289,7 +3290,7 @@ function initMenu() {
     localStorage.setItem('bf_recent_servers', JSON.stringify(rec));
   } catch (_) {}
 
-  // Migrate old save
+  // Migrate old save + purge leaked dev worlds
   migrateLegacy();
   cleanDevWorldsFromPlayerList();
 
@@ -3653,11 +3654,11 @@ function initMenu() {
   // --- World list ---
   document.getElementById('btn-new-world').addEventListener('click', () => {
     ui.showMenu('create');
+    // Hide superflat option — only available in Dev World screen
     const cb = document.getElementById('cb-flat-world');
     const cbLabel = cb ? cb.parentElement : null;
-    const isDev = playerName === DEV_ACCOUNT;
-    if (cb) cb.checked = isDev;
-    if (cbLabel) cbLabel.style.display = isDev ? 'flex' : 'none';
+    if (cb) cb.checked = false;
+    if (cbLabel) cbLabel.style.display = 'none';
   });
   document.getElementById('btn-worlds-back').addEventListener('click', () => {
     ui.showMenu('main');
@@ -3908,9 +3909,8 @@ function initMenu() {
     ui.showMenu('main');
   });
   document.getElementById('btn-new-dev-world')?.addEventListener('click', () => {
-    const name = 'DevTest_' + Date.now();
-    const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true, dev: true });
-    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true, dev: true });
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    startGame(id, 42, 'creative', 'peaceful', { flat: true, dev: true });
   });
 
   // --- Login screen (account required before main menu) ---
