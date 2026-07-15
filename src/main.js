@@ -1255,7 +1255,7 @@ function isCriticalHit() {
   return player && !player.onGround && player.velocity.y < 0;
 }
 
-function spawnCritParticles(pos) {
+ function spawnCritParticles(pos) {
   if (!scene) return;
   for (let i = 0; i < 6; i++) {
     const mat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.8 });
@@ -1263,6 +1263,22 @@ function spawnCritParticles(pos) {
     m.position.set(pos.x + (Math.random() - 0.5) * 0.6, pos.y + Math.random() * 1.5, pos.z + (Math.random() - 0.5) * 0.6);
     scene.add(m);
     _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 0.5, maxLife: 0.5 });
+  }
+}
+
+// Parkour celebration particles (golden burst)
+function spawnParkourCelebration(pos) {
+  if (!scene) return;
+  const colors = [0xffd700, 0xffaa00, 0xffff44, 0xff8800];
+  for (let i = 0; i < 20; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 });
+    const m = new THREE.Mesh(_particleGeoTiny, mat);
+    const angle = (i / 20) * Math.PI * 2;
+    const radius = 1.5 + Math.random() * 1;
+    m.position.set(pos.x + Math.cos(angle) * radius, pos.y + 0.5 + Math.random() * 2, pos.z + Math.sin(angle) * radius);
+    scene.add(m);
+    const speed = 2 + Math.random() * 3;
+    _particles.push({ mesh: m, vx: Math.cos(angle) * speed, vy: 3 + Math.random() * 4, vz: Math.sin(angle) * speed, life: 1.2, maxLife: 1.2 });
   }
 }
 
@@ -3525,8 +3541,14 @@ function initMenu() {
     renderWorldList();
   });
 
-  // --- Parkour button ---
-  document.getElementById('btn-parkour')?.addEventListener('click', () => {
+  // --- Minigames menu ---
+  document.getElementById('btn-minigames')?.addEventListener('click', () => {
+    ui.showMenu('minigames');
+  });
+  document.getElementById('btn-minigames-back')?.addEventListener('click', () => {
+    ui.showMenu('main');
+  });
+  document.getElementById('btn-minigame-parkour')?.addEventListener('click', () => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
   });
@@ -4377,8 +4399,31 @@ function loop() {
   // player physics (skip during sleep)
   if (!sleeping) {
     player.update(dt, input);
-    // Parkour game update
-    if (parkourGame && isParkour) parkourGame.update();
+    // Parkour game update + celebration effects
+    if (parkourGame && isParkour) {
+      const prevLevel = parkourGame.currentLevel;
+      const prevFinished = parkourGame.finished;
+      parkourGame.update();
+      // Level complete celebration
+      if (parkourGame.currentLevel !== prevLevel && !prevFinished) {
+        const p = player.position.clone();
+        p.y += 1;
+        spawnParkourCelebration(p);
+        audio.levelComplete?.();
+      }
+      // Course finish celebration
+      if (parkourGame.finished && !prevFinished) {
+        for (let i = 0; i < 3; i++) {
+          setTimeout(() => {
+            const p = player.position.clone();
+            p.x += (Math.random() - 0.5) * 4;
+            p.z += (Math.random() - 0.5) * 4;
+            spawnParkourCelebration(p);
+          }, i * 400);
+        }
+        audio.finish?.();
+      }
+    }
   } else {
     // Sleep overlay fade animation
     sleepTimer += dt;

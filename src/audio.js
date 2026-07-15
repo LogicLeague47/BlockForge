@@ -824,4 +824,26 @@ export class Audio {
     rumbleSrc.connect(rumbleLp); rumbleLp.connect(rumbleG); rumbleG.connect(this.master);
     rumbleSrc.start(); rumbleSrc.stop(ctx.currentTime + rumbleDur + 0.05);
   }
+
+  // ── PARKOUR SOUNDS ──────────────────────────────────────────────────
+
+  levelComplete() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 880, dur: 0.08, gain: 0.2, atk: 0.005, rel: 0.2 },
+      { wave: 'sine', freq: 1320, dur: 0.1, gain: 0.25, atk: 0.008, rel: 0.3 },
+      { wave: 'sine', freq: 1760, dur: 0.12, gain: 0.15, atk: 0.01, rel: 0.35 },
+    ]);
+  }
+
+  finish() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 523, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
+      { wave: 'sine', freq: 659, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
+      { wave: 'sine', freq: 784, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
+      { wave: 'sine', freq: 1047, dur: 0.25, gain: 0.3, atk: 0.01, rel: 0.5 },
+      { wave: 'triangle', freq: 1047, dur: 0.3, gain: 0.1, atk: 0.02, rel: 0.5 },
+    ]);
+  }
 }
