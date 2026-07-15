@@ -28,6 +28,7 @@ async function sdkRemove(key) {
 // --- World list ---
 
 function listKey() { return 'mc-clone-worlds'; }
+function devListKey() { return 'mc-clone-dev-worlds'; }
 
 export function getWorldList() {
   try {
@@ -36,11 +37,21 @@ export function getWorldList() {
   } catch { return []; }
 }
 
-export function saveWorldList(list) {
-  const json = JSON.stringify(list);
-  localStorage.setItem(listKey(), json);
-  sdkSet(listKey(), json);
+export function getDevWorldList() {
+  try {
+    const raw = localStorage.getItem(devListKey());
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
 }
+
+function _saveList(key, list) {
+  const json = JSON.stringify(list);
+  localStorage.setItem(key, json);
+  sdkSet(key, json);
+}
+
+export function saveWorldList(list) { _saveList(listKey(), list); }
+export function saveDevWorldList(list) { _saveList(devListKey(), list); }
 
 export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
   const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -59,15 +70,26 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
     flat: !!opts.flat,
     createdAt: Date.now(),
   };
-  const list = getWorldList();
-  list.unshift(world);
-  saveWorldList(list);
+  if (opts.dev) {
+    const list = getDevWorldList();
+    list.unshift(world);
+    saveDevWorldList(list);
+  } else {
+    const list = getWorldList();
+    list.unshift(world);
+    saveWorldList(list);
+  }
   return world;
 }
 
-export function deleteWorld(id) {
-  const list = getWorldList().filter(w => w.id !== id);
-  saveWorldList(list);
+export function deleteWorld(id, dev = false) {
+  if (dev) {
+    const list = getDevWorldList().filter(w => w.id !== id);
+    saveDevWorldList(list);
+  } else {
+    const list = getWorldList().filter(w => w.id !== id);
+    saveWorldList(list);
+  }
   localStorage.removeItem('mc-clone-world-' + id);
   sdkRemove('mc-clone-world-' + id);
 }

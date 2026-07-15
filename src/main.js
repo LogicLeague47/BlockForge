@@ -3898,8 +3898,8 @@ function initMenu() {
   if (devWorldBtn) {
     devWorldBtn.addEventListener('click', () => {
       const name = 'DevTest_' + Date.now();
-      const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true });
-      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true });
+      const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true, dev: true });
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true, dev: true });
     });
   }
 
