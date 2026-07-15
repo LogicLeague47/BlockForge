@@ -1717,6 +1717,69 @@ const PAINTERS = {
     ctx.fillRect(x0 + 4, y0, 1, S);
     ctx.fillRect(x0 + 10, y0, 1, S);
   },
+  // ── PARKOUR BLOCKS ──────────────────────────────────────────────
+  emberock(ctx, x0, y0, rng) {
+    // Dark red-black stone with glowing ember specks
+    noisy(ctx, x0, y0, [72, 28, 28], 0.14, rng);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgb(48,14,14)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+    // Glowing ember specks
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = `rgb(${180 + (rng() * 60 | 0)}, ${40 + (rng() * 30 | 0)}, ${20 + (rng() * 20 | 0)})`;
+      ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    }
+  },
+  voidstone(ctx, x0, y0, rng) {
+    // Pale gray-white with dark flecks
+    noisy(ctx, x0, y0, [218, 216, 192], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 20, ['rgb(245,245,230)', 'rgb(185,182,158)']);
+    // Dark mineral veins
+    for (let i = 0; i < 4; i++) {
+      let x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      ctx.fillStyle = 'rgba(60,60,80,0.5)';
+      for (let j = 0; j < 5; j++) {
+        ctx.fillRect(x0 + x, y0 + y, 2, 1);
+        x += (rng() < 0.5 ? 1 : -1);
+        y += (rng() < 0.5 ? 1 : 0);
+      }
+    }
+  },
+  void_glass(ctx, x0, y0, rng) {
+    // Dark purple transparent glass
+    ctx.clearRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = 'rgba(80,40,120,0.22)';
+    ctx.fillRect(x0, y0, TILE, TILE);
+    // 2px border
+    ctx.fillStyle = 'rgba(120,60,180,0.7)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    // Inner bevel highlight
+    ctx.fillStyle = 'rgba(160,100,220,0.5)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    // Diagonal shine
+    ctx.fillStyle = 'rgba(200,160,255,0.4)';
+    ctx.fillRect(x0 + 4, y0 + 4, 6, 1);
+    ctx.fillRect(x0 + 4, y0 + 5, 4, 1);
+  },
+  quicksand(ctx, x0, y0, rng) {
+    // Warm golden-brown granular sand
+    noisy(ctx, x0, y0, [192, 168, 96], 0.08, rng);
+    // Darker grain bands
+    for (let y = 3; y < TILE; y += 5) {
+      ctx.fillStyle = 'rgba(160,140,76,0.5)';
+      ctx.fillRect(x0, y0 + y, TILE, 2);
+    }
+    // Bright sparkly flecks
+    speckle(ctx, x0, y0, rng, 14, ['rgb(220,200,120)', 'rgb(164,142,80)']);
+    // Dark specks
+    speckle(ctx, x0, y0, rng, 6, ['rgb(100,86,46)']);
+  },
 };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.

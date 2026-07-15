@@ -26,6 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
+import { ParkourGame, buildParkourLevel, buildParkourLobby, PARKOUR_LEVELS } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -673,6 +674,8 @@ try {
 // --- sleep state ---
 let sleeping = false;
 let isDevWorld = false; // dev creative superflat test world
+let isParkour = false;   // parkour minigame mode
+let parkourGame = null;  // ParkourGame instance
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
 let sleepTimer = 0;
 let bedSpawnPoint = null;
@@ -859,7 +862,11 @@ document.addEventListener('mousemove', (e) => {
   // F7 = toggle gamemode (singleplayer only)
   if (e.code === 'F7') {
     e.preventDefault();
-    if (!isMultiplayer) {
+    if (isParkour) {
+      ui.itemNameEl.textContent = 'Cannot change gamemode in Parkour';
+      ui.itemNameEl.classList.add('visible');
+      setTimeout(() => ui.itemNameEl.classList.remove('visible'), 2000);
+    } else if (!isMultiplayer) {
       toggleGamemode();
     } else {
       ui.itemNameEl.textContent = 'Creative mode locked in multiplayer';
@@ -2841,6 +2848,14 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   isDevWorld = !!opts.dev;
   // Tear down previous game
   if (gameRunning) {
+    const prevParkour = isParkour;
+    isParkour = false;
+    // Parkour cleanup
+    if (parkourGame) { parkourGame.cleanup(); parkourGame = null; }
+    if (prevParkour) {
+      document.getElementById('status-bars').style.display = '';
+      document.getElementById('armor-bar').style.display = '';
+    }
     if (player) saveCurrentWorld();
     manager?.clear?.();
     if (mobManager) { mobManager.clear(); mobManager = null; }
@@ -2858,6 +2873,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     try { audio.stopRain(); } catch (_) {}
   }
 
+  isParkour = !!opts.parkour;
   currentWorldId = worldId;
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || 7;
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
@@ -2866,7 +2882,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
-  world = new World(seed, { flat: !!opts.flat });
+  world = new World(seed, { flat: !!opts.flat, parkour: !!opts.parkour });
   const saved = loadWorld(worldId);
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture);
@@ -3049,6 +3065,53 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     player.spawnPoint.set(0.5, 6, 0.5);
   }
 
+  // ── Parkour mode ───
+  if (isParkour) {
+    player.setGamemode('adventure');
+    // Clear mobs — no enemies in parkour
+    if (mobManager) { mobManager.clear(); }
+    // Always daytime, clear weather
+    dayTime = 0.3;
+    weather = 'clear';
+    weatherTimer = 0;
+    // Clear inventory — no blocks to place
+    if (player.inventory) {
+      player.inventory.slots.fill(null);
+      player.inventory.offhand = null;
+    }
+    // Build parkour lobby and levels
+    buildParkourLobby(world, 0, 64, 0);
+    const levelPositions = [];
+    const LEVELS_PER_ROW = 5;
+    const LEVEL_SPACING_X = 32;
+    const LEVEL_SPACING_Z = 20;
+    for (let i = 0; i < PARKOUR_LEVELS.length; i++) {
+      const row = Math.floor(i / LEVELS_PER_ROW);
+      const col = i % LEVELS_PER_ROW;
+      const ox = (col - Math.floor(LEVELS_PER_ROW / 2)) * LEVEL_SPACING_X;
+      const oz = -(row + 1) * LEVEL_SPACING_Z;
+      const pos = buildParkourLevel(world, i + 1, ox, 64, oz);
+      levelPositions.push(pos);
+    }
+    // Build a path from lobby doorway to first level
+    const pathY = 64;
+    for (let x = -13; x >= -60; x--) {
+      world.setBlock(x, pathY, 0, BLOCK.VOID_GLASS);
+      world.setBlock(x, pathY + 1, 0, BLOCK.GOLD_BLOCK);
+    }
+    // Spawn at lobby centre
+    player.position.set(0.5, 66, 0.5);
+    player.velocity.set(0, 0, 0);
+    player.spawnPoint.set(0.5, 66, 0.5);
+    // Create parkour game instance
+    parkourGame = new ParkourGame(world, player, ui);
+    parkourGame.start(levelPositions);
+    // Hide health/hunger/armor — parkour has its own HUD
+    document.getElementById('status-bars').style.display = 'none';
+    document.getElementById('armor-bar').style.display = 'none';
+    document.getElementById('hunger-bar')?.remove();
+  }
+
   // Show loading screen
   ui.showLoading();
   cgLoadingStart();
@@ -3096,7 +3159,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 }
 
 function saveCurrentWorld() {
-  if (isDevWorld) return;
+  if (isDevWorld || isParkour) return;
   if (!currentWorldId || !world || !player) return;
   saveWorld(currentWorldId, {
     ...world.serializeEdits(),
@@ -3460,6 +3523,12 @@ function initMenu() {
   document.getElementById('btn-play').addEventListener('click', () => {
     ui.showMenu('worlds');
     renderWorldList();
+  });
+
+  // --- Parkour button ---
+  document.getElementById('btn-parkour')?.addEventListener('click', () => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
   });
 
   // --- Friends menu ---
@@ -4308,6 +4377,8 @@ function loop() {
   // player physics (skip during sleep)
   if (!sleeping) {
     player.update(dt, input);
+    // Parkour game update
+    if (parkourGame && isParkour) parkourGame.update();
   } else {
     // Sleep overlay fade animation
     sleepTimer += dt;

@@ -87,6 +87,10 @@ export const BLOCK = {
   STICKY_PISTON: 79,
   LAVA: 80,
   IRON_BARS: 81,
+  EMBEROCK: 82,
+  VOIDSTONE: 83,
+  VOID_GLASS: 84,
+  QUICKSAND: 85,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -183,6 +187,10 @@ export const TILES = {
   greenstone_dust:    [13, 5],
   lava:               [14, 5],
   iron_bars:          [15, 5],
+  emberock:           [0, 6],
+  voidstone:          [1, 6],
+  void_glass:         [2, 6],
+  quicksand:          [3, 6],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -278,6 +286,10 @@ export const BLOCKS = {
   [BLOCK.STICKY_PISTON]: { name: 'Sticky Piston', solid: true, hardness: 1.5, tool: 'axe', faces: { top: 'sticky_piston_top', bottom: 'piston_bottom', side: 'piston_side' } },
   [BLOCK.LAVA]:       { name: 'Lava', solid: false, transparent: true, liquid: true, luminance: 15, faces: 'lava' },
   [BLOCK.IRON_BARS]:  { name: 'Iron Bars', solid: true, transparent: true, hardness: 5, tool: 'pickaxe', faces: 'iron_bars' },
+  [BLOCK.EMBEROCK]:   { name: 'Emberock', solid: true, hardness: 0.4, tool: 'pickaxe', harvest: 1, faces: 'emberock' },
+  [BLOCK.VOIDSTONE]:  { name: 'Voidstone', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'voidstone' },
+  [BLOCK.VOID_GLASS]: { name: 'Void Glass', solid: true, transparent: true, hardness: 0.3, drop: 0, faces: 'void_glass' },
+  [BLOCK.QUICKSAND]:  { name: 'Quicksand', solid: true, hardness: 0.5, tool: 'shovel', faces: 'quicksand' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
@@ -359,4 +371,8 @@ export const HOTBAR_BLOCKS = [
   BLOCK.DIAMOND_BLOCK,
   BLOCK.END_STONE,
   BLOCK.QUARTZ_BLOCK,
+  BLOCK.EMBEROCK,
+  BLOCK.VOIDSTONE,
+  BLOCK.VOID_GLASS,
+  BLOCK.QUICKSAND,
 ];

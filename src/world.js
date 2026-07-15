@@ -28,7 +28,8 @@ export class World {
     this.chunks = new Map();
     this.edits = new Map();
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
-    this.flat = !!opts.flat; // superflat dev/test world
+    this.flat = !!opts.flat;
+    this.parkour = !!opts.parkour;
   }
 
   getChest(x, y, z) {
@@ -90,7 +91,15 @@ export class World {
     const baseZ = chunk.cz * CHUNK_SIZE;
     const n = this.noise;
 
-    if (this.flat) {
+    if (this.parkour) {
+      // Void world — only set surface/biome defaults, no terrain
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = 0;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = BIOMES.PLAINS;
+        }
+      }
+    } else if (this.flat) {
       // Superflat: bedrock, 2 dirt, grass on top at y=3. Great for testing.
       const FLAT_TOP = 3;
       for (let x = 0; x < CHUNK_SIZE; x++) {

@@ -31,6 +31,62 @@
     </script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%238B6B3B'/%3E%3Crect y='0' width='16' height='5' fill='%235B8C2A'/%3E%3Crect y='5' width='16' height='2' fill='%236B4B2B'/%3E%3Crect x='2' y='1' width='2' height='2' fill='%234A7A1A'/%3E%3Crect x='8' y='2' width='3' height='2' fill='%234A7A1A'/%3E%3Crect x='5' y='0' width='2' height='1' fill='%234A7A1A'/%3E%3C/svg%3E" />
     <style>
+      :root {
+        --bg-overlay: #000;
+        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7) 100%);
+        --bg-screen: rgba(0,0,0,0.65);
+        --bg-panel: rgba(0,0,0,0.5);
+        --bg-panel-border: rgba(100,100,120,0.3);
+        --bg-card: rgba(0,0,0,0.35);
+        --bg-card-hover: rgba(0,0,0,0.5);
+        --bg-input: rgba(30,30,30,0.8);
+        --bg-input-border: rgba(80,80,80,0.5);
+        --bg-creative: rgba(0,0,0,0.4);
+        --bg-creative-border: rgba(80,80,80,0.4);
+        --bg-slot: rgba(60,60,60,0.45);
+        --bg-armor-slot: rgba(0,0,0,0.45);
+        --btn-bg: linear-gradient(180deg,#6b6b6b,#555,#4a4a4a,#3a3a3a);
+        --btn-bg-hover: linear-gradient(180deg,#7a7a7a,#666,#555,#444);
+        --btn-color: #fff;
+        --btn-border: #222;
+        --btn-shadow: 0 3px 0 #2a2a2a;
+        --btn-play-bg: linear-gradient(180deg,#5a8a5a,#4a7a4a,#407040,#366336);
+        --btn-mp-bg: linear-gradient(180deg,#3a6a8a,#2a5a7a,#205070,#1a4060);
+        --text-primary: #fff;
+        --text-secondary: #ddd;
+        --text-muted: #aaa;
+        --text-heading: #fff;
+        --border-primary: #222;
+        --scrollbar-thumb: rgba(100,100,100,0.5);
+      }
+      .theme-light {
+        --bg-overlay: #c8c8c8;
+        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 20%, rgba(180,180,180,0.4) 80%, rgba(160,160,160,0.6) 100%);
+        --bg-screen: rgba(210,210,210,0.85);
+        --bg-panel: rgba(220,220,220,0.85);
+        --bg-panel-border: rgba(120,120,120,0.4);
+        --bg-card: rgba(200,200,200,0.6);
+        --bg-card-hover: rgba(190,190,190,0.8);
+        --bg-input: rgba(230,230,230,0.9);
+        --bg-input-border: rgba(140,140,140,0.6);
+        --bg-creative: rgba(200,200,200,0.6);
+        --bg-creative-border: rgba(140,140,140,0.5);
+        --bg-slot: rgba(180,180,180,0.5);
+        --bg-armor-slot: rgba(200,200,200,0.5);
+        --btn-bg: linear-gradient(180deg,#d0d0d0,#c0c0c0,#b8b8b8,#a8a8a8);
+        --btn-bg-hover: linear-gradient(180deg,#ddd,#ccc,#c0c0c0,#b0b0b0);
+        --btn-color: #222;
+        --btn-border: #999;
+        --btn-shadow: 0 3px 0 #888;
+        --btn-play-bg: linear-gradient(180deg,#7ab87a,#6aa86a,#609860,#568856);
+        --btn-mp-bg: linear-gradient(180deg,#5a8aaa,#4a7a9a,#407080,#3a6070);
+        --text-primary: #222;
+        --text-secondary: #444;
+        --text-muted: #777;
+        --text-heading: #333;
+        --border-primary: #999;
+        --scrollbar-thumb: rgba(120,120,120,0.6);
+      }
       * { margin: 0; padding: 0; box-sizing: border-box; }
       html, body { width: 100%; height: 100%; overflow: hidden; background: #000; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; touch-action: none; -webkit-touch-callout: none; -webkit-overflow-scrolling: auto; }
       /* Prevent pull-to-refresh on mobile */
@@ -339,6 +395,45 @@
         transition: opacity 0.4s ease-in-out;
       }
 
+      /* ── Parkour HUD ─────────────────────────────────────────── */
+      #parkour-hud {
+        position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+        z-index: 25;
+        display: none;
+        text-align: center;
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        pointer-events: none;
+        background: rgba(0,0,0,0.5);
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .pk-hud-level { font: bold 16px monospace; color: #ff0; margin-bottom: 2px; }
+      .pk-hud-time { font: 14px monospace; color: #fff; }
+      .pk-hud-deaths { font: 14px monospace; color: #f88; }
+
+      #parkour-finish {
+        position: fixed; inset: 0; z-index: 60;
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.75);
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        color: #fff;
+      }
+      .pk-finish-title { font: bold 28px monospace; color: #ffd700; margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,215,0,0.5); }
+      .pk-finish-grade { font: bold 48px monospace; margin: 8px 0; text-shadow: 0 0 30px currentColor; }
+      .pk-finish-time { font: 24px monospace; color: #ddd; margin: 4px 0; }
+      .pk-finish-deaths { font: 18px monospace; color: #f88; margin: 4px 0 20px; }
+      .pk-finish-btn {
+        padding: 12px 40px;
+        font: bold 16px monospace;
+        background: linear-gradient(180deg,#6b6b6b,#555,#4a4a4a,#3a3a3a);
+        color: #fff; border: 2px solid #222; border-radius: 3px;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+      .pk-finish-btn:hover { background: linear-gradient(180deg,#7a7a7a,#666,#555,#444); }
+
       /* Achievement toast notification */
       #achievement-toast {
         position: fixed; top: 70px; right: -400px;
@@ -610,14 +705,14 @@
       /* Inventory screen */
       #inventory-screen {
         position: fixed; inset: 0; z-index: 55;
-        background: rgba(0,0,0,0.65);
+        background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
-        color: #fff; font-family: monospace;
+        color: var(--text-primary); font-family: monospace;
       }
       #inventory-screen.open { display: flex; }
       #inventory-screen h2 {
-        font-size: 18px; color: #ddd; margin-bottom: 12px;
+        font-size: 18px; color: var(--text-heading); margin-bottom: 12px;
         text-shadow: 2px 2px 0 #000;
         letter-spacing: 2px;
       }
@@ -631,24 +726,24 @@
         display: flex; flex-direction: column; gap: 8px;
       }
       #creative-browser {
-        background: rgba(0,0,0,0.4);
+        background: var(--bg-creative);
         padding: 8px;
         border-radius: 4px;
-        border: 1px solid rgba(80,80,80,0.4);
+        border: 1px solid var(--bg-creative-border);
         width: 280px;
         max-height: 400px;
         display: flex; flex-direction: column; gap: 6px;
       }
       #creative-browser .creative-label {
-        font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: center;
+        font-size: 11px; color: var(--text-muted); letter-spacing: 1px; text-align: center;
       }
       #creative-search {
         width: 100%;
         padding: 5px 8px;
-        background: rgba(30,30,30,0.8);
-        border: 1px solid rgba(80,80,80,0.5);
+        background: var(--bg-input);
+        border: 1px solid var(--bg-input-border);
         border-radius: 3px;
-        color: #ddd;
+        color: var(--text-primary);
         font: 12px monospace;
         outline: none;
         box-sizing: border-box;
@@ -825,15 +920,15 @@
       /* Furnace screen */
       #furnace-screen {
         position: fixed; inset: 0; z-index: 55;
-        background: rgba(0,0,0,0.65);
+        background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
-        color: #fff; font-family: monospace;
+        color: var(--text-primary); font-family: monospace;
       }
       #furnace-screen.open { display: flex; }
       #chest-screen {
         position: fixed; inset: 0; z-index: 55;
-        background: rgba(0,0,0,0.65);
+        background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
         color: #fff; font-family: monospace;
@@ -1028,7 +1123,7 @@
         position: fixed; inset: 0; z-index: 50;
         display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        color: #fff; font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        color: var(--text-primary); font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
         text-align: center;
         overflow: hidden;
       }
@@ -1043,7 +1138,7 @@
       #overlay-vignette {
         position: absolute; inset: 0;
         z-index: 1;
-        background: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7) 100%);
+        background: var(--bg-overlay-vignette);
       }
       .menu-screen {
         display: none; flex-direction: column; align-items: center; gap: 10px;
@@ -1077,18 +1172,18 @@
       .menu-btn {
         padding: 14px 0;
         font: bold 16px/1.2 'Segoe UI', 'Helvetica Neue', Arial, monospace;
-        background: linear-gradient(180deg, #6b6b6b 0%, #555 40%, #4a4a4a 60%, #3a3a3a 100%);
-        color: #fff; border: 2px solid #222; border-radius: 3px;
+        background: var(--btn-bg);
+        color: var(--btn-color); border: 2px solid var(--btn-border); border-radius: 3px;
         cursor: pointer; letter-spacing: 1px;
-        text-shadow: 1px 1px 0 #222;
-        box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.12);
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        box-shadow: var(--btn-shadow), inset 0 1px 0 rgba(255,255,255,0.12);
         transition: transform 0.08s, box-shadow 0.08s, background 0.15s, border-color 0.15s;
         min-width: 400px;
         position: relative;
       }
       .menu-btn:hover {
-        background: linear-gradient(180deg, #7a7a7a 0%, #666 40%, #555 60%, #444 100%);
-        box-shadow: 0 3px 0 #2a2a2a, inset 0 1px 0 rgba(255,255,255,0.15);
+        background: var(--btn-bg-hover);
+        box-shadow: var(--btn-shadow), inset 0 1px 0 rgba(255,255,255,0.15);
         border-color: rgba(255,255,255,0.15);
       }
       .menu-btn:active {
@@ -1096,7 +1191,7 @@
         box-shadow: 0 1px 0 #2a2a2a, inset 0 2px 4px rgba(0,0,0,0.3);
       }
       .menu-btn#btn-play {
-        background: linear-gradient(180deg, #5a8a5a 0%, #4a7a4a 40%, #407040 60%, #366336 100%);
+        background: var(--btn-play-bg);
         border-color: #2a5a2a;
         box-shadow: 0 3px 0 #224, inset 0 1px 0 rgba(255,255,255,0.12);
       }
@@ -1166,15 +1261,15 @@
         border: 2px solid #333;
       }
       .menu-panel {
-        background: rgba(0,0,0,0.5);
-        border: 1px solid rgba(100,100,120,0.3);
+        background: var(--bg-panel);
+        border: 1px solid var(--bg-panel-border);
         padding: 16px 20px;
         border-radius: 4px;
         width: 420px;
         max-height: 340px;
         overflow-y: auto;
         scrollbar-width: thin;
-        scrollbar-color: rgba(100,100,100,0.5) transparent;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
       }
       .menu-panel::-webkit-scrollbar { width: 6px; }
       .menu-panel::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.5); border-radius: 3px; }
@@ -1662,6 +1757,9 @@
     <div id="hud"></div>
     <div id="coords-hud" style="position:fixed;bottom:96px;left:8px;z-index:10;pointer-events:none;font:bold 11px/1.5 monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;"></div>
     <div id="time-hud" style="position:fixed;bottom:96px;right:8px;z-index:10;pointer-events:none;font:bold 12px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;text-align:right;"></div>
+    <!-- Parkour HUD -->
+    <div id="parkour-hud"></div>
+    <div id="parkour-finish"></div>
     <div id="debug-overlay" style="display:none;position:fixed;top:4px;left:8px;z-index:12;pointer-events:none;font:bold 11px monospace;color:#fff;text-shadow:1px 1px 0 #000;line-height:1.5;"></div>
     <!-- Player list (hold Tab) -->
     <div id="player-list-overlay" style="display:none;position:fixed;top:8px;right:8px;z-index:16;min-width:180px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 12px;color:#fff;font:13px/1.6 monospace;text-shadow:1px 1px 0 #000;">
@@ -1806,6 +1904,7 @@
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
         <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
+        <button class="menu-btn" id="btn-parkour" style="font-size:11px;padding:6px 20px;border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
         <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
           Music by Kevin MacLeod — released under CC-BY 4.0.<br>incompetech.com<br><br>
           <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="https://www.crazygames.com/game/blockforge" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms of Service</a>. This game stores data locally on your device. No personal data is collected or shared. <a id="footer-privacy" href="https://www.crazygames.com/privacy" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a></span>
