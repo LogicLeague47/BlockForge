@@ -12,7 +12,7 @@ import { Audio } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -3291,6 +3291,7 @@ function initMenu() {
 
   // Migrate old save
   migrateLegacy();
+  cleanDevWorldsFromPlayerList();
 
   // Sync tutorial flag from SDK cloud (in case another device set it)
   syncTutorialFromSdk();
@@ -3895,15 +3896,22 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
-  // --- Dev World — dev account can instantly create a test superflat world ---
+  // --- Dev World — dev account shows separate dev world list ---
   const devWorldBtn = document.getElementById('btn-dev-world');
   if (devWorldBtn) {
     devWorldBtn.addEventListener('click', () => {
-      const name = 'DevTest_' + Date.now();
-      const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true, dev: true });
-      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true, dev: true });
+      ui.showMenu('dev-worlds');
+      renderDevWorldList();
     });
   }
+  document.getElementById('btn-dev-worlds-back')?.addEventListener('click', () => {
+    ui.showMenu('main');
+  });
+  document.getElementById('btn-new-dev-world')?.addEventListener('click', () => {
+    const name = 'DevTest_' + Date.now();
+    const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true, dev: true });
+    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true, dev: true });
+  });
 
   // --- Login screen (account required before main menu) ---
   const loginUser = document.getElementById('login-username');
@@ -4045,6 +4053,41 @@ function renderWorldList() {
     });
     card.addEventListener('click', () => {
       startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat });
+    });
+    list.appendChild(card);
+  }
+}
+
+function renderDevWorldList() {
+  const list = document.getElementById('dev-world-list');
+  if (!list) return;
+  const worlds = getDevWorldList();
+  list.innerHTML = '';
+  if (worlds.length === 0) {
+    list.innerHTML = '<div style="color:#777;font-size:12px;padding:20px;">No dev worlds yet. Create one!</div>';
+    return;
+  }
+  for (const w of worlds) {
+    const card = document.createElement('div');
+    card.className = 'world-card';
+    const date = new Date(w.createdAt).toLocaleDateString();
+    card.innerHTML = `
+      <div class="wc-info">
+        <div class="wc-name">${w.name}</div>
+        <div class="wc-meta">Seed: ${w.seed} &middot; ${date}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="wc-mode creative">DEV</span>
+        <button class="wc-delete" title="Delete world">&times;</button>
+      </div>
+    `;
+    card.querySelector('.wc-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      deleteWorld(w.id, true);
+      renderDevWorldList();
+    });
+    card.addEventListener('click', () => {
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, dev: true });
     });
     list.appendChild(card);
   }

@@ -196,6 +196,19 @@ export function getUserSetting(key, defaultValue) {
 }
 
 // Wipe all data for the current user
+
+// Remove any old DevTest worlds that leaked into the singleplayer list
+export function cleanDevWorldsFromPlayerList() {
+  const list = getWorldList();
+  const devWorlds = list.filter(w => w.name && w.name.startsWith('DevTest_'));
+  if (devWorlds.length === 0) return;
+  const clean = list.filter(w => !w.name || !w.name.startsWith('DevTest_'));
+  saveWorldList(clean);
+  for (const w of devWorlds) {
+    localStorage.removeItem('mc-clone-world-' + w.id);
+  }
+}
+
 export function wipeCurrentUser() {
   const prefix = _userPrefix();
   const keys = [];
