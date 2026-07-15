@@ -540,13 +540,16 @@ export class PlayerModel {
 
   if (this._celebrateTimer > 0) {
     const t = this._celebrateTimer;
-    const pump = Math.sin(t * 12) * 0.15;
-    this.leftArmPivot.rotation.x = -1.8 + pump;
-    this.rightArmPivot.rotation.x = -1.8 - pump;
-    this.leftArmPivot.rotation.z = 0.4;
-    this.rightArmPivot.rotation.z = -0.4;
-    this.head.rotation.x = -0.3;
-    this.body.rotation.x = 0.05;
+    const pump = Math.sin(t * 14) * 0.25;
+    this.leftArmPivot.rotation.x = -2.2 + pump;
+    this.rightArmPivot.rotation.x = -2.2 - pump;
+    this.leftArmPivot.rotation.z = 0.5;
+    this.rightArmPivot.rotation.z = -0.5;
+    this.head.rotation.x = -0.35;
+    this.body.rotation.x = 0.08;
+    // Body bounce
+    this.body.scale.y = 1 + Math.sin(t * 14) * 0.04;
+    this.body.scale.x = 1 - Math.sin(t * 14) * 0.02;
   } else if (swimming) {
       const swimPhase = this.animPhase;
       const swimSwing = Math.sin(swimPhase) * 0.8;
@@ -603,7 +606,7 @@ export class PlayerModel {
 
   // Trigger celebration animation (arms up, ~1.2s duration)
   triggerCelebrate() {
-    this._celebrateTimer = 1.2;
+    this._celebrateTimer = 2.0;
   }
 
   // ── Armour overlay rendering ──────────────────────────────────────────

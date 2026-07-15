@@ -301,7 +301,9 @@ export class ParkourGame {
 <button class="pk-finish-btn" id="btn-pk-exit">Back to Menu</button>`;
     document.getElementById('btn-pk-exit')?.addEventListener('click', () => {
       el.style.display = 'none';
-      this.ui.showMenu('main');
+      this.cleanup();
+      this.ui.hideOverlay();
+      if (window._exitParkourToMinigames) window._exitParkourToMinigames();
     });
   }
 

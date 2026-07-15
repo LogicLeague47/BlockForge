@@ -2575,6 +2575,28 @@ window._deleteServer = (name) => {
   renderRecentServers();
 };
 
+window._exitParkourToMinigames = () => {
+  gameRunning = false;
+  if (parkourGame) { parkourGame.cleanup(); parkourGame = null; }
+  isParkour = false;
+  document.getElementById('status-bars').style.display = '';
+  document.getElementById('armor-bar').style.display = '';
+  if (player) { saveCurrentWorld(); }
+  manager?.clear?.();
+  if (mobManager) { mobManager.clear(); mobManager = null; }
+  if (explosionManager) { explosionManager.clear(); explosionManager = null; }
+  if (playerModel) { playerModel.dispose(); playerModel = null; }
+  if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
+  if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
+  if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
+  if (breakParticles) { breakParticles.clear(); breakParticles = null; }
+  if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
+  if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+  weather = 'clear'; weatherTimer = 0;
+  try { audio.stopRain(); } catch (_) {}
+  ui.showMenu('minigames');
+};
+
 // ── Tutorial / first-time intro ─────────────────────────────────────────
 
 function showTutorial() {
@@ -3967,6 +3989,7 @@ function initMenu() {
   });
   document.getElementById('btn-quit').addEventListener('click', () => {
     ui.hidePause();
+    if (isParkour && parkourGame) { parkourGame.cleanup(); }
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
@@ -3974,8 +3997,8 @@ function initMenu() {
     // Show midgame ad before returning to menu
     cgMidgameAd({
       adStarted() { audio.stopMusic(); },
-      adFinished() { showWorldList(); },
-      adError() { showWorldList(); },
+      adFinished() { if (isParkour) showMinigames(); else showWorldList(); },
+      adError() { if (isParkour) showMinigames(); else showWorldList(); },
     });
   });
 
@@ -3983,6 +4006,12 @@ function initMenu() {
     gameRunning = false;
     ui.showMenu('worlds');
     renderWorldList();
+  }
+
+  function showMinigames() {
+    gameRunning = false;
+    isParkour = false;
+    ui.showMenu('minigames');
   }
 
   // --- Death ---
@@ -3994,14 +4023,15 @@ function initMenu() {
     }
   });
   document.getElementById('btn-death-quit').addEventListener('click', () => {
+    if (isParkour && parkourGame) { parkourGame.cleanup(); }
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
     try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
     cgMidgameAd({
       adStarted() { audio.stopMusic(); },
-      adFinished() { deathQuitToMenu(); },
-      adError() { deathQuitToMenu(); },
+      adFinished() { if (isParkour) showMinigames(); else deathQuitToMenu(); },
+      adError() { if (isParkour) showMinigames(); else deathQuitToMenu(); },
     });
   });
 
