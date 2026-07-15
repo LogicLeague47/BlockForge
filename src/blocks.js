@@ -80,7 +80,7 @@ export const BLOCK = {
   COMPASS: 72,    // item, not block
   GREENSTONE_ORE: 73,
   GREENSTONE_BLOCK: 74,
-  GREENSTONE_WIRE: 75,
+  GREENSTONE_DUST: 75,
   GREENSTONE_TORCH: 76,
   GREENSTONE_LAMP: 77,
   PISTON: 78,
@@ -180,7 +180,7 @@ export const TILES = {
   piston_bottom:      [10, 5],
   sticky_piston_top:  [11, 5],
   greenstone_torch:   [12, 5],
-  greenstone_wire:    [13, 5],
+  greenstone_dust:    [13, 5],
   lava:               [14, 5],
   iron_bars:          [15, 5],
 };
@@ -271,7 +271,7 @@ export const BLOCKS = {
   [BLOCK.WOOL]:        { name: 'Wool', solid: true, hardness: 0.8, faces: 'wool' },
   [BLOCK.GREENSTONE_ORE]: { name: 'Greenstone Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, drop: 314 /* GREENSTONE_DUST */, faces: 'greenstone_ore' },
   [BLOCK.GREENSTONE_BLOCK]: { name: 'Block of Greenstone', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'greenstone_block', power: 15 },
-  [BLOCK.GREENSTONE_WIRE]: { name: 'Greenstone Wire', solid: false, transparent: true, plant: true, hardness: 0, faces: 'greenstone_wire', maxSignal: 15 },
+  [BLOCK.GREENSTONE_DUST]: { name: 'Greenstone Dust', solid: false, transparent: true, plant: true, hardness: 0, faces: 'greenstone_dust', maxSignal: 15 },
   [BLOCK.GREENSTONE_TORCH]: { name: 'Greenstone Torch', solid: false, transparent: true, plant: true, hardness: 0, luminance: 7, drop: BLOCK.GREENSTONE_TORCH, faces: 'greenstone_torch', power: 15 },
   [BLOCK.GREENSTONE_LAMP]: { name: 'Greenstone Lamp', solid: true, hardness: 0.3, faces: { top: 'greenstone_lamp_off', bottom: 'greenstone_lamp_off', side: 'greenstone_lamp_off' } },
   [BLOCK.PISTON]:    { name: 'Piston', solid: true, hardness: 1.5, tool: 'axe', faces: { top: 'piston_top', bottom: 'piston_bottom', side: 'piston_side' } },

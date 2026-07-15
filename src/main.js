@@ -529,11 +529,11 @@ const BLOCK_COLORS = {
   [BLOCK.PAINTING]: 0xbc9458,
   [BLOCK.IRON_DOOR]: 0xb8b8b8,
   [BLOCK.WOOL]: 0xe8e0d0,
-  [BLOCK.GREENSTONE_ORE]: 0x20c040,
-  [BLOCK.GREENSTONE_BLOCK]: 0x20c040,
-  [BLOCK.GREENSTONE_WIRE]: 0x20c040,
-  [BLOCK.GREENSTONE_TORCH]: 0x40e060,
-  [BLOCK.GREENSTONE_LAMP]: 0x40e060,
+  [BLOCK.GREENSTONE_ORE]: 0x1a8040,
+  [BLOCK.GREENSTONE_BLOCK]: 0x187838,
+  [BLOCK.GREENSTONE_DUST]: 0x147830,
+  [BLOCK.GREENSTONE_TORCH]: 0x28a050,
+  [BLOCK.GREENSTONE_LAMP]: 0x28a050,
   [BLOCK.PISTON]: 0xbc9458,
   [BLOCK.STICKY_PISTON]: 0xbc9458,
   [BLOCK.LAVA]: 0xff6600,
@@ -1413,8 +1413,8 @@ function placeBlock(slotOverride) {
     pistonFacings.set(`${x},${y},${z}`, facing);
   }
 
-  // Greenstone wire: trigger power recalculation
-  if (itemId === BLOCK.GREENSTONE_WIRE) {
+  // Greenstone dust: trigger power recalculation
+  if (itemId === BLOCK.GREENSTONE_DUST) {
     greenstoneSystem.onBlockChange(x, y, z, itemId, world);
   }
 
@@ -3652,9 +3652,11 @@ function initMenu() {
   // --- World list ---
   document.getElementById('btn-new-world').addEventListener('click', () => {
     ui.showMenu('create');
-    // Auto-check superflat for dev accounts
     const cb = document.getElementById('cb-flat-world');
-    if (cb) cb.checked = (playerName === DEV_ACCOUNT);
+    const cbLabel = cb ? cb.parentElement : null;
+    const isDev = playerName === DEV_ACCOUNT;
+    if (cb) cb.checked = isDev;
+    if (cbLabel) cbLabel.style.display = isDev ? 'flex' : 'none';
   });
   document.getElementById('btn-worlds-back').addEventListener('click', () => {
     ui.showMenu('main');

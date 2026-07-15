@@ -1469,7 +1469,7 @@ const PAINTERS = {
           const d = Math.sqrt(px * px + py * py);
           if (d > r + 0.5) continue;
           const f = 1 + (rng() - 0.5) * 0.2;
-          ctx.fillStyle = `rgb(${clamp(32 * f)},${clamp(192 * f)},${clamp(64 * f)})`;
+          ctx.fillStyle = `rgb(${clamp(18 * f)},${clamp(130 * f)},${clamp(44 * f)})`;
           ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
         }
       }
@@ -1482,19 +1482,19 @@ const PAINTERS = {
 
   greenstone_block(ctx, x0, y0, rng) {
     const S = TILE;
-    // Solid bright green base.
-    noisy(ctx, x0, y0, [32, 192, 64], 0.06, rng);
+    // Solid dark green base.
+    noisy(ctx, x0, y0, [18, 120, 40], 0.06, rng);
     // Darker green crosshatch pattern.
-    ctx.fillStyle = 'rgba(24,128,48,0.4)';
+    ctx.fillStyle = 'rgba(12,80,28,0.4)';
     for (let y = 3; y < S; y += 5) ctx.fillRect(x0, y0 + y, S, 1);
     for (let x = 3; x < S; x += 5) ctx.fillRect(x0 + x, y0, 1, S);
     // Subtle noise specks.
-    speckle(ctx, x0, y0, rng, 14, ['rgb(48,210,80)', 'rgb(20,140,44)']);
+    speckle(ctx, x0, y0, rng, 14, ['rgb(30,140,56)', 'rgb(10,90,28)']);
     // Bevel border.
-    ctx.fillStyle = 'rgba(80,240,120,0.4)';
+    ctx.fillStyle = 'rgba(50,170,80,0.4)';
     ctx.fillRect(x0, y0, S, 2);
     ctx.fillRect(x0, y0, 2, S);
-    ctx.fillStyle = 'rgba(16,100,36,0.5)';
+    ctx.fillStyle = 'rgba(8,60,20,0.5)';
     ctx.fillRect(x0, y0 + S - 2, S, 2);
     ctx.fillRect(x0 + S - 2, y0, 2, S);
   },
@@ -1635,39 +1635,36 @@ const PAINTERS = {
     ctx.clearRect(x0, y0, S, S);
     // Thin wooden stick.
     ctx.fillStyle = 'rgb(110,82,48)';
-    ctx.fillRect(x0 + 14, y0 + 14, 2, 14);
+    ctx.fillRect(x0 + 7, y0 + 8, 2, 8);
     ctx.fillStyle = 'rgb(80,58,32)';
-    ctx.fillRect(x0 + 14, y0 + 14, 1, 14);
+    ctx.fillRect(x0 + 7, y0 + 8, 1, 8);
     ctx.fillStyle = 'rgb(140,108,64)';
-    ctx.fillRect(x0 + 15, y0 + 14, 1, 14);
-    // Bright green flame tip.
-    ctx.fillStyle = 'rgb(64,224,96)';
+    ctx.fillRect(x0 + 8, y0 + 8, 1, 8);
+    // Dark green flame body.
+    ctx.fillStyle = 'rgb(32,170,64)';
     ctx.beginPath();
-    ctx.ellipse(x0 + 15, y0 + 11, 4, 7, 0, 0, Math.PI * 2);
+    ctx.ellipse(x0 + 8, y0 + 6, 3, 5, 0, 0, Math.PI * 2);
     ctx.fill();
-    // White-hot centre.
-    ctx.fillStyle = 'rgb(192,255,192)';
+    // Bright green inner glow.
+    ctx.fillStyle = 'rgb(64,220,96)';
     ctx.beginPath();
-    ctx.ellipse(x0 + 15, y0 + 12, 2, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(x0 + 8, y0 + 5, 2, 3, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgb(220,255,220)';
-    ctx.fillRect(x0 + 14, y0 + 12, 2, 3);
+    // White-green hot centre.
+    ctx.fillStyle = 'rgb(180,255,190)';
+    ctx.fillRect(x0 + 7, y0 + 4, 2, 2);
   },
 
-  greenstone_wire(ctx, x0, y0, rng) {
+  greenstone_dust(ctx, x0, y0, rng) {
     const S = TILE;
     ctx.clearRect(x0, y0, S, S);
-    // Cross-shaped green wire pattern (like redstone wire).
-    ctx.fillStyle = 'rgb(32,192,64)';
-    // Horizontal bar.
+    // Cross-shaped green dust pattern
+    ctx.fillStyle = 'rgb(20,120,40)';
     ctx.fillRect(x0, y0 + S / 2 - 1, S, 2);
-    // Vertical bar.
     ctx.fillRect(x0 + S / 2 - 1, y0, 2, S);
-    // Brighter centre dot.
-    ctx.fillStyle = 'rgb(80,240,120)';
+    ctx.fillStyle = 'rgb(40,160,60)';
     ctx.fillRect(x0 + S / 2 - 1, y0 + S / 2 - 1, 2, 2);
-    // Subtle darker outline on wire edges.
-    ctx.fillStyle = 'rgba(20,120,40,0.5)';
+    ctx.fillStyle = 'rgba(14,80,28,0.5)';
     ctx.fillRect(x0, y0 + S / 2 - 2, S, 1);
     ctx.fillRect(x0, y0 + S / 2 + 1, S, 1);
     ctx.fillRect(x0 + S / 2 - 2, y0, 1, S);

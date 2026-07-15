@@ -80,7 +80,7 @@ export class GreenstoneSystem {
     } else if (blockId === BLOCK.GREENSTONE_BLOCK || blockId === BLOCK.GREENSTONE_TORCH ||
                blockId === BLOCK.LEVER || blockId === BLOCK.STONE_BUTTON) {
       this._sources.set(key, blockId);
-    } else if (blockId === BLOCK.GREENSTONE_WIRE) {
+    } else if (blockId === BLOCK.GREENSTONE_DUST) {
       this._wires.add(key);
     } else {
       this._sources.delete(key);
@@ -129,7 +129,7 @@ export class GreenstoneSystem {
           const nKey = nx + ',' + ny + ',' + nz;
           const blockId = world.getBlock(nx, ny, nz);
 
-          if (blockId === BLOCK.GREENSTONE_WIRE) {
+          if (blockId === BLOCK.GREENSTONE_DUST) {
             const wirePower = sourcePower - 1;
             if (wirePower > 0) {
               const existing = this._powerMap.get(nKey) || 0;
@@ -151,7 +151,7 @@ export class GreenstoneSystem {
       const ny = y + dy;
       const nz = z + dz;
       const blockId = world.getBlock(nx, ny, nz);
-      if (blockId === BLOCK.GREENSTONE_WIRE) {
+      if (blockId === BLOCK.GREENSTONE_DUST) {
         const key = nx + ',' + ny + ',' + nz;
         const existing = this._powerMap.get(key) || 0;
         if (existing > 0) {

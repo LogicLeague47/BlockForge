@@ -2356,7 +2356,16 @@ export class UI {
       slotEl.appendChild(nameEl);
       slotEl.addEventListener('click', () => {
         const inv = this._inventoryRef;
-        if (inv) inv.add(ci.id, ci.type === 'block' ? 64 : 1);
+        if (!inv) return;
+        if (this.creative) {
+          const count = ci.type === 'block' ? 64 : 1;
+          inv.slots[inv.selected] = { item: ci.id, count };
+          this.renderInventoryGrid(inv);
+          this.buildHotbarFromInventory(inv);
+          this._updateCursorVisual();
+        } else {
+          inv.add(ci.id, ci.type === 'block' ? 64 : 1);
+        }
       });
       this.creativeGrid.appendChild(slotEl);
     }
