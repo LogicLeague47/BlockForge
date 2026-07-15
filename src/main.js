@@ -2923,7 +2923,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   gameDifficulty = difficulty || 'normal';
 
   world = new World(seed, { flat: !!opts.flat, parkour: !!opts.parkour });
-  const saved = loadWorld(worldId);
+  const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture);
   loader = new ChunkLoader(world, manager, renderDist);
@@ -4503,6 +4503,7 @@ function loop() {
         p.y += 1;
         spawnParkourCelebration(p);
         audio.levelComplete?.();
+        if (playerModel) playerModel.triggerCelebrate();
       }
       // Course finish celebration
       if (parkourGame.finished && !prevFinished) {
@@ -4515,6 +4516,7 @@ function loop() {
           }, i * 400);
         }
         audio.finish?.();
+        if (playerModel) playerModel.triggerCelebrate();
       }
     }
   } else {

@@ -513,26 +513,41 @@ export class PlayerModel {
       this._landingSquash = Math.max(0, this._landingSquash - dt * 3);
     }
 
-    // Hurt tilt: tilt body back when taking damage
-    if (this._hurtTilt == null) this._hurtTilt = 0;
-    if (this._hurtTilt > 0) {
-      this._hurtTilt = Math.max(0, this._hurtTilt - dt * 4);
-    }
+  // Hurt tilt: tilt body back when taking damage
+  if (this._hurtTilt == null) this._hurtTilt = 0;
+  if (this._hurtTilt > 0) {
+    this._hurtTilt = Math.max(0, this._hurtTilt - dt * 4);
+  }
 
-    // Idle breathing
-    const breathe = Math.sin(performance.now() * 0.002) * 0.01;
+  // Celebrate: arms up, head tilted back
+  if (this._celebrateTimer == null) this._celebrateTimer = 0;
+  if (this._celebrateTimer > 0) {
+    this._celebrateTimer -= dt;
+  }
 
-    // Reset all rotations first (prevents state leaking)
-    this.body.rotation.x = 0;
-    this.body.scale.set(1, 1, 1);
-    this.head.rotation.x = 0;
-    this.head.rotation.y = 0;
-    this.leftArmPivot.rotation.set(0, 0, 0);
-    this.rightArmPivot.rotation.set(0, 0, 0);
-    this.leftLegPivot.rotation.x = 0;
-    this.rightLegPivot.rotation.x = 0;
+  // Idle breathing
+  const breathe = Math.sin(performance.now() * 0.002) * 0.01;
 
-    if (swimming) {
+  // Reset all rotations first (prevents state leaking)
+  this.body.rotation.x = 0;
+  this.body.scale.set(1, 1, 1);
+  this.head.rotation.x = 0;
+  this.head.rotation.y = 0;
+  this.leftArmPivot.rotation.set(0, 0, 0);
+  this.rightArmPivot.rotation.set(0, 0, 0);
+  this.leftLegPivot.rotation.x = 0;
+  this.rightLegPivot.rotation.x = 0;
+
+  if (this._celebrateTimer > 0) {
+    const t = this._celebrateTimer;
+    const pump = Math.sin(t * 12) * 0.15;
+    this.leftArmPivot.rotation.x = -1.8 + pump;
+    this.rightArmPivot.rotation.x = -1.8 - pump;
+    this.leftArmPivot.rotation.z = 0.4;
+    this.rightArmPivot.rotation.z = -0.4;
+    this.head.rotation.x = -0.3;
+    this.body.rotation.x = 0.05;
+  } else if (swimming) {
       const swimPhase = this.animPhase;
       const swimSwing = Math.sin(swimPhase) * 0.8;
       this.body.rotation.x = 0.6;
@@ -584,6 +599,11 @@ export class PlayerModel {
   // Trigger hurt tilt animation (called when player takes damage)
   triggerHurt() {
     this._hurtTilt = 1.0;
+  }
+
+  // Trigger celebration animation (arms up, ~1.2s duration)
+  triggerCelebrate() {
+    this._celebrateTimer = 1.2;
   }
 
   // ── Armour overlay rendering ──────────────────────────────────────────

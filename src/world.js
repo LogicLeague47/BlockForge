@@ -73,7 +73,7 @@ export class World {
   }
 
   getBlock(x, y, z) {
-    if (y < 0) return BLOCK.BEDROCK;
+    if (y < 0) return this.parkour ? BLOCK.AIR : BLOCK.BEDROCK;
     if (y >= WORLD_HEIGHT) return BLOCK.AIR;
     const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
     return this.getChunk(cx, cz).get(x - cx * CHUNK_SIZE, y, z - cz * CHUNK_SIZE);
