@@ -1603,7 +1603,7 @@ export class UI {
           slotEl.appendChild(cnt);
         }
       }
-      slotEl.addEventListener('click', () => this._onInvSlotClick(i));
+      slotEl.addEventListener('click', (e) => this._onInvSlotClick(i, e.shiftKey));
       slotEl.addEventListener('contextmenu', (e) => { e.preventDefault(); this._onInvSlotRightClick(i); });
       this.inventoryGrid.appendChild(slotEl);
     }
@@ -1756,34 +1756,120 @@ export class UI {
     this._updateCursorVisual();
   }
 
-  // Quick-equip from inventory right-click
+  // Right-click: place 1 from cursor, or pick up half from slot
   _onInvSlotRightClick(i) {
     const inv = this._inventoryRef;
     if (!inv) return;
-    const s = inv.slots[i];
-    if (!s) return;
-    const def = itemDef(s.item);
-    // Armor: equip to correct slot
-    if (def && def.armor) {
-      const slotIdx = def.armor.slotIdx;
-      const equipped = inv.armor[slotIdx];
-      inv.armor[slotIdx] = { item: s.item, count: 1 };
-      inv.slots[i] = equipped ? { item: equipped.item, count: 1, ...(equipped.durability != null ? { durability: equipped.durability } : {}) } : null;
-      this.renderInventoryGrid(inv);
-      this.renderArmorSlots();
-      return;
+    if (this.cursorItem) {
+      const cur = inv.slots[i];
+      if (!cur) {
+        // Empty slot: place 1 from cursor
+        inv.slots[i] = { item: this.cursorItem.item, count: 1, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem.count--;
+        if (this.cursorItem.count <= 0) this.cursorItem = null;
+      } else if (cur.item === this.cursorItem.item) {
+        // Same item: add 1 if room
+        const cap = maxStack(cur.item);
+        if (cur.count < cap) {
+          cur.count++;
+          this.cursorItem.count--;
+          if (this.cursorItem.count <= 0) this.cursorItem = null;
+        }
+      } else {
+        // Different item: swap entire stacks (same as left-click swap)
+        const tmp = { item: cur.item, count: cur.count, ...(cur.durability != null ? { durability: cur.durability } : {}) };
+        inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
+      }
+    } else {
+      const s = inv.slots[i];
+      if (!s) return;
+      // Pick up half (ceil) of the stack
+      const half = Math.ceil(s.count / 2);
+      this.cursorItem = { item: s.item, count: half, ...(s.durability != null ? { durability: s.durability } : {}) };
+      s.count -= half;
+      if (s.count <= 0) inv.slots[i] = null;
     }
-    // Non-armor: equip to off-hand
-    const equipped = inv.offhand;
-    inv.offhand = { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) };
-    inv.slots[i] = equipped ? { item: equipped.item, count: equipped.count, ...(equipped.durability != null ? { durability: equipped.durability } : {}) } : null;
     this.renderInventoryGrid(inv);
     this.renderArmorSlots();
+    this._updateCursorVisual();
   }
 
-  _onInvSlotClick(i) {
+  _onInvSlotClick(i, shiftKey) {
     const inv = this._inventoryRef;
     if (!inv) return;
+
+    // Shift+click: quick move to other section
+    if (shiftKey) {
+      const s = inv.slots[i];
+      if (!s) return;
+      const def = itemDef(s.item);
+      // Armor: shift-click goes to armor slot
+      if (def && def.armor) {
+        const idx = def.armor.slotIdx;
+        const prev = inv.armor[idx];
+        inv.armor[idx] = { item: s.item, count: 1, ...(s.durability != null ? { durability: s.durability } : {}) };
+        inv.slots[i] = prev ? { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) } : null;
+        this.renderInventoryGrid(inv);
+        this.renderArmorSlots();
+        this._updateCursorVisual();
+        return;
+      }
+      // Hotbar slot (0-8) → move to main inventory (9-35), and vice versa
+      if (i < HOTBAR_SLOTS) {
+        // Move to main inventory: find first empty slot, or first slot with same item
+        let target = -1;
+        for (let j = HOTBAR_SLOTS; j < TOTAL; j++) {
+          if (inv.slots[j] && inv.slots[j].item === s.item && inv.slots[j].count < maxStack(s.item)) { target = j; break; }
+        }
+        if (target === -1) {
+          for (let j = HOTBAR_SLOTS; j < TOTAL; j++) {
+            if (!inv.slots[j]) { target = j; break; }
+          }
+        }
+        if (target === -1) return; // no room
+        const dest = inv.slots[target];
+        if (dest && dest.item === s.item) {
+          const cap = maxStack(s.item);
+          const add = Math.min(cap - dest.count, s.count);
+          dest.count += add;
+          s.count -= add;
+          if (s.count <= 0) inv.slots[i] = null;
+        } else if (!dest) {
+          inv.slots[target] = { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) };
+          inv.slots[i] = null;
+        }
+      } else {
+        // Move from main inventory → hotbar: find first empty or matching hotbar slot
+        let target = -1;
+        for (let j = 0; j < HOTBAR_SLOTS; j++) {
+          if (inv.slots[j] && inv.slots[j].item === s.item && inv.slots[j].count < maxStack(s.item)) { target = j; break; }
+        }
+        if (target === -1) {
+          for (let j = 0; j < HOTBAR_SLOTS; j++) {
+            if (!inv.slots[j]) { target = j; break; }
+          }
+        }
+        if (target === -1) return;
+        const dest = inv.slots[target];
+        if (dest && dest.item === s.item) {
+          const cap = maxStack(s.item);
+          const add = Math.min(cap - dest.count, s.count);
+          dest.count += add;
+          s.count -= add;
+          if (s.count <= 0) inv.slots[i] = null;
+        } else if (!dest) {
+          inv.slots[target] = { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) };
+          inv.slots[i] = null;
+        }
+      }
+      this.renderInventoryGrid(inv);
+      this.renderArmorSlots();
+      this._updateCursorVisual();
+      return;
+    }
+
+    // Normal left-click (no shift)
     if (this.cursorItem) {
       const cur = inv.slots[i];
       if (!cur) {
@@ -1805,23 +1891,12 @@ export class UI {
     } else {
       const s = inv.slots[i];
       if (s) {
-        // Quick-equip: left-clicking an armor piece sends it straight to its
-        // armor slot (swapping whatever is already there back into this slot).
-        const def = itemDef(s.item);
-        if (def && def.armor) {
-          const idx = def.armor.slotIdx;
-          const prev = inv.armor[idx];
-          inv.armor[idx] = { item: s.item, count: 1, ...(s.durability != null ? { durability: s.durability } : {}) };
-          inv.slots[i] = prev ? { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) } : null;
-          this.renderInventoryGrid(inv);
-          this._updateCursorVisual();
-          return;
-        }
         this.cursorItem = { item: s.item, count: s.count, durability: s.durability };
         inv.slots[i] = null;
       }
     }
     this.renderInventoryGrid(inv);
+    this.renderArmorSlots();
     this._updateCursorVisual();
   }
 

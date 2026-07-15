@@ -3893,12 +3893,13 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
-  // --- Dev World — dev account can create/manage test worlds ---
+  // --- Dev World — dev account can instantly create a test superflat world ---
   const devWorldBtn = document.getElementById('btn-dev-world');
   if (devWorldBtn) {
     devWorldBtn.addEventListener('click', () => {
-      ui.showMenu('worlds');
-      renderWorldList();
+      const name = 'DevTest_' + Date.now();
+      const w = createWorld(name, 42, 'creative', 'peaceful', { flat: true });
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: true });
     });
   }
 
