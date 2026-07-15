@@ -18,6 +18,7 @@ import { Noise } from './noise.js';
 import { calcHeight } from './worldgen.js';
 import { totalArmorDefense } from './items.js';
 import { getKeybinds } from './keybinds.js';
+import { raycastVoxel } from './raycast.js';
 
 const EYE_HEIGHT = 1.62;
 const PLAYER_HALF_WIDTH = 0.3;
@@ -448,13 +449,33 @@ export class Player {
       // 3rd person: camera behind or in front of player
       const dist = 4;
       const height = 2;
-      const dir = this.cameraMode === 1 ? 1 : -1; // 1=behind, -1=front
-      const offsetX = Math.sin(this.yaw) * dist * dir;
-      const offsetZ = Math.cos(this.yaw) * dist * dir;
+      const d = this.cameraMode === 1 ? 1 : -1; // 1=behind, -1=front
+      const offsetX = Math.sin(this.yaw) * dist * d;
+      const offsetZ = Math.cos(this.yaw) * dist * d;
+      const desiredX = this.position.x + offsetX;
+      const desiredY = this.position.y + height + crouchEyeOffset;
+      const desiredZ = this.position.z + offsetZ;
+      // Raycast from eye to desired camera pos; if blocked, pull camera forward
+      const eyeX = this.position.x;
+      const eyeY = this.position.y + EYE_HEIGHT + crouchEyeOffset;
+      const eyeZ = this.position.z;
+      const dx = desiredX - eyeX;
+      const dy = desiredY - eyeY;
+      const dz = desiredZ - eyeZ;
+      const rayDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      let safeDist = rayDist;
+      if (rayDist > 0.1) {
+        const dirX = dx / rayDist;
+        const dirY = dy / rayDist;
+        const dirZ = dz / rayDist;
+        const hit = raycastVoxel(this.world, { x: eyeX, y: eyeY, z: eyeZ }, { x: dirX, y: dirY, z: dirZ }, rayDist);
+        if (hit) safeDist = Math.max(0.5, hit.distance - 0.5);
+      }
+      const t = safeDist / rayDist;
       this.camera.position.set(
-        this.position.x + offsetX,
-        this.position.y + height + crouchEyeOffset,
-        this.position.z + offsetZ
+        eyeX + dx * t,
+        eyeY + dy * t,
+        eyeZ + dz * t
       );
     }
     if (this.cameraMode === 0) {
