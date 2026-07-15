@@ -291,10 +291,8 @@ export class PlayerModel {
     this.body.userData.partName = 'body';
     this.body.position.y = px(LEG.h + BODY.h / 2);
 
-    const armGeo = new THREE.BoxGeometry(px(ARM.w), px(ARM.h), px(ARM.d));
-
     this._rightArmParts = rightArmParts(s);
-    this.rightArm = new THREE.Mesh(armGeo, this._rightArmParts.map(p => p.material));
+    this.rightArm = new THREE.Mesh(new THREE.BoxGeometry(px(ARM.w), px(ARM.h), px(ARM.d)), this._rightArmParts.map(p => p.material));
     this.rightArm.userData.partName = 'rightArm';
     this.rightArm.geometry.translate(0, -px(ARM.h / 2), 0);
     this.rightArmPivot = new THREE.Group();
@@ -302,7 +300,7 @@ export class PlayerModel {
     this.rightArmPivot.add(this.rightArm);
 
     this._leftArmParts = leftArmParts(s);
-    this.leftArm = new THREE.Mesh(armGeo.clone(), this._leftArmParts.map(p => p.material));
+    this.leftArm = new THREE.Mesh(new THREE.BoxGeometry(px(ARM.w), px(ARM.h), px(ARM.d)), this._leftArmParts.map(p => p.material));
     this.leftArm.userData.partName = 'leftArm';
     this.leftArm.geometry.translate(0, -px(ARM.h / 2), 0);
     this.leftArmPivot = new THREE.Group();
