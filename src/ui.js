@@ -7,7 +7,7 @@
 import { HOTBAR_BLOCKS, BLOCKS } from './blocks.js';
 import { makeIcon } from './tiles.js';
 import { itemDef, isBlockItem, itemName, maxStack, ITEM } from './items.js';
-import { HOTBAR_SLOTS } from './inventory.js';
+import { HOTBAR_SLOTS, TOTAL } from './inventory.js';
 import { CraftingGrid } from './crafting.js';
 import { matchRecipe } from './recipes.js';
 
