@@ -1682,6 +1682,44 @@ const PAINTERS = {
       }
     }
   },
+  lava(ctx, x0, y0, rng) {
+    const S = TILE;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const v = rng();
+        const r = 200 + v * 55 | 0;
+        const g = 60 + v * 40 | 0;
+        const b = 10 + rng() * 20 | 0;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    // Brighter hot spots
+    for (let i = 0; i < 6; i++) {
+      const x = rng() * S | 0, y = rng() * S | 0;
+      ctx.fillStyle = 'rgb(255,200,40)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+  },
+  iron_bars(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Transparent background (default dark)
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.clearRect(x0, y0, S, S);
+    // Horizontal bars
+    ctx.fillStyle = '#8a8a8a';
+    ctx.fillRect(x0, y0 + 3, S, 2);
+    ctx.fillRect(x0, y0 + 7, S, 2);
+    ctx.fillRect(x0, y0 + 11, S, 2);
+    // Vertical bars
+    ctx.fillRect(x0 + 4, y0, 2, S);
+    ctx.fillRect(x0 + 10, y0, 2, S);
+    // Highlights
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fillRect(x0, y0 + 3, S, 1);
+    ctx.fillRect(x0 + 4, y0, 1, S);
+    ctx.fillRect(x0 + 10, y0, 1, S);
+  },
 };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.

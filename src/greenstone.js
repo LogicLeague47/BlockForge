@@ -31,12 +31,27 @@ export class GreenstoneSystem {
     this._powerMap = new Map();
     this._pistonStates = new Map();
     this._poweredLamps = new Set();
+    this._dirty = true;
+    this._cooldown = 0;
+    this._sources = new Map();
+    this._wires = new Set();
+  }
+
+  markDirty() {
+    this._dirty = true;
   }
 
   update(dt, world) {
-    this._propagate(world);
-    this._updateLamps(world);
-    this._updatePistons(world);
+    if (this._dirty) {
+      this._dirty = false;
+      this._cooldown = 0.05;
+      this._propagate(world);
+      this._updateLamps(world);
+      this._updatePistons(world);
+    }
+    if (this._cooldown > 0) {
+      this._cooldown -= dt;
+    }
   }
 
   getPower(x, y, z) {
@@ -57,15 +72,21 @@ export class GreenstoneSystem {
   }
 
   onBlockChange(x, y, z, blockId, world) {
+    const key = x + ',' + y + ',' + z;
     if (blockId === BLOCK.AIR) {
+      this._sources.delete(key);
+      this._wires.delete(key);
       this.clearPower(x, y, z);
-    } else if (blockId === BLOCK.GREENSTONE_BLOCK || blockId === BLOCK.GREENSTONE_TORCH) {
-      this.setPower(x, y, z, 15);
-    } else if (blockId === BLOCK.LEVER || blockId === BLOCK.STONE_BUTTON) {
-      this.setPower(x, y, z, 15);
+    } else if (blockId === BLOCK.GREENSTONE_BLOCK || blockId === BLOCK.GREENSTONE_TORCH ||
+               blockId === BLOCK.LEVER || blockId === BLOCK.STONE_BUTTON) {
+      this._sources.set(key, blockId);
     } else if (blockId === BLOCK.GREENSTONE_WIRE) {
-      this._propagateFromWire(x, y, z, world);
+      this._wires.add(key);
+    } else {
+      this._sources.delete(key);
+      this._wires.delete(key);
     }
+    this.markDirty();
   }
 
   _propagate(world) {
@@ -75,22 +96,14 @@ export class GreenstoneSystem {
   }
 
   _collectSources(world) {
-    const searchRadius = 64;
-
-    const scanMin = -searchRadius;
-    const scanMax = searchRadius;
-
-    for (let x = scanMin; x <= scanMax; x++) {
-      for (let z = scanMin; z <= scanMax; z++) {
-        for (let y = 0; y < 256; y++) {
-          const blockId = world.getBlock(x, y, z);
-          if (blockId === BLOCK.GREENSTONE_BLOCK || blockId === BLOCK.GREENSTONE_TORCH) {
-            this.setPower(x, y, z, 15);
-          } else if (blockId === BLOCK.LEVER || blockId === BLOCK.STONE_BUTTON) {
-            this.setPower(x, y, z, 15);
-          }
-        }
+    for (const [key, blockId] of this._sources) {
+      const [x, y, z] = key.split(',').map(Number);
+      const current = world.getBlock(x, y, z);
+      if (current !== blockId) {
+        this._sources.delete(key);
+        continue;
       }
+      this.setPower(x, y, z, 15);
     }
   }
 

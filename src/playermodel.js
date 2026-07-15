@@ -504,12 +504,11 @@ export class PlayerModel {
     }
 
     const swing = Math.sin(this.animPhase) * 0.7;
-    const armSwing = Math.sin(this.animPhase) * 0.5;
 
     // Landing squash: when player just landed, squash body down briefly
     if (this._landingSquash == null) this._landingSquash = 0;
     if (onGround && !this._wasOnGround) {
-      this._landingSquash = 0.3; // trigger squash
+      this._landingSquash = 0.3;
     }
     this._wasOnGround = onGround;
     if (this._landingSquash > 0) {
@@ -525,8 +524,17 @@ export class PlayerModel {
     // Idle breathing
     const breathe = Math.sin(performance.now() * 0.002) * 0.01;
 
+    // Reset all rotations first (prevents state leaking)
+    this.body.rotation.x = 0;
+    this.body.scale.set(1, 1, 1);
+    this.head.rotation.x = 0;
+    this.head.rotation.y = 0;
+    this.leftArmPivot.rotation.set(0, 0, 0);
+    this.rightArmPivot.rotation.set(0, 0, 0);
+    this.leftLegPivot.rotation.x = 0;
+    this.rightLegPivot.rotation.x = 0;
+
     if (swimming) {
-      // Swimming: body tilted forward, limbs cycle in a crawl
       const swimPhase = this.animPhase;
       const swimSwing = Math.sin(swimPhase) * 0.8;
       this.body.rotation.x = 0.6;
@@ -536,7 +544,7 @@ export class PlayerModel {
       this.leftLegPivot.rotation.x = -swimSwing * 0.6;
       this.rightLegPivot.rotation.x = swimSwing * 0.6;
     } else {
-      this.body.rotation.x = this._hurtTilt * -0.4; // hurt tilt
+      this.body.rotation.x = this._hurtTilt * -0.4;
 
       // Landing squash on body
       const squash = this._landingSquash;
@@ -544,31 +552,23 @@ export class PlayerModel {
       this.body.scale.x = 1 + squash * 0.15;
       this.body.scale.z = 1 + squash * 0.15;
 
-      // Legs always walk when moving
       this.leftLegPivot.rotation.x = swing;
       this.rightLegPivot.rotation.x = -swing;
 
       if (eating) {
-        // Eating: right arm moves towards face, head tilts slightly
         const eatPhase = performance.now() * 0.01;
         const eatBob = Math.sin(eatPhase) * 0.1;
         this.rightArmPivot.rotation.x = -1.2 + eatBob;
         this.rightArmPivot.rotation.y = 0.5;
         this.head.rotation.x = 0.2 + eatBob * 0.2;
       } else if (breaking) {
-        // Mining: right arm swings overhead repeatedly (90° up and back)
         const mineSwing = Math.sin(this.animPhase * 4) * 1.57;
         this.rightArmPivot.rotation.x = mineSwing;
-        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -0.2;
       } else if (placing) {
-        // Placing: right arm swings overhead once then holds
         this.rightArmPivot.rotation.x = -1.57;
-        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -swing;
       } else {
-        // Normal: arms swing opposite to legs
-        this.rightArmPivot.rotation.y = 0;
         this.leftArmPivot.rotation.x = -swing;
         this.rightArmPivot.rotation.x = swing;
       }
@@ -578,6 +578,7 @@ export class PlayerModel {
       if (sprinting && moving) {
         this.body.rotation.x += 0.08;
         this.head.rotation.x += 0.08;
+        this.head.rotation.y = Math.sin(this.animPhase * 0.5) * 0.05;
       }
     }
   }

@@ -720,6 +720,11 @@ function handlePosition(ws, msg) {
   pd.crouching = !!msg.crouching;
   pd.armor = msg.armor || null;
 
+  // Rate-limit broadcast: max 25Hz per player (server side)
+  const now = Date.now();
+  if (pd._lastBroadcast && now - pd._lastBroadcast < 40) return;
+  pd._lastBroadcast = now;
+
   broadcast(room, { type: 'player_position', name: pd.name, x: pd.x, y: pd.y, z: pd.z, yaw: pd.yaw, crouching: pd.crouching, armor: pd.armor }, ws);
 }
 
@@ -994,6 +999,49 @@ function handleFriendRemove(ws, msg) {
 
 function sendFriendMsg(ws, text, ok) {
   ws.send(JSON.stringify({ type: 'friend_msg', text, ok: !!ok }));
+}
+
+// ── Player stats/settings (per-user Redis) ──────────────────────────
+function handlePlayerStatsGet(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const data = getPlayerData(pd.name);
+  ws.send(JSON.stringify({ type: 'player_stats', stats: data.stats || {} }));
+}
+
+function handlePlayerStatsSet(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const data = getPlayerData(pd.name);
+  Object.assign(data.stats, msg.stats || {});
+  setPlayerData(pd.name, data);
+}
+
+function handlePlayerSettingsGet(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const data = getPlayerData(pd.name);
+  ws.send(JSON.stringify({ type: 'player_settings', settings: data.settings || {} }));
+}
+
+function handlePlayerSettingsSet(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const data = getPlayerData(pd.name);
+  Object.assign(data.settings, msg.settings || {});
+  setPlayerData(pd.name, data);
+}
+
+function handleDevGetAllPlayers(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd || pd.role !== ROLE_DEV) return;
+  const playerNames = [];
+  for (const [, rp] of rooms) {
+    for (const [, p] of rp.players) {
+      if (!playerNames.includes(p.name)) playerNames.push(p.name);
+    }
+  }
+  ws.send(JSON.stringify({ type: 'dev_player_list', players: playerNames }));
 }
 
 // ── Start ─────────────────────────────────────────────────────────────

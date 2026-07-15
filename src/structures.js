@@ -14,6 +14,10 @@ import { calcHeight, calcBiome } from './worldgen.js';
 const REGION = 176;            // blocks per village region
 const VILLAGE_CHANCE = 0.42;   // chance a region contains a village
 const GRASS_BIOMES = new Set([BIOMES.PLAINS, BIOMES.FOREST, BIOMES.SAVANNA, BIOMES.BIRCH_FOREST]);
+const DESERT_BIOMES = new Set([BIOMES.DESERT]);
+const JUNGLE_BIOMES = new Set([BIOMES.JUNGLE]);
+const TEMPLE_REGION = 224;     // spacing between temple regions
+const TEMPLE_CHANCE = 0.28;
 
 // Deterministic hash → float in [0,1)
 function rnd(x, z, seed) {
@@ -86,6 +90,26 @@ export function generateVillages(chunk, baseX, baseZ, noise, seed, world) {
     for (let rz = minRZ; rz <= maxRZ; rz++) {
       const v = getVillage(rx, rz, noise, seed);
       if (v) placeVillage(v, chunk, baseX, baseZ, noise, world);
+    }
+  }
+
+  // Desert temples
+  const txReach = 20;
+  const txMinRX = Math.floor((baseX - txReach) / TEMPLE_REGION);
+  const txMaxRX = Math.floor((baseX + CHUNK_SIZE + txReach) / TEMPLE_REGION);
+  const txMinRZ = Math.floor((baseZ - txReach) / TEMPLE_REGION);
+  const txMaxRZ = Math.floor((baseZ + CHUNK_SIZE + txReach) / TEMPLE_REGION);
+  for (let rx = txMinRX; rx <= txMaxRX; rx++) {
+    for (let rz = txMinRZ; rz <= txMaxRZ; rz++) {
+      const t = getDesertTemple(rx, rz, noise, seed);
+      if (t) placeDesertTemple(t, chunk, baseX, baseZ, world);
+    }
+  }
+  // Jungle temples
+  for (let rx = txMinRX; rx <= txMaxRX; rx++) {
+    for (let rz = txMinRZ; rz <= txMaxRZ; rz++) {
+      const t = getJungleTemple(rx, rz, noise, seed);
+      if (t) placeJungleTemple(t, chunk, baseX, baseZ, world);
     }
   }
 }
@@ -344,6 +368,166 @@ function buildTower(set, ox, y, oz) {
   set(ox, y + 19, oz, BLOCK.TORCH);
 }
 
+function buildDesertTemple(set, ox, y, oz) {
+  // Desert temple: 19×19 sandstone structure with central chamber, treasure room below
+  const w = 19, d = 19;
+  // Flatten + foundation
+  for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+    foundation(set, ox + x, y, oz + z, BLOCK.SANDSTONE);
+  }
+  // Floor
+  for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+    set(ox + x, y, oz + z, BLOCK.SANDSTONE);
+  }
+  // Walls (6 high)
+  for (let h = 1; h <= 6; h++) {
+    for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+      const edge = x === 0 || x === w - 1 || z === 0 || z === d - 1;
+      if (!edge) { set(ox + x, y + h, oz + z, BLOCK.AIR); continue; }
+      // Chiseled sandstone pattern on walls
+      const pattern = (x + z + h) % 3 === 0 ? BLOCK.TERRACOTTA : BLOCK.SANDSTONE;
+      set(ox + x, y + h, oz + z, pattern);
+    }
+  }
+  // Door openings (all 4 sides, 2 wide)
+  const mid = w >> 1;
+  for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+    for (let d = 0; d < 2; d++) {
+      const bx = ox + mid + dx + (dx === 0 ? d : 0);
+      const bz = oz + mid + dz + (dz === 0 ? d : 0);
+      set(bx, y + 1, bz, BLOCK.AIR);
+      set(bx, y + 2, bz, BLOCK.AIR);
+    }
+  }
+  // Tiered roof
+  const ry = y + 7;
+  for (let x = -2; x <= w + 1; x++) for (let z = -2; z <= d + 1; z++) {
+    const inset = Math.max(Math.abs(x - (w - 1) / 2), Math.abs(z - (d - 1) / 2));
+    const roofH = inset > 8 ? 0 : inset > 6 ? 1 : inset > 4 ? 2 : 3;
+    if (roofH > 0) set(ox + x, ry + roofH, oz + z, BLOCK.SANDSTONE);
+  }
+  // Central pillar (chiseled sandstone)
+  const cx = ox + mid, cz = oz + mid;
+  for (let h = 1; h <= 6; h++) set(cx, y + h, cz, BLOCK.SANDSTONE);
+  // Torches on pillars
+  for (const [dx, dz] of [[3, 3], [-4, 3], [3, -4], [-4, -4]]) {
+    set(ox + mid + dx, y + 4, oz + mid + dz, BLOCK.TORCH);
+  }
+  // Treasure chamber below (dig down, place pressure plate + loot)
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+    set(cx + dx, y - 1, cz + dz, BLOCK.SANDSTONE);
+    set(cx + dx, y - 2, cz + dz, BLOCK.AIR);
+    set(cx + dx, y - 3, cz + dz, BLOCK.SANDSTONE);
+  }
+  set(cx, y - 2, cz, BLOCK.STONE_PRESSURE_PLATE); // trigger
+  // Four chests in treasure room
+  set(cx - 2, y - 2, cz - 2, BLOCK.CHEST);
+  set(cx + 2, y - 2, cz - 2, BLOCK.CHEST);
+  set(cx - 2, y - 2, cz + 2, BLOCK.CHEST);
+  set(cx + 2, y - 2, cz + 2, BLOCK.CHEST);
+  // Lava beneath pressure plate (the trap)
+  set(cx, y - 3, cz, BLOCK.LAVA);
+}
+
+function buildJungleTemple(set, ox, y, oz, world) {
+  // Jungle temple: mossy cobblestone + vines, 15×15 with hidden treasure
+  const w = 15, d = 15;
+  for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+    foundation(set, ox + x, y, oz + z, BLOCK.COBBLESTONE);
+  }
+  // Floor: mix of cobblestone and mossy cobblestone
+  for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+    set(ox + x, y, oz + z, (x + z) % 3 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE);
+  }
+  // Walls (5 high)
+  for (let h = 1; h <= 5; h++) {
+    for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
+      const edge = x === 0 || x === w - 1 || z === 0 || z === d - 1;
+      if (!edge) { set(ox + x, y + h, oz + z, BLOCK.AIR); continue; }
+      const mat = h === 1 ? BLOCK.COBBLESTONE :
+        ((x + z + h) % 4 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE);
+      set(ox + x, y + h, oz + z, mat);
+    }
+  }
+  // Door opening
+  const mid = w >> 1;
+  set(ox + mid, y + 1, oz, BLOCK.AIR);
+  set(ox + mid, y + 2, oz, BLOCK.AIR);
+  // Windows: iron bars
+  for (let x = 3; x < w - 3; x += 4) {
+    set(ox + x, y + 3, oz, BLOCK.IRON_BARS);
+    set(ox + x, y + 3, oz + d - 1, BLOCK.IRON_BARS);
+  }
+  // Triangular roof using stairs-like stepping
+  for (let step = 0; step < 3; step++) {
+    const ry = y + 6 + step;
+    const inset = step;
+    for (let x = -1 + inset; x < w - inset; x++) for (let z = -1 + inset; z < d - inset; z++) {
+      const isEdge = x === -1 + inset || x === w - 1 - inset || z === -1 + inset || z === d - 1 - inset;
+      if (isEdge) set(ox + x, ry, oz + z, BLOCK.MOSSY_COBBLESTONE);
+    }
+  }
+  // Interior: torches + hidden treasure room below
+  set(ox + 1, y + 3, oz + 1, BLOCK.TORCH);
+  set(ox + w - 2, y + 3, oz + d - 2, BLOCK.TORCH);
+  // Lever to open treasure room
+  set(ox + 2, y + 2, oz + 2, BLOCK.LEVER);
+  // Treasure room below
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    set(ox + mid + dx, y - 1, oz + mid + dz, BLOCK.COBBLESTONE);
+    set(ox + mid + dx, y - 2, oz + mid + dz, BLOCK.AIR);
+    set(ox + mid + dx, y - 3, oz + mid + dz, BLOCK.COBBLESTONE);
+  }
+  // Stairway down
+  for (let i = 0; i < 3; i++) {
+    set(ox + mid, y - 1 - i, oz + mid - 1, BLOCK.AIR);
+    set(ox + mid, y - 2 - i, oz + mid - 1, BLOCK.COBBLESTONE);
+  }
+  // Loot chest
+  set(ox + mid - 1, y - 2, oz + mid - 1, BLOCK.CHEST);
+  set(ox + mid + 1, y - 2, oz + mid - 1, BLOCK.CHEST);
+}
+
+function getDesertTemple(rx, rz, noise, seed) {
+  if (rnd(rx, rz, seed ^ 0xDE51) > TEMPLE_CHANCE) return null;
+  const cx = rx * TEMPLE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xD1A1) * TEMPLE_REGION);
+  const cz = rz * TEMPLE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xD2B2) * TEMPLE_REGION);
+  const baseY = calcHeight(noise, cx, cz);
+  if (baseY <= SEA_LEVEL) return null;
+  if (!DESERT_BIOMES.has(calcBiome(noise, cx, cz, baseY))) return null;
+  return { cx, cz, baseY };
+}
+
+function getJungleTemple(rx, rz, noise, seed) {
+  if (rnd(rx, rz, seed ^ 0x7E51) > TEMPLE_CHANCE) return null;
+  const cx = rx * TEMPLE_REGION + Math.floor(rnd(rx, rz, seed ^ 0x71A1) * TEMPLE_REGION);
+  const cz = rz * TEMPLE_REGION + Math.floor(rnd(rx, rz, seed ^ 0x72B2) * TEMPLE_REGION);
+  const baseY = calcHeight(noise, cx, cz);
+  if (baseY <= SEA_LEVEL) return null;
+  if (!JUNGLE_BIOMES.has(calcBiome(noise, cx, cz, baseY))) return null;
+  return { cx, cz, baseY };
+}
+
+function placeDesertTemple(t, chunk, baseX, baseZ, world) {
+  const set = (wx, wy, wz, b) => {
+    if (wx < baseX || wx >= baseX + CHUNK_SIZE) return;
+    if (wz < baseZ || wz >= baseZ + CHUNK_SIZE) return;
+    if (wy < 0 || wy >= WORLD_HEIGHT) return;
+    chunk.set(wx - baseX, wy, wz - baseZ, b);
+  };
+  buildDesertTemple(set, t.cx - 9, t.baseY, t.cz - 9);
+}
+
+function placeJungleTemple(t, chunk, baseX, baseZ, world) {
+  const set = (wx, wy, wz, b) => {
+    if (wx < baseX || wx >= baseX + CHUNK_SIZE) return;
+    if (wz < baseZ || wz >= baseZ + CHUNK_SIZE) return;
+    if (wy < 0 || wy >= WORLD_HEIGHT) return;
+    chunk.set(wx - baseX, wy, wz - baseZ, b);
+  };
+  buildJungleTemple(set, t.cx - 7, t.baseY, t.cz - 7, world);
+}
+
 // Place a single structure at a world position (used by the dev tools).
 // Returns a bounding box { minX, maxX, minZ, maxZ } for chunk refresh.
 export function placeStructure(world, type, ox, oy, oz) {
@@ -358,6 +542,8 @@ export function placeStructure(world, type, ox, oy, oz) {
     case 'farm': buildFarm(set, ox, oy, oz); break;
     case 'lamp': buildLamp(set, ox, oy, oz); break;
     case 'tower': buildTower(set, ox, oy, oz); break;
+    case 'desert_temple': case 'deserttemple': buildDesertTemple(set, ox, oy, oz); bb = { minX: ox - 12, maxX: ox + 12, minZ: oz - 12, maxZ: oz + 12 }; break;
+    case 'jungle_temple': case 'jungletemple': buildJungleTemple(set, ox, oy, oz, world); bb = { minX: ox - 10, maxX: ox + 10, minZ: oz - 10, maxZ: oz + 10 }; break;
     case 'village': {
       buildWell(set, ox - 2, oy, oz - 2);
       buildHouse(set, ox - 14, oy, oz - 14, 7, 7, 4, BLOCK.PLANKS, BLOCK.WOOD, seed);
@@ -376,4 +562,4 @@ export function placeStructure(world, type, ox, oy, oz) {
   return bb;
 }
 
-export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower'];
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple'];

@@ -57,6 +57,18 @@
         mix-blend-mode: difference;
         border-radius: 50%;
       }
+      #attack-cooldown {
+        position: fixed; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: 28px; height: 28px;
+        pointer-events: none; z-index: 9;
+        border-radius: 50%;
+        background: conic-gradient(transparent 0deg, rgba(255,255,255,0.7) 0deg);
+        mask: radial-gradient(circle, transparent 11px, black 12px);
+        -webkit-mask: radial-gradient(circle, transparent 11px, black 12px);
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
 
       /* Held item name */
       #item-name {
@@ -314,6 +326,15 @@
         transition: opacity 0.12s ease-out;
       }
       #damage-overlay.flash { opacity: 1; }
+
+      /* Low health vignette — persistent red border when health <= 4 hearts */
+      #low-health-vignette {
+        position: fixed; inset: 0; z-index: 5;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(ellipse at center, rgba(180,0,0,0) 40%, rgba(180,0,0,0.45) 100%);
+        transition: opacity 0.4s ease-in-out;
+      }
 
       /* Achievement toast notification */
       #achievement-toast {
@@ -1620,6 +1641,7 @@
     <div id="app"></div>
     <div id="crosshair"></div>
     <div id="crosshair-dot"></div>
+    <div id="attack-cooldown"></div>
     <div id="item-name"></div>
     <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
     <div id="armor-bar">
@@ -1656,6 +1678,7 @@
     <div id="sleep-overlay"></div>
     <div id="sleep-message"></div>
     <div id="damage-overlay"></div>
+    <div id="low-health-vignette"></div>
 
     <!-- Tutorial / First-Time Intro Overlay -->
     <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;overflow-y:auto;">

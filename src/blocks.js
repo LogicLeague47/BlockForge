@@ -85,6 +85,8 @@ export const BLOCK = {
   GREENSTONE_LAMP: 77,
   PISTON: 78,
   STICKY_PISTON: 79,
+  LAVA: 80,
+  IRON_BARS: 81,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -179,6 +181,8 @@ export const TILES = {
   sticky_piston_top:  [11, 5],
   greenstone_torch:   [12, 5],
   greenstone_wire:    [13, 5],
+  lava:               [14, 5],
+  iron_bars:          [15, 5],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -272,6 +276,8 @@ export const BLOCKS = {
   [BLOCK.GREENSTONE_LAMP]: { name: 'Greenstone Lamp', solid: true, hardness: 0.3, faces: { top: 'greenstone_lamp_off', bottom: 'greenstone_lamp_off', side: 'greenstone_lamp_off' } },
   [BLOCK.PISTON]:    { name: 'Piston', solid: true, hardness: 1.5, tool: 'axe', faces: { top: 'piston_top', bottom: 'piston_bottom', side: 'piston_side' } },
   [BLOCK.STICKY_PISTON]: { name: 'Sticky Piston', solid: true, hardness: 1.5, tool: 'axe', faces: { top: 'sticky_piston_top', bottom: 'piston_bottom', side: 'piston_side' } },
+  [BLOCK.LAVA]:       { name: 'Lava', solid: false, transparent: true, liquid: true, luminance: 15, faces: 'lava' },
+  [BLOCK.IRON_BARS]:  { name: 'Iron Bars', solid: true, transparent: true, hardness: 5, tool: 'pickaxe', faces: 'iron_bars' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

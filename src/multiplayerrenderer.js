@@ -242,8 +242,19 @@ export class MultiplayerRenderer {
     if (rp) rp.setPosition(x, y, z, yaw, crouching, armor);
   }
 
-  update(dt) {
+  update(dt, playerX, playerZ) {
     for (const rp of this.remotePlayers.values()) {
+      // Distant player culling: skip updates for players > 128 blocks away
+      if (playerX !== undefined) {
+        const dx = rp.x - playerX;
+        const dz = rp.z - playerZ;
+        if (dx * dx + dz * dz > 16384) {
+          if (rp.model.group.visible) rp.model.setVisible(false);
+          continue;
+        } else {
+          if (!rp.model.group.visible) rp.model.setVisible(true);
+        }
+      }
       rp.update(dt);
     }
   }

@@ -1393,6 +1393,7 @@ export class UI {
     if (this.hudEl) this.hudEl.style.display = v;
     const xb = document.getElementById('crosshair'); if (xb) xb.style.display = v;
     const xd = document.getElementById('crosshair-dot'); if (xd) xd.style.display = v;
+    const ac = document.getElementById('attack-cooldown'); if (ac) ac.style.display = v;
     const sb = document.getElementById('status-bars'); if (sb) sb.style.display = v;
     const xp = document.getElementById('xp-bar'); if (xp) xp.style.display = v;
     const ab = document.getElementById('armor-bar'); if (ab) ab.style.display = v;

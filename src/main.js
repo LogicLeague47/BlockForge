@@ -61,6 +61,7 @@ const MP_SERVER_URL = _serverParam
         ? `wss://${window.location.hostname}`
         : `ws://${window.location.hostname}:4000`;
 let _mpSendTimer = 0;
+let _lastMpPos = { x: 0, y: 0, z: 0, yaw: 0, crouching: false, armor: '' };
 
 // --- CrazyGames SDK helpers ---
 function cgGameplayStart() {
@@ -535,6 +536,8 @@ const BLOCK_COLORS = {
   [BLOCK.GREENSTONE_LAMP]: 0x40e060,
   [BLOCK.PISTON]: 0xbc9458,
   [BLOCK.STICKY_PISTON]: 0xbc9458,
+  [BLOCK.LAVA]: 0xff6600,
+  [BLOCK.IRON_BARS]: 0x8a8a8a,
 };
 
 function spawnBreakParticles(x, y, z, blockId) {
@@ -625,8 +628,11 @@ const greenstoneSystem = new GreenstoneSystem();
 let playerName = 'Player';
 const DEV_ACCOUNT = 'LogicLeague';
 function _refreshDevButtons() {
-  const b = document.getElementById('btn-dev-world');
-  if (b) b.style.display = (playerName === DEV_ACCOUNT) ? '' : 'none';
+  const isDev = playerName === DEV_ACCOUNT;
+  const bWorld = document.getElementById('btn-dev-world');
+  if (bWorld) bWorld.style.display = isDev ? '' : 'none';
+  const bPanel = document.getElementById('btn-dev-panel');
+  if (bPanel) bPanel.style.display = isDev ? '' : 'none';
 }
 let serverName = '';
 let currentServer = null;
@@ -1228,6 +1234,21 @@ function getHeldItemId() {
   if (!player) return null;
   const slot = player.inventory.getSelected();
   return slot ? slot.item : null;
+}
+
+function isCriticalHit() {
+  return player && !player.onGround && player.velocity.y < 0;
+}
+
+function spawnCritParticles(pos) {
+  if (!scene) return;
+  for (let i = 0; i < 6; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.8 });
+    const m = new THREE.Mesh(_particleGeoTiny, mat);
+    m.position.set(pos.x + (Math.random() - 0.5) * 0.6, pos.y + Math.random() * 1.5, pos.z + (Math.random() - 0.5) * 0.6);
+    scene.add(m);
+    _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 0.5, maxLife: 0.5 });
+  }
 }
 
 // Show held item name briefly when switching slots
@@ -2956,8 +2977,11 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const atkSlot = player.inventory.getSelected();
       const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
       const attackDamage = atkTool ? atkTool.swordDmg || 1 : 1;
-      mobHit.takeDamage(attackDamage, camera.position);
+      const crit = isCriticalHit();
+      const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
+      mobHit.takeDamage(finalDmg, camera.position);
       audio.hit();
+      if (crit) spawnCritParticles(mobHit.position);
       viewmodel.swing();
       mobManager.playHurtSound(mobHit.type);
       if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton') mobHit.aggro = true;
@@ -3821,15 +3845,14 @@ function initMenu() {
     renderWorldList();
   }
 
-  // --- Dev Panel (GameDev account only — SDK account is the auth) ---
+  // --- Dev Panel (GameDev account or LogicLeague owner) ---
   let isGameDevAccount = false;
   try {
     const cgUser = window.CrazyGames?.SDK?.user?.getUsername?.();
     if (cgUser && resolveCgUsername(cgUser)) isGameDevAccount = true;
   } catch {}
   const devBtn = document.getElementById('btn-dev-panel');
-  if (devBtn && isGameDevAccount) {
-    devBtn.style.display = '';
+  if (devBtn) {
     devBtn.addEventListener('click', () => {
       // Populate stats
       document.getElementById('dev-dau').textContent = getTodayUsers();
@@ -4063,8 +4086,11 @@ function loop() {
           const atkSlot = player.inventory.getSelected();
           const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
           const attackDamage = atkTool ? atkTool.swordDmg || 1 : 1;
-          mobHit.takeDamage(attackDamage, camera.position);
+          const crit = isCriticalHit();
+          const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
+          mobHit.takeDamage(finalDmg, camera.position);
           audio.hit();
+          if (crit) spawnCritParticles(mobHit.position);
           viewmodel.swing();
           mobManager.playHurtSound(mobHit.type);
           // Provoke hostile mobs to attack when hit
@@ -4279,6 +4305,20 @@ function loop() {
   }
   prevDamageTimer = player.damageTimer;
 
+  // Low health vignette — persistent red border when health <= 4 hearts (8 HP)
+  const lowVig = document.getElementById('low-health-vignette');
+  if (lowVig && player) {
+    const maxHp = player.maxHealth || 20;
+    const hpRatio = player.health / maxHp;
+    if (hpRatio <= 0.4 && !player.isDead()) {
+      // Pulse between 0.5 and 1.0 opacity based on time
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.004);
+      lowVig.style.opacity = String(0.5 + pulse * 0.5);
+    } else {
+      lowVig.style.opacity = '0';
+    }
+  }
+
   // Apply camera shake (decays over time)
   if (_cameraShakeIntensity > 0) {
     _cameraShakeIntensity *= Math.max(0, 1 - dt * 8);
@@ -4391,15 +4431,19 @@ function loop() {
   loader.update(player.position.x, player.position.z);
   manager.tick();
 
-  // Spawn mobs for newly generated chunks
+  // Spawn mobs for newly generated chunks (throttled to once per second)
   if (mobManager) {
-    const pcx = Math.floor(player.position.x / CHUNK_SIZE);
-    const pcz = Math.floor(player.position.z / CHUNK_SIZE);
-    for (let dz = -renderDist; dz <= renderDist; dz++) {
-      for (let dx = -renderDist; dx <= renderDist; dx++) {
-        const cx = pcx + dx, cz = pcz + dz;
-        const chunk = world.chunks.get(cx + ',' + cz);
-        if (chunk && chunk.generated) mobManager.spawnForChunk(cx, cz, dayTime > 0.625);
+    _mobSpawnTimer = (_mobSpawnTimer || 0) - dt;
+    if (_mobSpawnTimer <= 0) {
+      _mobSpawnTimer = 1.0;
+      const pcx = Math.floor(player.position.x / CHUNK_SIZE);
+      const pcz = Math.floor(player.position.z / CHUNK_SIZE);
+      for (let dz = -renderDist; dz <= renderDist; dz++) {
+        for (let dx = -renderDist; dx <= renderDist; dx++) {
+          const cx = pcx + dx, cz = pcz + dz;
+          const chunk = world.chunks.get(cx + ',' + cz);
+          if (chunk && chunk.generated) mobManager.spawnForChunk(cx, cz, dayTime > 0.625);
+        }
       }
     }
   }
@@ -4429,7 +4473,7 @@ function loop() {
 
   // Update multiplayer remote players
   if (mpRenderer) {
-    mpRenderer.update(dt);
+    mpRenderer.update(dt, player ? player.position.x : undefined, player ? player.position.z : undefined);
     // Simulate other players moving around in multiplayer
     if (isMultiplayer && currentServer) {
       _simulateRemotePlayers(dt);
@@ -4584,6 +4628,19 @@ function loop() {
 
   renderer.render(scene, camera);
 
+  // --- Attack cooldown indicator (ring around crosshair) ---
+  const cooldownEl = document.getElementById('attack-cooldown');
+  if (cooldownEl && pointerLocked) {
+    const cdProg = Math.min(1, (_playerAttackTimer || 0) / 0.4);
+    if (cdProg < 1) {
+      cooldownEl.style.opacity = '1';
+      const deg = cdProg * 360;
+      cooldownEl.style.background = `conic-gradient(rgba(255,255,255,0.8) ${deg}deg, transparent ${deg}deg)`;
+    } else {
+      cooldownEl.style.opacity = '0';
+    }
+  }
+
   // --- Mob health bar tooltip ---
   const mobHealthEl = document.getElementById('mob-health');
   if (mobHealthEl) {
@@ -4704,12 +4761,21 @@ function loop() {
     saveCurrentWorld();
   }
 
-  // Send position to multiplayer server (throttled to ~20Hz)
+  // Send position to multiplayer server (only when changed, max ~20Hz)
   if (network.connected && network.roomName && player) {
     _mpSendTimer += dt;
     if (_mpSendTimer >= 0.05) {
       _mpSendTimer = 0;
-      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching, player.inventory.armor.map(s => s ? s.item : null));
+      const armorStr = player.inventory.armor.map(s => s ? s.item : null).join(',');
+      const moved = Math.abs(player.position.x - _lastMpPos.x) > 0.01 ||
+                    Math.abs(player.position.y - _lastMpPos.y) > 0.01 ||
+                    Math.abs(player.position.z - _lastMpPos.z) > 0.01;
+      const turned = Math.abs(player.yaw - _lastMpPos.yaw) > 0.02;
+      const stateChanged = player.crouching !== _lastMpPos.crouching || armorStr !== _lastMpPos.armor;
+      if (moved || turned || stateChanged) {
+        network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching, player.inventory.armor.map(s => s ? s.item : null));
+        _lastMpPos = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.yaw, crouching: player.crouching, armor: armorStr };
+      }
     }
   }
 
@@ -4965,6 +5031,7 @@ document.getElementById('btn-close-chest')?.addEventListener('click', () => {
 
 let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false;
 const _prevPlayerPos = new THREE.Vector3();
+let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true;
 function facingName(yaw) {
   const a = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
   if (a < 45 || a >= 315) return 'South';
