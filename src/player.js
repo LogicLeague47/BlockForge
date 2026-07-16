@@ -184,7 +184,7 @@ export class Player {
 
     // Armor damage reduction using totalArmorDefense (handles full-set bonuses)
     const armorDef = this.inventory ? totalArmorDefense(this.inventory.armor) : 0;
-    if (armorDef >= 999) return true; // Full Prismite set = invincible
+    if (armorDef >= 999) return false; // Full Prismite set = invincible, no damage dealt
     const reduction = Math.min(0.8, armorDef * 0.04);
     const finalDamage = Math.max(1, Math.ceil(amount * (1 - reduction)));
 
@@ -321,8 +321,8 @@ export class Player {
 
     const kb = getKeybinds();
     this.crouching = (!!input.keys[kb.crouch] || !!input.keys['KeyC']) && !this.flying;
-    // Sprinting: disabled when hungry, crouching, or eating
-    if (this.isSurvival() && this.hunger <= 6) this.sprinting = false;
+    // Sprinting: disabled when starving (hunger = 0), crouching, or eating
+    if (this.isSurvival() && this.hunger <= 0) this.sprinting = false;
     else this.sprinting = !!input.keys[kb.sprint] && !this.crouching && !this.eating;
 
     // Double-tap space to toggle fly in creative
@@ -432,7 +432,10 @@ export class Player {
 
     // respawn if we fall out of the world
     if (this.position.y < -10) {
-      if (this.isSurvival()) this.takeDamage(100, 'void');
+      if (this.isSurvival()) {
+        this.takeDamage(100, 'void');
+        if (this.isDead()) return; // let death screen show
+      }
       this.spawn();
     }
 

@@ -146,21 +146,23 @@ export class Inventory {
   // Sort main inventory: stack-compatible items together and fill gaps.
   sort() {
     const items = this.slots.filter(s => s);
-    // Group by item id, merging counts up to max stack
-    const byId = new Map();
+    // Group by item id + durability, merging counts up to max stack
+    // Tools with different durability stay separate
+    const byKey = new Map();
     for (const s of items) {
-      if (!byId.has(s.item)) byId.set(s.item, { item: s.item, count: 0, durability: s.durability });
-      const entry = byId.get(s.item);
+      const key = s.durability != null ? `${s.item}_${s.durability}` : `${s.item}`;
+      if (!byKey.has(key)) byKey.set(key, { item: s.item, count: 0, durability: s.durability });
+      const entry = byKey.get(key);
       entry.count += s.count;
     }
     // Rebuild slots in order
     const sortedSlots = [];
-    for (const [item, entry] of byId) {
-      const cap = maxStack(item);
+    for (const [key, entry] of byKey) {
+      const cap = maxStack(entry.item);
       let remaining = entry.count;
       while (remaining > 0) {
         const c = Math.min(remaining, cap);
-        sortedSlots.push({ item, count: c, ...(entry.durability != null ? { durability: entry.durability } : {}) });
+        sortedSlots.push({ item: entry.item, count: c, ...(entry.durability != null ? { durability: entry.durability } : {}) });
         remaining -= c;
       }
     }

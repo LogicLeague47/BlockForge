@@ -1651,9 +1651,9 @@ class Mob {
 
   _genericTextures(def) {
     const s = 8;
-    const t = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.bodyColor.toString(16).padStart(6,'0')); });
-    const h = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.headColor.toString(16).padStart(6,'0')); });
-    const l = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, '#' + def.legColor.toString(16).padStart(6,'0')); });
+    const t = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, def.bodyColor); });
+    const h = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, def.headColor); });
+    const l = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, def.legColor); });
     const arr = [t,t,t,t,t,t];
     return { body: arr, head: [h,h,h,h,h,h], leg: [l,l,l,l,l,l] };
   }
@@ -1859,7 +1859,7 @@ class Mob {
     this.mesh.rotation.y = this.yaw;
 
     // Leg walking animation
-    const isMoving = this.state === 'walking' && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01);
+    const isMoving = (this.state === 'walking' || this.state === 'fleeing') && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01);
     const moveSpeed = isMoving ? Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z) : 0;
     if (isMoving) {
       // Speed proportional to movement velocity
@@ -1931,9 +1931,19 @@ class Mob {
     const swing = Math.sin(this.walkPhase) * 0.5;
     for (let i = 0; i < this.legs.length; i++) {
       const leg = this.legs[i];
-      // Quadruped: Front-left (0) & back-right (3) swing together
-      const phase = (i === 0 || i === 3) ? swing : -swing;
-      leg.rotation.x = phase;
+      // Check if this is a villager arm (last 2 in array for villager)
+      const isVillagerArm = this.type === 'villager' && i >= this.legs.length - 2;
+      if (isVillagerArm) {
+        // Arms swing opposite to legs
+        leg.rotation.x = -swing;
+      } else if (MOB_TYPES[this.type]?.bipedalLegs) {
+        // Bipedal: both legs swing together
+        leg.rotation.x = swing;
+      } else {
+        // Quadruped: Front-left (0) & back-right (3) swing together
+        const phase = (i === 0 || i === 3) ? swing : -swing;
+        leg.rotation.x = phase;
+      }
     }
 
     // Attack arm swing animation (zombie/skeleton)
@@ -2275,7 +2285,6 @@ export class MobManager {
             // Flash red/white during fuse (using cached materials)
             if (mob._allMats) {
               const flashOn = Math.sin(mob._fuseFlashPhase) > 0;
-              const flashColor = flashOn ? 0xff4444 : 0xffffff;
               for (let i = 0; i < mob._allMats.length; i++) {
                 mob._allMats[i].color.setHex(flashOn ? 0xff4444 : mob._savedColors[i]);
               }
@@ -2286,19 +2295,11 @@ export class MobManager {
               mob.fusing = false;
               mob.fuseTimer = 0;
               mob._fuseFlashPhase = 0;
-              // Restore colors
-              if (mob.mesh) {
-                mob.mesh.traverse((child) => {
-                  if (child.isMesh && child.material) {
-                    const mats = Array.isArray(child.material) ? child.material : [child.material];
-                    for (const m of mats) {
-                      if (m._savedColor !== undefined) {
-                        m.color.setHex(m._savedColor);
-                        delete m._savedColor;
-                      }
-                    }
-                  }
-                });
+              // Restore colors from _savedColors array
+              if (mob._allMats && mob._savedColors) {
+                for (let i = 0; i < mob._allMats.length; i++) {
+                  mob._allMats[i].color.setHex(mob._savedColors[i]);
+                }
               }
             }
 

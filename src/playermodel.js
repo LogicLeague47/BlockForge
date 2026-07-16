@@ -486,7 +486,7 @@ export class PlayerModel {
     });
   }
 
-  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating, crouching = false, flying = false, onLadder = false) {
+  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating, crouching = false, flying = false, onLadder = false, headYaw = 0) {
     if (!this.group.visible) return;
 
     this.group.position.set(playerPos.x, playerPos.y, playerPos.z);
@@ -505,6 +505,7 @@ export class PlayerModel {
     this.animData.flying = flying;
     this.animData.onLadder = onLadder;
     this.animData.velocityY = velocity.y;
+    this.animData.headYaw = headYaw;
 
     // Update animation timers
     this.animData.update(dt);
@@ -514,15 +515,23 @@ export class PlayerModel {
 
     // Apply pose to body parts
     this.body.rotation.x = pose.bodyRotX;
+    this.body.rotation.y = pose.bodyRotY;
+    this.body.rotation.z = pose.bodyRotZ;
+    this.body.position.x = pose.bodyTransX;
+    this.body.position.y = px(LEG.h + BODY.h / 2) + pose.bodyTransY;
+    this.body.position.z = pose.bodyTransZ;
     this.body.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
 
     this.head.rotation.x = pose.headRotX;
     this.head.rotation.y = pose.headRotY;
+    this.head.rotation.z = pose.headRotZ;
 
     this.leftArmPivot.rotation.x = pose.leftArmRotX;
+    this.leftArmPivot.rotation.y = pose.leftArmRotY;
     this.leftArmPivot.rotation.z = pose.leftArmRotZ;
 
     this.rightArmPivot.rotation.x = pose.rightArmRotX;
+    this.rightArmPivot.rotation.y = pose.rightArmRotY;
     this.rightArmPivot.rotation.z = pose.rightArmRotZ;
 
     this.leftLegPivot.rotation.x = pose.leftLegRotX;
