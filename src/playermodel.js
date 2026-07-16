@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { isBlockItem, isTool, itemDef } from './items.js';
 import { TOOL_PALETTES, makeItemIconCanvas } from './ui.js';
 import { TILES, tileNameFor } from './blocks.js';
+import { PlayerAnimData, calculatePose } from './animations.js';
 
 const SCALE = 1 / 16;
 function px(v) { return v * SCALE; }
@@ -265,8 +266,8 @@ export class PlayerModel {
     this.group = new THREE.Group();
     this.group.visible = false;
     scene.add(this.group);
-    this.animPhase = 0;
     this._atlasCanvas = atlasCanvas;
+    this.animData = new PlayerAnimData();
 
     this.skin = createSkinCanvas(preset);
     this._buildBody();
@@ -485,128 +486,57 @@ export class PlayerModel {
     });
   }
 
-  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating) {
+  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating, crouching = false, flying = false, onLadder = false) {
     if (!this.group.visible) return;
 
     this.group.position.set(playerPos.x, playerPos.y, playerPos.z);
     this.group.rotation.y = playerYaw;
 
+    // Update animation state
     const speed = Math.sqrt(velocity.x ** 2 + velocity.z ** 2);
-    const moving = speed > 0.3;
+    this.animData.moving = speed > 0.3;
+    this.animData.sprinting = sprinting;
+    this.animData.breaking = breaking;
+    this.animData.placing = placing;
+    this.animData.inWater = swimming;
+    this.animData.eating = eating;
+    this.animData.onGround = onGround;
+    this.animData.crouching = crouching;
+    this.animData.flying = flying;
+    this.animData.onLadder = onLadder;
+    this.animData.velocityY = velocity.y;
 
-    if (moving) {
-      this.animPhase += dt * (sprinting ? 14 : 10);
-    } else {
-      this.animPhase *= 0.9;
-      if (Math.abs(this.animPhase) < 0.01) this.animPhase = 0;
-    }
+    // Update animation timers
+    this.animData.update(dt);
 
-    const swing = Math.sin(this.animPhase) * 0.7;
+    // Calculate pose
+    const pose = calculatePose(this.animData);
 
-    // Landing squash: when player just landed, squash body down briefly
-    if (this._landingSquash == null) this._landingSquash = 0;
-    if (onGround && !this._wasOnGround) {
-      this._landingSquash = 0.3;
-    }
-    this._wasOnGround = onGround;
-    if (this._landingSquash > 0) {
-      this._landingSquash = Math.max(0, this._landingSquash - dt * 3);
-    }
+    // Apply pose to body parts
+    this.body.rotation.x = pose.bodyRotX;
+    this.body.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
 
-  // Hurt tilt: tilt body back when taking damage
-  if (this._hurtTilt == null) this._hurtTilt = 0;
-  if (this._hurtTilt > 0) {
-    this._hurtTilt = Math.max(0, this._hurtTilt - dt * 4);
-  }
+    this.head.rotation.x = pose.headRotX;
+    this.head.rotation.y = pose.headRotY;
 
-  // Celebrate: arms up, head tilted back
-  if (this._celebrateTimer == null) this._celebrateTimer = 0;
-  if (this._celebrateTimer > 0) {
-    this._celebrateTimer -= dt;
-  }
+    this.leftArmPivot.rotation.x = pose.leftArmRotX;
+    this.leftArmPivot.rotation.z = pose.leftArmRotZ;
 
-  // Idle breathing
-  const breathe = Math.sin(performance.now() * 0.002) * 0.01;
+    this.rightArmPivot.rotation.x = pose.rightArmRotX;
+    this.rightArmPivot.rotation.z = pose.rightArmRotZ;
 
-  // Reset all rotations first (prevents state leaking)
-  this.body.rotation.x = 0;
-  this.body.scale.set(1, 1, 1);
-  this.head.rotation.x = 0;
-  this.head.rotation.y = 0;
-  this.leftArmPivot.rotation.set(0, 0, 0);
-  this.rightArmPivot.rotation.set(0, 0, 0);
-  this.leftLegPivot.rotation.x = 0;
-  this.rightLegPivot.rotation.x = 0;
-
-  if (this._celebrateTimer > 0) {
-    const t = this._celebrateTimer;
-    const pump = Math.sin(t * 14) * 0.25;
-    this.leftArmPivot.rotation.x = -2.2 + pump;
-    this.rightArmPivot.rotation.x = -2.2 - pump;
-    this.leftArmPivot.rotation.z = 0.5;
-    this.rightArmPivot.rotation.z = -0.5;
-    this.head.rotation.x = -0.35;
-    this.body.rotation.x = 0.08;
-    // Body bounce
-    this.body.scale.y = 1 + Math.sin(t * 14) * 0.04;
-    this.body.scale.x = 1 - Math.sin(t * 14) * 0.02;
-  } else if (swimming) {
-      const swimPhase = this.animPhase;
-      const swimSwing = Math.sin(swimPhase) * 0.8;
-      this.body.rotation.x = 0.6;
-      this.head.rotation.x = -0.3;
-      this.leftArmPivot.rotation.x = -0.8 + swimSwing;
-      this.rightArmPivot.rotation.x = -0.8 - swimSwing;
-      this.leftLegPivot.rotation.x = -swimSwing * 0.6;
-      this.rightLegPivot.rotation.x = swimSwing * 0.6;
-    } else {
-      this.body.rotation.x = this._hurtTilt * -0.4;
-
-      // Landing squash on body
-      const squash = this._landingSquash;
-      this.body.scale.y = 1 - squash * 0.3;
-      this.body.scale.x = 1 + squash * 0.15;
-      this.body.scale.z = 1 + squash * 0.15;
-
-      this.leftLegPivot.rotation.x = swing;
-      this.rightLegPivot.rotation.x = -swing;
-
-      if (eating) {
-        const eatPhase = performance.now() * 0.01;
-        const eatBob = Math.sin(eatPhase) * 0.1;
-        this.rightArmPivot.rotation.x = -1.2 + eatBob;
-        this.rightArmPivot.rotation.y = 0.5;
-        this.head.rotation.x = 0.2 + eatBob * 0.2;
-      } else if (breaking) {
-        const mineSwing = Math.sin(this.animPhase * 4) * 1.57;
-        this.rightArmPivot.rotation.x = mineSwing;
-        this.leftArmPivot.rotation.x = -0.2;
-      } else if (placing) {
-        this.rightArmPivot.rotation.x = -1.57;
-        this.leftArmPivot.rotation.x = -swing;
-      } else {
-        this.leftArmPivot.rotation.x = -swing;
-        this.rightArmPivot.rotation.x = swing;
-      }
-
-      this.head.rotation.x = Math.sin(this.animPhase * 2) * 0.03 + breathe;
-
-      if (sprinting && moving) {
-        this.body.rotation.x += 0.08;
-        this.head.rotation.x += 0.08;
-        this.head.rotation.y = Math.sin(this.animPhase * 0.5) * 0.05;
-      }
-    }
+    this.leftLegPivot.rotation.x = pose.leftLegRotX;
+    this.rightLegPivot.rotation.x = pose.rightLegRotX;
   }
 
   // Trigger hurt tilt animation (called when player takes damage)
   triggerHurt() {
-    this._hurtTilt = 1.0;
+    this.animData.hurtTimer = 1.0;
   }
 
   // Trigger celebration animation (arms up, ~1.2s duration)
   triggerCelebrate() {
-    this._celebrateTimer = 2.0;
+    this.animData.celebrateTimer = 2.0;
   }
 
   // ── Armour overlay rendering ──────────────────────────────────────────
