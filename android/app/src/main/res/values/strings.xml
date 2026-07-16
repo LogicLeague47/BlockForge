@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">BlockForge</string>
+    <string name="title_activity_main">BlockForge</string>
+    <string name="package_name">com.blockforge.game</string>
+    <string name="custom_url_scheme">com.blockforge.game</string>
+</resources>
