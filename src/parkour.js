@@ -3,6 +3,64 @@ import { CHUNK_SIZE } from './constants.js';
 
 const PK_KEY = 'blockforge_parkour_pbs';
 
+// ─── Parkour Paradise Map Loader ─────────────────────────────────────
+export async function loadParkourMap(world) {
+  const resp = await fetch('parkour-chunks.bin.gz');
+  if (!resp.ok) throw new Error('Failed to load parkour map: ' + resp.status);
+  const compressed = new Uint8Array(await resp.arrayBuffer());
+
+  // Decompress with DecompressionStream (gzip)
+  let decompressed;
+  if (typeof DecompressionStream !== 'undefined') {
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(compressed);
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+    decompressed = new Uint8Array(totalLen);
+    let off = 0;
+    for (const c of chunks) { decompressed.set(c, off); off += c.length; }
+  } else {
+    // Fallback: try loading uncompressed
+    const resp2 = await fetch('parkour-chunks.bin');
+    decompressed = new Uint8Array(await resp2.arrayBuffer());
+  }
+
+  const view = new DataView(decompressed.buffer);
+  let p = 0;
+  const version = view.getInt32(p); p += 4;
+  const minX = view.getInt32(p); p += 4;
+  const maxX = view.getInt32(p); p += 4;
+  const minY = view.getInt32(p); p += 4;
+  const maxY = view.getInt32(p); p += 4;
+  const minZ = view.getInt32(p); p += 4;
+  const maxZ = view.getInt32(p); p += 4;
+  const spawnY = view.getInt32(p); p += 4;
+  const blockCount = view.getInt32(p); p += 4;
+
+  const intView = new Int32Array(decompressed.buffer, p);
+  for (let i = 0; i < blockCount; i++) {
+    const x = intView[i * 4];
+    const y = intView[i * 4 + 1];
+    const z = intView[i * 4 + 2];
+    const bid = intView[i * 4 + 3];
+    world.bulkSetBlock(x, y, z, bid);
+  }
+
+  return {
+    bounds: { minX, maxX, minY, maxY, minZ, maxZ },
+    spawnY,
+    blockCount
+  };
+}
+
 // ─── Level Definitions ───────────────────────────────────────────────
 export const PARKOUR_LEVELS = [
   { id: 1, name: 'First Steps',     desc: 'Simple 2-block gaps' },

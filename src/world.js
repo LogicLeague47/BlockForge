@@ -94,6 +94,18 @@ export class World {
     }
   }
 
+  // Bulk load: store blocks in _chunkEdits without creating chunks.
+  // Chunks are created on demand by the chunk loader, and generateChunk()
+  // applies _chunkEdits when it runs.
+  bulkSetBlock(x, y, z, v) {
+    if (y < 0 || y >= WORLD_HEIGHT) return;
+    const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
+    const ck = this.key(cx, cz);
+    let cm = this._chunkEdits.get(ck);
+    if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
+    cm.set(`${x},${y},${z}`, v);
+  }
+
   generateChunk(chunk) {
     const baseX = chunk.cx * CHUNK_SIZE;
     const baseZ = chunk.cz * CHUNK_SIZE;

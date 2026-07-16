@@ -26,7 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { ParkourGame, buildParkourLevel, buildParkourLobby, PARKOUR_LEVELS } from './parkour.js';
+import { ParkourGame, buildParkourLevel, buildParkourLobby, PARKOUR_LEVELS, loadParkourMap } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -3188,6 +3188,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   }
 
   // ── Parkour mode ───
+  let parkourLoadPromise = null;
   if (isParkour) {
     player.setGamemode('adventure');
     if (mobManager) { mobManager.clear(); }
@@ -3198,52 +3199,75 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       player.inventory.slots.fill(null);
       player.inventory.offhand = null;
     }
-    player.position.set(0.5, 70, 0.5);
-    player.velocity.set(0, 0, 0);
-    player.spawnPoint.set(0.5, 70, 0.5);
 
-    // Build lobby centre as spawn platform
-    for (let dx = -1; dx <= 1; dx++)
-      for (let dz = -1; dz <= 1; dz++)
-        world.setBlock(dx, 64, dz, BLOCK.VOID_GLASS);
-    world.setBlock(0, 65, 0, BLOCK.GOLD_BLOCK);
+    // Load converted Parkour Paradise map (async fetch + decompress)
+    parkourLoadPromise = (async () => {
+      try {
+        console.log('[Parkour] Loading Parkour Paradise map...');
+        const mapInfo = await loadParkourMap(world);
+        console.log(`[Parkour] Loaded ${mapInfo.blockCount} blocks, bounds X[${mapInfo.bounds.minX}..${mapInfo.bounds.maxX}] Z[${mapInfo.bounds.minZ}..${mapInfo.bounds.maxZ}]`);
 
-    // Build parkour lobby and levels
-    buildParkourLobby(world, 0, 64, 0);
-    const levelPositions = [];
-    const LEVELS_PER_ROW = 5;
-    const LEVEL_SPACING_X = 32;
-    const LEVEL_SPACING_Z = 20;
-    for (let i = 0; i < PARKOUR_LEVELS.length; i++) {
-      const row = Math.floor(i / LEVELS_PER_ROW);
-      const col = i % LEVELS_PER_ROW;
-      const ox = (col - Math.floor(LEVELS_PER_ROW / 2)) * LEVEL_SPACING_X;
-      const oz = -(row + 1) * LEVEL_SPACING_Z;
-      const pos = buildParkourLevel(world, i + 1, ox, 64, oz);
-      levelPositions.push(pos);
-    }
-    // Guide path from lobby to level 1
-    for (let x = -12; x >= -62; x--) {
-      world.setBlock(x, 64, 0, BLOCK.VOID_GLASS);
-    }
+        player.position.set(0.5, mapInfo.spawnY, 0.5);
+        player.velocity.set(0, 0, 0);
+        player.spawnPoint.set(0.5, mapInfo.spawnY, 0.5);
 
-    // Force all affected chunks to remesh
-    if (manager) {
-      const affected = new Set();
-      for (let cx = -5; cx <= 5; cx++)
-        for (let cz = -5; cz <= 5; cz++)
-          affected.add(cx + ',' + cz);
-      for (const k of affected) {
-        const [cx, cz] = k.split(',').map(Number);
-        manager.buildOrRefresh(cx, cz);
+        // Rebuild chunks near spawn only (chunk loader handles the rest)
+        if (manager) {
+          const spawnCX = 0, spawnCZ = 0;
+          const rd = (parseInt(document.getElementById('set-render-distance')?.value) || 7) + 2;
+          for (let cx = spawnCX - rd; cx <= spawnCX + rd; cx++)
+            for (let cz = spawnCZ - rd; cz <= spawnCZ + rd; cz++)
+              manager.buildOrRefresh(cx, cz);
+          console.log(`[Parkour] Rebuilt spawn area chunks (radius ${rd})`);
+        }
+
+        // Level positions — unreachable so player explores freely; timer still runs
+        const levelPositions = [{ x: 0.5, y: 300, z: 0.5 }];
+
+        parkourGame = new ParkourGame(world, player, ui);
+        parkourGame.start(levelPositions);
+        document.getElementById('status-bars').style.display = 'none';
+        document.getElementById('armor-bar').style.display = 'none';
+        document.getElementById('hunger-bar')?.remove();
+      } catch (e) {
+        console.error('[Parkour] Failed to load map, falling back to procedural:', e);
+        // Fallback to procedural generation
+        player.position.set(0.5, 70, 0.5);
+        player.velocity.set(0, 0, 0);
+        player.spawnPoint.set(0.5, 70, 0.5);
+        buildParkourLobby(world, 0, 64, 0);
+        const levelPositions = [];
+        const LEVELS_PER_ROW = 5;
+        const LEVEL_SPACING_X = 32;
+        const LEVEL_SPACING_Z = 20;
+        for (let i = 0; i < PARKOUR_LEVELS.length; i++) {
+          const row = Math.floor(i / LEVELS_PER_ROW);
+          const col = i % LEVELS_PER_ROW;
+          const ox = (col - Math.floor(LEVELS_PER_ROW / 2)) * LEVEL_SPACING_X;
+          const oz = -(row + 1) * LEVEL_SPACING_Z;
+          const pos = buildParkourLevel(world, i + 1, ox, 64, oz);
+          levelPositions.push(pos);
+        }
+        for (let x = -12; x >= -62; x--) {
+          world.setBlock(x, 64, 0, BLOCK.VOID_GLASS);
+        }
+        if (manager) {
+          const affected = new Set();
+          for (let cx = -5; cx <= 5; cx++)
+            for (let cz = -5; cz <= 5; cz++)
+              affected.add(cx + ',' + cz);
+          for (const k of affected) {
+            const [cx, cz] = k.split(',').map(Number);
+            manager.buildOrRefresh(cx, cz);
+          }
+        }
+        parkourGame = new ParkourGame(world, player, ui);
+        parkourGame.start(levelPositions);
+        document.getElementById('status-bars').style.display = 'none';
+        document.getElementById('armor-bar').style.display = 'none';
+        document.getElementById('hunger-bar')?.remove();
       }
-    }
-
-    parkourGame = new ParkourGame(world, player, ui);
-    parkourGame.start(levelPositions);
-    document.getElementById('status-bars').style.display = 'none';
-    document.getElementById('armor-bar').style.display = 'none';
-    document.getElementById('hunger-bar')?.remove();
+    })();
   }
 
   // Show loading screen
@@ -3270,7 +3294,12 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
                      pct < 50 ? 'Building landscape...' :
                      pct < 75 ? 'Planting trees...' : 'Almost ready...';
     ui.updateLoading(pct, stepText);
-  }).then(() => {
+  }).then(async () => {
+    // Wait for parkour map to load if applicable
+    if (parkourLoadPromise) {
+      ui.updateLoading(100, 'Loading parkour map...');
+      await parkourLoadPromise;
+    }
     clearInterval(_tipInterval);
     ui.updateLoading(100, 'Done!');
     cgLoadingStop();
