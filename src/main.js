@@ -3221,8 +3221,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           console.log(`[Parkour] Rebuilt spawn area chunks (radius ${rd})`);
         }
 
-        // Level positions — unreachable so player explores freely; timer still runs
-        const levelPositions = [{ x: 0.5, y: 300, z: 0.5 }];
+        // Level positions — far away so player explores freely; timer still runs
+        const levelPositions = [{ x: 99999, y: 300, z: 99999 }];
 
         parkourGame = new ParkourGame(world, player, ui);
         parkourGame.start(levelPositions);
