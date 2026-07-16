@@ -1754,6 +1754,29 @@
       .mc-btn-sprint { border-color: rgba(120,200,255,0.5); font-size: 28px; }
       .mc-btn-place { border-color: rgba(100,150,255,0.5); }
 
+      /* Extra action buttons row */
+      .mc-extra-buttons {
+        position: absolute; right: 100px; bottom: 20px;
+        display: flex; flex-direction: row; gap: 10px;
+        pointer-events: auto;
+      }
+      .mc-btn-sm {
+        width: 44px; height: 44px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.4);
+        color: #fff;
+        font-size: 18px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px);
+        -webkit-backdrop-filter: blur(2px);
+      }
+      .mc-btn-sm:active { background: rgba(255,255,255,0.3); }
+      .mc-btn-drop { border-color: rgba(255,100,100,0.5); color: #ff8888; }
+      .mc-btn-swap { border-color: rgba(200,200,100,0.5); }
+      .mc-btn-perspective { border-color: rgba(150,200,255,0.5); }
+      .mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-size: 20px; font-weight: bold; }
+
       /* Show mobile controls on touch devices */
       @media (hover: none) and (pointer: coarse) {
         #mobile-controls { display: block; }

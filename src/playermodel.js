@@ -393,7 +393,7 @@ export class PlayerModel {
         new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
         new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
       ];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(8)), mats);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), mats);
       wrap.add(mesh);
     } else if (isTool(itemId)) {
       const def = itemDef(itemId);
@@ -432,24 +432,24 @@ export class PlayerModel {
         shovelHead.position.y = px(5);
         wrap.add(shovelHead);
       } else {
-        // trident / other: flat plane
+        // trident / other: 3D item cube
         const canvas = this._getItemCanvas(itemId);
         const tex = this._canvasTex(canvas);
-        const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, fog: false, side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(12), px(12)), mat);
+        const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), [mat, mat, mat, mat, mat, mat]);
         wrap.add(mesh);
       }
     } else {
-      // Non-block, non-tool items: flat plane
+      // Non-block, non-tool items: 3D cube with item texture on all faces
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
-      const mat = new THREE.MeshLambertMaterial({ map: tex, transparent: true, fog: false, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(10), px(10)), mat);
+      const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), [mat, mat, mat, mat, mat, mat]);
       wrap.add(mesh);
     }
 
     // Position at the bottom of the arm (the hand)
-    wrap.position.set(0, -px(ARM.h / 2) + px(2), px(1));
+    wrap.position.set(0, -px(ARM.h / 2 - 1), px(1));
     this._heldMesh = wrap;
     this.rightArm.add(wrap);
   }

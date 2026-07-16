@@ -736,6 +736,8 @@ document.addEventListener('mousemove', (e) => {
 
  document.addEventListener('keydown', (e) => {
   if (!gameRunning) return;
+  // Always prevent browser Quick Find / search for /
+  if (e.code === 'Slash') e.preventDefault();
   const kb = getKeybinds();
   // Escape during sleep wakes up
   if (e.code === 'Escape' && sleeping) {
@@ -3115,6 +3117,41 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (!gameRunning) return;
       if (ui.inventoryOpen) { ui.closeInventory(); syncUIMode(); }
       else { ui.openInventory(player.inventory, 2, player.isCreative()); achievements.incrementStat('inventoryOpened'); }
+    },
+    onDrop() {
+      if (!gameRunning) return;
+      const slot = player.inventory.getSelected();
+      if (slot) {
+        if (droppedItemManager) {
+          droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z);
+        }
+        slot.count--;
+        if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+        syncUIMode();
+      }
+    },
+    onSwapHands() {
+      if (!gameRunning) return;
+      const sel = player.inventory.selected;
+      const curSlot = player.inventory.slots[sel];
+      const offhand = player.inventory.offhand;
+      if (curSlot || offhand) {
+        player.inventory.slots[sel] = offhand || null;
+        player.inventory.offhand = curSlot || null;
+        syncUIMode();
+      }
+    },
+    onPerspective() {
+      if (!gameRunning || !player) return;
+      player.cycleCamera();
+      const modes = ['First Person', 'Third Person (Behind)', 'Third Person (Front)'];
+      ui.itemNameEl.textContent = modes[player.cameraMode];
+      ui.itemNameEl.classList.add('visible');
+      _itemNameTimer = 1.5;
+    },
+    onCommand() {
+      if (!gameRunning || chatDisabled) return;
+      openChat('/');
     },
   });
   if (saved?.player) {

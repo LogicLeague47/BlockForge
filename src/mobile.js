@@ -69,6 +69,12 @@ export function initMobileControls(playerRef, input, callbacks) {
       <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
       <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
     </div>
+    <div class="mc-extra-buttons">
+      <button class="mc-btn-sm mc-btn-drop" data-action="drop">&#10006;</button>
+      <button class="mc-btn-sm mc-btn-swap" data-action="swapHands">&#8646;</button>
+      <button class="mc-btn-sm mc-btn-perspective" data-action="perspective">&#128065;</button>
+      <button class="mc-btn-sm mc-btn-cmd" data-action="command">/</button>
+    </div>
   `;
   document.body.appendChild(root);
 
@@ -219,6 +225,14 @@ export function initMobileControls(playerRef, input, callbacks) {
       }
     } else if (action === 'place') {
       if (down && callbacks.onPlace) callbacks.onPlace();
+    } else if (action === 'drop' && down) {
+      if (callbacks.onDrop) callbacks.onDrop();
+    } else if (action === 'swapHands' && down) {
+      if (callbacks.onSwapHands) callbacks.onSwapHands();
+    } else if (action === 'perspective' && down) {
+      if (callbacks.onPerspective) callbacks.onPerspective();
+    } else if (action === 'command' && down) {
+      if (callbacks.onCommand) callbacks.onCommand();
     } else if (down && action === 'menu') {
       if (callbacks.onPause) callbacks.onPause();
     } else if (down && action === 'chat') {
