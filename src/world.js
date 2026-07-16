@@ -27,6 +27,7 @@ export class World {
     this.noise = new Noise(this.seed);
     this.chunks = new Map();
     this.edits = new Map();
+    this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
     this.flat = !!opts.flat;
     this.parkour = !!opts.parkour;
@@ -83,7 +84,14 @@ export class World {
     if (y < 0 || y >= WORLD_HEIGHT) return;
     const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
     this.getChunk(cx, cz).set(x - cx * CHUNK_SIZE, y, z - cz * CHUNK_SIZE, v);
-    if (recordEdit) this.edits.set(`${x},${y},${z}`, v);
+    if (recordEdit) {
+      this.edits.set(`${x},${y},${z}`, v);
+      // Index by chunk for O(1) lookup during generation
+      const ck = this.key(cx, cz);
+      let cm = this._chunkEdits.get(ck);
+      if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
+      cm.set(`${x},${y},${z}`, v);
+    }
   }
 
   generateChunk(chunk) {
@@ -128,11 +136,17 @@ export class World {
       try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { /* never break chunk gen */ }
     }
 
-    for (const [key, v] of this.edits) {
-      const [ex, ey, ez] = key.split(',').map(Number);
-      const cx = Math.floor(ex / CHUNK_SIZE), cz = Math.floor(ez / CHUNK_SIZE);
-      if (cx === chunk.cx && cz === chunk.cz) {
-        chunk.set(ex - cx * CHUNK_SIZE, ey, ez - cz * CHUNK_SIZE, v);
+    // Apply player edits for this chunk — O(1) lookup via _chunkEdits index
+    const chunkKey = this.key(chunk.cx, chunk.cz);
+    const chunkEdits = this._chunkEdits.get(chunkKey);
+    if (chunkEdits) {
+      for (const [key, v] of chunkEdits) {
+        const ci = key.indexOf(',');
+        const ci2 = key.indexOf(',', ci + 1);
+        const ex = +key.slice(0, ci);
+        const ey = +key.slice(ci + 1, ci2);
+        const ez = +key.slice(ci2 + 1);
+        chunk.set(ex - chunk.cx * CHUNK_SIZE, ey, ez - chunk.cz * CHUNK_SIZE, v);
       }
     }
 

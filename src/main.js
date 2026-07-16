@@ -1254,11 +1254,21 @@ function syncUIMode() {
 }
 
 // --- block editing ---
+const _rayDir = new THREE.Vector3();
+const _rayOrigin = new THREE.Vector3();
+let _cachedTarget = null;
+let _cachedTargetFrame = -1;
+
 function currentTarget() {
   if (!player) return null;
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  return raycastVoxel(world, camera.position.clone(), dir, REACH);
+  // Cache per frame — avoid duplicate raycast
+  const frame = performance.now();
+  if (_cachedTargetFrame === frame) return _cachedTarget;
+  _cachedTargetFrame = frame;
+  camera.getWorldDirection(_rayDir);
+  _rayOrigin.copy(camera.position);
+  _cachedTarget = raycastVoxel(world, _rayOrigin, _rayDir, REACH);
+  return _cachedTarget;
 }
 
 function getHeldItemId() {
@@ -1362,6 +1372,10 @@ function spawnStepParticles(bx, by, bz, blockId) {
   }
 }
 
+const _stepMaxParticles = 64;
+const _stepPosArr = new Float32Array(_stepMaxParticles * 3);
+const _stepColArr = new Float32Array(_stepMaxParticles * 3);
+
 function updateStepParticles(dt) {
   for (let i = _stepParticles.length - 1; i >= 0; i--) {
     const p = _stepParticles[i];
@@ -1372,18 +1386,23 @@ function updateStepParticles(dt) {
     p.z += p.vz * dt;
     p.vy -= 4 * dt;
   }
-  // Update buffer
-  const n = _stepParticles.length;
-  const pos = new Float32Array(n * 3);
-  const col = new Float32Array(n * 3);
+  // Update buffer — reuse pre-allocated arrays
+  const n = Math.min(_stepParticles.length, _stepMaxParticles);
   for (let i = 0; i < n; i++) {
     const p = _stepParticles[i];
-    pos[i * 3] = p.x; pos[i * 3 + 1] = p.y; pos[i * 3 + 2] = p.z;
+    _stepPosArr[i * 3] = p.x; _stepPosArr[i * 3 + 1] = p.y; _stepPosArr[i * 3 + 2] = p.z;
     const fade = Math.max(0, p.life / 0.6);
-    col[i * 3] = p.r * fade; col[i * 3 + 1] = p.g * fade; col[i * 3 + 2] = p.b * fade;
+    _stepColArr[i * 3] = p.r * fade; _stepColArr[i * 3 + 1] = p.g * fade; _stepColArr[i * 3 + 2] = p.b * fade;
   }
-  _stepGeo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  _stepGeo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  // Only set attributes once at init, then update existing buffers
+  if (!_stepGeo._initialized) {
+    _stepGeo.setAttribute('position', new THREE.BufferAttribute(_stepPosArr, 3));
+    _stepGeo.setAttribute('color', new THREE.BufferAttribute(_stepColArr, 3));
+    _stepGeo._initialized = true;
+  }
+  _stepGeo.attributes.position.needsUpdate = true;
+  _stepGeo.attributes.color.needsUpdate = true;
+  _stepGeo.setDrawRange(0, n);
 }
 
 // ── TNT ignition ─────────────────────────────────────────────────────
@@ -2759,12 +2778,15 @@ function updateTimeHud() {
   const color = isDay ? '#ffe080' : '#a0c0ff';
   el.innerHTML = `<span style="color:${color}">${icon}</span> Day ${totalDays} &middot; ${timeStr}`;
 }
+const _lerpA = new THREE.Color();
+const _lerpB = new THREE.Color();
+const _lerpResult = new THREE.Color();
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
-  const ca = new THREE.Color(a);
-  const cb = new THREE.Color(b);
-  ca.lerp(cb, t);
-  return ca;
+  _lerpA.set(a);
+  _lerpB.set(b);
+  _lerpResult.copy(_lerpA).lerp(_lerpB, t);
+  return _lerpResult;
 }
 
 function updateSky(dt) {
@@ -4603,9 +4625,10 @@ function loop() {
       const bx = Math.floor(player.position.x);
       const by = Math.floor(player.position.y - 0.05);
       const bz = Math.floor(player.position.z);
-      audio.step(world.getBlock(bx, by, bz));
+      const stepBlock = world.getBlock(bx, by, bz);
+      audio.step(stepBlock);
       // Spawn footstep particles for grass/sand/dirt
-      spawnStepParticles(bx, by, bz, world.getBlock(bx, by, bz));
+      spawnStepParticles(bx, by, bz, stepBlock);
     }
   } else {
     stepTimer = 0;
