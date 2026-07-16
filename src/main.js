@@ -3198,9 +3198,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       player.inventory.slots.fill(null);
       player.inventory.offhand = null;
     }
-    player.position.set(0.5, 65, 0.5);
+    player.position.set(0.5, 70, 0.5);
     player.velocity.set(0, 0, 0);
-    player.spawnPoint.set(0.5, 65, 0.5);
+    player.spawnPoint.set(0.5, 70, 0.5);
 
     // Build lobby centre as spawn platform
     for (let dx = -1; dx <= 1; dx++)

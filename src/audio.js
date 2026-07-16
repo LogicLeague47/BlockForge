@@ -413,30 +413,206 @@ export class Audio {
     ]);
   }
 
+  // SNOW: Soft powdery crunch — light, airy, compressed
+  _snow_dig() {
+    this._playLayers([
+      // powdery crunch
+      { noise: 'white', dur: 0.15, gain: 0.3, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.2 },
+      // soft body compression
+      { noise: 'pink', dur: 0.12, gain: 0.2, bp: 1500, bq: 0.6, atk: 0.008, rel: 0.25 },
+      // very faint sparkle
+      { noise: 'white', dur: 0.06, gain: 0.1, hp: 6000, hq: 0.3, atk: 0.003, rel: 0.12 },
+    ]);
+  }
+
+  _snow_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.06, gain: 0.15, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.15 },
+      { noise: 'pink', dur: 0.04, gain: 0.08, bp: 1800, bq: 0.5, atk: 0.008, rel: 0.18 },
+    ]);
+  }
+
+  _snow_place() {
+    this._playLayers([
+      { noise: 'white', dur: 0.08, gain: 0.2, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
+      { noise: 'pink', dur: 0.06, gain: 0.1, bp: 1600, bq: 0.5, atk: 0.008, rel: 0.18 },
+    ]);
+  }
+
+  // GRAVEL: Loose rocky tumbling crunch — deeper than sand, more granular
+  _gravel_dig() {
+    this._playLayers([
+      // rocky tumble
+      { noise: 'white', dur: 0.2, gain: 0.45, bp: 2500, bq: 0.8, atk: 0.002, rel: 0.2 },
+      // deep crunch body
+      { noise: 'brown', dur: 0.15, gain: 0.3, lp: 800, atk: 0.005, rel: 0.25 },
+      // scatter top
+      { noise: 'white', dur: 0.1, gain: 0.25, hp: 4500, hq: 0.6, atk: 0.002, rel: 0.15 },
+    ]);
+  }
+
+  _gravel_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.07, gain: 0.25, bp: 2200, bq: 0.7, atk: 0.003, rel: 0.15 },
+      { noise: 'brown', dur: 0.05, gain: 0.12, lp: 700, atk: 0.005, rel: 0.18 },
+    ]);
+  }
+
+  _gravel_place() {
+    this._playLayers([
+      { noise: 'white', dur: 0.12, gain: 0.35, bp: 2300, bq: 0.8, atk: 0.003, rel: 0.18 },
+      { noise: 'brown', dur: 0.08, gain: 0.2, lp: 650, atk: 0.005, rel: 0.2 },
+    ]);
+  }
+
+  // METAL: Sharp metallic clank — bright, resonant ping
+  _metal_dig() {
+    this._playLayers([
+      // metallic ring
+      { wave: 'square', freq: 1200, dur: 0.12, gain: 0.35, atk: 0.001, rel: 0.15 },
+      // sharp clank
+      { noise: 'white', dur: 0.06, gain: 0.4, hp: 3000, hq: 2, atk: 0.001, rel: 0.08 },
+      // resonant body
+      { wave: 'sine', freq: 800, dur: 0.15, gain: 0.15, atk: 0.002, rel: 0.2 },
+      // deep thud
+      { noise: 'brown', dur: 0.08, gain: 0.2, lp: 500, atk: 0.003, rel: 0.15 },
+    ]);
+  }
+
+  _metal_step() {
+    this._playLayers([
+      { wave: 'square', freq: 1000, dur: 0.04, gain: 0.2, atk: 0.001, rel: 0.06 },
+      { noise: 'white', dur: 0.03, gain: 0.15, hp: 3500, hq: 1.5, atk: 0.001, rel: 0.05 },
+    ]);
+  }
+
+  _metal_place() {
+    this._playLayers([
+      { wave: 'square', freq: 1100, dur: 0.08, gain: 0.3, atk: 0.001, rel: 0.1 },
+      { noise: 'white', dur: 0.04, gain: 0.25, hp: 3200, hq: 2, atk: 0.001, rel: 0.08 },
+      { wave: 'sine', freq: 900, dur: 0.1, gain: 0.12, atk: 0.002, rel: 0.15 },
+    ]);
+  }
+
+  // BRIMSTONE: Hot, crackling stone — fire undertone
+  _brimstone_dig() {
+    this._playLayers([
+      // hot stone crack
+      { noise: 'white', dur: 0.1, gain: 0.4, bp: 1800, bq: 1.5, atk: 0.002, rel: 0.15 },
+      // fire crackle undertone
+      { noise: 'pink', dur: 0.12, gain: 0.2, hp: 2000, hq: 0.8, atk: 0.005, rel: 0.2 },
+      // deep heat body
+      { noise: 'brown', dur: 0.15, gain: 0.25, lp: 400, atk: 0.005, rel: 0.25 },
+    ]);
+  }
+
+  _brimstone_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.05, gain: 0.2, bp: 1600, bq: 1.2, atk: 0.003, rel: 0.12 },
+      { noise: 'pink', dur: 0.04, gain: 0.1, hp: 2200, hq: 0.7, atk: 0.005, rel: 0.15 },
+    ]);
+  }
+
+  _brimstone_place() {
+    this._playLayers([
+      { noise: 'white', dur: 0.08, gain: 0.3, bp: 1700, bq: 1.5, atk: 0.002, rel: 0.12 },
+      { noise: 'brown', dur: 0.1, gain: 0.2, lp: 420, atk: 0.005, rel: 0.2 },
+    ]);
+  }
+
+  // PLANT: Soft organic rustle — hay, flowers, leaves-adjacent
+  _plant_dig() {
+    this._playLayers([
+      // soft rustle
+      { noise: 'white', dur: 0.1, gain: 0.2, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.18 },
+      // organic body
+      { noise: 'pink', dur: 0.08, gain: 0.12, bp: 2000, bq: 0.6, atk: 0.008, rel: 0.2 },
+    ]);
+  }
+
+  _plant_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.04, gain: 0.1, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.12 },
+      { noise: 'pink', dur: 0.03, gain: 0.06, bp: 2200, bq: 0.5, atk: 0.008, rel: 0.15 },
+    ]);
+  }
+
+  _plant_place() {
+    this._playLayers([
+      { noise: 'white', dur: 0.05, gain: 0.15, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
+      { noise: 'pink', dur: 0.04, gain: 0.08, bp: 2100, bq: 0.5, atk: 0.008, rel: 0.18 },
+    ]);
+  }
+
+  // LIQUID: Bubbling, gurgling — for lava
+  _liquid_dig() {
+    this._playLayers([
+      // thick bubble pop
+      { noise: 'brown', dur: 0.2, gain: 0.4, bp: 400, bq: 2, atk: 0.003, rel: 0.25 },
+      // gurgle
+      { wave: 'sine', freq: 180, dur: 0.15, gain: 0.2, atk: 0.005, rel: 0.2 },
+      // hiss
+      { noise: 'white', dur: 0.1, gain: 0.15, hp: 2000, hq: 0.6, atk: 0.008, rel: 0.15 },
+    ]);
+  }
+
+  _liquid_step() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.08, gain: 0.2, bp: 500, bq: 1.8, atk: 0.005, rel: 0.15 },
+      { wave: 'sine', freq: 200, dur: 0.06, gain: 0.1, atk: 0.008, rel: 0.12 },
+    ]);
+  }
+
+  _liquid_place() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.12, gain: 0.3, bp: 450, bq: 2, atk: 0.003, rel: 0.2 },
+      { wave: 'sine', freq: 190, dur: 0.1, gain: 0.15, atk: 0.005, rel: 0.15 },
+    ]);
+  }
+
   // ── PUBLIC API ───────────────────────────────────────────────────────
 
   dig(blockId) {
     switch (blockId) {
-      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: // stone, cobble, coal ore, iron ore, gold ore, diamond ore, obsidian, terracotta, furnace, stone button, lever, stone pressure plate, copper ore, emerald ore, flower pot, iron door, greenstone ore, greenstone block, greenstone lamp
+      // STONE family: stone, cobble, ores, obsidian, terracotta, furnace, buttons, pressure plates, doors, prismite, mossy cobble, walls, blocks
+      case 3: case 4: case 9: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 39: case 42: case 43: case 44: case 48: case 49: case 52: case 53: case 54: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: case 83:
         return this._stone_dig();
-      case 1: case 2: case 33: case 34: case 66: case 69: case 75: // grass, dirt, podzol, mycelium, carpet, wool, greenstone wire
+      // DIRT family: grass, dirt, podzol, mycelium, carpet, wool, greenstone dust, clay
+      case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
         return this._dirt_dig();
-      case 5: case 10: case 11: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79: // wood, planks, pumpkin, cactus, bookshelf, TNT, crafting, netherrack, jungle wood, ladder, fence, door, sign, painting, greenstone torch, piston, sticky piston
+      // WOOD family: logs, planks, bricks, pumpkin, cactus, bookshelf, TNT, workbench, beds, ladder, fence, door, sign, painting, greenstone torch, piston
+      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
         return this._wood_dig();
-      case 6: case 36: // leaves, dark oak leaves
+      // LEAVES family: leaves, flowers
+      case 6: case 22: case 23: case 36:
         return this._leaves_dig();
-      case 7: case 29: // sand, red sand
+      // SAND family: sand, red sand, quicksand
+      case 7: case 29: case 85:
         return this._sand_dig();
-      case 16: case 46: // glass, glass pane
+      // GLASS family: glass, glass pane, void glass
+      case 16: case 46: case 84:
         return this._glass_dig();
-      case 8: // water
+      // SNOW family
+      case 15: case 31: case 37:
+        return this._snow_dig();
+      // GRAVEL
+      case 18:
+        return this._gravel_dig();
+      // BRIMSTONE (hot stone)
+      case 28: case 45: case 82:
+        return this._brimstone_dig();
+      // METAL: iron/gold blocks, iron bars
+      case 50: case 51: case 81:
+        return this._metal_dig();
+      // LIQUID (lava)
+      case 80:
+        return this._liquid_dig();
+      // PLANT: torch
+      case 41:
+        return this._plant_dig();
+      // WATER
+      case 8:
         return this.splash();
-      case 15: case 31: case 37: // snow, snow grass, snow block
-        return this._dirt_dig();
-      case 18: // gravel
-        return this._sand_dig();
-      case 19: // clay
-        return this._dirt_dig();
       default:
         return this._stone_dig();
     }
@@ -449,20 +625,42 @@ export class Audio {
     this._stepCooldown = now;
 
     switch (blockId) {
-      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77:
+      // STONE family
+      case 3: case 4: case 9: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 39: case 42: case 43: case 44: case 48: case 49: case 52: case 53: case 54: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: case 83:
         return this._stone_step();
-      case 1: case 2: case 33: case 34: case 66: case 69: case 75:
+      // DIRT family
+      case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
         return this._dirt_step();
-      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
+      // WOOD family
+      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
         return this._wood_step();
-      case 6: case 36:
+      // LEAVES family
+      case 6: case 22: case 23: case 36:
         return this._leaves_step();
-      case 7: case 29: case 18:
+      // SAND family
+      case 7: case 29: case 85:
         return this._sand_step();
-      case 16: case 46:
-        return this._glass_step ? this._glass_step() : this._wood_step();
+      // GLASS family
+      case 16: case 46: case 84:
+        return this._glass_step();
+      // SNOW family
       case 15: case 31: case 37:
-        return this._dirt_step();
+        return this._snow_step();
+      // GRAVEL
+      case 18:
+        return this._gravel_step();
+      // BRIMSTONE
+      case 28: case 45: case 82:
+        return this._brimstone_step();
+      // METAL
+      case 50: case 51: case 81:
+        return this._metal_step();
+      // LIQUID
+      case 80:
+        return this._liquid_step();
+      // PLANT
+      case 41:
+        return this._plant_step();
       default:
         return this._stone_step();
     }
@@ -475,24 +673,44 @@ export class Audio {
 
   placeBlock(blockId) {
     switch (blockId) {
-      case 3: case 4: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77:
+      // STONE family
+      case 3: case 4: case 9: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 39: case 42: case 43: case 44: case 48: case 49: case 52: case 53: case 54: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: case 83:
         return this._stone_place();
-      case 1: case 2: case 33: case 34: case 66: case 69: case 75:
+      // DIRT family
+      case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
         return this._dirt_place();
-      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 28: case 35: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
+      // WOOD family
+      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
         return this._wood_place();
-      case 6: case 36:
+      // LEAVES family
+      case 6: case 22: case 23: case 36:
         return this._leaves_place();
-      case 7: case 29:
+      // SAND family
+      case 7: case 29: case 85:
         return this._sand_place();
-      case 16: case 46:
+      // GLASS family
+      case 16: case 46: case 84:
         return this._glass_place();
+      // SNOW family
       case 15: case 31: case 37:
-        return this._dirt_place();
-      case 18: case 19:
-        return this._sand_place();
+        return this._snow_place();
+      // GRAVEL
+      case 18:
+        return this._gravel_place();
+      // BRIMSTONE
+      case 28: case 45: case 82:
+        return this._brimstone_place();
+      // METAL
+      case 50: case 51: case 81:
+        return this._metal_place();
+      // LIQUID
+      case 80:
+        return this._liquid_place();
+      // PLANT
+      case 41:
+        return this._plant_place();
       default:
-        return this._dirt_place();
+        return this._stone_place();
     }
   }
 

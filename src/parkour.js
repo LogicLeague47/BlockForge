@@ -241,6 +241,15 @@ export class ParkourGame {
     if (!this.active || this.finished) return;
     this.elapsed = (performance.now() - this.startTime) / 1000;
 
+    // Decrement toast timer
+    if (this._toastTimer > 0) {
+      this._toastTimer -= 1 / 60;
+      if (this._toastTimer <= 0) {
+        const el = this.ui?.itemNameEl;
+        if (el) el.classList.remove('visible');
+      }
+    }
+
     this.player.health = this.player.maxHealth;
 
     if (this.player.position.y < -10) {

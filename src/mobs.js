@@ -88,9 +88,9 @@ export const MOB_TYPES = {
     headW: 0.5, headH: 0.5, headD: 0.5,
     legW: 0.22, legH: 0.7, legD: 0.22,
     headOffY: -0.5,
-    bodyColor: 0x4a7a3a,
-    headColor: 0x5a8a4a,
-    legColor: 0x3a5a2a,
+    bodyColor: 0x3a5a8a,
+    headColor: 0x5a9a7a,
+    legColor: 0x2a3a6a,
     attackDamage: 5,
     drops: [{ item: 290, count: [0, 2] }, { item: 277, count: [0, 2] }, { item: 315, count: [0, 1] }],
     soundChance: 0.0004,
@@ -105,9 +105,9 @@ export const MOB_TYPES = {
     headW: 0.45, headH: 0.45, headD: 0.45,
     legW: 0.18, legH: 0.7, legD: 0.18,
     headOffY: -0.5,
-    bodyColor: 0xe8e8e0,
-    headColor: 0xf2f2ea,
-    legColor: 0xd8d8d0,
+    bodyColor: 0xe8e4d8,
+    headColor: 0xe8e4d8,
+    legColor: 0xe0dcd0,
     attackDamage: 4,
     drops: [{ item: 277, count: [0, 2] }, { item: 281, count: [0, 3] }],
     soundChance: 0.0003,
@@ -467,6 +467,25 @@ class Mob {
         leg.position.y = -def.legH / 2;
         leg.name = 'leg';
         pivot.add(leg);
+        group.add(pivot);
+        this.legs.push(pivot);
+      }
+    }
+
+    // ── Bipedal arms (zombie/skeleton use arm textures, villager uses hasArms) ──
+    if (def.bipedalLegs && tex.arm && !def.hasArms) {
+      const armW = def.legW * 1.1;
+      const armH = def.bodyH * 0.85;
+      const armD = def.legD * 1.1;
+      const armGeo = new THREE.BoxGeometry(armW, armH, armD);
+      const armMats = this._boxMats(tex.arm);
+      for (const side of [-1, 1]) {
+        const pivot = new THREE.Group();
+        pivot.position.set(side * (def.bodyW / 2 + armW / 2), def.legH + def.bodyH - 0.04, 0);
+        const arm = new THREE.Mesh(armGeo, armMats);
+        arm.position.y = -armH / 2;
+        arm.name = 'arm';
+        pivot.add(arm);
         group.add(pivot);
         this.legs.push(pivot);
       }
@@ -1201,151 +1220,329 @@ class Mob {
 
   _zombieTextures(def) {
     const s = 64;
-    const SKIN = 0x5a8a4a;
-    const SHIRT = 0x4a7a3a;
-    const PANTS = 0x3a5a2a;
+    // Classic Minecraft zombie: teal skin, blue shirt, dark blue pants
+    const SKIN = 0x5a9a7a;
+    const SHIRT = 0x3a5a8a;
+    const PANTS = 0x2a3a6a;
 
+    // ── HEAD ──
     const skinSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a8a4a';
+      ctx.fillStyle = '#5a9a7a';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 14);
+      this._noiseTex(ctx, s, s, SKIN, 12);
+      // Hair strands on sides
+      ctx.fillStyle = 'rgba(60,40,25,0.6)';
+      ctx.fillRect(0, 0, s, 6);
+      ctx.fillRect(0, 0, 4, s);
+      ctx.fillRect(s - 4, 0, 4, s);
     });
     const skinTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a3520';
+      // Hair on top (dark brown)
+      ctx.fillStyle = '#3a2515';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x4a3520, 10);
+      this._noiseTex(ctx, s, s, 0x3a2515, 10);
     });
     const skinBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a8a4a';
+      ctx.fillStyle = '#5a9a7a';
       ctx.fillRect(0, 0, s, s);
     });
     const skinFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a8a4a';
+      // Face: teal skin
+      ctx.fillStyle = '#5a9a7a';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 12);
-      // Eyes (white with dark pupils, sunken look)
-      const eyeY = 22;
-      ctx.fillStyle = '#ddd';
-      ctx.fillRect(10, eyeY, 16, 10);
-      ctx.fillRect(38, eyeY, 16, 10);
+      this._noiseTex(ctx, s, s, SKIN, 10);
+      // Hair fringe on top
+      ctx.fillStyle = '#3a2515';
+      ctx.fillRect(0, 0, s, 8);
+      ctx.fillRect(0, 0, 6, 18);
+      ctx.fillRect(s - 6, 0, 6, 18);
+      // Eyes: white sclera
+      const eyeY = 20;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(8, eyeY, 18, 12);
+      ctx.fillRect(38, eyeY, 18, 12);
+      // Pupils (dark, staring)
       ctx.fillStyle = '#111';
-      ctx.fillRect(14, eyeY + 2, 8, 6);
-      ctx.fillRect(42, eyeY + 2, 8, 6);
-      // Mouth (open, showing teeth)
-      ctx.fillStyle = '#2a1a10';
-      ctx.fillRect(20, 42, 24, 12);
-      ctx.fillStyle = '#eee';
-      ctx.fillRect(22, 42, 4, 4);
-      ctx.fillRect(30, 42, 4, 4);
-      ctx.fillRect(38, 42, 4, 4);
+      ctx.fillRect(14, eyeY + 3, 8, 7);
+      ctx.fillRect(44, eyeY + 3, 8, 7);
+      // Eye bags (sunken, undead look)
+      ctx.fillStyle = 'rgba(40,70,55,0.5)';
+      ctx.fillRect(8, eyeY + 10, 18, 4);
+      ctx.fillRect(38, eyeY + 10, 18, 4);
+      // Mouth (open, dark interior)
+      ctx.fillStyle = '#1a0a05';
+      ctx.fillRect(18, 42, 28, 14);
+      // Teeth (top and bottom rows)
+      ctx.fillStyle = '#ddd';
+      for (let x = 18; x < 46; x += 6) {
+        ctx.fillRect(x, 42, 3, 3);
+        ctx.fillRect(x, 53, 3, 3);
+      }
     });
     const skinBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a3520';
+      // Hair covers back of head
+      ctx.fillStyle = '#3a2515';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x4a3520, 10);
+      this._noiseTex(ctx, s, s, 0x3a2515, 10);
+      // Neck exposed at bottom
+      ctx.fillStyle = '#5a9a7a';
+      ctx.fillRect(18, s - 12, 28, 12);
     });
     const head = [skinSide, skinSide, skinTop, skinBot, skinBack, skinFront];
 
+    // ── BODY (blue shirt) ──
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a7a3a';
+      ctx.fillStyle = '#3a5a8a';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SHIRT, 15);
-      // Torn shirt effect
-      ctx.fillStyle = 'rgba(60,90,50,0.4)';
-      ctx.fillRect(0, s * 0.6, s, s * 0.4);
+      this._noiseTex(ctx, s, s, SHIRT, 14);
+      // Torn shirt edges
+      ctx.fillStyle = 'rgba(40,60,90,0.5)';
+      ctx.fillRect(0, s * 0.65, s, s * 0.35);
+      // Shirt seam
+      ctx.fillStyle = 'rgba(30,50,80,0.3)';
+      ctx.fillRect(s / 2 - 1, 0, 2, s);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a7a3a';
+      ctx.fillStyle = '#3a5a8a';
       ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SHIRT, 10);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a5a2a';
+      ctx.fillStyle = '#2a3a6a';
       ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a7a3a';
+      ctx.fillStyle = '#3a5a8a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SHIRT, 12);
+      // Collar / neckline
+      ctx.fillStyle = '#5a9a7a';
+      ctx.fillRect(20, 0, 24, 6);
+      // Shirt buttons / center line
+      ctx.fillStyle = 'rgba(30,50,80,0.4)';
+      ctx.fillRect(30, 10, 4, 50);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
+    // ── LEGS (dark blue pants) ──
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a5a2a';
+      ctx.fillStyle = '#2a3a6a';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PANTS, 12);
+      this._noiseTex(ctx, s, s, PANTS, 10);
+      // Shoe at bottom (darker)
+      ctx.fillStyle = '#1a2a4a';
+      ctx.fillRect(0, s - 10, s, 10);
     });
+    // Arms use same skin color as head
+    const armTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a9a7a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, SKIN, 10);
+    });
+    const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body, head, leg };
+    return { body, head, leg, arm };
   }
 
   _skeletonTextures(def) {
     const s = 64;
-    const BONE = 0xf2f2ea;
-    const BONE_DARK = 0xd8d8d0;
+    const BONE = 0xe8e4d8;
+    const BONE_LIGHT = 0xf0ece0;
+    const BONE_DARK = 0xc8c4b8;
 
+    // ── HEAD (skull) ──
     const boneSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2f2ea';
+      // Skull side — rounded bone shape
+      ctx.fillStyle = '#e8e4d8';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 12);
-      // Rib-like lines
-      ctx.strokeStyle = 'rgba(180,180,170,0.4)';
-      ctx.lineWidth = 2;
-      for (let y = 12; y < s; y += 12) {
-        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke();
-      }
+      this._noiseTex(ctx, s, s, BONE, 10);
+      // Temporal bone indent
+      ctx.fillStyle = 'rgba(180,175,165,0.4)';
+      ctx.fillRect(8, 16, 12, 20);
+      ctx.fillRect(s - 20, 16, 12, 20);
+      // Jaw line
+      ctx.fillStyle = 'rgba(160,155,145,0.5)';
+      ctx.fillRect(4, s - 18, s - 8, 3);
     });
     const boneTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2f2ea';
+      // Top of skull — smooth bone
+      ctx.fillStyle = '#f0ece0';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 10);
+      this._noiseTex(ctx, s, s, BONE_LIGHT, 8);
+      // Cranial ridge
+      ctx.fillStyle = 'rgba(200,195,185,0.4)';
+      ctx.fillRect(s / 2 - 4, 0, 8, s);
     });
     const boneBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e0e0d8';
+      // Bottom of skull / jaw
+      ctx.fillStyle = '#d8d4c8';
       ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE_DARK, 8);
+      // Jaw hinge points
+      ctx.fillStyle = 'rgba(160,155,145,0.5)';
+      ctx.fillRect(6, 10, 8, 8);
+      ctx.fillRect(s - 14, 10, 8, 8);
     });
     const boneFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2f2ea';
+      // Skull face — detailed
+      ctx.fillStyle = '#e8e4d8';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 10);
-      // Skull face
-      const eyeY = 22;
+      this._noiseTex(ctx, s, s, BONE, 8);
+
+      // Forehead / brow ridge
+      ctx.fillStyle = 'rgba(200,195,185,0.5)';
+      ctx.fillRect(0, 8, s, 6);
+
+      // Eye sockets (deep, dark)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(8, 18, 18, 16);
+      ctx.fillRect(38, 18, 18, 16);
+      // Inner eye shadow
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(10, 20, 14, 12);
+      ctx.fillRect(40, 20, 14, 12);
+      // Tiny glowing pupils
+      ctx.fillStyle = '#666';
+      ctx.fillRect(16, 24, 4, 4);
+      ctx.fillRect(46, 24, 4, 4);
+
+      // Nose cavity (inverted triangle)
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(26, 34, 12, 8);
       ctx.fillStyle = '#222';
-      ctx.fillRect(10, eyeY, 14, 12);
-      ctx.fillRect(40, eyeY, 14, 12);
-      // Eye glow
-      ctx.fillStyle = '#555';
-      ctx.fillRect(14, eyeY + 2, 6, 8);
-      ctx.fillRect(44, eyeY + 2, 6, 8);
-      // Nose hole
-      ctx.fillStyle = '#333';
       ctx.fillRect(28, 36, 8, 6);
-      // Jaw / teeth
-      ctx.fillStyle = '#ddd';
-      ctx.fillRect(18, 44, 28, 4);
-      ctx.fillStyle = '#222';
-      for (let x = 18; x < 46; x += 5) {
-        ctx.fillRect(x, 44, 2, 4);
+
+      // Cheekbones
+      ctx.fillStyle = 'rgba(200,195,185,0.4)';
+      ctx.fillRect(4, 28, 6, 12);
+      ctx.fillRect(s - 10, 28, 6, 12);
+
+      // Teeth row (upper)
+      ctx.fillStyle = '#f5f0e5';
+      ctx.fillRect(16, 44, 32, 6);
+      // Tooth gaps
+      ctx.fillStyle = '#1a1a1a';
+      for (let x = 16; x < 48; x += 4) {
+        ctx.fillRect(x, 44, 1, 6);
+      }
+      // Lower jaw
+      ctx.fillStyle = '#ddd8c8';
+      ctx.fillRect(14, 50, 36, 8);
+      // Lower teeth
+      ctx.fillStyle = '#f5f0e5';
+      ctx.fillRect(16, 50, 32, 4);
+      ctx.fillStyle = '#1a1a1a';
+      for (let x = 16; x < 48; x += 4) {
+        ctx.fillRect(x, 50, 1, 4);
       }
     });
     const boneBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2f2ea';
+      // Back of skull + spine
+      ctx.fillStyle = '#e8e4d8';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 10);
-      // Spine
-      ctx.fillStyle = 'rgba(180,180,170,0.5)';
+      this._noiseTex(ctx, s, s, BONE, 8);
+      // Occipital bone
+      ctx.fillStyle = 'rgba(180,175,165,0.3)';
+      ctx.fillRect(12, 8, s - 24, s - 16);
+      // Spine (vertebrae)
+      ctx.fillStyle = '#d0ccc0';
       ctx.fillRect(26, 0, 12, s);
+      this._noiseTex(ctx, s, s, BONE_DARK, 6);
+      // Individual vertebrae lines
+      ctx.fillStyle = 'rgba(160,155,145,0.6)';
+      for (let y = 0; y < s; y += 8) {
+        ctx.fillRect(24, y, 16, 1);
+      }
     });
     const head = [boneSide, boneSide, boneTop, boneBot, boneBack, boneFront];
 
-    const body = [boneSide, boneSide, boneTop, boneBot, boneFront, boneFront];
-
-    const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2f2ea';
+    // ── BODY (ribcage) ──
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e8e4d8';
       ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE_DARK, 10);
+      this._noiseTex(ctx, s, s, BONE, 8);
+      // Sternum (center chest bone)
+      ctx.fillStyle = '#d8d4c8';
+      ctx.fillRect(28, 4, 8, 48);
+      // Ribs (curved lines from sternum outward)
+      ctx.strokeStyle = '#b8b4a8';
+      ctx.lineWidth = 3;
+      for (let y = 8; y < 52; y += 7) {
+        // Left rib
+        ctx.beginPath();
+        ctx.moveTo(28, y);
+        ctx.quadraticCurveTo(16, y + 2, 4, y + 4);
+        ctx.stroke();
+        // Right rib
+        ctx.beginPath();
+        ctx.moveTo(36, y);
+        ctx.quadraticCurveTo(48, y + 2, 60, y + 4);
+        ctx.stroke();
+      }
+      // Rib tips (lighter)
+      ctx.fillStyle = '#f0ece0';
+      for (let y = 10; y < 54; y += 7) {
+        ctx.fillRect(2, y, 4, 2);
+        ctx.fillRect(58, y, 4, 2);
+      }
+    });
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e8e4d8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 8);
+      // Side ribs (curved)
+      ctx.strokeStyle = '#b8b4a8';
+      ctx.lineWidth = 3;
+      for (let y = 8; y < 52; y += 7) {
+        ctx.beginPath();
+        ctx.moveTo(s, y);
+        ctx.quadraticCurveTo(s / 2, y + 3, 0, y + 5);
+        ctx.stroke();
+      }
+      // Spine visible on side edge
+      ctx.fillStyle = '#d0ccc0';
+      ctx.fillRect(s - 8, 0, 8, s);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e8e4d8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 6);
+      // Collar bones
+      ctx.fillStyle = '#d8d4c8';
+      ctx.fillRect(4, s / 2 - 2, s - 8, 4);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#d8d4c8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE_DARK, 6);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    // ── LEGS (thin bone limbs) ──
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e0dcd0';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 8);
+      // Knee joint
+      ctx.fillStyle = '#d0ccc0';
+      ctx.fillRect(0, s / 2 - 4, s, 8);
+      // Shin bone detail
+      ctx.fillStyle = 'rgba(180,175,165,0.4)';
+      ctx.fillRect(s / 2 - 2, 0, 4, s);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body, head, leg };
+
+    // ── ARMS (thin bone) ──
+    const armTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#e0dcd0';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BONE, 8);
+      // Elbow joint
+      ctx.fillStyle = '#d0ccc0';
+      ctx.fillRect(0, s / 2 - 3, s, 6);
+    });
+    const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
+    return { body, head, leg, arm };
   }
 
   _creeperTextures(def) {
