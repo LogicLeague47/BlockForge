@@ -60,3 +60,47 @@ export function raycastVoxel(world, origin, dir, maxDist = 6) {
   }
   return null;
 }
+
+// Mobile: find the closest solid block within radius of a point.
+// Scans a cube of blocks around the player and returns the nearest one.
+export function closestBlockInRadius(world, pos, radius = 6) {
+  const px = Math.floor(pos.x);
+  const py = Math.floor(pos.y);
+  const pz = Math.floor(pos.z);
+  let closest = null;
+  let closestDist = radius + 1;
+
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dz = -radius; dz <= radius; dz++) {
+      for (let dx = -radius; dx <= radius; dx++) {
+        const bx = px + dx;
+        const by = py + dy;
+        const bz = pz + dz;
+        const b = world.getBlock(bx, by, bz);
+        if (b === BLOCK.AIR || BLOCKS[b]?.liquid) continue;
+
+        // Distance from player center to block center
+        const cx = bx + 0.5;
+        const cy = by + 0.5;
+        const cz = bz + 0.5;
+        const dist = Math.sqrt((cx - pos.x) ** 2 + (cy - pos.y) ** 2 + (cz - pos.z) ** 2);
+
+        if (dist < closestDist) {
+          closestDist = dist;
+          // Calculate face normal (direction from player to block)
+          const nx = dx === 0 ? 0 : (dx > 0 ? -1 : 1);
+          const ny = dy === 0 ? 0 : (dy > 0 ? -1 : 1);
+          const nz = dz === 0 ? 0 : (dz > 0 ? -1 : 1);
+          closest = {
+            block: b,
+            x: bx, y: by, z: bz,
+            normal: { x: nx, y: ny, z: nz },
+            place: { x: bx + nx, y: by + ny, z: bz + nz },
+            distance: dist,
+          };
+        }
+      }
+    }
+  }
+  return closest;
+}

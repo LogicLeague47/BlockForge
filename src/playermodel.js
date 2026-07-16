@@ -282,7 +282,8 @@ export class PlayerModel {
       this._headParts.map(p => p.material)
     );
     this.head.userData.partName = 'head';
-    this.head.position.y = px(LEG.h + BODY.h + HEAD.h / 2);
+    // Head relative to body center
+    this.head.position.y = px(BODY.h / 2 + HEAD.h / 2);
 
     this._bodyParts = bodyParts(s);
     this.body = new THREE.Mesh(
@@ -297,7 +298,8 @@ export class PlayerModel {
     this.rightArm.userData.partName = 'rightArm';
     this.rightArm.geometry.translate(0, -px(ARM.h / 2), 0);
     this.rightArmPivot = new THREE.Group();
-    this.rightArmPivot.position.set(px(BODY.w / 2 + ARM.w / 2), px(LEG.h + BODY.h), 0);
+    // Arm pivot relative to body center (shoulder at top of body)
+    this.rightArmPivot.position.set(px(BODY.w / 2 + ARM.w / 2), px(BODY.h / 2), 0);
     this.rightArmPivot.add(this.rightArm);
 
     this._leftArmParts = leftArmParts(s);
@@ -305,7 +307,8 @@ export class PlayerModel {
     this.leftArm.userData.partName = 'leftArm';
     this.leftArm.geometry.translate(0, -px(ARM.h / 2), 0);
     this.leftArmPivot = new THREE.Group();
-    this.leftArmPivot.position.set(px(-BODY.w / 2 - ARM.w / 2), px(LEG.h + BODY.h), 0);
+    // Arm pivot relative to body center
+    this.leftArmPivot.position.set(px(-BODY.w / 2 - ARM.w / 2), px(BODY.h / 2), 0);
     this.leftArmPivot.add(this.leftArm);
 
     const legGeo = new THREE.BoxGeometry(px(LEG.w), px(LEG.h), px(LEG.d));
@@ -315,6 +318,7 @@ export class PlayerModel {
     this.rightLeg.userData.partName = 'rightLeg';
     this.rightLeg.position.set(0, -px(LEG.h / 2), 0);
     this.rightLegPivot = new THREE.Group();
+    // Leg pivots stay on group (hip level)
     this.rightLegPivot.position.set(px(BODY.w / 2 - LEG.w / 2), px(LEG.h), 0);
     this.rightLegPivot.add(this.rightLeg);
 
@@ -326,10 +330,10 @@ export class PlayerModel {
     this.leftLegPivot.position.set(px(-BODY.w / 2 + LEG.w / 2), px(LEG.h), 0);
     this.leftLegPivot.add(this.leftLeg);
 
-    this.group.add(this.head);
     this.group.add(this.body);
-    this.group.add(this.rightArmPivot);
-    this.group.add(this.leftArmPivot);
+    this.body.add(this.head);
+    this.body.add(this.rightArmPivot);
+    this.body.add(this.leftArmPivot);
     this.group.add(this.rightLegPivot);
     this.group.add(this.leftLegPivot);
   }
@@ -513,12 +517,13 @@ export class PlayerModel {
     // Calculate pose
     const pose = calculatePose(this.animData);
 
-    // Apply pose to body parts
+    // Apply pose — body translation moves entire model (group)
+    this.group.position.y = playerPos.y + pose.bodyTransY;
+
     this.body.rotation.x = pose.bodyRotX;
     this.body.rotation.y = pose.bodyRotY;
     this.body.rotation.z = pose.bodyRotZ;
     this.body.position.x = pose.bodyTransX;
-    this.body.position.y = px(LEG.h + BODY.h / 2) + pose.bodyTransY;
     this.body.position.z = pose.bodyTransZ;
     this.body.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
 

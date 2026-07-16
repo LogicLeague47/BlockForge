@@ -5,7 +5,7 @@ import { World, CHUNK_SIZE, BIOMES } from './world.js';
 import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
 import { Player } from './player.js';
-import { raycastVoxel } from './raycast.js';
+import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { Audio } from './audio.js';
@@ -437,11 +437,12 @@ function updateBreaking(progress, hit) {
   crackPlane.visible = true;
   drawCrack(crackCanvas, Math.min(10, Math.floor(progress * 10) + 1));
   crackTexture.needsUpdate = true;
-  crackPlane.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
-  // Push toward camera so crack sits ON the block face, not inside it
-  crackPlane.position.addScaledVector(dir, -0.008);
+  // Position crack on the face that was hit, not inside the block
+  crackPlane.position.set(
+    hit.x + 0.5 + hit.normal.x * 0.501,
+    hit.y + 0.5 + hit.normal.y * 0.501,
+    hit.z + 0.5 + hit.normal.z * 0.501
+  );
   crackPlane.lookAt(camera.position);
 }
 
@@ -4463,8 +4464,9 @@ function loop() {
         }
 
         if (!hitPlayer) {
-          // Normal block breaking
-          const hit = currentTarget();
+          // Normal block breaking — on mobile, target closest block in radius
+          const isMobileBreak = mobile && mobile.isMobile;
+          const hit = isMobileBreak ? closestBlockInRadius(world, player.position, 6) : currentTarget();
           if (hit) {
             const key = hit.x + ',' + hit.y + ',' + hit.z;
             if (key !== breakingTarget) {
