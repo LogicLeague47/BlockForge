@@ -2269,6 +2269,57 @@ export class MobManager {
     this.mobs = [];
     this._spawnedChunks = new Set();
     this._nightSpawnTimer = 0;
+    this._nextEntityId = 1;
+    this._remoteMobs = new Map(); // entityId -> remote mob mesh
+    this._mobPosSendTimer = 0;
+    this.networkSend = null; // set by main.js: { sendMobSpawn, sendMobPosition, sendMobDeath }
+  }
+
+  _allocEntityId() {
+    return this._nextEntityId++;
+  }
+
+  // Remote mob management (received from network)
+  remoteSpawn(entityId, type, x, y, z) {
+    if (this._remoteMobs.has(entityId)) return;
+    const def = MOB_TYPES[type];
+    if (!def) return;
+    const mob = new Mob(type, x, y, z);
+    mob.entityId = entityId;
+    mob._isRemote = true;
+    this._remoteMobs.set(entityId, mob);
+    this.scene.add(mob.mesh);
+  }
+
+  remoteMove(entityId, x, y, z, yaw) {
+    const mob = this._remoteMobs.get(entityId);
+    if (!mob) return;
+    mob.position.set(x, y, z);
+    mob.mesh.position.set(x, y, z);
+    mob.yaw = yaw;
+    mob.mesh.rotation.y = yaw;
+  }
+
+  remoteDamage(entityId, hp) {
+    const mob = this._remoteMobs.get(entityId);
+    if (!mob) return;
+    mob.hp = hp;
+    mob.hurtTimer = 1;
+    // Flash red
+    for (const m of mob._allMats) m.color.setHex(0xff0000);
+    setTimeout(() => {
+      for (let i = 0; i < mob._allMats.length; i++) {
+        mob._allMats[i].color.setHex(mob._savedColors[i]);
+      }
+    }, 150);
+  }
+
+  remoteDeath(entityId) {
+    const mob = this._remoteMobs.get(entityId);
+    if (!mob) return;
+    this.scene.remove(mob.mesh);
+    mob.dispose();
+    this._remoteMobs.delete(entityId);
   }
 
   // Periodic night pass: spawn hostile mobs in a ring around the player so that
@@ -2300,8 +2351,12 @@ export class MobManager {
       const type = types[Math.floor(rng() * types.length)];
       if (!MOB_TYPES[type]) continue;
       const mob = new Mob(type, wx + 0.5, groundY + 1, wz + 0.5);
+      mob.entityId = this._allocEntityId();
       this.mobs.push(mob);
       this.scene.add(mob.mesh);
+      if (this.networkSend?.sendMobSpawn) {
+        this.networkSend.sendMobSpawn(mob.entityId, mob.type, mob.position.x, mob.position.y, mob.position.z);
+      }
       hostiles++;
     }
   }
@@ -2312,6 +2367,11 @@ export class MobManager {
       mob.dispose();
     }
     this.mobs.length = 0;
+    for (const [, mob] of this._remoteMobs) {
+      this.scene.remove(mob.mesh);
+      mob.dispose();
+    }
+    this._remoteMobs.clear();
     this._spawnedChunks.clear();
   }
 
@@ -2319,8 +2379,12 @@ export class MobManager {
   spawnAt(type, x, y, z) {
     if (!MOB_TYPES[type]) return null;
     const mob = new Mob(type, x, y, z);
+    mob.entityId = this._allocEntityId();
     this.mobs.push(mob);
     this.scene.add(mob.mesh);
+    if (this.networkSend?.sendMobSpawn) {
+      this.networkSend.sendMobSpawn(mob.entityId, mob.type, mob.position.x, mob.position.y, mob.position.z);
+    }
     return mob;
   }
 
@@ -2421,8 +2485,12 @@ export class MobManager {
 
       const type = spawnTypes[Math.floor(rng() * spawnTypes.length)];
       const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z);
+      mob.entityId = this._allocEntityId();
       this.mobs.push(mob);
       this.scene.add(mob.mesh);
+      if (this.networkSend?.sendMobSpawn) {
+        this.networkSend.sendMobSpawn(mob.entityId, mob.type, mob.position.x, mob.position.y, mob.position.z);
+      }
       placed.push(bestPos);
       spawnPositions.splice(bestIdx, 1);
     }
@@ -2605,9 +2673,26 @@ export class MobManager {
           this._eggDrops = this._eggDrops || [];
           this._eggDrops.push({ x: mob.position.x, y: mob.position.y, z: mob.position.z });
         }
+        // Network: broadcast death
+        if (mob.entityId && this.networkSend?.sendMobDeath) {
+          this.networkSend.sendMobDeath(mob.entityId);
+        }
         this.scene.remove(mob.mesh);
         mob.dispose();
         this.mobs.splice(i, 1);
+      }
+    }
+
+    // Broadcast local mob positions periodically (~10Hz)
+    if (this.networkSend?.sendMobPosition) {
+      this._mobPosSendTimer -= dt;
+      if (this._mobPosSendTimer <= 0) {
+        this._mobPosSendTimer = 0.1;
+        for (const mob of this.mobs) {
+          if (mob.entityId && !mob.dead) {
+            this.networkSend.sendMobPosition(mob.entityId, mob.position.x, mob.position.y, mob.position.z, mob.yaw);
+          }
+        }
       }
     }
 

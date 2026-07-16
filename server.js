@@ -466,6 +466,10 @@ wss.on('connection', (ws) => {
       case 'player_settings_get': handlePlayerSettingsGet(ws, msg); break;
       case 'player_settings_set': handlePlayerSettingsSet(ws, msg); break;
       case 'dev_get_all_players': handleDevGetAllPlayers(ws, msg); break;
+      case 'mob_spawn': handleMobSpawn(ws, msg); break;
+      case 'mob_position': handleMobPosition(ws, msg); break;
+      case 'mob_damage': handleMobDamage(ws, msg); break;
+      case 'mob_death': handleMobDeath(ws, msg); break;
     }
   });
 
@@ -539,6 +543,8 @@ function handleCreateRoom(ws, msg) {
     players: new Map(),
     banned: new Set(),
     edits: new Map(),
+    mobs: new Map(),       // entityId -> { type, x, y, z }
+    _nextMobId: 1,
     created: Date.now()
   };
   rooms.set(name, room);
@@ -654,6 +660,13 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
     ws.send(JSON.stringify({ type: 'block_batch', edits }));
   }
 
+  // Send existing mobs so the new player sees them
+  if (room.mobs && room.mobs.size > 0) {
+    for (const [id, mob] of room.mobs) {
+      ws.send(JSON.stringify({ type: 'mob_spawn', id, type: mob.type, x: mob.x, y: mob.y, z: mob.z }));
+    }
+  }
+
   // Tell everyone else
   broadcast(room, { type: 'player_join', name: playerName, role, skinIndex, cgUsername: cgUsername || '' }, ws);
   broadcastPlayerList(room);
@@ -674,6 +687,52 @@ function handleBlockUpdate(ws, msg) {
   // Broadcast to everyone else in the room
   broadcast(room, { type: 'block_update', x, y, z, block }, ws);
   scheduleSaveRooms();
+}
+
+// ── Mob sync handlers ────────────────────────────────────────────────
+function handleMobSpawn(ws, msg) {
+  const room = getRoom(ws._roomName);
+  if (!room) return;
+  const id = msg.id | 0;
+  const type = String(msg.type || '').slice(0, 32);
+  if (!id || !type) return;
+  const x = +msg.x || 0, y = +msg.y || 0, z = +msg.z || 0;
+  room.mobs.set(id, { type, x, y, z });
+  broadcast(room, { type: 'mob_spawn', id, type, x, y, z }, ws);
+}
+
+function handleMobPosition(ws, msg) {
+  const room = getRoom(ws._roomName);
+  if (!room) return;
+  const id = msg.id | 0;
+  if (!id) return;
+  const x = +msg.x || 0, y = +msg.y || 0, z = +msg.z || 0;
+  const yaw = +msg.yaw || 0;
+  const mob = room.mobs.get(id);
+  if (mob) { mob.x = x; mob.y = y; mob.z = z; }
+  // Rate-limit: max 15Hz per mob
+  const now = Date.now();
+  const key = '_mobPos_' + id;
+  if (ws[key] && now - ws[key] < 66) return;
+  ws[key] = now;
+  broadcast(room, { type: 'mob_position', id, x, y, z, yaw }, ws);
+}
+
+function handleMobDamage(ws, msg) {
+  const room = getRoom(ws._roomName);
+  if (!room) return;
+  const id = msg.id | 0;
+  if (!id) return;
+  broadcast(room, { type: 'mob_damage', id, hp: msg.hp | 0 }, ws);
+}
+
+function handleMobDeath(ws, msg) {
+  const room = getRoom(ws._roomName);
+  if (!room) return;
+  const id = msg.id | 0;
+  if (!id) return;
+  room.mobs.delete(id);
+  broadcast(room, { type: 'mob_death', id }, ws);
 }
 
 function handleLeave(ws) {

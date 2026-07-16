@@ -89,12 +89,12 @@ export class PlayerAnimData {
 
     // Limb swing accumulation — FA+ style
     if (this.moving) {
-      const targetSpeed = this.sprinting ? 16 : 10;
+      const targetSpeed = this.sprinting ? 12 : 8;
       this._limbSwing += dt * targetSpeed;
     }
 
     // Limb speed (smoothed) — used for amplitude weighting
-    const rawSpeed = this.moving ? (this.sprinting ? 16 : 10) : 0;
+    const rawSpeed = this.moving ? (this.sprinting ? 12 : 8) : 0;
     this._limbSpeed = lerp(this._limbSpeed, rawSpeed, Math.min(1, dt * 12));
 
     // Mine phase — runs while breaking

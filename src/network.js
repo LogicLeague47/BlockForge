@@ -27,6 +27,10 @@ export class Network {
     this.onBlockBatch = null;    // (edits[]) => {}
     this.onFriendState = null;   // ({friends, incoming, outgoing}) => {}
     this.onFriendMsg = null;     // ({text, ok}) => {}
+    this.onMobSpawn = null;      // (id, type, x, y, z) => {}
+    this.onMobPosition = null;   // (id, x, y, z, yaw) => {}
+    this.onMobDamage = null;     // (id, hp) => {}
+    this.onMobDeath = null;      // (id) => {}
 
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
@@ -189,6 +193,18 @@ export class Network {
       case 'friend_msg':
         if (this.onFriendMsg) this.onFriendMsg(msg);
         break;
+      case 'mob_spawn':
+        if (this.onMobSpawn) this.onMobSpawn(msg.id, msg.type, msg.x, msg.y, msg.z);
+        break;
+      case 'mob_position':
+        if (this.onMobPosition) this.onMobPosition(msg.id, msg.x, msg.y, msg.z, msg.yaw);
+        break;
+      case 'mob_damage':
+        if (this.onMobDamage) this.onMobDamage(msg.id, msg.hp);
+        break;
+      case 'mob_death':
+        if (this.onMobDeath) this.onMobDeath(msg.id);
+        break;
     }
   }
 
@@ -252,6 +268,22 @@ export class Network {
 
   sendCommand(text) {
     this._send({ type: 'command', text });
+  }
+
+  sendMobSpawn(id, type, x, y, z) {
+    this._send({ type: 'mob_spawn', id, type, x, y, z });
+  }
+
+  sendMobPosition(id, x, y, z, yaw) {
+    this._send({ type: 'mob_position', id, x, y, z, yaw });
+  }
+
+  sendMobDamage(id, hp) {
+    this._send({ type: 'mob_damage', id, hp });
+  }
+
+  sendMobDeath(id) {
+    this._send({ type: 'mob_death', id });
   }
 
   isInRoom() {

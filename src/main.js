@@ -2425,6 +2425,24 @@ function setupNetworkHandlers() {
     saveCurrentWorld();
   };
 
+  // ── Mob sync callbacks ──────────────────────────────────────────────
+  network.onMobSpawn = (id, type, x, y, z) => {
+    if (!mobManager) return;
+    mobManager.remoteSpawn(id, type, x, y, z);
+  };
+  network.onMobPosition = (id, x, y, z, yaw) => {
+    if (!mobManager) return;
+    mobManager.remoteMove(id, x, y, z, yaw);
+  };
+  network.onMobDamage = (id, hp) => {
+    if (!mobManager) return;
+    mobManager.remoteDamage(id, hp);
+  };
+  network.onMobDeath = (id) => {
+    if (!mobManager) return;
+    mobManager.remoteDeath(id);
+  };
+
   network.onDisconnect = () => {
     if (gameRunning && isMultiplayer) {
       addChatLine('Disconnected from server.', '#f55');
@@ -2976,6 +2994,11 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   loader = new ChunkLoader(world, manager, renderDist);
   explosionManager = new ExplosionManager(scene, world, audio);
   mobManager = new MobManager(scene, world, audio, explosionManager);
+  mobManager.networkSend = {
+    sendMobSpawn: (id, type, x, y, z) => network.sendMobSpawn(id, type, x, y, z),
+    sendMobPosition: (id, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
+    sendMobDeath: (id) => network.sendMobDeath(id),
+  };
   droppedItemManager = new DroppedItemManager(scene, atlasCanvas);
   mpRenderer = new MultiplayerRenderer(scene);
   breakParticles = new BreakParticles(scene);
