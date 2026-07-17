@@ -567,7 +567,7 @@ if (!fs.existsSync(regionDir)) { console.error('No region dir!'); process.exit(1
 const regionFiles = fs.readdirSync(regionDir).filter(f => f.endsWith('.mca'));
 console.log(`Found ${regionFiles.length} region files`);
 
-const allX = [], allY = [], allZ = [], allB = [];
+let allX = [], allY = [], allZ = [], allB = [];
 const seen = new Set();
 
 for (const file of regionFiles) {
@@ -669,8 +669,62 @@ for (const file of regionFiles) {
   console.log(` ${count} blocks`);
 }
 
-console.log(`\nTotal blocks: ${allB.length}`);
+console.log(`\nTotal raw blocks: ${allB.length}`);
 
+// ── Strip interior blocks ──
+// Keep only blocks that have at least one air neighbor within 2 blocks horizontally
+// or within 1 block vertically. This removes the solid interior while keeping the
+// visible shell and parkour platforms.
+console.log('Stripping interior blocks...');
+const SHELL_DEPTH = 2;
+const blockSet = new Set();
+for (let i = 0; i < allB.length; i++) {
+  blockSet.add(allX[i] + ',' + allY[i] + ',' + allZ[i]);
+}
+function hasBlock(x, y, z) { return blockSet.has(x + ',' + y + ',' + z); }
+
+const keepMask = new Uint8Array(allB.length);
+for (let i = 0; i < allB.length; i++) {
+  const x = allX[i], y = allY[i], z = allZ[i];
+  let isSurface = false;
+  // Check vertical: if no block above or below, it's a surface
+  if (!hasBlock(x, y + 1, z) || !hasBlock(x, y - 1, z)) { isSurface = true; }
+  // Check horizontal: if any direction has air within SHELL_DEPTH, it's surface
+  if (!isSurface) {
+    for (let d = 1; d <= SHELL_DEPTH && !isSurface; d++) {
+      if (!hasBlock(x + d, y, z) || !hasBlock(x - d, y, z) ||
+          !hasBlock(x, y, z + d) || !hasBlock(x, y, z - d)) {
+        isSurface = true;
+      }
+    }
+  }
+  if (isSurface) keepMask[i] = 1;
+}
+
+// Also remove ceiling blocks: if a block has another block directly above it,
+// and both are surface blocks, remove the upper one to create headroom
+// (skip this for now - the surface filter should help enough)
+
+const filteredX = [], filteredY = [], filteredZ = [], filteredB = [];
+let keptCount = 0;
+for (let i = 0; i < allB.length; i++) {
+  if (keepMask[i]) {
+    filteredX.push(allX[i]);
+    filteredY.push(allY[i]);
+    filteredZ.push(allZ[i]);
+    filteredB.push(allB[i]);
+    keptCount++;
+  }
+}
+console.log(`Kept ${keptCount} / ${allB.length} blocks (${Math.round(100 * keptCount / allB.length)}%)`);
+
+// Replace arrays
+allX = filteredX;
+allY = filteredY;
+allZ = filteredZ;
+allB = filteredB;
+
+// Recalculate bounds
 let minX = Infinity, maxX = -Infinity;
 let minY = Infinity, maxY = -Infinity;
 let minZ = Infinity, maxZ = -Infinity;
@@ -682,10 +736,11 @@ for (let i = 0; i < allB.length; i++) {
   if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
 }
 
-// MC map spawns at X=0.5 Y=53 Z=-96.5 (bottom entrance)
+// MC map spawns at X=0.5 Y=53 Z=-96.5 but that's outside the spiral
+// The actual entrance is on the south side at Z≈-50
 let spawnY = 55;
 let spawnX = 0;
-let spawnZ = -96;
+let spawnZ = -50;
 
 const headerSize = 9 * 4;
 const bodySize = allB.length * 4 * 4;
