@@ -2649,6 +2649,7 @@ let rainDrops = null;
 let RAIN_COUNT = 2000;
 let rainPositions = null;
 let rainVelocities = null;
+let _rainSplashTimer = 0;
 
 function initRain() {
   RAIN_COUNT = graphicsQuality === 'low' ? 500 : graphicsQuality === 'high' ? 3000 : 2000;

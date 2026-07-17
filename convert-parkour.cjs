@@ -681,8 +681,8 @@ for (let i = 0; i < allB.length; i++) {
   if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
 }
 
-let spawnY = 100;
-for (let y = maxY; y >= minY; y--) {
+let spawnY = 70;
+for (let y = minY; y <= maxY; y++) {
   let found = false;
   for (let i = 0; i < allB.length; i++) {
     if (allX[i] === 0 && allZ[i] === 0 && allY[i] === y) { found = true; break; }
