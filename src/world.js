@@ -158,7 +158,12 @@ export class World {
         const ex = +key.slice(0, ci);
         const ey = +key.slice(ci + 1, ci2);
         const ez = +key.slice(ci2 + 1);
-        chunk.set(ex - chunk.cx * CHUNK_SIZE, ey, ez - chunk.cz * CHUNK_SIZE, v);
+        const lx = ex - chunk.cx * CHUNK_SIZE;
+        const lz = ez - chunk.cz * CHUNK_SIZE;
+        chunk.set(lx, ey, lz, v);
+        if (ey > chunk.surfaceMap[lz * CHUNK_SIZE + lx]) {
+          chunk.surfaceMap[lz * CHUNK_SIZE + lx] = ey;
+        }
       }
     }
 

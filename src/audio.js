@@ -45,7 +45,7 @@ export class Audio {
     if (!AC) return;
     this.ctx = new AC();
     this.master = this.ctx.createGain();
-    this.master.gain.value = 0.35;
+    this.master.gain.value = 0.6;
     this.master.connect(this.ctx.destination);
 
     this.musicGain = this.ctx.createGain();
@@ -107,7 +107,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.6;
+    g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -149,7 +149,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.7;
+    g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -177,7 +177,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.55;
+    g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -216,7 +216,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.5;
+    g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -249,7 +249,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.5;
+    g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -276,7 +276,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.45;
+    g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -311,7 +311,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.5;
+    g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -348,7 +348,7 @@ export class Audio {
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.55;
+    g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
     src.start();
