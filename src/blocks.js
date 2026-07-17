@@ -91,6 +91,13 @@ export const BLOCK = {
   VOIDSTONE: 83,
   VOID_GLASS: 84,
   QUICKSAND: 85,
+  BLOCKSCRAP: 86,
+  STONE_BRICKS: 87,
+  DEEPSLATE: 88,
+  CONCRETE: 89,
+  SLIME_BLOCK: 90,
+  PRISMARINE: 91,
+  PURPUR: 92,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -191,6 +198,17 @@ export const TILES = {
   voidstone:          [1, 6],
   void_glass:         [2, 6],
   quicksand:          [3, 6],
+  blockscrap:         [4, 6],
+  stone_bricks:       [5, 6],
+  deepslate:          [6, 6],
+  deepslate_bricks:   [7, 6],
+  concrete:           [8, 6],
+  slime:              [9, 6],
+  prismarine:         [10, 6],
+  dark_prismarine:    [11, 6],
+  purpur:             [12, 6],
+  purpur_pillar_top:  [13, 6],
+  purpur_pillar_side: [14, 6],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -290,6 +308,13 @@ export const BLOCKS = {
   [BLOCK.VOIDSTONE]:  { name: 'Voidstone', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'voidstone' },
   [BLOCK.VOID_GLASS]: { name: 'Void Glass', solid: true, transparent: true, hardness: 0.3, drop: 0, faces: 'void_glass' },
   [BLOCK.QUICKSAND]:  { name: 'Quicksand', solid: true, hardness: 0.5, tool: 'shovel', faces: 'quicksand' },
+  [BLOCK.BLOCKSCRAP]: { name: 'Block Scrap', solid: true, hardness: 1.5, tool: 'pickaxe', faces: 'blockscrap' },
+  [BLOCK.STONE_BRICKS]: { name: 'Stone Bricks', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone_bricks' },
+  [BLOCK.DEEPSLATE]:  { name: 'Deepslate', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate' },
+  [BLOCK.CONCRETE]:   { name: 'Concrete', solid: true, hardness: 1.8, tool: 'pickaxe', faces: 'concrete' },
+  [BLOCK.SLIME_BLOCK]: { name: 'Slime Block', solid: true, transparent: true, hardness: 0.0, faces: 'slime' },
+  [BLOCK.PRISMARINE]: { name: 'Prismarine', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'prismarine' },
+  [BLOCK.PURPUR]:     { name: 'Purpur Block', solid: true, hardness: 1.5, tool: 'pickaxe', faces: { top: 'purpur', bottom: 'purpur', side: 'purpur_pillar_side' } },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

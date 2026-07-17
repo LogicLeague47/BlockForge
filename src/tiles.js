@@ -1780,6 +1780,94 @@ const PAINTERS = {
     // Dark specks
     speckle(ctx, x0, y0, rng, 6, ['rgb(100,86,46)']);
   },
+  blockscrap(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 105, 95], 0.1, rng);
+    speckle(ctx, x0, y0, rng, 16, ['rgb(130,125,115)', 'rgb(90,85,75)', 'rgb(70,65,55)']);
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * 28) | 0, y = (rng() * 28) | 0;
+      ctx.fillStyle = `rgba(${80 + rng()*40|0},${75 + rng()*40|0},${65 + rng()*40|0},0.6)`;
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng()*3|0), 1 + (rng()*2|0));
+    }
+  },
+  stone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [122, 122, 122], 0.05, rng);
+    ctx.fillStyle = 'rgba(90,90,90,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(140,140,140)', 'rgb(100,100,100)']);
+  },
+  deepslate(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [80, 80, 85], 0.06, rng);
+    for (let y = 0; y < TILE; y += 4) {
+      ctx.fillStyle = `rgba(60,60,65,${0.3 + rng()*0.3})`;
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(100,100,105)', 'rgb(65,65,70)']);
+  },
+  deepslate_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [75, 75, 80], 0.05, rng);
+    ctx.fillStyle = 'rgba(55,55,60,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(95,95,100)', 'rgb(60,60,65)']);
+  },
+  concrete(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [200, 200, 200], 0.03, rng);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(215,215,215)', 'rgb(185,185,185)']);
+  },
+  slime(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [80, 180, 80], 0.08, rng);
+    for (let i = 0; i < 12; i++) {
+      const x = (rng() * 24) | 0, y = (rng() * 24) | 0;
+      ctx.fillStyle = 'rgba(120,220,120,0.35)';
+      ctx.fillRect(x0 + x, y0 + y, 3 + (rng()*3|0), 2 + (rng()*2|0));
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(100,200,100)', 'rgb(60,140,60)']);
+  },
+  prismarine(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 140, 130], 0.06, rng);
+    for (let y = 0; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x += 8) {
+        ctx.fillStyle = `rgba(${80+rng()*40|0},${120+rng()*40|0},${110+rng()*40|0},0.4)`;
+        ctx.fillRect(x0 + x, y0 + y, 8, 8);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(120,170,155)', 'rgb(80,110,100)']);
+  },
+  dark_prismarine(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [60, 100, 90], 0.06, rng);
+    for (let y = 0; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x += 8) {
+        ctx.fillStyle = `rgba(${40+rng()*30|0},${80+rng()*30|0},${70+rng()*30|0},0.5)`;
+        ctx.fillRect(x0 + x, y0 + y, 8, 8);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(80,130,120)', 'rgb(50,80,70)']);
+  },
+  purpur(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 12, ['rgb(190,150,190)', 'rgb(150,110,150)']);
+  },
+  purpur_pillar_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    ctx.strokeStyle = 'rgba(150,110,150,0.5)';
+    for (let i = 4; i < TILE; i += 6) {
+      ctx.beginPath(); ctx.moveTo(x0 + i, y0); ctx.lineTo(x0 + i, y0 + TILE); ctx.stroke();
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(190,150,190)']);
+  },
+  purpur_pillar_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    ctx.fillStyle = 'rgba(150,110,150,0.4)';
+    for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
+    speckle(ctx, x0, y0, rng, 8, ['rgb(190,150,190)', 'rgb(140,100,140)']);
+  },
 };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.
