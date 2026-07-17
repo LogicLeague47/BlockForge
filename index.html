@@ -450,14 +450,16 @@
         text-align: center !important;
       }
       .mg-coming {
-        border-color: rgba(100,100,100,0.4) !important;
-        background: rgba(50,50,50,0.5) !important;
-        color: #888 !important;
+        border-color: rgba(120,120,120,0.5) !important;
+        background: rgba(60,60,60,0.6) !important;
+        color: #999 !important;
         cursor: default !important;
+        opacity: 0.7;
       }
       .mg-coming:hover {
-        background: rgba(60,60,60,0.5) !important;
-        color: #aaa !important;
+        background: rgba(70,70,70,0.6) !important;
+        color: #bbb !important;
+        opacity: 0.85;
       }
 
       /* Achievement toast notification */
@@ -2063,15 +2065,13 @@
       <!-- Screen: Minigames -->
       <div id="menu-minigames" class="menu-screen">
         <div class="menu-title" style="font-size:28px;color:#fa0;">🎮 MINIGAMES</div>
-        <div class="menu-panel" style="max-height:none;width:480px;">
-          <div class="mg-grid">
-            <button class="menu-btn mg-btn" id="btn-minigame-parkour" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
-            <button class="menu-btn mg-btn mg-coming" id="btn-minigame-bedwars">⚔ BedWars</button>
-            <button class="menu-btn mg-btn mg-coming" id="btn-minigame-blockzones">🧱 BlockZones</button>
-            <button class="menu-btn mg-btn mg-coming" id="btn-minigame-99nights">🌙 99Nights</button>
-            <button class="menu-btn mg-btn mg-coming" id="btn-minigame-gunaffairs">🔫 GunAffair</button>
-          </div>
-          <button class="menu-btn secondary" id="btn-minigames-back">BACK</button>
+        <div class="menu-panel" style="max-height:none;width:400px;">
+          <button class="menu-btn" id="btn-minigame-parkour" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-bedwars">⚔ BedWars</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-blockzones">🧱 BlockZones</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-99nights">🌙 99Nights</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-gunaffairs">🔫 GunAffair</button>
+          <button class="menu-btn secondary" id="btn-minigames-back" style="margin-top:12px;">BACK</button>
         </div>
       </div>
 

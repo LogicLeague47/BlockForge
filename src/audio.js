@@ -120,13 +120,11 @@ export class Audio {
   _loadDigBuffers() {
     this._digBuffers = {};
     const matFiles = {
-      stone: ['/Sounds/dig/break_stone.wav', '/Sounds/dig/small_rock_impact.wav', '/Sounds/dig/tap_stone.wav'],
-      gravel: ['/Sounds/dig/crush.wav'],
-      leaves: ['/Sounds/dig/rustling_weeds.wav'],
-      plant: ['/Sounds/dig/rustling_weeds.wav'],
-      liquid: ['/Sounds/dig/glug.wav'],
-      water: ['/Sounds/dig/swim.wav'],
-      metal: ['/Sounds/dig/cannonball_tap.wav'],
+      stone: ['/Sounds/dig/break1.wav', '/Sounds/dig/break2.wav', '/Sounds/dig/break3.wav'],
+      dirt: ['/Sounds/dig/break2.wav', '/Sounds/dig/break3.wav'],
+      sand: ['/Sounds/dig/break1.wav'],
+      wood: ['/Sounds/dig/break1.wav', '/Sounds/dig/break2.wav'],
+      leaves: ['/Sounds/dig/break3.wav'],
     };
     for (const [mat, files] of Object.entries(matFiles)) {
       this._digBuffers[mat] = [];
@@ -191,9 +189,11 @@ export class Audio {
     this._placeBuffers = {};
     const matFiles = {
       general: ['/Sounds/place/drop1.wav', '/Sounds/place/drop2.wav', '/Sounds/place/drop3.wav'],
-      stone: ['/Sounds/place/break1.wav', '/Sounds/place/break2.wav', '/Sounds/place/break3.wav'],
-      wood: ['/Sounds/place/chop-tree-fall.ogg'],
-      dirt: ['/Sounds/place/drop4.wav', '/Sounds/place/drop5.wav'],
+      stone: ['/Sounds/place/punch1.wav', '/Sounds/place/punch2.wav'],
+      wood: ['/Sounds/place/drop4.wav', '/Sounds/place/drop5.wav'],
+      dirt: ['/Sounds/place/drop2.wav', '/Sounds/place/drop3.wav'],
+      sand: ['/Sounds/place/drop1.wav'],
+      glass: ['/Sounds/place/drop4.wav'],
     };
     for (const [mat, files] of Object.entries(matFiles)) {
       this._placeBuffers[mat] = [];

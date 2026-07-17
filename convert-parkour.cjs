@@ -250,11 +250,13 @@ function mcToBF(mcName) {
   return id !== undefined ? id : 3;
 }
 
-// Coordinate bounds for the spiral structure
+// Coordinate bounds — capture the full spiral structure
 const MIN_X = -100, MAX_X = 100;
 const MIN_Z = -100, MAX_Z = 100;
-const MIN_Y = 40, MAX_Y = 300;
-const TERRAIN = new Set([3, 2, 7, 9, 8, 80, 18, 19, 28, 29]);
+const MIN_Y = 1, MAX_Y = 300;
+// Filter out natural terrain filler: stone, dirt, grass, sand, bedrock, water, lava, gravel, clay
+// Keep everything else (planks, logs, leaves, wool, pistons, TNT, etc.)
+const TERRAIN = new Set([0, 1, 2, 3, 7, 8, 9, 18, 19, 80]);
 
 const worldDir = process.argv[2] || '/tmp/parkour_spiral/Parkour Spiral';
 const outputPath = process.argv[3] || path.join(__dirname, 'public', 'parkour-chunks.bin.gz');
