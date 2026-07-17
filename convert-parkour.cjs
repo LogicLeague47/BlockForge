@@ -22,7 +22,7 @@ const MC_TO_BF = {
   'minecraft:jungle_leaves': 6, 'minecraft:acacia_leaves': 6, 'minecraft:dark_oak_leaves': 6,
   'minecraft:mangrove_leaves': 6, 'minecraft:cherry_leaves': 6,
   'minecraft:azalea_leaves': 6, 'minecraft:flowering_azalea_leaves': 6,
-  'minecraft:glow_lichen': 6, 'minecraft:warped_wart_block': 6, 'minecraft:nether_wart_block': 6,
+  'minecraft:glow_lichen': 6, 'minecraft:warped_wart_block': 95, 'minecraft:nether_wart_block': 94,
   'minecraft:twisting_vines': 6, 'minecraft:weeping_vines': 6,
   'minecraft:big_dripleaf': 6,
   // SAND = 7
@@ -175,8 +175,8 @@ const MC_TO_BF = {
   'minecraft:cartography_table': 10, 'minecraft:loom': 10,
   'minecraft:fletching_table': 10, 'minecraft:smithing_table': 10,
   'minecraft:composter': 10, 'minecraft:lectern': 10,
-  'minecraft:blackstone': 3, 'minecraft:polished_blackstone': 30,
-  'minecraft:polished_blackstone_bricks': 30,
+  'minecraft:blackstone': 3, 'minecraft:polished_blackstone': 93,
+  'minecraft:polished_blackstone_bricks': 93, 'minecraft:chiseled_polished_blackstone': 93,
   'minecraft:soul_sand': 3, 'minecraft:soul_soil': 3,
   'minecraft:ancient_debris': 3, 'minecraft:reinforced_deepslate': 3,
   'minecraft:respawn_anchor': 25,
@@ -428,12 +428,12 @@ const MC_TO_BF = {
   'minecraft:white_banner': 69, 'minecraft:red_banner': 69,
   'minecraft:green_wall_banner': 69, 'minecraft:lime_wall_banner': 69,
   // Misc solids
-  'minecraft:nether_wart_block': 30, 'minecraft:warped_wart_block': 30,
+  'minecraft:nether_wart_block': 94, 'minecraft:warped_wart_block': 95,
   'minecraft:shroomlight': 32, 'minecraft:magma_block': 28,
   'minecraft:target': 3, 'minecraft:lodestone': 50,
   'minecraft:sponge': 30, 'minecraft:wet_sponge': 30,
-  'minecraft:smooth_stone': 3, 'minecraft:polished_blackstone': 3,
-  'minecraft:polished_blackstone_bricks': 3, 'minecraft:chiseled_polished_blackstone': 3,
+  'minecraft:smooth_stone': 3, 'minecraft:polished_blackstone': 93,
+  'minecraft:polished_blackstone_bricks': 93, 'minecraft:chiseled_polished_blackstone': 93,
   'minecraft:cracked_deepslate_bricks': 88, 'minecraft:cracked_deepslate_tiles': 88,
   'minecraft:chiseled_deepslate': 88,
   'minecraft:stone_brick_stairs': 87, 'minecraft:stone_brick_slab': 87,
@@ -544,16 +544,16 @@ function parseNBT(buf) {
 
 function mcToBF(mcName) {
   const id = MC_TO_BF[mcName];
-  return id !== undefined ? id : 0;
+  return id !== undefined ? id : 86;
 }
 
-// Coordinate bounds — capture the full spiral structure
-const MIN_X = -100, MAX_X = 100;
-const MIN_Z = -100, MAX_Z = 100;
-const MIN_Y = 1, MAX_Y = 300;
-// Filter out natural terrain filler: stone, dirt, grass, sand, bedrock, water, lava, gravel, clay
-// Keep everything else (planks, logs, leaves, wool, pistons, TNT, etc.)
-const TERRAIN = new Set([0, 1, 2, 3, 7, 8, 9, 18, 19, 80]);
+// Coordinate bounds — spiral tower is centered at (0,0), extends Y=64..254
+// Natural terrain below Y=64 and outside X/Z ±80 is NOT part of the spiral
+const MIN_X = -80, MAX_X = 80;
+const MIN_Z = -80, MAX_Z = 80;
+const MIN_Y = 64, MAX_Y = 255;
+// Keep ALL block types — stone, dirt, grass ARE the spiral structure
+const TERRAIN = new Set([0, 8, 80]);
 
 const worldDir = process.argv[2] || '/tmp/parkour_spiral/Parkour Spiral';
 const outputPath = process.argv[3] || path.join(__dirname, 'public', 'parkour-chunks.bin.gz');

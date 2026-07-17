@@ -98,6 +98,9 @@ export const BLOCK = {
   SLIME_BLOCK: 90,
   PRISMARINE: 91,
   PURPUR: 92,
+  BLACKSTONE_BRICKS: 93,
+  NETHER_WART: 94,
+  WARPED_WART: 95,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -209,6 +212,9 @@ export const TILES = {
   purpur:             [12, 6],
   purpur_pillar_top:  [13, 6],
   purpur_pillar_side: [14, 6],
+  blackstone_bricks:  [0, 7],
+  nether_wart:        [1, 7],
+  warped_wart:        [2, 7],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -315,6 +321,9 @@ export const BLOCKS = {
   [BLOCK.SLIME_BLOCK]: { name: 'Slime Block', solid: true, transparent: true, hardness: 0.0, faces: 'slime' },
   [BLOCK.PRISMARINE]: { name: 'Prismarine', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'prismarine' },
   [BLOCK.PURPUR]:     { name: 'Purpur Block', solid: true, hardness: 1.5, tool: 'pickaxe', faces: { top: 'purpur', bottom: 'purpur', side: 'purpur_pillar_side' } },
+  [BLOCK.BLACKSTONE_BRICKS]: { name: 'Blackstone Bricks', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'blackstone_bricks' },
+  [BLOCK.NETHER_WART]: { name: 'Nether Wart Block', solid: true, hardness: 1.0, faces: 'nether_wart' },
+  [BLOCK.WARPED_WART]: { name: 'Warped Wart Block', solid: true, hardness: 1.0, faces: 'warped_wart' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

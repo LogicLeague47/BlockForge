@@ -1868,6 +1868,33 @@ const PAINTERS = {
     for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
     speckle(ctx, x0, y0, rng, 8, ['rgb(190,150,190)', 'rgb(140,100,140)']);
   },
+  blackstone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [40, 35, 45], 0.06, rng);
+    ctx.fillStyle = 'rgba(25,20,30,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let x = 0; x < TILE; x += 8) ctx.fillRect(x0 + x, y0, 1, TILE);
+    speckle(ctx, x0, y0, rng, 10, ['rgb(55,50,60)', 'rgb(30,25,35)']);
+  },
+  nether_wart(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [140, 20, 20], 0.08, rng);
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      const w = 2 + (rng() * 3 | 0), h = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(170,30,30)' : 'rgb(110,15,15)';
+      ctx.fillRect(x0 + x, y0 + y, w, h);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(180,40,40)', 'rgb(120,20,20)']);
+  },
+  warped_wart(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [25, 120, 130], 0.08, rng);
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      const w = 2 + (rng() * 3 | 0), h = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(35,150,160)' : 'rgb(20,100,110)';
+      ctx.fillRect(x0 + x, y0 + y, w, h);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(40,160,170)', 'rgb(25,110,120)']);
+  },
 };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.

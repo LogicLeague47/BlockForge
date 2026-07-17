@@ -1294,7 +1294,7 @@
         padding: 16px 20px;
         border-radius: 4px;
         width: 420px;
-        max-height: 340px;
+        max-height: min(340px, 60vh);
         overflow-y: auto;
         scrollbar-width: thin;
         scrollbar-color: var(--scrollbar-thumb) transparent;
@@ -2065,7 +2065,7 @@
       <!-- Screen: Minigames -->
       <div id="menu-minigames" class="menu-screen">
         <div class="menu-title" style="font-size:28px;color:#fa0;">🎮 MINIGAMES</div>
-        <div class="menu-panel" style="max-height:none;width:400px;">
+        <div class="menu-panel" style="width:400px;">
           <button class="menu-btn" id="btn-minigame-parkour" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
           <button class="menu-btn mg-coming" id="btn-minigame-bedwars">⚔ BedWars</button>
           <button class="menu-btn mg-coming" id="btn-minigame-blockzones">🧱 BlockZones</button>
