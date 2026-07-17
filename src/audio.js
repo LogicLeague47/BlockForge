@@ -29,6 +29,7 @@ export class Audio {
     this._musicPlaying = false;
     this._musicElement = null;
     this._musicStarted = false;
+    this._stepBuffers = {};
   }
 
   init() {
@@ -59,14 +60,23 @@ export class Audio {
   }
 
   // ── STEP SOUND BUFFERS ──────────────────────────────────────────────
+  // Real recorded footstep sounds from CC0 sources (OpenGameArt.org)
+  // Loaded as AudioBuffers for low-latency playback.
+
   _loadStepBuffers() {
     this._stepBuffers = {};
-    const materials = ['stone','dirt','wood','leaves','sand','snow','gravel','metal','brimstone','glass','plant','liquid'];
+    const materials = [
+      'stone','dirt','wood','leaves','sand','snow',
+      'gravel','metal','plant','liquid'
+    ];
     for (const mat of materials) {
       this._stepBuffers[mat] = [];
-      for (let v = 1; v <= 3; v++) {
+      for (let v = 1; v <= 9; v++) {
         const url = assetUrl(`/Sounds/step/${mat}${v}.wav`);
-        fetch(url).then(r => r.arrayBuffer()).then(ab => {
+        fetch(url).then(r => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.arrayBuffer();
+        }).then(ab => {
           return this.ctx.decodeAudioData(ab);
         }).then(buf => {
           this._stepBuffers[mat].push(buf);
@@ -77,13 +87,13 @@ export class Audio {
 
   _playStepBuffer(mat) {
     if (!this.ctx || !this.enabled) return;
-    const bufs = this._stepBuffers?.[mat];
+    const bufs = this._stepBuffers[mat];
     if (!bufs || bufs.length === 0) return;
     const buf = bufs[(Math.random() * bufs.length) | 0];
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
-    g.gain.value = 0.5;
+    g.gain.value = 0.6;
     src.connect(g);
     g.connect(this.master);
     src.start();
@@ -295,7 +305,16 @@ export class Audio {
     ]);
   }
 
-  _stone_step() { this._playStepBuffer('stone'); }
+  _stone_step() {
+    if (this._stepBuffers.stone && this._stepBuffers.stone.length > 0) {
+      this._playStepBuffer('stone');
+    } else {
+      this._playLayers([
+        { noise: 'brown', dur: 0.08, gain: 0.3, lp: 400, atk: 0.005, rel: 0.25 },
+        { noise: 'white', dur: 0.05, gain: 0.2, bp: 2000, bq: 1.5, atk: 0.003, rel: 0.2 },
+      ]);
+    }
+  }
 
   _stone_place() {
     this._playLayers([
@@ -317,7 +336,16 @@ export class Audio {
     ]);
   }
 
-  _dirt_step() { this._playStepBuffer('dirt'); }
+  _dirt_step() {
+    if (this._stepBuffers.dirt && this._stepBuffers.dirt.length > 0) {
+      this._playStepBuffer('dirt');
+    } else {
+      this._playLayers([
+        { noise: 'brown', dur: 0.06, gain: 0.2, lp: 250, atk: 0.01, rel: 0.3 },
+        { noise: 'pink', dur: 0.04, gain: 0.1, lp: 500, atk: 0.01, rel: 0.25 },
+      ]);
+    }
+  }
 
   _dirt_place() {
     this._playLayers([
@@ -340,7 +368,16 @@ export class Audio {
     ]);
   }
 
-  _wood_step() { this._playStepBuffer('wood'); }
+  _wood_step() {
+    if (this._stepBuffers.wood && this._stepBuffers.wood.length > 0) {
+      this._playStepBuffer('wood');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.05, gain: 0.2, bp: 800, bq: 2, atk: 0.003, rel: 0.15 },
+        { wave: 'sine', freq: 280, dur: 0.08, gain: 0.1, atk: 0.005, rel: 0.2 },
+      ]);
+    }
+  }
 
   _wood_place() {
     this._playLayers([
@@ -362,7 +399,16 @@ export class Audio {
     ]);
   }
 
-  _leaves_step() { this._playStepBuffer('leaves'); }
+  _leaves_step() {
+    if (this._stepBuffers.leaves && this._stepBuffers.leaves.length > 0) {
+      this._playStepBuffer('leaves');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.04, gain: 0.1, hp: 5000, atk: 0.005, rel: 0.15 },
+        { noise: 'pink', dur: 0.03, gain: 0.06, bp: 3500, bq: 0.5, atk: 0.008, rel: 0.2 },
+      ]);
+    }
+  }
 
   _leaves_place() {
     this._playLayers([
@@ -383,7 +429,16 @@ export class Audio {
     ]);
   }
 
-  _sand_step() { this._playStepBuffer('sand'); }
+  _sand_step() {
+    if (this._stepBuffers.sand && this._stepBuffers.sand.length > 0) {
+      this._playStepBuffer('sand');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.06, gain: 0.2, bp: 3500, bq: 0.6, atk: 0.003, rel: 0.15 },
+        { noise: 'white', dur: 0.04, gain: 0.12, hp: 6000, atk: 0.002, rel: 0.12 },
+      ]);
+    }
+  }
 
   _sand_place() {
     this._playLayers([
@@ -413,7 +468,12 @@ export class Audio {
     ]);
   }
 
-  _glass_step() { this._playStepBuffer('glass'); }
+  _glass_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.03, gain: 0.2, hp: 5000, hq: 1.5, atk: 0.001, rel: 0.04 },
+      { wave: 'sine', freq: 2000, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.05 },
+    ]);
+  }
 
   // SNOW: Soft powdery crunch — light, airy, compressed
   _snow_dig() {
@@ -427,7 +487,16 @@ export class Audio {
     ]);
   }
 
-  _snow_step() { this._playStepBuffer('snow'); }
+  _snow_step() {
+    if (this._stepBuffers.snow && this._stepBuffers.snow.length > 0) {
+      this._playStepBuffer('snow');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.06, gain: 0.15, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.15 },
+        { noise: 'pink', dur: 0.04, gain: 0.08, bp: 1800, bq: 0.5, atk: 0.008, rel: 0.18 },
+      ]);
+    }
+  }
 
   _snow_place() {
     this._playLayers([
@@ -448,7 +517,16 @@ export class Audio {
     ]);
   }
 
-  _gravel_step() { this._playStepBuffer('gravel'); }
+  _gravel_step() {
+    if (this._stepBuffers.gravel && this._stepBuffers.gravel.length > 0) {
+      this._playStepBuffer('gravel');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.07, gain: 0.25, bp: 2200, bq: 0.7, atk: 0.003, rel: 0.15 },
+        { noise: 'brown', dur: 0.05, gain: 0.12, lp: 700, atk: 0.005, rel: 0.18 },
+      ]);
+    }
+  }
 
   _gravel_place() {
     this._playLayers([
@@ -471,7 +549,16 @@ export class Audio {
     ]);
   }
 
-  _metal_step() { this._playStepBuffer('metal'); }
+  _metal_step() {
+    if (this._stepBuffers.metal && this._stepBuffers.metal.length > 0) {
+      this._playStepBuffer('metal');
+    } else {
+      this._playLayers([
+        { wave: 'square', freq: 1000, dur: 0.04, gain: 0.2, atk: 0.001, rel: 0.06 },
+        { noise: 'white', dur: 0.03, gain: 0.15, hp: 3500, hq: 1.5, atk: 0.001, rel: 0.05 },
+      ]);
+    }
+  }
 
   _metal_place() {
     this._playLayers([
@@ -493,7 +580,12 @@ export class Audio {
     ]);
   }
 
-  _brimstone_step() { this._playStepBuffer('brimstone'); }
+  _brimstone_step() {
+    this._playLayers([
+      { noise: 'white', dur: 0.05, gain: 0.2, bp: 1600, bq: 1.2, atk: 0.003, rel: 0.12 },
+      { noise: 'pink', dur: 0.04, gain: 0.1, hp: 2200, hq: 0.7, atk: 0.005, rel: 0.15 },
+    ]);
+  }
 
   _brimstone_place() {
     this._playLayers([
@@ -512,7 +604,16 @@ export class Audio {
     ]);
   }
 
-  _plant_step() { this._playStepBuffer('plant'); }
+  _plant_step() {
+    if (this._stepBuffers.plant && this._stepBuffers.plant.length > 0) {
+      this._playStepBuffer('plant');
+    } else {
+      this._playLayers([
+        { noise: 'white', dur: 0.04, gain: 0.1, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.12 },
+        { noise: 'pink', dur: 0.03, gain: 0.06, bp: 2200, bq: 0.5, atk: 0.008, rel: 0.15 },
+      ]);
+    }
+  }
 
   _plant_place() {
     this._playLayers([
@@ -533,7 +634,16 @@ export class Audio {
     ]);
   }
 
-  _liquid_step() { this._playStepBuffer('liquid'); }
+  _liquid_step() {
+    if (this._stepBuffers.liquid && this._stepBuffers.liquid.length > 0) {
+      this._playStepBuffer('liquid');
+    } else {
+      this._playLayers([
+        { noise: 'brown', dur: 0.08, gain: 0.2, bp: 500, bq: 1.8, atk: 0.005, rel: 0.15 },
+        { wave: 'sine', freq: 200, dur: 0.06, gain: 0.1, atk: 0.008, rel: 0.12 },
+      ]);
+    }
+  }
 
   _liquid_place() {
     this._playLayers([

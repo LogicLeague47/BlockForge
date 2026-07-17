@@ -26,7 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { ParkourGame, buildParkourLevel, buildParkourLobby, PARKOUR_LEVELS, loadParkourMap } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, loadParkourMap } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -675,8 +675,7 @@ try {
 // --- sleep state ---
 let sleeping = false;
 let isDevWorld = false; // dev creative superflat test world
-let isParkour = false;   // parkour minigame mode
-let parkourGame = null;  // ParkourGame instance
+let isParkour = false;   // parkour mode
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
 let sleepTimer = 0;
 let bedSpawnPoint = null;
@@ -876,21 +875,6 @@ document.addEventListener('mousemove', (e) => {
       ui.itemNameEl.classList.add('visible');
       _itemNameTimer = 2;
     }
-  }
-  // T = toggle parkour training mode
-  if (e.code === 'KeyT' && parkourGame && isParkour) {
-    e.preventDefault();
-    parkourGame.toggleTraining();
-  }
-  // F8 = parkour savestate
-  if (e.code === 'F8' && parkourGame && isParkour) {
-    e.preventDefault();
-    parkourGame.saveState();
-  }
-  // L = load parkour savestate
-  if (e.code === 'KeyL' && parkourGame && isParkour) {
-    e.preventDefault();
-    parkourGame.loadState();
   }
   // Y = accept offer banner
   if (e.code === 'KeyY' && offerActive) {
@@ -1291,22 +1275,6 @@ function isCriticalHit() {
     m.position.set(pos.x + (Math.random() - 0.5) * 0.6, pos.y + Math.random() * 1.5, pos.z + (Math.random() - 0.5) * 0.6);
     scene.add(m);
     _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 3, vy: 2 + Math.random() * 3, vz: (Math.random() - 0.5) * 3, life: 0.5, maxLife: 0.5 });
-  }
-}
-
-// Parkour celebration particles (golden burst)
-function spawnParkourCelebration(pos) {
-  if (!scene) return;
-  const colors = [0xffd700, 0xffaa00, 0xffff44, 0xff8800];
-  for (let i = 0; i < 20; i++) {
-    const mat = new THREE.MeshBasicMaterial({ color: colors[i % colors.length], transparent: true, opacity: 1 });
-    const m = new THREE.Mesh(_particleGeoTiny, mat);
-    const angle = (i / 20) * Math.PI * 2;
-    const radius = 1.5 + Math.random() * 1;
-    m.position.set(pos.x + Math.cos(angle) * radius, pos.y + 0.5 + Math.random() * 2, pos.z + Math.sin(angle) * radius);
-    scene.add(m);
-    const speed = 2 + Math.random() * 3;
-    _particles.push({ mesh: m, vx: Math.cos(angle) * speed, vy: 3 + Math.random() * 4, vz: Math.sin(angle) * speed, life: 1.2, maxLife: 1.2 });
   }
 }
 
@@ -2617,7 +2585,6 @@ window._deleteServer = (name) => {
 
 window._exitParkourToMinigames = () => {
   gameRunning = false;
-  if (parkourGame) { parkourGame.cleanup(); parkourGame = null; }
   isParkour = false;
   document.getElementById('status-bars').style.display = '';
   document.getElementById('armor-bar').style.display = '';
@@ -2955,8 +2922,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   if (gameRunning) {
     const prevParkour = isParkour;
     isParkour = false;
-    // Parkour cleanup
-    if (parkourGame) { parkourGame.cleanup(); parkourGame = null; }
     if (prevParkour) {
       document.getElementById('status-bars').style.display = '';
       document.getElementById('armor-bar').style.display = '';
@@ -3223,72 +3188,34 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       player.inventory.offhand = null;
     }
 
-    // Load converted Parkour Paradise map (async fetch + decompress)
     parkourLoadPromise = (async () => {
       try {
         console.log('[Parkour] Loading Parkour Paradise map...');
         const mapInfo = await loadParkourMap(world);
-        console.log(`[Parkour] Loaded ${mapInfo.blockCount} blocks, bounds X[${mapInfo.bounds.minX}..${mapInfo.bounds.maxX}] Z[${mapInfo.bounds.minZ}..${mapInfo.bounds.maxZ}]`);
+        console.log(`[Parkour] Loaded ${mapInfo.blockCount} blocks`);
 
         player.position.set(0.5, mapInfo.spawnY, 0.5);
         player.velocity.set(0, 0, 0);
         player.spawnPoint.set(0.5, mapInfo.spawnY, 0.5);
 
-        // Rebuild chunks near spawn only (chunk loader handles the rest)
         if (manager) {
-          const spawnCX = 0, spawnCZ = 0;
           const rd = (parseInt(document.getElementById('set-render-distance')?.value) || 7) + 2;
-          for (let cx = spawnCX - rd; cx <= spawnCX + rd; cx++)
-            for (let cz = spawnCZ - rd; cz <= spawnCZ + rd; cz++)
+          for (let cx = -rd; cx <= rd; cx++)
+            for (let cz = -rd; cz <= rd; cz++)
               manager.buildOrRefresh(cx, cz);
-          console.log(`[Parkour] Rebuilt spawn area chunks (radius ${rd})`);
         }
-
-        // Level positions — far away so player explores freely; timer still runs
-        const levelPositions = [{ x: 99999, y: 300, z: 99999 }];
-
-        parkourGame = new ParkourGame(world, player, ui);
-        parkourGame.start(levelPositions);
-        document.getElementById('status-bars').style.display = 'none';
-        document.getElementById('armor-bar').style.display = 'none';
-        document.getElementById('hunger-bar')?.remove();
       } catch (e) {
         console.error('[Parkour] Failed to load map, falling back to procedural:', e);
-        // Fallback to procedural generation
         player.position.set(0.5, 70, 0.5);
         player.velocity.set(0, 0, 0);
         player.spawnPoint.set(0.5, 70, 0.5);
         buildParkourLobby(world, 0, 64, 0);
-        const levelPositions = [];
-        const LEVELS_PER_ROW = 5;
-        const LEVEL_SPACING_X = 32;
-        const LEVEL_SPACING_Z = 20;
-        for (let i = 0; i < PARKOUR_LEVELS.length; i++) {
-          const row = Math.floor(i / LEVELS_PER_ROW);
-          const col = i % LEVELS_PER_ROW;
-          const ox = (col - Math.floor(LEVELS_PER_ROW / 2)) * LEVEL_SPACING_X;
-          const oz = -(row + 1) * LEVEL_SPACING_Z;
-          const pos = buildParkourLevel(world, i + 1, ox, 64, oz);
-          levelPositions.push(pos);
-        }
-        for (let x = -12; x >= -62; x--) {
-          world.setBlock(x, 64, 0, BLOCK.VOID_GLASS);
-        }
+        buildAllLevels(world, 0, 64, -12);
         if (manager) {
-          const affected = new Set();
           for (let cx = -5; cx <= 5; cx++)
             for (let cz = -5; cz <= 5; cz++)
-              affected.add(cx + ',' + cz);
-          for (const k of affected) {
-            const [cx, cz] = k.split(',').map(Number);
-            manager.buildOrRefresh(cx, cz);
-          }
+              manager.buildOrRefresh(cx, cz);
         }
-        parkourGame = new ParkourGame(world, player, ui);
-        parkourGame.start(levelPositions);
-        document.getElementById('status-bars').style.display = 'none';
-        document.getElementById('armor-bar').style.display = 'none';
-        document.getElementById('hunger-bar')?.remove();
       }
     })();
   }
@@ -4117,12 +4044,10 @@ function initMenu() {
   });
   document.getElementById('btn-quit').addEventListener('click', () => {
     ui.hidePause();
-    if (isParkour && parkourGame) { parkourGame.cleanup(); }
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
     try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
-    // Show midgame ad before returning to menu
     cgMidgameAd({
       adStarted() { audio.stopMusic(); },
       adFinished() { if (isParkour) showMinigames(); else showWorldList(); },
@@ -4151,7 +4076,6 @@ function initMenu() {
     }
   });
   document.getElementById('btn-death-quit').addEventListener('click', () => {
-    if (isParkour && parkourGame) { parkourGame.cleanup(); }
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
@@ -4651,33 +4575,6 @@ function loop() {
   // player physics (skip during sleep)
   if (!sleeping) {
     player.update(dt, input);
-    // Parkour game update + celebration effects
-    if (parkourGame && isParkour) {
-      const prevLevel = parkourGame.currentLevel;
-      const prevFinished = parkourGame.finished;
-      parkourGame.update();
-      // Level complete celebration
-      if (parkourGame.currentLevel !== prevLevel && !prevFinished) {
-        const p = player.position.clone();
-        p.y += 1;
-        spawnParkourCelebration(p);
-        audio.levelComplete?.();
-        if (playerModel) playerModel.triggerCelebrate();
-      }
-      // Course finish celebration
-      if (parkourGame.finished && !prevFinished) {
-        for (let i = 0; i < 3; i++) {
-          setTimeout(() => {
-            const p = player.position.clone();
-            p.x += (Math.random() - 0.5) * 4;
-            p.z += (Math.random() - 0.5) * 4;
-            spawnParkourCelebration(p);
-          }, i * 400);
-        }
-        audio.finish?.();
-        if (playerModel) playerModel.triggerCelebrate();
-      }
-    }
   } else {
     // Sleep overlay fade animation
     sleepTimer += dt;
