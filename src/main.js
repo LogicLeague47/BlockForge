@@ -5313,12 +5313,14 @@ function drawMiniSkin(cvs, preset) {
 buildSkinPicker();
 
 // Wire up skin picker buttons
+let _prevMenuScreen = 'main';
 document.getElementById('btn-skin-customize')?.addEventListener('click', () => {
+  _prevMenuScreen = document.getElementById('menu-login')?.classList.contains('active') ? 'login' : 'main';
   buildSkinPicker();
   ui.showMenu('skins');
 });
 document.getElementById('btn-skins-back')?.addEventListener('click', () => {
-  ui.showMenu('main');
+  ui.showMenu(_prevMenuScreen);
 });
 
 // --- Skin Editor ---

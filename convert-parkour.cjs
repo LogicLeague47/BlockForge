@@ -189,7 +189,12 @@ const MC_TO_BF = {
   'minecraft:purple_concrete': 30, 'minecraft:blue_concrete': 30,
   'minecraft:brown_concrete': 30, 'minecraft:green_concrete': 30,
   'minecraft:red_concrete': 30, 'minecraft:black_concrete': 30,
-  'minecraft:white_wool': 30, 'minecraft:red_wool': 30, 'minecraft:blue_wool': 30,
+  'minecraft:white_wool': 69, 'minecraft:orange_wool': 69, 'minecraft:magenta_wool': 69,
+  'minecraft:light_blue_wool': 69, 'minecraft:yellow_wool': 69, 'minecraft:lime_wool': 69,
+  'minecraft:pink_wool': 69, 'minecraft:gray_wool': 69, 'minecraft:light_gray_wool': 69,
+  'minecraft:cyan_wool': 69, 'minecraft:purple_wool': 69, 'minecraft:blue_wool': 69,
+  'minecraft:brown_wool': 69, 'minecraft:green_wool': 69, 'minecraft:red_wool': 69,
+  'minecraft:black_wool': 69,
   'minecraft:chain': 50,
   'minecraft:lapis_ore': 12, 'minecraft:redstone_ore': 12,
   'minecraft:nether_gold_ore': 13, 'minecraft:nether_quartz_ore': 13,
@@ -247,7 +252,7 @@ function parseNBT(buf) {
 
 function mcToBF(mcName) {
   const id = MC_TO_BF[mcName];
-  return id !== undefined ? id : 3;
+  return id !== undefined ? id : 0;
 }
 
 // Coordinate bounds — capture the full spiral structure
