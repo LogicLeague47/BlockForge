@@ -426,7 +426,7 @@ crackTexture.minFilter = THREE.NearestFilter;
 crackTexture.generateMipmaps = false;
 const crackMaterial = new THREE.MeshBasicMaterial({
   map: crackTexture, transparent: true, depthTest: true, depthWrite: false,
-  polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4,
+  polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10,
 });
 const crackPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.001, 1.001), crackMaterial);
 crackPlane.visible = false;
@@ -437,13 +437,24 @@ function updateBreaking(progress, hit) {
   crackPlane.visible = true;
   drawCrack(crackCanvas, Math.min(10, Math.floor(progress * 10) + 1));
   crackTexture.needsUpdate = true;
-  // Position crack on the face that was hit, not inside the block
+  // Position crack flush on the face that was hit
+  const nx = hit.normal.x, ny = hit.normal.y, nz = hit.normal.z;
   crackPlane.position.set(
-    hit.x + 0.5 + hit.normal.x * 0.501,
-    hit.y + 0.5 + hit.normal.y * 0.501,
-    hit.z + 0.5 + hit.normal.z * 0.501
+    hit.x + 0.5 + nx * 0.505,
+    hit.y + 0.5 + ny * 0.505,
+    hit.z + 0.5 + nz * 0.505
   );
-  crackPlane.lookAt(camera.position);
+  // Orient the crack plane to match the block face, then billboard toward camera
+  if (Math.abs(ny) > 0.5) {
+    // Top/bottom face: rotate to be horizontal
+    crackPlane.rotation.set(ny > 0 ? -Math.PI / 2 : Math.PI / 2, 0, 0);
+  } else if (Math.abs(nx) > 0.5) {
+    // Left/right face
+    crackPlane.rotation.set(0, 0, nx > 0 ? Math.PI / 2 : -Math.PI / 2);
+  } else {
+    // Front/back face
+    crackPlane.rotation.set(0, nz > 0 ? 0 : Math.PI, 0);
+  }
 }
 
 // --- UI / audio ---
@@ -1090,7 +1101,7 @@ document.addEventListener('mousedown', (e) => {
       if (hit && isBlockItem(hit.block)) {
         player.inventory.slots[player.inventory.selected] = { item: hit.block, count: 1 };
         syncUIMode();
-        audio.place();
+  audio.place(itemId);
       }
       e.preventDefault();
     }
@@ -1483,7 +1494,7 @@ function placeBlock(slotOverride) {
     syncUIMode();
   }
   manager.refreshAround(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
-  audio.place();
+  audio.place(itemId);
   // Achievement stats: block placed
   achievements.incrementMapStat('blocksPlaced', `${itemId}`);
   achievements.incrementStat('blocksPlacedAny');
@@ -3197,13 +3208,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         player.position.set(0.5, mapInfo.spawnY, 0.5);
         player.velocity.set(0, 0, 0);
         player.spawnPoint.set(0.5, mapInfo.spawnY, 0.5);
-
-        if (manager) {
-          const rd = (parseInt(document.getElementById('set-render-distance')?.value) || 7) + 2;
-          for (let cx = -rd; cx <= rd; cx++)
-            for (let cz = -rd; cz <= rd; cz++)
-              manager.buildOrRefresh(cx, cz);
-        }
       } catch (e) {
         console.error('[Parkour] Failed to load map, falling back to procedural:', e);
         player.position.set(0.5, 70, 0.5);
@@ -3211,11 +3215,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         player.spawnPoint.set(0.5, 70, 0.5);
         buildParkourLobby(world, 0, 64, 0);
         buildAllLevels(world, 0, 64, -12);
-        if (manager) {
-          for (let cx = -5; cx <= 5; cx++)
-            for (let cz = -5; cz <= 5; cz++)
-              manager.buildOrRefresh(cx, cz);
-        }
       }
     })();
   }
@@ -3235,39 +3234,41 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   ui.updateLoading(0, 'Preparing terrain...');
   ui.hideOverlay();
 
-  // Async prime with loading screen updates
-  const pcx = Math.floor(player.position.x / CHUNK_SIZE);
-  const pcz = Math.floor(player.position.z / CHUNK_SIZE);
-  loader.primeAsync(pcx, pcz, (done, total) => {
-    const pct = total > 0 ? (done / total) * 100 : 100;
-    const stepText = pct < 25 ? 'Generating terrain...' :
-                     pct < 50 ? 'Building landscape...' :
-                     pct < 75 ? 'Planting trees...' : 'Almost ready...';
-    ui.updateLoading(pct, stepText);
-  }).then(async () => {
-    // Wait for parkour map to load if applicable
-    if (parkourLoadPromise) {
-      ui.updateLoading(100, 'Loading parkour map...');
-      await parkourLoadPromise;
-    }
-    clearInterval(_tipInterval);
-    ui.updateLoading(100, 'Done!');
-    cgLoadingStop();
-    syncUIMode();
-    gameRunning = true;
-    dayTime = 0.3;
-    stepTimer = 0;
-    _prevPlayerPos.copy(player.position);
-    setTimeout(() => {
-      ui.hideLoading();
-      lockPointer();
-      cgGameplayStart();
-      try { audio.init(); audio.resume(); audio.startMusic(); } catch (_) {}
-      // Show tutorial on first play
-      if (!hasTutorialBeenSeen()) {
-        setTimeout(() => showTutorial(), 500);
-      }
-    }, 400);
+  // For parkour: load the binary map FIRST so _chunkEdits are populated
+  // before any chunks are generated. Without this, primeAsync generates
+  // empty chunks because _chunkEdits is still empty during generateChunk().
+  const _parkourReady = parkourLoadPromise
+    ? parkourLoadPromise.then(() => ui.updateLoading(5, 'Parkour map loaded.'))
+    : Promise.resolve();
+
+  _parkourReady.then(() => {
+    const pcx = Math.floor(player.position.x / CHUNK_SIZE);
+    const pcz = Math.floor(player.position.z / CHUNK_SIZE);
+    loader.primeAsync(pcx, pcz, (done, total) => {
+      const pct = total > 0 ? (done / total) * 100 : 100;
+      const stepText = pct < 25 ? 'Generating terrain...' :
+                       pct < 50 ? 'Building landscape...' :
+                       pct < 75 ? 'Planting trees...' : 'Almost ready...';
+      ui.updateLoading(pct, stepText);
+    }).then(() => {
+      clearInterval(_tipInterval);
+      ui.updateLoading(100, 'Done!');
+      cgLoadingStop();
+      syncUIMode();
+      gameRunning = true;
+      dayTime = 0.3;
+      stepTimer = 0;
+      _prevPlayerPos.copy(player.position);
+      setTimeout(() => {
+        ui.hideLoading();
+        lockPointer();
+        cgGameplayStart();
+        try { audio.init(); audio.resume(); audio.startMusic(); } catch (_) {}
+        if (!hasTutorialBeenSeen()) {
+          setTimeout(() => showTutorial(), 500);
+        }
+      }, 400);
+    });
   });
 }
 

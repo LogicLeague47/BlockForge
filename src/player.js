@@ -449,14 +449,17 @@ export class Player {
       this.camera.position.copy(this.position);
       this.camera.position.y += EYE_HEIGHT + crouchEyeOffset;
     } else {
-      // 3rd person: camera behind or in front of player
+      // 3rd person: camera orbits player using yaw + pitch
       const dist = 4;
       const height = 2;
       const d = this.cameraMode === 1 ? 1 : -1; // 1=behind, -1=front
-      const offsetX = Math.sin(this.yaw) * dist * d;
-      const offsetZ = Math.cos(this.yaw) * dist * d;
+      const pitchRad = Math.max(-1.2, Math.min(1.2, this.pitch)); // clamp ±69°
+      const horizDist = dist * Math.cos(pitchRad);
+      const vertDist = -dist * Math.sin(pitchRad); // looking up → camera drops, looking down → camera rises
+      const offsetX = Math.sin(this.yaw) * horizDist * d;
+      const offsetZ = Math.cos(this.yaw) * horizDist * d;
       const desiredX = this.position.x + offsetX;
-      const desiredY = this.position.y + height + crouchEyeOffset;
+      const desiredY = this.position.y + height + vertDist + crouchEyeOffset;
       const desiredZ = this.position.z + offsetZ;
       // Raycast from eye to desired camera pos; if blocked, pull camera forward
       const eyeX = this.position.x;

@@ -2305,6 +2305,7 @@ export class MobManager {
     if (!mob) return;
     mob.hp = hp;
     mob.hurtTimer = 1;
+    this.playHurtSound(mob.type);
     // Flash red
     for (const m of mob._allMats) m.color.setHex(0xff0000);
     setTimeout(() => {
