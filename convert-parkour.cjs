@@ -549,9 +549,10 @@ function mcToBF(mcName) {
 
 // Coordinate bounds — spiral tower is centered at (0,0), extends Y=64..254
 // Natural terrain below Y=64 and outside X/Z ±80 is NOT part of the spiral
+// Lower Y to 50 to capture the spawn platform at Y=53
 const MIN_X = -80, MAX_X = 80;
 const MIN_Z = -80, MAX_Z = 80;
-const MIN_Y = 64, MAX_Y = 255;
+const MIN_Y = 50, MAX_Y = 255;
 // Keep ALL block types — stone, dirt, grass ARE the spiral structure
 const TERRAIN = new Set([0, 8, 80]);
 
@@ -681,14 +682,10 @@ for (let i = 0; i < allB.length; i++) {
   if (z < minZ) minZ = z; if (z > maxZ) maxZ = z;
 }
 
-let spawnY = 70;
-for (let y = minY; y <= maxY; y++) {
-  let found = false;
-  for (let i = 0; i < allB.length; i++) {
-    if (allX[i] === 0 && allZ[i] === 0 && allY[i] === y) { found = true; break; }
-  }
-  if (found) { spawnY = y + 2; break; }
-}
+// MC map spawns at X=0.5 Y=53 Z=-96.5 (bottom entrance)
+let spawnY = 55;
+let spawnX = 0;
+let spawnZ = -96;
 
 const headerSize = 9 * 4;
 const bodySize = allB.length * 4 * 4;

@@ -3206,9 +3206,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         const mapInfo = await loadParkourMap(world);
         console.log(`[Parkour] Loaded ${mapInfo.blockCount} blocks`);
 
-        player.position.set(0.5, mapInfo.spawnY, 0.5);
+        player.position.set(0.5, mapInfo.spawnY, -95.5);
         player.velocity.set(0, 0, 0);
-        player.spawnPoint.set(0.5, mapInfo.spawnY, 0.5);
+        player.spawnPoint.set(0.5, mapInfo.spawnY, -95.5);
       } catch (e) {
         console.error('[Parkour] Failed to load map, falling back to procedural:', e);
         player.position.set(0.5, 70, 0.5);
