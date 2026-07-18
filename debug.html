@@ -1,110 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>Minecraft Clone - Debug</title>
-    <style>
-      * { margin: 0; padding: 0; box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; overflow: hidden; background: #111; font-family: monospace; }
-      #debug-panel {
-        position: fixed; top: 0; left: 0; right: 0;
-        max-height: 40vh; overflow-y: auto;
-        background: rgba(0,0,0,0.85); color: #f44;
-        font-size: 12px; line-height: 1.6;
-        padding: 8px 12px; z-index: 9999;
-        border-bottom: 2px solid #f44;
-      }
-      #debug-panel .ok { color: #4f4; }
-      #debug-panel .warn { color: #fa0; }
-      #debug-panel .info { color: #8af; }
-      #debug-panel .sep { color: #555; margin: 4px 0; }
-      #app { width: 100vw; height: 100vh; }
-    </style>
-  </head>
-  <body>
-    <div id="debug-panel"></div>
-    <div id="app"></div>
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BlockForge - Debug Report</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #e0e0e0; font-family: 'Courier New', monospace; padding: 20px; min-height: 100vh; }
+    h1 { color: #f44; font-size: 20px; margin-bottom: 6px; }
+    .subtitle { color: #888; font-size: 12px; margin-bottom: 20px; }
+    .card { background: #141414; border: 1px solid #2a2a2a; border-radius: 6px; padding: 16px; margin-bottom: 12px; }
+    .card h2 { color: #fa0; font-size: 13px; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .card pre { color: #ccc; font-size: 12px; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+    .label { color: #888; font-size: 11px; margin-bottom: 4px; }
+    .value { color: #fff; font-size: 13px; margin-bottom: 10px; }
+    .err-msg { color: #f55; font-size: 15px; font-weight: bold; margin-bottom: 12px; }
+    .stack { background: #0d0d0d; border: 1px solid #1a1a1a; border-radius: 4px; padding: 12px; font-size: 11px; color: #aaa; white-space: pre-wrap; word-break: break-word; max-height: 400px; overflow-y: auto; line-height: 1.4; }
+    .copy-btn { background: #2a2a2a; color: #ccc; border: 1px solid #3a3a3a; border-radius: 4px; padding: 8px 16px; cursor: pointer; font-family: inherit; font-size: 12px; margin-top: 10px; }
+    .copy-btn:hover { background: #3a3a3a; color: #fff; }
+    .back-link { color: #58f; text-decoration: none; font-size: 13px; display: inline-block; margin-top: 16px; }
+    .back-link:hover { color: #8bf; }
+    .timestamp { color: #666; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>BlockForge Error Report</h1>
+  <div class="subtitle">Something went wrong. Copy the info below and share it to get help.</div>
 
-    <div id="crosshair"></div>
-    <div id="crosshair-dot"></div>
-    <div id="item-name"></div>
-    <div id="xp-bar"><div id="xp-bar-fill"></div></div>
-    <div id="status-bars"></div>
-    <div id="hotbar"></div>
-    <div id="hud"></div>
-    <div id="water-overlay"></div>
+  <div class="card" id="error-card">
+    <h2>Error</h2>
+    <div class="err-msg" id="err-msg">Loading...</div>
+    <div class="label">Type</div>
+    <div class="value" id="err-type">-</div>
+    <div class="label">Location</div>
+    <div class="value" id="err-loc">-</div>
+  </div>
 
-    <div id="overlay">
-      <h1>MINECRAFT</h1>
-      <h2>~ a voxel sandbox clone ~</h2>
-      <div class="panel">
-        <div class="keys">
-          <div><b>WASD</b> Move around</div>
-          <div><b>Space</b> Jump / swim up</div>
-          <div><b>Shift</b> Sprint</div>
-          <div><b>Ctrl</b> Crouch</div>
-          <div><b>Mouse</b> Look around</div>
-          <div><b>Left Click</b> Mine / break block</div>
-          <div><b>Right Click</b> Place block</div>
-          <div><b>Mouse Wheel</b> Cycle hotbar</div>
-          <div><b>1 - 9</b> Select hotbar slot</div>
-          <div><b>F</b> Toggle flying</div>
-          <div><b>G</b> Regenerate world (new seed)</div>
-          <div><b>R</b> Toggle reduced motion / shadows</div>
-          <div><b>ESC</b> Pause</div>
-        </div>
-      </div>
-      <button id="play-btn">PLAY</button>
-    </div>
+  <div class="card" id="stack-card" style="display:none;">
+    <h2>Stack Trace</h2>
+    <div class="stack" id="err-stack"></div>
+  </div>
 
-    <div id="breaking"></div>
+  <div class="card">
+    <h2>Environment</h2>
+    <div class="label">Browser</div>
+    <div class="value" id="env-browser">-</div>
+    <div class="label">Screen</div>
+    <div class="value" id="env-screen">-</div>
+    <div class="label">WebGL</div>
+    <div class="value" id="env-webgl">-</div>
+    <div class="label">Page URL</div>
+    <div class="value" id="env-url">-</div>
+    <div class="label">Time</div>
+    <div class="value" id="env-time">-</div>
+  </div>
 
-    <script>
-      // Capture ALL errors before the module runs
-      var panel = document.getElementById('debug-panel');
-      function log(cls, msg) {
-        var d = document.createElement('div');
-        d.className = cls;
-        d.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
-        panel.appendChild(d);
-        panel.scrollTop = panel.scrollHeight;
-      }
-      log('info', 'Debug panel active — capturing errors...');
+  <button class="copy-btn" onclick="copyReport()">Copy Full Report</button>
+  <a class="back-link" href="index.html">&larr; Back to Game</a>
 
-      window.onerror = function(msg, src, line, col, err) {
-        log('', 'ERROR: ' + msg + ' at ' + (src || '?').split('/').pop() + ':' + line + ':' + col);
-        if (err && err.stack) log('', 'Stack: ' + err.stack.split('\n').slice(0,5).join(' | '));
-        return false;
-      };
-      window.addEventListener('unhandledrejection', function(e) {
-        log('warn', 'Unhandled Promise: ' + (e.reason && e.reason.message || e.reason || e));
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const msg = params.get('msg') || 'Unknown error';
+    const type = params.get('type') || 'Error';
+    const file = params.get('file') || '';
+    const line = params.get('line') || '';
+    const col = params.get('col') || '';
+    const stack = params.get('stack') || '';
+
+    document.getElementById('err-msg').textContent = msg;
+    document.getElementById('err-type').textContent = type;
+    document.getElementById('err-loc').textContent = file ? `${file}:${line}:${col}` : 'Unknown';
+
+    if (stack) {
+      document.getElementById('stack-card').style.display = '';
+      document.getElementById('err-stack').textContent = decodeURIComponent(stack);
+    }
+
+    document.getElementById('env-browser').textContent = navigator.userAgent;
+    document.getElementById('env-screen').textContent = `${window.screen.width}x${window.screen.height} (DPR: ${window.devicePixelRatio})`;
+    document.getElementById('env-url').textContent = window.location.href;
+    document.getElementById('env-time').textContent = new Date().toLocaleString();
+
+    try {
+      var c = document.createElement('canvas');
+      var gl = c.getContext('webgl2') || c.getContext('webgl');
+      document.getElementById('env-webgl').textContent = gl ? gl.getParameter(gl.RENDERER) : 'Not supported';
+    } catch(e) {
+      document.getElementById('env-webgl').textContent = 'Error detecting';
+    }
+
+    function copyReport() {
+      const report = `BlockForge Error Report
+======================
+Error: ${msg}
+Type: ${type}
+Location: ${file ? file+':'+line+':'+col : 'Unknown'}
+Stack: ${stack ? decodeURIComponent(stack) : 'N/A'}
+Browser: ${navigator.userAgent}
+Screen: ${window.screen.width}x${window.screen.height} (DPR: ${window.devicePixelRatio})
+WebGL: ${document.getElementById('env-webgl').textContent}
+URL: ${window.location.href}
+Time: ${new Date().toLocaleString()}`;
+      navigator.clipboard.writeText(report).then(() => {
+        document.querySelector('.copy-btn').textContent = 'Copied!';
+        setTimeout(() => { document.querySelector('.copy-btn').textContent = 'Copy Full Report'; }, 2000);
       });
-
-      // Watch for button click
-      document.addEventListener('DOMContentLoaded', function() {
-        var btn = document.getElementById('play-btn');
-        log('ok', 'DOM loaded. play-btn found: ' + !!btn);
-        if (btn) {
-          btn.addEventListener('click', function() {
-            log('ok', 'PLAY button CLICKED');
-          });
-        } else {
-          log('', 'ERROR: play-btn element NOT FOUND in DOM');
-        }
-      });
-
-      log('info', 'Loading module script...');
-    </script>
-    <script type="module">
-      try {
-        log('info', 'Module script started');
-        await import('/src/main.js');
-        log('ok', 'Module loaded successfully');
-      } catch (e) {
-        log('', 'MODULE LOAD ERROR: ' + e.message);
-        log('', 'Stack: ' + (e.stack || '').split('\n').slice(0,8).join(' | '));
-      }
-    </script>
-  </body>
+    }
+  </script>
+</body>
 </html>
