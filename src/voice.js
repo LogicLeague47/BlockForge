@@ -16,6 +16,8 @@ export class VoiceChat {
     // HUD indicator
     this._hud = null;
     this._panel = null;
+    // Saved original _handleMessage for cleanup (Bug #4)
+    this._origHandleMessage = null;
 
     this._setupHandlers();
     this._createHUD();
@@ -82,9 +84,18 @@ export class VoiceChat {
     this._registered = false;
   }
 
-  stop() { this.setState(STATES.OFF); if (this._panelOpen) this.togglePanel(); }
+  stop() {
+    this.setState(STATES.OFF);
+    if (this._panelOpen) this.togglePanel();
+    // Bug #4 fix: restore original _handleMessage to prevent wrapper stacking
+    if (this._origHandleMessage && this.network) {
+      this.network._handleMessage = this._origHandleMessage;
+      this._origHandleMessage = null;
+    }
+  }
 
-  // Called when a new peer joins with voice enabled
+  // Called when we (the joiner) receive voice_join_ack with a peer list.
+  // Only the joiner creates offers — this prevents dual-offer glare (Bug #1).
   connectToPeer(username) {
     if (this.state === STATES.OFF || username === this.username || this.peers.has(username)) return;
     const pc = new RTCPeerConnection({
@@ -115,31 +126,81 @@ export class VoiceChat {
     this.localStream.getTracks().forEach(t => pc.addTrack(t, this.localStream));
     this.peers.set(username, pc);
 
+    // Create and send offer (we are the joiner, so we initiate)
     pc.createOffer().then(offer => {
-      pc.setLocalDescription(offer);
-      this.network._send({ type: 'voice_offer', target: username, sdp: offer.sdp });
+      return pc.setLocalDescription(offer);
+    }).then(() => {
+      this.network._send({ type: 'voice_offer', target: username, sdp: this.peers.get(username)?.localDescription?.sdp });
+    }).catch(e => {
+      console.error('[Voice] Failed to create offer:', e);
+      this._removePeer(username);
     });
+  }
+
+  // Called when an existing peer receives voice_peer_join — prepare PC but DON'T create offer.
+  // The joiner's offer will arrive via handleOffer. (Bug #1 fix)
+  preparePeer(username) {
+    if (this.state === STATES.OFF || username === this.username || this.peers.has(username)) return;
+    // Just create the PC and add tracks — wait for the joiner's offer
+    const pc = new RTCPeerConnection({
+      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+    });
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        this.network._send({ type: 'voice_ice', target: username, candidate: e.candidate.toJSON() });
+      }
+    };
+
+    pc.ontrack = (e) => {
+      const audio = document.createElement('audio');
+      audio.srcObject = e.streams[0];
+      audio.autoplay = true;
+      audio.volume = 0.8;
+      document.body.appendChild(audio);
+      pc._audioEl = audio;
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed') {
+        this._removePeer(username);
+      }
+    };
+
+    this.localStream.getTracks().forEach(t => pc.addTrack(t, this.localStream));
+    this.peers.set(username, pc);
+    // Do NOT create an offer — wait for handleOffer to be called
   }
 
   async handleOffer(username, sdp) {
     if (this.state === STATES.OFF) return;
     const pc = this._getOrCreatePC(username);
-    await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    this.network._send({ type: 'voice_answer', target: username, sdp: answer.sdp });
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      this.network._send({ type: 'voice_answer', target: username, sdp: answer.sdp });
+    } catch (e) {
+      console.error('[Voice] handleOffer failed:', e);
+      // If glare occurred (both sides sent offer), tear down and let the other side retry
+      this._removePeer(username);
+    }
   }
 
   async handleAnswer(username, sdp) {
     const pc = this.peers.get(username);
     if (!pc) return;
-    await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
-    const buf = this._iceBuffer.get(username);
-    if (buf) {
-      for (const c of buf) {
-        try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+    try {
+      await pc.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp }));
+      const buf = this._iceBuffer.get(username);
+      if (buf) {
+        for (const c of buf) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._iceBuffer.delete(username);
       }
-      this._iceBuffer.delete(username);
+    } catch (e) {
+      console.error('[Voice] handleAnswer failed:', e);
     }
   }
 
@@ -388,13 +449,18 @@ export class VoiceChat {
       voice_ice: (msg) => this.handleIce(msg.from || msg.target, msg.candidate),
     };
 
-    const orig = net._handleMessage.bind(net);
+    // Bug #4 fix: save the original handler so we can restore it on stop()
+    // If we already wrapped before (shouldn't happen but safety), use the saved original
+    this._origHandleMessage = this._origHandleMessage || net._handleMessage.bind(net);
+    const orig = this._origHandleMessage;
+
     net._handleMessage = (msg) => {
       if (handlers[msg.type] && this.state !== STATES.OFF) {
         handlers[msg.type](msg);
         return;
       }
       if (msg.type === 'voice_join_ack') {
+        // Bug #1 fix: only the joiner creates offers — they receive the peer list here
         if (msg.peers) {
           for (const p of msg.peers) {
             if (p !== this.username) this.connectToPeer(p);
@@ -403,7 +469,9 @@ export class VoiceChat {
         return;
       }
       if (msg.type === 'voice_peer_join') {
-        if (msg.name !== this.username) this.connectToPeer(msg.name);
+        // Bug #1 fix: existing peers just prepare a PC, do NOT create an offer.
+        // The joiner's offer will arrive via handleOffer.
+        if (msg.name !== this.username) this.preparePeer(msg.name);
         return;
       }
       if (msg.type === 'voice_peer_leave') {

@@ -497,6 +497,11 @@ wss.on('connection', (ws) => {
       case 'voice_ice':
         relayVoice(ws, msg);
         break;
+      case 'voice_group_create':
+      case 'voice_group_join':
+      case 'voice_group_leave':
+        handleVoiceGroup(ws, msg);
+        break;
       case 'mob_spawn': handleMobSpawn(ws, msg); break;
       case 'mob_position': handleMobPosition(ws, msg); break;
       case 'mob_damage': handleMobDamage(ws, msg); break;
@@ -1303,6 +1308,8 @@ function handleDevDeleteAccount(ws, msg) {
 // ── Voice chat signaling ──────────────────────────────────────────────
 // Track which clients in a room have voice enabled
 const voiceClients = new Map(); // roomName → Set<ws>
+// Voice groups: code → Set<ws>
+const voiceGroups = new Map();
 
 function handleVoiceJoin(ws, msg) {
   const roomName = ws._roomName;
@@ -1355,6 +1362,62 @@ function broadcastVoice(roomName, msg, exclude) {
   }
 }
 
+// ── Voice group signaling ────────────────────────────────────────────
+function handleVoiceGroup(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const code = (msg.code || '').toUpperCase().slice(0, 8);
+  if (!code) return;
+
+  if (msg.type === 'voice_group_create' || msg.type === 'voice_group_join') {
+    if (!voiceGroups.has(code)) voiceGroups.set(code, new Set());
+    const group = voiceGroups.get(code);
+
+    // Leave any existing group first
+    for (const [gCode, gSet] of voiceGroups) {
+      if (gSet.has(ws) && gCode !== code) {
+        gSet.delete(ws);
+        const name = pd.name;
+        for (const member of gSet) {
+          safeSend(member, JSON.stringify({ type: 'voice_group_peer_leave', name }));
+        }
+        if (gSet.size === 0) voiceGroups.delete(gCode);
+      }
+    }
+
+    group.add(ws);
+    // Send the current group members to the joiner
+    const members = [];
+    for (const member of group) {
+      if (member !== ws && member._playerData) {
+        members.push(member._playerData.name);
+      }
+    }
+    safeSend(ws, JSON.stringify({ type: 'voice_group_info', code, members }));
+
+    // Notify existing members
+    const name = pd.name;
+    for (const member of group) {
+      if (member !== ws) {
+        safeSend(member, JSON.stringify({ type: 'voice_group_peer_join', name, code }));
+      }
+    }
+  } else if (msg.type === 'voice_group_leave') {
+    for (const [gCode, gSet] of voiceGroups) {
+      if (gSet.has(ws)) {
+        gSet.delete(ws);
+        const name = pd.name;
+        for (const member of gSet) {
+          safeSend(member, JSON.stringify({ type: 'voice_group_peer_leave', name }));
+        }
+        if (gSet.size === 0) voiceGroups.delete(gCode);
+        break;
+      }
+    }
+    safeSend(ws, JSON.stringify({ type: 'voice_group_info', code: null, members: [] }));
+  }
+}
+
 // Remove voice client on disconnect/leave
 function removeVoiceClient(ws, roomName) {
   if (!roomName) roomName = ws._roomName;
@@ -1374,6 +1437,17 @@ handleLeave = function(ws) {
   try {
     const roomName = ws._roomName;
     removeVoiceClient(ws, roomName);
+    // Clean up voice groups
+    for (const [code, group] of voiceGroups) {
+      if (group.has(ws)) {
+        group.delete(ws);
+        const name = ws._playerData ? ws._playerData.name : 'Unknown';
+        for (const member of group) {
+          safeSend(member, JSON.stringify({ type: 'voice_group_peer_leave', name }));
+        }
+        if (group.size === 0) voiceGroups.delete(code);
+      }
+    }
   } catch (_) {}
   _origHandleLeave(ws);
 };

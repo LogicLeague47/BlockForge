@@ -674,6 +674,7 @@ let chatHistoryIdx = -1;
 const MAX_CHAT_LINES = 200;
 const MAX_CHAT_HISTORY = 50;
 let chatDisabled = false;
+let _chatAutoHideTimer = null;
 try {
   const gs = window.CrazyGames?.SDK?.game?.getGameSettings?.();
   if (gs && gs.disableChat) chatDisabled = true;
@@ -1825,6 +1826,19 @@ function addChatLine(text, color, raw) {
   chatHistory.push({ text, color: color || '#fff', time: Date.now(), raw: !!raw });
   if (chatHistory.length > MAX_CHAT_LINES) chatHistory.shift();
   renderChatMessages();
+  // Auto-show chat-hud briefly when messages arrive (Minecraft-style)
+  if (!chatOpen) {
+    const hud = document.getElementById('chat-hud');
+    if (hud) {
+      hud.style.display = '';
+      hud.style.opacity = '1';
+      clearTimeout(_chatAutoHideTimer);
+      _chatAutoHideTimer = setTimeout(() => {
+        if (hud) hud.style.opacity = '0';
+        setTimeout(() => { if (hud && !chatOpen) hud.style.display = 'none'; }, 500);
+      }, 5000);
+    }
+  }
 }
 
 function renderChatMessages() {
@@ -1847,7 +1861,8 @@ function openChat(prefix) {
   const wrap = document.getElementById('chat-input-wrap');
   const inp = document.getElementById('chat-input');
   const hud = document.getElementById('chat-hud');
-  if (hud) hud.style.display = '';
+  if (hud) { hud.style.display = ''; hud.style.opacity = '1'; }
+  clearTimeout(_chatAutoHideTimer);
   if (wrap) wrap.style.display = '';
   if (inp) { inp.value = prefix || ''; inp.focus(); }
   // Release pointer lock so WASD/camera controls stop
@@ -1867,6 +1882,15 @@ function closeChat() {
   const inp = document.getElementById('chat-input');
   if (inp) { inp.blur(); inp.value = ''; }
   lockPointer();
+  // Start auto-hide timer so recent messages remain visible briefly
+  const hud = document.getElementById('chat-hud');
+  if (hud && chatHistory.length > 0) {
+    clearTimeout(_chatAutoHideTimer);
+    _chatAutoHideTimer = setTimeout(() => {
+      if (hud) hud.style.opacity = '0';
+      setTimeout(() => { if (hud && !chatOpen) hud.style.display = 'none'; }, 500);
+    }, 5000);
+  }
 }
 
 function submitChat() {
