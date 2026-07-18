@@ -194,7 +194,7 @@ function ensureOfficialServer() {
 
 // ── Role system ───────────────────────────────────────────────────────
 const ROLE_GAMEDEV = 'gamedev', ROLE_OWNER = 'owner', ROLE_ADMIN = 'admin', ROLE_STAFF = 'staff', ROLE_PLAYER = 'player', ROLE_DEV = 'dev';
-const ROLE_LEVEL = { [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1, [ROLE_DEV]: 1 };
+const ROLE_LEVEL = { [ROLE_DEV]: 6, [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1 };
 const GAMEDEV_ACCOUNT = 'PVP_PROTECTOR_BEDWAR';
 const OWNER_USERNAME = 'LogicLeague'; // username that always carries the Owner tag
 
