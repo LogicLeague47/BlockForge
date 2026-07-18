@@ -49,7 +49,7 @@ export class ChunkMeshManager {
 
   _buildChunk(cx, cz) {
     const chunk = this.world.getChunk(cx, cz);
-    if (!chunk.generated) return;
+    if (!chunk || !chunk.generated) return;
     const k = cx + ',' + cz;
     let entry = this.meshes.get(k);
     if (entry) {

@@ -1819,7 +1819,8 @@
       /* Show mobile controls on touch devices */
       @media (hover: none) and (pointer: coarse) {
         #mobile-controls { display: block; }
-        #crosshair { display: none; }
+        #crosshair { opacity: 0.5; }
+        #crosshair-dot { opacity: 0.5; }
       }
     </style>
   </head>
@@ -2439,38 +2440,32 @@
         <button class="menu-btn secondary" id="btn-skin-editor-back" style="margin-top:12px;">BACK</button>
       </div>
 
-      <!-- Screen: Developer Panel (GameDev account only) -->
+      <!-- Screen: Developer Panel (GameDev/Dev account) -->
       <div id="menu-dev-panel" class="menu-screen">
         <div class="menu-title" style="font-size:28px;">DEVELOPER PANEL</div>
-        <div class="menu-panel" style="max-height:none;width:420px;">
-          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin-bottom:12px;">STATISTICS</div>
-          <div class="settings-row">
-            <label>Daily Users (today)</label>
-            <span id="dev-dau" style="font:bold 14px monospace;color:#5f5;">0</span>
-          </div>
-          <div class="settings-row">
-            <label>Monthly Users</label>
-            <span id="dev-mau" style="font:bold 14px monospace;color:#5f5;">0</span>
-          </div>
-          <div class="settings-row">
-            <label>Servers Created</label>
-            <span id="dev-servers" style="font:bold 14px monospace;color:#fa0;">0</span>
+        <div class="menu-panel" style="max-height:none;width:460px;">
+          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin-bottom:8px;">SERVER STATS</div>
+          <div style="display:flex;gap:12px;margin-bottom:8px;">
+            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
+              <div style="font:10px monospace;color:#888;">Today</div>
+              <div id="dev-dau" style="font:bold 16px monospace;color:#5f5;">0</div>
+            </div>
+            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
+              <div style="font:10px monospace;color:#888;">Month</div>
+              <div id="dev-mau" style="font:bold 16px monospace;color:#5f5;">0</div>
+            </div>
+            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
+              <div style="font:10px monospace;color:#888;">Servers</div>
+              <div id="dev-servers" style="font:bold 16px monospace;color:#fa0;">0</div>
+            </div>
           </div>
           <div class="menu-divider"></div>
-          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:8px 0 12px;">DAILY ACTIVE USERS (7 DAYS)</div>
-          <div id="dev-daily-chart" style="display:flex;align-items:flex-end;gap:4px;height:60px;margin-bottom:12px;"></div>
-          <div class="menu-divider"></div>
-          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:8px 0 12px;">EDIT DEV TAG</div>
-          <div class="settings-row">
-            <label>Current Tag</label>
-            <span id="dev-current-tag" style="font:bold 13px monospace;color:#0ff;">GameDev</span>
-          </div>
-          <div style="display:flex;gap:6px;align-items:center;margin-top:6px;">
-            <input id="dev-tag-input" type="text" placeholder="New tag..." maxlength="20" spellcheck="false" autocomplete="off" style="flex:1;padding:8px 10px;background:rgba(0,0,0,0.5);color:#fff;border:1px solid rgba(100,100,100,0.4);border-radius:4px;font:13px monospace;outline:none;" />
-            <button class="menu-btn" id="dev-tag-save" style="min-width:auto;padding:8px 16px;font-size:12px;">SAVE</button>
-          </div>
+          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:6px 0 8px;">ACCOUNTS</div>
+          <input id="dev-account-search" type="text" placeholder="Search accounts..." maxlength="30" spellcheck="false" autocomplete="off" style="width:100%;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;border:1px solid rgba(100,100,100,0.4);border-radius:4px;font:12px monospace;outline:none;margin-bottom:6px;box-sizing:border-box;" />
+          <div id="dev-account-list" style="max-height:240px;overflow-y:auto;margin-bottom:8px;"></div>
+          <div id="dev-account-detail" style="display:none;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;margin-bottom:8px;"></div>
         </div>
-        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:420px;">BACK</button>
+        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:460px;">BACK</button>
       </div>
     </div>
 

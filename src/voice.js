@@ -24,12 +24,18 @@ export class VoiceChat {
 
   get enabled() { return this.state !== STATES.OFF; }
   get muted() { return this.state === STATES.ON_MUTED; }
+  get panelOpen() { return this._panelOpen; }
 
-  // Show/hide the voice settings panel
+  // Show/hide the voice settings panel — fires events so main.js can unlock/lock pointer
   togglePanel() {
     this._panelOpen = !this._panelOpen;
     this._panel.style.display = this._panelOpen ? 'flex' : 'none';
     this._renderPanel();
+    window.dispatchEvent(new CustomEvent('voice-panel-toggle', { detail: { open: this._panelOpen } }));
+  }
+
+  closePanel() {
+    if (this._panelOpen) this.togglePanel();
   }
 
   setState(newState) {
@@ -224,8 +230,8 @@ export class VoiceChat {
     this._panel.id = 'voice-panel';
     this._panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;backdrop-filter:blur(2px);';
     this._panel.innerHTML = `
-      <div style="background:linear-gradient(180deg,#2a3a5b 0%,#1a2a4b 50%,#0a1a3b 100%);border:2px solid #5af;border-radius:10px;padding:24px 32px;min-width:260px;text-align:center;box-shadow:0 0 30px rgba(0,0,0,0.7);">
-        <div style="font:700 18px sans-serif;color:#fff;margin-bottom:16px;">Voice Chat</div>
+      <div style="background:linear-gradient(180deg,#2a3a5b 0%,#1a2a4b 50%,#0a1a3b 100%);border:2px solid #5af;border-radius:10px;padding:24px 32px;min-width:300px;text-align:center;box-shadow:0 0 30px rgba(0,0,0,0.7);">
+        <div style="font:700 20px sans-serif;color:#fff;margin-bottom:16px;">Voice Chat</div>
         <div id="voice-panel-body"></div>
       </div>
     `;
@@ -234,36 +240,69 @@ export class VoiceChat {
     this._panel.addEventListener('click', (e) => {
       if (e.target === this._panel) this.togglePanel();
     });
+    // Escape to close
+    this._panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.togglePanel(); });
   }
 
   _renderPanel() {
     const body = this._panel.querySelector('#voice-panel-body');
     if (!body) return;
+
+    const isOn = this.state !== STATES.OFF;
+    const isMuted = this.state === STATES.ON_MUTED;
     const peerNames = [...this.peers.keys()];
     const peerHtml = peerNames.length
-      ? `<div style="font:12px sans-serif;color:#aac;margin:8px 0;">Connected: ${peerNames.join(', ')}</div>`
-      : '<div style="font:12px sans-serif;color:#888;margin:8px 0;">No players nearby</div>';
+      ? `<div style="font:12px sans-serif;color:#aac;margin:10px 0;">Connected: ${peerNames.join(', ')}</div>`
+      : '<div style="font:12px sans-serif;color:#666;margin:10px 0;">No players nearby</div>';
 
-    const stateLabels = {
-      [STATES.OFF]: { btn: 'Enable Microphone', color: '#888' },
-      [STATES.ON_MUTED]: { btn: 'Unmute Microphone', color: '#fa0' },
-      [STATES.ON_UNMUTED]: { btn: 'Mute Microphone', color: '#5f5' },
-    };
-    const s = stateLabels[this.state];
+    // Load saved volume
+    let vol = 0.8;
+    try { vol = parseFloat(localStorage.getItem('bf_voice_volume')) || 0.8; } catch {}
 
     body.innerHTML = `
-      <div style="font:13px sans-serif;color:${s.color};margin-bottom:12px;">${s.btn.replace('Enable Microphone', 'Voice: Off').replace('Unmute Microphone', 'Mic: Muted').replace('Mute Microphone', 'Mic: Active')}</div>
-      <button id="vp-toggle" style="display:block;width:100%;padding:10px;font:700 13px sans-serif;background:linear-gradient(180deg,#3a6b9b 0%,#2a5b8b 50%,#1a4b7b 100%);border:1px solid #5af;border-radius:6px;color:#fff;cursor:pointer;margin-bottom:8px;">${s.btn}</button>
-      <button id="vp-close" style="display:block;width:100%;padding:8px;font:13px sans-serif;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#ccc;cursor:pointer;">Close</button>
+      <div class="settings-row">
+        <label>Voice Chat</label>
+        <button id="vp-toggle" style="padding:4px 14px;font:12px sans-serif;border-radius:4px;border:1px solid ${isOn ? '#5f5' : '#666'};background:${isOn ? 'rgba(80,255,80,0.15)' : 'rgba(100,100,100,0.2)'};color:${isOn ? '#5f5' : '#888'};cursor:pointer;">${isOn ? 'ON' : 'OFF'}</button>
+      </div>
+      <div class="settings-row" style="${isOn ? '' : 'opacity:0.4;pointer-events:none;'}">
+        <label>Microphone</label>
+        <button id="vp-mute" style="padding:4px 14px;font:12px sans-serif;border-radius:4px;border:1px solid ${isMuted ? '#fa0' : '#5f5'};background:${isMuted ? 'rgba(255,170,0,0.15)' : 'rgba(80,255,80,0.15)'};color:${isMuted ? '#fa0' : '#5f5'};cursor:pointer;">${isMuted ? 'MUTED' : 'ACTIVE'}</button>
+      </div>
+      <div class="settings-row">
+        <label>Volume</label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input id="vp-volume" type="range" min="0" max="100" value="${Math.round(vol * 100)}" style="width:100px;cursor:pointer;" />
+          <span id="vp-vol-label" style="font:12px monospace;color:#aaa;min-width:28px;">${Math.round(vol * 100)}%</span>
+        </div>
+      </div>
+      <div class="menu-divider"></div>
       ${peerHtml}
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button id="vp-close" style="flex:1;padding:8px;font:13px sans-serif;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#ccc;cursor:pointer;">Close</button>
+      </div>
     `;
 
     body.querySelector('#vp-toggle').addEventListener('click', () => {
       if (this.state === STATES.OFF) this.setState(STATES.ON_MUTED);
-      else if (this.state === STATES.ON_MUTED) this.setState(STATES.ON_UNMUTED);
       else this.setState(STATES.OFF);
     });
+    body.querySelector('#vp-mute').addEventListener('click', () => {
+      if (this.state === STATES.ON_UNMUTED) this.setState(STATES.ON_MUTED);
+      else if (this.state === STATES.ON_MUTED) this.setState(STATES.ON_UNMUTED);
+    });
     body.querySelector('#vp-close').addEventListener('click', () => this.togglePanel());
+
+    const volSlider = body.querySelector('#vp-volume');
+    const volLabel = body.querySelector('#vp-vol-label');
+    volSlider.addEventListener('input', () => {
+      const v = parseInt(volSlider.value) / 100;
+      volLabel.textContent = `${Math.round(v * 100)}%`;
+      try { localStorage.setItem('bf_voice_volume', String(v)); } catch {}
+      // Update all peer audio elements
+      for (const pc of this.peers.values()) {
+        if (pc._audioEl) pc._audioEl.volume = v;
+      }
+    });
   }
 
   _setupHandlers() {

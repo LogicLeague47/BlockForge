@@ -230,6 +230,13 @@ export class Network {
       case 'mob_death':
         if (this.onMobDeath) this.onMobDeath(msg.id);
         break;
+      // Dev panel messages
+      case 'dev_account_list':
+      case 'dev_account_detail':
+      case 'dev_set_tag_result':
+      case 'dev_set_role_result':
+        if (this.onDevMessage) this.onDevMessage(msg);
+        break;
     }
   }
 
@@ -310,6 +317,12 @@ export class Network {
   sendMobDeath(id) {
     this._send({ type: 'mob_death', id });
   }
+
+  // ── Dev panel ────────────────────────────────────────────────────────
+  devListAccounts() { this._send({ type: 'dev_list_accounts' }); }
+  devGetAccount(target) { this._send({ type: 'dev_get_account', target }); }
+  devSetTag(target, tag) { this._send({ type: 'dev_set_tag', target, tag }); }
+  devSetRole(target, role) { this._send({ type: 'dev_set_role', target, role }); }
 
   isInRoom() {
     return this.connected && this.roomName !== null;

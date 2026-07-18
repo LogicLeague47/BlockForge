@@ -654,8 +654,10 @@ const greenstoneSystem = new GreenstoneSystem();
 // --- multiplayer / chat state ---
 let playerName = 'Player';
 const DEV_ACCOUNT = 'LogicLeague';
+let playerRole = 'player';
+
 function _refreshDevButtons() {
-  const isDev = playerName === DEV_ACCOUNT;
+  const isDev = playerName === DEV_ACCOUNT || playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
   const bWorld = document.getElementById('btn-dev-world');
   if (bWorld) bWorld.style.display = isDev ? '' : 'none';
   const bPanel = document.getElementById('btn-dev-panel');
@@ -743,9 +745,21 @@ document.addEventListener('pointerlockchange', () => {
   pointerLocked = document.pointerLockElement === renderer.domElement;
   // Don't open the pause menu if another overlay (e.g. death screen) is already up.
   if (!pointerLocked && gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
-    if (!(mobile && mobile.isMobile)) {
+    if (!(mobile && mobile.isMobile) && !(voiceChat && voiceChat.panelOpen)) {
       ui.showMenu('pause');
       cgGameplayStop();
+    }
+  }
+});
+
+// Voice panel toggle — lock/unlock pointer
+window.addEventListener('voice-panel-toggle', (e) => {
+  if (e.detail && e.detail.open) {
+    if (document.pointerLockElement) document.exitPointerLock();
+  } else {
+    // Re-lock if game is still running and no other UI is open
+    if (gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
+      renderer.domElement.requestPointerLock();
     }
   }
 });
@@ -805,7 +819,12 @@ document.addEventListener('mousemove', (e) => {
     return;
   }
   input.keys[e.code] = true;
-    if (e.code === 'Escape') {
+  // Block game input while voice panel is open (except Escape to close it)
+  if (voiceChat && voiceChat.panelOpen) {
+    if (e.code === 'Escape') voiceChat.closePanel();
+    return;
+  }
+  if (e.code === 'Escape') {
     if (ui.furnaceOpen) {
       ui.closeFurnace();
       lockPointer();
@@ -2491,6 +2510,7 @@ function setupNetworkHandlers() {
     if (loginGoBtn) loginGoBtn.disabled = false;
     if (msg.ok) {
       playerName = msg.username || playerName;
+      playerRole = msg.role || 'player';
       try {
         localStorage.setItem('bf_player_name', playerName);
         localStorage.setItem('bf_login_user', playerName);
@@ -2994,7 +3014,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || 7;
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
   // Mobile: hard-cap view distance so the GPU/CPU isn't meshing far chunks.
-  if (IS_MOBILE) renderDist = Math.min(renderDist, 4);
+  if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
@@ -3317,6 +3337,10 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 
 function saveCurrentWorld() {
   if (isDevWorld || isParkour) return;
+  // Upload stats to server for dev panel
+  if (isMultiplayer && network && network.connected && achievements && achievements.stats) {
+    network._send({ type: 'player_stats_set', stats: achievements.stats });
+  }
   if (!currentWorldId || !world || !player) return;
   saveWorld(currentWorldId, {
     ...world.serializeEdits(),
@@ -4137,44 +4161,184 @@ function initMenu() {
     renderWorldList();
   }
 
-  // --- Dev Panel (GameDev account or LogicLeague owner) ---
-  let isGameDevAccount = false;
-  try {
-    const cgUser = window.CrazyGames?.SDK?.user?.getUsername?.();
-    if (cgUser && resolveCgUsername(cgUser)) isGameDevAccount = true;
-  } catch {}
+  // --- Dev Panel (GameDev account or Dev role) ---
+  let devAccountsCache = [];
+  let devSelectedAccount = null;
+
   const devBtn = document.getElementById('btn-dev-panel');
   if (devBtn) {
     devBtn.addEventListener('click', () => {
-      // Populate stats
+      // Populate server stats from client-side analytics
       document.getElementById('dev-dau').textContent = getTodayUsers();
       document.getElementById('dev-mau').textContent = getThisMonthUsers();
       document.getElementById('dev-servers').textContent = getTotalServersCreated();
-      document.getElementById('dev-current-tag').textContent = getDevTag();
-      document.getElementById('dev-tag-input').value = '';
-      renderDevDailyChart();
+      document.getElementById('dev-account-detail').style.display = 'none';
+      devSelectedAccount = null;
+      devAccountsCache = [];
+      renderDevAccountList();
       ui.showMenu('dev-panel');
-    });
-  }
-
-  // Dev tag save
-  const devTagSave = document.getElementById('dev-tag-save');
-  if (devTagSave) {
-    devTagSave.addEventListener('click', () => {
-      const input = document.getElementById('dev-tag-input');
-      const val = (input?.value || '').trim();
-      if (val) {
-        setDevTag(val);
-        document.getElementById('dev-current-tag').textContent = val;
-        input.value = '';
+      // Fetch account list from server
+      if (network && network.connected) {
+        network.devListAccounts();
+      } else {
+        setDevAccountListMsg('Not connected to server');
       }
     });
   }
+
+  // Dev account search filter
+  document.getElementById('dev-account-search')?.addEventListener('input', () => {
+    renderDevAccountList();
+  });
+
+  // Dev panel message handler
+  network.onDevMessage = (msg) => {
+    if (msg.type === 'dev_account_list') {
+      devAccountsCache = msg.accounts || [];
+      renderDevAccountList();
+    } else if (msg.type === 'dev_account_detail') {
+      if (msg.error) {
+        renderDevAccountDetail({ error: msg.error });
+        return;
+      }
+      renderDevAccountDetail(msg);
+    } else if (msg.type === 'dev_set_tag_result') {
+      if (!msg.ok) { addChatLine(`Tag error: ${msg.reason}`, '#f55'); return; }
+      addChatLine(`Tag updated`, '#5f5');
+      // Refresh account list and selected detail
+      if (devSelectedAccount) network.devGetAccount(devSelectedAccount);
+      network.devListAccounts();
+    } else if (msg.type === 'dev_set_role_result') {
+      if (!msg.ok) { addChatLine(`Role error: ${msg.reason}`, '#f55'); return; }
+      addChatLine(`${msg.username} role set to ${msg.role}`, '#5f5');
+      if (devSelectedAccount) network.devGetAccount(devSelectedAccount);
+      network.devListAccounts();
+    }
+  };
 
   // Dev panel back
   const devBackBtn = document.getElementById('dev-panel-back');
   if (devBackBtn) {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
+  }
+
+  function setDevAccountListMsg(text) {
+    const list = document.getElementById('dev-account-list');
+    if (list) list.innerHTML = `<div style="font:12px monospace;color:#888;text-align:center;padding:10px;">${text}</div>`;
+  }
+
+  function renderDevAccountList() {
+    const list = document.getElementById('dev-account-list');
+    if (!list) return;
+    const search = (document.getElementById('dev-account-search')?.value || '').toLowerCase();
+    const filtered = devAccountsCache.filter(a => a.username.toLowerCase().includes(search));
+    if (filtered.length === 0) {
+      list.innerHTML = '<div style="font:12px monospace;color:#888;text-align:center;padding:10px;">No accounts found</div>';
+      return;
+    }
+    list.innerHTML = filtered.map(a => {
+      const isDev = a.role === 'dev' || a.role === 'gamedev' || a.role === 'owner';
+      const roleColor = a.role === 'gamedev' ? '#0ff' : a.role === 'owner' ? '#fa0' : a.role === 'dev' ? '#5af' : '#888';
+      const tagDisplay = a.tag ? `<span style="color:#5f5;font-size:10px;"> [${escHtml(a.tag)}]</span>` : '';
+      const sel = devSelectedAccount === a.username ? 'background:rgba(80,150,255,0.2);' : '';
+      return `<div data-username="${escHtml(a.username)}" style="cursor:pointer;padding:5px 8px;border-radius:4px;${sel}font:12px monospace;color:#ddd;display:flex;align-items:center;gap:6px;">
+        <span style="color:${roleColor};font-weight:bold;">${isDev ? '★' : '·'}</span>
+        <span>${escHtml(a.username)}${tagDisplay}</span>
+        <span style="margin-left:auto;font-size:10px;color:${roleColor};">${a.role.toUpperCase()}</span>
+      </div>`;
+    }).join('');
+    // Click to select account
+    list.querySelectorAll('[data-username]').forEach(el => {
+      el.addEventListener('click', () => {
+        const username = el.dataset.username;
+        devSelectedAccount = username;
+        // Highlight selected
+        list.querySelectorAll('[data-username]').forEach(e => e.style.background = '');
+        el.style.background = 'rgba(80,150,255,0.2)';
+        // Show loading
+        const detail = document.getElementById('dev-account-detail');
+        if (detail) { detail.style.display = 'block'; detail.innerHTML = '<div style="font:12px monospace;color:#888;text-align:center;">Loading...</div>'; }
+        network.devGetAccount(username);
+      });
+    });
+  }
+
+  function renderDevAccountDetail(data) {
+    const detail = document.getElementById('dev-account-detail');
+    if (!detail) return;
+    if (data.error) {
+      detail.innerHTML = `<div style="font:12px monospace;color:#f55;text-align:center;">${escHtml(data.error)}</div>`;
+      return;
+    }
+    const isDevRole = data.role === 'dev' || data.role === 'gamedev' || data.role === 'owner';
+    const roleColor = data.role === 'gamedev' ? '#0ff' : data.role === 'owner' ? '#fa0' : data.role === 'dev' ? '#5af' : '#888';
+    const stats = data.stats || {};
+    const playTime = stats.playTime ? Math.round(stats.playTime / 60) + 'm' : '—';
+    const blocksBroken = stats.totalBlocksBroken || stats.blocksBrokenAny || 0;
+    const deaths = stats.deaths || 0;
+    const mobKills = stats.mobKillsAny || 0;
+
+    detail.innerHTML = `
+      <div style="font:bold 14px monospace;color:#fff;margin-bottom:8px;">${escHtml(data.username)}</div>
+      <div class="settings-row" style="margin:0 0 4px;">
+        <label>Role</label>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span id="dev-detail-role" style="font:12px monospace;color:${roleColor};font-weight:bold;">${data.role.toUpperCase()}</span>
+          ${data.role !== 'owner' && data.role !== 'gamedev' ? `
+            <button id="dev-role-promote" style="padding:2px 8px;font:10px monospace;border-radius:3px;border:1px solid #5af;background:rgba(80,150,255,0.15);color:#5af;cursor:pointer;">${isDevRole ? 'DEMOTE' : 'PROMOTE'}</button>
+          ` : ''}
+        </div>
+      </div>
+      <div class="settings-row" style="margin:0 0 4px;">
+        <label>Tag</label>
+        <div style="display:flex;gap:4px;align-items:center;flex:1;">
+          <span id="dev-detail-tag" style="font:12px monospace;color:${data.tag ? '#5f5' : '#666'};">${data.tag ? escHtml(data.tag) : '(none)'}</span>
+          <input id="dev-tag-input" type="text" placeholder="Set tag..." maxlength="20" value="${escHtml(data.tag || '')}" style="flex:1;min-width:0;padding:3px 6px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid rgba(100,100,100,0.3);border-radius:3px;font:11px monospace;outline:none;" />
+          <button id="dev-tag-save" style="padding:3px 8px;font:10px monospace;border-radius:3px;border:1px solid #5f5;background:rgba(80,255,80,0.1);color:#5f5;cursor:pointer;">SAVE</button>
+        </div>
+      </div>
+      <div style="font:bold 10px monospace;color:#5af;margin:8px 0 4px;">STATS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
+          <span style="color:#888;">Playtime </span><span style="color:#fff;">${playTime}</span>
+        </div>
+        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
+          <span style="color:#888;">Blocks </span><span style="color:#fff;">${blocksBroken}</span>
+        </div>
+        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
+          <span style="color:#888;">Kills </span><span style="color:#fff;">${mobKills}</span>
+        </div>
+        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
+          <span style="color:#888;">Deaths </span><span style="color:#f55;">${deaths}</span>
+        </div>
+      </div>
+      <div style="font:bold 10px monospace;color:#5af;margin:6px 0 2px;">ACHIEVEMENTS</div>
+      <div style="font:10px monospace;color:#aaa;max-height:80px;overflow-y:auto;">
+        ${Object.entries(stats).filter(([k]) => k !== 'playTime' && k !== 'totalBlocksBroken' && k !== 'deaths' && k !== 'mobKillsAny').map(([k, v]) => {
+          if (typeof v === 'number' && v > 0) return `<div>${k}: ${v}</div>`;
+          return '';
+        }).filter(Boolean).join('') || '<span style="color:#666;">No data</span>'}
+      </div>
+    `;
+
+    // Wire tag save
+    const tagSave = detail.querySelector('#dev-tag-save');
+    if (tagSave) {
+      tagSave.addEventListener('click', () => {
+        const input = detail.querySelector('#dev-tag-input');
+        const val = (input?.value || '').trim();
+        network.devSetTag(data.username, val);
+      });
+    }
+
+    // Wire role promote/demote
+    const roleBtn = detail.querySelector('#dev-role-promote');
+    if (roleBtn) {
+      roleBtn.addEventListener('click', () => {
+        const newRole = isDevRole ? 'player' : 'dev';
+        network.devSetRole(data.username, newRole);
+      });
+    }
   }
 
   // --- Dev World — dev account shows separate dev world list ---

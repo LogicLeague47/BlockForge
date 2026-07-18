@@ -208,12 +208,14 @@ function generateSecret() {
 function resolveRole(cgUsername, playerName) {
   if (cgUsername === GAMEDEV_ACCOUNT) return ROLE_GAMEDEV;
   if (playerName && playerName.toLowerCase() === OWNER_USERNAME.toLowerCase()) return ROLE_DEV;
+  // Check stored account role
+  if (playerName && accounts[playerName] && accounts[playerName].role) return accounts[playerName].role;
   return null;
 }
 
 // ── Account system (username + password) ─────────────────────────────
 // Prevents name spoofing: to use a username you must know its password.
-let accounts = {}; // { username: { hash, salt } }
+let accounts = {}; // { username: { hash, salt, role?, tag? } }
 
 // Accounts committed in accounts.json (e.g. LogicLeague) are "source accounts":
 // always loaded from source and never written to Redis, so they survive even if
@@ -264,7 +266,7 @@ function authAccount(username, password, mode) {
     // Create new account
     const salt = randomBytes(16).toString('hex');
     const hash = hashPassword(password, salt);
-    accounts[username] = { hash, salt };
+    accounts[username] = { hash, salt, role: ROLE_PLAYER, tag: '' };
     saveAccounts();
     return { ok: true, created: true };
   }
@@ -274,7 +276,7 @@ function authAccount(username, password, mode) {
     // Backward compat: auto-create if no mode specified
     const salt = randomBytes(16).toString('hex');
     const hash = hashPassword(password, salt);
-    accounts[username] = { hash, salt };
+    accounts[username] = { hash, salt, role: ROLE_PLAYER, tag: '' };
     saveAccounts();
     return { ok: true, created: true };
   }
@@ -467,6 +469,10 @@ wss.on('connection', (ws) => {
       case 'player_settings_get': handlePlayerSettingsGet(ws, msg); break;
       case 'player_settings_set': handlePlayerSettingsSet(ws, msg); break;
       case 'dev_get_all_players': handleDevGetAllPlayers(ws, msg); break;
+      case 'dev_list_accounts': handleDevListAccounts(ws, msg); break;
+      case 'dev_get_account': handleDevGetAccount(ws, msg); break;
+      case 'dev_set_tag': handleDevSetTag(ws, msg); break;
+      case 'dev_set_role': handleDevSetRole(ws, msg); break;
       // Voice chat signaling — relay messages to target player in same room
       case 'voice_join': handleVoiceJoin(ws, msg); break;
       case 'voice_offer':
@@ -514,12 +520,16 @@ function handleAuth(ws, msg) {
     }
     sendFriendState(ws);
   }
+  const acc = accounts[playerName] || {};
+  const resolvedRole = resolveRole(null, playerName) || acc.role || ROLE_PLAYER;
   ws.send(JSON.stringify({
     type: 'auth_result',
     ok: auth.ok,
     created: !!auth.created,
     reason: auth.reason || '',
-    username: playerName
+    username: playerName,
+    role: resolvedRole,
+    tag: acc.tag || ''
   }));
 }
 
@@ -1109,6 +1119,106 @@ function handleDevGetAllPlayers(ws, msg) {
     }
   }
   ws.send(JSON.stringify({ type: 'dev_player_list', players: playerNames }));
+}
+
+// Dev check helper
+function isDev(ws) {
+  const pd = ws._playerData;
+  return pd && (pd.role === ROLE_DEV || pd.role === ROLE_GAMEDEV);
+}
+
+// Returns { username, role, tag, hasPlayed } for every registered account
+function handleDevListAccounts(ws, msg) {
+  if (!isDev(ws)) return;
+  const list = [];
+  for (const [username, acc] of Object.entries(accounts)) {
+    const resolvedRole = resolveRole(null, username) || acc.role || ROLE_PLAYER;
+    list.push({ username, role: resolvedRole, tag: acc.tag || '' });
+  }
+  // Sort: devs first, then rest alphabetically
+  list.sort((a, b) => {
+    const aIsDev = a.role === ROLE_DEV || a.role === ROLE_GAMEDEV ? 0 : 1;
+    const bIsDev = b.role === ROLE_DEV || b.role === ROLE_GAMEDEV ? 0 : 1;
+    if (aIsDev !== bIsDev) return aIsDev - bIsDev;
+    return a.username.localeCompare(b.username);
+  });
+  ws.send(JSON.stringify({ type: 'dev_account_list', accounts: list }));
+}
+
+// Get full details for a specific account (includes stats)
+async function handleDevGetAccount(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = msg.target;
+  if (!target || !accounts[target]) {
+    ws.send(JSON.stringify({ type: 'dev_account_detail', error: 'Account not found' }));
+    return;
+  }
+  const acc = accounts[target];
+  const resolvedRole = resolveRole(null, target) || acc.role || ROLE_PLAYER;
+  // Fetch player data (stats, settings) from redis/file
+  const playerData = await getPlayerData(target);
+  ws.send(JSON.stringify({
+    type: 'dev_account_detail',
+    username: target,
+    role: resolvedRole,
+    tag: acc.tag || '',
+    stats: playerData.stats || {},
+    settings: playerData.settings || {}
+  }));
+}
+
+// Set a custom tag on an account (player cannot change it themselves)
+function handleDevSetTag(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = msg.target;
+  const tag = (msg.tag || '').trim().slice(0, 20);
+  if (!target || !accounts[target]) {
+    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
+    return;
+  }
+  // Don't allow overriding source account tags
+  if (fileAccounts[target] && target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
+    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify owner tag' }));
+    return;
+  }
+  const acc = accounts[target];
+  if (!acc.tag && tag === '') {
+    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag: '' }));
+    return;
+  }
+  acc.tag = tag;
+  saveAccounts();
+  ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag }));
+}
+
+// Set role (promote to dev or demote to player)
+function handleDevSetRole(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = msg.target;
+  const newRole = msg.role;
+  if (!target || !accounts[target]) {
+    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Account not found' }));
+    return;
+  }
+  // Only allow setting 'dev' or 'player'
+  if (newRole !== ROLE_DEV && newRole !== ROLE_PLAYER) {
+    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Role must be dev or player' }));
+    return;
+  }
+  // Don't allow changing owner role
+  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
+    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify owner role' }));
+    return;
+  }
+  // Don't allow changing gamedev
+  if (fileAccounts[target] && resolveRole(null, target) === ROLE_GAMEDEV) {
+    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify gamedev role' }));
+    return;
+  }
+  const acc = accounts[target];
+  acc.role = newRole;
+  saveAccounts();
+  ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: true, username: target, role: newRole }));
 }
 
 // ── Voice chat signaling ──────────────────────────────────────────────
