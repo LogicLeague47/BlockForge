@@ -166,6 +166,15 @@ export class Player {
   // Full respawn: restore vitals, move to spawn point, clear velocity.
   respawn() {
     this.position.copy(this.spawnPoint);
+    // Find actual ground below spawn point (prevent falling through air)
+    const sx = Math.floor(this.spawnPoint.x);
+    const sz = Math.floor(this.spawnPoint.z);
+    let groundY = Math.floor(this.spawnPoint.y);
+    for (let y = Math.min(groundY + 10, WORLD_HEIGHT - 1); y >= 0; y--) {
+      const b = this.world.getBlock(sx, y, sz);
+      if (BLOCKS[b]?.solid) { groundY = y + 1; break; }
+    }
+    this.position.y = groundY + 0.001;
     this.velocity.set(0, 0, 0);
     this.health = this.maxHealth;
     this.hunger = this.maxHunger;

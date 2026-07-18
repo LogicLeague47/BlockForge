@@ -34,7 +34,7 @@ import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
 import { GreenstoneSystem } from './greenstone.js';
 
-const REACH = 7;
+const REACH = 10;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
 const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
@@ -2414,6 +2414,8 @@ function setupNetworkHandlers() {
   network.onBlockBatch = (edits) => {
     if (!world || !gameRunning || !network.isInRoom()) return;
     for (const e of edits) {
+      // In non-parkour mode, ignore blocks far above normal terrain (parkour map bleed)
+      if (!isParkour && e.y > 140) continue;
       world.setBlock(e.x, e.y, e.z, e.block);
       manager.refreshAround(Math.floor(e.x / CHUNK_SIZE), Math.floor(e.z / CHUNK_SIZE));
     }
@@ -3219,20 +3221,11 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     }
 
     parkourLoadPromise = (async () => {
-      // Always build procedural parkour levels first (at Y=200, above binary map)
+      // Build procedural parkour levels in a clean void world
       const PARKOUR_Y = 200;
       console.log('[Parkour] Building procedural levels...');
       buildParkourLobby(world, 0, PARKOUR_Y, 0);
       const levelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
-
-      // Also try to load binary map as visual backdrop
-      try {
-        console.log('[Parkour] Loading Parkour Paradise map as backdrop...');
-        const mapInfo = await loadParkourMap(world);
-        console.log(`[Parkour] Loaded ${mapInfo.blockCount} backdrop blocks`);
-      } catch (e) {
-        console.warn('[Parkour] No backdrop map, using procedural only');
-      }
 
       // Spawn at procedural lobby
       player.position.set(0.5, PARKOUR_Y + 2, 0.5);
@@ -5005,7 +4998,7 @@ function loop() {
     if (mobManager && player && pointerLocked) {
       const dir = _mobHealthDir;
       camera.getWorldDirection(dir);
-      const targeted = mobManager.hitTest(camera.position, dir, 5);
+      const targeted = mobManager.hitTest(camera.position, dir, REACH);
       if (targeted && !targeted.dead) {
         const nameEl = document.getElementById('mob-health-name');
         const fillEl = document.getElementById('mob-health-fill');
