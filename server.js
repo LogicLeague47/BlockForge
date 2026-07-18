@@ -444,6 +444,7 @@ wss.on('connection', (ws) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
 
+    try {
     switch (msg.type) {
       case 'ping': ws.send(JSON.stringify({ type: 'pong' })); break;
       case 'auth': handleAuth(ws, msg); break;
@@ -485,6 +486,7 @@ wss.on('connection', (ws) => {
       case 'mob_damage': handleMobDamage(ws, msg); break;
       case 'mob_death': handleMobDeath(ws, msg); break;
     }
+    } catch (err) { console.error('[Server] Error handling message:', msg?.type, err); }
   });
 
   ws.on('close', () => {
@@ -1146,7 +1148,7 @@ function handleDevListAccounts(ws, msg) {
 }
 
 // Get full details for a specific account (includes stats)
-async function handleDevGetAccount(ws, msg) {
+function handleDevGetAccount(ws, msg) {
   if (!isDev(ws)) return;
   const target = msg.target;
   if (!target || !accounts[target]) {
@@ -1155,16 +1157,26 @@ async function handleDevGetAccount(ws, msg) {
   }
   const acc = accounts[target];
   const resolvedRole = resolveRole(null, target) || acc.role || ROLE_PLAYER;
-  // Fetch player data (stats, settings) from redis/file
-  const playerData = await getPlayerData(target);
-  ws.send(JSON.stringify({
-    type: 'dev_account_detail',
-    username: target,
-    role: resolvedRole,
-    tag: acc.tag || '',
-    stats: playerData.stats || {},
-    settings: playerData.settings || {}
-  }));
+  getPlayerData(target).then(playerData => {
+    ws.send(JSON.stringify({
+      type: 'dev_account_detail',
+      username: target,
+      role: resolvedRole,
+      tag: acc.tag || '',
+      stats: playerData.stats || {},
+      settings: playerData.settings || {}
+    }));
+  }).catch(err => {
+    console.error('[Dev] Error fetching player data:', err);
+    ws.send(JSON.stringify({
+      type: 'dev_account_detail',
+      username: target,
+      role: resolvedRole,
+      tag: acc.tag || '',
+      stats: {},
+      settings: {}
+    }));
+  });
 }
 
 // Set a custom tag on an account (player cannot change it themselves)
@@ -1294,8 +1306,10 @@ function removeVoiceClient(ws, roomName) {
 // Patch handleLeave to also clean up voice
 const _origHandleLeave = handleLeave;
 handleLeave = function(ws) {
-  const roomName = ws._roomName;
-  removeVoiceClient(ws, roomName);
+  try {
+    const roomName = ws._roomName;
+    removeVoiceClient(ws, roomName);
+  } catch (_) {}
   _origHandleLeave(ws);
 };
 

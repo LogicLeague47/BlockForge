@@ -2524,6 +2524,10 @@ function setupNetworkHandlers() {
       // not from a background re-auth (e.g. opening the Friends menu).
       if (_backgroundAuth) {
         _backgroundAuth = false;
+        if (_devPanelNeedsAccounts) {
+          _devPanelNeedsAccounts = false;
+          network.devListAccounts();
+        }
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         setTimeout(() => { ui.showMenu('main'); }, 600);
@@ -4164,6 +4168,7 @@ function initMenu() {
   // --- Dev Panel (GameDev account or Dev role) ---
   let devAccountsCache = [];
   let devSelectedAccount = null;
+  let _devPanelNeedsAccounts = false;
 
   const devBtn = document.getElementById('btn-dev-panel');
   if (devBtn) {
@@ -4177,11 +4182,19 @@ function initMenu() {
       devAccountsCache = [];
       renderDevAccountList();
       ui.showMenu('dev-panel');
-      // Fetch account list from server
+      // Ensure connection before fetching accounts
       if (network && network.connected) {
         network.devListAccounts();
-      } else {
-        setDevAccountListMsg('Not connected to server');
+      } else if (network) {
+        setDevAccountListMsg('Connecting...');
+        _devPanelNeedsAccounts = true;
+        _backgroundAuth = true;
+        const url = network.serverUrl || MP_SERVER_URL;
+        network.onConnected = () => {
+          const pass = document.getElementById('login-password')?.value || '';
+          network.sendAuth(playerName, pass, 'login');
+        };
+        if (!network.connected) network.connect(url);
       }
     });
   }

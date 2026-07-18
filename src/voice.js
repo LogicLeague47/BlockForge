@@ -230,79 +230,154 @@ export class VoiceChat {
     this._panel.id = 'voice-panel';
     this._panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;backdrop-filter:blur(2px);';
     this._panel.innerHTML = `
-      <div style="background:linear-gradient(180deg,#2a3a5b 0%,#1a2a4b 50%,#0a1a3b 100%);border:2px solid #5af;border-radius:10px;padding:24px 32px;min-width:300px;text-align:center;box-shadow:0 0 30px rgba(0,0,0,0.7);">
-        <div style="font:700 20px sans-serif;color:#fff;margin-bottom:16px;">Voice Chat</div>
-        <div id="voice-panel-body"></div>
+      <div id="voice-panel-box" style="background:#2b2b2b;border:2px solid #444;border-radius:8px;padding:0;min-width:300px;max-width:380px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.7);overflow:hidden;">
+        <div style="padding:10px 16px 8px;font:600 15px sans-serif;color:#fff;">Voice Chat</div>
+        <div id="voice-tabs" style="display:flex;border-bottom:1px solid #444;">
+          <div id="voice-tab-settings" class="voice-tab voice-tab-active">Settings</div>
+          <div id="voice-tab-groups" class="voice-tab">Groups</div>
+        </div>
+        <div id="voice-panel-body" style="padding:12px 16px;min-height:80px;"></div>
+        <div id="voice-avatars" style="padding:8px 16px 12px;display:flex;justify-content:center;gap:8px;border-top:1px solid #444;background:#222;"></div>
       </div>
     `;
     document.body.appendChild(this._panel);
+
+    // Tab switching
+    this._activeTab = 'settings';
+    this._panel.querySelector('#voice-tab-settings').addEventListener('click', () => { this._activeTab = 'settings'; this._renderPanel(); });
+    this._panel.querySelector('#voice-tab-groups').addEventListener('click', () => { this._activeTab = 'groups'; this._renderPanel(); });
+
     // Close on backdrop click
-    this._panel.addEventListener('click', (e) => {
-      if (e.target === this._panel) this.togglePanel();
-    });
+    this._panel.addEventListener('click', (e) => { if (e.target === this._panel) this.togglePanel(); });
     // Escape to close
     this._panel.addEventListener('keydown', (e) => { if (e.key === 'Escape') this.togglePanel(); });
   }
 
   _renderPanel() {
+    // Tab highlight
+    const tabSettings = this._panel.querySelector('#voice-tab-settings');
+    const tabGroups = this._panel.querySelector('#voice-tab-groups');
+    if (tabSettings) tabSettings.className = 'voice-tab' + (this._activeTab === 'settings' ? ' voice-tab-active' : '');
+    if (tabGroups) tabGroups.className = 'voice-tab' + (this._activeTab === 'groups' ? ' voice-tab-active' : '');
+
+    if (this._activeTab === 'settings') this._renderSettingsTab();
+    else this._renderGroupsTab();
+    this._renderAvatars();
+  }
+
+  _renderSettingsTab() {
     const body = this._panel.querySelector('#voice-panel-body');
     if (!body) return;
-
     const isOn = this.state !== STATES.OFF;
-    const isMuted = this.state === STATES.ON_MUTED;
-    const peerNames = [...this.peers.keys()];
-    const peerHtml = peerNames.length
-      ? `<div style="font:12px sans-serif;color:#aac;margin:10px 0;">Connected: ${peerNames.join(', ')}</div>`
-      : '<div style="font:12px sans-serif;color:#666;margin:10px 0;">No players nearby</div>';
-
-    // Load saved volume
     let vol = 0.8;
     try { vol = parseFloat(localStorage.getItem('bf_voice_volume')) || 0.8; } catch {}
+    const peerNames = [...this.peers.keys()];
 
     body.innerHTML = `
-      <div class="settings-row">
-        <label>Voice Chat</label>
-        <button id="vp-toggle" style="padding:4px 14px;font:12px sans-serif;border-radius:4px;border:1px solid ${isOn ? '#5f5' : '#666'};background:${isOn ? 'rgba(80,255,80,0.15)' : 'rgba(100,100,100,0.2)'};color:${isOn ? '#5f5' : '#888'};cursor:pointer;">${isOn ? 'ON' : 'OFF'}</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font:12px sans-serif;color:#aaa;">Microphone</span>
+        <button id="vp-mic-toggle" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid ${isOn ? (this.muted ? '#e8a030' : '#4caf50') : '#666'};background:${isOn ? (this.muted ? 'rgba(232,160,48,0.15)' : 'rgba(76,175,80,0.15)') : 'rgba(100,100,100,0.2)'};color:${isOn ? (this.muted ? '#e8a030' : '#4caf50') : '#888'};cursor:pointer;">${!isOn ? 'OFF' : (this.muted ? 'MUTED' : 'ON')}</button>
       </div>
-      <div class="settings-row" style="${isOn ? '' : 'opacity:0.4;pointer-events:none;'}">
-        <label>Microphone</label>
-        <button id="vp-mute" style="padding:4px 14px;font:12px sans-serif;border-radius:4px;border:1px solid ${isMuted ? '#fa0' : '#5f5'};background:${isMuted ? 'rgba(255,170,0,0.15)' : 'rgba(80,255,80,0.15)'};color:${isMuted ? '#fa0' : '#5f5'};cursor:pointer;">${isMuted ? 'MUTED' : 'ACTIVE'}</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font:12px sans-serif;color:#aaa;">Voice Chat</span>
+        <button id="vp-voice-toggle" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid ${isOn ? '#4caf50' : '#666'};background:${isOn ? 'rgba(76,175,80,0.15)' : 'rgba(100,100,100,0.2)'};color:${isOn ? '#4caf50' : '#888'};cursor:pointer;">${isOn ? 'ENABLED' : 'DISABLED'}</button>
       </div>
-      <div class="settings-row">
-        <label>Volume</label>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font:12px sans-serif;color:#aaa;">Volume</span>
         <div style="display:flex;align-items:center;gap:8px;">
-          <input id="vp-volume" type="range" min="0" max="100" value="${Math.round(vol * 100)}" style="width:100px;cursor:pointer;" />
-          <span id="vp-vol-label" style="font:12px monospace;color:#aaa;min-width:28px;">${Math.round(vol * 100)}%</span>
+          <input id="vp-volume" type="range" min="0" max="100" value="${Math.round(vol * 100)}" style="width:90px;cursor:pointer;accent-color:#5af;" />
+          <span id="vp-vol-label" style="font:11px monospace;color:#ccc;min-width:30px;text-align:right;">${Math.round(vol * 100)}%</span>
         </div>
       </div>
-      <div class="menu-divider"></div>
-      ${peerHtml}
-      <div style="display:flex;gap:8px;margin-top:10px;">
-        <button id="vp-close" style="flex:1;padding:8px;font:13px sans-serif;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:6px;color:#ccc;cursor:pointer;">Close</button>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <span style="font:12px sans-serif;color:#aaa;">Push to Talk</span>
+        <button id="vp-ptt" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid #666;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">OFF</button>
       </div>
     `;
 
-    body.querySelector('#vp-toggle').addEventListener('click', () => {
+    // Wire buttons
+    body.querySelector('#vp-mic-toggle')?.addEventListener('click', () => {
+      if (this.state === STATES.OFF) return;
+      this.setState(this.muted ? STATES.ON_UNMUTED : STATES.ON_MUTED);
+    });
+    body.querySelector('#vp-voice-toggle')?.addEventListener('click', () => {
       if (this.state === STATES.OFF) this.setState(STATES.ON_MUTED);
       else this.setState(STATES.OFF);
     });
-    body.querySelector('#vp-mute').addEventListener('click', () => {
-      if (this.state === STATES.ON_UNMUTED) this.setState(STATES.ON_MUTED);
-      else if (this.state === STATES.ON_MUTED) this.setState(STATES.ON_UNMUTED);
-    });
-    body.querySelector('#vp-close').addEventListener('click', () => this.togglePanel());
-
-    const volSlider = body.querySelector('#vp-volume');
-    const volLabel = body.querySelector('#vp-vol-label');
-    volSlider.addEventListener('input', () => {
-      const v = parseInt(volSlider.value) / 100;
-      volLabel.textContent = `${Math.round(v * 100)}%`;
+    body.querySelector('#vp-volume')?.addEventListener('input', (e) => {
+      const v = parseInt(e.target.value) / 100;
+      body.querySelector('#vp-vol-label').textContent = Math.round(v * 100) + '%';
       try { localStorage.setItem('bf_voice_volume', String(v)); } catch {}
-      // Update all peer audio elements
-      for (const pc of this.peers.values()) {
-        if (pc._audioEl) pc._audioEl.volume = v;
-      }
+      for (const pc of this.peers.values()) { if (pc._audioEl) pc._audioEl.volume = v; }
     });
+  }
+
+  _renderGroupsTab() {
+    const body = this._panel.querySelector('#voice-panel-body');
+    if (!body) return;
+
+    body.innerHTML = `
+      <div style="font:12px sans-serif;color:#888;margin-bottom:10px;">Join a voice group with friends</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button id="vp-group-create" style="flex:1;padding:6px;font:11px sans-serif;border-radius:4px;border:1px solid #5af;background:rgba(80,150,255,0.12);color:#5af;cursor:pointer;">Create Group</button>
+        <button id="vp-group-leave" style="flex:1;padding:6px;font:11px sans-serif;border-radius:4px;border:1px solid #f55;background:rgba(255,85,85,0.12);color:#f55;cursor:pointer;">Leave Group</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <input id="vp-group-code" type="text" placeholder="Enter group code..." maxlength="8" spellcheck="false" autocomplete="off" style="flex:1;padding:5px 8px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid #555;border-radius:4px;font:12px monospace;outline:none;" />
+        <button id="vp-group-join" style="padding:5px 12px;font:11px sans-serif;border-radius:4px;border:1px solid #5af;background:rgba(80,150,255,0.12);color:#5af;cursor:pointer;">Join</button>
+      </div>
+      <div id="vp-group-info" style="font:11px monospace;color:#888;text-align:center;"></div>
+    `;
+
+    body.querySelector('#vp-group-create')?.addEventListener('click', () => {
+      const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+      this._groupCode = code;
+      this.network._send({ type: 'voice_group_create', code });
+      this._updateGroupInfo();
+    });
+    body.querySelector('#vp-group-leave')?.addEventListener('click', () => {
+      this._groupCode = null;
+      this.network._send({ type: 'voice_group_leave' });
+      this._updateGroupInfo();
+    });
+    body.querySelector('#vp-group-join')?.addEventListener('click', () => {
+      const code = body.querySelector('#vp-group-code')?.value?.trim().toUpperCase();
+      if (!code) return;
+      this._groupCode = code;
+      this.network._send({ type: 'voice_group_join', code });
+      this._updateGroupInfo();
+    });
+
+    this._updateGroupInfo();
+  }
+
+  _updateGroupInfo() {
+    const info = this._panel?.querySelector('#vp-group-info');
+    if (!info) return;
+    if (this._groupCode) {
+      info.innerHTML = `<span style="color:#5af;">Group: ${this._groupCode}</span>`;
+    } else {
+      info.innerHTML = '<span style="color:#666;">Not in a group</span>';
+    }
+  }
+
+  _renderAvatars() {
+    const container = this._panel.querySelector('#voice-avatars');
+    if (!container) return;
+    const colors = ['#e53935','#e91e63','#9c27b0','#3f51b5','#03a9f4','#009688','#4caf50','#ff9800','#795548','#607d8b'];
+    const peerNames = [...this.peers.keys()];
+    const all = [this.username, ...peerNames];
+    container.innerHTML = all.map((name) => {
+      const initial = (name || '?')[0].toUpperCase();
+      const color = colors[Math.abs([...name].reduce((a, c) => a + c.charCodeAt(0), 0)) % colors.length];
+      const isMuted = name === this.username && this.muted;
+      const isOff = name === this.username && this.state === STATES.OFF;
+      const opacity = (isMuted || isOff) ? '0.4' : '1';
+      return `<div style="position:relative;width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font:700 14px sans-serif;color:#fff;opacity:${opacity};border:2px solid ${color};box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="${name}">
+        ${initial}
+        ${isMuted ? '<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#e8a030;display:flex;align-items:center;justify-content:center;font:9px;color:#fff;border:1.5px solid #2b2b2b;">M</div>' : ''}
+      </div>`;
+    }).join('');
   }
 
   _setupHandlers() {
