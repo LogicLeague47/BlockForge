@@ -26,7 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, loadParkourMap } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, loadParkourMap, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -703,6 +703,9 @@ try {
 let sleeping = false;
 let isDevWorld = false; // dev creative superflat test world
 let isParkour = false;   // parkour mode
+let _parkourLevelEnds = null;
+let _parkourTimerEl = null;
+let _parkourLevelEl = null;
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
 let sleepTimer = 0;
 let bedSpawnPoint = null;
@@ -2673,6 +2676,12 @@ window._deleteServer = (name) => {
 window._exitParkourToMinigames = () => {
   gameRunning = false;
   isParkour = false;
+  _parkourLevelEnds = null;
+  resetParkourState();
+  const parkourHud = document.getElementById('parkour-hud');
+  if (parkourHud) parkourHud.remove();
+  _parkourTimerEl = null;
+  _parkourLevelEl = null;
   document.getElementById('status-bars').style.display = '';
   document.getElementById('armor-bar').style.display = '';
   if (player) { saveCurrentWorld(); }
@@ -3297,13 +3306,28 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       // Build procedural parkour levels in a clean void world
       const PARKOUR_Y = 200;
       console.log('[Parkour] Building procedural levels...');
+      resetParkourState();
       buildParkourLobby(world, 0, PARKOUR_Y, 0);
-      const levelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
+      _parkourLevelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
 
       // Spawn at procedural lobby
       player.position.set(0.5, PARKOUR_Y + 2, 0.5);
       player.velocity.set(0, 0, 0);
       player.spawnPoint.set(0.5, PARKOUR_Y + 2, 0.5);
+      startParkourTimer();
+
+      // Create parkour HUD elements
+      _parkourTimerEl = document.getElementById('parkour-timer');
+      _parkourLevelEl = document.getElementById('parkour-level');
+      if (!_parkourTimerEl) {
+        const hud = document.createElement('div');
+        hud.id = 'parkour-hud';
+        hud.style.cssText = 'position:fixed;top:10px;right:10px;z-index:100;pointer-events:none;text-align:right;font-family:monospace;';
+        hud.innerHTML = '<div id="parkour-level" style="font:bold 14px monospace;color:#ff0;text-shadow:0 1px 3px #000;"></div><div id="parkour-timer" style="font:bold 18px monospace;color:#fff;text-shadow:0 1px 3px #000;"></div>';
+        document.body.appendChild(hud);
+        _parkourTimerEl = document.getElementById('parkour-timer');
+        _parkourLevelEl = document.getElementById('parkour-level');
+      }
     })();
   }
 
@@ -4857,6 +4881,58 @@ function loop() {
   // player physics (skip during sleep)
   if (!sleeping) {
     player.update(dt, input);
+
+    // ── Parkour runtime logic ───────────────────────────────────────
+    if (isParkour && world && player) {
+      // Check for checkpoints
+      if (checkCheckpoint(player, world)) {
+        const lvl = getCurrentLevelInfo();
+        if (lvl) addChatLine(`Checkpoint: Level ${lvl.id} — ${lvl.name}`, '#5f5');
+        audio.levelComplete();
+      }
+
+      // Check for level/parkour completion
+      if (_parkourLevelEnds) {
+        const result = checkLevelEnd(player, _parkourLevelEnds);
+        if (result === 'level_complete') {
+          const lvl = getCurrentLevelInfo();
+          if (lvl) addChatLine(`Level ${lvl.id}: ${lvl.name} — Go!`, '#ff0');
+          audio.levelComplete();
+        } else if (result === 'parkour_complete') {
+          const time = getParkourTimerFormatted();
+          addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
+          audio.finish();
+          ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
+          ui.itemNameEl.classList.add('visible');
+          setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
+        }
+      }
+
+      // Update timer display
+      if (_parkourTimerEl) {
+        _parkourTimerEl.textContent = getParkourTimerFormatted();
+      }
+
+      // Update level indicator
+      if (_parkourLevelEl) {
+        const lvl = getCurrentLevelInfo();
+        _parkourLevelEl.textContent = lvl ? `Level ${lvl.id}: ${lvl.name}` : 'Lobby';
+      }
+
+      // Void respawn: if player falls below world, respawn at checkpoint
+      if (player.position.y < 180) {
+        const respawn = getRespawnPosition();
+        if (respawn) {
+          player.position.set(respawn.x, respawn.y, respawn.z);
+          player.velocity.set(0, 0, 0);
+          addChatLine('Fell! Respawning at checkpoint...', '#f55');
+        } else {
+          player.position.set(0.5, 202, 0.5);
+          player.velocity.set(0, 0, 0);
+          addChatLine('Fell! Respawning at lobby...', '#f55');
+        }
+      }
+    }
   } else {
     // Sleep overlay fade animation
     sleepTimer += dt;
