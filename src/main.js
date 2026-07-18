@@ -33,8 +33,9 @@ import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTota
 import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
 import { GreenstoneSystem } from './greenstone.js';
+import { VoiceChat } from './voice.js';
 
-const REACH = 10;
+const REACH = 6;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
 const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
@@ -626,6 +627,7 @@ const _mobileTapDir = new THREE.Vector3();
 let _sprintParticleTimer = 0;
 let _waterSplashTimer = 0;
 let gameRunning = false;
+let voiceChat = null;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
 let gameDifficulty = 'normal'; // 'normal' | 'hard'
@@ -886,6 +888,11 @@ document.addEventListener('mousemove', (e) => {
   if (e.code === 'KeyF' && player && player.isCreative()) {
     e.preventDefault();
     player.toggleFly();
+  }
+  // V = voice chat settings
+  if (e.code === kb.voice && voiceChat) {
+    e.preventDefault();
+    voiceChat.togglePanel();
   }
   // F7 = toggle gamemode (singleplayer only)
   if (e.code === 'F7') {
@@ -2281,6 +2288,10 @@ function setupNetworkHandlers() {
     addChatLine(`Joined server: ${room}`, '#5f5');
     addChatLine('Type /help for commands.', '#aaa');
 
+    // Start voice chat (starts muted by default)
+    if (!voiceChat) voiceChat = new VoiceChat(network, playerName);
+    voiceChat.setState(1); // ON_MUTED
+
     // CrazyGames SDK: update room so friends can join via platform UI
     try {
       window.CrazyGames?.SDK?.game?.setRoom?.({
@@ -2379,6 +2390,7 @@ function setupNetworkHandlers() {
 
   network.onKicked = (reason) => {
     addChatLine(`Kicked: ${reason}`, '#f55');
+    if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     gameRunning = false;
     isMultiplayer = false;
     currentServer = null;
@@ -2442,6 +2454,7 @@ function setupNetworkHandlers() {
 
   network.onDisconnect = () => {
     if (gameRunning && isMultiplayer) {
+      if (voiceChat) { voiceChat.stop(); voiceChat = null; }
       addChatLine('Disconnected from server.', '#f55');
       try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
       cgGameplayStop();
@@ -2965,7 +2978,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (playerModel) { playerModel.dispose(); playerModel = null; }
     if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
     if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
-    if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
+      if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
+      if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
@@ -3172,6 +3186,20 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     onCommand() {
       if (!gameRunning || chatDisabled) return;
       openChat('/');
+    },
+    onVoice() {
+      if (!gameRunning || !voiceChat) return;
+      voiceChat.togglePanel();
+    },
+    onExit() {
+      if (!gameRunning) return;
+      ui.hidePause();
+      saveCurrentWorld();
+      cgGameplayStop();
+      if (isMultiplayer) network.leaveRoom();
+      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+      if (isParkour) showMinigames();
+      else showWorldList();
     },
   });
   if (saved?.player) {

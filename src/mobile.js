@@ -73,7 +73,9 @@ export function initMobileControls(playerRef, input, callbacks) {
       <button class="mc-btn-sm mc-btn-drop" data-action="drop">&#10006;</button>
       <button class="mc-btn-sm mc-btn-swap" data-action="swapHands">&#8646;</button>
       <button class="mc-btn-sm mc-btn-perspective" data-action="perspective">&#128065;</button>
+      <button class="mc-btn-sm mc-btn-voice" data-action="voice">&#127908;</button>
       <button class="mc-btn-sm mc-btn-cmd" data-action="command">/</button>
+      <button class="mc-btn-sm mc-btn-exit" data-action="exit">&#128682;</button>
     </div>
   `;
   document.body.appendChild(root);
@@ -239,6 +241,10 @@ export function initMobileControls(playerRef, input, callbacks) {
       if (callbacks.onChat) callbacks.onChat();
     } else if (down && action === 'inventory') {
       if (callbacks.onInventory) callbacks.onInventory();
+    } else if (action === 'voice' && down) {
+      if (callbacks.onVoice) callbacks.onVoice();
+    } else if (action === 'exit' && down) {
+      if (callbacks.onExit) callbacks.onExit();
     }
   }
 

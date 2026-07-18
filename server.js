@@ -467,6 +467,13 @@ wss.on('connection', (ws) => {
       case 'player_settings_get': handlePlayerSettingsGet(ws, msg); break;
       case 'player_settings_set': handlePlayerSettingsSet(ws, msg); break;
       case 'dev_get_all_players': handleDevGetAllPlayers(ws, msg); break;
+      // Voice chat signaling — relay messages to target player in same room
+      case 'voice_join': handleVoiceJoin(ws, msg); break;
+      case 'voice_offer':
+      case 'voice_answer':
+      case 'voice_ice':
+        relayVoice(ws, msg);
+        break;
       case 'mob_spawn': handleMobSpawn(ws, msg); break;
       case 'mob_position': handleMobPosition(ws, msg); break;
       case 'mob_damage': handleMobDamage(ws, msg); break;
@@ -1103,6 +1110,84 @@ function handleDevGetAllPlayers(ws, msg) {
   }
   ws.send(JSON.stringify({ type: 'dev_player_list', players: playerNames }));
 }
+
+// ── Voice chat signaling ──────────────────────────────────────────────
+// Track which clients in a room have voice enabled
+const voiceClients = new Map(); // roomName → Set<ws>
+
+function handleVoiceJoin(ws, msg) {
+  const roomName = ws._roomName;
+  if (!roomName) return;
+  const room = getRoom(roomName);
+  if (!room) return;
+
+  if (!voiceClients.has(roomName)) voiceClients.set(roomName, new Set());
+  const set = voiceClients.get(roomName);
+  set.add(ws);
+
+  // Send back the list of existing voice peers
+  const peers = [];
+  for (const other of set) {
+    if (other !== ws && other._playerData) {
+      peers.push(other._playerData.name);
+    }
+  }
+  ws.send(JSON.stringify({ type: 'voice_join_ack', peers }));
+
+  // Broadcast to other voice peers that a new voice user joined
+  const name = ws._playerData ? ws._playerData.name : 'Unknown';
+  broadcastVoice(roomName, { type: 'voice_peer_join', name }, ws);
+}
+
+function relayVoice(ws, msg) {
+  const roomName = ws._roomName;
+  if (!roomName) return;
+  // Forward to the target player
+  const room = getRoom(roomName);
+  if (!room) return;
+  const targetName = msg.target;
+  if (!targetName) return;
+  for (const [, p] of room.players) {
+    if (p.name === targetName) {
+      // Forward with 'from' field set to sender's name
+      const out = { ...msg, from: ws._playerData ? ws._playerData.name : 'Unknown' };
+      p.ws.send(JSON.stringify(out));
+      return;
+    }
+  }
+}
+
+function broadcastVoice(roomName, msg, exclude) {
+  const set = voiceClients.get(roomName);
+  if (!set) return;
+  const json = JSON.stringify(msg);
+  for (const ws of set) {
+    if (ws !== exclude) {
+      try { ws.send(json); } catch (_) {}
+    }
+  }
+}
+
+// Remove voice client on disconnect/leave
+function removeVoiceClient(ws, roomName) {
+  if (!roomName) roomName = ws._roomName;
+  if (!roomName) return;
+  const set = voiceClients.get(roomName);
+  if (!set) return;
+  set.delete(ws);
+  if (set.size === 0) voiceClients.delete(roomName);
+  // Notify remaining voice peers
+  const name = ws._playerData ? ws._playerData.name : 'Unknown';
+  broadcastVoice(roomName, { type: 'voice_peer_leave', name }, ws);
+}
+
+// Patch handleLeave to also clean up voice
+const _origHandleLeave = handleLeave;
+handleLeave = function(ws) {
+  const roomName = ws._roomName;
+  removeVoiceClient(ws, roomName);
+  _origHandleLeave(ws);
+};
 
 // ── Start ─────────────────────────────────────────────────────────────
 const IS_LAN = process.argv.includes('--lan');

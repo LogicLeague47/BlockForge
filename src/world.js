@@ -83,7 +83,13 @@ export class World {
   setBlock(x, y, z, v, recordEdit = true) {
     if (y < 0 || y >= WORLD_HEIGHT) return;
     const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
-    this.getChunk(cx, cz).set(x - cx * CHUNK_SIZE, y, z - cz * CHUNK_SIZE, v);
+    const c = this.getChunk(cx, cz);
+    const lx = x - cx * CHUNK_SIZE, lz = z - cz * CHUNK_SIZE;
+    c.set(lx, y, lz, v);
+    // Keep surfaceMap in sync so the mesher knows the highest block
+    if (v !== 0 && y > c.surfaceMap[lz * CHUNK_SIZE + lx]) {
+      c.surfaceMap[lz * CHUNK_SIZE + lx] = y;
+    }
     if (recordEdit) {
       this.edits.set(`${x},${y},${z}`, v);
       // Index by chunk for O(1) lookup during generation

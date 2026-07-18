@@ -73,24 +73,25 @@ export function calcBiome(n, wx, wz, h) {
   // Mountains: high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
   
-  // Temperature-based biomes (with humidity)
+  // Temperature-based biomes (with humidity) — plains is the common default
   if (t < -0.55) return BIOMES.SNOWY;
   if (t < 0.0) {
-    if (hu > 0.1) return BIOMES.TAIGA;
-    return BIOMES.FOREST;
+    if (hu > 0.25) return BIOMES.TAIGA;
+    return BIOMES.PLAINS;
   }
   if (t < 0.3) {
-    if (hu > 0.25) return BIOMES.DARK_FOREST;
-    if (hu > 0.05) return BIOMES.FOREST;
-    if (hu > -0.1) return BIOMES.BIRCH_FOREST;
+    if (hu > 0.35) return BIOMES.DARK_FOREST;
+    if (hu > 0.2) return BIOMES.FOREST;
+    if (hu > 0.1) return BIOMES.BIRCH_FOREST;
     return BIOMES.PLAINS;
   }
   if (t < 0.5) {
-    if (hu > 0.2) return BIOMES.JUNGLE;
-    return hu > -0.1 ? BIOMES.SAVANNA : BIOMES.PLAINS;
+    if (hu > 0.35) return BIOMES.JUNGLE;
+    return hu > 0.05 ? BIOMES.SAVANNA : BIOMES.PLAINS;
   }
-  if (hu < -0.1) return BIOMES.DESERT;
-  return hu > 0.15 ? BIOMES.JUNGLE : BIOMES.SAVANNA;
+  if (hu < -0.15) return BIOMES.DESERT;
+  if (hu > 0.3) return BIOMES.JUNGLE;
+  return BIOMES.PLAINS;
 }
 
 export function surfBlock(biome, h) {

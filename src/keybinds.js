@@ -22,6 +22,7 @@ export const KEYBIND_ACTIONS = [
   { id: 'swapHands',   label: 'Swap Hands' },
   { id: 'perspective', label: 'Toggle Perspective' },
   { id: 'debug',       label: 'Debug Overlay' },
+  { id: 'voice',       label: 'Voice Chat Menu' },
 ];
 
 export const DEFAULT_KEYBINDS = {
@@ -40,6 +41,7 @@ export const DEFAULT_KEYBINDS = {
   swapHands: 'KeyF',
   perspective: 'F5',
   debug: 'F3',
+  voice: 'KeyV',
 };
 
 let binds = loadBinds();

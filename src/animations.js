@@ -1,7 +1,7 @@
 // Animation system for player model and viewmodel.
 // Based on Fresh Animations (FA+) player animation patterns.
 
-const lerp = (a, b, t) => a + (b - a) * Math.min(1, Math.max(0, t));
+export const lerp = (a, b, t) => a + (b - a) * Math.min(1, Math.max(0, t));
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 const easeOut = (t) => 1 - Math.pow(1 - t, 3);
 const easeInOut = (t) => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
