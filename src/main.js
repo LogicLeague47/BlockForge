@@ -719,7 +719,9 @@ function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
   try {
     const p = renderer.domElement.requestPointerLock();
-    if (p && typeof p.catch === 'function') p.catch(() => {});
+    if (p && typeof p.then === 'function') {
+      p.catch(e => { e && e.preventDefault && e.preventDefault(); });
+    }
   } catch (_) {}
 }
 

@@ -58,6 +58,8 @@
           var reason = e.reason;
           var msg = (reason && reason.message) ? reason.message : String(reason);
           var stack = (reason && reason.stack) ? reason.stack : '';
+          // Ignore pointer lock rejections (Safari bug: .catch() doesn't suppress unhandledrejection)
+          if (/pointer lock/i.test(msg)) { e.preventDefault(); return; }
           showErrorBanner(msg, '', '', '', stack, 'UnhandledPromiseRejection');
         });
       })();
