@@ -718,7 +718,8 @@ let placeAnimTimer = 0;
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
   try {
-    renderer.domElement.requestPointerLock();
+    const p = renderer.domElement.requestPointerLock();
+    if (p && typeof p.catch === 'function') p.catch(() => {});
   } catch (_) {}
 }
 
