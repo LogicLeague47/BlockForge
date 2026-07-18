@@ -2380,6 +2380,8 @@ function setupNetworkHandlers() {
     let chatHtml;
     if (role === 'server') {
       chatHtml = `<span style="color:#aaa;font-style:italic;">${escHtml(safeText)}</span>`;
+    } else if (role === 'pm') {
+      chatHtml = `<span style="color:#d0f;font-weight:bold;">${escHtml(safeName)}</span> <span style="color:#d0f;font-style:italic;">${escHtml(safeText)}</span>`;
     } else if (role === ROLE_GAMEDEV) {
       chatHtml = `<span style="color:#f44">[</span><span style="color:#0ff">${escHtml(getDevTag())}</span><span style="color:#f44">]</span> ${escHtml(safeName)}: ${escHtml(safeText)}`;
     } else if (role === ROLE_DEV) {

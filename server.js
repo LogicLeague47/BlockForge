@@ -935,8 +935,24 @@ function handleCommand(ws, msg) {
       broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${targetName} is now a player.` });
       break;
     }
+    case '/pm':
+    case '/msg':
+    case '/whisper': {
+      const targetName = args[0];
+      const pmText = args.slice(1).join(' ');
+      if (!targetName || !pmText) return reply('Usage: /pm <player> <message>');
+      let targetWs = null;
+      for (const [cws, p] of room.players) { if (p.name === targetName) { targetWs = cws; break; } }
+      if (!targetWs) return reply(`Player "${targetName}" not found.`);
+      const pmMsg = JSON.stringify({ type: 'chat', name: `[PM] ${pd.name}`, role: 'pm', text: pmText });
+      const pmMsgToSender = JSON.stringify({ type: 'chat', name: `[PM → ${targetName}]`, role: 'pm', text: pmText });
+      ws.send(pmMsgToSender);
+      targetWs.send(pmMsg);
+      break;
+    }
     case '/help': {
       reply([
+        '/pm <player> <message> — Send a private message',
         '/staff <player> — Promote to staff',
         '/admin <player> — Promote to admin',
         '/deop <player> — Demote to player',
