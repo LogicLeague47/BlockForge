@@ -1411,6 +1411,7 @@ function igniteTNT(x, y, z) {
 }
 
 function placeBlock(slotOverride) {
+  if (player && player.isAdventure()) return;
   const hit = currentTarget();
   if (!hit) return;
   const slot = slotOverride || player.inventory.getSelected();
@@ -4505,7 +4506,7 @@ function loop() {
           }
         }
 
-        if (!hitPlayer) {
+        if (!hitPlayer && !(player && player.isAdventure())) {
           // Normal block breaking — on mobile, target closest block in radius
           const isMobileBreak = mobile && mobile.isMobile;
           const hit = isMobileBreak ? closestBlockInRadius(world, player.position, 6) : currentTarget();
