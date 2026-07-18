@@ -616,6 +616,13 @@ const _waterSplashMat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transpare
 const _critParticleMat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.7 });
 const _endermanTeleportMat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
 const _dirVec = new THREE.Vector3();
+const _mobDirVec = new THREE.Vector3();
+const _pvpDirVec = new THREE.Vector3();
+const _pvpToPlayer = new THREE.Vector3();
+const _pvpClosest = new THREE.Vector3();
+const _mobHealthDir = new THREE.Vector3();
+const _mobHealthPos = new THREE.Vector3();
+const _mobileTapDir = new THREE.Vector3();
 let _sprintParticleTimer = 0;
 let _waterSplashTimer = 0;
 let gameRunning = false;
@@ -1458,7 +1465,7 @@ function placeBlock(slotOverride) {
 
   // Pistons: store facing direction based on player look
   if (itemId === BLOCK.PISTON || itemId === BLOCK.STICKY_PISTON) {
-    const dir = new THREE.Vector3();
+    const dir = _mobileTapDir;
     camera.getWorldDirection(dir);
     const ax = Math.abs(dir.x), az = Math.abs(dir.z);
     let facing;
@@ -2789,6 +2796,8 @@ function updateTimeHud() {
 const _lerpA = new THREE.Color();
 const _lerpB = new THREE.Color();
 const _lerpResult = new THREE.Color();
+const _nightColor = new THREE.Color(NIGHT_COLOR);
+const _whiteColor = new THREE.Color(0xffffff);
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
   _lerpA.set(a);
@@ -2848,7 +2857,7 @@ function updateSky(dt) {
     }
   } else {
     // Deep night
-    skyColor = new THREE.Color(NIGHT_COLOR);
+    skyColor = _nightColor.set(NIGHT_COLOR);
   }
 
   scene.background.copy(skyColor);
@@ -2877,7 +2886,7 @@ function updateSky(dt) {
   }
   // Thunder flash overlay
   if (thunderFlash > 0) {
-    scene.background.lerp(new THREE.Color(0xffffff), thunderFlash * 0.6);
+    scene.background.lerp(_whiteColor, thunderFlash * 0.6);
   }
 
   // Stars: visible only at night, fade in/out with twilight.
@@ -3090,7 +3099,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     onTapTarget() {
       // Returns true if the tap hit a mob (so it's an attack, not a place).
       if (!gameRunning || !mobManager || !player) return false;
-      const dir = new THREE.Vector3();
+      const dir = _mobileTapDir;
       camera.getWorldDirection(dir);
       const mobHit = mobManager.hitTest(camera.position, dir, REACH);
       if (!mobHit) return false;
@@ -3210,22 +3219,25 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     }
 
     parkourLoadPromise = (async () => {
-      try {
-        console.log('[Parkour] Loading Parkour Paradise map...');
-        const mapInfo = await loadParkourMap(world);
-        console.log(`[Parkour] Loaded ${mapInfo.blockCount} blocks`);
+      // Always build procedural parkour levels first (at Y=200, above binary map)
+      const PARKOUR_Y = 200;
+      console.log('[Parkour] Building procedural levels...');
+      buildParkourLobby(world, 0, PARKOUR_Y, 0);
+      const levelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
 
-        player.position.set(0.5, mapInfo.spawnY, -49.5);
-        player.velocity.set(0, 0, 0);
-        player.spawnPoint.set(0.5, mapInfo.spawnY, -49.5);
+      // Also try to load binary map as visual backdrop
+      try {
+        console.log('[Parkour] Loading Parkour Paradise map as backdrop...');
+        const mapInfo = await loadParkourMap(world);
+        console.log(`[Parkour] Loaded ${mapInfo.blockCount} backdrop blocks`);
       } catch (e) {
-        console.error('[Parkour] Failed to load map, falling back to procedural:', e);
-        player.position.set(0.5, 70, 0.5);
-        player.velocity.set(0, 0, 0);
-        player.spawnPoint.set(0.5, 70, 0.5);
-        buildParkourLobby(world, 0, 64, 0);
-        buildAllLevels(world, 0, 64, -12);
+        console.warn('[Parkour] No backdrop map, using procedural only');
       }
+
+      // Spawn at procedural lobby
+      player.position.set(0.5, PARKOUR_Y + 2, 0.5);
+      player.velocity.set(0, 0, 0);
+      player.spawnPoint.set(0.5, PARKOUR_Y + 2, 0.5);
     })();
   }
 
@@ -4385,6 +4397,14 @@ function loop() {
   const dt = Math.min((now - lastTime) / 1000, 0.1);
   lastTime = now;
 
+  // FPS counter (was a separate rAF loop, now merged)
+  fpsFrames++;
+  if (now - fpsLastTime >= 1000) {
+    fps = Math.round(fpsFrames * 1000 / (now - fpsLastTime));
+    fpsFrames = 0;
+    fpsLastTime = now;
+  }
+
   // autoClear is disabled (so the held-item overlay can draw on top of the
   // world), so clear colour+depth explicitly at the start of every frame.
   renderer.clear();
@@ -4408,7 +4428,7 @@ function loop() {
   if (input.mouseLeftHeld && pointerLocked) {
     // Check for mob hit first
     if (mobManager && player) {
-      const dir = new THREE.Vector3();
+      const dir = _mobDirVec;
       camera.getWorldDirection(dir);
       const mobHit = mobManager.hitTest(camera.position, dir, REACH);
       if (mobHit) {
@@ -4474,7 +4494,7 @@ function loop() {
         // PvP: check for remote player hit
         let hitPlayer = false;
         if (isMultiplayer && mpRenderer && player) {
-          const dir = new THREE.Vector3();
+          const dir = _pvpDirVec;
           camera.getWorldDirection(dir);
           const origin = camera.position;
           let closestDist = 3.5; // PvP reach (slightly shorter than block reach)
@@ -4483,11 +4503,11 @@ function loop() {
             if (!rp.model || !rp.model.group) continue;
             const rpPos = rp.model.group.position;
             // Simple sphere test: camera ray to player center
-            const toPlayer = new THREE.Vector3().subVectors(rpPos, origin);
+            const toPlayer = _pvpToPlayer.subVectors(rpPos, origin);
             const proj = toPlayer.dot(dir);
             if (proj < 0 || proj > closestDist) continue;
-            const closest = origin.clone().add(dir.clone().multiplyScalar(proj));
-            const dist = closest.distanceTo(rpPos);
+            _pvpClosest.copy(origin).addScaledVector(dir, proj);
+            const dist = _pvpClosest.distanceTo(rpPos);
             if (dist < 1.2) {
               closestDist = proj;
               closestName = name;
@@ -4983,7 +5003,7 @@ function loop() {
   const mobHealthEl = document.getElementById('mob-health');
   if (mobHealthEl) {
     if (mobManager && player && pointerLocked) {
-      const dir = new THREE.Vector3();
+      const dir = _mobHealthDir;
       camera.getWorldDirection(dir);
       const targeted = mobManager.hitTest(camera.position, dir, 5);
       if (targeted && !targeted.dead) {
@@ -5007,7 +5027,7 @@ function loop() {
             heartsEl.textContent = h;
           }
           // Project mob head position to screen
-          const mobPos = new THREE.Vector3(targeted.position.x, targeted.position.y + (def.legH + def.bodyH + def.headH) + 0.6, targeted.position.z);
+          const mobPos = _mobHealthPos.set(targeted.position.x, targeted.position.y + (def.legH + def.bodyH + def.headH) + 0.6, targeted.position.z);
           mobPos.project(camera);
           const hw = window.innerWidth / 2;
           const hh = window.innerHeight / 2;
@@ -5380,17 +5400,7 @@ function facingName(yaw) {
   return 'East';
 }
 
-// FPS counter
+// FPS counter (merged into main loop — no separate rAF)
 let fps = 0, fpsFrames = 0, fpsLastTime = performance.now();
-(function fpsLoop() {
-  requestAnimationFrame(fpsLoop);
-  fpsFrames++;
-  const now = performance.now();
-  if (now - fpsLastTime >= 1000) {
-    fps = Math.round(fpsFrames * 1000 / (now - fpsLastTime));
-    fpsFrames = 0;
-    fpsLastTime = now;
-  }
-})();
 
 requestAnimationFrame(loop);

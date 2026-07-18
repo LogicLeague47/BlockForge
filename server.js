@@ -1121,6 +1121,25 @@ const IS_LAN = process.argv.includes('--lan');
     console.log(`  Health:  http://localhost:${PORT}/health`);
     console.log(`  Rooms:   ${rooms.size}\n`);
   });
+
+  // Server-side WebSocket heartbeat — ping all clients every 30s, terminate dead ones
+  // This prevents Render's reverse proxy from closing idle WebSocket connections
+  setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        console.log(`[Heartbeat] Terminating stale client`);
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 30000);
+
+  // Mark new connections as alive
+  wss.on('connection', (ws) => {
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+  });
 })();
 
 // Save every 30 seconds

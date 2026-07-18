@@ -19,6 +19,40 @@ import { BLOCK, BLOCKS, tileNameFor } from './blocks.js';
 import { tileUVRect } from './tiles.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, BIOMES } from './world.js';
 
+// Biome tint lookup tables (allocated once, not per chunk rebuild)
+const _GRASS_TINT = {
+  [BIOMES.PLAINS]:       [1.0,  1.0,  1.0],
+  [BIOMES.FOREST]:       [1.0,  1.0,  1.0],
+  [BIOMES.BIRCH_FOREST]: [1.0,  1.0,  1.0],
+  [BIOMES.DARK_FOREST]:  [0.85, 0.95, 0.85],
+  [BIOMES.DESERT]:       [1.2,  1.1,  0.5],
+  [BIOMES.TAIGA]:        [0.7,  0.9,  0.7],
+  [BIOMES.SNOWY]:        [0.7,  0.9,  0.7],
+  [BIOMES.SAVANNA]:      [1.15, 1.1,  0.6],
+  [BIOMES.JUNGLE]:       [0.95, 1.05, 0.85],
+  [BIOMES.SWAMP]:        [0.65, 0.8,  0.55],
+  [BIOMES.MOUNTAINS]:    [1.0,  1.0,  1.0],
+  [BIOMES.BEACH]:        [1.0,  1.0,  1.0],
+  [BIOMES.OCEAN]:        [1.0,  1.0,  1.0],
+  [BIOMES.DEEP_OCEAN]:   [1.0,  1.0,  1.0],
+};
+const _LEAF_TINT = {
+  [BIOMES.PLAINS]:       [0.9, 1.0, 0.85],
+  [BIOMES.FOREST]:       [0.85, 1.0, 0.8],
+  [BIOMES.BIRCH_FOREST]: [0.95, 1.0, 0.85],
+  [BIOMES.DARK_FOREST]:  [0.7, 0.85, 0.65],
+  [BIOMES.DESERT]:       [1.1, 1.0, 0.55],
+  [BIOMES.TAIGA]:        [0.6, 0.85, 0.65],
+  [BIOMES.SNOWY]:        [0.65, 0.85, 0.7],
+  [BIOMES.SAVANNA]:      [1.1, 1.0, 0.55],
+  [BIOMES.JUNGLE]:       [0.85, 1.0, 0.75],
+  [BIOMES.SWAMP]:        [0.55, 0.75, 0.5],
+  [BIOMES.MOUNTAINS]:    [0.85, 0.95, 0.8],
+  [BIOMES.BEACH]:        [0.9, 1.0, 0.85],
+  [BIOMES.OCEAN]:        [0.9, 1.0, 0.85],
+  [BIOMES.DEEP_OCEAN]:   [0.9, 1.0, 0.85],
+};
+
 // Face definitions: outward normal + 4 corner offsets.
 //
 // Corners are ordered [BL, BR, TR, TL] in CCW order when viewed from OUTSIDE
@@ -149,40 +183,9 @@ export function buildChunkGeometry(chunk, world) {
   }
   maxY = Math.min(maxY + 14, WORLD_HEIGHT);
 
-  // Biome-based grass color tinting
-  const GRASS_TINT = {
-    [BIOMES.PLAINS]:       [1.0,  1.0,  1.0],
-    [BIOMES.FOREST]:       [1.0,  1.0,  1.0],
-    [BIOMES.BIRCH_FOREST]: [1.0,  1.0,  1.0],
-    [BIOMES.DARK_FOREST]:  [0.85, 0.95, 0.85],
-    [BIOMES.DESERT]:       [1.2,  1.1,  0.5],
-    [BIOMES.TAIGA]:        [0.7,  0.9,  0.7],
-    [BIOMES.SNOWY]:        [0.7,  0.9,  0.7],
-    [BIOMES.SAVANNA]:      [1.15, 1.1,  0.6],
-    [BIOMES.JUNGLE]:       [0.95, 1.05, 0.85],
-    [BIOMES.SWAMP]:        [0.65, 0.8,  0.55],
-    [BIOMES.MOUNTAINS]:    [1.0,  1.0,  1.0],
-    [BIOMES.BEACH]:        [1.0,  1.0,  1.0],
-    [BIOMES.OCEAN]:        [1.0,  1.0,  1.0],
-    [BIOMES.DEEP_OCEAN]:   [1.0,  1.0,  1.0],
-  };
-  // Leaf biome tinting (slightly different from grass — more saturated)
-  const LEAF_TINT = {
-    [BIOMES.PLAINS]:       [0.9, 1.0, 0.85],
-    [BIOMES.FOREST]:       [0.85, 1.0, 0.8],
-    [BIOMES.BIRCH_FOREST]: [0.95, 1.0, 0.85],
-    [BIOMES.DARK_FOREST]:  [0.7, 0.85, 0.65],
-    [BIOMES.DESERT]:       [1.1, 1.0, 0.55],
-    [BIOMES.TAIGA]:        [0.6, 0.85, 0.65],
-    [BIOMES.SNOWY]:        [0.65, 0.85, 0.7],
-    [BIOMES.SAVANNA]:      [1.1, 1.0, 0.55],
-    [BIOMES.JUNGLE]:       [0.85, 1.0, 0.75],
-    [BIOMES.SWAMP]:        [0.55, 0.75, 0.5],
-    [BIOMES.MOUNTAINS]:    [0.85, 0.95, 0.8],
-    [BIOMES.BEACH]:        [0.9, 1.0, 0.85],
-    [BIOMES.OCEAN]:        [0.9, 1.0, 0.85],
-    [BIOMES.DEEP_OCEAN]:   [0.9, 1.0, 0.85],
-  };
+  // Biome-based grass color tinting (module-level to avoid per-rebuild allocation)
+  const GRASS_TINT = _GRASS_TINT;
+  const LEAF_TINT = _LEAF_TINT;
 
   for (let y = 0; y < maxY; y++) {
     for (let z = 0; z < CHUNK_SIZE; z++) {

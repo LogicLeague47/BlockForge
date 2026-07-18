@@ -33,6 +33,14 @@ const JUMP_VELOCITY = 8.4;
 const SWIM_GRAVITY = 6;
 const SWIM_SPEED = 3.5;
 
+// Pre-allocated reusable vectors (avoids per-frame GC pressure)
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _move = new THREE.Vector3();
+const _minBox = new THREE.Vector3();
+const _maxBox = new THREE.Vector3();
+const _tmpVec = new THREE.Vector3();
+
 // Survival constants (in half-points unless noted). 20 = full bar.
 const MAX_HEALTH = 20;
 const MAX_HUNGER = 20;
@@ -346,10 +354,10 @@ export class Player {
       : this.crouching ? CROUCH_SPEED
       : this.sprinting ? SPRINT_SPEED : WALK_SPEED;
 
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const forward = _forward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const right = _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
-    const move = new THREE.Vector3();
+    const move = _move.set(0, 0, 0);
     if (input.keys[kb.forward]) move.add(forward);
     if (input.keys[kb.back]) move.sub(forward);
     if (input.keys[kb.right]) move.add(right);
@@ -529,12 +537,12 @@ export class Player {
     this.position[axis] += delta;
 
     // player AABB at the new position
-    const min = new THREE.Vector3(
+    const min = _minBox.set(
       this.position.x - PLAYER_HALF_WIDTH,
       this.position.y,
       this.position.z - PLAYER_HALF_WIDTH
     );
-    const max = new THREE.Vector3(
+    const max = _maxBox.set(
       this.position.x + PLAYER_HALF_WIDTH,
       this.position.y + PLAYER_HEIGHT,
       this.position.z + PLAYER_HALF_WIDTH

@@ -63,6 +63,7 @@ export class Network {
 
     this.ws.onopen = () => {
       this.connected = true;
+      this._reconnectAttempts = 0;
       this._reconnectDelay = 1000;
       console.log('[Net] Connected to', url);
       // Keepalive ping every 25s to prevent Render free-tier sleep
@@ -103,15 +104,22 @@ export class Network {
 
     this.ws.onclose = () => {
       const wasConnected = this.connected;
+      const hadJoinInfo = !!this._lastJoinInfo;
       this.connected = false;
       this.ws = null;
       this.roomName = null;
-      this._lastJoinInfo = null;
       if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
       console.log('[Net] Disconnected');
 
       if (wasConnected && !this._intentionalClose) {
-        if (this.onDisconnect) this.onDisconnect();
+        // Try to reconnect if we were in a room
+        if (hadJoinInfo && this.serverUrl) {
+          console.log('[Net] Connection lost, attempting reconnect...');
+          if (this.onError) this.onError('Connection lost. Reconnecting...');
+          this._scheduleReconnect();
+        } else {
+          if (this.onDisconnect) this.onDisconnect();
+        }
       }
     };
 
@@ -132,11 +140,19 @@ export class Network {
 
   _scheduleReconnect() {
     if (this._intentionalClose || !this.serverUrl) return;
+    this._reconnectAttempts = (this._reconnectAttempts || 0) + 1;
+    if (this._reconnectAttempts > 5) {
+      console.log('[Net] Reconnect failed after 5 attempts');
+      this._reconnectAttempts = 0;
+      this._lastJoinInfo = null;
+      if (this.onDisconnect) this.onDisconnect();
+      return;
+    }
+    const delay = Math.min(1000 * Math.pow(1.5, this._reconnectAttempts - 1), 10000);
+    console.log(`[Net] Reconnecting in ${Math.round(delay / 1000)}s (attempt ${this._reconnectAttempts}/5)...`);
     this._reconnectTimer = setTimeout(() => {
-      console.log('[Net] Reconnecting...');
       this.connect(this.serverUrl);
-    }, this._reconnectDelay);
-    this._reconnectDelay = Math.min(this._reconnectDelay * 1.5, 10000);
+    }, delay);
   }
 
   _send(msg) {
