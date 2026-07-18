@@ -82,10 +82,10 @@ const DIFFICULTY = [
   { gap: 2, w: 1, d: 4, count: 6, block: BLOCK.STONE,      accent: BLOCK.COBBLESTONE },
   { gap: 2, w: 3, d: 3, count: 6, block: BLOCK.COBBLESTONE, accent: BLOCK.BRICK, zigzag: true },
   { gap: 2, w: 3, d: 3, count: 5, block: BLOCK.STONE,      accent: BLOCK.IRON_BLOCK, staircase: true },
-  { gap: 4, w: 3, d: 3, count: 4, block: BLOCK.COBBLESTONE, accent: BLOCK.GOLD_BLOCK },
+  { gap: 3, w: 3, d: 3, count: 4, block: BLOCK.COBBLESTONE, accent: BLOCK.GOLD_BLOCK },
   { gap: 2, w: 1, d: 3, count: 7, block: BLOCK.QUARTZ_BLOCK, accent: BLOCK.IRON_BLOCK },
   { gap: 3, w: 3, d: 3, count: 6, block: BLOCK.EMBEROCK,   accent: BLOCK.GREENSTONE_BLOCK, mixed: true },
-  { gap: 5, w: 4, d: 4, count: 3, block: BLOCK.VOIDSTONE,  accent: BLOCK.DIAMOND_BLOCK },
+  { gap: 3, w: 4, d: 4, count: 3, block: BLOCK.VOIDSTONE,  accent: BLOCK.DIAMOND_BLOCK },
 ];
 
 function fillBox(world, x, y, z, w, d, h, block) {

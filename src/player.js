@@ -574,7 +574,9 @@ export class Player {
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);
-                this.velocity.y = Math.min(fallSpeed * 0.8, 12);
+                // MC: motionY = -motionY, capped by terminal velocity (max bounce ~57.6 blocks)
+                const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
+                this.velocity.y = Math.min(fallSpeed, MAX_BOUNCE_VEL);
                 this.onGround = false;
               } else {
                 this.onGround = true;

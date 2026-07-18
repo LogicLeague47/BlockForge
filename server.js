@@ -416,7 +416,7 @@ function serveFile(filePath, res) {
 }
 
 const server = http.createServer((req, res) => {
-  if (req.url === '/health') {
+  if (req.url === '/health' || req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ rooms: rooms.size, status: 'ok', uptime: process.uptime() }));
     return;
