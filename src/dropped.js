@@ -124,7 +124,7 @@ export class DroppedItem {
       this.group.traverse(c => {
         if (c.geometry) c.geometry.dispose();
         if (c.material) {
-          if (c.material.map) c.material.map.dispose();
+          if (c.material.map && typeof c.material.map.dispose === 'function') c.material.map.dispose();
           c.material.dispose();
         }
       });

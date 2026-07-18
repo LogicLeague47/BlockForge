@@ -721,6 +721,7 @@ const IRON_OFFER_ITEMS = [
 // --- input state ---
 const input = { keys: {}, mouseLeftHeld: false };
 let pointerLocked = false;
+let _relocking = false; // true while trying to re-lock after closing a UI panel
 let breakingTarget = null;
 let breakingElapsed = 0;
 let lastBreakSound = 0;
@@ -728,6 +729,7 @@ let placeAnimTimer = 0;
 
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
+  _relocking = true;
   try {
     const p = renderer.domElement.requestPointerLock();
     if (p && typeof p.then === 'function') {
@@ -743,8 +745,17 @@ renderer.domElement.addEventListener('click', () => {
 
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = document.pointerLockElement === renderer.domElement;
-  // Don't open the pause menu if another overlay (e.g. death screen) is already up.
-  if (!pointerLocked && gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
+  // Don't open the pause menu if we just closed a UI panel and are trying to re-lock,
+  // or if chat/inventory/chest/furnace is open, or if on mobile, or voice panel is open.
+  if (_relocking) {
+    _relocking = false;
+    // If pointer didn't actually lock (denied by browser), re-lock after a beat
+    if (!pointerLocked && gameRunning) {
+      setTimeout(() => { if (gameRunning) lockPointer(); }, 100);
+    }
+    return;
+  }
+  if (!pointerLocked && gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.chestOpen && !chatOpen && !ui.isOverlayShown()) {
     if (!(mobile && mobile.isMobile) && !(voiceChat && voiceChat.panelOpen)) {
       ui.showMenu('pause');
       cgGameplayStop();
@@ -2533,6 +2544,13 @@ function setupNetworkHandlers() {
         setTimeout(() => { ui.showMenu('main'); }, 600);
       }
     } else {
+      if (_backgroundAuth) {
+        _backgroundAuth = false;
+        if (_devPanelNeedsAccounts) {
+          _devPanelNeedsAccounts = false;
+          setDevAccountListMsg('Auth failed: ' + (msg.reason || 'unknown error'));
+        }
+      }
       if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed.'; }
     }
   };
@@ -4183,19 +4201,32 @@ function initMenu() {
       renderDevAccountList();
       ui.showMenu('dev-panel');
       // Ensure connection before fetching accounts
-      if (network && network.connected) {
-        network.devListAccounts();
-      } else if (network) {
-        setDevAccountListMsg('Connecting...');
-        _devPanelNeedsAccounts = true;
-        _backgroundAuth = true;
-        const url = network.serverUrl || MP_SERVER_URL;
-        network.onConnected = () => {
-          const pass = document.getElementById('login-password')?.value || '';
-          network.sendAuth(playerName, pass, 'login');
-        };
-        if (!network.connected) network.connect(url);
-      }
+      const doDevFetch = () => {
+        if (network && network.connected) {
+          network.devListAccounts();
+        } else if (network) {
+          setDevAccountListMsg('Connecting...');
+          _devPanelNeedsAccounts = true;
+          _backgroundAuth = true;
+          const url = network.serverUrl || MP_SERVER_URL;
+          network.onConnected = () => {
+            const pass = localStorage.getItem('bf_login_pass') || '';
+            network.sendAuth(playerName, pass, 'login');
+          };
+          if (!network.connected) network.connect(url);
+          // Timeout after 8s
+          setTimeout(() => {
+            if (_devPanelNeedsAccounts) {
+              _devPanelNeedsAccounts = false;
+              _backgroundAuth = false;
+              if (!network.connected) setDevAccountListMsg('Server unreachable. Check your connection.');
+            }
+          }, 8000);
+        } else {
+          setDevAccountListMsg('Network not available');
+        }
+      };
+      doDevFetch();
     });
   }
 
