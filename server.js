@@ -1232,8 +1232,9 @@ function handleDevSetTag(ws, msg) {
     safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
     return;
   }
-  // Don't allow overriding source account tags
-  if (fileAccounts[target] && target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
+  // Don't let non-owners override the owner's tag
+  const requester = ws._playerData ? ws._playerData.name : '';
+  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase() && requester.toLowerCase() !== OWNER_USERNAME.toLowerCase()) {
     safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify owner tag' }));
     return;
   }
