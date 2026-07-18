@@ -100,11 +100,11 @@ export class Network {
       const wasConnected = this.connected;
       this.connected = false;
       this.ws = null;
+      this.roomName = null;
       console.log('[Net] Disconnected');
 
       if (wasConnected && !this._intentionalClose) {
         if (this.onDisconnect) this.onDisconnect();
-        this._scheduleReconnect();
       }
     };
 
@@ -119,6 +119,8 @@ export class Network {
     if (this.ws) { this.ws.close(); this.ws = null; }
     this.connected = false;
     this.roomName = null;
+    this._lastJoinInfo = null;
+    this._reconnectDelay = 1000;
   }
 
   _scheduleReconnect() {

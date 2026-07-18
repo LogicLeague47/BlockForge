@@ -554,7 +554,7 @@ const MIN_X = -80, MAX_X = 80;
 const MIN_Z = -80, MAX_Z = 80;
 const MIN_Y = 50, MAX_Y = 255;
 // Keep ALL block types — stone, dirt, grass ARE the spiral structure
-const TERRAIN = new Set([0, 8, 80]);
+const TERRAIN = new Set([0, 8, 22, 23, 80]);
 
 const worldDir = process.argv[2] || '/tmp/parkour_spiral/Parkour Spiral';
 const outputPath = process.argv[3] || path.join(__dirname, 'public', 'parkour-chunks.bin.gz');
@@ -672,11 +672,10 @@ for (const file of regionFiles) {
 console.log(`\nTotal raw blocks: ${allB.length}`);
 
 // ── Strip interior blocks ──
-// Keep only blocks that have at least one air neighbor within 2 blocks horizontally
-// or within 1 block vertically. This removes the solid interior while keeping the
-// visible shell and parkour platforms.
+// Only remove blocks that are completely buried: solid neighbors on ALL 6 sides.
+// This removes the tower interior while keeping all surface blocks, path blocks,
+// and edge blocks intact.
 console.log('Stripping interior blocks...');
-const SHELL_DEPTH = 2;
 const blockSet = new Set();
 for (let i = 0; i < allB.length; i++) {
   blockSet.add(allX[i] + ',' + allY[i] + ',' + allZ[i]);
@@ -686,19 +685,12 @@ function hasBlock(x, y, z) { return blockSet.has(x + ',' + y + ',' + z); }
 const keepMask = new Uint8Array(allB.length);
 for (let i = 0; i < allB.length; i++) {
   const x = allX[i], y = allY[i], z = allZ[i];
-  let isSurface = false;
-  // Check vertical: if no block above or below, it's a surface
-  if (!hasBlock(x, y + 1, z) || !hasBlock(x, y - 1, z)) { isSurface = true; }
-  // Check horizontal: if any direction has air within SHELL_DEPTH, it's surface
-  if (!isSurface) {
-    for (let d = 1; d <= SHELL_DEPTH && !isSurface; d++) {
-      if (!hasBlock(x + d, y, z) || !hasBlock(x - d, y, z) ||
-          !hasBlock(x, y, z + d) || !hasBlock(x, y, z - d)) {
-        isSurface = true;
-      }
-    }
+  // Keep if any of the 6 neighbors is air
+  if (!hasBlock(x+1,y,z) || !hasBlock(x-1,y,z) ||
+      !hasBlock(x,y+1,z) || !hasBlock(x,y-1,z) ||
+      !hasBlock(x,y,z+1) || !hasBlock(x,y,z-1)) {
+    keepMask[i] = 1;
   }
-  if (isSurface) keepMask[i] = 1;
 }
 
 // Also remove ceiling blocks: if a block has another block directly above it,

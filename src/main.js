@@ -611,6 +611,11 @@ let _particles = [];
 const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
 const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
+const _sprintParticleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
+const _waterSplashMat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
+const _critParticleMat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.7 });
+const _endermanTeleportMat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
+const _dirVec = new THREE.Vector3();
 let _sprintParticleTimer = 0;
 let _waterSplashTimer = 0;
 let gameRunning = false;
@@ -4843,7 +4848,7 @@ function loop() {
         const from = mob._teleportFrom;
         // Purple particles at old position
         for (let i = 0; i < 8; i++) {
-          const mat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
+          const mat = _endermanTeleportMat;
           const m = new THREE.Mesh(_particleGeoMed, mat);
           m.position.set(from.x + (Math.random()-0.5)*0.5, from.y + Math.random()*2, from.z + (Math.random()-0.5)*0.5);
           scene.add(m);
@@ -4868,7 +4873,7 @@ function loop() {
       const py = player.position.y + 0.1;
       const pz = player.position.z + (Math.random() - 0.5) * 0.4;
       const geo = _particleGeoMed;
-      const mat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
+      const mat = _sprintParticleMat;
       const m = new THREE.Mesh(geo, mat);
       m.position.set(px, py, pz);
       scene.add(m);
@@ -4885,7 +4890,7 @@ function loop() {
         _waterSplashTimer = 0.15;
         for (let i = 0; i < 3; i++) {
           const geo = _particleGeoSmall;
-          const mat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
+          const mat = _waterSplashMat;
           const m = new THREE.Mesh(geo, mat);
           m.position.set(
             player.position.x + (Math.random() - 0.5) * 0.6,
