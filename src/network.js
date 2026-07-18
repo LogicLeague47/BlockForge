@@ -37,6 +37,7 @@ export class Network {
     this._intentionalClose = false;
     this._lastJoinInfo = null; // stored for auto-rejoin after reconnect
     this._queue = [];          // messages buffered while the socket is connecting
+    this._connectedCallbacks = []; // queued callbacks for onConnected
   }
 
   // Connect to WebSocket server
@@ -94,6 +95,10 @@ export class Network {
       // After an auto-rejoin, refresh friend state (onConnected only fires once).
       if (this._lastJoinInfo && this.roomName) this._send({ type: 'friend_list' });
       if (this.onConnected) { const cb = this.onConnected; this.onConnected = null; cb(); }
+      // Fire any queued connected callbacks
+      while (this._connectedCallbacks.length) {
+        this._connectedCallbacks.shift()();
+      }
     };
 
     this.ws.onmessage = (event) => {
@@ -323,6 +328,13 @@ export class Network {
   devGetAccount(target) { this._send({ type: 'dev_get_account', target }); }
   devSetTag(target, tag) { this._send({ type: 'dev_set_tag', target, tag }); }
   devSetRole(target, role) { this._send({ type: 'dev_set_role', target, role }); }
+  devDeleteAccount(target) { this._send({ type: 'dev_delete_account', target }); }
+
+  // Queue a callback for when connection completes — safe to call from multiple places
+  onConnectedOnce(cb) {
+    if (this.connected) { cb(); return; }
+    this._connectedCallbacks.push(cb);
+  }
 
   isInRoom() {
     return this.connected && this.roomName !== null;

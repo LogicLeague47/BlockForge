@@ -585,7 +585,7 @@ function updateParticles(dt) {
     p.life -= dt;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      p.mesh.geometry.dispose();
+      if (p.mesh.geometry !== particleGeo) p.mesh.geometry.dispose();
       p.mesh.material.dispose();
       particles.splice(i, 1);
       continue;
@@ -1007,11 +1007,11 @@ function openFriendsMenu() {
   // main menu (that behaviour is only for the login screen).
   if (!network.connected) {
     network.connect(MP_SERVER_URL);
-    network.onConnected = () => {
+    network.onConnectedOnce(() => {
       _backgroundAuth = true;
       network.sendAuth(playerName, pass, 'login');
       network.friendList();
-    };
+    });
   } else {
     if (!network.isInRoom()) { _backgroundAuth = true; network.sendAuth(playerName, pass, 'login'); }
     network.friendList();
@@ -1154,7 +1154,7 @@ document.addEventListener('mousedown', (e) => {
       if (hit && isBlockItem(hit.block)) {
         player.inventory.slots[player.inventory.selected] = { item: hit.block, count: 1 };
         syncUIMode();
-  audio.place(itemId);
+        audio.place(hit.block);
       }
       e.preventDefault();
     }
@@ -2138,7 +2138,7 @@ function renderServerList(filter, remoteRooms) {
       const isOnline = s._online !== false;
       const playerCount = isOnline && s.players ? s.players.length : 0;
       const isFull = playerCount >= s.maxPlayers;
-      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;cursor:pointer;transition:background 0.15s,border-color 0.15s;" data-server-name="${s.name.replace(/"/g, '&quot;')}" onmouseenter="this.style.background='rgba(255,255,255,0.08)';this.style.borderColor='rgba(100,130,180,0.4)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(80,80,100,0.25)'">
+      return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;cursor:pointer;transition:background 0.15s,border-color 0.15s;" data-server-name="${escHtml(s.name)}" onmouseenter="this.style.background='rgba(255,255,255,0.08)';this.style.borderColor='rgba(100,130,180,0.4)'" onmouseleave="this.style.background='rgba(255,255,255,0.04)';this.style.borderColor='rgba(80,80,100,0.25)'">
         <div style="flex:1;min-width:0;">
           <div style="font:bold 13px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}</div>
           <div style="font:11px monospace;color:#888;margin-top:2px;">
@@ -2212,10 +2212,10 @@ function showMultiplayerMenu() {
   // Connect to server and fetch remote room list
   if (!network.connected) {
     network.connect(MP_SERVER_URL);
-    network.onConnected = () => {
+    network.onConnectedOnce(() => {
       network.listRooms();
       syncLocalServersToNetwork();
-    };
+    });
   } else {
     network.listRooms();
     syncLocalServersToNetwork();
@@ -2255,10 +2255,9 @@ function joinServer(name, seed) {
   // Connect to WebSocket server and join the room
   if (!network.connected) {
     network.connect(MP_SERVER_URL);
-    // Wait for connection then retry
-    network.onConnected = () => {
+    network.onConnectedOnce(() => {
       _doNetworkJoin(name, seed);
-    };
+    });
     return;
   }
   _doNetworkJoin(name, seed);
@@ -2591,7 +2590,7 @@ function createServer(name, maxPlayers, mode, seed, isPrivate) {
   // Connect and create on network
   if (!network.connected) {
     network.connect(MP_SERVER_URL);
-    network.onConnected = () => _doNetworkJoin(name, seed);
+    network.onConnectedOnce(() => _doNetworkJoin(name, seed));
   } else {
     _doNetworkJoin(name, seed);
   }
@@ -3582,7 +3581,7 @@ function initMenu() {
         _doNetworkJoin(roomId);
       } else {
         network.connect(MP_SERVER_URL);
-        network.onConnected = () => _doNetworkJoin(roomId);
+        network.onConnectedOnce(() => _doNetworkJoin(roomId));
       }
     });
   } catch (_) {}
@@ -3606,7 +3605,7 @@ function initMenu() {
             _doNetworkJoin(roomId);
           } else {
             network.connect(MP_SERVER_URL);
-            network.onConnected = () => _doNetworkJoin(roomId);
+            network.onConnectedOnce(() => _doNetworkJoin(roomId));
           }
           return;
         }
@@ -3627,7 +3626,7 @@ function initMenu() {
           _doNetworkJoin(joinRoom);
         } else {
           network.connect(MP_SERVER_URL);
-          network.onConnected = () => _doNetworkJoin(joinRoom);
+          network.onConnectedOnce(() => _doNetworkJoin(joinRoom));
         }
       }, 1200);
     }
@@ -4211,10 +4210,10 @@ function initMenu() {
           _devPanelNeedsAccounts = true;
           _backgroundAuth = true;
           const url = network.serverUrl || MP_SERVER_URL;
-          network.onConnected = () => {
+          network.onConnectedOnce(() => {
             const pass = localStorage.getItem('bf_login_pass') || '';
             network.sendAuth(playerName, pass, 'login');
-          };
+          });
           if (!network.connected) network.connect(url);
           // Timeout after 8s
           setTimeout(() => {
@@ -4258,6 +4257,13 @@ function initMenu() {
       if (!msg.ok) { addChatLine(`Role error: ${msg.reason}`, '#f55'); return; }
       addChatLine(`${msg.username} role set to ${msg.role}`, '#5f5');
       if (devSelectedAccount) network.devGetAccount(devSelectedAccount);
+      network.devListAccounts();
+    } else if (msg.type === 'dev_delete_account_result') {
+      if (!msg.ok) { addChatLine(`Delete error: ${msg.reason}`, '#f55'); return; }
+      addChatLine(`Account "${msg.username}" deleted`, '#f55');
+      devSelectedAccount = null;
+      const detail = document.getElementById('dev-account-detail');
+      if (detail) detail.style.display = 'none';
       network.devListAccounts();
     }
   };
@@ -4365,6 +4371,10 @@ function initMenu() {
           return '';
         }).filter(Boolean).join('') || '<span style="color:#666;">No data</span>'}
       </div>
+      ${data.username !== 'LogicLeague' && data.role !== 'gamedev' ? `
+      <div style="margin-top:8px;border-top:1px solid rgba(255,80,80,0.3);padding-top:6px;">
+        <button id="dev-delete-account" style="padding:4px 12px;font:10px monospace;border-radius:3px;border:1px solid #f55;background:rgba(255,60,60,0.15);color:#f55;cursor:pointer;">DELETE ACCOUNT</button>
+      </div>` : ''}
     `;
 
     // Wire tag save
@@ -4383,6 +4393,16 @@ function initMenu() {
       roleBtn.addEventListener('click', () => {
         const newRole = isDevRole ? 'player' : 'dev';
         network.devSetRole(data.username, newRole);
+      });
+    }
+
+    // Wire delete account
+    const deleteBtn = detail.querySelector('#dev-delete-account');
+    if (deleteBtn) {
+      deleteBtn.addEventListener('click', () => {
+        if (confirm(`Are you sure you want to delete "${data.username}"? This cannot be undone.`)) {
+          network.devDeleteAccount(data.username);
+        }
       });
     }
   }
@@ -4445,7 +4465,7 @@ function initMenu() {
     const attempt = () => network.sendAuth(playerName, pass, mode);
     if (!network.connected) {
       network.connect(MP_SERVER_URL);
-      network.onConnected = attempt;
+      network.onConnectedOnce(attempt);
       setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
     } else {
       attempt();
@@ -4528,7 +4548,7 @@ function renderWorldList() {
     const date = new Date(w.createdAt).toLocaleDateString();
     card.innerHTML = `
       <div class="wc-info">
-        <div class="wc-name">${w.name}</div>
+        <div class="wc-name">${escHtml(w.name)}</div>
         <div class="wc-meta">Seed: ${w.seed} &middot; ${date}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
@@ -4563,7 +4583,7 @@ function renderDevWorldList() {
     const date = new Date(w.createdAt).toLocaleDateString();
     card.innerHTML = `
       <div class="wc-info">
-        <div class="wc-name">${w.name}</div>
+        <div class="wc-name">${escHtml(w.name)}</div>
         <div class="wc-meta">Seed: ${w.seed} &middot; ${date}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
@@ -4598,7 +4618,7 @@ function renderParkourWorldList() {
     const date = new Date(w.createdAt).toLocaleDateString();
     card.innerHTML = `
       <div class="wc-info">
-        <div class="wc-name">${w.name}</div>
+        <div class="wc-name">${escHtml(w.name)}</div>
         <div class="wc-meta">Seed: ${w.seed} &middot; ${date}</div>
       </div>
       <div style="display:flex;align-items:center;gap:6px;">

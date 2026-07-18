@@ -6,7 +6,9 @@ import http from 'http';
 import { readFileSync, writeFileSync, existsSync, readFile } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname } from 'path';
-import { randomBytes, scryptSync, timingSafeEqual } from 'crypto';
+import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { promisify } from 'util';
+const scryptAsync = promisify(scrypt);
 
 async function getPlayerData(username) {
   const data = await redisCmd(['GET', `player_data:${username}`]);
@@ -55,6 +57,12 @@ const _profRegex = new RegExp(`\\b(${PROFANITY_WORDS.map(w => w.replace(/[.*+?^$
 function filterProfanity(text) {
   if (!text) return text;
   return text.replace(_profRegex, (m) => '*'.repeat(m.length));
+}
+
+function safeSend(ws, data) {
+  if (ws && ws.readyState === 1) {
+    try { ws.send(data); } catch (_) {}
+  }
 }
 
 const PORT = process.env.PORT || 4000;
@@ -199,10 +207,7 @@ const GAMEDEV_ACCOUNT = 'PVP_PROTECTOR_BEDWAR';
 const OWNER_USERNAME = 'LogicLeague'; // username that always carries the Owner tag
 
 function generateSecret() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let s = '';
-  for (let i = 0; i < 32; i++) s += chars[(Math.random() * chars.length) | 0];
-  return s;
+  return randomBytes(24).toString('base64url');
 }
 
 function resolveRole(cgUsername, playerName) {
@@ -252,35 +257,35 @@ function saveAccounts() {
   try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch {}
 }
 
-function hashPassword(password, salt) {
-  return scryptSync(password, salt, 64).toString('hex');
+async function hashPassword(password, salt) {
+  const buf = await scryptAsync(password, salt, 64);
+  return buf.toString('hex');
 }
 
 // Returns { ok, reason } — verifies or creates the account
-function authAccount(username, password, mode) {
+async function authAccount(username, password, mode) {
   if (!username || !password) return { ok: false, reason: 'Username and password required.' };
+  if (username.length < 2 || username.length > 16) return { ok: false, reason: 'Username must be 2-16 characters.' };
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return { ok: false, reason: 'Username may only contain letters, numbers, and underscores.' };
   if (password.length < 3) return { ok: false, reason: 'Password must be at least 3 characters.' };
   const existing = accounts[username];
   if (mode === 'register') {
     if (existing) return { ok: false, reason: 'Username already taken. Please log in.' };
-    // Create new account
     const salt = randomBytes(16).toString('hex');
-    const hash = hashPassword(password, salt);
+    const hash = await hashPassword(password, salt);
     accounts[username] = { hash, salt, role: ROLE_PLAYER, tag: '' };
     saveAccounts();
     return { ok: true, created: true };
   }
-  // mode === 'login' (or unspecified for backward compat)
   if (!existing) {
     if (mode === 'login') return { ok: false, reason: 'Account not found. Please create one.' };
-    // Backward compat: auto-create if no mode specified
     const salt = randomBytes(16).toString('hex');
-    const hash = hashPassword(password, salt);
+    const hash = await hashPassword(password, salt);
     accounts[username] = { hash, salt, role: ROLE_PLAYER, tag: '' };
     saveAccounts();
     return { ok: true, created: true };
   }
-  const hash = hashPassword(password, existing.salt);
+  const hash = await hashPassword(password, existing.salt);
   const a = Buffer.from(hash, 'hex');
   const b = Buffer.from(existing.hash, 'hex');
   if (a.length !== b.length || !timingSafeEqual(a, b)) {
@@ -328,7 +333,7 @@ function sendFriendState(ws) {
   const pd = ws._playerData;
   if (!pd) return;
   const r = _friendRec(pd.name);
-  ws.send(JSON.stringify({
+  safeSend(ws, JSON.stringify({
     type: 'friend_state',
     friends: r.friends.map(n => ({ name: n, online: _isOnline(n) })),
     incoming: r.incoming.slice(),
@@ -367,7 +372,7 @@ function listRooms(viewerName) {
 function broadcast(room, msg, exclude) {
   const data = JSON.stringify(msg);
   for (const [ws] of room.players) {
-    if (ws !== exclude && ws.readyState === 1) ws.send(data);
+    if (ws !== exclude) safeSend(ws, data);
   }
 }
 
@@ -433,7 +438,16 @@ const server = http.createServer((req, res) => {
 });
 
 // ── WebSocket server ──────────────────────────────────────────────────
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({ server, maxPayload: 64 * 1024 }); // 64KB max message
+
+// Rate limiter: max 30 messages per second per connection
+function isRateLimited(ws) {
+  const now = Date.now();
+  if (!ws._rateLimit) ws._rateLimit = { count: 0, window: now };
+  if (now - ws._rateLimit.window > 1000) { ws._rateLimit.count = 0; ws._rateLimit.window = now; }
+  ws._rateLimit.count++;
+  return ws._rateLimit.count > 30;
+}
 
 wss.on('connection', (ws) => {
   ws._playerData = null;
@@ -443,10 +457,11 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
+    if (isRateLimited(ws)) return;
 
     try {
     switch (msg.type) {
-      case 'ping': ws.send(JSON.stringify({ type: 'pong' })); break;
+      case 'ping': safeSend(ws, JSON.stringify({ type: 'pong' })); break;
       case 'auth': handleAuth(ws, msg); break;
       case 'create_room': handleCreateRoom(ws, msg); break;
       case 'register_room': handleRegisterRoom(ws, msg); break;
@@ -474,6 +489,7 @@ wss.on('connection', (ws) => {
       case 'dev_get_account': handleDevGetAccount(ws, msg); break;
       case 'dev_set_tag': handleDevSetTag(ws, msg); break;
       case 'dev_set_role': handleDevSetRole(ws, msg); break;
+      case 'dev_delete_account': handleDevDeleteAccount(ws, msg); break;
       // Voice chat signaling — relay messages to target player in same room
       case 'voice_join': handleVoiceJoin(ws, msg); break;
       case 'voice_offer':
@@ -503,15 +519,15 @@ wss.on('connection', (ws) => {
 // ── Handlers ──────────────────────────────────────────────────────────
 
 // Authenticate a username+password without joining a room (used by login screen)
-function handleAuth(ws, msg) {
+async function handleAuth(ws, msg) {
   const { playerName: rawName, password, mode } = msg;
   const playerName = filterProfanity(rawName);
   // In LAN mode, skip auth and always succeed
   if (IS_LAN) {
-    ws.send(JSON.stringify({ type: 'auth_result', ok: true, created: false, reason: '', username: playerName }));
+    safeSend(ws, JSON.stringify({ type: 'auth_result', ok: true, created: false, reason: '', username: playerName }));
     return;
   }
-  const auth = authAccount(playerName, password, mode);
+  const auth = await authAccount(playerName, password, mode);
   // On successful auth, attach a lightweight identity to the socket (no room)
   // so friend management works from the menu without joining a world.
   if (auth.ok && !ws._roomName) {
@@ -526,7 +542,7 @@ function handleAuth(ws, msg) {
   }
   const acc = accounts[playerName] || {};
   const resolvedRole = resolveRole(null, playerName) || acc.role || ROLE_PLAYER;
-  ws.send(JSON.stringify({
+  safeSend(ws, JSON.stringify({
     type: 'auth_result',
     ok: auth.ok,
     created: !!auth.created,
@@ -537,14 +553,14 @@ function handleAuth(ws, msg) {
   }));
 }
 
-function handleCreateRoom(ws, msg) {
+async function handleCreateRoom(ws, msg) {
   const { name, seed, gameMode, maxPlayers, playerName: rawName, cgUsername, skinIndex, ownerSecret, noOwner, password, isPrivate } = msg;
   const playerName = filterProfanity(rawName);
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
-    const auth = authAccount(playerName, password);
+    const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
 
@@ -612,14 +628,14 @@ function canAccessRoom(room, playerName) {
   return ownerFriends.includes(playerName);
 }
 
-function handleJoin(ws, msg) {
+async function handleJoin(ws, msg) {
   const { room: roomName, playerName: rawName, cgUsername, skinIndex, ownerSecret, password } = msg;
   const playerName = filterProfanity(rawName);
   if (!roomName || !playerName) return sendError(ws, 'Missing room name or player name.');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
-    const auth = authAccount(playerName, password);
+    const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
 
@@ -654,7 +670,7 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
   const players = [];
   for (const [, p] of room.players) players.push({ name: p.name, role: p.role, skinIndex: p.skinIndex, cgUsername: p.cgUsername });
 
-  ws.send(JSON.stringify({
+  safeSend(ws, JSON.stringify({
     type: 'joined',
     room: roomName,
     seed: room.seed,
@@ -679,13 +695,13 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
       const [x, y, z] = key.split(',').map(Number);
       edits.push({ x, y, z, block });
     }
-    ws.send(JSON.stringify({ type: 'block_batch', edits }));
+    safeSend(ws, JSON.stringify({ type: 'block_batch', edits }));
   }
 
   // Send existing mobs so the new player sees them
   if (room.mobs && room.mobs.size > 0) {
     for (const [id, mob] of room.mobs) {
-      ws.send(JSON.stringify({ type: 'mob_spawn', id, type: mob.type, x: mob.x, y: mob.y, z: mob.z }));
+      safeSend(ws, JSON.stringify({ type: 'mob_spawn', id, type: mob.type, x: mob.x, y: mob.y, z: mob.z }));
     }
   }
 
@@ -776,7 +792,7 @@ function handleLeave(ws) {
 
 function handleListRooms(ws) {
   const viewer = ws._playerData && ws._playerData.name;
-  ws.send(JSON.stringify({ type: 'room_list', rooms: listRooms(viewer) }));
+  safeSend(ws, JSON.stringify({ type: 'room_list', rooms: listRooms(viewer) }));
 }
 
 function handlePosition(ws, msg) {
@@ -815,12 +831,12 @@ function handlePlayerDamage(ws, msg) {
   if (!pd || !room) return;
 
   const targetName = msg.target;
-  const damage = msg.damage || 1;
+  const damage = Math.min(Math.max(Number(msg.damage) || 1, 0), 20);
   if (!targetName) return;
 
   for (const [targetWs, tp] of room.players) {
     if (tp.name === targetName) {
-      targetWs.send(JSON.stringify({ type: 'player_damage', from: pd.name, damage }));
+      safeSend(targetWs, JSON.stringify({ type: 'player_damage', from: pd.name, damage }));
       break;
     }
   }
@@ -849,7 +865,7 @@ function handleCommand(ws, msg) {
   const cmd = parts[0].toLowerCase();
   const args = parts.slice(1);
 
-  const reply = (text) => ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text }));
+  const reply = (text) => safeSend(ws, JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text }));
 
   switch (cmd) {
     case '/kick': {
@@ -861,7 +877,7 @@ function handleCommand(ws, msg) {
       if (!targetWs) return reply('Player not found.');
       const tpd = targetWs._playerData;
       if (tpd && hasPermission(tpd.role, ROLE_ADMIN) && !hasPermission(pd.role, ROLE_OWNER)) return reply('Cannot kick this player.');
-      targetWs.send(JSON.stringify({ type: 'kicked', reason: `Kicked by ${pd.name}` }));
+      safeSend(targetWs, JSON.stringify({ type: 'kicked', reason: `Kicked by ${pd.name}` }));
       handleLeave(targetWs);
       targetWs.close();
       broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${targetName} was kicked by ${pd.name}.` });
@@ -876,7 +892,7 @@ function handleCommand(ws, msg) {
       let targetWs = null;
       for (const [cws, p] of room.players) { if (p.name === targetName) { targetWs = cws; break; } }
       if (targetWs) {
-        targetWs.send(JSON.stringify({ type: 'kicked', reason: `Banned by ${pd.name}: ${args.slice(1).join(' ') || 'No reason'}` }));
+        safeSend(targetWs, JSON.stringify({ type: 'kicked', reason: `Banned by ${pd.name}: ${args.slice(1).join(' ') || 'No reason'}` }));
         handleLeave(targetWs);
         targetWs.close();
       }
@@ -912,7 +928,9 @@ function handleCommand(ws, msg) {
       if (!hasPermission(pd.role, ROLE_ADMIN)) return reply('You need admin or higher.');
       const targetName = args[0];
       if (!targetName) return reply('Usage: /staff <player>');
-      for (const [, p] of room.players) { if (p.name === targetName) { p.role = ROLE_STAFF; break; } }
+      let found = false;
+      for (const [, p] of room.players) { if (p.name === targetName) { p.role = ROLE_STAFF; found = true; break; } }
+      if (!found) return reply(`Player "${targetName}" not found.`);
       broadcastPlayerList(room);
       broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${targetName} is now staff.` });
       break;
@@ -921,7 +939,9 @@ function handleCommand(ws, msg) {
       if (!hasPermission(pd.role, ROLE_ADMIN)) return reply('You need admin or higher.');
       const targetName = args[0];
       if (!targetName) return reply('Usage: /admin <player>');
-      for (const [, p] of room.players) { if (p.name === targetName) { p.role = ROLE_ADMIN; break; } }
+      let found = false;
+      for (const [, p] of room.players) { if (p.name === targetName) { p.role = ROLE_ADMIN; found = true; break; } }
+      if (!found) return reply(`Player "${targetName}" not found.`);
       broadcastPlayerList(room);
       broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${targetName} is now admin.` });
       break;
@@ -930,7 +950,9 @@ function handleCommand(ws, msg) {
       if (!hasPermission(pd.role, ROLE_ADMIN)) return reply('You need admin or higher.');
       const targetName = args[0];
       if (!targetName) return reply('Usage: /deop <player>');
-      for (const [, p] of room.players) { if (p.name === targetName && p.role !== ROLE_OWNER) { p.role = ROLE_PLAYER; break; } }
+      let found = false;
+      for (const [, p] of room.players) { if (p.name === targetName && p.role !== ROLE_OWNER) { p.role = ROLE_PLAYER; found = true; break; } }
+      if (!found) return reply(`Player "${targetName}" not found or cannot be demoted.`);
       broadcastPlayerList(room);
       broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${targetName} is now a player.` });
       break;
@@ -977,7 +999,7 @@ function handleDeleteRoom(ws, msg) {
   if (!room) return sendError(ws, 'Room not found.');
 
   if (room.protected) {
-    return ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'This server is official and cannot be deleted.' }));
+    return safeSend(ws, JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'This server is official and cannot be deleted.' }));
   }
 
   // Deletion requires being joined as the verified owner. Owner role is only
@@ -985,11 +1007,11 @@ function handleDeleteRoom(ws, msg) {
   // so this ties deletion to the account/secret, not just a matching name.
   const isVerifiedOwner = pd.role === ROLE_OWNER && room.ownerName === pd.name;
   if (!isVerifiedOwner) {
-    return ws.send(JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'Only the verified server owner can delete this server.' }));
+    return safeSend(ws, JSON.stringify({ type: 'chat', name: 'Server', role: 'server', text: 'Only the verified server owner can delete this server.' }));
   }
 
   for (const [cws] of room.players) {
-    cws.send(JSON.stringify({ type: 'kicked', reason: 'Server deleted by owner.' }));
+    safeSend(cws, JSON.stringify({ type: 'kicked', reason: 'Server deleted by owner.' }));
     cws._playerData = null;
     cws._roomName = null;
     cws.close();
@@ -1003,7 +1025,7 @@ function handleDeleteRoom(ws, msg) {
 function handleGetStats(ws) {
   const today = new Date().toISOString().slice(0, 10);
   const month = today.slice(0, 7);
-  ws.send(JSON.stringify({
+  safeSend(ws, JSON.stringify({
     type: 'stats',
     dailyUsers: serverStats.dailyUsers[today] || 0,
     monthlyUsers: Object.keys(serverStats.monthlyUsers).filter(k => k.startsWith(month)).length,
@@ -1012,7 +1034,7 @@ function handleGetStats(ws) {
 }
 
 function sendError(ws, text) {
-  ws.send(JSON.stringify({ type: 'error', text }));
+  safeSend(ws, JSON.stringify({ type: 'error', text }));
 }
 
 // ── Friend handlers ───────────────────────────────────────────────────
@@ -1095,38 +1117,42 @@ function handleFriendRemove(ws, msg) {
 }
 
 function sendFriendMsg(ws, text, ok) {
-  ws.send(JSON.stringify({ type: 'friend_msg', text, ok: !!ok }));
+  safeSend(ws, JSON.stringify({ type: 'friend_msg', text, ok: !!ok }));
 }
 
 // ── Player stats/settings (per-user Redis) ──────────────────────────
 function handlePlayerStatsGet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
-  const data = getPlayerData(pd.name);
-  ws.send(JSON.stringify({ type: 'player_stats', stats: data.stats || {} }));
+  getPlayerData(pd.name).then(data => {
+    safeSend(ws, JSON.stringify({ type: 'player_stats', stats: data.stats || {} }));
+  }).catch(() => {});
 }
 
 function handlePlayerStatsSet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
-  const data = getPlayerData(pd.name);
-  Object.assign(data.stats, msg.stats || {});
-  setPlayerData(pd.name, data);
+  getPlayerData(pd.name).then(data => {
+    Object.assign(data.stats, msg.stats || {});
+    return setPlayerData(pd.name, data);
+  }).catch(() => {});
 }
 
 function handlePlayerSettingsGet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
-  const data = getPlayerData(pd.name);
-  ws.send(JSON.stringify({ type: 'player_settings', settings: data.settings || {} }));
+  getPlayerData(pd.name).then(data => {
+    safeSend(ws, JSON.stringify({ type: 'player_settings', settings: data.settings || {} }));
+  }).catch(() => {});
 }
 
 function handlePlayerSettingsSet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
-  const data = getPlayerData(pd.name);
-  Object.assign(data.settings, msg.settings || {});
-  setPlayerData(pd.name, data);
+  getPlayerData(pd.name).then(data => {
+    Object.assign(data.settings, msg.settings || {});
+    return setPlayerData(pd.name, data);
+  }).catch(() => {});
 }
 
 function handleDevGetAllPlayers(ws, msg) {
@@ -1138,7 +1164,7 @@ function handleDevGetAllPlayers(ws, msg) {
       if (!playerNames.includes(p.name)) playerNames.push(p.name);
     }
   }
-  ws.send(JSON.stringify({ type: 'dev_player_list', players: playerNames }));
+  safeSend(ws, JSON.stringify({ type: 'dev_player_list', players: playerNames }));
 }
 
 // Dev check helper
@@ -1162,7 +1188,7 @@ function handleDevListAccounts(ws, msg) {
     if (aIsDev !== bIsDev) return aIsDev - bIsDev;
     return a.username.localeCompare(b.username);
   });
-  ws.send(JSON.stringify({ type: 'dev_account_list', accounts: list }));
+  safeSend(ws, JSON.stringify({ type: 'dev_account_list', accounts: list }));
 }
 
 // Get full details for a specific account (includes stats)
@@ -1170,13 +1196,13 @@ function handleDevGetAccount(ws, msg) {
   if (!isDev(ws)) return;
   const target = msg.target;
   if (!target || !accounts[target]) {
-    ws.send(JSON.stringify({ type: 'dev_account_detail', error: 'Account not found' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_account_detail', error: 'Account not found' }));
     return;
   }
   const acc = accounts[target];
   const resolvedRole = resolveRole(null, target) || acc.role || ROLE_PLAYER;
   getPlayerData(target).then(playerData => {
-    ws.send(JSON.stringify({
+    safeSend(ws, JSON.stringify({
       type: 'dev_account_detail',
       username: target,
       role: resolvedRole,
@@ -1186,7 +1212,7 @@ function handleDevGetAccount(ws, msg) {
     }));
   }).catch(err => {
     console.error('[Dev] Error fetching player data:', err);
-    ws.send(JSON.stringify({
+    safeSend(ws, JSON.stringify({
       type: 'dev_account_detail',
       username: target,
       role: resolvedRole,
@@ -1203,22 +1229,22 @@ function handleDevSetTag(ws, msg) {
   const target = msg.target;
   const tag = (msg.tag || '').trim().slice(0, 20);
   if (!target || !accounts[target]) {
-    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
     return;
   }
   // Don't allow overriding source account tags
   if (fileAccounts[target] && target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
-    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify owner tag' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify owner tag' }));
     return;
   }
   const acc = accounts[target];
   if (!acc.tag && tag === '') {
-    ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag: '' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag: '' }));
     return;
   }
   acc.tag = tag;
   saveAccounts();
-  ws.send(JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag }));
+  safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: true, tag }));
 }
 
 // Set role (promote to dev or demote to player)
@@ -1227,28 +1253,50 @@ function handleDevSetRole(ws, msg) {
   const target = msg.target;
   const newRole = msg.role;
   if (!target || !accounts[target]) {
-    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Account not found' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Account not found' }));
     return;
   }
   // Only allow setting 'dev' or 'player'
   if (newRole !== ROLE_DEV && newRole !== ROLE_PLAYER) {
-    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Role must be dev or player' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Role must be dev or player' }));
     return;
   }
   // Don't allow changing owner role
   if (target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
-    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify owner role' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify owner role' }));
     return;
   }
   // Don't allow changing gamedev
   if (fileAccounts[target] && resolveRole(null, target) === ROLE_GAMEDEV) {
-    ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify gamedev role' }));
+    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify gamedev role' }));
     return;
   }
   const acc = accounts[target];
   acc.role = newRole;
   saveAccounts();
-  ws.send(JSON.stringify({ type: 'dev_set_role_result', ok: true, username: target, role: newRole }));
+  safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: true, username: target, role: newRole }));
+}
+
+function handleDevDeleteAccount(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = msg.target;
+  if (!target || !accounts[target]) {
+    safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Account not found' }));
+    return;
+  }
+  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
+    safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Cannot delete owner account' }));
+    return;
+  }
+  if (fileAccounts[target] && resolveRole(null, target) === ROLE_GAMEDEV) {
+    safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Cannot delete gamedev account' }));
+    return;
+  }
+  delete accounts[target];
+  saveAccounts();
+  safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: true, username: target }));
+  // Refresh account list
+  handleDevListAccounts(ws, msg);
 }
 
 // ── Voice chat signaling ──────────────────────────────────────────────
@@ -1272,7 +1320,7 @@ function handleVoiceJoin(ws, msg) {
       peers.push(other._playerData.name);
     }
   }
-  ws.send(JSON.stringify({ type: 'voice_join_ack', peers }));
+  safeSend(ws, JSON.stringify({ type: 'voice_join_ack', peers }));
 
   // Broadcast to other voice peers that a new voice user joined
   const name = ws._playerData ? ws._playerData.name : 'Unknown';
@@ -1291,7 +1339,7 @@ function relayVoice(ws, msg) {
     if (p.name === targetName) {
       // Forward with 'from' field set to sender's name
       const out = { ...msg, from: ws._playerData ? ws._playerData.name : 'Unknown' };
-      p.ws.send(JSON.stringify(out));
+      p.safeSend(ws, JSON.stringify(out));
       return;
     }
   }
