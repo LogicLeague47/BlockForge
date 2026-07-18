@@ -2796,7 +2796,7 @@ function updateTimeHud() {
 const _lerpA = new THREE.Color();
 const _lerpB = new THREE.Color();
 const _lerpResult = new THREE.Color();
-const _nightColor = new THREE.Color(NIGHT_COLOR);
+const _nightColor = new THREE.Color();
 const _whiteColor = new THREE.Color(0xffffff);
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
