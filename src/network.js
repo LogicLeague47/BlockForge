@@ -85,6 +85,9 @@ export class Network {
           playerName: j.playerName,
           cgUsername: j.cgUsername,
           skinIndex: j.skinIndex,
+          ownerSecret: j.ownerSecret,
+          password: j.password,
+          isPrivate: j.isPrivate,
         });
       }
       // Flush any messages buffered while we were connecting/reconnecting.
