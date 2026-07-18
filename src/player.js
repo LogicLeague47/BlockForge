@@ -561,7 +561,8 @@ export class Player {
           } else {
             if (delta < 0) {
               // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
-              if (this.isSurvival() && this.fallStartY > 0) {
+              const landBlock = this.world.getBlock(Math.floor(this.position.x), y, Math.floor(this.position.z));
+              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK) {
                 const fallDistance = this.fallStartY - this.position.y;
                 if (fallDistance > 3) {
                   const damage = Math.floor(fallDistance - 3);
@@ -570,11 +571,19 @@ export class Player {
               }
               this.fallStartY = -1;
               this.position.y = y + 1 + 0.0001;
-              this.onGround = true;
+              // Slime block bounce
+              if (landBlock === BLOCK.SLIME_BLOCK) {
+                const fallSpeed = Math.abs(this.velocity.y);
+                this.velocity.y = Math.min(fallSpeed * 0.8, 12);
+                this.onGround = false;
+              } else {
+                this.onGround = true;
+                this.velocity.y = 0;
+              }
             } else {
               this.position.y = y - PLAYER_HEIGHT - 0.0001;
+              this.velocity.y = 0;
             }
-            this.velocity.y = 0;
           }
           collided = true;
         }
