@@ -1876,6 +1876,7 @@ function submitChat() {
   if (text.startsWith('/')) {
     // Command
     const cmdPart = text.slice(1).trim().split(/\s+/)[0].toLowerCase();
+    const inMultiplayer = network.connected && network.roomName;
     // Dev structure spawn commands (dev world only)
     if (isDevWorld && DEV_STRUCTURES.includes(cmdPart)) {
       if (!world) return;
@@ -1913,8 +1914,8 @@ function submitChat() {
       addChatLine(`Spawned ${animal} at (${Math.floor(sx)}, ${Math.floor(sy)}, ${Math.floor(sz)}).`, '#5f5');
       return;
     }
-    // /gamemode command — works in singleplayer and multiplayer
-    if (cmdPart === 'gamemode') {
+    // /gamemode command — works in singleplayer; in multiplayer sent to server
+    if (cmdPart === 'gamemode' && !inMultiplayer) {
       const mode = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       const VALID_MODES = ['creative', 'survival', 'adventure', 'spectator'];
       if (!mode || !VALID_MODES.includes(mode)) {
@@ -1935,8 +1936,8 @@ function submitChat() {
       addChatLine(`Gamemode set to ${mode}.`, '#5f5');
       return;
     }
-    // /give command — works in singleplayer
-    if (cmdPart === 'give') {
+    // /give command — singleplayer only
+    if (cmdPart === 'give' && !inMultiplayer) {
       const args = text.slice(1).trim().split(/\s+/);
       const itemName = (args[1] || '').toUpperCase().replace(/ /g, '_');
       const count = parseInt(args[2]) || 1;
@@ -1960,8 +1961,8 @@ function submitChat() {
       addChatLine(`Gave ${count}x ${itemName}.`, '#5f5');
       return;
     }
-    // /time command
-    if (cmdPart === 'time') {
+    // /time command — singleplayer only
+    if (cmdPart === 'time' && !inMultiplayer) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (val === 'day' || val === '0') { dayTime = 0.01; addChatLine('Time set to day.', '#5f5'); }
       else if (val === 'night' || val === '13000') { dayTime = 0.625; addChatLine('Time set to night.', '#5f5'); }
@@ -1970,8 +1971,8 @@ function submitChat() {
       else addChatLine('Usage: /time <day|noon|night|midnight>', '#f55');
       return;
     }
-    // /difficulty command
-    if (cmdPart === 'difficulty') {
+    // /difficulty command — singleplayer only
+    if (cmdPart === 'difficulty' && !inMultiplayer) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       const VALID_DIFF = ['peaceful', 'easy', 'normal', 'hard'];
       if (!val || !VALID_DIFF.includes(val)) {
@@ -1983,8 +1984,8 @@ function submitChat() {
       addChatLine(`Difficulty set to ${val}.`, '#5f5');
       return;
     }
-    // /tp command — singleplayer
-    if (cmdPart === 'tp') {
+    // /tp command — singleplayer only
+    if (cmdPart === 'tp' && !inMultiplayer) {
       const args = text.slice(1).trim().split(/\s+/);
       if (args.length >= 4 && player) {
         const x = parseFloat(args[1]) || 0;
@@ -1997,8 +1998,8 @@ function submitChat() {
       addChatLine('Usage: /tp <x> <y> <z>', '#f55');
       return;
     }
-    // /heal command — singleplayer
-    if (cmdPart === 'heal') {
+    // /heal command — singleplayer only
+    if (cmdPart === 'heal' && !inMultiplayer) {
       if (player) {
         player.health = player.maxHealth;
         player.hunger = player.maxHunger;
@@ -2009,16 +2010,16 @@ function submitChat() {
       }
       return;
     }
-    // /kill command
-    if (cmdPart === 'kill') {
+    // /kill command — singleplayer only
+    if (cmdPart === 'kill' && !inMultiplayer) {
       if (player) {
         player.health = 0;
         addChatLine('You died.', '#f55');
       }
       return;
     }
-    // /weather command
-    if (cmdPart === 'weather') {
+    // /weather command — singleplayer only
+    if (cmdPart === 'weather' && !inMultiplayer) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (val === 'clear') { weather = 'clear'; addChatLine('Weather set to clear.', '#5f5'); }
       else if (val === 'rain' || val === 'rainy') { weather = 'rain'; addChatLine('Weather set to rain.', '#5f5'); }
