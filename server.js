@@ -515,7 +515,9 @@ function handleAuth(ws, msg) {
   // On successful auth, attach a lightweight identity to the socket (no room)
   // so friend management works from the menu without joining a world.
   if (auth.ok && !ws._roomName) {
-    ws._playerData = { name: playerName, role: ROLE_PLAYER, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
+    const acc = accounts[playerName] || {};
+    const resolvedRole = resolveRole(null, playerName) || acc.role || ROLE_PLAYER;
+    ws._playerData = { name: playerName, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
     // Let friends know we're online, and send our friend state.
     if (friends[playerName]) {
       for (const fn of _friendRec(playerName).friends) notifyFriendState(fn);

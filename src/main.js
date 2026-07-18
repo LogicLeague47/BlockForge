@@ -985,6 +985,7 @@ function hidePlayerList() {
 // ── Friends menu ───────────────────────────────────────────────────────
 let _friendState = { friends: [], incoming: [], outgoing: [] };
 let _backgroundAuth = false; // true when re-authing silently (not from login screen)
+let _devPanelNeedsAccounts = false;
 
 function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
@@ -4186,8 +4187,6 @@ function initMenu() {
   // --- Dev Panel (GameDev account or Dev role) ---
   let devAccountsCache = [];
   let devSelectedAccount = null;
-  let _devPanelNeedsAccounts = false;
-
   const devBtn = document.getElementById('btn-dev-panel');
   if (devBtn) {
     devBtn.addEventListener('click', () => {
