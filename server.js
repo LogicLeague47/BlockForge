@@ -1330,16 +1330,14 @@ function handleVoiceJoin(ws, msg) {
 function relayVoice(ws, msg) {
   const roomName = ws._roomName;
   if (!roomName) return;
-  // Forward to the target player
   const room = getRoom(roomName);
   if (!room) return;
   const targetName = msg.target;
   if (!targetName) return;
-  for (const [, p] of room.players) {
+  for (const [targetWs, p] of room.players) {
     if (p.name === targetName) {
-      // Forward with 'from' field set to sender's name
       const out = { ...msg, from: ws._playerData ? ws._playerData.name : 'Unknown' };
-      p.safeSend(ws, JSON.stringify(out));
+      safeSend(targetWs, JSON.stringify(out));
       return;
     }
   }
@@ -1351,7 +1349,7 @@ function broadcastVoice(roomName, msg, exclude) {
   const json = JSON.stringify(msg);
   for (const ws of set) {
     if (ws !== exclude) {
-      try { ws.send(json); } catch (_) {}
+      safeSend(ws, json);
     }
   }
 }
