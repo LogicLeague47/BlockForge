@@ -443,6 +443,7 @@ wss.on('connection', (ws) => {
     try { msg = JSON.parse(raw); } catch { return; }
 
     switch (msg.type) {
+      case 'ping': ws.send(JSON.stringify({ type: 'pong' })); break;
       case 'auth': handleAuth(ws, msg); break;
       case 'create_room': handleCreateRoom(ws, msg); break;
       case 'register_room': handleRegisterRoom(ws, msg); break;

@@ -65,6 +65,11 @@ export class Network {
       this.connected = true;
       this._reconnectDelay = 1000;
       console.log('[Net] Connected to', url);
+      // Keepalive ping every 25s to prevent Render free-tier sleep
+      if (this._pingInterval) clearInterval(this._pingInterval);
+      this._pingInterval = setInterval(() => {
+        if (this.ws && this.ws.readyState === 1) this.ws.send(JSON.stringify({ type: 'ping' }));
+      }, 25000);
       // Auto-rejoin room after reconnect
       if (this._lastJoinInfo && !this.roomName) {
         const j = this._lastJoinInfo;
@@ -101,6 +106,8 @@ export class Network {
       this.connected = false;
       this.ws = null;
       this.roomName = null;
+      this._lastJoinInfo = null;
+      if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
       console.log('[Net] Disconnected');
 
       if (wasConnected && !this._intentionalClose) {
