@@ -376,6 +376,12 @@ function broadcast(room, msg, exclude) {
   }
 }
 
+function broadcastBinary(room, buf, exclude) {
+  for (const [ws] of room.players) {
+    if (ws !== exclude) safeSend(ws, buf);
+  }
+}
+
 function broadcastPlayerList(room) {
   const players = [];
   for (const [, p] of room.players) players.push({ name: p.name, role: p.role, skinIndex: p.skinIndex });
@@ -454,7 +460,28 @@ wss.on('connection', (ws) => {
   ws._roomName = null;
   console.log(`[Conn] New client connected (total: ${wss.clients.size})`);
 
-  ws.on('message', (raw) => {
+  ws.on('message', (raw, isBinary) => {
+    if (isBinary) {
+      if (isRateLimited(ws)) return;
+      try {
+        const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
+        const type = buf.readUInt8(0);
+        if (type === 0x02) {
+          let off = 1;
+          const nameLen = buf.readUInt8(off); off += 1;
+          const name = buf.toString('utf8', off, off + nameLen); off += nameLen;
+          const x = buf.readFloatBE(off); off += 4;
+          const y = buf.readFloatBE(off); off += 4;
+          const z = buf.readFloatBE(off); off += 4;
+          const yaw = buf.readFloatBE(off); off += 4;
+          const crouching = buf.readUInt8(off) === 1; off += 1;
+          const armorLen = buf.readUInt8(off); off += 1;
+          const armor = armorLen > 0 ? buf.toString('utf8', off, off + armorLen) : null;
+          handlePosition(ws, { x, y, z, yaw, crouching, armor });
+        }
+      } catch (_) {}
+      return;
+    }
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (isRateLimited(ws)) return;
@@ -828,7 +855,23 @@ function handlePosition(ws, msg) {
   if (pd._lastBroadcast && now - pd._lastBroadcast < 30) return;
   pd._lastBroadcast = now;
 
-  broadcast(room, { type: 'player_position', name: pd.name, x: pd.x, y: pd.y, z: pd.z, yaw: pd.yaw, crouching: pd.crouching, armor: pd.armor }, ws);
+  // Broadcast position as binary (fast path — ~25 bytes vs ~150 bytes JSON)
+  const nameBytes = Buffer.from(pd.name, 'utf8');
+  const armorStr = pd.armor || '';
+  const armorBytes = Buffer.from(armorStr, 'utf8');
+  const binBuf = Buffer.alloc(1 + 1 + nameBytes.length + 16 + 1 + 1 + armorBytes.length);
+  binBuf.writeUInt8(0x01, 0);
+  binBuf.writeUInt8(nameBytes.length, 1);
+  nameBytes.copy(binBuf, 2);
+  let off = 2 + nameBytes.length;
+  binBuf.writeFloatBE(pd.x, off); off += 4;
+  binBuf.writeFloatBE(pd.y, off); off += 4;
+  binBuf.writeFloatBE(pd.z, off); off += 4;
+  binBuf.writeFloatBE(pd.yaw, off); off += 4;
+  binBuf.writeUInt8(pd.crouching ? 1 : 0, off); off += 1;
+  binBuf.writeUInt8(armorBytes.length, off); off += 1;
+  armorBytes.copy(binBuf, off);
+  broadcastBinary(room, binBuf, ws);
 }
 
 function handlePlayerDamage(ws, msg) {

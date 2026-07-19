@@ -106,6 +106,10 @@ export class Network {
     };
 
     this.ws.onmessage = (event) => {
+      if (event.data instanceof ArrayBuffer) {
+        this._handleBinaryMessage(event.data);
+        return;
+      }
       let msg;
       try { msg = JSON.parse(event.data); } catch { return; }
       this._handleMessage(msg);
@@ -252,6 +256,25 @@ export class Network {
     }
   }
 
+  // Binary message decoder — 0x01 = player_position from server
+  _handleBinaryMessage(buf) {
+    const view = new DataView(buf);
+    const type = view.getUint8(0);
+    if (type === 0x01) {
+      let off = 1;
+      const nameLen = view.getUint8(off); off += 1;
+      const name = new TextDecoder().decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
+      const x = view.getFloat32(off); off += 4;
+      const y = view.getFloat32(off); off += 4;
+      const z = view.getFloat32(off); off += 4;
+      const yaw = view.getFloat32(off); off += 4;
+      const crouching = view.getUint8(off) === 1; off += 1;
+      const armorLen = view.getUint8(off); off += 1;
+      const armor = armorLen > 0 ? new TextDecoder().decode(new Uint8Array(buf, off, armorLen)) : null;
+      if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, armor);
+    }
+  }
+
   // ── Public API ──────────────────────────────────────────────────────
 
   createRoom(name, seed, gameMode, maxPlayers, playerName, cgUsername, skinIndex, ownerSecret, password, isPrivate) {
@@ -303,7 +326,25 @@ export class Network {
   }
 
   sendPosition(x, y, z, yaw, crouching, armor) {
-    this._send({ type: 'position', x, y, z, yaw, crouching: !!crouching, armor: armor || null });
+    if (!this.ws || this.ws.readyState !== 1) return;
+    const pname = this._lastJoinInfo?.playerName || '';
+    const nameBytes = new TextEncoder().encode(pname);
+    const armorStr = armor ? (Array.isArray(armor) ? armor.join(',') : String(armor)) : '';
+    const armorBytes = new TextEncoder().encode(armorStr);
+    const buf = new ArrayBuffer(1 + 1 + nameBytes.length + 16 + 1 + 1 + armorBytes.length);
+    const view = new DataView(buf);
+    let off = 0;
+    view.setUint8(off, 0x02); off += 1;
+    view.setUint8(off, nameBytes.length); off += 1;
+    new Uint8Array(buf, off, nameBytes.length).set(nameBytes); off += nameBytes.length;
+    view.setFloat32(off, x); off += 4;
+    view.setFloat32(off, y); off += 4;
+    view.setFloat32(off, z); off += 4;
+    view.setFloat32(off, yaw); off += 4;
+    view.setUint8(off, crouching ? 1 : 0); off += 1;
+    view.setUint8(off, armorBytes.length); off += 1;
+    new Uint8Array(buf, off, armorBytes.length).set(armorBytes);
+    this.ws.send(buf);
   }
 
   sendChat(text) {
