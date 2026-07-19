@@ -114,13 +114,13 @@ export function makeItemIconCanvas(itemId) {
   // Tools first — they have a material + shape.
   if (def.tool) {
     drawToolIcon(x, def.tool.type, def.tool.material);
-    return c;
+    return _compose3D(c);
   }
 
   // Armor — draw a small armor piece icon.
   if (def.armor) {
     drawArmorIcon(x, def.armor, itemId);
-    return c;
+    return _compose3D(c);
   }
 
   // Dispatch every non-tool item by id.
@@ -128,23 +128,22 @@ export function makeItemIconCanvas(itemId) {
     case 256: drawStick(x); break;
     case 257: drawCoal(x, false); break;
     case 258: drawCoal(x, true); break;
-    case 259: drawIngot(x, '#e6e6e6', '#c8c8c8', '#9a9a9a'); break;        // iron
-    case 260: drawIngot(x, '#fce74a', '#e8c832', '#b89818'); break;        // gold
+    case 259: drawIngot(x, '#e6e6e6', '#c8c8c8', '#9a9a9a'); break;
+    case 260: drawIngot(x, '#fce74a', '#e8c832', '#b89818'); break;
     case 261: drawDiamond(x); break;
     case 262: drawWheat(x); break;
     case 263: drawSeeds(x); break;
     case 264: drawBread(x); break;
     case 265: drawApple(x, false); break;
     case 284: drawApple(x, true); break;
-    // meat: raw / cooked pairs
-    case 266: drawMeat(x, '#d88', '#b66', '#854', false); break;           // raw porkchop
-    case 267: drawMeat(x, '#c87a52', '#a8623c', '#7a4828', true); break;   // cooked porkchop
-    case 268: drawMeat(x, '#d66', '#b44', '#833', false); break;           // raw beef
-    case 269: drawMeat(x, '#9a5230', '#7a3e22', '#582812', true); break;   // steak
-    case 270: drawMeat(x, '#ecc', '#caa', '#999', false); break;           // raw chicken
-    case 271: drawMeat(x, '#d8a868', '#b8884a', '#8a6230', true); break;   // cooked chicken
-    case 272: drawMeat(x, '#d99', '#b77', '#866', false); break;           // raw mutton
-    case 273: drawMeat(x, '#b56838', '#944e26', '#683814', true); break;   // cooked mutton
+    case 266: drawMeat(x, '#d88', '#b66', '#854', false); break;
+    case 267: drawMeat(x, '#c87a52', '#a8623c', '#7a4828', true); break;
+    case 268: drawMeat(x, '#d66', '#b44', '#833', false); break;
+    case 269: drawMeat(x, '#9a5230', '#7a3e22', '#582812', true); break;
+    case 270: drawMeat(x, '#ecc', '#caa', '#999', false); break;
+    case 271: drawMeat(x, '#d8a868', '#b8884a', '#8a6230', true); break;
+    case 272: drawMeat(x, '#d99', '#b77', '#866', false); break;
+    case 273: drawMeat(x, '#b56838', '#944e26', '#683814', true); break;
     case 274: drawLeather(x); break;
     case 275: drawFeather(x); break;
     case 276: drawWool(x); break;
@@ -159,8 +158,7 @@ export function makeItemIconCanvas(itemId) {
     case 285: drawBed(x); break;
     case 286: drawSpiderEye(x); break;
     case 287: drawPrismiteGem(x); break;
-    // New BlockForge foods
-    case 290: drawMeat(x, '#7a9a5a', '#5e7a42', '#3e542a', false); break;   // rotten flesh
+    case 290: drawMeat(x, '#7a9a5a', '#5e7a42', '#3e542a', false); break;
     case 296: drawGoldenApple(x); break;
     case 297: drawCookie(x); break;
     case 298: drawMelonSlice(x); break;
@@ -169,21 +167,19 @@ export function makeItemIconCanvas(itemId) {
     case 301: drawPotato(x, '#d8c088', '#a89050'); break;
     case 302: drawPumpkinPie(x); break;
     case 303: drawCarrot(x, '#f5d020', '#c8a410'); break;
-    // New materials
-    case 304: drawIngot(x, '#e89050', '#c87030', '#a05020'); break;       // copper ingot
-    case 305: drawEmerald(x); break;                                       // emerald
-    case 306: drawDye(x, '#90c840'); break;                               // lime dye
-    case 307: drawDye(x, '#e87098'); break;                               // pink dye
-    case 308: drawDye(x, '#3060d0'); break;                               // blue dye
-    case 309: drawBoneMeal(x); break;                                      // bone meal
-    case 310: drawNameTag(x); break;                                       // name tag
-    case 311: drawSaddle(x); break;                                        // saddle
-    case 312: drawLead(x); break;                                          // lead
+    case 304: drawIngot(x, '#e89050', '#c87030', '#a05020'); break;
+    case 305: drawEmerald(x); break;
+    case 306: drawDye(x, '#90c840'); break;
+    case 307: drawDye(x, '#e87098'); break;
+    case 308: drawDye(x, '#3060d0'); break;
+    case 309: drawBoneMeal(x); break;
+    case 310: drawNameTag(x); break;
+    case 311: drawSaddle(x); break;
+    case 312: drawLead(x); break;
     case 314: drawGreenstoneDust(x); break;
     case 315: drawSlimeBall(x); break;
     case 316: drawFlintSteel(x); break;
     default: {
-      // Fallback: a subtle gem-stone so unknown items still read nicely.
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
       x.fillStyle = '#aaa';
@@ -192,8 +188,107 @@ export function makeItemIconCanvas(itemId) {
       x.fillRect(3, 12, 10, 1);
     }
   }
-  _add3DShading(x);
-  return c;
+  return _compose3D(c);
+}
+
+// Post-process: take a 16x16 item icon and add dark outline + drop shadow
+// to make it pop like a 3D item sitting on the slot.
+function _compose3D(src) {
+  const W = 16, H = 16;
+  const srcCtx = src.getContext('2d');
+  const srcData = srcCtx.getImageData(0, 0, W, H).data;
+
+  // Build opacity mask
+  const opaque = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) opaque[i] = srcData[i * 4 + 3] > 10 ? 1 : 0;
+
+  // Create final canvas (same 16x16, we draw shadow+outline in-place)
+  const out = document.createElement('canvas');
+  out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const img = ctx.createImageData(W, H);
+  const d = img.data;
+
+  // Pass 1: Dark outline — any opaque pixel adjacent to transparent gets darkened
+  // along that edge
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (!opaque[i]) continue;
+    const p = i * 4;
+    // Check 4 neighbours — if any is transparent, darken this pixel's edge
+    const above = y > 0 ? opaque[i - W] : 0;
+    const below = y < H - 1 ? opaque[i + W] : 0;
+    const left = x > 0 ? opaque[i - 1] : 0;
+    const right = x < W - 1 ? opaque[i + 1] : 0;
+
+    // Top-left highlight (light source from top-left)
+    if (!above || !left) {
+      const f = !above && !left ? 1.45 : (!above ? 1.3 : 1.2);
+      d[p]   = Math.min(255, (srcData[p]   * f) | 0);
+      d[p+1] = Math.min(255, (srcData[p+1] * f) | 0);
+      d[p+2] = Math.min(255, (srcData[p+2] * f) | 0);
+      d[p+3] = srcData[p+3];
+      continue;
+    }
+    // Bottom-right shadow
+    if (!below || !right) {
+      const f = !below && !right ? 0.5 : (!below ? 0.6 : 0.65);
+      d[p]   = (srcData[p]   * f) | 0;
+      d[p+1] = (srcData[p+1] * f) | 0;
+      d[p+2] = (srcData[p+2] * f) | 0;
+      d[p+3] = srcData[p+3];
+      continue;
+    }
+    // Interior: copy original with subtle top-left→bottom-right gradient
+    const nx = (x - 7.5) / 7.5;
+    const ny = (y - 7.5) / 7.5;
+    const g = 1 + (-nx - ny) * 0.06;
+    d[p]   = Math.min(255, Math.max(0, (srcData[p]   * g) | 0));
+    d[p+1] = Math.min(255, Math.max(0, (srcData[p+1] * g) | 0));
+    d[p+2] = Math.min(255, Math.max(0, (srcData[p+2] * g) | 0));
+    d[p+3] = srcData[p+3];
+  }
+
+  // Pass 2: Dark outline border — paint black pixels around the silhouette edge
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = y * W + x;
+    if (opaque[i]) continue;
+    // This pixel is transparent — check if any neighbour is opaque
+    const n = [
+      y > 0 ? (y - 1) * W + x : -1,
+      y < H - 1 ? (y + 1) * W + x : -1,
+      x > 0 ? y * W + (x - 1) : -1,
+      x < W - 1 ? y * W + (x + 1) : -1,
+    ];
+    for (const ni of n) {
+      if (ni >= 0 && opaque[ni]) {
+        // Draw dark outline (very dark, semi-transparent so it blends)
+        const p = i * 4;
+        if (d[p + 3] === 0) {
+          d[p] = 20; d[p+1] = 12; d[p+2] = 28; d[p+3] = 180;
+        }
+        break;
+      }
+    }
+  }
+
+  // Pass 3: Drop shadow — 1px down-right offset
+  for (let y = H - 1; y >= 0; y--) for (let x = W - 1; x >= 0; x--) {
+    const i = y * W + x;
+    if (opaque[i]) continue;
+    // Is there an opaque item pixel 1 up-left from here?
+    const si = (y > 0 && x > 0) ? (y - 1) * W + (x - 1) : -1;
+    if (si >= 0 && opaque[si]) {
+      const p = i * 4;
+      if (d[p + 3] < 100) { // Don't overwrite outline
+        d[p] = 0; d[p+1] = 0; d[p+2] = 0; d[p+3] = 70;
+      }
+    }
+  }
+
+  ctx.putImageData(img, 0, 0);
+  return out;
 }
 
 // ---- generic helpers used by the item painters ------------------------------
@@ -203,101 +298,6 @@ function pxa(x, col, gx, gy, w, h) { // alpha helper
   x.fillRect(gx, gy, w, h); x.restore();
 }
 const hl = (c) => ({ c, a: 0.3 });   // top-edge specular tint
-
-// 3D shading for non-block items: directional light from top-left creates
-// clear highlight/shadow faces + drop-shadow.  This is what makes vanilla
-// Minecraft items look like they have volume instead of being flat sprites.
-function _add3DShading(ctx) {
-  const imgData = ctx.getImageData(0, 0, 16, 16);
-  const d = imgData.data;
-  const opaque = new Uint8Array(256);
-  for (let i = 0; i < 256; i++) opaque[i] = d[i * 4 + 3] > 0 ? 1 : 0;
-
-  // Compute distance-to-edge (flood fill, capped at 4)
-  const dist = new Float32Array(256).fill(99);
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const i = y * 16 + x;
-    if (!opaque[i]) { dist[i] = 0; continue; }
-    let m = 99;
-    if (y > 0) m = Math.min(m, dist[i - 16]);
-    if (x > 0) m = Math.min(m, dist[i - 1]);
-    if (y > 0 && x > 0) m = Math.min(m, dist[i - 17]);
-    dist[i] = Math.min(m + 1, 4);
-  }
-  for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
-    const i = y * 16 + x;
-    if (!opaque[i]) continue;
-    let m = 99;
-    if (y < 15) m = Math.min(m, dist[i + 16]);
-    if (x < 15) m = Math.min(m, dist[i + 1]);
-    if (y < 15 && x < 15) m = Math.min(m, dist[i + 17]);
-    dist[i] = Math.min(dist[i], m + 1, 4);
-  }
-
-  // Pass 1: Top-left highlight + bottom-right shadow (directional bevel)
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const i = y * 16 + x;
-    if (!opaque[i] || dist[i] === 0) continue;
-    const p = i * 4;
-    const d2 = Math.min(dist[i], 3);
-    const str = 1 - (d2 - 1) * 0.28;
-    // Shadow: face downward + rightward → darken bottom-right edges
-    const hasBelow = y < 15 && !opaque[i + 16];
-    const hasRight = x < 15 && !opaque[i + 1];
-    if (hasBelow || hasRight) {
-      const f = 1 - 0.42 * str;
-      d[p] = (d[p] * f) | 0; d[p+1] = (d[p+1] * f) | 0; d[p+2] = (d[p+2] * f) | 0;
-    }
-    // Highlight: face upward + leftward → brighten top-left edges
-    const hasAbove = y > 0 && !opaque[i - 16];
-    const hasLeft  = x > 0 && !opaque[i - 1];
-    if (hasAbove || hasLeft) {
-      const f = 1 + 0.38 * str;
-      d[p]   = Math.min(255, (d[p]   * f) | 0);
-      d[p+1] = Math.min(255, (d[p+1] * f) | 0);
-      d[p+2] = Math.min(255, (d[p+2] * f) | 0);
-    }
-  }
-
-  // Pass 2: Inner gradient — subtle overall top-left→bottom-right darkening
-  // to make items feel lit from a single light source
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
-    const i = y * 16 + x;
-    if (!opaque[i]) continue;
-    const p = i * 4;
-    // Normalised position (-1..1 range)
-    const nx = (x - 7.5) / 7.5;
-    const ny = (y - 7.5) / 7.5;
-    // Light from top-left: pixels closer to top-left get brighter, bottom-right darker
-    const light = (-nx - ny) * 0.08;
-    d[p]   = Math.min(255, Math.max(0, (d[p]   * (1 + light)) | 0));
-    d[p+1] = Math.min(255, Math.max(0, (d[p+1] * (1 + light)) | 0));
-    d[p+2] = Math.min(255, Math.max(0, (d[p+2] * (1 + light)) | 0));
-  }
-
-  // Pass 3: Drop shadow — 1px offset down-right, dark semi-transparent
-  const shadow = new Uint8Array(256 * 4);
-  for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
-    const i = y * 16 + x;
-    if (opaque[i]) continue;
-    const si = (y > 0 && x > 0) ? (y - 1) * 16 + (x - 1) : -1;
-    if (si >= 0 && opaque[si]) {
-      shadow[i * 4 + 3] = 90; // alpha
-    }
-  }
-  // Composite: shadow behind item
-  const result = ctx.createImageData(16, 16);
-  const rd = result.data;
-  for (let i = 0; i < 256; i++) {
-    const p = i * 4;
-    if (shadow[p+3] > 0 && d[p+3] === 0) {
-      rd[p] = 0; rd[p+1] = 0; rd[p+2] = 0; rd[p+3] = shadow[p+3];
-    } else {
-      rd[p] = d[p]; rd[p+1] = d[p+1]; rd[p+2] = d[p+2]; rd[p+3] = d[p+3];
-    }
-  }
-  ctx.putImageData(result, 0, 0);
-}
 
 // ---- materials --------------------------------------------------------------
 function drawStick(x) {
