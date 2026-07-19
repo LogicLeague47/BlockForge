@@ -18,6 +18,9 @@ export class VoiceChat {
     this._panel = null;
     // Saved original _handleMessage for cleanup (Bug #4)
     this._origHandleMessage = null;
+    // Voice group state
+    this._groupCode = null;
+    this._groupMembers = [];
 
     this._setupHandlers();
     this._createHUD();
@@ -416,7 +419,10 @@ export class VoiceChat {
     const info = this._panel?.querySelector('#vp-group-info');
     if (!info) return;
     if (this._groupCode) {
-      info.innerHTML = `<span style="color:#5af;">Group: ${this._groupCode}</span>`;
+      const members = this._groupMembers.length > 0
+        ? `<div style="margin-top:6px;color:#aaa;">Members: ${this._groupMembers.join(', ')}</div>`
+        : '';
+      info.innerHTML = `<span style="color:#5af;">Group: ${this._groupCode}</span>${members}`;
     } else {
       info.innerHTML = '<span style="color:#666;">Not in a group</span>';
     }
@@ -476,6 +482,23 @@ export class VoiceChat {
       }
       if (msg.type === 'voice_peer_leave') {
         this._removePeer(msg.name);
+        return;
+      }
+      // Voice group server responses
+      if (msg.type === 'voice_group_info') {
+        this._groupCode = msg.code;
+        this._groupMembers = msg.members || [];
+        if (this._panelOpen) this._renderPanel();
+        return;
+      }
+      if (msg.type === 'voice_group_peer_join') {
+        if (!this._groupMembers.includes(msg.name)) this._groupMembers.push(msg.name);
+        if (this._panelOpen) this._renderPanel();
+        return;
+      }
+      if (msg.type === 'voice_group_peer_leave') {
+        this._groupMembers = this._groupMembers.filter(n => n !== msg.name);
+        if (this._panelOpen) this._renderPanel();
         return;
       }
       orig(msg);
