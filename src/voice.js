@@ -78,6 +78,10 @@ export class VoiceChat {
   }
 
   _disable() {
+    // Notify server we're leaving voice
+    if (this._registered) {
+      this.network._send({ type: 'voice_leave' });
+    }
     if (this.localStream) {
       this.localStream.getTracks().forEach(t => t.stop());
       this.localStream = null;
@@ -368,7 +372,7 @@ export class VoiceChat {
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <span style="font:12px sans-serif;color:#aaa;">Push to Talk (V)</span>
+        <span style="font:12px sans-serif;color:#aaa;">Push to Talk (X)</span>
         <button id="vp-ptt" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid ${this._pttEnabled ? '#4caf50' : '#666'};background:${this._pttEnabled ? 'rgba(76,175,80,0.15)' : 'rgba(100,100,100,0.2)'};color:${this._pttEnabled ? '#4caf50' : '#888'};cursor:pointer;">${this._pttEnabled ? 'ON' : 'OFF'}</button>
       </div>
     `;
@@ -534,7 +538,7 @@ export class VoiceChat {
 
     this._pttKeyHandler = (e) => {
       if (this.state === STATES.OFF || !this._pttEnabled) return;
-      if (e.code === 'KeyV') {
+      if (e.code === 'KeyX') {
         if (e.type === 'keydown' && !this._pttKeyDown) {
           this._pttKeyDown = true;
           if (this.muted) this.setState(STATES.ON_UNMUTED);

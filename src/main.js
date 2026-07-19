@@ -2347,7 +2347,9 @@ function setupNetworkHandlers() {
     addChatLine('Type /help for commands.', '#aaa');
 
     // Start voice chat (starts muted by default)
+    // Reset _registered so re-enable sends voice_join even after auto-reconnect
     if (!voiceChat) voiceChat = new VoiceChat(network, playerName);
+    voiceChat._registered = false;
     voiceChat.setState(1); // ON_MUTED
 
     // CrazyGames SDK: update room so friends can join via platform UI

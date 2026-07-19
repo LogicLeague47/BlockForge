@@ -492,6 +492,7 @@ wss.on('connection', (ws) => {
       case 'dev_delete_account': handleDevDeleteAccount(ws, msg); break;
       // Voice chat signaling — relay messages to target player in same room
       case 'voice_join': handleVoiceJoin(ws, msg); break;
+      case 'voice_leave': removeVoiceClient(ws); break;
       case 'voice_offer':
       case 'voice_answer':
       case 'voice_ice':
