@@ -21,8 +21,12 @@ export class VoiceChat {
     // Voice group state
     this._groupCode = null;
     this._groupMembers = [];
+    // Push to Talk state
+    this._pttEnabled = false;
+    this._pttKeyDown = false;
 
     this._setupHandlers();
+    this._setupPTT();
     this._createHUD();
     this._createPanel();
   }
@@ -95,6 +99,12 @@ export class VoiceChat {
       this.network._handleMessage = this._origHandleMessage;
       this._origHandleMessage = null;
     }
+    // Clean up PTT key handlers
+    if (this._pttKeyHandler) {
+      document.removeEventListener('keydown', this._pttKeyHandler);
+      document.removeEventListener('keyup', this._pttKeyHandler);
+      this._pttKeyHandler = null;
+    }
   }
 
   // Called when we (the joiner) receive voice_join_ack with a peer list.
@@ -115,7 +125,7 @@ export class VoiceChat {
       const audio = document.createElement('audio');
       audio.srcObject = e.streams[0];
       audio.autoplay = true;
-      audio.volume = 0.8;
+      audio.volume = this._getVolume();
       document.body.appendChild(audio);
       pc._audioEl = audio;
     };
@@ -159,7 +169,7 @@ export class VoiceChat {
       const audio = document.createElement('audio');
       audio.srcObject = e.streams[0];
       audio.autoplay = true;
-      audio.volume = 0.8;
+      audio.volume = this._getVolume();
       document.body.appendChild(audio);
       pc._audioEl = audio;
     };
@@ -229,6 +239,10 @@ export class VoiceChat {
     this._iceBuffer.delete(username);
   }
 
+  _getVolume() {
+    try { return parseFloat(localStorage.getItem('bf_voice_volume')) || 0.8; } catch { return 0.8; }
+  }
+
   _getOrCreatePC(username) {
     let pc = this.peers.get(username);
     if (pc) return pc;
@@ -247,7 +261,7 @@ export class VoiceChat {
       const audio = document.createElement('audio');
       audio.srcObject = e.streams[0];
       audio.autoplay = true;
-      audio.volume = 0.8;
+      audio.volume = this._getVolume();
       document.body.appendChild(audio);
       pc._audioEl = audio;
     };
@@ -354,8 +368,8 @@ export class VoiceChat {
         </div>
       </div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <span style="font:12px sans-serif;color:#aaa;">Push to Talk</span>
-        <button id="vp-ptt" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid #666;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">OFF</button>
+        <span style="font:12px sans-serif;color:#aaa;">Push to Talk (V)</span>
+        <button id="vp-ptt" style="padding:4px 14px;font:11px sans-serif;border-radius:4px;border:1px solid ${this._pttEnabled ? '#4caf50' : '#666'};background:${this._pttEnabled ? 'rgba(76,175,80,0.15)' : 'rgba(100,100,100,0.2)'};color:${this._pttEnabled ? '#4caf50' : '#888'};cursor:pointer;">${this._pttEnabled ? 'ON' : 'OFF'}</button>
       </div>
     `;
 
@@ -373,6 +387,15 @@ export class VoiceChat {
       body.querySelector('#vp-vol-label').textContent = Math.round(v * 100) + '%';
       try { localStorage.setItem('bf_voice_volume', String(v)); } catch {}
       for (const pc of this.peers.values()) { if (pc._audioEl) pc._audioEl.volume = v; }
+    });
+    body.querySelector('#vp-ptt')?.addEventListener('click', () => {
+      this._pttEnabled = !this._pttEnabled;
+      try { localStorage.setItem('bf_voice_ptt', this._pttEnabled ? '1' : '0'); } catch {}
+      if (this._pttEnabled) {
+        // When enabling PTT, mute mic until key is held
+        this.setState(STATES.ON_MUTED);
+      }
+      this._renderPanel();
     });
   }
 
@@ -503,5 +526,25 @@ export class VoiceChat {
       }
       orig(msg);
     };
+  }
+
+  _setupPTT() {
+    // Restore PTT preference
+    try { this._pttEnabled = localStorage.getItem('bf_voice_ptt') === '1'; } catch {}
+
+    this._pttKeyHandler = (e) => {
+      if (this.state === STATES.OFF || !this._pttEnabled) return;
+      if (e.code === 'KeyV') {
+        if (e.type === 'keydown' && !this._pttKeyDown) {
+          this._pttKeyDown = true;
+          if (this.muted) this.setState(STATES.ON_UNMUTED);
+        } else if (e.type === 'keyup') {
+          this._pttKeyDown = false;
+          if (this.state !== STATES.ON_MUTED) this.setState(STATES.ON_MUTED);
+        }
+      }
+    };
+    document.addEventListener('keydown', this._pttKeyHandler);
+    document.addEventListener('keyup', this._pttKeyHandler);
   }
 }
