@@ -1281,6 +1281,22 @@ function handleDevSetRole(ws, msg) {
   const acc = accounts[target];
   acc.role = newRole;
   saveAccounts();
+
+  // Update all online sessions for this player so the role takes effect immediately
+  for (const cws of wss.clients) {
+    const pd = cws._playerData;
+    if (pd && pd.name === target) {
+      pd.role = newRole;
+      // Notify the player's client so it updates playerRole
+      safeSend(cws, JSON.stringify({ type: 'role_changed', role: newRole }));
+      // Refresh the player list in their room so others see the updated role
+      if (cws._roomName) {
+        const room = getRoom(cws._roomName);
+        if (room) broadcastPlayerList(room);
+      }
+    }
+  }
+
   safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: true, username: target, role: newRole }));
 }
 

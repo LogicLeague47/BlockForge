@@ -630,6 +630,8 @@ let gameRunning = false;
 let voiceChat = null;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
+let _dwState = { mode: 'creative', diff: 'normal', terrain: 'flat', mp: 'solo', maxPlayers: 10 };
+let _pendingDevWorldOpts = null;
 let gameDifficulty = 'normal'; // 'normal' | 'hard'
 let mouseSensitivity = 1.0; // 0.2 .. 2.0 multiplier
 let joiningViaLink = false; // true when auto-joining from a shareable link
@@ -2369,7 +2371,9 @@ function setupNetworkHandlers() {
     if (inviteBtn) inviteBtn.style.display = '';
 
     const serverSeed = typeof seed === 'number' ? seed : 42;
-    startGame('multiplayer_' + room, serverSeed, gameMode, 'normal');
+    const dwOpts = _pendingDevWorldOpts || {};
+    _pendingDevWorldOpts = null;
+    startGame('multiplayer_' + room, serverSeed, gameMode, dwOpts.diff || 'normal', { flat: !!dwOpts.flat, dev: !!dwOpts.dev });
 
     // Spawn existing remote players from the player list
     setTimeout(() => {
@@ -2585,6 +2589,12 @@ function setupNetworkHandlers() {
       }
       if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed.'; }
     }
+  };
+
+  network.onRoleChanged = (newRole) => {
+    playerRole = newRole;
+    _refreshDevButtons();
+    addChatLine(`Your role has been updated to ${newRole}.`, '#5af');
   };
 }
 
@@ -3078,7 +3088,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
-  world = new World(seed, { flat: !!opts.flat, parkour: !!opts.parkour });
+  world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour });
   const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture);
@@ -4469,9 +4479,129 @@ function initMenu() {
     ui.showMenu('main');
   });
   document.getElementById('btn-new-dev-world')?.addEventListener('click', () => {
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    startGame(id, 42, 'creative', 'peaceful', { flat: true, dev: true });
+    const form = document.getElementById('dev-world-create-form');
+    const list = document.getElementById('dev-world-list');
+    if (form) form.style.display = form.style.display === 'none' ? '' : 'none';
+    if (list) list.style.display = form.style.display === 'none' ? '' : 'none';
+    // Reset form selections
+    _dwState = { mode: 'creative', diff: 'normal', terrain: 'flat', mp: 'solo', maxPlayers: 10 };
+    _updateDWForm();
   });
+  document.getElementById('dw-create-cancel')?.addEventListener('click', () => {
+    const form = document.getElementById('dev-world-create-form');
+    const list = document.getElementById('dev-world-list');
+    if (form) form.style.display = 'none';
+    if (list) list.style.display = '';
+  });
+
+  // Dev world creation form: mode buttons
+  document.querySelectorAll('.dw-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dw-mode-btn').forEach(b => { b.classList.remove('selected'); b.style.borderColor = '#555'; b.style.color = '#888'; b.style.background = 'rgba(100,100,100,0.2)'; });
+      btn.classList.add('selected'); btn.style.borderColor = '#0ff'; btn.style.color = '#0ff'; btn.style.background = 'rgba(0,255,255,0.15)';
+      _dwState.mode = btn.dataset.mode;
+    });
+  });
+  // Dev world creation form: difficulty buttons
+  document.querySelectorAll('.dw-diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dw-diff-btn').forEach(b => { b.classList.remove('selected'); b.style.borderColor = '#555'; b.style.color = '#888'; b.style.background = 'rgba(100,100,100,0.2)'; });
+      btn.classList.add('selected'); btn.style.borderColor = '#0ff'; btn.style.color = '#0ff'; btn.style.background = 'rgba(0,255,255,0.15)';
+      _dwState.diff = btn.dataset.diff;
+    });
+  });
+  // Dev world creation form: terrain buttons
+  document.querySelectorAll('.dw-terrain-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dw-terrain-btn').forEach(b => { b.classList.remove('selected'); b.style.borderColor = '#555'; b.style.color = '#888'; b.style.background = 'rgba(100,100,100,0.2)'; });
+      btn.classList.add('selected'); btn.style.borderColor = '#0ff'; btn.style.color = '#0ff'; btn.style.background = 'rgba(0,255,255,0.15)';
+      _dwState.terrain = btn.dataset.terrain;
+    });
+  });
+  // Dev world creation form: multiplayer buttons
+  document.querySelectorAll('.dw-mp-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dw-mp-btn').forEach(b => { b.classList.remove('selected'); b.style.borderColor = '#555'; b.style.color = '#888'; b.style.background = 'rgba(100,100,100,0.2)'; });
+      btn.classList.add('selected'); btn.style.borderColor = '#0ff'; btn.style.color = '#0ff'; btn.style.background = 'rgba(0,255,255,0.15)';
+      _dwState.mp = btn.dataset.mp;
+      const mpWrap = document.getElementById('dw-max-players-wrap');
+      if (mpWrap) mpWrap.style.display = btn.dataset.mp === 'host' ? '' : 'none';
+    });
+  });
+  // Dev world creation form: create button
+  document.getElementById('dw-create-go')?.addEventListener('click', () => {
+    const name = document.getElementById('dw-name')?.value?.trim() || 'Dev World';
+    const seedInput = document.getElementById('dw-seed')?.value?.trim();
+    let seed = 42;
+    if (seedInput) {
+      const n = parseInt(seedInput);
+      seed = isNaN(n) ? [...seedInput].reduce((a, c) => a + c.charCodeAt(0), 0) : n;
+    }
+    const maxP = parseInt(document.getElementById('dw-max-players')?.value) || 10;
+
+    if (_dwState.mp === 'host') {
+      // Create multiplayer dev world on the server
+      const roomName = name.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 32) || 'DevWorld';
+      if (!network.connected) {
+        network.connect(MP_SERVER_URL);
+        network.onConnectedOnce(() => {
+          createDevWorldMultiplayer(roomName, seed, _dwState.mode, _dwState.diff, _dwState.terrain, maxP);
+        });
+      } else {
+        createDevWorldMultiplayer(roomName, seed, _dwState.mode, _dwState.diff, _dwState.terrain, maxP);
+      }
+    } else {
+      // Single-player dev world
+      const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      createWorld(name, seed, _dwState.mode, _dwState.diff, { flat: _dwState.terrain === 'flat', dev: true });
+      startGame(id, seed, _dwState.mode, _dwState.diff, { flat: _dwState.terrain === 'flat', void: _dwState.terrain === 'void', dev: true });
+    }
+  });
+
+  // --- Dev world form helpers ---
+  function _updateDWForm() {
+    // Sync button styles with _dwState
+    document.querySelectorAll('.dw-mode-btn').forEach(b => {
+      const active = b.dataset.mode === _dwState.mode;
+      b.style.borderColor = active ? '#0ff' : '#555';
+      b.style.color = active ? '#0ff' : '#888';
+      b.style.background = active ? 'rgba(0,255,255,0.15)' : 'rgba(100,100,100,0.2)';
+      if (active) b.classList.add('selected'); else b.classList.remove('selected');
+    });
+    document.querySelectorAll('.dw-diff-btn').forEach(b => {
+      const active = b.dataset.diff === _dwState.diff;
+      b.style.borderColor = active ? '#0ff' : '#555';
+      b.style.color = active ? '#0ff' : '#888';
+      b.style.background = active ? 'rgba(0,255,255,0.15)' : 'rgba(100,100,100,0.2)';
+      if (active) b.classList.add('selected'); else b.classList.remove('selected');
+    });
+    document.querySelectorAll('.dw-terrain-btn').forEach(b => {
+      const active = b.dataset.terrain === _dwState.terrain;
+      b.style.borderColor = active ? '#0ff' : '#555';
+      b.style.color = active ? '#0ff' : '#888';
+      b.style.background = active ? 'rgba(0,255,255,0.15)' : 'rgba(100,100,100,0.2)';
+      if (active) b.classList.add('selected'); else b.classList.remove('selected');
+    });
+    document.querySelectorAll('.dw-mp-btn').forEach(b => {
+      const active = b.dataset.mp === _dwState.mp;
+      b.style.borderColor = active ? '#0ff' : '#555';
+      b.style.color = active ? '#0ff' : '#888';
+      b.style.background = active ? 'rgba(0,255,255,0.15)' : 'rgba(100,100,100,0.2)';
+      if (active) b.classList.add('selected'); else b.classList.remove('selected');
+    });
+    const mpWrap = document.getElementById('dw-max-players-wrap');
+    if (mpWrap) mpWrap.style.display = _dwState.mp === 'host' ? '' : 'none';
+  }
+
+  function createDevWorldMultiplayer(roomName, seed, mode, diff, terrain, maxPlayers) {
+    const isFlat = terrain === 'flat';
+    const isVoid = terrain === 'void';
+    createWorld(roomName, seed, mode, diff, { flat: isFlat, dev: true });
+    createServer(roomName, maxPlayers, mode, seed, true); // private by default
+    // The createServer flow connects → joins → onJoined fires → startGame is called from there
+    // We need to pass dev world options through, so set a flag
+    _pendingDevWorldOpts = { flat: isFlat, void: isVoid, dev: true, diff };
+  }
 
   // --- Login screen (account required before main menu) ---
   const loginUser = document.getElementById('login-username');

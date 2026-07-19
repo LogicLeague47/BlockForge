@@ -31,6 +31,7 @@ export class Network {
     this.onMobPosition = null;   // (id, x, y, z, yaw) => {}
     this.onMobDamage = null;     // (id, hp) => {}
     this.onMobDeath = null;      // (id) => {}
+    this.onRoleChanged = null;    // (role) => {}
 
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
@@ -239,6 +240,9 @@ export class Network {
         if (this.onMobDeath) this.onMobDeath(msg.id);
         break;
       // Dev panel messages
+      case 'role_changed':
+        if (this.onRoleChanged) this.onRoleChanged(msg.role);
+        break;
       case 'dev_account_list':
       case 'dev_account_detail':
       case 'dev_set_tag_result':

@@ -30,6 +30,7 @@ export class World {
     this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
     this.flat = !!opts.flat;
+    this.void = !!opts.void;
     this.parkour = !!opts.parkour;
   }
 
@@ -117,7 +118,7 @@ export class World {
     const baseZ = chunk.cz * CHUNK_SIZE;
     const n = this.noise;
 
-    if (this.parkour) {
+    if (this.parkour || this.void) {
       // Void world — only set surface/biome defaults, no terrain
       for (let x = 0; x < CHUNK_SIZE; x++) {
         for (let z = 0; z < CHUNK_SIZE; z++) {
