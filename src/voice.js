@@ -147,7 +147,8 @@ export class VoiceChat {
     pc.createOffer().then(offer => {
       return pc.setLocalDescription(offer);
     }).then(() => {
-      this.network._send({ type: 'voice_offer', target: username, sdp: this.peers.get(username)?.localDescription?.sdp });
+      const sdp = this.peers.get(username)?.localDescription?.sdp;
+      this.network._send({ type: 'voice_offer', target: username, sdp });
     }).catch(e => {
       console.error('[Voice] Failed to create offer:', e);
       this._removePeer(username);

@@ -12,7 +12,7 @@ import { Audio } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -66,6 +66,7 @@ let _mpSendTimer = 0;
 let _lastMpPos = { x: 0, y: 0, z: 0, yaw: 0, crouching: false, armor: '' };
 
 // --- CrazyGames SDK helpers ---
+const isOnCrazyGames = () => !!window.CrazyGames?.SDK;
 function cgGameplayStart() {
   try { window.CrazyGames?.SDK?.game?.gameplaystart?.(); } catch (_) {}
 }
@@ -86,6 +87,9 @@ function cgMidgameAd(callbacks) {
     // No CrazyGames SDK (e.g. self-hosted tunnel) — just finish immediately.
     callbacks?.adFinished?.();
   }
+}
+function cgHappyTime() {
+  try { window.CrazyGames?.SDK?.game?.happytime?.(); } catch (_) {}
 }
 const app = document.getElementById('app');
 
@@ -925,8 +929,8 @@ document.addEventListener('mousemove', (e) => {
     e.preventDefault();
     player.toggleFly();
   }
-  // V = voice chat settings
-  if (e.code === kb.voice && voiceChat) {
+  // V = voice chat settings (disabled on CrazyGames)
+  if (e.code === kb.voice && voiceChat && !isOnCrazyGames()) {
     e.preventDefault();
     voiceChat.togglePanel();
   }
@@ -2348,11 +2352,13 @@ function setupNetworkHandlers() {
     addChatLine(`Joined server: ${room}`, '#5f5');
     addChatLine('Type /help for commands.', '#aaa');
 
-    // Start voice chat (starts muted by default)
+    // Start voice chat (starts muted by default) — disabled on CrazyGames builds
     // Reset _registered so re-enable sends voice_join even after auto-reconnect
-    if (!voiceChat) voiceChat = new VoiceChat(network, playerName);
-    voiceChat._registered = false;
-    voiceChat.setState(1); // ON_MUTED
+    if (!isOnCrazyGames()) {
+      if (!voiceChat) voiceChat = new VoiceChat(network, playerName);
+      voiceChat._registered = false;
+      voiceChat.setState(1); // ON_MUTED
+    }
 
     // CrazyGames SDK: update room so friends can join via platform UI
     try {
@@ -3278,7 +3284,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       openChat('/');
     },
     onVoice() {
-      if (!gameRunning || !voiceChat) return;
+      if (!gameRunning || !voiceChat || isOnCrazyGames()) return;
       voiceChat.togglePanel();
     },
     onExit() {
@@ -3300,6 +3306,10 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (saved.player.spawnPoint) player.spawnPoint.set(...saved.player.spawnPoint);
     if (saved.player.bedSpawnPoint) bedSpawnPoint = saved.player.bedSpawnPoint;
     if (saved.player.inventory) player.inventory.load(saved.player.inventory);
+    if (isMultiplayer && playerName && currentWorldId) {
+      const mpInv = loadMultiplayerInventory(currentWorldId, playerName);
+      if (mpInv) player.inventory.load(mpInv);
+    }
     if (typeof saved.player.level === 'number') {
       player.level = saved.player.level;
       player.xp = saved.player.xp || 0;
@@ -3427,22 +3437,28 @@ function saveCurrentWorld() {
     network._send({ type: 'player_stats_set', stats: achievements.stats });
   }
   if (!currentWorldId || !world || !player) return;
-  saveWorld(currentWorldId, {
-    ...world.serializeEdits(),
-    player: {
-      gamemode: player.gamemode,
-      health: player.health,
-      hunger: player.hunger,
-      saturation: player.saturation,
-      position: [player.position.x, player.position.y, player.position.z],
-      spawnPoint: [player.spawnPoint.x, player.spawnPoint.y, player.spawnPoint.z],
-      inventory: player.inventory.serialize(),
-      bedSpawnPoint: bedSpawnPoint,
-      xp: player.xp,
-      level: player.level,
-      totalDays: totalDays,
-    },
-  });
+
+  // In multiplayer, save inventory per-player so each player has their own
+  const playerData = {
+    gamemode: player.gamemode,
+    health: player.health,
+    hunger: player.hunger,
+    saturation: player.saturation,
+    position: [player.position.x, player.position.y, player.position.z],
+    spawnPoint: [player.spawnPoint.x, player.spawnPoint.y, player.spawnPoint.z],
+    inventory: player.inventory.serialize(),
+    bedSpawnPoint: bedSpawnPoint,
+    xp: player.xp,
+    level: player.level,
+    totalDays: totalDays,
+  };
+  if (isMultiplayer && playerName) {
+    saveMultiplayerInventory(currentWorldId, playerName, playerData.inventory);
+    const perPlayer = { ...playerData, inventory: undefined };
+    saveWorld(currentWorldId, { ...world.serializeEdits(), player: perPlayer });
+  } else {
+    saveWorld(currentWorldId, { ...world.serializeEdits(), player: playerData });
+  }
 }
 
 // =========================================================
@@ -3737,6 +3753,7 @@ function initMenu() {
 
   // Achievement toast callback
   achievements.onUnlock((ach) => {
+    cgHappyTime();
     const toast = document.getElementById('achievement-toast');
     if (!toast) return;
     const nameEl = toast.querySelector('.ach-name');
@@ -5057,6 +5074,7 @@ function loop() {
         } else if (result === 'parkour_complete') {
           const time = getParkourTimerFormatted();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
+          cgHappyTime();
           audio.finish();
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');

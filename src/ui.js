@@ -192,6 +192,7 @@ export function makeItemIconCanvas(itemId) {
       x.fillRect(3, 12, 10, 1);
     }
   }
+  _add3DShading(x);
   return c;
 }
 
@@ -202,6 +203,100 @@ function pxa(x, col, gx, gy, w, h) { // alpha helper
   x.fillRect(gx, gy, w, h); x.restore();
 }
 const hl = (c) => ({ c, a: 0.3 });   // top-edge specular tint
+
+// Add 3D depth to item icons — drop-shadow + bevel gradient so they match block
+// atlas shading.  The bevel darkens bottom-right and brightens top-left based on
+// distance-to-edge, creating a smooth rounded/pillow look at 16×16.
+function _add3DShading(ctx) {
+  const imgData = ctx.getImageData(0, 0, 16, 16);
+  const d = imgData.data;
+  // 1. Build opacity mask
+  const opaque = new Uint8Array(16 * 16);
+  for (let i = 0; i < 256; i++) { if (d[i * 4 + 3] > 0) opaque[i] = 1; }
+
+  // 2. Compute distance-to-edge for each opaque pixel (how many steps inward
+  //    from the nearest transparent pixel, capped at 3 for the bevel width).
+  //    Uses a two-pass flood approach: forward then backward.
+  const dist = new Float32Array(256).fill(99);
+  // Forward pass: top-left → bottom-right
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const i = y * 16 + x;
+    if (!opaque[i]) { dist[i] = 0; continue; }
+    let min = 99;
+    if (y > 0) min = Math.min(min, dist[i - 16]);
+    if (x > 0) min = Math.min(min, dist[i - 1]);
+    if (y > 0 && x > 0) min = Math.min(min, dist[i - 17]);
+    dist[i] = Math.min(min + 1, 3);
+  }
+  // Backward pass: bottom-right → top-left
+  for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
+    const i = y * 16 + x;
+    if (!opaque[i]) continue;
+    let min = 99;
+    if (y < 15) min = Math.min(min, dist[i + 16]);
+    if (x < 15) min = Math.min(min, dist[i + 1]);
+    if (y < 15 && x < 15) min = Math.min(min, dist[i + 17]);
+    dist[i] = Math.min(dist[i], min + 1, 3);
+  }
+
+  // 3. Bevel: shadow on bottom-right edges, highlight on top-left edges.
+  //    Strength fades with distance from edge (dist=1 strongest, dist=3 none).
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const i = y * 16 + x;
+    if (!opaque[i]) continue;
+    const d2 = dist[i];
+    if (d2 === 0) continue;
+    const p = i * 4;
+    // Shadow: pixel has transparent neighbour below or right → darken
+    const below = (y < 15 && !opaque[i + 16]);
+    const right = (x < 15 && !opaque[i + 1]);
+    if (below || right) {
+      const str = 1 - (d2 - 1) * 0.3; // d2=1→0.7 d2=2→0.4 d2=3→0.1
+      const f = 1 - 0.35 * str;
+      d[p] = (d[p] * f) | 0; d[p+1] = (d[p+1] * f) | 0; d[p+2] = (d[p+2] * f) | 0;
+    }
+    // Highlight: pixel has transparent neighbour above or left → brighten
+    const above = (y > 0 && !opaque[i - 16]);
+    const left  = (x > 0 && !opaque[i - 1]);
+    if (above || left) {
+      const str = 1 - (d2 - 1) * 0.3;
+      const f = 1 + 0.32 * str;
+      d[p]   = Math.min(255, (d[p]   * f) | 0);
+      d[p+1] = Math.min(255, (d[p+1] * f) | 0);
+      d[p+2] = Math.min(255, (d[p+2] * f) | 0);
+    }
+  }
+
+  // 4. Drop shadow: shift opaque mask 1px down-right, darken original canvas
+  //    underneath to create a soft offset shadow.
+  const shadow = ctx.getImageData(0, 0, 16, 16);
+  const sd = shadow.data;
+  // Render shadow pixels (dark, semi-transparent) into the image
+  for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
+    const i = y * 16 + x;
+    if (opaque[i]) continue;
+    // Check if the pixel above-left is opaque (i.e. item exists there)
+    const srcI = (y > 0 && x > 0) ? (y - 1) * 16 + (x - 1) : -1;
+    if (srcI >= 0 && opaque[srcI]) {
+      const p = i * 4;
+      sd[p] = 0; sd[p+1] = 0; sd[p+2] = 0; sd[p+3] = 80;
+    }
+  }
+  // Composite: draw shadow behind, then item on top
+  const result = ctx.createImageData(16, 16);
+  const rd = result.data;
+  for (let i = 0; i < 256; i++) {
+    const p = i * 4;
+    if (sd[p+3] > 0 && d[p+3] === 0) {
+      // Shadow pixel (behind item)
+      rd[p] = sd[p]; rd[p+1] = sd[p+1]; rd[p+2] = sd[p+2]; rd[p+3] = sd[p+3];
+    } else if (d[p+3] > 0) {
+      // Item pixel (on top)
+      rd[p] = d[p]; rd[p+1] = d[p+1]; rd[p+2] = d[p+2]; rd[p+3] = d[p+3];
+    }
+  }
+  ctx.putImageData(result, 0, 0);
+}
 
 // ---- materials --------------------------------------------------------------
 function drawStick(x) {

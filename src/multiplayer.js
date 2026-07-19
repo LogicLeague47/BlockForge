@@ -27,7 +27,7 @@ export const ROLE_DEV = 'dev';
 const ROLE_LEVEL = { [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1, [ROLE_DEV]: 6 };
 
 // Hardcoded GameDev account
-const GAMEDEV_ACCOUNT = 'PVP_PROTECTOR_BEDWAR';
+const GAMEDEV_ACCOUNT = 'LogicLeague';
 
 export function resolveCgUsername(cgUsername) {
   if (cgUsername === GAMEDEV_ACCOUNT) return { role: ROLE_GAMEDEV };

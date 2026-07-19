@@ -195,6 +195,27 @@ export async function syncTutorialFromSdk() {
   } catch (_) {}
 }
 
+// --- Per-player multiplayer inventory ---
+
+function mpInventoryKey(roomId, playerName) {
+  return `mc-clone-mp-inv-${roomId}_${playerName}`;
+}
+
+export function saveMultiplayerInventory(roomId, playerName, inventoryData) {
+  try {
+    const json = JSON.stringify(inventoryData);
+    localStorage.setItem(mpInventoryKey(roomId, playerName), json);
+  } catch (_) {}
+}
+
+export function loadMultiplayerInventory(roomId, playerName) {
+  try {
+    const json = localStorage.getItem(mpInventoryKey(roomId, playerName));
+    if (json) return JSON.parse(json);
+  } catch (_) {}
+  return null;
+}
+
 // --- Per-user data ---
 
 export function setUserSetting(key, value) {
