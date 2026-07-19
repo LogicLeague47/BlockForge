@@ -18,9 +18,13 @@ export class ViewModel {
     this.hand = new THREE.Group();
     this.camera.add(this.hand);
 
+    // Build the visible arm mesh (blocky Minecraft-style forearm + hand)
+    this._buildArmMesh();
+
     // Offhand group (mirrored on the left)
     this.offhandGroup = new THREE.Group();
     this.camera.add(this.offhandGroup);
+    this._buildOffhandArmMesh();
 
     this.scene.add(this.camera);
 
@@ -52,12 +56,82 @@ export class ViewModel {
     window.addEventListener('resize', this._onResize);
   }
 
+  _buildArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
+
+    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
+
+    this._armGroup = new THREE.Group();
+
+    // Forearm: 4×10×4 pixel box (Minecraft arm proportions)
+    const forearm = new THREE.Mesh(
+      new THREE.BoxGeometry(4 / 16, 10 / 16, 4 / 16),
+      [matDark, mat, mat, mat, mat, mat]
+    );
+    forearm.position.y = -5 / 16;
+    this._armGroup.add(forearm);
+
+    // Hand: slightly wider 4.5×3.5×4.5 pixel box at bottom
+    const hand = new THREE.Mesh(
+      new THREE.BoxGeometry(4.5 / 16, 3.5 / 16, 4.5 / 16),
+      [matDark, mat, mat, mat, mat, mat]
+    );
+    hand.position.y = -11.75 / 16;
+    this._armGroup.add(hand);
+
+    this.hand.add(this._armGroup);
+  }
+
+  _buildOffhandArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
+    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
+
+    this._ohArmGroup = new THREE.Group();
+
+    const forearm = new THREE.Mesh(
+      new THREE.BoxGeometry(4 / 16, 10 / 16, 4 / 16),
+      [matDark, mat, mat, mat, mat, mat]
+    );
+    forearm.position.y = -5 / 16;
+    this._ohArmGroup.add(forearm);
+
+    const hand = new THREE.Mesh(
+      new THREE.BoxGeometry(4.5 / 16, 3.5 / 16, 4.5 / 16),
+      [matDark, mat, mat, mat, mat, mat]
+    );
+    hand.position.y = -11.75 / 16;
+    this._ohArmGroup.add(hand);
+
+    this.offhandGroup.add(this._ohArmGroup);
+  }
+
   _resize() {
     this.camera.aspect = window.innerWidth / window.innerHeight;
     this.camera.updateProjectionMatrix();
   }
 
   setVisible(v) { this.visible = !!v; }
+
+  setSkinColor(skinColor, skinDark) {
+    const c = parseInt(skinColor?.replace('#', ''), 16) || 0xc0906a;
+    const d = parseInt(skinDark?.replace('#', ''), 16) || 0xa87850;
+    if (this._armGroup) {
+      this.hand.remove(this._armGroup);
+      this._disposeMesh(this._armGroup);
+    }
+    if (this._ohArmGroup) {
+      this.offhandGroup.remove(this._ohArmGroup);
+      this._disposeMesh(this._ohArmGroup);
+    }
+    this._buildArmMesh(c, d);
+    this._buildOffhandArmMesh(c, d);
+    if (this.heldMesh) {
+      this.hand.add(this.heldMesh);
+    }
+    if (this.offhandMesh) {
+      this.offhandGroup.add(this.offhandMesh);
+    }
+  }
 
   setHeld(itemId) {
     if (itemId === this.heldId) return;

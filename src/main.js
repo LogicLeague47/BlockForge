@@ -3120,6 +3120,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   cloudSystem = new CloudSystem(scene);
   initRain();
   playerModel = new PlayerModel(scene, getSelectedSkin(), atlasCanvas);
+  { const sk = getSelectedSkin(); viewmodel.setSkinColor(sk?.skin, sk?.skin2); }
 
   scene.fog.far = 16 * (renderDist + 2);
   scene.fog.near = 16 * 5;
@@ -5807,6 +5808,7 @@ function buildSkinPicker() {
       document.querySelectorAll('.skin-card').forEach(c => c.classList.remove('selected'));
       card.classList.add('selected');
       updateMenuPreviewSkin(preset);
+      viewmodel.setSkinColor(preset.skin, preset.skin2);
     });
     targetGrid.appendChild(card);
   });

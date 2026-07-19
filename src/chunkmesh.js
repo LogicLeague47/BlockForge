@@ -24,7 +24,7 @@ export class ChunkMeshManager {
       map: atlasTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.7,
+      opacity: 0.85,
       depthWrite: false,
       side: THREE.FrontSide,
       polygonOffset: true,

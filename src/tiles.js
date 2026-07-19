@@ -604,8 +604,8 @@ const PAINTERS = {
     }
   },
 
-  flower_red(ctx, x0, y0, rng) { flower(ctx, x0, y0, rng, '#d83838', '#3a7d2c'); },
-  flower_yellow(ctx, x0, y0, rng) { flower(ctx, x0, y0, rng, '#f0d020', '#3a7d2c'); },
+  flower_red(ctx, x0, y0, rng) { poppy(ctx, x0, y0, rng); },
+  flower_yellow(ctx, x0, y0, rng) { dandelion(ctx, x0, y0, rng); },
 
   bookshelf_top(ctx, x0, y0, rng) { planksBody(ctx, x0, y0, rng); },
 
@@ -1946,33 +1946,83 @@ function ore(ctx, x0, y0, rng, color) {
   }
 }
 
-// Decorative flower (transparent background; rendered as cross quads by the mesher).
-function flower(ctx, x0, y0, rng, petal, stem) {
+// Dandelion: round fluffy yellow head on a thin green stem.
+function dandelion(ctx, x0, y0, rng) {
   ctx.clearRect(x0, y0, TILE, TILE);
-  // Stem rising from the bottom.
-  ctx.fillStyle = stem;
-  ctx.fillRect(x0 + TILE / 2 - 1, y0 + TILE / 2, 2, TILE / 2 - 2);
-  // Leaves.
-  ctx.fillRect(x0 + TILE / 2 - 4, y0 + TILE / 2 + 5, 3, 1);
-  ctx.fillRect(x0 + TILE / 2 - 5, y0 + TILE / 2 + 6, 2, 1);
-  ctx.fillRect(x0 + TILE / 2 + 2, y0 + TILE / 2 + 9, 3, 1);
-  ctx.fillRect(x0 + TILE / 2 + 3, y0 + TILE / 2 + 10, 2, 1);
-  // 8-petal bloom ring.
-  const cx = x0 + TILE / 2, cy = y0 + TILE / 2 - 2;
-  ctx.fillStyle = petal;
-  for (let a = 0; a < 8; a++) {
-    const ang = (a / 8) * Math.PI * 2;
-    const px = cx + Math.round(Math.cos(ang) * 4);
-    const py = cy + Math.round(Math.sin(ang) * 4);
-    ctx.fillRect(px - 1, py - 1, 3, 3);
+  const cx = x0 + 16, cy = y0 + 16;
+  // Stem: thin green line from bottom to about 2/3 up
+  ctx.fillStyle = '#3a7d2c';
+  ctx.fillRect(cx - 1, cy - 2, 2, 18);
+  // Small leaf on left
+  ctx.fillRect(cx - 5, cy + 6, 4, 1);
+  ctx.fillRect(cx - 6, cy + 7, 3, 1);
+  // Small leaf on right
+  ctx.fillRect(cx + 2, cy + 2, 4, 1);
+  ctx.fillRect(cx + 3, cy + 3, 3, 1);
+  // Fluffy round head: draw a filled circle of yellow pixels
+  ctx.fillStyle = '#f0d020';
+  for (let dy = -7; dy <= 3; dy++) {
+    for (let dx = -6; dx <= 6; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 5.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
   }
-  // Fill centre gaps with petal colour.
-  ctx.fillRect(cx - 2, cy - 2, 5, 5);
-  // Yellow centre.
-  ctx.fillStyle = 'rgb(255,225,90)';
-  ctx.fillRect(cx - 1, cy - 1, 3, 3);
-  ctx.fillStyle = 'rgb(230,180,30)';
-  ctx.fillRect(cx, cy, 1, 1);
+  // Highlight: lighter yellow on top half
+  ctx.fillStyle = '#f8e848';
+  for (let dy = -7; dy <= -2; dy++) {
+    for (let dx = -5; dx <= 5; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 4.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
+  }
+  // Darker yellow accent on bottom half
+  ctx.fillStyle = '#c8a818';
+  for (let dy = 0; dy <= 3; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 4.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
+  }
+  // Very centre bright spot
+  ctx.fillStyle = '#fff8a0';
+  ctx.fillRect(cx - 1, cy - 13, 2, 2);
+}
+
+// Poppy: red petals with dark centre on a green stem.
+function poppy(ctx, x0, y0, rng) {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  const cx = x0 + 16, cy = y0 + 16;
+  // Stem
+  ctx.fillStyle = '#3a7d2c';
+  ctx.fillRect(cx - 1, cy - 2, 2, 18);
+  // Leaves
+  ctx.fillRect(cx - 5, cy + 5, 4, 1);
+  ctx.fillRect(cx - 6, cy + 6, 3, 1);
+  ctx.fillRect(cx + 2, cy + 1, 4, 1);
+  ctx.fillRect(cx + 3, cy + 2, 3, 1);
+  // 5 red petals arranged in a circle
+  const petalAngles = [0, 72, 144, 216, 288];
+  ctx.fillStyle = '#d83838';
+  for (const deg of petalAngles) {
+    const rad = (deg * Math.PI) / 180;
+    const px = Math.round(Math.cos(rad) * 4);
+    const py = Math.round(Math.sin(rad) * 4) - 4;
+    ctx.fillRect(cx + px - 1, cy + py - 1, 3, 3);
+  }
+  // Fill gaps
+  ctx.fillRect(cx - 2, cy - 6, 5, 5);
+  // Dark red inner shadow
+  ctx.fillStyle = '#a02020';
+  ctx.fillRect(cx - 1, cy - 5, 3, 3);
+  // Bright centre
+  ctx.fillStyle = '#201010';
+  ctx.fillRect(cx, cy - 4, 1, 1);
 }
 
 // --- atlas build -------------------------------------------------------------
