@@ -62,9 +62,7 @@ export class VoiceChat {
   async _enable(muted) {
     if (!this.localStream) {
       try {
-        console.log('[Voice] Requesting microphone...');
         this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        console.log('[Voice] Mic granted, tracks:', this.localStream.getAudioTracks().length);
       } catch (e) {
         console.error('[Voice] Microphone denied:', e.message);
         this.state = STATES.OFF;
@@ -74,9 +72,8 @@ export class VoiceChat {
       }
     }
     this.localStream.getAudioTracks().forEach(t => t.enabled = !muted);
-    if (this._registered) { console.log('[Voice] Already registered, skipping voice_join'); return; }
+    if (this._registered) return;
     this._registered = true;
-    console.log('[Voice] Sending voice_join for user:', this.username);
     this.network._send({ type: 'voice_join' });
   }
 
