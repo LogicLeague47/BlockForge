@@ -5620,21 +5620,12 @@ function loop() {
     saveCurrentWorld();
   }
 
-  // Send position to multiplayer server (only when changed, max ~20Hz)
+  // Send position to multiplayer server (30Hz)
   if (network.connected && network.roomName && player) {
     _mpSendTimer += dt;
-      if (_mpSendTimer >= 0.033) {
+    if (_mpSendTimer >= 0.033) {
       _mpSendTimer = 0;
-      const armorStr = player.inventory.armor.map(s => s ? s.item : null).join(',');
-      const moved = Math.abs(player.position.x - _lastMpPos.x) > 0.01 ||
-                    Math.abs(player.position.y - _lastMpPos.y) > 0.01 ||
-                    Math.abs(player.position.z - _lastMpPos.z) > 0.01;
-      const turned = Math.abs(player.yaw - _lastMpPos.yaw) > 0.02;
-      const stateChanged = player.crouching !== _lastMpPos.crouching || armorStr !== _lastMpPos.armor;
-      if (moved || turned || stateChanged) {
-        network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching, player.inventory.armor.map(s => s ? s.item : null));
-        _lastMpPos = { x: player.position.x, y: player.position.y, z: player.position.z, yaw: player.yaw, crouching: player.crouching, armor: armorStr };
-      }
+      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching, player.inventory.armor.map(s => s ? s.item : null));
     }
   }
 

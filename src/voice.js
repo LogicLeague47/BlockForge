@@ -62,7 +62,7 @@ export class VoiceChat {
   async _enable(muted) {
     if (!this.localStream) {
       try {
-        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        this.localStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
       } catch (e) {
         console.error('[Voice] Microphone denied:', e.message);
         this.state = STATES.OFF;
