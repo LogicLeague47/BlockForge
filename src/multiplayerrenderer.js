@@ -148,7 +148,7 @@ export class RemotePlayer {
     this.targetZ = z;
     if (yaw !== undefined) this.targetYaw = yaw;
     this.targetCrouching = !!crouching;
-    if (armor !== undefined) this.armor = armor;
+    if (armor !== null && armor !== undefined) this.armor = armor;
     // First authoritative position: snap instead of lerping from the
     // provisional spawn location, so the player doesn't slide in from afar.
     if (!this._placed) {
@@ -159,25 +159,36 @@ export class RemotePlayer {
   }
 
   update(dt) {
-    // Smooth interpolation toward target position
-    const lerp = Math.min(1, dt * 18);
-    this.x += (this.targetX - this.x) * lerp;
-    this.y += (this.targetY - this.y) * lerp;
-    this.z += (this.targetZ - this.z) * lerp;
+    // Adaptive interpolation: fast snap for large jumps (teleport), smooth for small moves
+    const dx = this.targetX - this.x;
+    const dy = this.targetY - this.y;
+    const dz = this.targetZ - this.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    let lerp;
+    if (dist > 4) {
+      // Large jump (>4 blocks): snap quickly to avoid rubber-banding
+      lerp = Math.min(1, dt * 24);
+    } else {
+      // Normal movement: smooth interpolation
+      lerp = Math.min(1, dt * 10);
+    }
+    this.x += dx * lerp;
+    this.y += dy * lerp;
+    this.z += dz * lerp;
 
     // Yaw interpolation
     let yawDiff = this.targetYaw - this.yaw;
     while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
     while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
-    this.yaw += yawDiff * lerp;
+    this.yaw += yawDiff * Math.min(1, dt * 12);
 
     // Crouch: lower model slightly
     const targetCrouchOffset = this.targetCrouching ? -0.25 : 0;
     this.crouchOffset = this.crouchOffset || 0;
     this.crouchOffset += (targetCrouchOffset - this.crouchOffset) * lerp;
 
-    // Update armour if changed
-    if (this.armor !== this._lastArmor) {
+    // Update armour if changed (ignore null from position packets)
+    if (armor !== null && armor !== undefined && this.armor !== this._lastArmor) {
       this._lastArmor = this.armor;
       try { this.model.setArmor(this.armor, ARMOR); } catch (_) {}
     }
