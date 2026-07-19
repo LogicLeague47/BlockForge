@@ -2413,6 +2413,13 @@ function setupNetworkHandlers() {
     if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, crouching, armor);
   };
 
+  network.onPlayerArmor = (name, armor) => {
+    if (mpRenderer) {
+      const rp = mpRenderer.remotePlayers.get(name);
+      if (rp) rp.armor = armor;
+    }
+  };
+
   network.onChat = (name, role, text) => {
     const safeText = filterProfanity(text);
     const safeName = filterProfanity(name);
@@ -5214,6 +5221,7 @@ function loop() {
       if (armorKey !== _lastLocalArmorKey) {
         _lastLocalArmorKey = armorKey;
         try { playerModel.setArmor(armorIds, ARMOR); } catch (_) {}
+        if (network.connected && network.roomName) network.sendArmor(armorKey || null);
       }
     }
   }
@@ -5625,7 +5633,7 @@ function loop() {
     _mpSendTimer += dt;
     if (_mpSendTimer >= 0.033) {
       _mpSendTimer = 0;
-      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching, player.inventory.armor.map(s => s ? s.item : null));
+      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
     }
   }
 

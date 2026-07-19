@@ -14,6 +14,7 @@ export class Network {
     this.onPlayerJoin = null;    // (name, role, skinIndex) => {}
     this.onPlayerLeave = null;   // (name) => {}
     this.onPlayerPosition = null; // (name, x, y, z, yaw, crouching) => {}
+    this.onPlayerArmor = null;    // (name, armor) => {}
     this.onChat = null;          // (name, role, text) => {}
     this.onRoomList = null;      // (rooms) => {}
     this.onError = null;         // (text) => {}
@@ -256,7 +257,7 @@ export class Network {
     }
   }
 
-  // Binary message decoder — 0x01 = player_position from server
+  // Binary message decoder — 0x01 = player_position, 0x03 = armor_sync
   _handleBinaryMessage(buf) {
     const view = new DataView(buf);
     const type = view.getUint8(0);
@@ -268,10 +269,15 @@ export class Network {
       const y = view.getFloat32(off); off += 4;
       const z = view.getFloat32(off); off += 4;
       const yaw = view.getFloat32(off); off += 4;
-      const crouching = view.getUint8(off) === 1; off += 1;
+      const crouching = view.getUint8(off) === 1;
+      if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+    } else if (type === 0x03) {
+      let off = 1;
+      const nameLen = view.getUint8(off); off += 1;
+      const name = new TextDecoder().decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
       const armorLen = view.getUint8(off); off += 1;
       const armor = armorLen > 0 ? new TextDecoder().decode(new Uint8Array(buf, off, armorLen)) : null;
-      if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, armor);
+      if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
     }
   }
 
@@ -325,13 +331,11 @@ export class Network {
     this._send({ type: 'list_rooms' });
   }
 
-  sendPosition(x, y, z, yaw, crouching, armor) {
+  sendPosition(x, y, z, yaw, crouching) {
     if (!this.ws || this.ws.readyState !== 1) return;
     const pname = this._lastJoinInfo?.playerName || '';
     const nameBytes = new TextEncoder().encode(pname);
-    const armorStr = armor ? (Array.isArray(armor) ? armor.join(',') : String(armor)) : '';
-    const armorBytes = new TextEncoder().encode(armorStr);
-    const buf = new ArrayBuffer(1 + 1 + nameBytes.length + 16 + 1 + 1 + armorBytes.length);
+    const buf = new ArrayBuffer(1 + 1 + nameBytes.length + 16 + 1);
     const view = new DataView(buf);
     let off = 0;
     view.setUint8(off, 0x02); off += 1;
@@ -341,14 +345,16 @@ export class Network {
     view.setFloat32(off, y); off += 4;
     view.setFloat32(off, z); off += 4;
     view.setFloat32(off, yaw); off += 4;
-    view.setUint8(off, crouching ? 1 : 0); off += 1;
-    view.setUint8(off, armorBytes.length); off += 1;
-    new Uint8Array(buf, off, armorBytes.length).set(armorBytes);
+    view.setUint8(off, crouching ? 1 : 0);
     this.ws.send(buf);
   }
 
   sendChat(text) {
     this._send({ type: 'chat', text });
+  }
+
+  sendArmor(armor) {
+    this._send({ type: 'armor_update', armor: armor || null });
   }
 
   sendCommand(text) {

@@ -474,10 +474,8 @@ wss.on('connection', (ws) => {
           const y = buf.readFloatBE(off); off += 4;
           const z = buf.readFloatBE(off); off += 4;
           const yaw = buf.readFloatBE(off); off += 4;
-          const crouching = buf.readUInt8(off) === 1; off += 1;
-          const armorLen = buf.readUInt8(off); off += 1;
-          const armor = armorLen > 0 ? buf.toString('utf8', off, off + armorLen) : null;
-          handlePosition(ws, { x, y, z, yaw, crouching, armor });
+          const crouching = buf.readUInt8(off) === 1;
+          handlePosition(ws, { x, y, z, yaw, crouching });
         }
       } catch (_) {}
       return;
@@ -496,6 +494,9 @@ wss.on('connection', (ws) => {
       case 'leave': handleLeave(ws); break;
       case 'list_rooms': handleListRooms(ws); break;
       case 'position': handlePosition(ws, msg); break;
+      case 'armor_update':
+        if (ws._playerData) ws._playerData.armor = msg.armor || null;
+        break;
       case 'player_damage': handlePlayerDamage(ws, msg); break;
       case 'chat': handleChat(ws, msg); break;
       case 'command': handleCommand(ws, msg); break;
@@ -855,11 +856,9 @@ function handlePosition(ws, msg) {
   if (pd._lastBroadcast && now - pd._lastBroadcast < 30) return;
   pd._lastBroadcast = now;
 
-  // Broadcast position as binary (fast path — ~25 bytes vs ~150 bytes JSON)
+  // Broadcast position as binary — proximity culled (skip players >64 blocks away)
   const nameBytes = Buffer.from(pd.name, 'utf8');
-  const armorStr = pd.armor || '';
-  const armorBytes = Buffer.from(armorStr, 'utf8');
-  const binBuf = Buffer.alloc(1 + 1 + nameBytes.length + 16 + 1 + 1 + armorBytes.length);
+  const binBuf = Buffer.alloc(1 + 1 + nameBytes.length + 16 + 1);
   binBuf.writeUInt8(0x01, 0);
   binBuf.writeUInt8(nameBytes.length, 1);
   nameBytes.copy(binBuf, 2);
@@ -868,10 +867,13 @@ function handlePosition(ws, msg) {
   binBuf.writeFloatBE(pd.y, off); off += 4;
   binBuf.writeFloatBE(pd.z, off); off += 4;
   binBuf.writeFloatBE(pd.yaw, off); off += 4;
-  binBuf.writeUInt8(pd.crouching ? 1 : 0, off); off += 1;
-  binBuf.writeUInt8(armorBytes.length, off); off += 1;
-  armorBytes.copy(binBuf, off);
-  broadcastBinary(room, binBuf, ws);
+  binBuf.writeUInt8(pd.crouching ? 1 : 0); off += 1;
+  for (const [targetWs, tp] of room.players) {
+    if (targetWs === ws) continue;
+    const dx = pd.x - tp.x, dz = pd.z - tp.z;
+    if (dx * dx + dz * dz > 4096) continue; // >64 blocks
+    safeSend(targetWs, binBuf);
+  }
 }
 
 function handlePlayerDamage(ws, msg) {
@@ -1552,3 +1554,28 @@ const IS_LAN = process.argv.includes('--lan');
 
 // Save every 30 seconds
 setInterval(saveRooms, 30000);
+
+// Armor sync every 2 seconds (separate from position packets)
+setInterval(() => {
+  for (const [, room] of rooms) {
+    for (const [ws, pd] of room.players) {
+      if (!pd.armor) continue;
+      const nameBytes = Buffer.from(pd.name, 'utf8');
+      const armorStr = pd.armor || '';
+      const armorBytes = Buffer.from(armorStr, 'utf8');
+      const binBuf = Buffer.alloc(3 + nameBytes.length + armorBytes.length);
+      binBuf.writeUInt8(0x03, 0); // type: armor sync
+      binBuf.writeUInt8(nameBytes.length, 1);
+      nameBytes.copy(binBuf, 2);
+      let off = 2 + nameBytes.length;
+      binBuf.writeUInt8(armorBytes.length, off); off += 1;
+      armorBytes.copy(binBuf, off);
+      for (const [targetWs, tp] of room.players) {
+        if (targetWs === ws) continue;
+        const dx = pd.x - tp.x, dz = pd.z - tp.z;
+        if (dx * dx + dz * dz > 4096) continue;
+        safeSend(targetWs, binBuf);
+      }
+    }
+  }
+}, 2000);
