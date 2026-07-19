@@ -62,7 +62,9 @@ export class VoiceChat {
   async _enable(muted) {
     if (!this.localStream) {
       try {
+        console.log('[Voice] Requesting microphone...');
         this.localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('[Voice] Mic granted, tracks:', this.localStream.getAudioTracks().length);
       } catch (e) {
         console.error('[Voice] Microphone denied:', e.message);
         this.state = STATES.OFF;
@@ -72,8 +74,9 @@ export class VoiceChat {
       }
     }
     this.localStream.getAudioTracks().forEach(t => t.enabled = !muted);
-    if (this._registered) return;
+    if (this._registered) { console.log('[Voice] Already registered, skipping voice_join'); return; }
     this._registered = true;
+    console.log('[Voice] Sending voice_join for user:', this.username);
     this.network._send({ type: 'voice_join' });
   }
 
@@ -195,12 +198,19 @@ export class VoiceChat {
     const pc = this._getOrCreatePC(username);
     try {
       await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp }));
+      // Drain any ICE candidates that arrived before the offer
+      const buf = this._iceBuffer.get(username);
+      if (buf) {
+        for (const c of buf) {
+          try { await pc.addIceCandidate(new RTCIceCandidate(c)); } catch (_) {}
+        }
+        this._iceBuffer.delete(username);
+      }
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       this.network._send({ type: 'voice_answer', target: username, sdp: answer.sdp });
     } catch (e) {
       console.error('[Voice] handleOffer failed:', e);
-      // If glare occurred (both sides sent offer), tear down and let the other side retry
       this._removePeer(username);
     }
   }
@@ -224,14 +234,12 @@ export class VoiceChat {
 
   async handleIce(username, candidate) {
     const pc = this.peers.get(username);
-    if (!pc) {
+    if (!pc || !pc.remoteDescription || !pc.remoteDescription.type) {
       if (!this._iceBuffer.has(username)) this._iceBuffer.set(username, []);
       this._iceBuffer.get(username).push(candidate);
       return;
     }
-    if (pc.remoteDescription && pc.remoteDescription.type) {
-      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
-    }
+    try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (_) {}
   }
 
   _removePeer(username) {
