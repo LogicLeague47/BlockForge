@@ -204,94 +204,95 @@ function pxa(x, col, gx, gy, w, h) { // alpha helper
 }
 const hl = (c) => ({ c, a: 0.3 });   // top-edge specular tint
 
-// Add 3D depth to item icons — drop-shadow + bevel gradient so they match block
-// atlas shading.  The bevel darkens bottom-right and brightens top-left based on
-// distance-to-edge, creating a smooth rounded/pillow look at 16×16.
+// 3D shading for non-block items: directional light from top-left creates
+// clear highlight/shadow faces + drop-shadow.  This is what makes vanilla
+// Minecraft items look like they have volume instead of being flat sprites.
 function _add3DShading(ctx) {
   const imgData = ctx.getImageData(0, 0, 16, 16);
   const d = imgData.data;
-  // 1. Build opacity mask
-  const opaque = new Uint8Array(16 * 16);
-  for (let i = 0; i < 256; i++) { if (d[i * 4 + 3] > 0) opaque[i] = 1; }
+  const opaque = new Uint8Array(256);
+  for (let i = 0; i < 256; i++) opaque[i] = d[i * 4 + 3] > 0 ? 1 : 0;
 
-  // 2. Compute distance-to-edge for each opaque pixel (how many steps inward
-  //    from the nearest transparent pixel, capped at 3 for the bevel width).
-  //    Uses a two-pass flood approach: forward then backward.
+  // Compute distance-to-edge (flood fill, capped at 4)
   const dist = new Float32Array(256).fill(99);
-  // Forward pass: top-left → bottom-right
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
     const i = y * 16 + x;
     if (!opaque[i]) { dist[i] = 0; continue; }
-    let min = 99;
-    if (y > 0) min = Math.min(min, dist[i - 16]);
-    if (x > 0) min = Math.min(min, dist[i - 1]);
-    if (y > 0 && x > 0) min = Math.min(min, dist[i - 17]);
-    dist[i] = Math.min(min + 1, 3);
+    let m = 99;
+    if (y > 0) m = Math.min(m, dist[i - 16]);
+    if (x > 0) m = Math.min(m, dist[i - 1]);
+    if (y > 0 && x > 0) m = Math.min(m, dist[i - 17]);
+    dist[i] = Math.min(m + 1, 4);
   }
-  // Backward pass: bottom-right → top-left
   for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
     const i = y * 16 + x;
     if (!opaque[i]) continue;
-    let min = 99;
-    if (y < 15) min = Math.min(min, dist[i + 16]);
-    if (x < 15) min = Math.min(min, dist[i + 1]);
-    if (y < 15 && x < 15) min = Math.min(min, dist[i + 17]);
-    dist[i] = Math.min(dist[i], min + 1, 3);
+    let m = 99;
+    if (y < 15) m = Math.min(m, dist[i + 16]);
+    if (x < 15) m = Math.min(m, dist[i + 1]);
+    if (y < 15 && x < 15) m = Math.min(m, dist[i + 17]);
+    dist[i] = Math.min(dist[i], m + 1, 4);
   }
 
-  // 3. Bevel: shadow on bottom-right edges, highlight on top-left edges.
-  //    Strength fades with distance from edge (dist=1 strongest, dist=3 none).
+  // Pass 1: Top-left highlight + bottom-right shadow (directional bevel)
   for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
     const i = y * 16 + x;
-    if (!opaque[i]) continue;
-    const d2 = dist[i];
-    if (d2 === 0) continue;
+    if (!opaque[i] || dist[i] === 0) continue;
     const p = i * 4;
-    // Shadow: pixel has transparent neighbour below or right → darken
-    const below = (y < 15 && !opaque[i + 16]);
-    const right = (x < 15 && !opaque[i + 1]);
-    if (below || right) {
-      const str = 1 - (d2 - 1) * 0.3; // d2=1→0.7 d2=2→0.4 d2=3→0.1
-      const f = 1 - 0.35 * str;
+    const d2 = Math.min(dist[i], 3);
+    const str = 1 - (d2 - 1) * 0.28;
+    // Shadow: face downward + rightward → darken bottom-right edges
+    const hasBelow = y < 15 && !opaque[i + 16];
+    const hasRight = x < 15 && !opaque[i + 1];
+    if (hasBelow || hasRight) {
+      const f = 1 - 0.42 * str;
       d[p] = (d[p] * f) | 0; d[p+1] = (d[p+1] * f) | 0; d[p+2] = (d[p+2] * f) | 0;
     }
-    // Highlight: pixel has transparent neighbour above or left → brighten
-    const above = (y > 0 && !opaque[i - 16]);
-    const left  = (x > 0 && !opaque[i - 1]);
-    if (above || left) {
-      const str = 1 - (d2 - 1) * 0.3;
-      const f = 1 + 0.32 * str;
+    // Highlight: face upward + leftward → brighten top-left edges
+    const hasAbove = y > 0 && !opaque[i - 16];
+    const hasLeft  = x > 0 && !opaque[i - 1];
+    if (hasAbove || hasLeft) {
+      const f = 1 + 0.38 * str;
       d[p]   = Math.min(255, (d[p]   * f) | 0);
       d[p+1] = Math.min(255, (d[p+1] * f) | 0);
       d[p+2] = Math.min(255, (d[p+2] * f) | 0);
     }
   }
 
-  // 4. Drop shadow: shift opaque mask 1px down-right, darken original canvas
-  //    underneath to create a soft offset shadow.
-  const shadow = ctx.getImageData(0, 0, 16, 16);
-  const sd = shadow.data;
-  // Render shadow pixels (dark, semi-transparent) into the image
+  // Pass 2: Inner gradient — subtle overall top-left→bottom-right darkening
+  // to make items feel lit from a single light source
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    const i = y * 16 + x;
+    if (!opaque[i]) continue;
+    const p = i * 4;
+    // Normalised position (-1..1 range)
+    const nx = (x - 7.5) / 7.5;
+    const ny = (y - 7.5) / 7.5;
+    // Light from top-left: pixels closer to top-left get brighter, bottom-right darker
+    const light = (-nx - ny) * 0.08;
+    d[p]   = Math.min(255, Math.max(0, (d[p]   * (1 + light)) | 0));
+    d[p+1] = Math.min(255, Math.max(0, (d[p+1] * (1 + light)) | 0));
+    d[p+2] = Math.min(255, Math.max(0, (d[p+2] * (1 + light)) | 0));
+  }
+
+  // Pass 3: Drop shadow — 1px offset down-right, dark semi-transparent
+  const shadow = new Uint8Array(256 * 4);
   for (let y = 15; y >= 0; y--) for (let x = 15; x >= 0; x--) {
     const i = y * 16 + x;
     if (opaque[i]) continue;
-    // Check if the pixel above-left is opaque (i.e. item exists there)
-    const srcI = (y > 0 && x > 0) ? (y - 1) * 16 + (x - 1) : -1;
-    if (srcI >= 0 && opaque[srcI]) {
-      const p = i * 4;
-      sd[p] = 0; sd[p+1] = 0; sd[p+2] = 0; sd[p+3] = 80;
+    const si = (y > 0 && x > 0) ? (y - 1) * 16 + (x - 1) : -1;
+    if (si >= 0 && opaque[si]) {
+      shadow[i * 4 + 3] = 90; // alpha
     }
   }
-  // Composite: draw shadow behind, then item on top
+  // Composite: shadow behind item
   const result = ctx.createImageData(16, 16);
   const rd = result.data;
   for (let i = 0; i < 256; i++) {
     const p = i * 4;
-    if (sd[p+3] > 0 && d[p+3] === 0) {
-      // Shadow pixel (behind item)
-      rd[p] = sd[p]; rd[p+1] = sd[p+1]; rd[p+2] = sd[p+2]; rd[p+3] = sd[p+3];
-    } else if (d[p+3] > 0) {
-      // Item pixel (on top)
+    if (shadow[p+3] > 0 && d[p+3] === 0) {
+      rd[p] = 0; rd[p+1] = 0; rd[p+2] = 0; rd[p+3] = shadow[p+3];
+    } else {
       rd[p] = d[p]; rd[p+1] = d[p+1]; rd[p+2] = d[p+2]; rd[p+3] = d[p+3];
     }
   }
