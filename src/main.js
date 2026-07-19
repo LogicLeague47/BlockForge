@@ -5623,7 +5623,7 @@ function loop() {
   // Send position to multiplayer server (only when changed, max ~20Hz)
   if (network.connected && network.roomName && player) {
     _mpSendTimer += dt;
-    if (_mpSendTimer >= 0.05) {
+      if (_mpSendTimer >= 0.033) {
       _mpSendTimer = 0;
       const armorStr = player.inventory.armor.map(s => s ? s.item : null).join(',');
       const moved = Math.abs(player.position.x - _lastMpPos.x) > 0.01 ||

@@ -825,7 +825,7 @@ function handlePosition(ws, msg) {
 
   // Rate-limit broadcast: max 25Hz per player (server side)
   const now = Date.now();
-  if (pd._lastBroadcast && now - pd._lastBroadcast < 40) return;
+  if (pd._lastBroadcast && now - pd._lastBroadcast < 30) return;
   pd._lastBroadcast = now;
 
   broadcast(room, { type: 'player_position', name: pd.name, x: pd.x, y: pd.y, z: pd.z, yaw: pd.yaw, crouching: pd.crouching, armor: pd.armor }, ws);

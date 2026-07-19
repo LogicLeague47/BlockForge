@@ -160,7 +160,7 @@ export class RemotePlayer {
 
   update(dt) {
     // Smooth interpolation toward target position
-    const lerp = Math.min(1, dt * 8);
+    const lerp = Math.min(1, dt * 18);
     this.x += (this.targetX - this.x) * lerp;
     this.y += (this.targetY - this.y) * lerp;
     this.z += (this.targetZ - this.z) * lerp;
