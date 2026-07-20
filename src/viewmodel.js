@@ -304,21 +304,15 @@ export class ViewModel {
     return wrap;
   }
 
-  // Food / materials / other items (id 256-511): held as a 3D cube
+  // Food / materials / other items (id 256-511): flat sprite like Minecraft
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    tex.generateMipmaps = false;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
+    const mesh = this._planeFromCanvas(canvas, 0.35, true);
+    mesh.material.depthWrite = false;
     const wrap = new THREE.Group();
-    // 3D cube with item texture on all faces
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), [mat, mat, mat, mat, mat, mat]);
-    mesh.rotation.set(-0.18, -0.55, 0.05);
     wrap.add(mesh);
-    wrap.position.set(0, -0.08, 0);
+    wrap.rotation.set(-0.45, 0.35, 0.15);
+    wrap.position.set(0, -0.05, 0);
     return wrap;
   }
 

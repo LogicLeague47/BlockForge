@@ -432,19 +432,20 @@ export class PlayerModel {
         shovelHead.position.y = px(5);
         wrap.add(shovelHead);
       } else {
-        // trident / other: 3D item cube
+        // trident / other: flat sprite
         const canvas = this._getItemCanvas(itemId);
         const tex = this._canvasTex(canvas);
-        const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), [mat, mat, mat, mat, mat, mat]);
+        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
         wrap.add(mesh);
       }
     } else {
-      // Non-block, non-tool items: 3D cube with item texture on all faces
+      // Non-block, non-tool items: flat sprite like Minecraft
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
-      const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), [mat, mat, mat, mat, mat, mat]);
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
+      mesh.rotation.set(-0.45, 0.35, 0.15);
       wrap.add(mesh);
     }
 
