@@ -387,9 +387,9 @@ export class ViewModel {
     if (swingT > 0) {
       const e = swingT;
       const arc = Math.sin(e * Math.PI);
-      rx += arc * 1.1;
-      py += arc * 0.18;
-      ry -= arc * 0.25;
+      rx -= arc * 1.1;
+      py += arc * 0.25;
+      ry -= arc * 0.3;
     }
 
     // Continuous mining "dig" wobble while breaking a block

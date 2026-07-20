@@ -449,8 +449,8 @@ export class PlayerModel {
       wrap.add(mesh);
     }
 
-    // Position at the bottom of the arm (the hand), pushed forward
-    wrap.position.set(0, -px(ARM.h - 1), px(3));
+    // Position at the bottom of the arm (the hand), pushed forward (-Z = character front)
+    wrap.position.set(0, -px(ARM.h - 1), -px(3));
     this._heldMesh = wrap;
     this.rightArm.add(wrap);
   }
