@@ -6,3 +6,6 @@ dist/
 __MACOSX/
 friends.json
 .idea/
+noip.conf
+.launch.err
+.launch.log
