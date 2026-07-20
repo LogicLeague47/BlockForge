@@ -1,19 +1,19 @@
-// Mobile touch controls — MultiCraft / Minecraft-Bedrock-style.
+// Mobile touch controls — Bedrock / MultiCraft-style.
 //
-//   Left side:   large virtual joystick for movement (WASD)
-//   Right side:  drag to look; tap/hold to break or attack (no button needed)
-//   Buttons:     Jump, Place, Inventory, Chat, Menu
-//   Bottom:      hotbar (already works via click events)
+//   Left side:   virtual joystick for movement (analog → WASD)
+//   Right side:  drag to look; tap a block to break it; tap a mob to attack
+//   Toggle (⚙):  reveals the action panel (Jump, Place, Sprint, Crouch,
+//                Inventory, Chat, Menu, Drop, Swap, Perspective, Command, Exit)
 //
 // Public API:
 //   const mobile = initMobileControls(player, input, callbacks)
 //   mobile.isMobile        — true if touch device
 //   mobile.update(dt)      — call each frame to update joystick state
 
-const DEAD_ZONE = 0.18;
-const JOYSTICK_RADIUS = 64;        // bigger joystick throw
-const LOOK_MOVE_THRESHOLD = 8;     // px of movement before a touch counts as "looking"
-const HOLD_BREAK_TIME = 180;       // ms held (mostly still) before continuous mining starts
+const DEAD_ZONE = 0.15;
+const LOOK_SENS = 1.0;            // multiplier on player.applyMouse sensitivity
+const LOOK_MOVE_THRESHOLD = 8;    // px of movement before a touch counts as "looking"
+const HOLD_BREAK_TIME = 180;      // ms held (mostly still) before continuous mining starts
 
 export function initMobileControls(playerRef, input, callbacks) {
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
@@ -32,9 +32,8 @@ export function initMobileControls(playerRef, input, callbacks) {
     _camStartTime: 0,
     _camMoved: false,
     _breaking: false,
+    _brokeWhileHolding: false,
     _holdTimer: null,
-    attackHeld: false,
-    jumpHeld: false,
     sprintOn: false,
     crouchOn: false,
   };
@@ -50,31 +49,29 @@ export function initMobileControls(playerRef, input, callbacks) {
   }
 
   // --- Build DOM ---
+  const onCG = !!(window.CrazyGames && window.CrazyGames.SDK) || /crazygames/i.test(location.hostname);
+  const showVoice = !onCG;
   const root = document.createElement('div');
   root.id = 'mobile-controls';
   root.innerHTML = `
     <div class="mc-joystick-zone">
-      <div class="mc-joystick-base">
-        <div class="mc-joystick-knob"></div>
-      </div>
+      <div class="mc-joystick-base"><div class="mc-joystick-knob"></div></div>
     </div>
     <div class="mc-camera-zone"></div>
-    <div class="mc-top-buttons">
-      <button class="mc-tbtn mc-btn-inv" data-action="inventory">&#127890;</button>
-      <button class="mc-tbtn mc-btn-menu" data-action="menu">&#9208;</button>
-      <button class="mc-tbtn mc-btn-chat" data-action="chat">&#128172;</button>
-    </div>
-    <div class="mc-buttons">
+    <button class="mc-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
+    <div class="mc-action-panel">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
-      <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
+      <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
       <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
-    </div>
-    <div class="mc-extra-buttons">
+      <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
+      <button class="mc-btn mc-btn-inv" data-action="inventory">&#127890;</button>
+      <button class="mc-btn mc-btn-chat" data-action="chat">&#128172;</button>
+      <button class="mc-btn mc-btn-menu" data-action="menu">&#9208;</button>
       <button class="mc-btn-sm mc-btn-drop" data-action="drop">&#10006;</button>
       <button class="mc-btn-sm mc-btn-swap" data-action="swapHands">&#8646;</button>
       <button class="mc-btn-sm mc-btn-perspective" data-action="perspective">&#128065;</button>
-      <button class="mc-btn-sm mc-btn-voice" data-action="voice">&#127908;</button>
       <button class="mc-btn-sm mc-btn-cmd" data-action="command">/</button>
+      ${showVoice ? '<button class="mc-btn-sm mc-btn-voice" data-action="voice">&#127908;</button>' : ''}
       <button class="mc-btn-sm mc-btn-exit" data-action="exit">&#128682;</button>
     </div>
   `;
@@ -84,23 +81,28 @@ export function initMobileControls(playerRef, input, callbacks) {
   const joystickKnob = root.querySelector('.mc-joystick-knob');
   const cameraZone = root.querySelector('.mc-camera-zone');
 
-  // --- Joystick ---
+  // --- Joystick (analog, full travel) ---
+  function joystickMax() {
+    const br = joystickBase.getBoundingClientRect();
+    const kr = joystickKnob.getBoundingClientRect();
+    return Math.max(1, br.width / 2 - kr.width / 2);
+  }
+
   function handleJoystickMove(cx, cy) {
     const rect = joystickBase.getBoundingClientRect();
     const bx = rect.left + rect.width / 2;
     const by = rect.top + rect.height / 2;
     let dx = cx - bx;
     let dy = cy - by;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist > JOYSTICK_RADIUS) {
-      dx = dx / dist * JOYSTICK_RADIUS;
-      dy = dy / dist * JOYSTICK_RADIUS;
+    const max = joystickMax();
+    const dist = Math.hypot(dx, dy);
+    if (dist > max) {
+      dx = dx / dist * max;
+      dy = dy / dist * max;
     }
     joystickKnob.style.transform = `translate(${dx}px, ${dy}px)`;
-    const nx = dx / JOYSTICK_RADIUS;
-    const ny = dy / JOYSTICK_RADIUS;
-    state.joystickDx = Math.abs(nx) > DEAD_ZONE ? nx : 0;
-    state.joystickDy = Math.abs(ny) > DEAD_ZONE ? ny : 0;
+    state.joystickDx = dx / max;
+    state.joystickDy = dy / max;
   }
 
   function resetJoystick() {
@@ -111,8 +113,6 @@ export function initMobileControls(playerRef, input, callbacks) {
     state._joystickTouchId = null;
   }
 
-  // The joystick zone grabs any touch that starts within it (not just on the base)
-  // so it feels forgiving.
   const joystickZone = root.querySelector('.mc-joystick-zone');
   joystickZone.addEventListener('touchstart', (e) => {
     e.stopPropagation();
@@ -126,7 +126,7 @@ export function initMobileControls(playerRef, input, callbacks) {
   function startBreak() {
     if (state._breaking) return;
     state._breaking = true;
-    state._brokeWhileHolding = true; // so the release doesn't also place a block
+    state._brokeWhileHolding = true; // so the release doesn't also break/attack
     input.mouseLeftHeld = true; // main loop breaks the targeted block
   }
   function stopBreak() {
@@ -145,7 +145,8 @@ export function initMobileControls(playerRef, input, callbacks) {
     state._camStartY = t.clientY;
     state._camStartTime = Date.now();
     state._camMoved = false;
-    // If the finger stays put, begin mining after a short hold.
+    // Remember which block the finger is on, for hold-to-break.
+    if (callbacks.onAim) callbacks.onAim(t.clientX, t.clientY);
     if (state._holdTimer) clearTimeout(state._holdTimer);
     state._holdTimer = setTimeout(() => {
       if (state._cameraActive && !state._camMoved) startBreak();
@@ -154,6 +155,7 @@ export function initMobileControls(playerRef, input, callbacks) {
 
   // --- Global touch move ---
   document.addEventListener('touchmove', (e) => {
+    const active = state._joystickActive || state._cameraActive;
     for (const t of e.changedTouches) {
       if (state._joystickActive && t.identifier === state._joystickTouchId) {
         handleJoystickMove(t.clientX, t.clientY);
@@ -170,21 +172,22 @@ export function initMobileControls(playerRef, input, callbacks) {
           if (state._holdTimer) { clearTimeout(state._holdTimer); state._holdTimer = null; }
           if (state._breaking) stopBreak();
         }
-        if (playerRef && playerRef.applyMouse) playerRef.applyMouse(dx * 2, dy * 2);
+        if (playerRef && playerRef.applyMouse) playerRef.applyMouse(dx * LOOK_SENS, dy * LOOK_SENS);
       }
     }
-  }, { passive: true });
+    if (active) e.preventDefault();
+  }, { passive: false });
 
   // --- Global touch end ---
   function endCameraTouch() {
     const heldMs = Date.now() - state._camStartTime;
     if (state._holdTimer) { clearTimeout(state._holdTimer); state._holdTimer = null; }
-    // A quick, still tap:
-    //   - if it hits an enemy  → attack
-    //   - otherwise            → place a block / interact
+    if (callbacks.onAimEnd) callbacks.onAimEnd();
+    // A quick, still tap: break the tapped block (or attack a mob).
     if (!state._camMoved && heldMs < HOLD_BREAK_TIME && !state._brokeWhileHolding) {
-      const hitEnemy = callbacks.onTapTarget ? callbacks.onTapTarget() : false;
-      if (!hitEnemy && callbacks.onPlace) callbacks.onPlace();
+      const x = state._camStartX, y = state._camStartY;
+      const attacked = callbacks.onAttack ? callbacks.onAttack(x, y) : false;
+      if (!attacked && callbacks.onBreakTap) callbacks.onBreakTap(x, y);
     }
     if (state._breaking) stopBreak();
     state._brokeWhileHolding = false;
@@ -207,13 +210,16 @@ export function initMobileControls(playerRef, input, callbacks) {
     }
   }, { passive: true });
 
-  // --- Action buttons ---
+  // --- Action buttons (toggle reveals the panel) ---
   function fireButton(action, down, btnEl) {
+    if (action === 'toggle') {
+      root.classList.toggle('mc-open');
+      return;
+    }
     if (action === 'jump') {
       state.jumpHeld = down;
       input.keys['Space'] = down;
     } else if (action === 'sprint') {
-      // Toggle sprint (like Multicraft): tap on/off.
       if (down) {
         state.sprintOn = !state.sprintOn;
         input.keys['ShiftLeft'] = state.sprintOn;
@@ -255,16 +261,20 @@ export function initMobileControls(playerRef, input, callbacks) {
     btn.addEventListener('touchcancel', (e) => { e.stopPropagation(); fireButton(action, false, btn); }, { passive: true });
   });
 
-  // --- Update: map joystick to WASD keys ---
+  // --- Update: map joystick to analog movement ---
   state.update = function () {
     const dx = state.joystickDx;
     const dy = state.joystickDy;
-    input.keys['KeyW'] = dy < -DEAD_ZONE;
-    input.keys['KeyS'] = dy > DEAD_ZONE;
-    input.keys['KeyA'] = dx < -DEAD_ZONE;
-    input.keys['KeyD'] = dx > DEAD_ZONE;
-    // Push the stick to its edge to auto-sprint (Bedrock-style) — no button hold.
-    const mag = Math.hypot(dx, dy);
+    const ax = Math.abs(dx) < DEAD_ZONE ? 0 : dx;
+    const az = Math.abs(dy) < DEAD_ZONE ? 0 : -dy; // up = forward
+    input.analogActive = true;
+    input.analogX = ax;
+    input.analogZ = az;
+    input.keys['KeyW'] = az > 0.05;
+    input.keys['KeyS'] = az < -0.05;
+    input.keys['KeyA'] = ax < -0.05;
+    input.keys['KeyD'] = ax > 0.05;
+    const mag = Math.hypot(ax, az);
     input.keys['ShiftLeft'] = state.sprintOn || mag > 0.9;
   };
 

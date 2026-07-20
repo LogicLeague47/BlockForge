@@ -182,7 +182,7 @@
         position: fixed; left: 50%; bottom: 12px;
         transform: translateX(-50%);
         display: none; gap: 2px;
-        padding: 3px 4px; z-index: 10;
+        padding: 3px 4px; z-index: 30;
         background: rgba(0,0,0,0.55);
         border: 3px solid rgba(50,50,50,0.85);
         border-top-color: rgba(80,80,80,0.9);
@@ -1721,6 +1721,7 @@
         position: absolute; left: 0; bottom: 0;
         width: 45%; height: 55%;
         pointer-events: auto;
+        z-index: 2;
         display: flex; align-items: center; justify-content: center;
       }
       .mc-joystick-base {
@@ -1739,11 +1740,36 @@
         transition: transform 0.05s ease-out;
       }
 
-      /* Camera / break zone — right 60% of screen (upper portion) */
+      /* Camera / break zone — full screen (look + tap-to-break) */
       .mc-camera-zone {
-        position: absolute; right: 0; top: 0;
-        width: 60%; height: 62%;
+        position: absolute; inset: 0;
         pointer-events: auto;
+        z-index: 1;
+      }
+
+      /* Collapsible action panel — one toggle button reveals all actions */
+      .mc-toggle {
+        position: absolute; right: 12px; top: 12px;
+        width: 50px; height: 50px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.35);
+        background: rgba(0,0,0,0.45); color: #fff; font-size: 22px;
+        pointer-events: auto; z-index: 3;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      }
+      .mc-toggle:active { background: rgba(255,255,255,0.3); }
+
+      .mc-action-panel {
+        position: absolute; right: 12px; bottom: 80px;
+        display: none;
+        grid-template-columns: repeat(2, 54px);
+        gap: 8px;
+        pointer-events: auto; z-index: 3;
+      }
+      #mobile-controls.mc-open .mc-action-panel { display: grid; }
+      .mc-action-panel .mc-btn,
+      .mc-action-panel .mc-btn-sm {
+        width: 54px; height: 54px; font-size: 22px; border-radius: 12px;
       }
 
       /* Top buttons — menu / chat / inventory */

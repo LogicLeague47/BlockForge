@@ -367,11 +367,23 @@ export class Player {
     const right = _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
 
     const move = _move.set(0, 0, 0);
-    if (input.keys[kb.forward]) move.add(forward);
-    if (input.keys[kb.back]) move.sub(forward);
-    if (input.keys[kb.right]) move.add(right);
-    if (input.keys[kb.left]) move.sub(right);
-    if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed);
+    if (input.analogActive) {
+      // Mobile joystick: analog magnitude + direction relative to yaw.
+      const ax = input.analogX || 0;
+      const az = input.analogZ || 0;
+      const m = Math.min(1, Math.hypot(ax, az));
+      if (m > 0) {
+        move.set(right.x * ax + forward.x * az, 0, right.z * ax + forward.z * az);
+        move.x *= speed;
+        move.z *= speed;
+      }
+    } else {
+      if (input.keys[kb.forward]) move.add(forward);
+      if (input.keys[kb.back]) move.sub(forward);
+      if (input.keys[kb.right]) move.add(right);
+      if (input.keys[kb.left]) move.sub(right);
+      if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed);
+    }
 
     this.velocity.x = move.x;
     this.velocity.z = move.z;

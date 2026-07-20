@@ -58,7 +58,7 @@ const MP_SERVER_URL = _serverParam
   // On the CrazyGames build (IS_CG_BUILD is injected at build time and
   // is reliable; the SDK script itself loads async so a runtime check
   // alone would race module init and misroute to wss://crazygames.com).
-  : (IS_CG_BUILD || (window.CrazyGames && window.CrazyGames.SDK))
+  : (IS_CG_BUILD || (window.CrazyGames && window.CrazyGames.SDK) || window.Capacitor)
     ? BACKEND_URL
     : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
       ? 'ws://localhost:3000'
@@ -741,6 +741,7 @@ const input = { keys: {}, mouseLeftHeld: false };
 let pointerLocked = false;
 let _relocking = false; // true while trying to re-lock after closing a UI panel
 let breakingTarget = null;
+let mobileAimPoint = null; // {x, y} client coords of the active mobile touch, for tap-targeting
 let breakingElapsed = 0;
 let lastBreakSound = 0;
 let placeAnimTimer = 0;
@@ -1338,6 +1339,20 @@ function currentTarget() {
   _rayOrigin.copy(camera.position);
   _cachedTarget = raycastVoxel(world, _rayOrigin, _rayDir, REACH);
   return _cachedTarget;
+}
+
+// Ray from an arbitrary screen point (used for mobile tap-to-break / tap-to-attack).
+const _tapNdc = new THREE.Vector2();
+const _tapRay = new THREE.Raycaster();
+function screenRay(clientX, clientY) {
+  _tapNdc.x = (clientX / window.innerWidth) * 2 - 1;
+  _tapNdc.y = -(clientY / window.innerHeight) * 2 + 1;
+  _tapRay.setFromCamera(_tapNdc, camera);
+  return { origin: _tapRay.ray.origin, dir: _tapRay.ray.direction };
+}
+function screenTarget(clientX, clientY) {
+  const { origin, dir } = screenRay(clientX, clientY);
+  return raycastVoxel(world, origin, dir, REACH);
 }
 
 function getHeldItemId() {
@@ -3225,12 +3240,29 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         }
       }
     },
-    onTapTarget() {
-      // Returns true if the tap hit a mob (so it's an attack, not a place).
+    onAim(x, y) {
+      mobileAimPoint = { x, y };
+    },
+    onAimEnd() {
+      mobileAimPoint = null;
+    },
+    onBreakTap(x, y) {
+      // Quick tap on a block: break the block under the finger.
+      if (!gameRunning) return;
+      audio.resume();
+      const hit = screenTarget(x, y);
+      if (!hit) return;
+      const b = world.getBlock(hit.x, hit.y, hit.z);
+      if (b == null || b === BLOCK.AIR) return;
+      doBreak(hit, b);
+      viewmodel.swing();
+      audio.dig(b);
+    },
+    onAttack(x, y) {
+      // Returns true if the tap hit a mob (so it's an attack, not a break).
       if (!gameRunning || !mobManager || !player) return false;
-      const dir = _mobileTapDir;
-      camera.getWorldDirection(dir);
-      const mobHit = mobManager.hitTest(camera.position, dir, REACH);
+      const { origin, dir } = screenRay(x, y);
+      const mobHit = mobManager.hitTest(origin, dir, REACH);
       if (!mobHit) return false;
       const atkSlot = player.inventory.getSelected();
       const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
@@ -4999,9 +5031,12 @@ function loop() {
         }
 
         if (!hitPlayer && !(player && player.isAdventure())) {
-          // Normal block breaking — on mobile, target closest block in radius
+          // Normal block breaking — on mobile, target the block the user tapped
           const isMobileBreak = mobile && mobile.isMobile;
-          const hit = isMobileBreak ? closestBlockInRadius(world, player.position, 6) : currentTarget();
+          let hit;
+          if (isMobileBreak && mobileAimPoint) hit = screenTarget(mobileAimPoint.x, mobileAimPoint.y);
+          else if (isMobileBreak) hit = closestBlockInRadius(world, player.position, 6);
+          else hit = currentTarget();
           if (hit) {
             const key = hit.x + ',' + hit.y + ',' + hit.z;
             if (key !== breakingTarget) {
