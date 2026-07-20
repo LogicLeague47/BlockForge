@@ -392,8 +392,8 @@ function calcArmPose(state, side) {
   // ── Attack swing (click without breaking) ──
   if (!state.breaking && !state.placing && state.swingProgress > 0 && isRight) {
     const t = state.swingProgress;
-    armRx = rad(-120) * Math.sin(t * Math.PI);
-    armRy = rad(10) * Math.sin(t * Math.PI);
+    armRx = rad(120) * Math.sin(t * Math.PI);
+    armRy = rad(-10) * Math.sin(t * Math.PI);
   }
 
   // ── Place animation ──
