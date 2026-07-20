@@ -59,6 +59,8 @@ export class PlayerAnimData {
     this.eating = false;
     this.swinging = false;
     this.swingProgress = 0; // 0..1 attack swing
+    this.swingTime = 0;
+    this.swingDur = 0.25;
 
     // Physics
     this.velocityY = 0;
@@ -127,8 +129,20 @@ export class PlayerAnimData {
     if (this.celebrateTimer > 0) this.celebrateTimer -= dt;
     if (this.landTimer > 0) this.landTimer = Math.max(0, this.landTimer - dt * 4);
 
+    // Attack swing timer
+    if (this.swingTime > 0) {
+      this.swingTime = Math.max(0, this.swingTime - dt);
+      this.swingProgress = 1 - this.swingTime / this.swingDur;
+    } else {
+      this.swingProgress = 0;
+    }
+
     this._prevLimbSwing = this._limbSwing;
     this._lastMoving = this.moving;
+  }
+
+  swing() {
+    this.swingTime = this.swingDur;
   }
 
   get limbSwing() { return this._limbSwing; }
@@ -373,6 +387,13 @@ function calcArmPose(state, side) {
     const mineSwing = Math.sin(state._minePhase) * rad(80);
     armRx = mineSwing;
     armRy = rad(10);
+  }
+
+  // ── Attack swing (click without breaking) ──
+  if (!state.breaking && !state.placing && state.swingProgress > 0 && isRight) {
+    const t = state.swingProgress;
+    armRx = rad(-120) * Math.sin(t * Math.PI);
+    armRy = rad(10) * Math.sin(t * Math.PI);
   }
 
   // ── Place animation ──

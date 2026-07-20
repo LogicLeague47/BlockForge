@@ -448,8 +448,8 @@ export class PlayerModel {
       wrap.add(mesh);
     }
 
-    // Position at the bottom of the arm (the hand), pushed forward so it's visible
-    wrap.position.set(0, -px(ARM.h / 2 - 1), px(3));
+    // Position at the bottom of the arm (the hand), pushed forward
+    wrap.position.set(0, -px(ARM.h - 1), px(3));
     this._heldMesh = wrap;
     this.rightArm.add(wrap);
   }
@@ -546,6 +546,11 @@ export class PlayerModel {
   // Trigger hurt tilt animation (called when player takes damage)
   triggerHurt() {
     this.animData.hurtTimer = 1.0;
+  }
+
+  // Trigger attack swing (called on click)
+  swing() {
+    this.animData.swing();
   }
 
   // Trigger celebration animation (arms up, ~1.2s duration)

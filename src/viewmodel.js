@@ -220,77 +220,77 @@ export class ViewModel {
 
     if (type === 'sword') {
       // Blade: tall thin box
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.42, 0.015), [litMat, midMat, headMat, headMat, litMat, midMat]);
-      blade.position.y = 0.27;
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.02), [litMat, midMat, headMat, headMat, litMat, midMat]);
+      blade.position.y = 0.36;
       wrap.add(blade);
       // Crossguard: wide flat box
-      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.025, 0.035), mkMat('#8a6a3c'));
-      guard.position.y = 0.04;
+      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.05), mkMat('#8a6a3c'));
+      guard.position.y = 0.05;
       wrap.add(guard);
       // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.10, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.03;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.04;
       wrap.add(handle);
       // Pommel
-      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.04), darkMat);
-      pommel.position.y = -0.09;
+      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.05), darkMat);
+      pommel.position.y = -0.12;
       wrap.add(pommel);
       wrap.rotation.set(-0.18, -0.55, 0.05);
 
     } else if (type === 'pickaxe') {
       // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.08;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.48, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.10;
       wrap.add(handle);
       // Head: horizontal bar
-      const headBar = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.055, 0.035), [headMat, darkMat, litMat, midMat, headMat, headMat]);
-      headBar.position.y = 0.14;
+      const headBar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.07, 0.045), [headMat, darkMat, litMat, midMat, headMat, headMat]);
+      headBar.position.y = 0.19;
       wrap.add(headBar);
       // Left prong
-      const lProng = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.035), darkMat);
-      lProng.position.set(-0.15, 0.09, 0);
+      const lProng = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.045), darkMat);
+      lProng.position.set(-0.20, 0.13, 0);
       wrap.add(lProng);
       // Right prong
-      const rProng = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.07, 0.035), darkMat);
-      rProng.position.set(0.15, 0.09, 0);
+      const rProng = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.045), darkMat);
+      rProng.position.set(0.20, 0.13, 0);
       wrap.add(rProng);
       // Binding
-      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.025, 0.04), darkMat);
-      binding.position.y = 0.105;
+      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.05), darkMat);
+      binding.position.y = 0.14;
       wrap.add(binding);
       wrap.rotation.set(-0.15, -0.5, 0.05);
 
     } else if (type === 'axe') {
       // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.38, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.08;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.50, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.10;
       wrap.add(handle);
       // Axe head: thick chunk on the left
-      const axeHead = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.17, 0.035), [litMat, darkMat, headMat, midMat, headMat, headMat]);
-      axeHead.position.set(-0.03, 0.17, 0);
+      const axeHead = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.23, 0.045), [litMat, darkMat, headMat, midMat, headMat, headMat]);
+      axeHead.position.set(-0.04, 0.23, 0);
       wrap.add(axeHead);
       // Sharp edge (front face of axe, slightly lighter)
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.13, 0.038), litMat);
-      edge.position.set(-0.10, 0.18, 0);
+      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.17, 0.05), litMat);
+      edge.position.set(-0.13, 0.24, 0);
       wrap.add(edge);
       // Binding
-      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.02, 0.04), darkMat);
-      binding.position.y = 0.07;
+      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.025, 0.05), darkMat);
+      binding.position.y = 0.09;
       wrap.add(binding);
       wrap.rotation.set(-0.15, -0.5, 0.05);
 
     } else if (type === 'shovel') {
       // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.36, 0.035), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.06;
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.48, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.08;
       wrap.add(handle);
       // Shovel head: wider flat box at top
-      const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.11, 0.025), [midMat, darkMat, headMat, litMat, headMat, headMat]);
-      shovelHead.position.y = 0.18;
+      const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.03), [midMat, darkMat, headMat, litMat, headMat, headMat]);
+      shovelHead.position.y = 0.24;
       wrap.add(shovelHead);
       // Socket
-      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.025, 0.035), midMat);
-      socket.position.y = 0.11;
+      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.045), midMat);
+      socket.position.y = 0.15;
       wrap.add(socket);
       wrap.rotation.set(-0.18, -0.55, 0.05);
 
@@ -304,15 +304,21 @@ export class ViewModel {
     return wrap;
   }
 
-  // Food / materials / other items (id 256-511): held flatter, like a small item
+  // Food / materials / other items (id 256-511): held as a 3D cube
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
-    const mesh = this._planeFromCanvas(canvas, 0.5, true);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshLambertMaterial({ map: tex, fog: false });
     const wrap = new THREE.Group();
+    // 3D cube with item texture on all faces
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.22, 0.22), [mat, mat, mat, mat, mat, mat]);
+    mesh.rotation.set(-0.18, -0.55, 0.05);
     wrap.add(mesh);
-    // Flat items (food, ingots, etc.): angled slightly toward the player.
-    wrap.rotation.set(-0.45, 0.35, 0.15);
-    wrap.position.set(0, -0.05, 0);
+    wrap.position.set(0, -0.08, 0);
     return wrap;
   }
 

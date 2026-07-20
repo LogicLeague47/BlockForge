@@ -1154,6 +1154,7 @@ document.addEventListener('mousedown', (e) => {
   if (player && player.isSpectator()) return; // no interactions in spectator
   audio.resume();
   viewmodel.swing();
+  if (playerModel) playerModel.swing();
   if (e.button === 0) {
     breakingTarget = null;
     breakingElapsed = 0;
@@ -5567,7 +5568,10 @@ function loop() {
   viewmodel.setHeld(heldId);
   if (playerModel) playerModel.setHeld(heldId);
   const ohSlot = player.inventory.offhand;
-  viewmodel.setOffhand(ohSlot ? ohSlot.item : null);
+  const ohItemId = ohSlot ? ohSlot.item : null;
+  viewmodel.setOffhand(ohItemId);
+  // Only show offhand arm when actually holding something
+  viewmodel.offhandGroup.visible = ohItemId != null;
   const overlayShown = ui.isOverlayShown() || ui.inventoryOpen || ui.furnaceOpen;
   const inThirdPerson = player && player.cameraMode !== 0;
   viewmodel.setVisible(!overlayShown && !inThirdPerson);
