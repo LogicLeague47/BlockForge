@@ -969,6 +969,12 @@ document.addEventListener('mousemove', (e) => {
     denyOffer();
   }
 });
+
+// Offer banner buttons must be tappable — on mobile there is no Y/X keyboard,
+// so the ACCEPT/DENY buttons are the only way to dismiss the banner there.
+document.getElementById('offer-accept')?.addEventListener('click', acceptOffer);
+document.getElementById('offer-deny')?.addEventListener('click', denyOffer);
+
 document.addEventListener('keyup', (e) => {
   input.keys[e.code] = false;
   if (e.code === getKeybinds().playerList) hidePlayerList();
