@@ -398,12 +398,12 @@ export class ViewModel {
     // Landing dip
     if (this.animData.landT > 0) { py -= this.animData.landT * 0.12; }
 
-    // Swing animation
+    // Swing animation — arm swings forward (toward screen)
     const swingT = this.animData.swingProgress;
     if (swingT > 0) {
       const e = swingT;
       const arc = Math.sin(e * Math.PI);
-      rx += arc * 1.1;
+      rx -= arc * 1.1;
       py -= arc * 0.18;
       ry += arc * 0.25;
     }
