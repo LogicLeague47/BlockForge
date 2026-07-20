@@ -555,9 +555,23 @@ export class Player {
     if (axis === 'x' && this._crouchEdgeBlocked(delta, 0)) return;
     if (axis === 'z' && this._crouchEdgeBlocked(0, delta)) return;
 
-    this.position[axis] += delta;
+    // Sub-step the movement so a fast move (e.g. a long fall) can't tunnel
+    // through a thin floor or wall in a single frame.
+    const STEP = 0.4;
+    const steps = Math.max(1, Math.ceil(Math.abs(delta) / STEP));
+    const step = delta / steps;
+    for (let s = 0; s < steps; s++) {
+      this.position[axis] += step;
+      if (this._collideAxis(axis, step)) return;
+    }
 
-    // player AABB at the new position
+    if (axis === 'y' && delta < 0) {
+      if (this.onGround) this.fallStartY = this.position.y;
+      this.onGround = false;
+    }
+  }
+
+  _collideAxis(axis, delta) {
     const min = _minBox.set(
       this.position.x - PLAYER_HALF_WIDTH,
       this.position.y,
@@ -573,20 +587,15 @@ export class Player {
     const y0 = Math.floor(min.y), y1 = Math.floor(max.y);
     const z0 = Math.floor(min.z), z1 = Math.floor(max.z);
 
-    let collided = false;
-    let resolveTo = 0;
     for (let y = y0; y <= y1; y++) {
       for (let z = z0; z <= z1; z++) {
         for (let x = x0; x <= x1; x++) {
           const b = this.world.getBlock(x, y, z);
           if (!BLOCKS[b]?.solid) continue;
-          // collision happened; snap back along this axis
           if (axis === 'x') {
-            resolveTo = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
-            this.position.x = resolveTo;
+            this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else if (axis === 'z') {
-            resolveTo = delta > 0 ? z - PLAYER_HALF_WIDTH - 0.0001 : z + 1 + PLAYER_HALF_WIDTH + 0.0001;
-            this.position.z = resolveTo;
+            this.position.z = delta > 0 ? z - PLAYER_HALF_WIDTH - 0.0001 : z + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else {
             if (delta < 0) {
               // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
@@ -603,7 +612,6 @@ export class Player {
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);
-                // MC: motionY = -motionY, capped by terminal velocity (max bounce ~57.6 blocks)
                 const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
                 this.velocity.y = Math.min(fallSpeed, MAX_BOUNCE_VEL);
                 this.onGround = false;
@@ -616,14 +624,11 @@ export class Player {
               this.velocity.y = 0;
             }
           }
-          collided = true;
+          return true;
         }
       }
     }
-    if (axis === 'y' && !collided && delta < 0) {
-      if (this.onGround) this.fallStartY = this.position.y;
-      this.onGround = false;
-    }
+    return false;
   }
 
   toggleFly() {

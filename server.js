@@ -472,10 +472,12 @@ function isRateLimited(ws) {
   return ws._rateLimit.count > 30;
 }
 
-wss.on('connection', (ws) => {
-  ws._playerData = null;
-  ws._roomName = null;
-  console.log(`[Conn] New client connected (total: ${wss.clients.size})`);
+  wss.on('connection', (ws) => {
+    ws._playerData = null;
+    ws._roomName = null;
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+    console.log(`[Conn] New client connected (total: ${wss.clients.size})`);
 
   ws.on('message', (raw, isBinary) => {
     if (isBinary) {
@@ -1561,12 +1563,6 @@ const IS_LAN = process.argv.includes('--lan');
       ws.ping();
     });
   }, 30000);
-
-  // Mark new connections as alive
-  wss.on('connection', (ws) => {
-    ws.isAlive = true;
-    ws.on('pong', () => { ws.isAlive = true; });
-  });
 })();
 
 // Save every 30 seconds

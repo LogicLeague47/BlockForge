@@ -937,7 +937,7 @@
         background: rgba(80,80,80,0.3);
         margin: 2px 0;
       }
-      #inventory-hint {
+      .inventory-hint {
         margin-top: 10px; font-size: 11px; color: #888;
       }
       /* Armor display in inventory */
@@ -1872,7 +1872,7 @@
     <div id="offhand-slot"><span class="offhand-label">F</span></div>
     <div id="status-bars"></div>
     <div id="hotbar"></div>
-    <div id="hand-overlay"><img class="hand-item" src="" alt=""/></div>
+    <div id="hand-overlay"><img class="hand-item" alt=""/></div>
     <div id="hud"></div>
     <div id="coords-hud" style="position:fixed;bottom:96px;left:8px;z-index:10;pointer-events:none;font:bold 11px/1.5 monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;"></div>
     <div id="time-hud" style="position:fixed;bottom:96px;right:8px;z-index:10;pointer-events:none;font:bold 12px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;text-align:right;"></div>
@@ -2678,7 +2678,7 @@
           <div id="inventory-grid"></div>
         </div>
       </div>
-      <div id="inventory-hint">Click to move items. Click output to craft. Press TAB to close.</div>
+      <div class="inventory-hint">Click to move items. Click output to craft. Press TAB to close.</div>
     </div>
     <div id="cursor-item"></div>
     <div id="item-tooltip"></div>
@@ -2718,7 +2718,7 @@
         <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
         <div id="furnace-inv-grid"></div>
       </div>
-      <div id="inventory-hint">Click to move items. Press TAB to close.</div>
+      <div class="inventory-hint">Click to move items. Press TAB to close.</div>
     </div>
 
     <div id="chest-screen">
@@ -2729,7 +2729,7 @@
         <div id="chest-inv-grid"></div>
         <div id="chest-hotbar-grid"></div>
       </div>
-      <div id="inventory-hint">Click to move items. Press TAB to close.</div>
+      <div class="inventory-hint">Click to move items. Press TAB to close.</div>
     </div>
 
     <script>
