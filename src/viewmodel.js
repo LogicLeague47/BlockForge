@@ -57,27 +57,18 @@ export class ViewModel {
   }
 
   _buildArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
-
     const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
     const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
 
     this._armGroup = new THREE.Group();
 
-    // Forearm: 4×10×4 pixel box (Minecraft arm proportions)
-    const forearm = new THREE.Mesh(
-      new THREE.BoxGeometry(4 / 16, 10 / 16, 4 / 16),
-      [matDark, mat, mat, mat, mat, mat]
+    // Single forearm box: 4×12×4 pixels (Minecraft standard arm)
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(4 / 16, 12 / 16, 4 / 16),
+      [matDark, mat, mat, mat, mat, matDark]
     );
-    forearm.position.y = -5 / 16;
-    this._armGroup.add(forearm);
-
-    // Hand: slightly wider 4.5×3.5×4.5 pixel box at bottom
-    const hand = new THREE.Mesh(
-      new THREE.BoxGeometry(4.5 / 16, 3.5 / 16, 4.5 / 16),
-      [matDark, mat, mat, mat, mat, mat]
-    );
-    hand.position.y = -11.75 / 16;
-    this._armGroup.add(hand);
+    arm.position.y = -6 / 16;
+    this._armGroup.add(arm);
 
     this.hand.add(this._armGroup);
   }
@@ -88,19 +79,12 @@ export class ViewModel {
 
     this._ohArmGroup = new THREE.Group();
 
-    const forearm = new THREE.Mesh(
-      new THREE.BoxGeometry(4 / 16, 10 / 16, 4 / 16),
-      [matDark, mat, mat, mat, mat, mat]
+    const arm = new THREE.Mesh(
+      new THREE.BoxGeometry(4 / 16, 12 / 16, 4 / 16),
+      [matDark, mat, mat, mat, mat, matDark]
     );
-    forearm.position.y = -5 / 16;
-    this._ohArmGroup.add(forearm);
-
-    const hand = new THREE.Mesh(
-      new THREE.BoxGeometry(4.5 / 16, 3.5 / 16, 4.5 / 16),
-      [matDark, mat, mat, mat, mat, mat]
-    );
-    hand.position.y = -11.75 / 16;
-    this._ohArmGroup.add(hand);
+    arm.position.y = -6 / 16;
+    this._ohArmGroup.add(arm);
 
     this.offhandGroup.add(this._ohArmGroup);
   }
@@ -427,12 +411,16 @@ export class ViewModel {
       px -= flyPose * 0.04;
     }
 
-    // Eating animation: hand bobs up toward center of screen (mouth)
+    // Eating animation: hand rises to center of screen (mouth) and bobs
     if (eating && this.animData.eatBob > 0) {
-      py += this.animData.eatBob * 0.35;
-      px -= this.animData.eatBob * 0.25;
-      ry += this.animData.eatBob * 0.4;
-      rx -= this.animData.eatBob * 0.3;
+      const bob = this.animData.eatBob;
+      py += bob * 0.45;
+      px -= bob * 0.35;
+      ry += bob * 0.5;
+      rx -= bob * 0.4;
+      // Small rapid bob for the crunching motion
+      const crunch = Math.sin(this.animData.eatPhase * 3) * 0.04;
+      py += crunch;
     }
 
     // Hurt flinch shake
