@@ -9,6 +9,7 @@
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js",
+    "build:cg": "vite build --mode cg && node scripts/strip-cg.mjs",
     "package": "bash package.sh"
   },
   "dependencies": {

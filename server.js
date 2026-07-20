@@ -408,22 +408,33 @@ const MIME = {
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
   '.txt': 'text/plain; charset=utf-8',
+  '.bin': 'application/octet-stream',
+  '.gz': 'application/gzip',
 };
 const PUBLIC_DIR = join(__dirname, 'dist');
+
+// Allow the CrazyGames iframe (and any origin) to fetch audio/chunk
+// assets cross-origin. The client decodes them via fetch()->arrayBuffer()
+// (Web Audio), which requires CORS — without this, audio silently 404s
+// on CrazyGames even though the files exist on this server.
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+};
 
 function serveFile(filePath, res) {
   readFile(filePath, (err, data) => {
     if (err) {
       // SPA fallback → serve index.html
       readFile(join(PUBLIC_DIR, 'index.html'), (e2, html) => {
-        if (e2) { res.writeHead(404); res.end('Not found'); return; }
-        res.writeHead(200, { 'Content-Type': MIME['.html'] });
+        if (e2) { res.writeHead(404, CORS); res.end('Not found'); return; }
+        res.writeHead(200, { ...CORS, 'Content-Type': MIME['.html'] });
         res.end(html);
       });
       return;
     }
     const ext = extname(filePath).toLowerCase();
-    res.writeHead(200, { 'Content-Type': MIME[ext] || 'application/octet-stream' });
+    res.writeHead(200, { ...CORS, 'Content-Type': MIME[ext] || 'application/octet-stream' });
     res.end(data);
   });
 }
@@ -432,6 +443,12 @@ const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ rooms: rooms.size, status: 'ok', uptime: process.uptime() }));
+    return;
+  }
+  // CORS preflight for cross-origin asset fetches (CrazyGames iframe).
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, CORS);
+    res.end();
     return;
   }
   // Serve static game files from dist/

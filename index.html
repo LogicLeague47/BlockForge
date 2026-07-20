@@ -2906,6 +2906,6 @@
     <script type="module" src="/src/main.js"></script>
     <!-- CrazyGames SDK (only loaded on CrazyGames domain) -->
     <script>window.CrazyGames = window.CrazyGames || {};</script>
-    <script>if (location.hostname.endsWith('crazygames.com')) { var s = document.createElement('script'); s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js'; s.async = true; document.body.appendChild(s); }</script>
+    <script>if (location.hostname.includes('crazygames') || new URLSearchParams(location.search).has('cg')) { var s = document.createElement('script'); s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js'; s.async = true; document.body.appendChild(s); }</script>
   </body>
 </html>

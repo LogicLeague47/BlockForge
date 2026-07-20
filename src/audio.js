@@ -1,10 +1,11 @@
 // Procedural sound effects + music player via the Web Audio API.
 // 100% open source — every sound synthesized at runtime, no external files needed.
 
-// Resolve asset paths against the page's base path so audio works both at the
-// site root (Render) and under a subpath (GitHub Pages, e.g. /BlockForge/).
-const ASSET_BASE = (typeof location !== 'undefined') ? location.pathname.replace(/[^/]*$/, '') : '/';
-function assetUrl(p) { return ASSET_BASE + String(p).replace(/^\//, ''); }
+import { assetBase } from './config.js';
+// Asset paths resolve relative to the page on normal deployments, but on the
+// CrazyGames build they point at our Render server (which serves the full
+// dist/) so the heavy audio files can be streamed instead of bundled.
+function assetUrl(p) { return assetBase() + String(p).replace(/^\//, ''); }
 //
 // Each block type gets a unique sonic signature:
 //   Stone:   sharp crunch + deep resonance (hard, heavy)
@@ -53,6 +54,21 @@ export class Audio {
     this.musicGain.connect(this.ctx.destination);
 
     this._initMusic();
+
+    // iOS: resume AudioContext on touchend (required after backgrounding)
+    const ctx = this.ctx;
+    document.addEventListener('touchend', () => {
+      if (ctx && ctx.state === 'suspended') ctx.resume();
+    }, { passive: true });
+  }
+
+  // Lazily fetch the (large) SFX buffers. Called once after gameplay
+  // starts so these ~13MB of sounds don't count against the CrazyGames
+  // initial-download budget, and so the stripped CG build can stream
+  // them from our server instead of bundling them.
+  loadSfx() {
+    if (this._sfxLoaded) return;
+    this._sfxLoaded = true;
     this._loadStepBuffers();
     this._loadDigBuffers();
     this._loadHitBuffers();
@@ -61,12 +77,6 @@ export class Audio {
     this._loadSkeletonBuffers();
     this._loadSpiderBuffers();
     this._loadEatBuffers();
-
-    // iOS: resume AudioContext on touchend (required after backgrounding)
-    const ctx = this.ctx;
-    document.addEventListener('touchend', () => {
-      if (ctx && ctx.state === 'suspended') ctx.resume();
-    }, { passive: true });
   }
 
   resume() {

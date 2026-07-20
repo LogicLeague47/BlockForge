@@ -26,7 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, loadParkourMap, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -41,27 +41,35 @@ const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
 
 // --- Multiplayer server URL ---
+import { BACKEND_URL, IS_CG_BUILD } from './config.js';
 // The always-on WebSocket backend (Render free tier, kept awake by a GitHub
 // Actions cron ping). When the game is served from GitHub Pages the page host
 // is NOT the server, so we connect here instead. Change this if you rename the
 // Render service.
-const BACKEND_URL = 'wss://blockforge-server.onrender.com';
 // Supports ?server=ws://host:port to explicitly set the multiplayer server
 // (useful when devices are on different networks or accessing via different URLs)
 const _urlParams = new URLSearchParams(window.location.search);
 const _serverParam = _urlParams.get('server');
 const MP_SERVER_URL = _serverParam
   ? _serverParam
-  : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-    ? 'ws://localhost:3000'
-    // GitHub Pages (or any host that isn't the server itself) → use the backend.
-    : window.location.hostname.endsWith('github.io')
-      ? BACKEND_URL
-      : window.location.protocol === 'https:'
-        // Auto-detect: connect to the same host we were served from (works on
-        // Render, a Cloudflare tunnel, or any custom domain like blockforge.io)
-        ? `wss://${window.location.hostname}`
-        : `ws://${window.location.hostname}:4000`;
+  // On CrazyGames the page host is crazygames.com (NOT our server), so the
+  // generic https auto-detect below would wrongly point at CG's own host.
+  // Route multiplayer (and asset streaming) at our always-on Render server.
+  // On the CrazyGames build (IS_CG_BUILD is injected at build time and
+  // is reliable; the SDK script itself loads async so a runtime check
+  // alone would race module init and misroute to wss://crazygames.com).
+  : (IS_CG_BUILD || (window.CrazyGames && window.CrazyGames.SDK))
+    ? BACKEND_URL
+    : window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'ws://localhost:3000'
+      // GitHub Pages (or any host that isn't the server itself) → use the backend.
+      : window.location.hostname.endsWith('github.io')
+        ? BACKEND_URL
+        : window.location.protocol === 'https:'
+          // Auto-detect: connect to the same host we were served from (works on
+          // Render, a Cloudflare tunnel, or any custom domain like blockforge.io)
+          ? `wss://${window.location.hostname}`
+          : `ws://${window.location.hostname}:4000`;
 let _mpSendTimer = 0;
 let _lastMpPos = { x: 0, y: 0, z: 0, yaw: 0, crouching: false, armor: '' };
 
@@ -3430,7 +3438,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         ui.hideLoading();
         lockPointer();
         cgGameplayStart();
-        try { audio.init(); audio.resume(); audio.startMusic(); } catch (_) {}
+        try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(); } catch (_) {}
         if (!hasTutorialBeenSeen()) {
           setTimeout(() => showTutorial(), 500);
         }
@@ -4214,6 +4222,7 @@ function initMenu() {
   document.getElementById('btn-resume').addEventListener('click', () => {
     ui.hidePause();
     cgGameplayStart();
+    try { audio.loadSfx(); } catch (_) {}
     lockPointer();
   });
   document.getElementById('btn-pause-settings').addEventListener('click', () => {
@@ -4681,13 +4690,16 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Decide initial screen: skip login if launched from CrazyGames (CG handles identity)
-  const launchedFromCG = !!window.CrazyGames?.SDK?.user?.getUsername?.();
-  if (launchedFromCG) {
-    ui.showMenu('main');
-  } else {
-    ui.showMenu('login');
-  }
+  // Always show the login screen — never skip it, including on CrazyGames.
+  ui.showMenu('login');
+  // Prefill the username with the CrazyGames identity when available.
+  try {
+    const cgName = window.CrazyGames?.SDK?.user?.getUsername?.();
+    if (cgName) {
+      const ni = document.getElementById('login-username');
+      if (ni && !ni.value) ni.value = cgName;
+    }
+  } catch (_) {}
 
   // Platform-aware footer links
   try {
