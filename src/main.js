@@ -4773,9 +4773,8 @@ function initMenu() {
   if (loginAccountSection) loginAccountSection.style.display = isOnCrazyGames() ? 'none' : '';
   if (loginCgSection) loginCgSection.style.display = isOnCrazyGames() ? '' : 'none';
 
-  // Also hide social login section on CG (only CrazyGames login is allowed)
+  // Social login buttons always visible (GitHub/Google/Microsoft work everywhere).
   const loginSocialSection = document.getElementById('login-social-section');
-  if (loginSocialSection) loginSocialSection.style.display = isOnCrazyGames() ? 'none' : '';
 
   // --- Social + CG login handlers ---
   function doCgLogin() {
