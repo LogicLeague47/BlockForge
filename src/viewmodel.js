@@ -382,20 +382,20 @@ export class ViewModel {
     // Landing dip
     if (this.animData.landT > 0) { py -= this.animData.landT * 0.12; }
 
-    // Swing animation — arm swings forward (toward crosshair, -Z direction)
+    // Swing animation — arm chops downward and forward
     const swingT = this.animData.swingProgress;
     if (swingT > 0) {
       const e = swingT;
       const arc = Math.sin(e * Math.PI);
-      rx += arc * 1.1;
-      py += arc * 0.25;
-      ry -= arc * 0.3;
+      rx -= arc * 1.1;
+      py -= arc * 0.15;
+      ry += arc * 0.3;
     }
 
     // Continuous mining "dig" wobble while breaking a block
     if (this.animData.mining && swingT === 0) {
       const m = Math.sin(this.animData.clock * 22) * 0.05;
-      py += m; rx += m * 0.4;
+      py += m; rx -= m * 0.4;
     }
 
     // Swim pose: arms forward and a bit higher, gentler motion
