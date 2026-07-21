@@ -74,7 +74,33 @@ let _mpSendTimer = 0;
 let _lastMpPos = { x: 0, y: 0, z: 0, yaw: 0, crouching: false, armor: '' };
 
 // --- CrazyGames SDK helpers ---
-const isOnCrazyGames = () => !!window.CrazyGames?.SDK;
+// Voice (and other CG-only restrictions) apply ONLY when actually running on the
+// real CrazyGames domain — NOT when locally testing with ?cg=1, which also loads
+// the SDK but should behave like a normal self-hosted build (voice stays on).
+const isOnCrazyGames = () => /crazygames/i.test(location.hostname);
+
+// The official CrazyGames SDK is injected as a classic <script> from
+// sdk.crazygames.com and may not be ready by the time this module initializes,
+// so poll briefly instead of reading window.CrazyGames.SDK synchronously.
+// Resolves with the real SDK object, or null if we're not on CrazyGames.
+let _cgSdkPromise = null;
+function crazyGamesSDK() {
+  if (_cgSdkPromise) return _cgSdkPromise;
+  _cgSdkPromise = new Promise((resolve) => {
+    if (window.CrazyGames && window.CrazyGames.SDK) return resolve(window.CrazyGames.SDK);
+    let tries = 0;
+    const id = setInterval(() => {
+      if (window.CrazyGames && window.CrazyGames.SDK) {
+        clearInterval(id);
+        resolve(window.CrazyGames.SDK);
+      } else if (++tries > 100) {
+        clearInterval(id);
+        resolve(null);
+      }
+    }, 50);
+  });
+  return _cgSdkPromise;
+}
 function cgGameplayStart() {
   try { window.CrazyGames?.SDK?.game?.gameplaystart?.(); } catch (_) {}
 }
@@ -4728,27 +4754,90 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Always show the login screen — never skip it, including on CrazyGames.
   ui.showMenu('login');
-  // Prefill the username with the CrazyGames identity when available.
-  try {
-    const cgName = window.CrazyGames?.SDK?.user?.getUsername?.();
-    if (cgName) {
-      const ni = document.getElementById('login-username');
-      if (ni && !ni.value) ni.value = cgName;
-    }
-  } catch (_) {}
+  crazyGamesSDK().then((sdk) => {
+    if (!sdk) return;
+    try {
+      const cgName = sdk.user?.getUsername?.();
+      if (cgName) {
+        const ni = document.getElementById('login-username');
+        if (ni && !ni.value) ni.value = cgName;
+      }
+    } catch (_) {}
+  });
 
-  // Platform-aware footer links
-  try {
-    const onCrazyGames = !!window.CrazyGames?.SDK;
-    if (!onCrazyGames) {
+  // On CrazyGames, hide the account password form (forbidden by their QA)
+  // and expose the CrazyGames auto-login button instead.
+  const loginAccountSection = document.getElementById('login-account-section');
+  const loginCgSection = document.getElementById('login-cg-section');
+  if (loginAccountSection) loginAccountSection.style.display = isOnCrazyGames() ? 'none' : '';
+  if (loginCgSection) loginCgSection.style.display = isOnCrazyGames() ? '' : 'none';
+
+  // Also hide social login section on CG (only CrazyGames login is allowed)
+  const loginSocialSection = document.getElementById('login-social-section');
+  if (loginSocialSection) loginSocialSection.style.display = isOnCrazyGames() ? 'none' : '';
+
+  // --- Social + CG login handlers ---
+  function doCgLogin() {
+    crazyGamesSDK().then((sdk) => {
+      if (!sdk) return;
+      try {
+        const cgName = sdk.user?.getUsername?.();
+        if (cgName) {
+          playerName = filterProfanity(cgName);
+          if (!playerName) playerName = 'Player';
+          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+          const nameTag = document.getElementById('menu-player-name');
+          if (nameTag) nameTag.textContent = playerName;
+          ui.showMenu('main');
+        }
+      } catch (_) {}
+    });
+  }
+
+  function startOAuth(provider) {
+    const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
+    const popup = window.open(`${serverUrl}/auth/${provider}`, 'oauth', 'width=600,height=700');
+    if (!popup) return;
+    const handler = (e) => {
+      if (e.origin !== serverUrl) return;
+      if (e.data && e.data.provider === provider) {
+        window.removeEventListener('message', handler);
+        const name = filterProfanity(e.data.username);
+        if (name) {
+          playerName = name;
+          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+          const nameTag = document.getElementById('menu-player-name');
+          if (nameTag) nameTag.textContent = playerName;
+          ui.showMenu('main');
+        }
+      }
+    };
+    window.addEventListener('message', handler);
+  }
+
+  const btnCg = document.getElementById('btn-login-crazygames');
+  if (btnCg) btnCg.addEventListener('click', doCgLogin);
+
+  const btnGh = document.getElementById('btn-login-github');
+  if (btnGh) btnGh.addEventListener('click', () => startOAuth('github'));
+
+  const btnGl = document.getElementById('btn-login-google');
+  if (btnGl) btnGl.addEventListener('click', () => startOAuth('google'));
+
+  const btnMs = document.getElementById('btn-login-microsoft');
+  if (btnMs) btnMs.addEventListener('click', () => startOAuth('microsoft'));
+
+  // Platform-aware footer links: point at our own Terms/Privacy ONLY when NOT
+  // running on the real CrazyGames domain.
+  if (!isOnCrazyGames()) {
+    try {
       const terms = document.getElementById('footer-terms');
       const privacy = document.getElementById('footer-privacy');
       if (terms) { terms.href = './terms.html'; terms.textContent = 'Terms'; }
       if (privacy) { privacy.href = './privacy.html'; privacy.textContent = 'Privacy Policy'; }
-    }
-  } catch (_) {}
+    } catch (_) {}
+  }
 }
 
 function showNamePrompt() {

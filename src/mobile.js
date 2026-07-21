@@ -49,7 +49,7 @@ export function initMobileControls(playerRef, input, callbacks) {
   }
 
   // --- Build DOM ---
-  const onCG = !!(window.CrazyGames && window.CrazyGames.SDK) || /crazygames/i.test(location.hostname);
+  const onCG = /crazygames/i.test(location.hostname);
   const showVoice = !onCG;
   const root = document.createElement('div');
   root.id = 'mobile-controls';

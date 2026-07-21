@@ -439,6 +439,99 @@ function serveFile(filePath, res) {
   });
 }
 
+// ── OAuth handlers (GitHub, Google, Microsoft) ──────────────────────
+const OAUTH_PROVIDERS = {
+  github: {
+    authUrl: 'https://github.com/login/oauth/authorize',
+    tokenUrl: 'https://github.com/login/oauth/access_token',
+    userUrl: 'https://api.github.com/user',
+    clientId: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    scope: 'read:user',
+    parseUser: (data) => ({ username: data.login, avatar: data.avatar_url }),
+    headers: { Accept: 'application/json' },
+  },
+  google: {
+    authUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+    tokenUrl: 'https://oauth2.googleapis.com/token',
+    userUrl: 'https://www.googleapis.com/oauth2/v2/userinfo',
+    clientId: process.env.GOOGLE_CLIENT_ID || '',
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
+    scope: 'openid profile email',
+    parseUser: (data) => ({ username: data.name || data.email, avatar: data.picture }),
+  },
+  microsoft: {
+    authUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
+    tokenUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
+    userUrl: 'https://graph.microsoft.com/v1.0/me',
+    clientId: process.env.MS_CLIENT_ID || '',
+    clientSecret: process.env.MS_CLIENT_SECRET || '',
+    scope: 'User.Read',
+    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, avatar: null }),
+  },
+};
+
+function handleOAuth(provider, isCallback, params, baseUrl, res) {
+  const cfg = OAUTH_PROVIDERS[provider];
+  if (!cfg || !cfg.clientId) {
+    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+    res.end(`<html><body><script>
+      (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'Guest', error:'OAuth not configured' }, '*'); } catch(e){} window.close(); })();
+    </script><p>OAuth not configured. Close this window.</p></body></html>`);
+    return;
+  }
+
+  if (!isCallback) {
+    const redirectUri = `${baseUrl}/auth/${provider}/callback`;
+    const state = randomBytes(16).toString('hex');
+    const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code`;
+    res.writeHead(302, { Location: url });
+    res.end();
+    return;
+  }
+
+  const code = params.get('code');
+  if (!code) { res.writeHead(400); res.end('Missing code'); return; }
+
+  const redirectUri = `${baseUrl}/auth/${provider}/callback`;
+  const tokenBody = new URLSearchParams({
+    client_id: cfg.clientId,
+    client_secret: cfg.clientSecret,
+    code,
+    redirect_uri: redirectUri,
+    grant_type: 'authorization_code',
+  }).toString();
+
+  fetch(cfg.tokenUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: tokenBody,
+  })
+    .then(r => r.json())
+    .then(tokenData => {
+      const accessToken = tokenData.access_token;
+      if (!accessToken) throw new Error('No access token');
+      return fetch(cfg.userUrl, {
+        headers: { Authorization: `Bearer ${accessToken}`, ...(cfg.headers || {}) },
+      }).then(r => r.json());
+    })
+    .then(userData => {
+      const { username } = cfg.parseUser(userData);
+      const safeName = username ? username.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 20) : 'Player';
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<html><body><script>
+        (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'${safeName}' }, '*'); } catch(e){} window.close(); })();
+      </script><p>Logged in as ${safeName}. Close this window.</p></body></html>`);
+    })
+    .catch(err => {
+      console.error('[OAuth]', provider, err);
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      res.end(`<html><body><script>
+        (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'Guest', error:'${err.message}' }, '*'); } catch(e){} window.close(); })();
+      </script><p>Auth failed. Close this window.</p></body></html>`);
+    });
+}
+
 const server = http.createServer((req, res) => {
   if (req.url === '/health' || req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
@@ -451,6 +544,18 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
+
+  // --- OAuth routes (GitHub, Google, Microsoft) ---
+  const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  const pathname = urlObj.pathname;
+  const authMatch = pathname.match(/^\/auth\/(github|google|microsoft)(?:\/callback)?$/);
+  if (authMatch) {
+    const provider = authMatch[1];
+    const isCallback = pathname.endsWith('/callback');
+    const baseUrl = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host || 'localhost'}`;
+    return handleOAuth(provider, isCallback, urlObj.searchParams, baseUrl, res);
+  }
+
   // Serve static game files from dist/
   let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   if (urlPath === '/') urlPath = '/index.html';
