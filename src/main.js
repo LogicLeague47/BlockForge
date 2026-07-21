@@ -114,6 +114,10 @@ function cgLoadingStop() {
   try { window.CrazyGames?.SDK?.game?.loadingstop?.(); } catch (_) {}
 }
 function cgMidgameAd(callbacks) {
+  if (!isOnCrazyGames()) {
+    callbacks?.adFinished?.();
+    return;
+  }
   const ad = window.CrazyGames?.SDK?.ad;
   if (ad?.requestAd) {
     try { ad.requestAd('midgame', callbacks); } catch (_) { callbacks?.adFinished?.(); }
@@ -5784,7 +5788,7 @@ function loop() {
   }
 
   // Offer banner timer (random popup during survival gameplay)
-  if (gameRunning && player && player.isSurvival() && !offerActive) {
+  if (gameRunning && player && player.isSurvival() && !offerActive && isOnCrazyGames()) {
     offerTimer += dt;
     if (offerTimer >= offerNextTime) {
       showOfferBanner();
