@@ -24,7 +24,7 @@ const DIST = join(process.cwd(), 'dist');
 const STRIP = [
   'Music',          // ~38MB
   'Sounds',        // ~13MB
-  'parkour-chunks.bin.gz', // ~0.5MB (kept tiny, but strip for consistency)
+  // 'parkour-chunks.bin.gz', // ~2.9MB — keep for CG users
 ];
 
 if (!existsSync(DIST)) {

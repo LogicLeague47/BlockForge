@@ -255,3 +255,68 @@ export function getCurrentLevelInfo() {
 export function setParkourLevel(lvl) {
   _currentLevel = Math.max(1, Math.min(PARKOUR_LEVELS.length, lvl));
 }
+
+// ─── Imported Parkour Map Loader ─────────────────────────────────────
+// Loads .bin.gz files produced by convert-parkour.cjs (Minecraft Anvil → binary)
+
+export async function loadImportedParkourChunks(url) {
+  const res = await fetch(url);
+  const compressed = await res.arrayBuffer();
+  // Decompress gzip using native Compression Streams API
+  const ds = new DecompressionStream('gzip');
+  const writer = ds.writable.getWriter();
+  writer.write(new Uint8Array(compressed));
+  writer.close();
+  const reader = ds.readable.getReader();
+  const chunks = [];
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+  }
+  const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+  const buf = new Uint8Array(totalLen);
+  let offset = 0;
+  for (const c of chunks) { buf.set(c, offset); offset += c.length; }
+
+  const view = new DataView(buf.buffer);
+  const version = view.getInt32(0);
+  const minX = view.getInt32(4);
+  const maxX = view.getInt32(8);
+  const minY = view.getInt32(12);
+  const maxY = view.getInt32(16);
+  const minZ = view.getInt32(20);
+  const maxZ = view.getInt32(24);
+  const spawnY = view.getInt32(28);
+  const count = view.getInt32(32);
+
+  console.log(`[Parkour] Loaded map: X[${minX}..${maxX}] Y[${minY}..${maxY}] Z[${minZ}..${maxZ}] spawnY=${spawnY} blocks=${count}`);
+  return { version, minX, maxX, minY, maxY, minZ, maxZ, spawnY, count, buf, view };
+}
+
+export function buildImportedParkour(world, data) {
+  const { buf, view } = data;
+  const count = data.count;
+  const spawnY = data.spawnY;
+
+  // Place all blocks into _chunkEdits (bulk, no chunk creation)
+  let placed = 0;
+  for (let i = 0; i < count; i++) {
+    const off = 36 + i * 16;
+    const x = view.getInt32(off);
+    const y = view.getInt32(off + 4);
+    const z = view.getInt32(off + 8);
+    const b = view.getInt32(off + 12);
+    if (b !== 0) {
+      world.bulkSetBlock(x, y, z, b);
+      placed++;
+    }
+  }
+  console.log(`[Parkour] Placed ${placed} blocks in world`);
+
+  // Calculate spawn position at center of map, just above floor
+  const spawnX = Math.round((data.minX + data.maxX) / 2);
+  const spawnZ = Math.round((data.minZ + data.maxZ) / 2);
+  const spawnYAdjusted = Math.max(data.minY + 3, spawnY || data.minY + 3);
+  return { x: spawnX + 0.5, y: spawnYAdjusted, z: spawnZ + 0.5 };
+}

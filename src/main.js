@@ -26,7 +26,7 @@ import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER
 import { DroppedItemManager } from './dropped.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour } from './parkour.js';
 import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -749,9 +749,11 @@ try {
 let sleeping = false;
 let isDevWorld = false; // dev creative superflat test world
 let isParkour = false;   // parkour mode
+let _isImportedParkour = false; // imported Minecraft parkour map
 let _parkourLevelEnds = null;
 let _parkourTimerEl = null;
 let _parkourLevelEl = null;
+let _importedParkourData = null; // holds binary map header info
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
 let sleepTimer = 0;
 let bedSpawnPoint = null;
@@ -2788,7 +2790,9 @@ window._deleteServer = (name) => {
 window._exitParkourToMinigames = () => {
   gameRunning = false;
   isParkour = false;
+  _isImportedParkour = false;
   _parkourLevelEnds = null;
+  _importedParkourData = null;
   resetParkourState();
   const parkourHud = document.getElementById('parkour-hud');
   if (parkourHud) parkourHud.remove();
@@ -3137,6 +3141,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       document.getElementById('status-bars').style.display = '';
       document.getElementById('armor-bar').style.display = '';
     }
+    _isImportedParkour = false;
+    _importedParkourData = null;
     if (player) saveCurrentWorld();
     manager?.clear?.();
     if (mobManager) { mobManager.clear(); mobManager = null; }
@@ -3156,6 +3162,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   }
 
   isParkour = !!opts.parkour;
+  _isImportedParkour = !!opts.importedParkour;
   currentWorldId = worldId;
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || 7;
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
@@ -3444,18 +3451,31 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     }
 
     parkourLoadPromise = (async () => {
-      // Build procedural parkour levels in a clean void world
-      const PARKOUR_Y = 200;
-      console.log('[Parkour] Building procedural levels...');
-      resetParkourState();
-      buildParkourLobby(world, 0, PARKOUR_Y, 0);
-      _parkourLevelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
+      if (_isImportedParkour) {
+        // Load imported Minecraft parkour map from binary
+        console.log('[Parkour] Loading imported map...');
+        const mapUrl = 'parkour-chunks.bin.gz';
+        const data = await loadImportedParkourChunks(mapUrl);
+        _importedParkourData = data;
+        const spawn = buildImportedParkour(world, data);
+        player.position.set(spawn.x, spawn.y, spawn.z);
+        player.velocity.set(0, 0, 0);
+        player.spawnPoint.set(spawn.x, spawn.y, spawn.z);
+        startParkourTimer();
+      } else {
+        // Build procedural parkour levels in a clean void world
+        const PARKOUR_Y = 200;
+        console.log('[Parkour] Building procedural levels...');
+        resetParkourState();
+        buildParkourLobby(world, 0, PARKOUR_Y, 0);
+        _parkourLevelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
 
-      // Spawn at procedural lobby
-      player.position.set(0.5, PARKOUR_Y + 2, 0.5);
-      player.velocity.set(0, 0, 0);
-      player.spawnPoint.set(0.5, PARKOUR_Y + 2, 0.5);
-      startParkourTimer();
+        // Spawn at procedural lobby
+        player.position.set(0.5, PARKOUR_Y + 2, 0.5);
+        player.velocity.set(0, 0, 0);
+        player.spawnPoint.set(0.5, PARKOUR_Y + 2, 0.5);
+        startParkourTimer();
+      }
 
       // Create parkour HUD elements
       _parkourTimerEl = document.getElementById('parkour-timer');
@@ -3981,6 +4001,11 @@ function initMenu() {
   document.getElementById('btn-pk-singleplayer')?.addEventListener('click', () => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
+  });
+  // Parkour 100 Levels — load imported Minecraft map
+  document.getElementById('btn-pk-100-levels')?.addEventListener('click', () => {
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    startGame(id, 0, 'adventure', 'peaceful', { parkour: true, importedParkour: true });
   });
   // Parkour saved worlds list
   document.getElementById('btn-pk-worlds')?.addEventListener('click', () => {
@@ -5440,17 +5465,25 @@ function loop() {
 
       // Update level indicator
       if (_parkourLevelEl) {
-        const lvl = getCurrentLevelInfo();
-        _parkourLevelEl.textContent = lvl ? `Level ${lvl.id}: ${lvl.name}` : 'Lobby';
+        if (_isImportedParkour) {
+          _parkourLevelEl.textContent = '100 Levels';
+        } else {
+          const lvl = getCurrentLevelInfo();
+          _parkourLevelEl.textContent = lvl ? `Level ${lvl.id}: ${lvl.name}` : 'Lobby';
+        }
       }
 
       // Void respawn: if player falls below world, respawn at checkpoint
-      if (player.position.y < 180) {
-        const respawn = getRespawnPosition();
+      const _voidFloor = _isImportedParkour && _importedParkourData
+        ? _importedParkourData.minY - 2 : 180;
+      if (player.position.y < _voidFloor) {
+        const respawn = _isImportedParkour && _importedParkourData
+          ? { x: 0.5, y: _importedParkourData.spawnY + 2, z: 0.5 }
+          : getRespawnPosition();
         if (respawn) {
           player.position.set(respawn.x, respawn.y, respawn.z);
           player.velocity.set(0, 0, 0);
-          addChatLine('Fell! Respawning at checkpoint...', '#f55');
+          addChatLine('Fell! Respawning...', '#f55');
         } else {
           player.position.set(0.5, 202, 0.5);
           player.velocity.set(0, 0, 0);
