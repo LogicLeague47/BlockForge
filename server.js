@@ -666,6 +666,7 @@ async function handleStartOAuthLink(ws, msg) {
 }
 
 const server = http.createServer((req, res) => {
+  const { pathname } = new URL(req.url, 'http://localhost');
   if (req.url === '/health' || req.url === '/ping') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ rooms: rooms.size, status: 'ok', uptime: process.uptime() }));
