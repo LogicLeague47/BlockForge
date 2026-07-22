@@ -33,6 +33,8 @@ export class Network {
     this.onMobDamage = null;     // (id, hp) => {}
     this.onMobDeath = null;      // (id) => {}
     this.onRoleChanged = null;    // (role) => {}
+    this.onLinkIdentityResult = null;   // (msg) => {}
+    this.onStartOAuthLinkResult = null; // (msg) => {}
 
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
@@ -254,6 +256,12 @@ export class Network {
       case 'dev_set_role_result':
         if (this.onDevMessage) this.onDevMessage(msg);
         break;
+      case 'link_identity_result':
+        if (this.onLinkIdentityResult) this.onLinkIdentityResult(msg);
+        break;
+      case 'start_oauth_link_result':
+        if (this.onStartOAuthLinkResult) this.onStartOAuthLinkResult(msg);
+        break;
     }
   }
 
@@ -321,6 +329,18 @@ export class Network {
 
   sendAuth(playerName, password, mode) {
     this._send({ type: 'auth', playerName, password, mode });
+  }
+
+  sendIdentityAuth(identityType, identityId, playerName) {
+    this._send({ type: 'auth', identityType, identityId, playerName });
+  }
+
+  linkIdentity(identityType, identityId) {
+    this._send({ type: 'link_identity', identityType, identityId });
+  }
+
+  startOAuthLink(provider) {
+    this._send({ type: 'start_oauth_link', provider });
   }
 
   sendBlockUpdate(x, y, z, block) {

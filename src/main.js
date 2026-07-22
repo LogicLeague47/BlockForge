@@ -1041,6 +1041,8 @@ function hidePlayerList() {
 let _friendState = { friends: [], incoming: [], outgoing: [] };
 let _backgroundAuth = false; // true when re-authing silently (not from login screen)
 let _devPanelNeedsAccounts = false;
+let _pendingLinkProvider = ''; // used to track which OAuth provider is being linked
+let _linkedAccountCallback = null; // called when dev_account_detail arrives for linked accounts
 
 function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
@@ -4280,6 +4282,98 @@ function initMenu() {
     renderControls();
   });
 
+  // --- Linked Accounts ---
+  const linkedAccountsBtn = document.getElementById('btn-linked-accounts');
+  const linkedAccountsBackBtn = document.getElementById('btn-linked-accounts-back');
+  const linkedAccountsList = document.getElementById('linked-accounts-list');
+
+  function showLinkedAccounts() {
+    if (!linkedAccountsList) return;
+    network.onLinkIdentityResult = (msg) => {
+      if (msg.ok) {
+        showToast('Account linked!', '#5f5', 3);
+        showLinkedAccounts();
+      } else {
+        showToast('Link failed: ' + (msg.reason || ''), '#f44', 4);
+      }
+    };
+    network.onStartOAuthLinkResult = (msg) => {
+      if (msg.ok && msg.linkToken) {
+        const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
+        const origin = window.location.origin;
+        const provider = _pendingLinkProvider;
+        if (!provider) return;
+        const popup = window.open(`${serverUrl}/auth/${provider}?origin=${encodeURIComponent(origin)}&linkToken=${msg.linkToken}`, 'oauth', 'width=600,height=700');
+        if (!popup) { showToast('Please allow popups for linking', '#ff0', 4); return; }
+        const linkTimer = setTimeout(() => window.removeEventListener('message', linkHandler), 120000);
+        const linkHandler = (e) => {
+          if (e.origin !== serverUrl) return;
+          if (e.data && e.data.provider === provider) {
+            window.removeEventListener('message', linkHandler);
+            clearTimeout(linkTimer);
+            if (e.data.error) showToast('Link failed: ' + e.data.error, '#f44', 4);
+            else if (e.data.linked) showToast('Account linked!', '#5f5', 3);
+            showLinkedAccounts();
+          }
+        };
+        window.addEventListener('message', linkHandler);
+      }
+    };
+    const providers = [
+      { id: 'github', label: 'GitHub' },
+      { id: 'google', label: 'Google' },
+      { id: 'microsoft', label: 'Microsoft' },
+      { id: 'crazygames', label: 'CrazyGames' },
+    ];
+    _linkedAccountCallback = (msg) => {
+      if (msg.type === 'dev_account_detail' && msg.account) {
+        const links = msg.account.identities || {};
+        let html = '';
+        for (const p of providers) {
+          const linked = links[p.id];
+          html += `<div class="settings-row" style="justify-content:space-between;">
+            <span>${p.label}</span>
+            <span>${linked ? '<span style="color:#5f5">✓ Linked</span>' : '<span style="color:#888">Not linked</span>'}</span>
+            <button class="menu-btn" style="font-size:12px;padding:4px 12px;" data-link-provider="${p.id}">
+              ${linked ? 'Unlink' : 'Link'}
+            </button>
+          </div>`;
+        }
+        linkedAccountsList.innerHTML = html;
+        linkedAccountsList.querySelectorAll('[data-link-provider]').forEach(btn => {
+          btn.addEventListener('click', () => {
+            const prov = btn.dataset.linkProvider;
+            const links2 = msg.account.identities || {};
+            if (links2[prov]) {
+              showToast('Unlink not available yet', '#ff0', 3);
+            } else {
+              _pendingLinkProvider = prov;
+              if (prov === 'crazygames') {
+                crazyGamesSDK().then(sdk => {
+                  if (!sdk) { showToast('Not on CrazyGames', '#ff0', 3); return; }
+                  const cgId = sdk.user?.getId?.() || sdk.user?.getUsername?.();
+                  if (cgId) network.linkIdentity('crazygames', cgId);
+                  else showToast('No CG identity found', '#f44', 3);
+                });
+              } else {
+                network.startOAuthLink(prov);
+              }
+            }
+          });
+        });
+      }
+    };
+    if (playerName) network.devGetAccount(playerName);
+  }
+
+  if (linkedAccountsBtn) linkedAccountsBtn.addEventListener('click', () => {
+    ui.showMenu('linked-accounts');
+    showLinkedAccounts();
+  });
+  if (linkedAccountsBackBtn) linkedAccountsBackBtn.addEventListener('click', () => {
+    ui.showMenu('settings');
+  });
+
   // --- Achievement screen close ---
   document.getElementById('ach-close').addEventListener('click', () => {
     document.getElementById('achievement-screen').classList.remove('open');
@@ -4405,6 +4499,10 @@ function initMenu() {
       devAccountsCache = msg.accounts || [];
       renderDevAccountList();
     } else if (msg.type === 'dev_account_detail') {
+      if (_linkedAccountCallback) {
+        _linkedAccountCallback(msg);
+        return;
+      }
       if (msg.error) {
         renderDevAccountDetail({ error: msg.error });
         return;
@@ -4786,14 +4884,29 @@ function initMenu() {
       if (!sdk) return;
       try {
         const cgName = sdk.user?.getUsername?.();
-        if (cgName) {
-          playerName = filterProfanity(cgName);
-          if (!playerName) playerName = 'Player';
-          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
-          const nameTag = document.getElementById('menu-player-name');
-          if (nameTag) nameTag.textContent = playerName;
-          ui.showMenu('main');
-        }
+        const cgId = sdk.user?.getId?.();
+        if (!cgId && !cgName) return;
+        const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
+        fetch(`${serverUrl}/auth/crazygames`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cgUserId: cgId || cgName, cgUsername: cgName || 'Player' }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (!data.ok) { showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
+            playerName = filterProfanity(data.username) || 'Player';
+            try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+            const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
+            if (!network.connected) {
+              network.connect(MP_SERVER_URL);
+              network.onConnectedOnce(attempt);
+              setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+            } else {
+              attempt();
+            }
+          })
+          .catch(() => { showToast('CG auth network error', '#f44', 4); });
       } catch (_) {}
     });
   }
@@ -4820,12 +4933,17 @@ function initMenu() {
           return;
         }
         const name = filterProfanity(e.data.username);
-        if (name) {
-          playerName = name;
-          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
-          const nameTag = document.getElementById('menu-player-name');
-          if (nameTag) nameTag.textContent = playerName;
-          ui.showMenu('main');
+        if (!name) { showToast('Invalid username from provider', '#f44', 4); return; }
+        playerName = name;
+        try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+        // Authenticate via WebSocket with identity
+        const attempt = () => network.sendIdentityAuth(provider, e.data.providerId || name, playerName);
+        if (!network.connected) {
+          network.connect(MP_SERVER_URL);
+          network.onConnectedOnce(attempt);
+          setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+        } else {
+          attempt();
         }
       }
     };

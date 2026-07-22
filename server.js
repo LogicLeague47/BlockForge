@@ -262,8 +262,49 @@ async function hashPassword(password, salt) {
   return buf.toString('hex');
 }
 
+// Find an account by OAuth/CG identity (provider + providerId)
+function findAccountByIdentity(provider, providerId) {
+  if (!provider || !providerId) return null;
+  for (const [name, acc] of Object.entries(accounts)) {
+    if (acc.identities && acc.identities[provider] === providerId) return name;
+  }
+  return null;
+}
+
+// Temporary OAuth link sessions — generated when user wants to link identity from settings
+const linkSessions = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of linkSessions) {
+    if (now - val.createdAt > 600000) linkSessions.delete(key);
+  }
+}, 600000);
+
 // Returns { ok, reason } — verifies or creates the account
-async function authAccount(username, password, mode) {
+// If identity is provided (e.g. { provider: 'github', id: '12345' }), password is optional
+async function authAccount(username, password, mode, identity) {
+  // Identity-based auth (OAuth / CrazyGames / etc.)
+  if (identity && identity.provider && identity.id) {
+    const existingName = findAccountByIdentity(identity.provider, identity.id);
+    if (existingName) return { ok: true, username: existingName };
+    // No linked account — auto-create with this identity
+    if (!username) return { ok: false, reason: 'Username required.' };
+    let safeName = filterProfanity(username).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16);
+    if (safeName.length < 2) safeName = 'Player';
+    // If name is taken by another account, append a number
+    let finalName = safeName;
+    let counter = 1;
+    while (accounts[finalName] && !accounts[finalName].identities?.[identity.provider]) {
+      finalName = safeName.slice(0, 14) + String(counter);
+      counter++;
+      if (counter > 100) { finalName = 'Player' + Date.now().toString(36); break; }
+    }
+    accounts[finalName] = { hash: '', salt: '', role: ROLE_PLAYER, tag: '', identities: { [identity.provider]: identity.id } };
+    saveAccounts();
+    return { ok: true, created: true, username: finalName };
+  }
+
+  // Password-based auth
   if (!username || !password) return { ok: false, reason: 'Username and password required.' };
   if (username.length < 2 || username.length > 16) return { ok: false, reason: 'Username must be 2-16 characters.' };
   if (!/^[a-zA-Z0-9_]+$/.test(username)) return { ok: false, reason: 'Username may only contain letters, numbers, and underscores.' };
@@ -453,8 +494,8 @@ function htmlEsc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
-function sendOAuthResponse(res, provider, username, error, gameOrigin) {
-  const data = JSON.stringify({ provider, username, error });
+function sendOAuthResponse(res, provider, username, error, gameOrigin, providerId, linked) {
+  const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked });
   const org = gameOrigin || '*';
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`<html><body><script>
@@ -469,7 +510,7 @@ const OAUTH_PROVIDERS = {
     clientId: process.env.GITHUB_CLIENT_ID || '',
     clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
     scope: 'read:user',
-    parseUser: (data) => ({ username: data.login, avatar: data.avatar_url }),
+    parseUser: (data) => ({ username: data.login, providerId: String(data.id), avatar: data.avatar_url }),
     headers: { Accept: 'application/json' },
   },
   google: {
@@ -479,7 +520,7 @@ const OAUTH_PROVIDERS = {
     clientId: process.env.GOOGLE_CLIENT_ID || '',
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     scope: 'openid profile email',
-    parseUser: (data) => ({ username: data.name || data.email, avatar: data.picture }),
+    parseUser: (data) => ({ username: data.name || data.email, providerId: data.id, avatar: data.picture }),
   },
   microsoft: {
     authUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
@@ -488,7 +529,7 @@ const OAUTH_PROVIDERS = {
     clientId: process.env.MS_CLIENT_ID || '',
     clientSecret: process.env.MS_CLIENT_SECRET || '',
     scope: 'User.Read',
-    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, avatar: null }),
+    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, providerId: data.id || data.userPrincipalName, avatar: null }),
   },
 };
 
@@ -501,9 +542,10 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
 
   if (!isCallback) {
     const gameOrigin = params.get('origin') || '*';
+    const linkToken = params.get('linkToken') || '';
     const redirectUri = `${baseUrl}/auth/${provider}/callback`;
     const state = randomBytes(16).toString('hex');
-    oauthStates.set(state, { origin: gameOrigin, createdAt: Date.now() });
+    oauthStates.set(state, { origin: gameOrigin, linkToken, createdAt: Date.now() });
     const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code`;
     res.writeHead(302, { Location: url });
     res.end();
@@ -520,6 +562,7 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
   }
   oauthStates.delete(state);
   const gameOrigin = stored.origin;
+  const linkToken = stored.linkToken || '';
 
   const redirectUri = `${baseUrl}/auth/${provider}/callback`;
   const tokenBody = new URLSearchParams({
@@ -544,14 +587,73 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
       }).then(r => r.json());
     })
     .then(userData => {
-      const { username } = cfg.parseUser(userData);
-      const safeName = username ? username.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 20) : 'Player';
-      sendOAuthResponse(res, provider, safeName, null, gameOrigin);
+      const parsed = cfg.parseUser(userData);
+      const providerId = parsed.providerId || parsed.username || userData.sub || '';
+      const rawUsername = parsed.username || '';
+      const safeName = rawUsername ? rawUsername.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 20) : 'Player';
+
+      // If linkToken is present, this is a linking flow
+      if (linkToken) {
+        const linkSession = linkSessions.get(linkToken);
+        if (!linkSession) {
+          sendOAuthResponse(res, provider, 'Guest', 'Link session expired. Try again.', gameOrigin, providerId, false);
+          return;
+        }
+        linkSessions.delete(linkToken);
+        const targetUsername = linkSession.username;
+        const existingName = findAccountByIdentity(provider, providerId);
+        if (existingName && existingName !== targetUsername) {
+          sendOAuthResponse(res, provider, 'Guest', `Identity already linked to "${existingName}"`, gameOrigin, providerId, false);
+          return;
+        }
+        if (!accounts[targetUsername]) {
+          sendOAuthResponse(res, provider, 'Guest', 'Account not found', gameOrigin, providerId, false);
+          return;
+        }
+        if (!accounts[targetUsername].identities) accounts[targetUsername].identities = {};
+        accounts[targetUsername].identities[provider] = providerId;
+        saveAccounts();
+        sendOAuthResponse(res, provider, targetUsername, null, gameOrigin, providerId, true);
+        return;
+      }
+
+      // Normal login flow — check if identity already linked to an account
+      const existingName = findAccountByIdentity(provider, providerId);
+      if (existingName) {
+        sendOAuthResponse(res, provider, existingName, null, gameOrigin, providerId, true);
+      } else {
+        sendOAuthResponse(res, provider, safeName, null, gameOrigin, providerId, false);
+      }
     })
     .catch(err => {
       console.error('[OAuth]', provider, err);
       sendOAuthResponse(res, provider, 'Guest', err.message, gameOrigin);
     });
+}
+
+// ── Identity linking handlers (WebSocket) ────────────────────────────
+
+async function handleLinkIdentity(ws, msg) {
+  const { identityType, identityId } = msg;
+  if (!ws._playerData) return sendError(ws, 'Not authenticated');
+  const username = ws._playerData.name;
+  if (!identityType || !identityId) return sendError(ws, 'Missing identity type or ID');
+  const existing = findAccountByIdentity(identityType, identityId);
+  if (existing && existing !== username) return sendError(ws, `Identity already linked to "${existing}"`);
+  if (!accounts[username]) return sendError(ws, 'Account not found');
+  if (!accounts[username].identities) accounts[username].identities = {};
+  accounts[username].identities[identityType] = identityId;
+  saveAccounts();
+  safeSend(ws, JSON.stringify({ type: 'link_identity_result', ok: true }));
+}
+
+async function handleStartOAuthLink(ws, msg) {
+  const { provider } = msg;
+  if (!ws._playerData) return sendError(ws, 'Not authenticated');
+  if (!OAUTH_PROVIDERS[provider]) return sendError(ws, 'Unknown provider');
+  const linkToken = randomBytes(16).toString('hex');
+  linkSessions.set(linkToken, { username: ws._playerData.name, createdAt: Date.now() });
+  safeSend(ws, JSON.stringify({ type: 'start_oauth_link_result', ok: true, linkToken }));
 }
 
 const server = http.createServer((req, res) => {
@@ -564,6 +666,35 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204, CORS);
     res.end();
+    return;
+  }
+
+  // --- CrazyGames identity endpoint ---
+  if (pathname === '/auth/crazygames' && req.method === 'POST') {
+    const corsOrigin = req.headers.origin || '*';
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': corsOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { cgUserId, cgUsername } = JSON.parse(body);
+        if (!cgUserId) { res.end(JSON.stringify({ ok: false, reason: 'Missing cgUserId' })); return; }
+        const existingName = findAccountByIdentity('crazygames', cgUserId);
+        if (existingName) {
+          res.end(JSON.stringify({ ok: true, username: existingName, linked: true, provider: 'crazygames', providerId: cgUserId }));
+        } else {
+          const safeName = filterProfanity(cgUsername || 'Player').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'Player';
+          res.end(JSON.stringify({ ok: true, username: safeName, linked: false, provider: 'crazygames', providerId: cgUserId }));
+        }
+      } catch (e) {
+        res.end(JSON.stringify({ ok: false, reason: 'Invalid request' }));
+      }
+    });
     return;
   }
 
@@ -681,6 +812,9 @@ function isRateLimited(ws) {
       case 'mob_position': handleMobPosition(ws, msg); break;
       case 'mob_damage': handleMobDamage(ws, msg); break;
       case 'mob_death': handleMobDeath(ws, msg); break;
+      // Identity linking
+      case 'link_identity': handleLinkIdentity(ws, msg); break;
+      case 'start_oauth_link': handleStartOAuthLink(ws, msg); break;
     }
     } catch (err) { console.error('[Server] Error handling message:', msg?.type, err); }
   });
@@ -699,35 +833,38 @@ function isRateLimited(ws) {
 // ── Handlers ──────────────────────────────────────────────────────────
 
 // Authenticate a username+password without joining a room (used by login screen)
+// Also supports identity-based auth (OAuth / CrazyGames) via identityType + identityId
 async function handleAuth(ws, msg) {
-  const { playerName: rawName, password, mode } = msg;
+  const { playerName: rawName, password, mode, identityType, identityId } = msg;
   const playerName = filterProfanity(rawName);
   // In LAN mode, skip auth and always succeed
   if (IS_LAN) {
     safeSend(ws, JSON.stringify({ type: 'auth_result', ok: true, created: false, reason: '', username: playerName }));
     return;
   }
-  const auth = await authAccount(playerName, password, mode);
+  const identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
+  const auth = await authAccount(playerName, password, mode, identity);
+  const resolvedUsername = auth.username || playerName;
   // On successful auth, attach a lightweight identity to the socket (no room)
   // so friend management works from the menu without joining a world.
   if (auth.ok && !ws._roomName) {
-    const acc = accounts[playerName] || {};
-    const resolvedRole = resolveRole(null, playerName) || acc.role || ROLE_PLAYER;
-    ws._playerData = { name: playerName, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
+    const acc = accounts[resolvedUsername] || {};
+    const resolvedRole = resolveRole(null, resolvedUsername) || acc.role || ROLE_PLAYER;
+    ws._playerData = { name: resolvedUsername, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
     // Let friends know we're online, and send our friend state.
-    if (friends[playerName]) {
-      for (const fn of _friendRec(playerName).friends) notifyFriendState(fn);
+    if (friends[resolvedUsername]) {
+      for (const fn of _friendRec(resolvedUsername).friends) notifyFriendState(fn);
     }
     sendFriendState(ws);
   }
-  const acc = accounts[playerName] || {};
-  const resolvedRole = resolveRole(null, playerName) || acc.role || ROLE_PLAYER;
+  const acc = accounts[resolvedUsername] || {};
+  const resolvedRole = resolveRole(null, resolvedUsername) || acc.role || ROLE_PLAYER;
   safeSend(ws, JSON.stringify({
     type: 'auth_result',
     ok: auth.ok,
     created: !!auth.created,
     reason: auth.reason || '',
-    username: playerName,
+    username: resolvedUsername,
     role: resolvedRole,
     tag: acc.tag || ''
   }));
