@@ -5012,6 +5012,22 @@ function initMenu() {
   const btnGl = document.getElementById('btn-login-google');
   if (btnGl) btnGl.addEventListener('click', () => startOAuth('google'));
 
+  // Guest login
+  const btnGuest = document.getElementById('btn-login-guest');
+  if (btnGuest) btnGuest.addEventListener('click', () => {
+    const num = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit random
+    playerName = 'Guest' + String(num).slice(0, 8);
+    try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+    const attempt = () => network.sendIdentityAuth('guest', playerName, playerName);
+    if (!network.connected) {
+      network.connect(MP_SERVER_URL);
+      network.onConnectedOnce(attempt);
+      setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+    } else {
+      attempt();
+    }
+  });
+
   // Platform-aware footer links: point at our own Terms/Privacy ONLY when NOT
   // running on the real CrazyGames domain.
   if (!isOnCrazyGames()) {

@@ -831,6 +831,12 @@ function isRateLimited(ws) {
   ws.on('close', () => {
     console.log(`[Conn] Client disconnected`);
     const leavingName = ws._playerData && ws._playerData.name;
+    // Auto-delete guest accounts on disconnect
+    if (ws._playerData && ws._playerData.isGuest && leavingName && accounts[leavingName]) {
+      delete accounts[leavingName];
+      saveAccounts();
+      console.log(`[Guest] Deleted guest account "${leavingName}"`);
+    }
     handleLeave(ws);
     // Let this user's friends know they went offline.
     if (leavingName && friends[leavingName]) {
@@ -859,7 +865,9 @@ async function handleAuth(ws, msg) {
   if (auth.ok && !ws._roomName) {
     const acc = accounts[resolvedUsername] || {};
     const resolvedRole = resolveRole(null, resolvedUsername) || acc.role || ROLE_PLAYER;
-    ws._playerData = { name: resolvedUsername, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws };
+    const isGuest = identityType === 'guest';
+    if (isGuest && !acc.isGuest) { acc.isGuest = true; saveAccounts(); }
+    ws._playerData = { name: resolvedUsername, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest };
     // Let friends know we're online, and send our friend state.
     if (friends[resolvedUsername]) {
       for (const fn of _friendRec(resolvedUsername).friends) notifyFriendState(fn);
@@ -883,6 +891,7 @@ async function handleCreateRoom(ws, msg) {
   const { name, seed, gameMode, maxPlayers, playerName: rawName, cgUsername, skinIndex, ownerSecret, noOwner, password, isPrivate } = msg;
   const playerName = filterProfanity(rawName);
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
+  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'Guests cannot create multiplayer servers.');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
@@ -958,6 +967,7 @@ async function handleJoin(ws, msg) {
   const { room: roomName, playerName: rawName, cgUsername, skinIndex, ownerSecret, password } = msg;
   const playerName = filterProfanity(rawName);
   if (!roomName || !playerName) return sendError(ws, 'Missing room name or player name.');
+  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'Guests cannot join multiplayer servers.');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
