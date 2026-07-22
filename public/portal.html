@@ -477,81 +477,84 @@
   </footer>
 
   <script>
-    const params = new URLSearchParams(location.search);
-    let userName = params.get('user') || '';
-    let userRole = params.get('role') || '';
-    const devRoles = ['dev', 'gamedev', 'owner'];
-    if (devRoles.includes(userRole)) {
-      document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('dev-only'));
-    }
-    const userBadge = document.getElementById('user-badge');
-    const loggedIn = document.getElementById('portal-logged-in');
-    const loginSection = document.getElementById('portal-login-section');
-    const userNameDisplay = document.getElementById('portal-user-name');
+    document.addEventListener('DOMContentLoaded', function() {
+      const params = new URLSearchParams(location.search);
+      let userName = params.get('user') || '';
+      let userRole = params.get('role') || '';
+      const devRoles = ['dev', 'gamedev', 'owner'];
+      if (devRoles.includes(userRole)) {
+        document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('dev-only'));
+      }
+      const userBadge = document.getElementById('user-badge');
+      const loggedIn = document.getElementById('portal-logged-in');
+      const loginSection = document.getElementById('portal-login-section');
+      const userNameDisplay = document.getElementById('portal-user-name');
 
-    function showPage(pageId) {
-      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-      const el = document.getElementById('page-' + pageId);
-      if (el) {
-        el.classList.add('active');
+      function showPage(pageId) {
+        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+        const el = document.getElementById('page-' + pageId);
+        if (el) {
+          el.classList.add('active');
+          const url = new URL(location.href);
+          url.searchParams.set('page', pageId);
+          if (userName) url.searchParams.set('user', userName);
+          if (userRole) url.searchParams.set('role', userRole);
+          history.pushState({ page: pageId }, '', url);
+        } else {
+          navigateHome();
+        }
+      }
+
+      function navigateHome() {
+        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+        document.getElementById('page-home').classList.add('active');
         const url = new URL(location.href);
-        url.searchParams.set('page', pageId);
+        url.searchParams.delete('page');
         if (userName) url.searchParams.set('user', userName);
         if (userRole) url.searchParams.set('role', userRole);
-        history.pushState({ page: pageId }, '', url);
-      } else {
-        navigateHome();
+        history.pushState({ page: 'home' }, '', url);
       }
-    }
 
-    function navigateHome() {
-      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-      document.getElementById('page-home').classList.add('active');
-      const url = new URL(location.href);
-      url.searchParams.delete('page');
-      if (userName) url.searchParams.set('user', userName);
-      if (userRole) url.searchParams.set('role', userRole);
-      history.pushState({ page: 'home' }, '', url);
-    }
-
-    document.querySelectorAll('.card[data-page]').forEach(card => {
-      card.addEventListener('click', () => {
-        const page = card.dataset.page;
-        if (page === 'textures' || page === 'skins' || page === 'suggestions' || page === 'bugs') {
-          if (!userName) { alert('Please log in to access this feature.'); return; }
-        }
-        showPage(page);
+      document.querySelectorAll('.card[data-page]').forEach(card => {
+        card.addEventListener('click', () => {
+          const page = card.dataset.page;
+          if (page === 'textures' || page === 'skins' || page === 'suggestions' || page === 'bugs') {
+            if (!userName) { alert('Please log in to access this feature.'); return; }
+          }
+          showPage(page);
+        });
       });
-    });
 
-    if (userName) {
-      userBadge.textContent = userName;
-      loggedIn.style.display = 'block';
-      userNameDisplay.textContent = userName;
-      loginSection.style.display = 'none';
-    } else {
-      loginSection.style.display = 'block';
-    }
+      // Initialize UI based on URL params
+      if (userName) {
+        userBadge.textContent = userName;
+        loggedIn.style.display = 'block';
+        userNameDisplay.textContent = userName;
+        loginSection.style.display = 'none';
+      } else {
+        loginSection.style.display = 'block';
+      }
 
-    const pageParam = params.get('page');
-    if (pageParam && document.getElementById('page-' + pageParam)) {
-      showPage(pageParam);
-    }
+      const pageParam = params.get('page');
+      if (pageParam && document.getElementById('page-' + pageParam)) {
+        showPage(pageParam);
+      }
 
-    window.addEventListener('popstate', () => {
-      const p = new URLSearchParams(location.search).get('page');
-      if (p) { showPage(p); } else { navigateHome(); }
-    });
+      window.addEventListener('popstate', () => {
+        const p = new URLSearchParams(location.search).get('page');
+        if (p) { showPage(p); } else { navigateHome(); }
+      });
 
-    document.getElementById('portal-login-btn')?.addEventListener('click', () => {
-      const user = document.getElementById('portal-user-input').value.trim().slice(0, 16);
-      const pass = document.getElementById('portal-pass-input').value;
-      const hint = document.getElementById('portal-login-hint');
-      if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
-      if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
-      hint.textContent = 'Logging in...';
-      const roleParam = userRole ? '&role=' + encodeURIComponent(userRole) : '';
-      window.location.href = 'portal.html?user=' + encodeURIComponent(user) + roleParam;
+      document.getElementById('portal-login-btn')?.addEventListener('click', () => {
+        const user = document.getElementById('portal-user-input').value.trim().slice(0, 16);
+        const pass = document.getElementById('portal-pass-input').value;
+        const hint = document.getElementById('portal-login-hint');
+        if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
+        if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
+        hint.textContent = 'Logging in...';
+        const roleParam = userRole ? '&role=' + encodeURIComponent(userRole) : '';
+        window.location.href = 'portal.html?user=' + encodeURIComponent(user) + roleParam;
+      });
     });
   </script>
 </body>
