@@ -1991,6 +1991,15 @@
       <div id="overlay-bg"></div>
       <div id="overlay-vignette"></div>
 
+      <!-- One-time announcement (shown once per device, then self-deletes) -->
+      <div id="announcement-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:24px 28px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+          <div id="announcement-title" style="font:bold 18px monospace;color:#ff0;margin-bottom:12px;"></div>
+          <div id="announcement-body" style="font:14px/1.6 monospace;color:#ccc;margin-bottom:20px;white-space:pre-wrap;"></div>
+          <button id="announcement-dismiss" class="menu-btn" style="width:100%;padding:10px 0;font-size:14px;">GOT IT</button>
+        </div>
+      </div>
+
       <!-- Screen: Main Menu — Bedrock Beta style -->
       <!-- Screen: Login / Create Account -->
       <div id="menu-login" class="menu-screen active">

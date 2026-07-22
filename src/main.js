@@ -1430,6 +1430,39 @@ function showHeldItemName() {
 }
 
 // Show a temporary toast message
+// ── One-time announcement (shown once per device, then self-deletes) ──
+const ONE_TIME_MESSAGES = [
+  {
+    id: 'v1.0-launch',
+    title: 'Welcome to BlockForge!',
+    body: 'BlockForge v1.0 is here!\n\n- 100 Levels parkour map imported\n- Multiplayer with friends\n- Cross-platform OAuth login\n- Custom skins and more\n\nThank you for playing!'
+  }
+];
+
+function showOneTimeMessages() {
+  const seen = (() => { try { return JSON.parse(localStorage.getItem('bf_seen_messages') || '[]'); } catch { return []; } })();
+  const modal = document.getElementById('announcement-modal');
+  const titleEl = document.getElementById('announcement-title');
+  const bodyEl = document.getElementById('announcement-body');
+  const dismissBtn = document.getElementById('announcement-dismiss');
+  if (!modal || !titleEl || !bodyEl || !dismissBtn) return;
+
+  // Find first unseen message
+  const msg = ONE_TIME_MESSAGES.find(m => !seen.includes(m.id));
+  if (!msg) return;
+
+  titleEl.textContent = msg.title;
+  bodyEl.textContent = msg.body;
+  modal.style.display = 'flex';
+
+  const dismiss = () => {
+    modal.style.display = 'none';
+    seen.push(msg.id);
+    try { localStorage.setItem('bf_seen_messages', JSON.stringify(seen)); } catch {}
+  };
+  dismissBtn.onclick = dismiss;
+}
+
 function showToast(msg, color = '#0f0', duration = 2) {
   if (!ui || !ui.itemNameEl) return;
   ui.itemNameEl.textContent = msg;
@@ -4937,6 +4970,7 @@ function initMenu() {
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
   ui.showMenu('login');
+  showOneTimeMessages();
   crazyGamesSDK().then((sdk) => {
     if (!sdk) return;
     try {
