@@ -204,7 +204,9 @@
       border-radius: 12px;
       padding: 28px;
       margin-bottom: 28px;
-      display: none;
+      animation: fadeIn 0.4s ease-out;
+    }
+    #portal-logged-in {
       animation: fadeIn 0.4s ease-out;
     }
     @keyframes fadeIn {
@@ -261,9 +263,9 @@
       transform: translateY(0);
       box-shadow: 0 3px 12px rgba(0,0,0,0.4);
     }
-    #portal-logged-in { display: none; animation: fadeIn 0.4s ease-out; }
+    #portal-logged-in { animation: fadeIn 0.4s ease-out; }
     #portal-user-name { color: #7af; font-weight: 700; font-size: 15px; }
-    .page-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
+    .page-section { opacity: 0; transition: opacity 0.3s ease; }
     .page-section.active { display: block; animation: fadeInPage 0.4s ease-out; }
     @keyframes fadeInPage {
       from { opacity: 0; transform: translateY(10px); }
