@@ -2036,6 +2036,7 @@
         </div>
         <button class="menu-btn" id="btn-play">Play</button>
         <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
+        <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
         <button class="menu-btn" id="btn-friends">Friends <span class="btn-badge" id="friends-badge" style="display:none;"></span></button>
         <button class="menu-btn" id="btn-achievements">Advancements</button>
         <button class="menu-btn" id="btn-settings">Settings</button>
@@ -2043,7 +2044,6 @@
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
         <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
-        <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
         <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
           Music by Kevin MacLeod (CC-BY 4.0), josepharaoh99 &amp; cynicmusic (CC0).<br>incompetech.com &middot; opengameart.org<br><br>
           <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="https://www.crazygames.com/game/blockforge" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms of Service</a>. This game stores data locally on your device. No personal data is collected or shared. <a id="footer-privacy" href="https://www.crazygames.com/privacy" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a></span>
@@ -2239,7 +2239,7 @@
       <!-- Screen: Settings -->
       <div id="menu-settings" class="menu-screen">
         <div class="menu-title" style="font-size:32px;">SETTINGS</div>
-        <div class="menu-panel" style="max-height:none;">
+        <div class="menu-panel" style="max-height:min(420px, 70vh);overflow-y:auto;">
           <div class="settings-row">
             <label>Render Distance</label>
             <select id="set-render-distance">

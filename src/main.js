@@ -4934,7 +4934,7 @@ function initMenu() {
   // --- Social + CG login handlers ---
   function doCgLogin() {
     crazyGamesSDK().then((sdk) => {
-      if (!sdk) return;
+      if (!sdk) { showToast('CrazyGames login is only available on crazygames.com', '#ff0', 4); return; }
       try {
         const cgName = sdk.user?.getUsername?.();
         const cgId = sdk.user?.getId?.();
