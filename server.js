@@ -6,7 +6,7 @@ import http from 'http';
 import { readFileSync, writeFileSync, existsSync, readFile } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname } from 'path';
-import { randomBytes, scrypt, timingSafeEqual } from 'crypto';
+import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
 const scryptAsync = promisify(scrypt);
 
@@ -295,7 +295,7 @@ async function authAccount(username, password, mode, identity) {
     let finalName = safeName;
     let counter = 1;
     while (accounts[finalName] && !accounts[finalName].identities?.[identity.provider]) {
-      finalName = safeName.slice(0, 14) + String(counter);
+      finalName = Array.from(safeName).slice(0, 14).join('') + String(counter);
       counter++;
       if (counter > 100) { finalName = 'Player' + Date.now().toString(36); break; }
     }
@@ -494,6 +494,17 @@ function htmlEsc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// PKCE helpers — S256 code challenge per RFC 7636
+function base64url(buf) {
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function pkceVerifier() {
+  return base64url(randomBytes(32));
+}
+function pkceChallenge(verifier) {
+  return base64url(createHash('sha256').update(verifier).digest());
+}
+
 function sendOAuthResponse(res, provider, username, error, gameOrigin, providerId, linked) {
   const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked });
   const org = gameOrigin || '*';
@@ -529,7 +540,7 @@ const OAUTH_PROVIDERS = {
     clientId: process.env.MS_CLIENT_ID || '',
     clientSecret: process.env.MS_CLIENT_SECRET || '',
     scope: 'User.Read',
-    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, providerId: data.id || data.userPrincipalName, avatar: null }),
+    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, providerId: data.id || createHash('sha256').update(String(data.userPrincipalName || '')).digest('hex').slice(0, 16), avatar: null }),
   },
 };
 
@@ -547,8 +558,11 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
     const redirectUri = `${baseUrl}/auth/${provider}/callback`;
     console.log(`[OAuth] ${provider} auth: redirect_uri=${redirectUri} origin=${gameOrigin}`);
     const state = randomBytes(16).toString('hex');
-    oauthStates.set(state, { origin: gameOrigin, linkToken, createdAt: Date.now() });
-    const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code`;
+    // PKCE: generate verifier + challenge, store verifier for callback
+    const codeVerifier = pkceVerifier();
+    const codeChallenge = pkceChallenge(codeVerifier);
+    oauthStates.set(state, { origin: gameOrigin, linkToken, codeVerifier, createdAt: Date.now() });
+    const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code&code_challenge=${codeChallenge}&code_challenge_method=S256`;
     res.writeHead(302, { Location: url });
     res.end();
     return;
@@ -565,6 +579,7 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
   oauthStates.delete(state);
   const gameOrigin = stored.origin;
   const linkToken = stored.linkToken || '';
+  const codeVerifier = stored.codeVerifier || '';
 
   const redirectUri = `${baseUrl}/auth/${provider}/callback`;
   const tokenBody = new URLSearchParams({
@@ -573,6 +588,7 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
     code,
     redirect_uri: redirectUri,
     grant_type: 'authorization_code',
+    ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
   }).toString();
 
   fetch(cfg.tokenUrl, {
@@ -707,7 +723,7 @@ const server = http.createServer((req, res) => {
   if (authMatch) {
     const provider = authMatch[1];
     const isCallback = pathname.endsWith('/callback');
-    const baseUrl = `${req.headers['x-forwarded-proto'] || 'http'}://${req.headers.host || 'localhost'}`;
+    const baseUrl = `${req.headers['x-forwarded-proto'] || 'https'}://${req.headers.host || 'localhost'}`;
     return handleOAuth(provider, isCallback, urlObj.searchParams, baseUrl, res);
   }
 
