@@ -710,7 +710,6 @@ const server = http.createServer((req, res) => {
 
   // --- OAuth routes (GitHub, Google, Microsoft) ---
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  const pathname = urlObj.pathname;
   const authMatch = pathname.match(/^\/auth\/(github|google)(?:\/callback)?$/);
   if (authMatch) {
     const provider = authMatch[1];
