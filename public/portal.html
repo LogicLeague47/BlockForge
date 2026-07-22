@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge Portal</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0a12;
+      color: #ccc;
+      font-family: monospace;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+    }
+    header {
+      background: linear-gradient(180deg, #1a1a2e 0%, #0e0e1a 100%);
+      border-bottom: 1px solid rgba(80,80,120,0.3);
+      padding: 20px 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    header h1 {
+      font-size: 24px; color: #fff;
+      text-shadow: 2px 2px 0 #3f3f3f;
+      letter-spacing: 4px;
+    }
+    header .sub {
+      font-size: 11px; color: #666;
+      letter-spacing: 2px;
+    }
+    #user-badge {
+      font-size: 13px; color: #7af;
+      background: rgba(60,100,180,0.15);
+      border: 1px solid rgba(60,100,180,0.3);
+      border-radius: 4px;
+      padding: 6px 14px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 30px auto;
+      padding: 0 20px;
+      flex: 1;
+    }
+    .section-title {
+      font-size: 14px; color: #ff0; letter-spacing: 2px;
+      border-bottom: 1px solid rgba(80,80,120,0.2);
+      padding-bottom: 8px; margin-bottom: 16px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 30px;
+    }
+    .card {
+      background: rgba(30,30,50,0.6);
+      border: 1px solid rgba(80,80,120,0.25);
+      border-radius: 6px;
+      padding: 18px 16px;
+      cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      border-color: rgba(100,140,200,0.4);
+    }
+    .card .icon {
+      font-size: 28px; margin-bottom: 8px;
+    }
+    .card .name {
+      font-size: 14px; font-weight: bold; color: #ddd;
+      margin-bottom: 4px;
+    }
+    .card .desc {
+      font-size: 11px; color: #888;
+      line-height: 1.4;
+    }
+    .card.coming .name { color: #666; }
+    .card.coming .desc { color: #555; }
+    .card.coming { cursor: not-allowed; opacity: 0.6; }
+    .card.coming:hover { transform: none; box-shadow: none; }
+    .badge-coming {
+      display: inline-block;
+      font-size: 9px; color: #fa0;
+      background: rgba(200,150,0,0.15);
+      border: 1px solid rgba(200,150,0,0.3);
+      padding: 1px 6px; border-radius: 2px;
+      margin-left: 6px; letter-spacing: 1px;
+    }
+    .btn-back {
+      display: inline-block;
+      padding: 10px 24px;
+      background: rgba(40,40,60,0.6);
+      border: 1px solid rgba(80,80,120,0.3);
+      border-radius: 4px;
+      color: #ccc; font: 13px monospace;
+      cursor: pointer; text-decoration: none;
+      transition: background 0.15s;
+    }
+    .btn-back:hover { background: rgba(60,60,80,0.6); }
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: 10px; color: #555;
+      border-top: 1px solid rgba(80,80,120,0.15);
+    }
+    #portal-login-section {
+      background: rgba(20,20,35,0.6);
+      border: 1px solid rgba(80,80,120,0.2);
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 24px;
+      display: none;
+    }
+    #portal-login-section input {
+      width: 100%;
+      padding: 8px 10px;
+      background: rgba(0,0,0,0.4);
+      color: #fff;
+      border: 1px solid rgba(80,80,120,0.3);
+      border-radius: 3px;
+      font: 13px monospace;
+      outline: none;
+      margin-bottom: 8px;
+    }
+    #portal-login-section input:focus { border-color: #5af; }
+    .portal-login-btn {
+      padding: 8px 20px;
+      background: linear-gradient(180deg,#3a6a8a 0%,#2a5a7a 40%,#1a4a6a 60%,#1a3a5a 100%);
+      border: 1px solid #1a3a5a;
+      border-radius: 3px;
+      color: #fff;
+      font: 13px monospace;
+      cursor: pointer;
+    }
+    .portal-login-btn:hover { background: linear-gradient(180deg,#4a7a9a 0%,#3a6a8a 40%,#2a5a7a 60%,#2a4a6a 100%); }
+    #portal-logged-in { display: none; }
+    #portal-user-name { color: #7af; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BLOCKFORGE</h1>
+      <div class="sub">PORTAL</div>
+    </div>
+    <div id="user-badge">Not logged in</div>
+  </header>
+
+  <div class="container">
+    <div class="section-title">&#9733; FEATURES</div>
+
+    <div id="portal-login-section">
+      <div style="font:bold 13px monospace;color:#ff0;margin-bottom:10px;">Log in to access all features</div>
+      <input id="portal-user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
+      <input id="portal-pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
+      <button class="portal-login-btn" id="portal-login-btn">Log In</button>
+      <div id="portal-login-hint" style="font:11px monospace;color:#5a8;margin-top:6px;"></div>
+    </div>
+
+    <div id="portal-logged-in">
+      <div style="font:13px monospace;color:#8d8;margin-bottom:16px;">Logged in as <span id="portal-user-name">—</span></div>
+    </div>
+
+    <div class="card-grid">
+      <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
+        <div class="icon">&#127918;</div>
+        <div class="name">Play BlockForge</div>
+        <div class="desc">Launch the game in a new tab</div>
+      </a>
+
+      <div class="card" id="card-texture-packs">
+        <div class="icon">&#127912;</div>
+        <div class="name">Texture Packs</div>
+        <div class="desc">Browse and install custom texture packs made by the community</div>
+      </div>
+
+      <div class="card coming">
+        <div class="icon">&#128178;</div>
+        <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
+        <div class="desc">Support BlockForge and unlock exclusive items</div>
+      </div>
+
+      <div class="card" id="card-feedback">
+        <div class="icon">&#128172;</div>
+        <div class="name">Feedback</div>
+        <div class="desc">Report bugs, suggest features, and help shape the game</div>
+      </div>
+
+      <div class="card" id="card-skins">
+        <div class="icon">&#128129;</div>
+        <div class="name">Community Skins</div>
+        <div class="desc">Custom skins created by players</div>
+      </div>
+
+      <div class="card coming">
+        <div class="icon">&#127760;</div>
+        <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
+        <div class="desc">Browse community-run servers</div>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-bottom:30px;">
+      <button class="btn-back" onclick="window.close()">Close Portal</button>
+    </div>
+  </div>
+
+  <footer>
+    BlockForge Portal &middot; Not affiliated with Mojang AB &middot; Data stored locally
+  </footer>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const userName = params.get('user') || '';
+    const userBadge = document.getElementById('user-badge');
+    const loggedIn = document.getElementById('portal-logged-in');
+    const loginSection = document.getElementById('portal-login-section');
+    const userNameDisplay = document.getElementById('portal-user-name');
+
+    if (userName) {
+      userBadge.textContent = userName;
+      loggedIn.style.display = 'block';
+      userNameDisplay.textContent = userName;
+      loginSection.style.display = 'none';
+    } else {
+      loginSection.style.display = 'block';
+    }
+
+    document.getElementById('portal-login-btn')?.addEventListener('click', () => {
+      const user = document.getElementById('portal-user-input').value.trim().slice(0, 16);
+      const pass = document.getElementById('portal-pass-input').value;
+      const hint = document.getElementById('portal-login-hint');
+      if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
+      if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
+      hint.textContent = 'Logging in...';
+      // Forward to game WebSocket for authentication
+      // For now, redirect to portal with user param
+      window.location.href = 'portal.html?user=' + encodeURIComponent(user);
+    });
+
+    document.getElementById('card-texture-packs')?.addEventListener('click', () => {
+      if (userName) {
+        window.location.href = 'portal.html?user=' + encodeURIComponent(userName) + '&page=textures';
+      } else {
+        alert('Please log in to access Texture Packs.');
+      }
+    });
+
+    document.getElementById('card-skins')?.addEventListener('click', () => {
+      if (userName) {
+        window.location.href = 'portal.html?user=' + encodeURIComponent(userName) + '&page=skins';
+      } else {
+        alert('Please log in to access Community Skins.');
+      }
+    });
+
+    document.getElementById('card-feedback')?.addEventListener('click', () => {
+      window.location.href = 'portal.html?user=' + encodeURIComponent(userName || '') + '&page=feedback';
+    });
+  </script>
+</body>
+</html>

@@ -1463,8 +1463,15 @@ function showOneTimeMessages() {
   dismissBtn.onclick = dismiss;
 }
 
+function clearToast() {
+  if (ui && ui.itemNameEl) {
+    ui.itemNameEl.classList.remove('visible');
+    _itemNameTimer = 0;
+  }
+}
 function showToast(msg, color = '#0f0', duration = 2) {
   if (!ui || !ui.itemNameEl) return;
+  clearToast();
   ui.itemNameEl.textContent = msg;
   ui.itemNameEl.style.color = color;
   ui.itemNameEl.classList.add('visible');
@@ -4948,6 +4955,7 @@ function initMenu() {
   }
 
   function doLogin(mode) {
+    clearToast();
     const user = (loginUser.value || '').trim().slice(0, 16);
     const pass = (loginPass.value || '');
     if (!user) { loginHint.style.color = '#f85'; loginHint.textContent = 'Please enter a username.'; loginUser.focus(); return; }
@@ -4992,12 +5000,13 @@ function initMenu() {
 
   // --- Social + CG login handlers ---
   function doCgLogin() {
+    clearToast();
     crazyGamesSDK().then((sdk) => {
       if (!sdk) { showToast('Sorry, you\'re not on CrazyGames. This button is for CrazyGames users only.', '#fa0', 5); return; }
       try {
         const cgName = sdk.user?.getUsername?.();
         const cgId = sdk.user?.getId?.();
-        if (!cgId && !cgName) return;
+        if (!cgId && !cgName) { showToast('CrazyGames: could not get user info. Make sure you are logged into CrazyGames.', '#f85', 5); return; }
         const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
         fetch(`${serverUrl}/auth/crazygames`, {
           method: 'POST',
@@ -5066,14 +5075,15 @@ function initMenu() {
   if (btnCg) btnCg.addEventListener('click', doCgLogin);
 
   const btnGh = document.getElementById('btn-login-github');
-  if (btnGh) btnGh.addEventListener('click', () => startOAuth('github'));
+  if (btnGh) btnGh.addEventListener('click', () => { clearToast(); startOAuth('github'); });
 
   const btnGl = document.getElementById('btn-login-google');
-  if (btnGl) btnGl.addEventListener('click', () => startOAuth('google'));
+  if (btnGl) btnGl.addEventListener('click', () => { clearToast(); startOAuth('google'); });
 
   // Guest login
   const btnGuest = document.getElementById('btn-login-guest');
   if (btnGuest) btnGuest.addEventListener('click', () => {
+    clearToast();
     const num = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit random
     playerName = 'Guest' + String(num).slice(0, 8);
     try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
@@ -6318,5 +6328,29 @@ function facingName(yaw) {
 
 // FPS counter (merged into main loop — no separate rAF)
 let fps = 0, fpsFrames = 0, fpsLastTime = performance.now();
+
+// Bottom-left: BlockForge Portal
+document.getElementById('btn-blockforge-portal')?.addEventListener('click', () => {
+  const user = encodeURIComponent(playerName || '');
+  window.open('portal.html' + (user ? '?user=' + user : ''), 'bfportal', 'width=900,height=700');
+});
+// Bottom-right: Account Info
+document.getElementById('btn-account-info')?.addEventListener('click', () => {
+  const modal = document.getElementById('account-info-modal');
+  if (!modal) return;
+  // Try to extract auth info from network or stored state
+  const storedPass = (() => { try { return localStorage.getItem('bf_password') || ''; } catch { return ''; } })();
+  const provider = (() => {
+    if (!network || !network._identityType) return 'password';
+    return network._identityType;
+  })();
+  document.getElementById('ai-username').textContent = playerName || '—';
+  document.getElementById('ai-password').textContent = storedPass ? '*'.repeat(Math.min(storedPass.length, 12)) : '—';
+  document.getElementById('ai-provider').textContent = provider;
+  modal.style.display = 'flex';
+});
+document.getElementById('btn-ai-close')?.addEventListener('click', () => {
+  document.getElementById('account-info-modal').style.display = 'none';
+});
 
 requestAnimationFrame(loop);

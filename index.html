@@ -2152,20 +2152,34 @@
         <button class="menu-btn secondary" id="btn-skin-customize">Customize Skin</button>
       </div>
       <div class="menu-bottom-left">
-        <div class="menu-icon-btn" title="Language">
+        <div class="menu-icon-btn" id="btn-blockforge-portal" title="BlockForge Portal">
           <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>
+            <path d="M5 12h14M12 5l7 7-7 7"/>
           </svg>
         </div>
       </div>
       <div class="menu-bottom-right">
-        <div class="menu-icon-btn" title="Profile">
+        <div class="menu-icon-btn" id="btn-account-info" title="Account Info">
           <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-            <circle cx="12" cy="7" r="4"/>
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
           </svg>
         </div>
+      </div>
+
+      <!-- Account Info Modal -->
+      <div id="account-info-modal" style="display:none;position:fixed;inset:0;z-index:150;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:20px 24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+          <div style="font:bold 16px monospace;color:#ff0;margin-bottom:14px;">Account Info</div>
+          <div style="font:13px/1.8 monospace;color:#ccc;">
+            <div><span style="color:#888;">Username:</span> <span id="ai-username" style="color:#fff;">—</span></div>
+            <div><span style="color:#888;">Password:</span> <span id="ai-password" style="color:#fff;">—</span></div>
+            <div><span style="color:#888;">Signed in with:</span> <span id="ai-provider" style="color:#7af;">—</span></div>
+            <div style="margin-top:10px;font-size:11px;color:#666;" id="ai-hint">Click to copy username</div>
+          </div>
+          <button class="menu-btn secondary" id="btn-ai-close" style="width:100%;margin-top:14px;padding:8px 0;font-size:13px;">CLOSE</button>
+        </div>
+        <div id="ai-backdrop" style="position:fixed;inset:0;z-index:-1;" onclick="document.getElementById('account-info-modal').style.display='none'"></div>
       </div>
 
       <!-- Screen: World List -->
