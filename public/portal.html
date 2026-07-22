@@ -5,149 +5,338 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BlockForge Portal</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0a0a12;
-      color: #ccc;
-      font-family: monospace;
+      color: #e0e0e0;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
       min-height: 100vh;
       display: flex; flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at 50% 0%, rgba(30,40,80,0.12) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      animation: bgPulse 20s ease-in-out infinite alternate;
+    }
+    @keyframes bgPulse {
+      0% { opacity: 0.12; }
+      100% { opacity: 0.18; }
     }
     header {
-      background: linear-gradient(180deg, #1a1a2e 0%, #0e0e1a 100%);
-      border-bottom: 1px solid rgba(80,80,120,0.3);
-      padding: 20px 24px;
+      background: linear-gradient(135deg, #1a1a2e 0%, #0e0e1a 100%);
+      border-bottom: 1px solid rgba(80,80,120,0.35);
+      padding: 24px 32px;
       display: flex; align-items: center; justify-content: space-between;
+      position: relative;
+      z-index: 10;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    header::after {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent 0%, rgba(100,140,200,0.05) 50%, transparent 100%);
+      animation: headerShine 3s ease-in-out infinite;
+    }
+    @keyframes headerShine {
+      0% { transform: translateX(-100%); opacity: 0; }
+      50% { opacity: 1; }
+      100% { transform: translateX(100%); opacity: 0; }
     }
     header h1 {
-      font-size: 24px; color: #fff;
-      text-shadow: 2px 2px 0 #3f3f3f;
-      letter-spacing: 4px;
+      font-size: 32px; color: #fff;
+      text-shadow: 2px 2px 0 #3f3f3f, 3px 3px 0 #2a2a2a;
+      letter-spacing: 6px;
+      font-weight: 700;
+      position: relative;
+      z-index: 1;
     }
     header .sub {
-      font-size: 11px; color: #666;
-      letter-spacing: 2px;
+      font-size: 12px; color: #7a8eff;
+      letter-spacing: 3px;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
     }
     #user-badge {
-      font-size: 13px; color: #7af;
-      background: rgba(60,100,180,0.15);
-      border: 1px solid rgba(60,100,180,0.3);
-      border-radius: 4px;
-      padding: 6px 14px;
+      font-size: 14px; color: #7af;
+      background: rgba(60,100,180,0.25);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(60,100,180,0.45);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-weight: 500;
+      position: relative;
+      z-index: 1;
+      transition: all 0.2s ease;
+    }
+    #user-badge:hover {
+      background: rgba(60,100,180,0.35);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 12px rgba(60,100,180,0.3);
     }
     .container {
-      max-width: 800px;
-      margin: 30px auto;
-      padding: 0 20px;
+      max-width: 900px;
+      margin: 36px auto;
+      padding: 0 28px;
       flex: 1;
+      width: 100%;
     }
     .section-title {
-      font-size: 14px; color: #ff0; letter-spacing: 2px;
-      border-bottom: 1px solid rgba(80,80,120,0.2);
-      padding-bottom: 8px; margin-bottom: 16px;
+      font-size: 15px; color: #ffdd33; letter-spacing: 2.5px;
+      border-bottom: 2px solid rgba(80,80,120,0.3);
+      padding-bottom: 10px; margin-bottom: 20px;
+      font-weight: 600;
+      position: relative;
+    }
+    .section-title::after {
+      content: ''; position: absolute; bottom: -2px; left: 0;
+      width: 40px; height: 2px;
+      background: linear-gradient(90deg, transparent, #ffdd33, transparent);
     }
     .card-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-      gap: 12px;
-      margin-bottom: 30px;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 16px;
+      margin-bottom: 36px;
     }
     .card {
-      background: rgba(30,30,50,0.6);
-      border: 1px solid rgba(80,80,120,0.25);
-      border-radius: 6px;
-      padding: 18px 16px;
+      background: rgba(30,30,55,0.75);
+      border: 1px solid rgba(80,80,120,0.3);
+      border-radius: 10px;
+      padding: 22px 20px;
       cursor: pointer;
-      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.15s;
+      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      backdrop-filter: blur(6px);
+      position: relative;
+      overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, transparent, rgba(100,140,200,0.6), transparent);
+      transform: scaleX(0);
+      transition: transform 0.3s ease;
+    }
+    .card:hover::before {
+      transform: scaleX(1);
     }
     .card:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
-      border-color: rgba(100,140,200,0.4);
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.45);
+      border-color: rgba(100,140,200,0.55);
+      background: rgba(35,35,65,0.85);
     }
     .card .icon {
-      font-size: 28px; margin-bottom: 8px;
+      font-size: 32px; margin-bottom: 10px;
+      transition: transform 0.2s ease;
+    }
+    .card:hover .icon {
+      transform: scale(1.15);
     }
     .card .name {
-      font-size: 14px; font-weight: bold; color: #ddd;
-      margin-bottom: 4px;
+      font-size: 15px; font-weight: 600; color: #e0e0e0;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
     }
     .card .desc {
-      font-size: 11px; color: #888;
-      line-height: 1.4;
+      font-size: 12px; color: #a0a0c0;
+      line-height: 1.5;
+      font-weight: 400;
     }
-    .card.coming .name { color: #666; }
-    .card.coming .desc { color: #555; }
-    .card.coming { cursor: not-allowed; opacity: 0.6; }
-    .card.coming:hover { transform: none; box-shadow: none; }
+    .card.coming .name { color: #777; }
+    .card.coming .desc { color: #666; }
+    .card.coming { cursor: not-allowed; opacity: 0.65; }
+    .card.coming:hover { transform: none; box-shadow: none; background: rgba(30,30,55,0.75); }
     .badge-coming {
       display: inline-block;
-      font-size: 9px; color: #fa0;
-      background: rgba(200,150,0,0.15);
-      border: 1px solid rgba(200,150,0,0.3);
-      padding: 1px 6px; border-radius: 2px;
-      margin-left: 6px; letter-spacing: 1px;
+      font-size: 10px; color: #fa0;
+      background: rgba(200,150,0,0.2);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(200,150,0,0.4);
+      padding: 2px 8px; border-radius: 4px;
+      margin-left: 8px; letter-spacing: 1.5px;
+      font-weight: 600;
     }
     .btn-back {
-      display: inline-block;
-      padding: 10px 24px;
-      background: rgba(40,40,60,0.6);
-      border: 1px solid rgba(80,80,120,0.3);
-      border-radius: 4px;
-      color: #ccc; font: 13px monospace;
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 12px 28px;
+      background: rgba(40,40,65,0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(80,80,120,0.35);
+      border-radius: 8px;
+      color: #c0c0ff; font: 14px 'Inter', monospace;
       cursor: pointer; text-decoration: none;
-      transition: background 0.15s;
+      font-weight: 500;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
     }
-    .btn-back:hover { background: rgba(60,60,80,0.6); }
+    .btn-back::before {
+      content: ''; position: absolute; top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(100,140,200,0.2), transparent);
+      transition: left 0.5s;
+    }
+    .btn-back:hover::before {
+      left: 100%;
+    }
+    .btn-back:hover {
+      background: rgba(60,60,90,0.85);
+      border-color: rgba(100,140,200,0.5);
+      color: #fff;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(60,100,180,0.3);
+    }
     footer {
       text-align: center;
-      padding: 20px;
-      font-size: 10px; color: #555;
-      border-top: 1px solid rgba(80,80,120,0.15);
+      padding: 24px;
+      font-size: 11px; color: #556;
+      border-top: 1px solid rgba(80,80,120,0.2);
+      backdrop-filter: blur(8px);
+      background: rgba(20,20,35,0.6);
     }
     #portal-login-section {
-      background: rgba(20,20,35,0.6);
-      border: 1px solid rgba(80,80,120,0.2);
-      border-radius: 6px;
-      padding: 20px;
-      margin-bottom: 24px;
+      background: rgba(20,20,35,0.7);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(80,80,120,0.3);
+      border-radius: 12px;
+      padding: 28px;
+      margin-bottom: 28px;
       display: none;
+      animation: fadeIn 0.4s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     #portal-login-section input {
       width: 100%;
-      padding: 8px 10px;
-      background: rgba(0,0,0,0.4);
+      padding: 10px 14px;
+      background: rgba(0,0,0,0.45);
       color: #fff;
-      border: 1px solid rgba(80,80,120,0.3);
-      border-radius: 3px;
-      font: 13px monospace;
+      border: 1px solid rgba(80,80,120,0.4);
+      border-radius: 6px;
+      font: 14px 'Inter', monospace;
       outline: none;
-      margin-bottom: 8px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s ease;
     }
-    #portal-login-section input:focus { border-color: #5af; }
+    #portal-login-section input:focus {
+      border-color: #5af;
+      box-shadow: 0 0 0 2px rgba(80,160,255,0.3);
+    }
     .portal-login-btn {
-      padding: 8px 20px;
-      background: linear-gradient(180deg,#3a6a8a 0%,#2a5a7a 40%,#1a4a6a 60%,#1a3a5a 100%);
+      padding: 10px 24px;
+      background: linear-gradient(135deg,#3a6a8a 0%,#2a5a7a 40%,#1a4a6a 60%,#1a3a5a 100%);
       border: 1px solid #1a3a5a;
-      border-radius: 3px;
+      border-radius: 8px;
       color: #fff;
-      font: 13px monospace;
+      font: 14px 'Inter', monospace;
       cursor: pointer;
+      font-weight: 600;
+      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      backdrop-filter: blur(4px);
+      position: relative;
+      overflow: hidden;
     }
-    .portal-login-btn:hover { background: linear-gradient(180deg,#4a7a9a 0%,#3a6a8a 40%,#2a5a7a 60%,#2a4a6a 100%); }
-    #portal-logged-in { display: none; }
-    #portal-user-name { color: #7af; font-weight: bold; }
-    .page-section { display: none; }
-    .page-section.active { display: block; }
-    .page-section h2 { font-size:16px; color:#ff0; letter-spacing:2px; border-bottom:1px solid rgba(80,80,120,0.2); padding-bottom:8px; margin-bottom:16px; }
-    .page-section p { font-size:12px; color:#888; margin-bottom:12px; line-height:1.5; }
-    .page-section ul { list-style:none; padding:0; }
-    .page-section li { padding:10px 12px; border:1px solid rgba(80,80,120,0.2); border-radius:4px; margin-bottom:8px; font-size:12px; color:#aaa; }
-    .page-section li a { color:#7af; text-decoration:none; }
-    .page-section li a:hover { text-decoration:underline; }
-    .page-section .external-link { color:#7af; text-decoration:none; font-size:13px; }
-    .page-section .external-link:hover { text-decoration:underline; }
+    .portal-login-btn::after {
+      content: ''; position: absolute; top: 50%; left: 50%;
+      width: 200%; height: 200%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+      transform: translate(-50%, -50%) rotate(0deg);
+      transition: transform 0.6s;
+    }
+    .portal-login-btn:hover::after {
+      transform: translate(-50%, -50%) rotate(180deg);
+    }
+    .portal-login-btn:hover {
+      background: linear-gradient(135deg,#4a7a9a 0%,#3a6a8a 40%,#2a5a7a 60%,#2a4a6a 100%);
+      border-color: #2a4a6a;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(60,100,180,0.4);
+    }
+    .portal-login-btn:active {
+      transform: translateY(0);
+      box-shadow: 0 3px 12px rgba(0,0,0,0.4);
+    }
+    #portal-logged-in { display: none; animation: fadeIn 0.4s ease-out; }
+    #portal-user-name { color: #7af; font-weight: 700; font-size: 15px; }
+    .page-section { display: none; opacity: 0; transition: opacity 0.3s ease; }
+    .page-section.active { display: block; animation: fadeInPage 0.4s ease-out; }
+    @keyframes fadeInPage {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-section h2 {
+      font-size: 18px; color: #ffdd33; letter-spacing: 2.5px;
+      border-bottom: 2px solid rgba(80,80,120,0.35);
+      padding-bottom: 10px; margin-bottom: 18px;
+      font-weight: 600;
+      position: relative;
+    }
+    .page-section p {
+      font-size: 13px; color: #b0b0d0;
+      margin-bottom: 14px;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+    .page-section ul { list-style: none; padding: 0; }
+    .page-section li {
+      padding: 12px 16px;
+      border: 1px solid rgba(80,80,120,0.25);
+      border-radius: 8px;
+      margin-bottom: 10px;
+      font-size: 13px; color: #c0c0e0;
+      background: rgba(30,30,50,0.55);
+      backdrop-filter: blur(6px);
+      transition: all 0.2s ease;
+    }
+    .page-section li:hover {
+      background: rgba(40,40,65,0.7);
+      border-color: rgba(100,140,200,0.45);
+      transform: translateX(4px);
+    }
+    .page-section li a {
+      color: #7af; text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s ease;
+    }
+    .page-section li a:hover {
+      color: #9af;
+      text-decoration: underline;
+    }
+    .page-section .external-link {
+      color: #7af;
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-flex; align-items: center; gap: 4px;
+      transition: all 0.2s ease;
+    }
+    .page-section .external-link:hover {
+      color: #9af;
+      gap: 8px;
+    }
+    .external-link::after {
+      content: '↗';
+      font-size: 12px;
+      opacity: 0.7;
+      transition: all 0.2s ease;
+    }
+    .external-link:hover::after {
+      opacity: 1;
+      transform: translate(2px, -2px);
+    }
     .dev-only { display: none; }
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(100,140,200,0.4), rgba(120,160,220,0.6));
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: linear-gradient(180deg, rgba(120,160,220,0.6), rgba(140,180,240,0.8)); }
   </style>
 </head>
 <body>
@@ -160,70 +349,70 @@
   </header>
 
   <div class="container">
-    <div class="section-title">&#9733; FEATURES</div>
+    <div class="section-title">🌟 FEATURES</div>
 
     <div id="portal-login-section">
-      <div style="font:bold 13px monospace;color:#ff0;margin-bottom:10px;">Log in to access all features</div>
+      <div style="font:bold 14px 'Inter', monospace;color:#ffdd33;margin-bottom:14px;text-shadow:0 0 8px rgba(255,217,0,0.3);">Log in to access all features</div>
       <input id="portal-user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
       <input id="portal-pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
       <button class="portal-login-btn" id="portal-login-btn">Log In</button>
-      <div id="portal-login-hint" style="font:11px monospace;color:#5a8;margin-top:6px;"></div>
+      <div id="portal-login-hint" style="font:12px 'Inter', monospace;color:#5af;margin-top:10px;min-height:18px;"></div>
     </div>
 
     <div id="portal-logged-in">
-      <div style="font:13px monospace;color:#8d8;margin-bottom:16px;">Logged in as <span id="portal-user-name">—</span></div>
+      <div style="font:14px 'Inter', monospace;color:#8d8;margin-bottom:20px;">Logged in as <span id="portal-user-name">—</span></div>
     </div>
 
     <!-- Page sections -->
     <div id="page-home" class="page-section active">
       <div class="card-grid">
         <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
-          <div class="icon">&#127918;</div>
+          <div class="icon">🎮</div>
           <div class="name">Play BlockForge</div>
           <div class="desc">Launch the game in a new tab</div>
         </a>
 
         <div class="card" data-page="textures">
-          <div class="icon">&#127912;</div>
+          <div class="icon">🎨</div>
           <div class="name">Texture Packs</div>
           <div class="desc">Browse and install custom texture packs made by the community</div>
         </div>
 
         <div class="card coming">
-          <div class="icon">&#128178;</div>
+          <div class="icon">🛍️</div>
           <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
           <div class="desc">Support BlockForge and unlock exclusive items</div>
         </div>
 
         <div class="card" data-page="feedback">
-          <div class="icon">&#128172;</div>
+          <div class="icon">💬</div>
           <div class="name">Feedback</div>
           <div class="desc">Report bugs, suggest features, and help shape the game</div>
         </div>
 
         <div class="card" data-page="skins">
-          <div class="icon">&#128129;</div>
+          <div class="icon">👕</div>
           <div class="name">Community Skins</div>
           <div class="desc">Custom skins created by players</div>
         </div>
 
         <div class="card coming">
-          <div class="icon">&#127760;</div>
+          <div class="icon">🌐</div>
           <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
           <div class="desc">Browse community-run servers</div>
         </div>
       </div>
 
-      <div class="section-title dev-only">&#9733; DEVELOPER</div>
+      <div class="section-title dev-only">🔧 DEVELOPER</div>
       <div class="card-grid dev-only">
         <div class="card" data-page="suggestions">
-          <div class="icon">&#128161;</div>
+          <div class="icon">💡</div>
           <div class="name">Feature Suggestions</div>
           <div class="desc">Propose and vote on new features for BlockForge</div>
         </div>
 
         <div class="card" data-page="bugs">
-          <div class="icon">&#128027;</div>
+          <div class="icon">🐛</div>
           <div class="name">Bugs</div>
           <div class="desc">Track and manage bug reports</div>
         </div>
@@ -234,48 +423,48 @@
       <h2>Texture Packs</h2>
       <p>Custom texture packs created by the community. Selected packs will be available to use in-game.</p>
       <ul>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Faithful 32x</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Classic faithful style</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Bare Bones</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Clean minimalist look</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Pastel Craft</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Soft pastel colors</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Faithful 32x</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Classic faithful style</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Bare Bones</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Clean minimalist look</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Pastel Craft</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Soft pastel colors</span></li>
       </ul>
-      <p style="color:#666;font-size:11px;">More texture packs coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack &rarr;</a></p>
-      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+      <p style="color:#777;font-size:12px;margin-top:16px;">More texture packs coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack &rarr;</a></p>
+      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div id="page-skins" class="page-section">
       <h2>Community Skins</h2>
       <p>Player-created skins for BlockForge. Download skins and they will appear in your skin selection.</p>
       <ul>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Dragon Knight</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player1</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Cyber Ninja</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player2</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Pixel Cat</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player3</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Dragon Knight</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player1</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Cyber Ninja</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player2</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Pixel Cat</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player3</span></li>
       </ul>
-      <p style="color:#666;font-size:11px;">More skins coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin &rarr;</a></p>
-      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+      <p style="color:#777;font-size:12px;margin-top:16px;">More skins coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin &rarr;</a></p>
+      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div id="page-feedback" class="page-section">
       <h2>Feedback</h2>
       <p>Help shape BlockForge by reporting bugs, suggesting features, or sharing your thoughts.</p>
       <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues &rarr;</a></p>
-      <p style="color:#666;font-size:11px;">You can also email feedback directly.</p>
-      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+      <p style="color:#777;font-size:12px;margin-top:16px;">You can also email feedback directly.</p>
+      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div id="page-suggestions" class="page-section">
       <h2>Feature Suggestions</h2>
       <p>Help shape BlockForge by proposing new features and voting on existing suggestions.</p>
       <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests on GitHub &rarr;</a></p>
-      <p style="color:#666;font-size:11px;">Submit your ideas and help shape the future of the game.</p>
-      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+      <p style="color:#777;font-size:12px;margin-top:16px;">Submit your ideas and help shape the future of the game.</p>
+      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div id="page-bugs" class="page-section">
       <h2>Bugs</h2>
       <p>Track and manage bug reports for BlockForge.</p>
       <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports on GitHub &rarr;</a></p>
-      <p style="color:#666;font-size:11px;">Help us squash bugs by reporting issues you find.</p>
-      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+      <p style="color:#777;font-size:12px;margin-top:16px;">Help us squash bugs by reporting issues you find.</p>
+      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div style="text-align:center;margin-bottom:30px;">
