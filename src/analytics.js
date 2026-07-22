@@ -13,7 +13,7 @@ function _load() {
 }
 
 function _save(data) {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) { console.warn('analytics: localStorage write failed', e); }
 }
 
 function _today() {

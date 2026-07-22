@@ -194,17 +194,24 @@ export function checkCheckpoint(player, world) {
 
   // Detect gold block = checkpoint
   if (blockBelow === BLOCK.GOLD_BLOCK || blockAt === BLOCK.GOLD_BLOCK) {
-    // Find which level this checkpoint belongs to
+    // Check level-start checkpoints (advance to next level)
     for (let lvl = 1; lvl <= PARKOUR_LEVELS.length; lvl++) {
       const cp = _checkpoints[lvl];
       if (cp && Math.abs(px - cp.x) <= 2 && Math.abs(pz - cp.z) <= 2) {
         if (cp.y >= py - 2 && cp.y <= py + 2) {
-          if (_currentLevel < lvl) {
+          if (lvl > _currentLevel) {
             _currentLevel = lvl;
-            return true; // checkpoint activated
+            return true;
           }
+          return false;
         }
       }
+    }
+
+    // Mid-level or same-level checkpoint: save and respawn here on death
+    if (_currentLevel >= 1 && _currentLevel <= PARKOUR_LEVELS.length) {
+      _checkpoints[_currentLevel] = { x: px, y: py, z: pz };
+      return true;
     }
   }
   return false;
@@ -254,6 +261,7 @@ export function getCurrentLevelInfo() {
 
 // Set level externally (for dev panel / admin)
 export function setParkourLevel(lvl) {
+  if (!Number.isFinite(lvl)) return;
   _currentLevel = Math.max(1, Math.min(PARKOUR_LEVELS.length, lvl));
 }
 

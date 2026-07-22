@@ -456,7 +456,16 @@ export class ViewModel {
 
   dispose() {
     window.removeEventListener('resize', this._onResize);
+    if (this._armGroup) this._disposeMesh(this._armGroup);
+    if (this._ohArmGroup) this._disposeMesh(this._ohArmGroup);
     if (this.heldMesh) this._disposeMesh(this.heldMesh);
     if (this.offhandMesh) this._disposeMesh(this.offhandMesh);
+    this.scene.traverse((o) => {
+      if (o.geometry) o.geometry.dispose();
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const mat of mats) mat.dispose();
+      }
+    });
   }
 }

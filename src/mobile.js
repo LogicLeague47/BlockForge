@@ -16,7 +16,7 @@ const LOOK_MOVE_THRESHOLD = 8;    // px of movement before a touch counts as "lo
 const HOLD_BREAK_TIME = 180;      // ms held (mostly still) before continuous mining starts
 
 export function initMobileControls(playerRef, input, callbacks) {
-  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isMobile = 'ontouchstart' in window && navigator.maxTouchPoints > 0;
   const state = {
     isMobile,
     joystickDx: 0,
@@ -44,8 +44,6 @@ export function initMobileControls(playerRef, input, callbacks) {
   const canvas = document.getElementById('game-canvas') || document.querySelector('canvas');
   if (canvas) {
     canvas.style.touchAction = 'none';
-    canvas.addEventListener('touchstart', (e) => e.preventDefault(), { passive: false });
-    canvas.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
   }
 
   // --- Build DOM ---
@@ -96,6 +94,12 @@ export function initMobileControls(playerRef, input, callbacks) {
     let dy = cy - by;
     const max = joystickMax();
     const dist = Math.hypot(dx, dy);
+    if (dist === 0) {
+      joystickKnob.style.transform = 'translate(0px, 0px)';
+      state.joystickDx = 0;
+      state.joystickDy = 0;
+      return;
+    }
     if (dist > max) {
       dx = dx / dist * max;
       dy = dy / dist * max;
@@ -212,6 +216,7 @@ export function initMobileControls(playerRef, input, callbacks) {
 
   // --- Action buttons (toggle reveals the panel) ---
   function fireButton(action, down, btnEl) {
+    input.keys = input.keys || {};
     if (action === 'toggle') {
       root.classList.toggle('mc-open');
       return;
@@ -263,6 +268,7 @@ export function initMobileControls(playerRef, input, callbacks) {
 
   // --- Update: map joystick to analog movement ---
   state.update = function () {
+    input.keys = input.keys || {};
     const dx = state.joystickDx;
     const dy = state.joystickDy;
     const ax = Math.abs(dx) < DEAD_ZONE ? 0 : dx;

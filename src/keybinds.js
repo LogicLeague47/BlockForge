@@ -49,7 +49,12 @@ let binds = loadBinds();
 function loadBinds() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return { ...DEFAULT_KEYBINDS, ...JSON.parse(raw) };
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return { ...DEFAULT_KEYBINDS, ...parsed };
+      }
+    }
   } catch (_) {}
   return { ...DEFAULT_KEYBINDS };
 }
@@ -57,6 +62,11 @@ function loadBinds() {
 export function getKeybinds() { return binds; }
 
 export function setKeybind(action, code) {
+  const conflict = Object.entries(binds).find(([a, k]) => k === code && a !== action);
+  if (conflict) {
+    console.warn(`Key "${code}" is already bound to action "${conflict[0]}".`);
+    return;
+  }
   binds[action] = code;
   saveBinds();
 }

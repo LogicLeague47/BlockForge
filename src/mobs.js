@@ -2185,10 +2185,31 @@ class Mob {
           }
         }
         if (groundY > 0 && groundY < WORLD_HEIGHT - 2) {
-          // Spawn purple particles at old position
-          this._teleportFrom = { x: this.position.x, y: this.position.y, z: this.position.z };
-          this.position.set(nx, groundY, nz);
-          this._teleportTo = { x: nx, y: groundY, z: nz };
+          // Verify destination is not inside a solid block
+          const hw = def.bodyW / 2;
+          const hd = def.bodyD / 2;
+          const height = def.bodyH + def.headH;
+          let safe = true;
+          const minX = Math.floor(nx - hw);
+          const maxX = Math.floor(nx + hw);
+          const minZ = Math.floor(nz - hd);
+          const maxZ = Math.floor(nz + hd);
+          for (let y = Math.floor(groundY); y <= Math.floor(groundY + height) && safe; y++) {
+            for (let x = minX; x <= maxX && safe; x++) {
+              for (let z = minZ; z <= maxZ; z++) {
+                if (this._solid(world, x, y, z)) {
+                  safe = false;
+                  break;
+                }
+              }
+            }
+          }
+          if (safe) {
+            // Spawn purple particles at old position
+            this._teleportFrom = { x: this.position.x, y: this.position.y, z: this.position.z };
+            this.position.set(nx, groundY, nz);
+            this._teleportTo = { x: nx, y: groundY, z: nz };
+          }
         }
       }
     }
@@ -2334,7 +2355,7 @@ export class MobManager {
     const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
     const rng = mulberry32(seed);
     const attempts = 4;
-    const types = ['zombie', 'skeleton', 'spider', 'creeper'];
+    const types = ['zombie', 'skeleton', 'spider'];
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -2457,7 +2478,7 @@ export class MobManager {
     }
     // Hostile mobs (zombie, skeleton, spider) spawn at night everywhere
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider', 'creeper');
+      spawnTypes.push('zombie', 'skeleton', 'spider');
     }
     const placed = [];
 
@@ -2667,12 +2688,6 @@ export class MobManager {
             this.mobs.push(baby);
             this.scene.add(baby.mesh);
           }
-        }
-        // Chicken egg drop
-        if (mob.type === 'chicken' && mob._eggDrop) {
-          // Signal to main.js to drop an egg item
-          this._eggDrops = this._eggDrops || [];
-          this._eggDrops.push({ x: mob.position.x, y: mob.position.y, z: mob.position.z });
         }
         // Network: broadcast death
         if (mob.entityId && this.networkSend?.sendMobDeath) {

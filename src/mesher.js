@@ -104,7 +104,7 @@ const FACE_SHADE = {
   side: 0.75,
 };
 // E/W sides brighter, N/S sides slightly darker (like MC)
-const SIDE_SHADE_AXIS = { '0': 0.82, '2': 0.68, '3': 0.68, '4': 0.88, '5': 0.88 };
+const SIDE_SHADE_AXIS = { '0': 0.82, '1': 0.82, '2': 0.68, '3': 0.68, '4': 0.88, '5': 0.88 };
 
 // Block-specific color tints for visual variety
 const BLOCK_TINT = {
@@ -254,15 +254,6 @@ export function buildChunkGeometry(chunk, world) {
             tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
           }
 
-          // Water should have no AO (causes grid lines) and no shading variation
-          let sR, sG, sB;
-          if (isWater) {
-            sR = 1; sG = 1; sB = 1;
-          } else {
-            const s = shade * (ao[0] + ao[1] + ao[2] + ao[3]) / 4;
-            sR = s * tintR; sG = s * tintG; sB = s * tintB;
-          }
-
           const start = target.pos.length / 3;
           for (let c = 0; c < 4; c++) {
             const co = face.corners[c];
@@ -296,22 +287,19 @@ export function buildChunkGeometry(chunk, world) {
 
 // Sample 3 neighbours per corner (side1, side2, corner) for ambient occlusion.
 function computeAO(face, x, y, z, sample) {
-  // Build the set of offsets to test for each of the 4 corners.
   const n = face.dir;
-  // The two tangent axes:
   let t1, t2;
   if (n[0] !== 0) { t1 = [0, 1, 0]; t2 = [0, 0, 1]; }
   else if (n[1] !== 0) { t1 = [1, 0, 0]; t2 = [0, 0, 1]; }
   else { t1 = [1, 0, 0]; t2 = [0, 1, 0]; }
 
   const ox = x + n[0], oy = y + n[1], oz = z + n[2];
-  // The four corners map to combinations of +/- along t1 and t2.
-  const combos = [[-1, -1], [-1, 1], [1, -1], [1, 1]];
-  // Reorder combos to line up with `face.corners` winding. We just compute a
-  // value per corner and trust the shader reads it back with the same order;
-  // small mismatches are visually acceptable.
+  const fc = [0.5 + n[0] * 0.5, 0.5 + n[1] * 0.5, 0.5 + n[2] * 0.5];
   const ao = [];
-  for (const [s1, s2] of combos) {
+  for (let c = 0; c < 4; c++) {
+    const co = face.corners[c];
+    const s1 = 2 * ((co[0] - fc[0]) * t1[0] + (co[1] - fc[1]) * t1[1] + (co[2] - fc[2]) * t1[2]);
+    const s2 = 2 * ((co[0] - fc[0]) * t2[0] + (co[1] - fc[1]) * t2[1] + (co[2] - fc[2]) * t2[2]);
     const sx = ox + t1[0] * s1 + t2[0] * s2;
     const sy = oy + t1[1] * s1 + t2[1] * s2;
     const sz = oz + t1[2] * s1 + t2[2] * s2;
@@ -323,7 +311,6 @@ function computeAO(face, x, y, z, sample) {
     )) ? 1 : 0;
     const corner = isOpaque(sample(sx, sy, sz)) ? 1 : 0;
     const occ = (side1 && side2) ? 3 : (side1 + side2 + corner);
-    // Minecraft AO: 0→1.0, 1→0.8, 2→0.7, 3→0.5
     ao.push([1.0, 0.8, 0.7, 0.5][occ]);
   }
   return ao;

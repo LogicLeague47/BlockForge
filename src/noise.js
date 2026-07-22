@@ -38,7 +38,7 @@ const LAYER_SEED = [
 
 export class Noise {
   constructor(seed) {
-    // Use the raw integer seed directly — no string conversion
+    if (seed == null) seed = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     const base = (typeof seed === 'number') ? (seed | 0) : hashSeed(String(seed));
 
     // Each noise layer gets its own independent PRNG seeded with XOR of base + unique constant

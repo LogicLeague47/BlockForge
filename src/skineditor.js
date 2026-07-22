@@ -496,10 +496,18 @@ export class SkinEditor {
   destroy() {
     this._disposed = true;
     if (this._raf) cancelAnimationFrame(this._raf);
+    if (this.paint) {
+      this.paint.removeEventListener('mousedown', this._onDown);
+      this.paint.removeEventListener('touchstart', this._onDown);
+      this.paint.removeEventListener('touchmove', this._onMove);
+    }
     window.removeEventListener('mousemove', this._onMove);
     window.removeEventListener('mouseup', this._onUp);
     window.removeEventListener('touchend', this._onUp);
     if (this._pDrag) {
+      this._pDrag.dom.removeEventListener('mousedown', this._pDrag.dStart);
+      this._pDrag.dom.removeEventListener('touchstart', this._pDrag.dStart);
+      this._pDrag.dom.removeEventListener('touchmove', this._pDrag.dMove);
       window.removeEventListener('mousemove', this._pDrag.dMove);
       window.removeEventListener('mouseup', this._pDrag.dEnd);
       window.removeEventListener('touchend', this._pDrag.dEnd);
