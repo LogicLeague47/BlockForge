@@ -1821,12 +1821,6 @@ const IS_LAN = process.argv.includes('--lan');
 (async () => {
   await loadRooms();
   await loadAccounts();
-  // Purge all accounts except CDkide2 and LogicLeague
-  const KEEP = new Set(['CDkide2', 'LogicLeague']);
-  for (const name of Object.keys(accounts)) {
-    if (!KEEP.has(name)) delete accounts[name];
-  }
-  saveAccounts();
   await loadFriends();
   ensureOfficialServer();
   server.listen(PORT, () => {
