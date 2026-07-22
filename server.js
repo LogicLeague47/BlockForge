@@ -533,15 +533,6 @@ const OAUTH_PROVIDERS = {
     scope: 'openid profile email',
     parseUser: (data) => ({ username: data.name || data.email, providerId: data.id, avatar: data.picture }),
   },
-  microsoft: {
-    authUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize',
-    tokenUrl: 'https://login.microsoftonline.com/consumers/oauth2/v2.0/token',
-    userUrl: 'https://graph.microsoft.com/v1.0/me',
-    clientId: process.env.MS_CLIENT_ID || '',
-    clientSecret: process.env.MS_CLIENT_SECRET || '',
-    scope: 'User.Read',
-    parseUser: (data) => ({ username: data.displayName || data.userPrincipalName, providerId: data.id || createHash('sha256').update(String(data.userPrincipalName || '')).digest('hex').slice(0, 16), avatar: null }),
-  },
 };
 
 function handleOAuth(provider, isCallback, params, baseUrl, res) {
@@ -719,7 +710,7 @@ const server = http.createServer((req, res) => {
   // --- OAuth routes (GitHub, Google, Microsoft) ---
   const urlObj = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = urlObj.pathname;
-  const authMatch = pathname.match(/^\/auth\/(github|google|microsoft)(?:\/callback)?$/);
+  const authMatch = pathname.match(/^\/auth\/(github|google)(?:\/callback)?$/);
   if (authMatch) {
     const provider = authMatch[1];
     const isCallback = pathname.endsWith('/callback');

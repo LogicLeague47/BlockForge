@@ -4378,7 +4378,6 @@ function initMenu() {
     const providers = [
       { id: 'github', label: 'GitHub' },
       { id: 'google', label: 'Google' },
-      { id: 'microsoft', label: 'Microsoft' },
       { id: 'crazygames', label: 'CrazyGames' },
     ];
     _linkedAccountCallback = (msg) => {
@@ -4924,15 +4923,13 @@ function initMenu() {
     } catch (_) {}
   });
 
-  // On CrazyGames, hide the account password form (forbidden by their QA)
-  // and expose the CrazyGames auto-login button instead.
+  // Show password form and CrazyGames login on both CG and the regular website.
   const loginAccountSection = document.getElementById('login-account-section');
   const loginCgSection = document.getElementById('login-cg-section');
-  if (loginAccountSection) loginAccountSection.style.display = isOnCrazyGames() ? 'none' : '';
-  if (loginCgSection) loginCgSection.style.display = isOnCrazyGames() ? '' : 'none';
+  if (loginAccountSection) loginAccountSection.style.display = '';
+  if (loginCgSection) loginCgSection.style.display = '';
 
-  // Social login buttons always visible (GitHub/Google/Microsoft work everywhere).
-  const loginSocialSection = document.getElementById('login-social-section');
+  // Social login buttons always visible (GitHub/Google work everywhere).
 
   // --- Social + CG login handlers ---
   function doCgLogin() {
@@ -5014,9 +5011,6 @@ function initMenu() {
 
   const btnGl = document.getElementById('btn-login-google');
   if (btnGl) btnGl.addEventListener('click', () => startOAuth('google'));
-
-  const btnMs = document.getElementById('btn-login-microsoft');
-  if (btnMs) btnMs.addEventListener('click', () => startOAuth('microsoft'));
 
   // Platform-aware footer links: point at our own Terms/Privacy ONLY when NOT
   // running on the real CrazyGames domain.
