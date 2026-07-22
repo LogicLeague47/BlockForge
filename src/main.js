@@ -3487,7 +3487,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (_isImportedParkour) {
         // Load imported Minecraft parkour map from binary
         console.log('[Parkour] Loading imported map...');
-        const mapUrl = 'parkour-chunks.bin.gz';
+        const mapUrl = (typeof assetBase === 'function' ? assetBase() : '') + 'parkour-chunks.bin.gz';
         const data = await loadImportedParkourChunks(mapUrl);
         _importedParkourData = data;
         const spawn = buildImportedParkour(world, data);
@@ -4993,7 +4993,7 @@ function initMenu() {
   // --- Social + CG login handlers ---
   function doCgLogin() {
     crazyGamesSDK().then((sdk) => {
-      if (!sdk) { showToast('CrazyGames login is only available on crazygames.com', '#ff0', 4); return; }
+      if (!sdk) { showToast('Sorry, you\'re not on CrazyGames. This button is for CrazyGames users only.', '#fa0', 5); return; }
       try {
         const cgName = sdk.user?.getUsername?.();
         const cgId = sdk.user?.getId?.();

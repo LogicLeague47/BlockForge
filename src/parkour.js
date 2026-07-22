@@ -1,4 +1,5 @@
 import { BLOCK } from './blocks.js';
+import { assetBase } from './config.js';
 
 // ─── Parkour Physics Constants (Minecraft-accurate) ───────────────────
 // Walking jump:  ~2.4b flat (no sprint)
@@ -259,27 +260,38 @@ export function setParkourLevel(lvl) {
 // ─── Imported Parkour Map Loader ─────────────────────────────────────
 // Loads .bin.gz files produced by convert-parkour.cjs (Minecraft Anvil → binary)
 
+async function decompressGzip(buf) {
+  if (typeof DecompressionStream !== 'undefined') {
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(new Uint8Array(buf));
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const totalLen = chunks.reduce((s, c) => s + c.length, 0);
+    const result = new Uint8Array(totalLen);
+    let offset = 0;
+    for (const c of chunks) { result.set(c, offset); offset += c.length; }
+    return result;
+  }
+  // Fallback: use a manual gzip decompressor via fetch with 'gzip' encoding hint
+  const blob = new Blob([buf]);
+  const ds = new Response(blob.stream().pipeThrough(new DecompressionStream('gzip')));
+  return new Uint8Array(await ds.arrayBuffer());
+}
+
 export async function loadImportedParkourChunks(url) {
   const res = await fetch(url);
+  if (!res.ok) throw new Error(`Failed to fetch map: ${res.status}`);
   const compressed = await res.arrayBuffer();
-  // Decompress gzip using native Compression Streams API
-  const ds = new DecompressionStream('gzip');
-  const writer = ds.writable.getWriter();
-  writer.write(new Uint8Array(compressed));
-  writer.close();
-  const reader = ds.readable.getReader();
-  const chunks = [];
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    chunks.push(value);
-  }
-  const totalLen = chunks.reduce((s, c) => s + c.length, 0);
-  const buf = new Uint8Array(totalLen);
-  let offset = 0;
-  for (const c of chunks) { buf.set(c, offset); offset += c.length; }
+  const buf = await decompressGzip(compressed);
 
-  const view = new DataView(buf.buffer);
+  const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
   const version = view.getInt32(0);
   const minX = view.getInt32(4);
   const maxX = view.getInt32(8);
