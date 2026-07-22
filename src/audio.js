@@ -1284,24 +1284,7 @@ export class Audio {
     src.start(); src.stop(ctx.currentTime + dur + 0.05);
   }
 
-  creeperHiss() {
-    if (!this.ctx || !this.enabled) return;
-    const ctx = this.ctx;
-    // Sharp hiss — escalating
-    const dur = 0.5;
-    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const src = this._src(buf);
-    const hp = this._filter('highpass', 2000, 0.6);
-    const lp = this._filter('lowpass', 8000, 0.4);
-    const g = this._gain(0);
-    // Crescendo
-    const t = ctx.currentTime;
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.25, t + dur * 0.8);
-    g.gain.linearRampToValueAtTime(0, t + dur);
-    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
-    src.start(); src.stop(ctx.currentTime + dur + 0.05);
-  }
+
 
   explosionSound() {
     if (!this.ctx || !this.enabled) return;

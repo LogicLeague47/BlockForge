@@ -668,7 +668,7 @@ const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
 const _sprintParticleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
 const _waterSplashMat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
 const _critParticleMat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.7 });
-const _endermanTeleportMat = new THREE.MeshBasicMaterial({ color: 0xcc44ff, transparent: true, opacity: 0.7 });
+
 const _dirVec = new THREE.Vector3();
 const _mobDirVec = new THREE.Vector3();
 const _pvpDirVec = new THREE.Vector3();
@@ -1572,7 +1572,7 @@ function updateStepParticles(dt) {
 function igniteTNT(x, y, z) {
   // Replace TNT block with air and schedule explosion
   world.setBlock(x, y, z, BLOCK.AIR);
-  try { audio.creeperHiss(); } catch (_) {}
+
   // Fuse: 1.5 seconds
   setTimeout(() => {
     if (explosionManager) {
@@ -2074,7 +2074,7 @@ function submitChat() {
       return;
     }
     // Dev spawn animal commands (dev world only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'creeper', 'villager'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'villager'];
     if (isDevWorld && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
@@ -5847,16 +5847,7 @@ function loop() {
         player.takeDamage(Math.round(mobEvent.attack.damage * dmgMult), mobEvent.attack.fromPos || 'mob');
         if (playerModel) playerModel.triggerHurt();
       }
-      // Handle creeper explosions
-      if (mobEvent.explosions) {
-        for (const exp of mobEvent.explosions) {
-          const dmg = ExplosionManager.calcDamage(exp.x, exp.y, exp.z, player.position, exp.power);
-          if (dmg > 0) {
-            player.takeDamage(dmg, { x: exp.x, y: exp.y, z: exp.z });
-            if (playerModel) playerModel.triggerHurt();
-          }
-        }
-      }
+
     }
     // Handle chicken egg drops
     if (mobManager._eggDrops && mobManager._eggDrops.length > 0) {
@@ -5865,21 +5856,7 @@ function loop() {
       }
       mobManager._eggDrops.length = 0;
     }
-    // Handle enderman teleport particles
-    for (const mob of mobManager.mobs) {
-      if (mob.type === 'enderman' && mob._teleportFrom) {
-        const from = mob._teleportFrom;
-        // Purple particles at old position
-        for (let i = 0; i < 8; i++) {
-          const mat = _endermanTeleportMat;
-          const m = new THREE.Mesh(_particleGeoMed, mat);
-          m.position.set(from.x + (Math.random()-0.5)*0.5, from.y + Math.random()*2, from.z + (Math.random()-0.5)*0.5);
-          scene.add(m);
-          _particles.push({ mesh: m, vx: (Math.random()-0.5)*2, vy: 1+Math.random()*2, vz: (Math.random()-0.5)*2, life: 0.5, maxLife: 0.5 });
-        }
-        mob._teleportFrom = null;
-      }
-    }
+
   }
 
   // Update explosion particles

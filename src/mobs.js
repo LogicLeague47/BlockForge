@@ -112,25 +112,7 @@ export const MOB_TYPES = {
     drops: [{ item: 277, count: [0, 2] }, { item: 281, count: [0, 3] }],
     soundChance: 0.0003,
   },
-  creeper: {
-    name: 'Creeper',
-    hp: 20,
-    hostile: true,
-    hostileAtNight: true,
-    bodyW: 0.6, bodyH: 1.0, bodyD: 0.6,
-    headW: 0.6, headH: 0.6, headD: 0.6,
-    legW: 0.25, legH: 0.5, legD: 0.25,
-    legPositions: [[-0.19, -0.19], [0.19, -0.19], [-0.19, 0.19], [0.19, 0.19]],
-    headOffY: -0.4,
-    bodyColor: 0x3baa3b,
-    headColor: 0x3baa3b,
-    legColor: 0x2d8a2d,
-    attackDamage: 0, // creeper doesn't melee — it explodes
-    fuseTime: 1.5,   // seconds from hiss to boom
-    explosionPower: 3,
-    drops: [{ item: 279, count: [0, 2] }], // gunpowder
-    soundChance: 0.0002,
-  },
+
 
   villager: {
     name: 'Villager',
@@ -178,26 +160,7 @@ export const MOB_TYPES = {
     layEggChance: 0.00005, // chance per tick to lay an egg
   },
 
-  enderman: {
-    name: 'Enderman',
-    hp: 40,
-    hostile: true,
-    hostileAtNight: true,
-    bipedalLegs: true,
-    bodyW: 0.6, bodyH: 1.2, bodyD: 0.35,
-    headW: 0.5, headH: 0.5, headD: 0.5,
-    legW: 0.22, legH: 0.8, legD: 0.22,
-    headOffY: -0.6,
-    bodyColor: 0x1a0a2a,
-    headColor: 0x1a0a2a,
-    legColor: 0x0a0020,
-    hasEyes: true,
-    eyeColor: 0xcc44ff,
-    attackDamage: 7,
-    teleportChance: 0.02, // chance per second to teleport when idle
-    drops: [{ item: 317, count: [0, 1] }], // ender pearl
-    soundChance: 0.0002,
-  },
+
 
   slime: {
     name: 'Slime',
@@ -2741,12 +2704,12 @@ export class MobManager {
     else if (type === 'zombie') this.audio.zombieSound();
     else if (type === 'skeleton') this.audio.skeletonSound();
     else if (type === 'spider') this.audio.spiderSound();
-    else if (type === 'creeper') this.audio.creeperHiss();
+
   }
 
   playHurtSound(type) {
     if (!this.audio) return;
-    if (type === 'zombie' || type === 'skeleton' || type === 'spider' || type === 'creeper') {
+    if (type === 'zombie' || type === 'skeleton' || type === 'spider') {
       this.audio.hurtHostile();
     } else {
       this.audio.hurtAnimal();
