@@ -6332,7 +6332,7 @@ let fps = 0, fpsFrames = 0, fpsLastTime = performance.now();
 // Bottom-left: BlockForge Portal
 document.getElementById('btn-blockforge-portal')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
-  window.open('portal.html' + (user ? '?user=' + user : ''), 'bfportal', 'width=900,height=700');
+  window.open('portal.html' + (user ? '?user=' + user : ''));
 });
 // Bottom-right: Account Info
 document.getElementById('btn-account-info')?.addEventListener('click', () => {

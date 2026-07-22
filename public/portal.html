@@ -137,6 +137,16 @@
     .portal-login-btn:hover { background: linear-gradient(180deg,#4a7a9a 0%,#3a6a8a 40%,#2a5a7a 60%,#2a4a6a 100%); }
     #portal-logged-in { display: none; }
     #portal-user-name { color: #7af; font-weight: bold; }
+    .page-section { display: none; }
+    .page-section.active { display: block; }
+    .page-section h2 { font-size:16px; color:#ff0; letter-spacing:2px; border-bottom:1px solid rgba(80,80,120,0.2); padding-bottom:8px; margin-bottom:16px; }
+    .page-section p { font-size:12px; color:#888; margin-bottom:12px; line-height:1.5; }
+    .page-section ul { list-style:none; padding:0; }
+    .page-section li { padding:10px 12px; border:1px solid rgba(80,80,120,0.2); border-radius:4px; margin-bottom:8px; font-size:12px; color:#aaa; }
+    .page-section li a { color:#7af; text-decoration:none; }
+    .page-section li a:hover { text-decoration:underline; }
+    .page-section .external-link { color:#7af; text-decoration:none; font-size:13px; }
+    .page-section .external-link:hover { text-decoration:underline; }
   </style>
 </head>
 <body>
@@ -163,42 +173,77 @@
       <div style="font:13px monospace;color:#8d8;margin-bottom:16px;">Logged in as <span id="portal-user-name">—</span></div>
     </div>
 
-    <div class="card-grid">
-      <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
-        <div class="icon">&#127918;</div>
-        <div class="name">Play BlockForge</div>
-        <div class="desc">Launch the game in a new tab</div>
-      </a>
+    <!-- Page sections -->
+    <div id="page-home" class="page-section active">
+      <div class="card-grid">
+        <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
+          <div class="icon">&#127918;</div>
+          <div class="name">Play BlockForge</div>
+          <div class="desc">Launch the game in a new tab</div>
+        </a>
 
-      <div class="card" id="card-texture-packs">
-        <div class="icon">&#127912;</div>
-        <div class="name">Texture Packs</div>
-        <div class="desc">Browse and install custom texture packs made by the community</div>
-      </div>
+        <div class="card" data-page="textures">
+          <div class="icon">&#127912;</div>
+          <div class="name">Texture Packs</div>
+          <div class="desc">Browse and install custom texture packs made by the community</div>
+        </div>
 
-      <div class="card coming">
-        <div class="icon">&#128178;</div>
-        <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
-        <div class="desc">Support BlockForge and unlock exclusive items</div>
-      </div>
+        <div class="card coming">
+          <div class="icon">&#128178;</div>
+          <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
+          <div class="desc">Support BlockForge and unlock exclusive items</div>
+        </div>
 
-      <div class="card" id="card-feedback">
-        <div class="icon">&#128172;</div>
-        <div class="name">Feedback</div>
-        <div class="desc">Report bugs, suggest features, and help shape the game</div>
-      </div>
+        <div class="card" data-page="feedback">
+          <div class="icon">&#128172;</div>
+          <div class="name">Feedback</div>
+          <div class="desc">Report bugs, suggest features, and help shape the game</div>
+        </div>
 
-      <div class="card" id="card-skins">
-        <div class="icon">&#128129;</div>
-        <div class="name">Community Skins</div>
-        <div class="desc">Custom skins created by players</div>
-      </div>
+        <div class="card" data-page="skins">
+          <div class="icon">&#128129;</div>
+          <div class="name">Community Skins</div>
+          <div class="desc">Custom skins created by players</div>
+        </div>
 
-      <div class="card coming">
-        <div class="icon">&#127760;</div>
-        <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
-        <div class="desc">Browse community-run servers</div>
+        <div class="card coming">
+          <div class="icon">&#127760;</div>
+          <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
+          <div class="desc">Browse community-run servers</div>
+        </div>
       </div>
+    </div>
+
+    <div id="page-textures" class="page-section">
+      <h2>Texture Packs</h2>
+      <p>Custom texture packs created by the community. Selected packs will be available to use in-game.</p>
+      <ul>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Faithful 32x</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Classic faithful style</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Bare Bones</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Clean minimalist look</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Pastel Craft</a> <span style="color:#666;font-size:10px;margin-left:8px;">— Soft pastel colors</span></li>
+      </ul>
+      <p style="color:#666;font-size:11px;">More texture packs coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack &rarr;</a></p>
+      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+    </div>
+
+    <div id="page-skins" class="page-section">
+      <h2>Community Skins</h2>
+      <p>Player-created skins for BlockForge. Download skins and they will appear in your skin selection.</p>
+      <ul>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Dragon Knight</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player1</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Cyber Ninja</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player2</span></li>
+        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Pixel Cat</a> <span style="color:#666;font-size:10px;margin-left:8px;">— by Player3</span></li>
+      </ul>
+      <p style="color:#666;font-size:11px;">More skins coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin &rarr;</a></p>
+      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+    </div>
+
+    <div id="page-feedback" class="page-section">
+      <h2>Feedback</h2>
+      <p>Help shape BlockForge by reporting bugs, suggesting features, or sharing your thoughts.</p>
+      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues &rarr;</a></p>
+      <p style="color:#666;font-size:11px;">You can also email feedback directly.</p>
+      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
     <div style="text-align:center;margin-bottom:30px;">
@@ -212,11 +257,44 @@
 
   <script>
     const params = new URLSearchParams(location.search);
-    const userName = params.get('user') || '';
+    let userName = params.get('user') || '';
     const userBadge = document.getElementById('user-badge');
     const loggedIn = document.getElementById('portal-logged-in');
     const loginSection = document.getElementById('portal-login-section');
     const userNameDisplay = document.getElementById('portal-user-name');
+
+    function showPage(pageId) {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      const el = document.getElementById('page-' + pageId);
+      if (el) {
+        el.classList.add('active');
+        const url = new URL(location.href);
+        url.searchParams.set('page', pageId);
+        if (userName) url.searchParams.set('user', userName);
+        history.pushState({ page: pageId }, '', url);
+      } else {
+        navigateHome();
+      }
+    }
+
+    function navigateHome() {
+      document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
+      document.getElementById('page-home').classList.add('active');
+      const url = new URL(location.href);
+      url.searchParams.delete('page');
+      if (userName) url.searchParams.set('user', userName);
+      history.pushState({ page: 'home' }, '', url);
+    }
+
+    document.querySelectorAll('.card[data-page]').forEach(card => {
+      card.addEventListener('click', () => {
+        const page = card.dataset.page;
+        if (page === 'textures' || page === 'skins') {
+          if (!userName) { alert('Please log in to access this feature.'); return; }
+        }
+        showPage(page);
+      });
+    });
 
     if (userName) {
       userBadge.textContent = userName;
@@ -227,6 +305,16 @@
       loginSection.style.display = 'block';
     }
 
+    const pageParam = params.get('page');
+    if (pageParam && document.getElementById('page-' + pageParam)) {
+      showPage(pageParam);
+    }
+
+    window.addEventListener('popstate', () => {
+      const p = new URLSearchParams(location.search).get('page');
+      if (p) { showPage(p); } else { navigateHome(); }
+    });
+
     document.getElementById('portal-login-btn')?.addEventListener('click', () => {
       const user = document.getElementById('portal-user-input').value.trim().slice(0, 16);
       const pass = document.getElementById('portal-pass-input').value;
@@ -234,29 +322,7 @@
       if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
       if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
       hint.textContent = 'Logging in...';
-      // Forward to game WebSocket for authentication
-      // For now, redirect to portal with user param
       window.location.href = 'portal.html?user=' + encodeURIComponent(user);
-    });
-
-    document.getElementById('card-texture-packs')?.addEventListener('click', () => {
-      if (userName) {
-        window.location.href = 'portal.html?user=' + encodeURIComponent(userName) + '&page=textures';
-      } else {
-        alert('Please log in to access Texture Packs.');
-      }
-    });
-
-    document.getElementById('card-skins')?.addEventListener('click', () => {
-      if (userName) {
-        window.location.href = 'portal.html?user=' + encodeURIComponent(userName) + '&page=skins';
-      } else {
-        alert('Please log in to access Community Skins.');
-      }
-    });
-
-    document.getElementById('card-feedback')?.addEventListener('click', () => {
-      window.location.href = 'portal.html?user=' + encodeURIComponent(userName || '') + '&page=feedback';
     });
   </script>
 </body>
