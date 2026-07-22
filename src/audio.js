@@ -71,7 +71,6 @@ export class Audio {
     this._sfxLoaded = true;
     this._loadStepBuffers();
     this._loadDigBuffers();
-    this._loadHitBuffers();
     this._loadPlaceBuffers();
     this._loadZombieBuffers();
     this._loadSkeletonBuffers();
@@ -1131,19 +1130,20 @@ export class Audio {
   damage() {
     if (!this.ctx || !this.enabled) return;
     this._playLayers([
-      { noise: 'white', dur: 0.12, gain: 0.4, bp: 800, bq: 2, atk: 0.002, rel: 0.15 },
-      { noise: 'brown', dur: 0.1, gain: 0.25, lp: 300, atk: 0.003, rel: 0.2 },
-      { wave: 'square', freq: 180, dur: 0.06, gain: 0.12, atk: 0.002, rel: 0.1 },
+      { noise: 'white', dur: 0.08, gain: 0.5, hp: 200, atk: 0.001, rel: 0.08 },
+      { noise: 'brown', dur: 0.15, gain: 0.35, lp: 250, atk: 0.002, rel: 0.18 },
+      { wave: 'sawtooth', freq: 120, dur: 0.07, gain: 0.15, atk: 0.001, rel: 0.08 },
+      { wave: 'sine', freq: 60, dur: 0.12, gain: 0.25, atk: 0.003, rel: 0.15 },
     ]);
   }
 
   hit() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playHitBuffer()) return;
     this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.5, bp: 3500, bq: 1.5, atk: 0.001, rel: 0.08 },
-      { noise: 'brown', dur: 0.08, gain: 0.3, lp: 600, atk: 0.002, rel: 0.1 },
-      { wave: 'square', freq: 220, dur: 0.05, gain: 0.15, atk: 0.001, rel: 0.08 },
+      { noise: 'white', dur: 0.05, gain: 0.55, hp: 3000, atk: 0.001, rel: 0.06 },
+      { noise: 'brown', dur: 0.1, gain: 0.3, lp: 500, atk: 0.002, rel: 0.12 },
+      { wave: 'sawtooth', freq: 200, dur: 0.04, gain: 0.18, atk: 0.001, rel: 0.06 },
+      { wave: 'sine', freq: 80, dur: 0.08, gain: 0.2, atk: 0.002, rel: 0.1 },
     ]);
   }
 
