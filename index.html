@@ -773,7 +773,15 @@
         align-items: center; justify-content: center;
         color: var(--text-primary); font-family: monospace;
       }
-      #inventory-screen.open { display: flex; }
+      #inventory-screen.open {
+        display: flex;
+        animation: modalFadeIn 0.15s ease;
+      }
+      .modal-container { animation: modalFadeIn 0.15s ease; }
+      @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
       #inventory-screen h2 {
         font-size: 18px; color: var(--text-heading); margin-bottom: 12px;
         text-shadow: 2px 2px 0 #000;
@@ -982,21 +990,21 @@
 
       /* Furnace screen */
       #furnace-screen {
-        position: fixed; inset: 0; z-index: 55;
+        position: fixed; inset: 0; z-index: 56;
         background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
-        color: var(--text-primary); font-family: monospace;
+        font-family: monospace;
       }
-      #furnace-screen.open { display: flex; }
+      #furnace-screen.open { display: flex; animation: modalFadeIn 0.15s ease; }
       #chest-screen {
-        position: fixed; inset: 0; z-index: 55;
+        position: fixed; inset: 0; z-index: 56;
         background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
-        color: #fff; font-family: monospace;
+        font-family: monospace;
       }
-      #chest-screen.open { display: flex; }
+      #chest-screen.open { display: flex; animation: modalFadeIn 0.15s ease; }
       #chest-screen h2 {
         font-size: 18px; color: #ddd; margin-bottom: 12px;
         text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
@@ -1207,7 +1215,14 @@
         display: none; flex-direction: column; align-items: center; gap: 10px;
         position: relative; z-index: 2;
       }
-      .menu-screen.active { display: flex; }
+      .menu-screen.active {
+        display: flex;
+        animation: menuFadeIn 0.2s ease;
+      }
+      @keyframes menuFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
       .menu-logo-wrap {
         position: relative;
         margin-bottom: 30px;
@@ -1342,7 +1357,12 @@
         border: 1px solid rgba(80,80,100,0.3);
         border-radius: 3px; padding: 10px 14px;
         margin-bottom: 6px; cursor: pointer;
-        transition: background 0.1s, border-color 0.1s;
+        transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.1s, border-color 0.1s;
+      }
+      .world-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+      }
       }
       .world-card:hover {
         background: rgba(60,80,100,0.6);
@@ -1403,6 +1423,22 @@
       .settings-row label { font-size: 12px; color: #ccc; }
       .settings-row select, .settings-row input[type=range] {
         width: 140px;
+      }
+      .settings-row input[type=range] {
+        -webkit-appearance: none; appearance: none; height: 6px;
+        background: rgba(80,80,100,0.4); border-radius: 3px; outline: none;
+      }
+      .settings-row input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+        background: #7af; border: 2px solid #5af; cursor: pointer;
+        transition: transform 0.1s, background 0.1s;
+      }
+      .settings-row input[type=range]::-webkit-slider-thumb:hover {
+        transform: scale(1.15); background: #8bf;
+      }
+      .settings-row input[type=range]::-moz-range-thumb {
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #7af; border: 2px solid #5af; cursor: pointer;
       }
 
       /* Key bindings / controls screen */
@@ -1851,6 +1887,15 @@
         #mobile-controls { display: block; }
         #crosshair { opacity: 0.5; }
         #crosshair-dot { opacity: 0.5; }
+      }
+      @media (max-width: 768px) {
+        .menu-btn { min-width: 0; width: 90vw; max-width: 360px; padding: 12px 0; font-size: 14px; }
+        .menu-panel { width: 90vw; max-width: 360px; }
+        .menu-logo { font-size: 36px; letter-spacing: 5px; }
+        .menu-splash { font-size: 14px; top: -12px; right: -20px; }
+        .menu-player-preview { display: none !important; }
+        #inv-layout { flex-direction: column; align-items: center; }
+        .settings-row select, .settings-row input[type=range] { width: 100px; }
       }
     </style>
   </head>
