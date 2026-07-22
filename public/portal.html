@@ -645,14 +645,18 @@
       });
 
       // Initialize UI based on URL params
+      const pageHome = document.getElementById('page-home');
+      
       if (userName) {
         userBadge.textContent = userName;
         loggedIn.style.display = 'block';
         userNameDisplay.textContent = userName;
         loginSection.style.display = 'none';
+        pageHome.style.display = 'block';
       } else {
         loggedIn.style.display = 'none';
         loginSection.style.display = 'block';
+        pageHome.style.display = 'none';
       }
 
       const pageParam = params.get('page');
