@@ -5092,18 +5092,48 @@ function initMenu() {
           showToast('OAuth failed: ' + e.data.error, '#f44', 4);
           return;
         }
-        const name = filterProfanity(e.data.username);
-        if (!name) { showToast('Invalid username from provider', '#f44', 4); return; }
-        playerName = name;
-        try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
-        // Authenticate via WebSocket with identity
-        const attempt = () => network.sendIdentityAuth(provider, e.data.providerId || name, playerName);
-        if (!network.connected) {
-          network.connect(MP_SERVER_URL);
-          network.onConnectedOnce(attempt);
-          setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+        const suggestedName = filterProfanity(e.data.username) || 'Player';
+        const providerId = e.data.providerId || suggestedName;
+        // Show name prompt with suggested name from provider
+        const promptEl = document.getElementById('name-prompt');
+        const inputEl = document.getElementById('name-prompt-input');
+        const confirmEl = document.getElementById('name-prompt-confirm');
+        if (promptEl && inputEl && confirmEl) {
+          inputEl.value = suggestedName;
+          inputEl.placeholder = 'Choose a username...';
+          document.querySelector('#name-prompt div div:first-child').textContent = 'Choose Your Username';
+          document.querySelector('#name-prompt div div:nth-child(2)').textContent = 'This will be your in-game name. You can change it later.';
+          promptEl.style.display = 'flex';
+          setTimeout(() => inputEl.focus(), 50);
+          confirmEl.onclick = () => {
+            const name = (inputEl.value || '').trim().slice(0, 20);
+            if (!name) { inputEl.focus(); return; }
+            playerName = filterProfanity(name);
+            if (!playerName) playerName = 'Player';
+            try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+            promptEl.style.display = 'none';
+            const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
+            if (!network.connected) {
+              network.connect(MP_SERVER_URL);
+              network.onConnectedOnce(attempt);
+              setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+            } else {
+              attempt();
+            }
+          };
+          inputEl.onkeydown = (e) => { if (e.key === 'Enter') confirmEl.onclick(); };
         } else {
-          attempt();
+          // Fallback if name prompt elements not found
+          playerName = suggestedName;
+          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+          const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
+          if (!network.connected) {
+            network.connect(MP_SERVER_URL);
+            network.onConnectedOnce(attempt);
+            setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+          } else {
+            attempt();
+          }
         }
       }
     };
