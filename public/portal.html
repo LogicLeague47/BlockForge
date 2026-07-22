@@ -147,6 +147,7 @@
     .page-section li a:hover { text-decoration:underline; }
     .page-section .external-link { color:#7af; text-decoration:none; font-size:13px; }
     .page-section .external-link:hover { text-decoration:underline; }
+    .dev-only { display: none; }
   </style>
 </head>
 <body>
@@ -212,6 +213,21 @@
           <div class="desc">Browse community-run servers</div>
         </div>
       </div>
+
+      <div class="section-title dev-only">&#9733; DEVELOPER</div>
+      <div class="card-grid dev-only">
+        <div class="card" data-page="suggestions">
+          <div class="icon">&#128161;</div>
+          <div class="name">Feature Suggestions</div>
+          <div class="desc">Propose and vote on new features for BlockForge</div>
+        </div>
+
+        <div class="card" data-page="bugs">
+          <div class="icon">&#128027;</div>
+          <div class="name">Bugs</div>
+          <div class="desc">Track and manage bug reports</div>
+        </div>
+      </div>
     </div>
 
     <div id="page-textures" class="page-section">
@@ -246,6 +262,22 @@
       <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
     </div>
 
+    <div id="page-suggestions" class="page-section">
+      <h2>Feature Suggestions</h2>
+      <p>Help shape BlockForge by proposing new features and voting on existing suggestions.</p>
+      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests on GitHub &rarr;</a></p>
+      <p style="color:#666;font-size:11px;">Submit your ideas and help shape the future of the game.</p>
+      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+    </div>
+
+    <div id="page-bugs" class="page-section">
+      <h2>Bugs</h2>
+      <p>Track and manage bug reports for BlockForge.</p>
+      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports on GitHub &rarr;</a></p>
+      <p style="color:#666;font-size:11px;">Help us squash bugs by reporting issues you find.</p>
+      <div style="margin-top:20px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
+    </div>
+
     <div style="text-align:center;margin-bottom:30px;">
       <button class="btn-back" onclick="window.close()">Close Portal</button>
     </div>
@@ -258,6 +290,11 @@
   <script>
     const params = new URLSearchParams(location.search);
     let userName = params.get('user') || '';
+    let userRole = params.get('role') || '';
+    const devRoles = ['dev', 'gamedev', 'owner'];
+    if (devRoles.includes(userRole)) {
+      document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('dev-only'));
+    }
     const userBadge = document.getElementById('user-badge');
     const loggedIn = document.getElementById('portal-logged-in');
     const loginSection = document.getElementById('portal-login-section');
@@ -271,6 +308,7 @@
         const url = new URL(location.href);
         url.searchParams.set('page', pageId);
         if (userName) url.searchParams.set('user', userName);
+        if (userRole) url.searchParams.set('role', userRole);
         history.pushState({ page: pageId }, '', url);
       } else {
         navigateHome();
@@ -283,13 +321,14 @@
       const url = new URL(location.href);
       url.searchParams.delete('page');
       if (userName) url.searchParams.set('user', userName);
+      if (userRole) url.searchParams.set('role', userRole);
       history.pushState({ page: 'home' }, '', url);
     }
 
     document.querySelectorAll('.card[data-page]').forEach(card => {
       card.addEventListener('click', () => {
         const page = card.dataset.page;
-        if (page === 'textures' || page === 'skins') {
+        if (page === 'textures' || page === 'skins' || page === 'suggestions' || page === 'bugs') {
           if (!userName) { alert('Please log in to access this feature.'); return; }
         }
         showPage(page);
@@ -322,7 +361,8 @@
       if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
       if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
       hint.textContent = 'Logging in...';
-      window.location.href = 'portal.html?user=' + encodeURIComponent(user);
+      const roleParam = userRole ? '&role=' + encodeURIComponent(userRole) : '';
+      window.location.href = 'portal.html?user=' + encodeURIComponent(user) + roleParam;
     });
   </script>
 </body>

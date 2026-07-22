@@ -161,7 +161,7 @@ function layPath(set, x0, z0, x1, z1, y) {
 function buildWell(set, ox, y, oz) {
   for (let x = 0; x < 5; x++) for (let z = 0; z < 5; z++) {
     const edge = x === 0 || x === 4 || z === 0 || z === 4;
-    foundation(set, ox + x, y, oz + z, edge ? BLOCK.COBBLESTONE : BLOCK.COBBLESTONE);
+    foundation(set, ox + x, y, oz + z, edge ? BLOCK.COBBLESTONE : BLOCK.STONE);
   }
   // water pool
   for (let x = 1; x <= 3; x++) for (let z = 1; z <= 3; z++) set(ox + x, y, oz + z, BLOCK.WATER);
@@ -389,12 +389,12 @@ function buildDesertTemple(set, ox, y, oz) {
       set(ox + x, y + h, oz + z, pattern);
     }
   }
-  // Door openings (all 4 sides, 2 wide)
+  // Door openings (all 4 sides, 2 wide) — clear the perimeter wall, not the interior
   const mid = w >> 1;
   for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
     for (let d = 0; d < 2; d++) {
-      const bx = ox + mid + dx + (dx === 0 ? d : 0);
-      const bz = oz + mid + dz + (dz === 0 ? d : 0);
+      const bx = dx !== 0 ? (ox + (dx < 0 ? 0 : w - 1)) : (ox + mid + d);
+      const bz = dz !== 0 ? (oz + (dz < 0 ? 0 : w - 1)) : (oz + mid + d);
       set(bx, y + 1, bz, BLOCK.AIR);
       set(bx, y + 2, bz, BLOCK.AIR);
     }

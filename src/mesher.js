@@ -18,6 +18,7 @@
 import { BLOCK, BLOCKS, tileNameFor } from './blocks.js';
 import { tileUVRect } from './tiles.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, BIOMES } from './world.js';
+import { getLampFaces } from './greenstone.js';
 
 // Biome tint lookup tables (allocated once, not per chunk rebuild)
 const _GRASS_TINT = {
@@ -223,7 +224,11 @@ export function buildChunkGeometry(chunk, world) {
           let yDrop = 0;
           if (isWater && face.name === 'top') yDrop = -0.12;
 
-          const tile = tileNameFor(b, face.name);
+          let tile = tileNameFor(b, face.name);
+          if (b === BLOCK.GREENSTONE_LAMP) {
+            const override = getLampFaces(wx, y, wz);
+            if (override) tile = override[face.name] || override.side;
+          }
           const uvRect = tileUVRect(tile);
           const shade = face.name === 'top' ? FACE_SHADE.top
                       : face.name === 'bottom' ? FACE_SHADE.bottom

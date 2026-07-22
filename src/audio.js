@@ -104,7 +104,7 @@ export class Audio {
           return this.ctx.decodeAudioData(ab);
         }).then(buf => {
           this._stepBuffers[mat].push(buf);
-        }).catch(() => {});
+        }).catch(e => console.warn('[Audio] load failed:', e));
       }
     }
   }
@@ -120,6 +120,7 @@ export class Audio {
     g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
   }
 
@@ -144,7 +145,7 @@ export class Audio {
           return r.arrayBuffer();
         }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
           this._digBuffers[mat].push(buf);
-        }).catch(() => {});
+        }).catch(e => console.warn('[Audio] load failed:', e));
       }
     }
   }
@@ -160,6 +161,7 @@ export class Audio {
     g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -175,7 +177,7 @@ export class Audio {
         return r.arrayBuffer();
       }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
         this._hitBuffers.push(buf);
-      }).catch(() => {});
+      }).catch(e => console.warn('[Audio] load failed:', e));
     }
   }
 
@@ -188,6 +190,7 @@ export class Audio {
     g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -213,7 +216,7 @@ export class Audio {
           return r.arrayBuffer();
         }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
           this._placeBuffers[mat].push(buf);
-        }).catch(() => {});
+        }).catch(e => console.warn('[Audio] load failed:', e));
       }
     }
   }
@@ -229,6 +232,7 @@ export class Audio {
     g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -249,7 +253,7 @@ export class Audio {
         return r.arrayBuffer();
       }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
         this._zombieBuffers.push(buf);
-      }).catch(() => {});
+      }).catch(e => console.warn('[Audio] load failed:', e));
     }
   }
 
@@ -262,6 +266,7 @@ export class Audio {
     g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -276,7 +281,7 @@ export class Audio {
         return r.arrayBuffer();
       }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
         this._skeletonBuffers.push(buf);
-      }).catch(() => {});
+      }).catch(e => console.warn('[Audio] load failed:', e));
     }
   }
 
@@ -289,6 +294,7 @@ export class Audio {
     g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -311,7 +317,7 @@ export class Audio {
         return r.arrayBuffer();
       }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
         this._spiderBuffers.push(buf);
-      }).catch(() => {});
+      }).catch(e => console.warn('[Audio] load failed:', e));
     }
   }
 
@@ -324,6 +330,7 @@ export class Audio {
     g.gain.value = 0.9;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -348,7 +355,7 @@ export class Audio {
         return r.arrayBuffer();
       }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
         this._eatBuffers.push(buf);
-      }).catch(() => {});
+      }).catch(e => console.warn('[Audio] load failed:', e));
     }
   }
 
@@ -361,6 +368,7 @@ export class Audio {
     g.gain.value = 1.0;
     src.connect(g);
     g.connect(this.master);
+    src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
   }
@@ -506,6 +514,7 @@ export class Audio {
   // Play a layered sound from a definition array
   _playLayers(layers, pitchVar = 0) {
     if (!this.ctx || !this.enabled || !layers) return;
+    if (!Number.isFinite(pitchVar)) pitchVar = 0;
     for (const L of layers) {
       const pv = pitchVar * (Math.random() * 0.4 + 0.8);
       const dur = L.dur || 0.1;
@@ -520,6 +529,7 @@ export class Audio {
         this._envGain(g, gain, dur, 0.01, 0.4);
         osc.connect(g);
         g.connect(this.master);
+        osc.onended = () => { try { g.disconnect(); } catch (_) {} };
         osc.start();
         osc.stop(this.ctx.currentTime + dur + 0.02);
         continue;
@@ -546,6 +556,9 @@ export class Audio {
       src.connect(chain[0]);
       for (let i = 1; i < chain.length; i++) chain[i - 1].connect(chain[i]);
       chain[chain.length - 1].connect(this.master);
+      src.onended = () => {
+        for (const n of chain) { try { n.disconnect(); } catch (_) {} }
+      };
 
       src.start();
       src.stop(this.ctx.currentTime + dur + 0.05);
@@ -1168,7 +1181,7 @@ export class Audio {
     const src = files[(Math.random() * files.length) | 0];
     const el = new window.Audio(assetUrl(src));
     el.volume = 0.6;
-    el.play().catch(() => {});
+    el.play().catch(e => console.warn('[Audio] play() failed:', e));
   }
 
   cowSound() {
@@ -1375,6 +1388,7 @@ export class Audio {
   _rainFadeTo(target, dur) {
     const g = this._rainGain;
     if (!g) return;
+    if (dur <= 0) { g.gain.value = target; return; }
     const step = (target - g.gain.value) / (dur * 30);
     const iv = setInterval(() => {
       if (!g) { clearInterval(iv); return; }

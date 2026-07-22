@@ -1,4 +1,4 @@
-import { BLOCK, BLOCKS } from './blocks.js';
+import { BLOCK } from './blocks.js';
 
 const CARDINAL = [
   [1, 0, 0],
@@ -26,6 +26,12 @@ function oppositeDir(dir) {
 
 const IMMOVABLE = new Set([BLOCK.BEDROCK, BLOCK.OBSIDIAN]);
 
+const LAMP_ON_FACES = { top: 'greenstone_lamp_on', bottom: 'greenstone_lamp_on', side: 'greenstone_lamp_on' };
+const _lampOverrides = new Map();
+export function getLampFaces(x, y, z) {
+  return _lampOverrides.get(x + ',' + y + ',' + z);
+}
+
 export class GreenstoneSystem {
   constructor() {
     this._powerMap = new Map();
@@ -35,6 +41,7 @@ export class GreenstoneSystem {
     this._cooldown = 0;
     this._sources = new Map();
     this._wires = new Set();
+    this._pistonRetractTimers = new Map();
   }
 
   markDirty() {
@@ -42,6 +49,17 @@ export class GreenstoneSystem {
   }
 
   update(dt, world) {
+    for (const [key, remaining] of this._pistonRetractTimers) {
+      const newRemaining = remaining - dt;
+      if (newRemaining <= 0) {
+        this._pistonRetractTimers.delete(key);
+        const [x, y, z] = key.split(',').map(Number);
+        this.retractPiston(x, y, z, world);
+      } else {
+        this._pistonRetractTimers.set(key, newRemaining);
+      }
+    }
+
     if (this._dirty) {
       this._dirty = false;
       this._cooldown = 0.05;
@@ -210,27 +228,13 @@ export class GreenstoneSystem {
   _setLampPowered(x, y, z, powered, world) {
     const key = x + ',' + y + ',' + z;
     if (powered) {
-      if (this._poweredLamps.has(key)) return; // already lit
+      if (this._poweredLamps.has(key)) return;
       this._poweredLamps.add(key);
-      // Patch the global definition for this block type (all lamps share the def)
-      BLOCKS[BLOCK.GREENSTONE_LAMP].luminance = 14;
-      BLOCKS[BLOCK.GREENSTONE_LAMP].faces = {
-        top: 'greenstone_lamp_on',
-        bottom: 'greenstone_lamp_on',
-        side: 'greenstone_lamp_on',
-      };
+      _lampOverrides.set(key, LAMP_ON_FACES);
     } else {
-      if (!this._poweredLamps.has(key)) return; // already off
+      if (!this._poweredLamps.has(key)) return;
       this._poweredLamps.delete(key);
-      // If no more powered lamps anywhere, revert global def to off state
-      if (this._poweredLamps.size === 0) {
-        BLOCKS[BLOCK.GREENSTONE_LAMP].luminance = 0;
-        BLOCKS[BLOCK.GREENSTONE_LAMP].faces = {
-          top: 'greenstone_lamp_off',
-          bottom: 'greenstone_lamp_off',
-          side: 'greenstone_lamp_off',
-        };
-      }
+      _lampOverrides.delete(key);
     }
   }
 
@@ -244,6 +248,19 @@ export class GreenstoneSystem {
         const pState = this._pistonStates.get(key) || { extended: false, facing: 'north' };
         if (!pState.extended) {
           this._extendPiston(sx, sy, sz, pState, world);
+        }
+      }
+    }
+
+    for (const [key, pState] of this._pistonStates) {
+      if (pState.extended) {
+        const power = this._powerMap.get(key) || 0;
+        if (power <= 0) {
+          if (!this._pistonRetractTimers.has(key)) {
+            this._pistonRetractTimers.set(key, 0.2);
+          }
+        } else {
+          this._pistonRetractTimers.delete(key);
         }
       }
     }
@@ -328,7 +345,7 @@ export class GreenstoneSystem {
       const pullZ = z + faceOff[2] * 2;
 
       const pullBlock = world.getBlock(pullX, pullY, pullZ);
-      if (pullBlock !== BLOCK.AIR) {
+      if (pullBlock !== BLOCK.AIR && !IMMOVABLE.has(pullBlock)) {
         const destX = x + faceOff[0];
         const destY = y + faceOff[1];
         const destZ = z + faceOff[2];

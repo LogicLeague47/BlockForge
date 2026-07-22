@@ -2366,6 +2366,7 @@ export class UI {
           this.furnaceSmeltTime += dt;
           if (this.furnaceSmeltTime >= 3) {
             this.furnaceSmeltTime = 0;
+            const inputItem = fs.input.item;
             fs.input.count--;
             if (fs.input.count <= 0) fs.input = null;
             if (fs.output && fs.output.item === out) {
@@ -2373,6 +2374,7 @@ export class UI {
             } else {
               fs.output = { item: out, count: 1 };
             }
+            if (this.onSmelt) this.onSmelt(inputItem, 1);
             this.renderFurnaceSlots();
           }
         }

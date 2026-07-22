@@ -505,12 +505,23 @@ const ui = new UI(atlasCanvas);
 ui._onSync = syncUIMode;
 ui.onCraft = (itemId, count) => {
   achievements.addItemsCrafted(count);
+  achievements.incrementMapStat('crafted', itemId, count);
   const STORAGE_BLOCKS = [BLOCK.COAL_BLOCK, BLOCK.IRON_BLOCK, BLOCK.GOLD_BLOCK, BLOCK.DIAMOND_BLOCK, BLOCK.PRISMITE_BLOCK];
   if (STORAGE_BLOCKS.includes(itemId)) achievements.incrementStat('storageBlocksCrafted');
+  const tInfo = toolInfo(itemId);
+  if (tInfo && tInfo.type === 'hoe') achievements.incrementStat('craftedHoe');
+  const aInfo = ARMOR[itemId];
+  if (aInfo) {
+    if (aInfo.material === 'IRON') achievements.incrementStat('craftedAnyIronArmor');
+    if (aInfo.material === 'DIAMOND') achievements.incrementStat('craftedAllDiamondArmor');
+  }
   if (player && player.isSurvival()) {
     const xpGain = Math.ceil(count * 0.5);
     if (player.addXp(xpGain)) ui.showLevelUp(player.level);
   }
+};
+ui.onSmelt = (inputItem, count) => {
+  achievements.incrementMapStat('smelted', inputItem, count);
 };
 const audio = new Audio();
 const achievements = new AchievementManager();
@@ -698,11 +709,12 @@ const greenstoneSystem = new GreenstoneSystem();
 
 // --- multiplayer / chat state ---
 let playerName = 'Player';
+const DEV_USERS = new Set(['logicleague', 'cdkide2']);
 const DEV_ACCOUNT = 'LogicLeague';
 let playerRole = 'player';
 
 function _refreshDevButtons() {
-  const isDev = playerName === DEV_ACCOUNT || playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
+  const isDev = DEV_USERS.has(playerName.toLowerCase()) || playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
   const bWorld = document.getElementById('btn-dev-world');
   if (bWorld) bWorld.style.display = isDev ? '' : 'none';
   const bPanel = document.getElementById('btn-dev-panel');
@@ -1298,6 +1310,7 @@ document.addEventListener('mousedown', (e) => {
           if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
           syncUIMode();
           achievements.incrementStat('foodEaten');
+          if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
           try { audio.eatBite(); } catch (_) {}
           used = true;
         }
@@ -1327,6 +1340,7 @@ document.addEventListener('mousedown', (e) => {
             if (oh.count <= 0) player.inventory.offhand = null;
             syncUIMode();
             achievements.incrementStat('foodEaten');
+            if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
             try { audio.eatBite(); } catch (_) {}
           }
         } else if (isBlockItem(oh.item)) {
@@ -1674,7 +1688,7 @@ function placeBlock(slotOverride) {
   }
 }
 
-// Bucket: empty bucket fills from water, water bucket empties into air.
+// Bucket: empty bucket fills from water/lava, water/lava bucket empties into air.
 // Returns true if an action was performed.
 function handleBucket(held, hit) {
   if (!hit || !hit.place) return false;
@@ -1684,10 +1698,16 @@ function handleBucket(held, hit) {
   if (held.item === ITEM.BUCKET) {
     const atPlace = world.getBlock(x, y, z);
     const isWater = atPlace === BLOCK.WATER || hit.block === BLOCK.WATER;
-    if (!isWater) return false;
+    const isLava = atPlace === BLOCK.LAVA || hit.block === BLOCK.LAVA;
+    if (!isWater && !isLava) return false;
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
-    player.inventory.add(ITEM.WATER_BUCKET, 1);
+    if (isWater) {
+      player.inventory.add(ITEM.WATER_BUCKET, 1);
+    } else {
+      player.inventory.add(ITEM.LAVA_BUCKET, 1);
+      achievements.incrementStat('bucketLava');
+    }
     syncUIMode();
     audio.place();
     return true;
@@ -1709,6 +1729,23 @@ function handleBucket(held, hit) {
     audio.place();
     return true;
   }
+
+  if (held.item === ITEM.LAVA_BUCKET) {
+    const px = Math.floor(player.position.x);
+    const py = Math.floor(player.position.y);
+    const pz = Math.floor(player.position.z);
+    if ((x === px && z === pz) && (y === py || y === py + 1)) return false;
+    if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
+    world.setBlock(x, y, z, BLOCK.LAVA);
+    if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.LAVA);
+    held.count--;
+    if (held.count <= 0) player.inventory.slots[sel] = null;
+    player.inventory.add(ITEM.BUCKET, 1);
+    syncUIMode();
+    audio.place();
+    return true;
+  }
+
   return false;
 }
 
@@ -3310,6 +3347,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
             syncUIMode();
             achievements.incrementStat('foodEaten');
+            if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
             try { audio.eatBite(); } catch (_) {}
             used = true;
           }
@@ -3325,6 +3363,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
               if (oh.count <= 0) player.inventory.offhand = null;
               syncUIMode();
               achievements.incrementStat('foodEaten');
+              if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
               try { audio.eatBite(); } catch (_) {}
             }
           } else if (isBlockItem(oh.item)) {
@@ -6332,7 +6371,8 @@ let fps = 0, fpsFrames = 0, fpsLastTime = performance.now();
 // Bottom-left: BlockForge Portal
 document.getElementById('btn-blockforge-portal')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
-  window.open('portal.html' + (user ? '?user=' + user : ''));
+  const role = encodeURIComponent(playerRole || '');
+  window.open('portal.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
 // Bottom-right: Account Info
 document.getElementById('btn-account-info')?.addEventListener('click', () => {

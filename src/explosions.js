@@ -37,9 +37,10 @@ export class ExplosionManager {
           const bz = Math.floor(z) + dz;
 
           const block = this.world.getBlock(bx, by, bz);
-          if (block === BLOCK.AIR || block === BLOCK.WATER || block === BLOCK.BEDROCK) continue;
+          if (block === undefined || block === BLOCK.AIR || block === BLOCK.WATER || block === BLOCK.BEDROCK) continue;
 
           const def = BLOCKS[block];
+          if (!def) continue;
           // Destroy if within power, with distance-based resistance
           const resistance = (def.hardness || 0) * 0.3;
           if (dist <= power - resistance) {

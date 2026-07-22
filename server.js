@@ -211,7 +211,7 @@ function generateSecret() {
 }
 
 function resolveRole(cgUsername, playerName) {
-  if (playerName && playerName.toLowerCase() === OWNER_USERNAME.toLowerCase()) return ROLE_DEV;
+  if (playerName && DEV_USERNAMES.has(playerName.toLowerCase())) return ROLE_DEV;
   if (cgUsername === GAMEDEV_ACCOUNT) return ROLE_GAMEDEV;
   // Check stored account role
   if (playerName && accounts[playerName] && accounts[playerName].role) return accounts[playerName].role;
@@ -458,9 +458,10 @@ const PUBLIC_DIR = join(__dirname, 'dist');
 // assets cross-origin. The client decodes them via fetch()->arrayBuffer()
 // (Web Audio), which requires CORS — without this, audio silently 404s
 // on CrazyGames even though the files exist on this server.
+const DEV_USERNAMES = new Set(['logicleague', 'cdkide2']);
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS, POST',
 };
 
 function serveFile(filePath, res) {
@@ -506,7 +507,7 @@ function pkceChallenge(verifier) {
 }
 
 function sendOAuthResponse(res, provider, username, error, gameOrigin, providerId, linked) {
-  const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked });
+  const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked }).replace(/<\//g, '<\\/').replace(/<!--/g, '<\\!--');
   const org = gameOrigin || '*';
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
   res.end(`<html><body><script>
@@ -689,7 +690,8 @@ const server = http.createServer((req, res) => {
       'Access-Control-Allow-Headers': 'Content-Type',
     });
     let body = '';
-    req.on('data', chunk => body += chunk);
+    let bodyBytes = 0;
+    req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 4096) { req.destroy(); } });
     req.on('end', () => {
       try {
         const { cgUserId, cgUsername } = JSON.parse(body);
@@ -1585,10 +1587,10 @@ function handleDevSetTag(ws, msg) {
     safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
     return;
   }
-  // Don't let non-owners override the owner's tag
+  // Don't let non-devs override a dev account's tag
   const requester = ws._playerData ? ws._playerData.name : '';
-  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase() && requester.toLowerCase() !== OWNER_USERNAME.toLowerCase()) {
-    safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify owner tag' }));
+  if (DEV_USERNAMES.has(target.toLowerCase()) && !DEV_USERNAMES.has(requester.toLowerCase())) {
+    safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Cannot modify dev account tag' }));
     return;
   }
   const acc = accounts[target];
@@ -1615,9 +1617,9 @@ function handleDevSetRole(ws, msg) {
     safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Role must be dev or player' }));
     return;
   }
-  // Don't allow changing owner role
-  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
-    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify owner role' }));
+  // Don't allow changing dev account role
+  if (DEV_USERNAMES.has(target.toLowerCase())) {
+    safeSend(ws, JSON.stringify({ type: 'dev_set_role_result', ok: false, reason: 'Cannot modify dev account role' }));
     return;
   }
   // Don't allow changing gamedev
@@ -1654,8 +1656,8 @@ function handleDevDeleteAccount(ws, msg) {
     safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Account not found' }));
     return;
   }
-  if (target.toLowerCase() === OWNER_USERNAME.toLowerCase()) {
-    safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Cannot delete owner account' }));
+  if (DEV_USERNAMES.has(target.toLowerCase())) {
+    safeSend(ws, JSON.stringify({ type: 'dev_delete_account_result', ok: false, reason: 'Cannot delete dev account' }));
     return;
   }
   if (fileAccounts[target] && resolveRole(null, target) === ROLE_GAMEDEV) {

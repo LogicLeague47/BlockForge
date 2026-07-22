@@ -62,6 +62,7 @@ export const ITEM = {
   // misc
   BUCKET: 283,
   WATER_BUCKET: 288,
+  LAVA_BUCKET: 289,
   COOKED_APPLE: 284,
   BED: 285,
   SPIDER_EYE: 286,
@@ -186,6 +187,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.EGG]:     { name: 'Egg', stack: 16 },
   [ITEM.BUCKET]:  { name: 'Bucket', stack: 16 },
   [ITEM.WATER_BUCKET]: { name: 'Water Bucket', stack: 1 },
+  [ITEM.LAVA_BUCKET]: { name: 'Lava Bucket', stack: 1 },
   [ITEM.BED]:     { name: 'Bed', stack: 1 },
   [ITEM.SPIDER_EYE]: { name: 'Spider Eye', stack: 64, food: 3 },
   [ITEM.PRISMITE]:   { name: 'Prismite', stack: 64 },
