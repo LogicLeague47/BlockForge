@@ -1575,10 +1575,11 @@ export class UI {
   }
 
   // --- HUD ------------------------------------------------------------------
-  updateHud({ fps, pos, biome, loadedChunks, facing, gamemode }) {
+  updateHud({ fps, pos, biome, loadedChunks, facing, gamemode, showFps }) {
     const mode = gamemode || (this.creative ? 'Creative' : 'Survival');
+    const fpsStr = (showFps !== false) ? `<span class="fps">${fps} FPS</span> ` : '';
     this.hudEl.innerHTML =
-      `<div><span class="fps">${fps} FPS</span> <span class="mode">[${mode}]</span></div>` +
+      `<div>${fpsStr}<span class="mode">[${mode}]</span></div>` +
       `<div class="coord">XYZ: ${pos.x.toFixed(1)} / ${pos.y.toFixed(1)} / ${pos.z.toFixed(1)}</div>` +
       `<div><span class="biome">${biome}</span> &middot; ${facing} &middot; ${loadedChunks} chunks</div>`;
   }

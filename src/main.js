@@ -676,6 +676,7 @@ let _dwState = { mode: 'creative', diff: 'normal', terrain: 'flat', mp: 'solo', 
 let _pendingDevWorldOpts = null;
 let gameDifficulty = 'normal'; // 'normal' | 'hard'
 let mouseSensitivity = 1.0; // 0.2 .. 2.0 multiplier
+let showFps = true;
 let joiningViaLink = false; // true when auto-joining from a shareable link
 let mobile = null;
 let isMultiplayer = false;
@@ -3187,6 +3188,13 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   scene.fog.far = 16 * (renderDist + 2);
   scene.fog.near = 16 * 5;
 
+  // Apply FOV and volume at world load
+  camera.fov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  camera.updateProjectionMatrix();
+  showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
+  const vol = parseInt(document.getElementById('set-volume')?.value) || 50;
+  if (audio && audio.master) audio.master.gain.value = Math.max(0, Math.min(100, vol)) / 100;
+
   player = new Player(camera, world, world.seed);
   if (player) {
     player.autoJump = (document.getElementById('set-autojump')?.value || '1') !== '0';
@@ -3802,16 +3810,23 @@ function initMenu() {
     if (saved) { playerName = filterProfanity(saved); hadSavedName = true; }
   } catch (_) {}
 
-  // Load auto-jump setting
-  try {
-    const aj = localStorage.getItem('bf_autojump');
-    if (aj !== null) {
-      const el = document.getElementById('set-autojump');
-      if (el) el.value = aj;
-    }
-  } catch (_) {}
+  // Load ALL settings from localStorage
+  function loadSetting(id, key) {
+    try {
+      const v = localStorage.getItem(key);
+      if (v !== null) {
+        const el = document.getElementById(id);
+        if (el) el.value = v;
+      }
+    } catch (_) {}
+  }
+  loadSetting('set-render-distance', 'bf_render_dist');
+  loadSetting('set-fov', 'bf_fov');
+  loadSetting('set-autojump', 'bf_autojump');
+  loadSetting('set-fps', 'bf_fps');
+  loadSetting('set-quality', 'bf_quality');
 
-  // Load mouse sensitivity setting
+  // Load mouse sensitivity setting (also applies it live)
   try {
     const sens = localStorage.getItem('bf_sensitivity');
     if (sens !== null) {
@@ -3821,6 +3836,24 @@ function initMenu() {
       window.__mouseSens = mouseSensitivity;
     }
   } catch (_) {}
+
+  // Load volume setting (applied to audio when audio is initialized)
+  try {
+    const vol = localStorage.getItem('bf_volume');
+    if (vol !== null) {
+      const el = document.getElementById('set-volume');
+      if (el) el.value = vol;
+      const volNum = Math.max(0, Math.min(100, parseInt(vol) || 50)) / 100;
+      if (audio && audio.master) audio.master.gain.value = volNum;
+    }
+  } catch (_) {}
+
+  // Load FPS setting into a module-level flag
+  showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
+  // Apply FOV from loaded setting
+  const fovVal = parseInt(document.getElementById('set-fov')?.value) || 75;
+  camera.fov = fovVal;
+  camera.updateProjectionMatrix();
 
   // First-time name prompt (standalone / non-CG users)
   try {
@@ -3874,9 +3907,32 @@ function initMenu() {
   document.addEventListener('pointerlockchange', startMusicOnce);
 
   // --- Live settings ---
+  document.getElementById('set-render-distance')?.addEventListener('change', (e) => {
+    renderDist = parseInt(e.target.value) || 7;
+    if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
+    try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) {}
+    // Apply to current world if loaded
+    scene.fog.far = 16 * (renderDist + 2);
+    scene.fog.near = 16 * 5;
+    if (loader && loader.setRadius) loader.setRadius(renderDist);
+  });
+  document.getElementById('set-fov')?.addEventListener('change', (e) => {
+    camera.fov = parseInt(e.target.value) || 75;
+    camera.updateProjectionMatrix();
+    try { localStorage.setItem('bf_fov', e.target.value); } catch (_) {}
+  });
   document.getElementById('set-autojump')?.addEventListener('change', (e) => {
     if (player) player.autoJump = e.target.value !== '0';
     try { localStorage.setItem('bf_autojump', e.target.value); } catch (_) {}
+  });
+  document.getElementById('set-volume')?.addEventListener('change', (e) => {
+    const vol = Math.max(0, Math.min(100, parseInt(e.target.value) || 50)) / 100;
+    if (audio && audio.master) audio.master.gain.value = vol;
+    try { localStorage.setItem('bf_volume', e.target.value); } catch (_) {}
+  });
+  document.getElementById('set-fps')?.addEventListener('change', (e) => {
+    showFps = e.target.value !== '0';
+    try { localStorage.setItem('bf_fps', e.target.value); } catch (_) {}
   });
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
@@ -5879,6 +5935,7 @@ function loop() {
     loadedChunks: loader.loadedCount(),
     facing: facingName(player.yaw),
     gamemode: player.gamemode,
+    showFps,
   });
   ui.updateItemName(player.inventory, player.isCreative());
   ui.setUnderwater(eye === BLOCK.WATER);

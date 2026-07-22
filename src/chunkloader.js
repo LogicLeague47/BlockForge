@@ -18,6 +18,12 @@ export class ChunkLoader {
     this.genBudget = 4;       // chunks generated per frame (heavier)
   }
 
+  setRadius(r) {
+    this.radius = r;
+    this.lastPCX = Infinity;
+    this.lastPCZ = Infinity;
+  }
+
   update(px, pz) {
     const pcx = Math.floor(px / CHUNK_SIZE);
     const pcz = Math.floor(pz / CHUNK_SIZE);
