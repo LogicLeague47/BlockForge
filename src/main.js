@@ -4800,12 +4800,25 @@ function initMenu() {
 
   function startOAuth(provider) {
     const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
-    const popup = window.open(`${serverUrl}/auth/${provider}`, 'oauth', 'width=600,height=700');
-    if (!popup) return;
+    const origin = window.location.origin;
+    const popup = window.open(`${serverUrl}/auth/${provider}?origin=${encodeURIComponent(origin)}`, 'oauth', 'width=600,height=700');
+    if (!popup) {
+      showToast('Please allow popups for OAuth login', '#ff0', 4);
+      return;
+    }
+    const OAuthTimeout = 120000;
+    const timer = setTimeout(() => {
+      window.removeEventListener('message', handler);
+    }, OAuthTimeout);
     const handler = (e) => {
       if (e.origin !== serverUrl) return;
       if (e.data && e.data.provider === provider) {
         window.removeEventListener('message', handler);
+        clearTimeout(timer);
+        if (e.data.error) {
+          showToast('OAuth failed: ' + e.data.error, '#f44', 4);
+          return;
+        }
         const name = filterProfanity(e.data.username);
         if (name) {
           playerName = name;

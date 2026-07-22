@@ -440,6 +440,27 @@ function serveFile(filePath, res) {
 }
 
 // ── OAuth handlers (GitHub, Google, Microsoft) ──────────────────────
+// Store CSRF states + target origins (cleaned up after 10 min)
+const oauthStates = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of oauthStates) {
+    if (now - val.createdAt > 600000) oauthStates.delete(key);
+  }
+}, 600000);
+
+function htmlEsc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function sendOAuthResponse(res, provider, username, error, gameOrigin) {
+  const data = JSON.stringify({ provider, username, error });
+  const org = gameOrigin || '*';
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+  res.end(`<html><body><script>
+    (function(){ try { window.opener.postMessage(${data}, '${htmlEsc(org)}'); } catch(e){} window.close(); })();
+  </script><p>${error ? 'Auth failed' : 'Logged in as ' + htmlEsc(username || 'Guest')}. Close this window.</p></body></html>`);
+}
 const OAUTH_PROVIDERS = {
   github: {
     authUrl: 'https://github.com/login/oauth/authorize',
@@ -474,16 +495,15 @@ const OAUTH_PROVIDERS = {
 function handleOAuth(provider, isCallback, params, baseUrl, res) {
   const cfg = OAUTH_PROVIDERS[provider];
   if (!cfg || !cfg.clientId) {
-    res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-    res.end(`<html><body><script>
-      (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'Guest', error:'OAuth not configured' }, '*'); } catch(e){} window.close(); })();
-    </script><p>OAuth not configured. Close this window.</p></body></html>`);
+    sendOAuthResponse(res, provider, 'Guest', 'OAuth not configured', '*');
     return;
   }
 
   if (!isCallback) {
+    const gameOrigin = params.get('origin') || '*';
     const redirectUri = `${baseUrl}/auth/${provider}/callback`;
     const state = randomBytes(16).toString('hex');
+    oauthStates.set(state, { origin: gameOrigin, createdAt: Date.now() });
     const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code`;
     res.writeHead(302, { Location: url });
     res.end();
@@ -491,7 +511,15 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
   }
 
   const code = params.get('code');
+  const state = params.get('state');
   if (!code) { res.writeHead(400); res.end('Missing code'); return; }
+  const stored = oauthStates.get(state);
+  if (!stored) {
+    sendOAuthResponse(res, provider, 'Guest', 'Invalid or expired state (CSRF check)', '*');
+    return;
+  }
+  oauthStates.delete(state);
+  const gameOrigin = stored.origin;
 
   const redirectUri = `${baseUrl}/auth/${provider}/callback`;
   const tokenBody = new URLSearchParams({
@@ -518,17 +546,11 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
     .then(userData => {
       const { username } = cfg.parseUser(userData);
       const safeName = username ? username.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 20) : 'Player';
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<html><body><script>
-        (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'${safeName}' }, '*'); } catch(e){} window.close(); })();
-      </script><p>Logged in as ${safeName}. Close this window.</p></body></html>`);
+      sendOAuthResponse(res, provider, safeName, null, gameOrigin);
     })
     .catch(err => {
       console.error('[OAuth]', provider, err);
-      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      res.end(`<html><body><script>
-        (function(){ try { window.opener.postMessage({ provider:'${provider}', username:'Guest', error:'${err.message}' }, '*'); } catch(e){} window.close(); })();
-      </script><p>Auth failed. Close this window.</p></body></html>`);
+      sendOAuthResponse(res, provider, 'Guest', err.message, gameOrigin);
     });
 }
 
