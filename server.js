@@ -891,7 +891,7 @@ async function handleCreateRoom(ws, msg) {
   const { name, seed, gameMode, maxPlayers, playerName: rawName, cgUsername, skinIndex, ownerSecret, noOwner, password, isPrivate } = msg;
   const playerName = filterProfanity(rawName);
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
-  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'Guests cannot create multiplayer servers.');
+  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
@@ -967,7 +967,7 @@ async function handleJoin(ws, msg) {
   const { room: roomName, playerName: rawName, cgUsername, skinIndex, ownerSecret, password } = msg;
   const playerName = filterProfanity(rawName);
   if (!roomName || !playerName) return sendError(ws, 'Missing room name or player name.');
-  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'Guests cannot join multiplayer servers.');
+  if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
   // Authenticate account (skip for CrazyGames GameDev or LAN mode)
   if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
