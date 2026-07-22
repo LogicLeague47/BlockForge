@@ -542,8 +542,10 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
 
   if (!isCallback) {
     const gameOrigin = params.get('origin') || '*';
+    if (gameOrigin === '*') console.warn('[OAuth] No ?origin= param — postMessage targetOrigin=* (insecure)');
     const linkToken = params.get('linkToken') || '';
     const redirectUri = `${baseUrl}/auth/${provider}/callback`;
+    console.log(`[OAuth] ${provider} auth: redirect_uri=${redirectUri} origin=${gameOrigin}`);
     const state = randomBytes(16).toString('hex');
     oauthStates.set(state, { origin: gameOrigin, linkToken, createdAt: Date.now() });
     const url = `${cfg.authUrl}?client_id=${cfg.clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code`;
@@ -1813,6 +1815,11 @@ const IS_LAN = process.argv.includes('--lan');
     console.log(`  WS:      ws://localhost:${PORT}`);
     console.log(`  Health:  http://localhost:${PORT}/health`);
     console.log(`  Rooms:   ${rooms.size}\n`);
+    // Warn about missing OAuth env vars
+    for (const [p, c] of Object.entries(OAUTH_PROVIDERS)) {
+      const varName = `${p.toUpperCase()}_CLIENT_ID`;
+      if (!c.clientId) console.warn(`  ⚠ OAuth ${p}: ${varName} not set — "${p}" login will show "not configured"`);
+    }
   });
 
   // Server-side WebSocket heartbeat — ping all clients every 30s, terminate dead ones
