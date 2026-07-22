@@ -1938,6 +1938,38 @@
         .settings-row select, .settings-row input[type=range] { width: 100px; }
       }
     </style>
+    <style>
+      * { box-sizing: border-box; }
+      html { background: #08080f; }
+      body::before {
+        content: ''; position: fixed; inset: 0;
+        background: radial-gradient(ellipse at 50% 0%, rgba(30,40,80,0.15) 0%, transparent 70%);
+        pointer-events: none; z-index: 0;
+      }
+      .menu-btn, .btn-flat, button, .oauth-btn, .portal-login-btn {
+        transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease !important;
+      }
+      .menu-btn:hover, .btn-flat:hover, button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        filter: brightness(1.1);
+      }
+      .menu-btn:active, .btn-flat:active, button:active:not(:disabled) {
+        transform: translateY(0);
+        filter: brightness(0.95);
+      }
+      .card:not(.coming):hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+      }
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(80,160,255,0.4);
+      }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+      ::-webkit-scrollbar-thumb { background: rgba(100,140,200,0.3); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(100,140,200,0.5); }
+    </style>
   </head>
   <body>
     <div id="app"></div>
