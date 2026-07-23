@@ -5051,19 +5051,10 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Strip legacy URL params that could trigger auto-login via old cached code
+  // Pre-fill username from /u/ redirect URL params or saved storage (NOT password — prevents Safari auto-submit)
   try {
-    const p = new URLSearchParams(location.search);
-    if (p.has('user') || p.has('role')) {
-      p.delete('user'); p.delete('role');
-      const q = p.toString();
-      history.replaceState(null, '', q ? '?' + q : location.pathname + location.hash);
-    }
-  } catch (_) {}
-
-  // Pre-fill saved username (NOT password — Safari auto-fill can trigger submit)
-  try {
-    const savedName = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
+    const urlUser = new URLSearchParams(location.search).get('user');
+    const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
   } catch (_) {}
   ui.showMenu('login');
