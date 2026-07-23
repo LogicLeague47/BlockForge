@@ -8,7 +8,7 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    :root{--bg:#0a0a12;--card:rgba(30,30,55,0.8);--panel:rgba(20,20,35,0.8);--border:rgba(80,80,120,0.3);--accent:#7a8eff;--text:#e0e0e0;--muted:#a0a0c0;--dim:#777;--gold:#ffdd33}
+    :root{--bg:#0a0a12;--card:rgba(30,30,55,0.8);--panel:rgba(20,20,35,0.8);--border:rgba(80,80,120,0.3);--accent:#7a8eff;--text:#e0e0e0;--muted:#a0a0c0;--dim:#777;--gold:#ffdd33;--green:#4c4;--red:#f55;--orange:#fa0}
     body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column}
     body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0,rgba(30,40,80,.15) 0,transparent 70%);pointer-events:none;z-index:0}
     header{background:linear-gradient(135deg,#1a1a2e,#0e0e1a);border-bottom:1px solid var(--border);padding:24px 32px;display:flex;align-items:center;justify-content:space-between;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.3)}
@@ -61,6 +61,28 @@
     .external-link{color:var(--accent);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
     .external-link::after{content:' ↗';font-size:12px;transition:.2s;display:inline-block}
     .external-link:hover::after{transform:translate(2px,-2px)}
+    .srv-header{display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+    .srv-status{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+    .srv-status .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+    .srv-status .dot.on{background:var(--green);box-shadow:0 0 8px rgba(68,204,68,.5)}
+    .srv-status .dot.off{background:var(--red);box-shadow:0 0 8px rgba(255,85,85,.4)}
+    .srv-status .dot.busy{background:var(--orange);box-shadow:0 0 8px rgba(255,170,0,.4)}
+    .srv-status .dot.pending{background:#666;animation:pulse 1.2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .srv-stats{font-size:13px;color:var(--muted)}
+    .srv-list{display:flex;flex-direction:column;gap:10px}
+    .srv-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;transition:.2s;flex-wrap:wrap;gap:12px}
+    .srv-card:hover{background:rgba(35,35,65,.9);border-color:rgba(100,140,200,.45)}
+    .srv-card .left{display:flex;flex-direction:column;gap:4px}
+    .srv-card .name{font-size:15px;font-weight:600}
+    .srv-card .meta{font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+    .srv-card .meta span{display:inline-flex;align-items:center;gap:4px}
+    .srv-card .players{font-size:14px;font-weight:600;color:var(--accent)}
+    .srv-card .players .max{color:var(--dim);font-weight:400}
+    .srv-card .badge{font-size:10px;padding:3px 8px;border-radius:4px;background:rgba(50,80,130,.35);border:1px solid rgba(80,120,180,.3);color:var(--accent);letter-spacing:1px;font-weight:600;text-transform:uppercase}
+    .srv-empty{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px}
+    .srv-error{text-align:center;padding:40px 20px;color:var(--red);font-size:14px}
+    .srv-refresh{font-size:12px;padding:6px 14px;margin-left:auto}
     footer{text-align:center;padding:24px;font-size:11px;color:#556;border-top:1px solid var(--border);background:rgba(20,20,35,.6)}
     ::-webkit-scrollbar{width:8px}
     ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
@@ -119,10 +141,10 @@
           <div class="name">Community Skins</div>
           <div class="desc">Custom skins created by players</div>
         </div>
-        <div class="card coming">
+        <div class="card" data-page="servers">
           <div class="icon">🌐</div>
-          <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
-          <div class="desc">Browse community-run servers</div>
+          <div class="name">Servers</div>
+          <div class="desc">Browse active multiplayer servers</div>
         </div>
       </div>
 
@@ -182,6 +204,23 @@
         <h2>Bugs</h2>
         <p>Track and manage bug reports.</p>
         <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports</a></p>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-servers" class="page">
+        <h2>Game Servers</h2>
+        <p>Live status from the BlockForge multiplayer server.</p>
+        <div class="srv-header">
+          <div class="srv-status" id="srv-status">
+            <span class="dot pending" id="srv-dot"></span>
+            <span id="srv-label">Checking...</span>
+          </div>
+          <div class="srv-stats" id="srv-stats"></div>
+          <button class="btn srv-refresh" id="srv-refresh">↻ Refresh</button>
+        </div>
+        <div class="srv-list" id="srv-list">
+          <div class="srv-empty">Connecting to server...</div>
+        </div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
     </div>
@@ -246,6 +285,7 @@
           if (userName) u.searchParams.set('user', userName);
           if (userRole) u.searchParams.set('role', userRole);
           history.pushState({page: page}, '', u);
+          if (page === 'servers') fetchServerList();
         });
       });
       
@@ -284,10 +324,112 @@
             if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
           });
           document.getElementById('page-' + p).classList.add('active');
+          if (p === 'servers') fetchServerList();
         } else {
           goHome();
         }
       });
+
+      // ── Server browser ─────────────────────────────────────────────────
+      var SRV_WS = 'wss://blockforge-server.onrender.com';
+
+      function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function fetchServerList() {
+        var dotEl = document.getElementById('srv-dot');
+        var labelEl = document.getElementById('srv-label');
+        var statsEl = document.getElementById('srv-stats');
+        var listEl = document.getElementById('srv-list');
+        if (!dotEl || !listEl) return;
+
+        dotEl.className = 'dot pending';
+        labelEl.textContent = 'Connecting...';
+        statsEl.textContent = '';
+        listEl.innerHTML = '<div class="srv-empty">Connecting to server...</div>';
+
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) {
+            ws.close();
+            dotEl.className = 'dot off';
+            labelEl.textContent = 'Offline';
+            statsEl.textContent = '';
+            listEl.innerHTML = '<div class="srv-error">Server did not respond. It may be offline or starting up.</div>';
+          }
+        }, 6000);
+
+        ws.onopen = function() {
+          ws.send(JSON.stringify({ type: 'list_rooms' }));
+        };
+
+        ws.onmessage = function(e) {
+          responded = true;
+          clearTimeout(timeout);
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'room_list' && Array.isArray(msg.rooms)) {
+              var rooms = msg.rooms;
+              var totalPlayers = 0;
+              for (var i = 0; i < rooms.length; i++) totalPlayers += (rooms[i].playerCount || 0);
+
+              dotEl.className = 'dot on';
+              labelEl.textContent = 'Online';
+              statsEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '') + ' \u00b7 ' + totalPlayers + ' player' + (totalPlayers !== 1 ? 's' : '') + ' online';
+
+              if (rooms.length === 0) {
+                listEl.innerHTML = '<div class="srv-empty">No active rooms right now. Be the first to start one!</div>';
+              } else {
+                var html = '';
+                for (var i = 0; i < rooms.length; i++) {
+                  var r = rooms[i];
+                  var pc = r.playerCount || 0;
+                  var mp = r.maxPlayers || 20;
+                  var mode = (r.gameMode || 'survival');
+                  mode = mode.charAt(0).toUpperCase() + mode.slice(1);
+                  var owner = r.owner || '';
+                  html += '<div class="srv-card">' +
+                    '<div class="left">' +
+                      '<div class="name">' + esc(r.name) + '</div>' +
+                      '<div class="meta">' +
+                        '<span>\ud83c\udfae ' + esc(mode) + '</span>' +
+                        (owner ? '<span>\ud83d\udc51 ' + esc(owner) + '</span>' : '') +
+                        '<span class="badge">SMP</span>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="players">' + pc + ' <span class="max">/ ' + mp + '</span></div>' +
+                  '</div>';
+                }
+                listEl.innerHTML = html;
+              }
+            } else {
+              dotEl.className = 'dot off';
+              labelEl.textContent = 'Error';
+              listEl.innerHTML = '<div class="srv-error">Unexpected server response.</div>';
+            }
+          } catch (err) {
+            dotEl.className = 'dot off';
+            labelEl.textContent = 'Error';
+            listEl.innerHTML = '<div class="srv-error">Failed to parse server response.</div>';
+          }
+          ws.close();
+        };
+
+        ws.onerror = function() {
+          responded = true;
+          clearTimeout(timeout);
+          dotEl.className = 'dot off';
+          labelEl.textContent = 'Offline';
+          statsEl.textContent = '';
+          listEl.innerHTML = '<div class="srv-error">Could not connect to the server.</div>';
+        };
+      }
+
+      // Refresh button
+      document.getElementById('srv-refresh').addEventListener('click', fetchServerList);
     });
   </script>
 </body>
