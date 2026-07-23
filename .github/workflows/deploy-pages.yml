@@ -40,3 +40,14 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  deploy-render:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: |
+          curl -fsS --max-time 60 -X POST \
+            'https://api.render.com/deploy/srv-d9aa3v6cjfls739gj3rg?key=62rFnWWb5YM' \
+            && echo "Render deploy triggered" \
+            || echo "Render deploy ping failed"
