@@ -398,9 +398,10 @@ sun.shadow.camera.top = 80;
 sun.shadow.camera.bottom = -80;
 sun.shadow.bias = -0.001;
 scene.add(sun);
-const ambient = new THREE.AmbientLight(0xbfd4ff, 0.55);
+scene.add(sun.target);
+const ambient = new THREE.AmbientLight(0x8899bb, 0.25);
 scene.add(ambient);
-const hemi = new THREE.HemisphereLight(0xa0d8ff, 0x4a6a3a, 0.4);
+const hemi = new THREE.HemisphereLight(0x88ddff, 0x4a6a3a, 0.15);
 scene.add(hemi);
 
 // --- sun & moon ---
@@ -2740,6 +2741,7 @@ function setupNetworkHandlers() {
         const pass = document.getElementById('login-password');
         if (pass) localStorage.setItem('bf_login_pass', pass.value);
       } catch (_) {}
+      sessionStorage.setItem('bf_authenticated', '1');
       setSkinUser(playerName);
       const nameTag = document.getElementById('menu-player-name');
       if (nameTag) nameTag.textContent = playerName;
@@ -3189,7 +3191,25 @@ function updateSky(dt) {
 
   sun.position.set(Math.cos(angle) * 500, Math.sin(angle) * 500, 0);
   sun.intensity = Math.max(0.1, sinA * 0.5 + 0.5) * 1.5;
-  ambient.intensity = 0.3 + Math.max(0, sinA) * 0.5;
+  ambient.intensity = 0.15 + Math.max(0, sinA) * 0.4;
+  // Sunset/sunrise color shift
+  if (sinA > 0.3) {
+    sun.color.setHex(0xfff5e0);
+  } else if (sinA > 0) {
+    const t = sinA / 0.3;
+    sun.color.lerpColors(new THREE.Color(0xff5500), new THREE.Color(0xfff5e0), t);
+    ambient.color.lerpColors(new THREE.Color(0x995533), new THREE.Color(0x8899bb), t);
+    hemi.color.lerpColors(new THREE.Color(0xcc8844), new THREE.Color(0x88ddff), t);
+  } else if (sinA > -0.1) {
+    const t = (sinA + 0.1) / 0.1;
+    sun.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0xff5500), t);
+    ambient.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0x995533), t);
+    hemi.color.lerpColors(new THREE.Color(0x111133), new THREE.Color(0xcc8844), t);
+  } else {
+    sun.color.setHex(0x111122);
+    ambient.color.setHex(0x111122);
+    hemi.color.setHex(0x111133);
+  }
   sunMesh.position.copy(sun.position);
   moonMesh.position.set(-sun.position.x, -sun.position.y, -sun.position.z);
 }

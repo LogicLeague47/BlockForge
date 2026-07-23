@@ -1215,33 +1215,80 @@ export class Audio {
   // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
 
   hurtAnimal() {
-    this._animalSound([
-      '/Sounds/cow_hit1.mp3',
-      '/Sounds/cow_hit2.mp3',
-      '/Sounds/pig_hit1.mp3',
-      '/Sounds/pig_hit2.mp3',
-      '/Sounds/sheep_hit1.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.15;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 1200, 0.8);
+    const g = this._gain(0);
+    this._envGain(g, 0.15, dur, 0.005, 0.1);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
   }
 
   hurtCow() {
-    this._animalSound([
-      '/Sounds/cow_hit1.mp3',
-      '/Sounds/cow_hit2.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.25;
+    const buf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const lp = this._filter('lowpass', 300, 0.7);
+    const g = this._gain(0);
+    this._envGain(g, 0.2, dur, 0.01, 0.15);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(90, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(60, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.12, dur, 0.01, 0.15);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
   }
 
   hurtPig() {
-    this._animalSound([
-      '/Sounds/pig_hit1.mp3',
-      '/Sounds/pig_hit2.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.18;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const hp = this._filter('highpass', 1500, 0.6);
+    const g = this._gain(0);
+    this._envGain(g, 0.15, dur, 0.005, 0.1);
+    src.connect(hp); hp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(250, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.1, dur, 0.005, 0.1);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
   }
 
   hurtSheep() {
-    this._animalSound([
-      '/Sounds/sheep_hit1.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.22;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 800, 1.2);
+    const g = this._gain(0);
+    this._envGain(g, 0.18, dur, 0.008, 0.12);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(250, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(180, ctx.currentTime + dur * 0.5);
+    osc.frequency.linearRampToValueAtTime(220, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.1, dur, 0.008, 0.12);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
   }
 
   hurtChicken() {
