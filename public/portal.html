@@ -268,6 +268,10 @@
       display: none;
     }
     
+    #portal-content {
+      display: none;
+    }
+    
     #portal-login-section input {
       width: 100%;
       padding: 10px 14px;
@@ -345,11 +349,13 @@
     }
     
     .page-section {
+      display: none;
       opacity: 0;
       transition: opacity 0.3s ease;
     }
     
     .page-section.active {
+      display: block;
       opacity: 1;
     }
     
@@ -466,8 +472,6 @@
   </header>
 
   <div class="container">
-    <div class="section-title">🌟 FEATURES</div>
-
     <div id="portal-login-section">
       <div style="font:bold 14px 'Inter', monospace;color:#ffdd33;margin-bottom:14px;text-shadow:0 0 8px rgba(255,217,0,0.3);">Log in to access all features</div>
       <input id="portal-user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
@@ -476,13 +480,14 @@
       <div id="portal-login-hint" style="font:12px 'Inter', monospace;color:#5af;margin-top:10px;min-height:18px;"></div>
     </div>
 
-    <div id="portal-logged-in">
-      <div style="font:14px 'Inter', monospace;color:#8d8;margin-bottom:20px;">Logged in as <span id="portal-user-name">—</span></div>
-    </div>
+    <div id="portal-content">
+      <div id="portal-logged-in">
+        <div style="font:14px 'Inter', monospace;color:#8d8;margin-bottom:20px;">Logged in as <span id="portal-user-name">—</span></div>
+      </div>
 
-    <!-- Page sections -->
-    <div id="page-home" class="page-section">
-      <div class="card-grid">
+      <!-- Page sections -->
+      <div id="page-home" class="page-section">
+        <div class="section-title">🌟 FEATURES</div>
         <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
           <div class="icon">🎮</div>
           <div class="name">Play BlockForge</div>
@@ -645,18 +650,19 @@
       });
 
       // Initialize UI based on URL params
-      const pageHome = document.getElementById('page-home');
+      const portalContent = document.getElementById('portal-content');
       
       if (userName) {
         userBadge.textContent = userName;
         loggedIn.style.display = 'block';
         userNameDisplay.textContent = userName;
         loginSection.style.display = 'none';
-        pageHome.style.display = 'block';
+        portalContent.style.display = 'block';
+        document.getElementById('page-home').classList.add('active');
       } else {
         loggedIn.style.display = 'none';
         loginSection.style.display = 'block';
-        pageHome.style.display = 'none';
+        portalContent.style.display = 'none';
       }
 
       const pageParam = params.get('page');
