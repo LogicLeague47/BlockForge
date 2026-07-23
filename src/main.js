@@ -5661,6 +5661,7 @@ function loop() {
         ? _importedParkourData.minY - 2 : 180;
       if (player.position.y < _voidFloor) {
         const respawn = _isImportedParkour && _importedParkourData?.spawnPos
+          ? _importedParkourData.spawnPos
           : getRespawnPosition();
         if (respawn) {
           player.position.set(respawn.x, respawn.y, respawn.z);
