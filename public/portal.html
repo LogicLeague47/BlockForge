@@ -98,6 +98,13 @@
     ::-webkit-scrollbar{width:8px}
     ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
     ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(100,160,255,.3),rgba(160,120,255,.4));border-radius:4px}
+    .upload-btn{font-size:12px;padding:8px 16px}
+    .upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-top:12px}
+    .upload-item{background:rgba(30,30,55,.6);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;font-size:11px;color:var(--muted)}
+    .upload-item img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:4px;margin-bottom:6px;background:rgba(0,0,0,.3)}
+    .upload-item .del{color:var(--red);cursor:pointer;font-size:10px;margin-top:4px;display:inline-block}
+    .upload-item .del:hover{text-decoration:underline}
+    .file-input-hidden{display:none}
   </style>
 </head>
 <body>
@@ -177,25 +184,19 @@
       <div id="page-textures" class="page">
         <h2>Texture Packs</h2>
         <p>Custom texture packs created by the community.</p>
-        <ul>
-          <li><a href="#" onclick="alert('Coming soon');return false">Faithful 32x</a> <span style="color:#777;font-size:11px;margin-left:10px">— Classic faithful style</span></li>
-          <li><a href="#" onclick="alert('Coming soon');return false">Bare Bones</a> <span style="color:#777;font-size:11px;margin-left:10px">— Clean minimalist look</span></li>
-          <li><a href="#" onclick="alert('Coming soon');return false">Pastel Craft</a> <span style="color:#777;font-size:11px;margin-left:10px">— Soft pastel colors</span></li>
-        </ul>
-        <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack</a></p>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+        <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
+        <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
+        <div class="upload-grid" id="tex-grid"></div>
+        <div class="mt-20"><button class="btn go-home">Back to Portal</button></div>
       </div>
 
       <div id="page-skins" class="page">
         <h2>Community Skins</h2>
         <p>Player-created skins for BlockForge.</p>
-        <ul>
-          <li><a href="#" onclick="alert('Coming soon');return false">Dragon Knight</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player1</span></li>
-          <li><a href="#" onclick="alert('Coming soon');return false">Cyber Ninja</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player2</span></li>
-          <li><a href="#" onclick="alert('Coming soon');return false">Pixel Cat</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player3</span></li>
-        </ul>
-        <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin</a></p>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+        <p><button class="btn upload-btn" id="skin-upload-btn">Upload Skin</button></p>
+        <input type="file" accept="image/png" class="file-input-hidden" id="skin-file-input">
+        <div class="upload-grid" id="skin-grid"></div>
+        <div class="mt-20"><button class="btn go-home">Back to Portal</button></div>
       </div>
 
       <div id="page-feedback" class="page">
@@ -442,6 +443,61 @@
 
       // Refresh button
       document.getElementById('srv-refresh').addEventListener('click', fetchServerList);
+
+      // ── Upload helpers ──────────────────────────────────────────────────
+      function loadUploads(key) {
+        try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+      }
+      function saveUploads(key, list) {
+        try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
+      }
+      function renderUploads(containerId, storageKey, isImage) {
+        var grid = document.getElementById(containerId);
+        if (!grid) return;
+        var items = loadUploads(storageKey);
+        if (items.length === 0) {
+          grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No uploads yet.</div>';
+          return;
+        }
+        grid.innerHTML = items.map(function(item, i) {
+          var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '';
+          return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div><span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
+        }).join('');
+      }
+      function setupUpload(btnId, inputId, gridId, storageKey, isImage) {
+        var btn = document.getElementById(btnId);
+        var input = document.getElementById(inputId);
+        if (!btn || !input) return;
+        btn.addEventListener('click', function() { input.click(); });
+        input.addEventListener('change', function(e) {
+          if (!e.target.files || !e.target.files[0]) return;
+          var file = e.target.files[0];
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            var list = loadUploads(storageKey);
+            list.push({ name: file.name, data: ev.target.result, date: Date.now() });
+            saveUploads(storageKey, list);
+            renderUploads(gridId, storageKey, isImage);
+          };
+          reader.readAsDataURL(file);
+          e.target.value = '';
+        });
+        document.getElementById(gridId).addEventListener('click', function(ev) {
+          if (!ev.target.classList.contains('del')) return;
+          var idx = parseInt(ev.target.dataset.idx, 10);
+          var list = loadUploads(ev.target.dataset.key);
+          list.splice(idx, 1);
+          saveUploads(ev.target.dataset.key, list);
+          renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+        });
+      }
+
+      setupUpload('skin-upload-btn', 'skin-file-input', 'skin-grid', 'bf_uploads_skins', true);
+      setupUpload('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false);
+      if (userName) {
+        renderUploads('skin-grid', 'bf_uploads_skins', true);
+        renderUploads('tex-grid', 'bf_uploads_textures', false);
+      }
     });
   </script>
 </body>
