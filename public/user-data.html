@@ -120,33 +120,45 @@
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      // Load user data from localStorage
-      const username = localStorage.getItem('bf_username') || '—';
-      const password = localStorage.getItem('bf_password') || '';
-      const provider = localStorage.getItem('bf_provider') || 'password';
-      const role = localStorage.getItem('bf_role') || 'user';
+      // Read from URL params first (game passes ?user=&role=)
+      const url = new URL(location.href);
+      const urlUser = url.searchParams.get('user') || '';
+      const urlRole = url.searchParams.get('role') || '';
+
+      // Fall back to localStorage keys that the game actually uses
+      const username = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '—';
+      const password = localStorage.getItem('bf_login_pass') || '';
+      const provider = 'password';
+      const role = urlRole || '—';
 
       document.getElementById('ud-username').textContent = username;
       document.getElementById('ud-password').textContent = password ? '•'.repeat(Math.min(password.length, 16)) : '—';
       document.getElementById('ud-provider').textContent = provider;
       document.getElementById('ud-role').textContent = role;
 
-      // Load stats
-      const stats = JSON.parse(localStorage.getItem('bf_stats') || '{}');
-      document.getElementById('ud-playtime').textContent = stats.playtime || '0h 0m';
-      document.getElementById('ud-blocks-placed').textContent = stats.blocksPlaced || '0';
-      document.getElementById('ud-blocks-broken').textContent = stats.blocksBroken || '0';
-      document.getElementById('ud-mobs-killed').textContent = stats.mobsKilled || '0';
-      document.getElementById('ud-deaths').textContent = stats.deaths || '0';
-      document.getElementById('ud-distance').textContent = (stats.distanceWalked || 0) + 'm';
+      // Game doesn't track individual stats — show actual available data
+      const renderDist = localStorage.getItem('bf_render_dist') || '—';
+      const fov = localStorage.getItem('bf_fov') || '—';
+      const volume = localStorage.getItem('bf_volume') || '—';
+      const sensitivity = localStorage.getItem('bf_sensitivity') || '—';
+
+      document.getElementById('ud-playtime').textContent = '— (not tracked)';
+      document.getElementById('ud-blocks-placed').textContent = '—';
+      document.getElementById('ud-blocks-broken').textContent = '—';
+      document.getElementById('ud-mobs-killed').textContent = '—';
+      document.getElementById('ud-deaths').textContent = '—';
+      document.getElementById('ud-distance').textContent = '—';
 
       // Load local data info
       const worlds = Object.keys(localStorage).filter(k => k.startsWith('bf_world_')).length;
       const skins = Object.keys(localStorage).filter(k => k.startsWith('bf_skin_')).length;
-      const hasSettings = localStorage.getItem('bf_settings') ? 'Yes' : 'No';
+      const settingsCount = ['bf_render_dist','bf_fov','bf_volume','bf_sensitivity','bf_autojump','bf_settings']
+        .filter(k => localStorage.getItem(k)).length;
+      const hasRecentServers = localStorage.getItem('bf_recent_servers') ? true : false;
+
       document.getElementById('ud-worlds').textContent = worlds;
       document.getElementById('ud-skins').textContent = skins;
-      document.getElementById('ud-settings').textContent = hasSettings;
+      document.getElementById('ud-settings').textContent = settingsCount + ' setting' + (settingsCount !== 1 ? 's' : '');
 
       // Clear data button
       document.getElementById('btn-clear-data').addEventListener('click', function() {
