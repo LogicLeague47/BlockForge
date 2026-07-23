@@ -5572,6 +5572,18 @@ function loop() {
       }
 
       // Check for level/parkour completion
+      if (_isImportedParkour && _importedParkourData) {
+        if (player.position.y >= _importedParkourData.maxY - 1) {
+          _importedParkourData = null;
+          const time = getParkourTimerFormatted();
+          addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
+          cgHappyTime();
+          audio.finish();
+          ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
+          ui.itemNameEl.classList.add('visible');
+          setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
+        }
+      }
       if (_parkourLevelEnds) {
         const result = checkLevelEnd(player, _parkourLevelEnds);
         if (result === 'level_complete') {
