@@ -149,7 +149,7 @@
           <li><a href="#" onclick="alert('Coming soon');return false">Pastel Craft</a> <span style="color:#777;font-size:11px;margin-left:10px">— Soft pastel colors</span></li>
         </ul>
         <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack</a></p>
-        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
       <div id="page-skins" class="page">
@@ -161,28 +161,28 @@
           <li><a href="#" onclick="alert('Coming soon');return false">Pixel Cat</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player3</span></li>
         </ul>
         <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin</a></p>
-        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
       <div id="page-feedback" class="page">
         <h2>Feedback</h2>
         <p>Help shape BlockForge by reporting bugs or suggesting features.</p>
         <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues</a></p>
-        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
       <div id="page-suggestions" class="page">
         <h2>Feature Suggestions</h2>
         <p>Propose and vote on new features.</p>
         <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests</a></p>
-        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
       <div id="page-bugs" class="page">
         <h2>Bugs</h2>
         <p>Track and manage bug reports.</p>
         <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports</a></p>
-        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
     </div>
 
@@ -249,8 +249,8 @@
         });
       });
       
-      // Navigate home
-      window.goHome = function() {
+      // Go home buttons
+      function goHome() {
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
         document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = ''; });
         document.querySelectorAll('.section-title').forEach(function(s) { s.style.display = ''; });
@@ -259,7 +259,10 @@
         if (userName) u.searchParams.set('user', userName);
         if (userRole) u.searchParams.set('role', userRole);
         history.pushState({page: 'home'}, '', u);
-      };
+      }
+      document.querySelectorAll('.go-home').forEach(function(btn) {
+        btn.addEventListener('click', goHome);
+      });
       
       // Handle page param on load
       var pageParam = url.searchParams.get('page');
