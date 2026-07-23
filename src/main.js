@@ -41,7 +41,7 @@ const DAY_FRAC = 10 / 16; // fraction of cycle that is day
 const BASE_BREAK_TIME = 0.8;
 
 // --- Multiplayer server URL ---
-import { BACKEND_URL, IS_CG_BUILD } from './config.js';
+import { BACKEND_URL, IS_CG_BUILD, assetBase } from './config.js';
 // The always-on WebSocket backend (Render free tier, kept awake by a GitHub
 // Actions cron ping). When the game is served from GitHub Pages the page host
 // is NOT the server, so we connect here instead. Change this if you rename the
@@ -3535,14 +3535,28 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (_isImportedParkour) {
         // Load imported Minecraft parkour map from binary
         console.log('[Parkour] Loading imported map...');
-        const mapUrl = (typeof assetBase === 'function' ? assetBase() : '') + 'parkour-chunks.bin.gz';
-        const data = await loadImportedParkourChunks(mapUrl);
-        _importedParkourData = data;
-        const spawn = buildImportedParkour(world, data);
-        player.position.set(spawn.x, spawn.y, spawn.z);
-        player.velocity.set(0, 0, 0);
-        player.spawnPoint.set(spawn.x, spawn.y, spawn.z);
-        startParkourTimer();
+        try {
+          const mapUrl = assetBase() + 'parkour-chunks.bin.gz';
+          const data = await loadImportedParkourChunks(mapUrl);
+          _importedParkourData = data;
+          const spawn = buildImportedParkour(world, data);
+          player.position.set(spawn.x, spawn.y, spawn.z);
+          player.velocity.set(0, 0, 0);
+          player.spawnPoint.set(spawn.x, spawn.y, spawn.z);
+          startParkourTimer();
+        } catch (e) {
+          console.error('[Parkour] Failed to load imported map:', e);
+          addChatLine('Parkour map loading failed. Falling back to procedural levels.', '#f55');
+          _isImportedParkour = false;
+          const PARKOUR_Y = 200;
+          resetParkourState();
+          buildParkourLobby(world, 0, PARKOUR_Y, 0);
+          _parkourLevelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
+          player.position.set(0.5, PARKOUR_Y + 2, 0.5);
+          player.velocity.set(0, 0, 0);
+          player.spawnPoint.set(0.5, PARKOUR_Y + 2, 0.5);
+          startParkourTimer();
+        }
       } else {
         // Build procedural parkour levels in a clean void world
         const PARKOUR_Y = 200;
