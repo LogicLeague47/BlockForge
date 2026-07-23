@@ -2732,7 +2732,9 @@ function setupNetworkHandlers() {
         }
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
-        setTimeout(() => { ui.showMenu('main'); }, 600);
+        setTimeout(() => {
+          window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
+        }, 600);
       }
     } else {
       if (_backgroundAuth) {
