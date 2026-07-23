@@ -1212,6 +1212,8 @@ export class Audio {
     ]);
   }
 
+  // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
+
   hurtAnimal() {
     this._animalSound([
       '/Sounds/cow_hit1.mp3',
@@ -1220,6 +1222,91 @@ export class Audio {
       '/Sounds/pig_hit2.mp3',
       '/Sounds/sheep_hit1.mp3',
     ]);
+  }
+
+  hurtCow() {
+    this._animalSound([
+      '/Sounds/cow_hit1.mp3',
+      '/Sounds/cow_hit2.mp3',
+    ]);
+  }
+
+  hurtPig() {
+    this._animalSound([
+      '/Sounds/pig_hit1.mp3',
+      '/Sounds/pig_hit2.mp3',
+    ]);
+  }
+
+  hurtSheep() {
+    this._animalSound([
+      '/Sounds/sheep_hit1.mp3',
+    ]);
+  }
+
+  hurtChicken() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.12;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const hp = this._filter('highpass', 3000, 0.8);
+    const g = this._gain(0);
+    this._envGain(g, 0.15, dur, 0.005, 0.08);
+    src.connect(hp); hp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  hurtZombie() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.25;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const lp = this._filter('lowpass', 400, 0.7);
+    const g = this._gain(0);
+    this._envGain(g, 0.25, dur, 0.01, 0.15);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  hurtSkeleton() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.18;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 2500, 1.0);
+    const g = this._gain(0);
+    this._envGain(g, 0.2, dur, 0.005, 0.12);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  hurtSpider() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.15;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 1800, 0.9);
+    const g = this._gain(0);
+    this._envGain(g, 0.2, dur, 0.005, 0.1);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+  }
+
+  hurtSlime() {
+    if (!this.ctx || !this.enabled) return;
+    const ctx = this.ctx;
+    const dur = 0.2;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const lp = this._filter('lowpass', 250, 0.6);
+    const g = this._gain(0);
+    this._envGain(g, 0.18, dur, 0.01, 0.12);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
   }
 
   // ── HOSTILE MOB SOUNDS (procedural) ────────────────────────────────

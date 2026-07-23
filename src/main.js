@@ -2086,7 +2086,7 @@ function submitChat() {
       return;
     }
     // Dev spawn animal commands (dev world only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'spider', 'zombie', 'skeleton', 'villager'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager'];
     if (isDevWorld && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
@@ -2223,6 +2223,7 @@ function submitChat() {
         '/time <day|noon|night|midnight>',
         '/difficulty <peaceful|easy|normal|hard>',
         '/weather <clear|rain|thunder>',
+        '/spawn <type> — Spawn mob',
         '/heal — Restore health',
         '/kill — Die',
         '/help — Show this help',

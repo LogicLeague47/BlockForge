@@ -2709,10 +2709,16 @@ export class MobManager {
 
   playHurtSound(type) {
     if (!this.audio) return;
-    if (type === 'zombie' || type === 'skeleton' || type === 'spider') {
-      this.audio.hurtHostile();
-    } else {
-      this.audio.hurtAnimal();
+    switch (type) {
+      case 'zombie': this.audio.hurtZombie(); break;
+      case 'skeleton': this.audio.hurtSkeleton(); break;
+      case 'spider': this.audio.hurtSpider(); break;
+      case 'slime': this.audio.hurtSlime(); break;
+      case 'cow': this.audio.hurtCow(); break;
+      case 'pig': this.audio.hurtPig(); break;
+      case 'sheep': this.audio.hurtSheep(); break;
+      case 'chicken': this.audio.hurtChicken(); break;
+      default: this.audio.hurtAnimal(); break;
     }
   }
 
@@ -2726,9 +2732,8 @@ export class MobManager {
       const def = MOB_TYPES[mob.type];
       const totalH = def.legH + def.bodyH + def.headH;
 
-      // Generous AABB — big enough to click easily
-      const halfW = Math.max(def.bodyW, def.headW) / 2 + 0.5;
-      const halfD = Math.max(def.bodyD, def.headD) / 2 + 0.5;
+      const halfW = Math.max(def.bodyW, def.headW) / 2 + 0.1;
+      const halfD = Math.max(def.bodyD, def.headD) / 2 + 0.1;
 
       const minX = mob.position.x - halfW;
       const maxX = mob.position.x + halfW;
