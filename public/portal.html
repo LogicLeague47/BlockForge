@@ -4,462 +4,65 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BlockForge Portal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    :root {
-      --bg-dark: #0a0a12;
-      --bg-card: rgba(30,30,55,0.8);
-      --bg-panel: rgba(20,20,35,0.8);
-      --border: rgba(80,80,120,0.3);
-      --accent: #7a8eff;
-      --accent-glow: rgba(122, 142, 255, 0.3);
-      --text-primary: #e0e0e0;
-      --text-secondary: #a0a0c0;
-      --text-muted: #777;
-      --success: #5af;
-      --warning: #fa0;
-    }
-    
-    body {
-      background: var(--bg-dark);
-      color: var(--text-primary);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', monospace;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow-x: hidden;
-    }
-    
-    body::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: radial-gradient(ellipse at 50% 0%, rgba(30,40,80,0.15) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    
-    header {
-      background: linear-gradient(135deg, #1a1a2e 0%, #0e0e1a 100%);
-      border-bottom: 1px solid var(--border);
-      padding: 24px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      position: relative;
-      z-index: 10;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-    }
-    
-    header h1 {
-      font-size: 32px;
-      color: #fff;
-      text-shadow: 2px 2px 0 #3f3f3f, 3px 3px 0 #2a2a2a;
-      letter-spacing: 6px;
-      font-weight: 700;
-    }
-    
-    header .sub {
-      font-size: 12px;
-      color: var(--accent);
-      letter-spacing: 3px;
-      font-weight: 500;
-    }
-    
-    #user-badge {
-      font-size: 14px;
-      color: var(--accent);
-      background: rgba(60,100,180,0.25);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(60,100,180,0.45);
-      border-radius: 8px;
-      padding: 8px 16px;
-      font-weight: 500;
-      transition: all 0.2s ease;
-    }
-    
-    #user-badge:hover {
-      background: rgba(60,100,180,0.35);
-      transform: translateY(-1px);
-      box-shadow: 0 3px 12px var(--accent-glow);
-    }
-    
-    .container {
-      max-width: 900px;
-      margin: 36px auto;
-      padding: 0 28px;
-      flex: 1;
-      width: 100%;
-    }
-    
-    .section-title {
-      font-size: 15px;
-      color: #ffdd33;
-      letter-spacing: 2.5px;
-      border-bottom: 2px solid rgba(80,80,120,0.3);
-      padding-bottom: 10px;
-      margin-bottom: 20px;
-      font-weight: 600;
-      position: relative;
-    }
-    
-    .card-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-      gap: 16px;
-      margin-bottom: 36px;
-    }
-    
-    .card {
-      background: var(--bg-card);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 22px 20px;
-      cursor: pointer;
-      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      backdrop-filter: blur(6px);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, transparent, rgba(100,140,200,0.6), transparent);
-      transform: scaleX(0);
-      transition: transform 0.3s ease;
-    }
-    
-    .card:hover::before {
-      transform: scaleX(1);
-    }
-    
-    .card:hover {
-      transform: translateY(-4px) scale(1.02);
-      box-shadow: 0 12px 32px rgba(0,0,0,0.45);
-      border-color: rgba(100,140,200,0.55);
-      background: rgba(35,35,65,0.9);
-    }
-    
-    .card .icon {
-      font-size: 32px;
-      margin-bottom: 10px;
-      transition: transform 0.2s ease;
-    }
-    
-    .card:hover .icon {
-      transform: scale(1.15);
-    }
-    
-    .card .name {
-      font-size: 15px;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 6px;
-      letter-spacing: 0.5px;
-    }
-    
-    .card .desc {
-      font-size: 12px;
-      color: var(--text-secondary);
-      line-height: 1.5;
-      font-weight: 400;
-    }
-    
-    .card.coming .name {
-      color: var(--text-muted);
-    }
-    
-    .card.coming .desc {
-      color: #666;
-    }
-    
-    .card.coming {
-      cursor: not-allowed;
-      opacity: 0.65;
-    }
-    
-    .card.coming:hover {
-      transform: none;
-      box-shadow: none;
-      background: var(--bg-card);
-    }
-    
-    .badge-coming {
-      display: inline-block;
-      font-size: 10px;
-      color: var(--warning);
-      background: rgba(200,150,0,0.2);
-      backdrop-filter: blur(4px);
-      border: 1px solid rgba(200,150,0,0.4);
-      padding: 2px 8px;
-      border-radius: 4px;
-      margin-left: 8px;
-      letter-spacing: 1.5px;
-      font-weight: 600;
-    }
-    
-    .btn-back {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 12px 28px;
-      background: rgba(40,40,65,0.7);
-      backdrop-filter: blur(8px);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: #c0c0ff;
-      font: 14px 'Inter', monospace;
-      cursor: pointer;
-      text-decoration: none;
-      font-weight: 500;
-      transition: all 0.2s ease;
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .btn-back::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(100,140,200,0.2), transparent);
-      transition: left 0.5s;
-    }
-    
-    .btn-back:hover::before {
-      left: 100%;
-    }
-    
-    .btn-back:hover {
-      background: rgba(60,60,90,0.85);
-      border-color: rgba(100,140,200,0.5);
-      color: #fff;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(60,100,180,0.3);
-    }
-    
-    footer {
-      text-align: center;
-      padding: 24px;
-      font-size: 11px;
-      color: #556;
-      border-top: 1px solid var(--border);
-      backdrop-filter: blur(8px);
-      background: rgba(20,20,35,0.6);
-    }
-    
-    #portal-login-section {
-      background: var(--bg-panel);
-      backdrop-filter: blur(10px);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px;
-      margin-bottom: 28px;
-      display: none;
-    }
-    
-    #portal-content {
-      display: none;
-    }
-    
-    #portal-login-section input {
-      width: 100%;
-      padding: 10px 14px;
-      background: rgba(0,0,0,0.45);
-      color: #fff;
-      border: 1px solid rgba(80,80,120,0.4);
-      border-radius: 6px;
-      font: 14px 'Inter', monospace;
-      outline: none;
-      margin-bottom: 12px;
-      transition: border-color 0.2s ease;
-    }
-    
-    #portal-login-section input:focus {
-      border-color: var(--success);
-      box-shadow: 0 0 0 2px rgba(80,160,255,0.3);
-    }
-    
-    .portal-login-btn {
-      padding: 10px 24px;
-      background: linear-gradient(135deg, #3a6a8a 0%, #2a5a7a 40%, #1a4a6a 60%, #1a3a5a 100%);
-      border: 1px solid #1a3a5a;
-      border-radius: 8px;
-      color: #fff;
-      font: 14px 'Inter', monospace;
-      cursor: pointer;
-      font-weight: 600;
-      transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      backdrop-filter: blur(4px);
-      position: relative;
-      overflow: hidden;
-    }
-    
-    .portal-login-btn::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 200%;
-      height: 200%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-      transform: translate(-50%, -50%) rotate(0deg);
-      transition: transform 0.6s;
-    }
-    
-    .portal-login-btn:hover::after {
-      transform: translate(-50%, -50%) rotate(180deg);
-    }
-    
-    .portal-login-btn:hover {
-      background: linear-gradient(135deg, #4a7a9a 0%, #3a6a8a 40%, #2a5a7a 60%, #2a4a6a 100%);
-      border-color: #2a4a6a;
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(60,100,180,0.4);
-    }
-    
-    .portal-login-btn:active {
-      transform: translateY(0);
-      box-shadow: 0 3px 12px rgba(0,0,0,0.4);
-    }
-    
-    #portal-logged-in {
-      display: none;
-      background: var(--bg-panel);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 28px;
-      margin-bottom: 28px;
-    }
-    
-    #portal-user-name {
-      color: var(--accent);
-      font-weight: 700;
-      font-size: 15px;
-    }
-    
-    .page-section {
-      display: none;
-      opacity: 0;
-      transition: opacity 0.3s ease;
-    }
-    
-    .page-section.active {
-      display: block;
-      opacity: 1;
-    }
-    
-    .page-section h2 {
-      font-size: 18px;
-      color: #ffdd33;
-      letter-spacing: 2.5px;
-      border-bottom: 2px solid rgba(80,80,120,0.35);
-      padding-bottom: 10px;
-      margin-bottom: 18px;
-      font-weight: 600;
-    }
-    
-    .page-section p {
-      font-size: 13px;
-      color: var(--text-secondary);
-      margin-bottom: 14px;
-      line-height: 1.6;
-      font-weight: 400;
-    }
-    
-    .page-section ul {
-      list-style: none;
-      padding: 0;
-    }
-    
-    .page-section li {
-      padding: 12px 16px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 10px;
-      font-size: 13px;
-      color: var(--text-secondary);
-      background: rgba(30,30,50,0.55);
-      backdrop-filter: blur(6px);
-      transition: all 0.2s ease;
-    }
-    
-    .page-section li:hover {
-      background: rgba(40,40,65,0.7);
-      border-color: rgba(100,140,200,0.45);
-      transform: translateX(4px);
-    }
-    
-    .page-section li a {
-      color: var(--accent);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s ease;
-    }
-    
-    .page-section li a:hover {
-      color: #9af;
-      text-decoration: underline;
-    }
-    
-    .page-section .external-link {
-      color: var(--accent);
-      text-decoration: none;
-      font-size: 14px;
-      font-weight: 500;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: all 0.2s ease;
-    }
-    
-    .page-section .external-link:hover {
-      color: #9af;
-      gap: 8px;
-    }
-    
-    .external-link::after {
-      content: '↗';
-      font-size: 12px;
-      opacity: 0.7;
-      transition: all 0.2s ease;
-    }
-    
-    .external-link:hover::after {
-      opacity: 1;
-      transform: translate(2px, -2px);
-    }
-    
-    .dev-only {
-      display: none;
-    }
-    
-    ::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    ::-webkit-scrollbar-track {
-      background: rgba(0,0,0,0.2);
-    }
-    
-    ::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, rgba(100,140,200,0.4), rgba(120,160,220,0.6));
-      border-radius: 4px;
-    }
-    
-    ::-webkit-scrollbar-thumb:hover {
-      background: linear-gradient(180deg, rgba(120,160,220,0.6), rgba(140,180,240,0.8));
-    }
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{--bg:#0a0a12;--card:rgba(30,30,55,0.8);--panel:rgba(20,20,35,0.8);--border:rgba(80,80,120,0.3);--accent:#7a8eff;--text:#e0e0e0;--muted:#a0a0c0;--dim:#777;--gold:#ffdd33}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0,rgba(30,40,80,.15) 0,transparent 70%);pointer-events:none;z-index:0}
+    header{background:linear-gradient(135deg,#1a1a2e,#0e0e1a);border-bottom:1px solid var(--border);padding:24px 32px;display:flex;align-items:center;justify-content:space-between;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+    header h1{font-size:32px;color:#fff;text-shadow:2px 2px 0 #3f3f3f;letter-spacing:6px;font-weight:700}
+    header .sub{font-size:12px;color:var(--accent);letter-spacing:3px;font-weight:500}
+    #user-badge{font-size:14px;color:var(--accent);background:rgba(60,100,180,.25);border:1px solid rgba(60,100,180,.45);border-radius:8px;padding:8px 16px;font-weight:500}
+    .container{max-width:900px;margin:36px auto;padding:0 28px;flex:1;width:100%}
+    .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:36px}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:22px 20px;cursor:pointer;transition:.2s cubic-bezier(.175,.885,.32,1.275);position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(100,140,200,.6),transparent);transform:scaleX(0);transition:transform .3s}
+    .card:hover::before{transform:scaleX(1)}
+    .card:hover{transform:translateY(-4px) scale(1.02);box-shadow:0 12px 32px rgba(0,0,0,.45);border-color:rgba(100,140,200,.55);background:rgba(35,35,65,.9)}
+    .card .icon{font-size:32px;margin-bottom:10px;transition:transform .2s}
+    .card:hover .icon{transform:scale(1.15)}
+    .card .name{font-size:15px;font-weight:600;margin-bottom:6px}
+    .card .desc{font-size:12px;color:var(--muted);line-height:1.5}
+    .card.coming{opacity:.65;cursor:not-allowed}
+    .card.coming:hover{transform:none;box-shadow:none;background:var(--card)}
+    .card.coming .name{color:var(--dim)}
+    .badge-coming{display:inline-block;font-size:10px;color:var(--gold);background:rgba(200,150,0,.2);border:1px solid rgba(200,150,0,.4);padding:2px 8px;border-radius:4px;margin-left:8px;letter-spacing:1.5px;font-weight:600}
+    .section-title{font-size:15px;color:var(--gold);letter-spacing:2.5px;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:20px;font-weight:600}
+    #login-box{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;max-width:420px;margin:0 auto}
+    #login-box input{width:100%;padding:10px 14px;background:rgba(0,0,0,.45);color:#fff;border:1px solid rgba(80,80,120,.4);border-radius:6px;font:14px 'Inter',monospace;outline:none;margin-bottom:12px;transition:border-color .2s}
+    #login-box input:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(80,160,255,.3)}
+    #login-box .btn{padding:10px 24px;background:linear-gradient(135deg,#3a6a8a,#2a5a7a,#1a4a6a,#1a3a5a);border:1px solid #1a3a5a;border-radius:8px;color:#fff;font:14px 'Inter',monospace;cursor:pointer;font-weight:600;transition:.2s;display:inline-block}
+    #login-box .btn:hover{background:linear-gradient(135deg,#4a7a9a,#3a6a8a,#2a5a7a,#2a4a6a);transform:translateY(-2px);box-shadow:0 8px 24px rgba(60,100,180,.4)}
+    #login-hint{font-size:12px;margin-top:10px;min-height:18px}
+    #logged-in{display:none}
+    #account-info{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:28px;margin-bottom:28px;font-size:14px}
+    #account-info .label{color:#8d8}
+    #account-info .name{color:var(--accent);font-weight:700}
+    #content{display:none}
+    .dev-only{display:none}
+    .page{display:none}
+    .page.active{display:block}
+    .page h2{font-size:18px;color:var(--gold);letter-spacing:2.5px;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;font-weight:600}
+    .page p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+    .page ul{list-style:none;padding:0}
+    .page li{padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:13px;color:var(--muted);background:rgba(30,30,50,.55);transition:.2s}
+    .page li:hover{background:rgba(40,40,65,.7);border-color:rgba(100,140,200,.45)}
+    .page li a{color:var(--accent);text-decoration:none;font-weight:500}
+    .page li a:hover{color:#9af;text-decoration:underline}
+    .btn{padding:10px 24px;background:rgba(40,40,65,.7);border:1px solid var(--border);border-radius:8px;color:var(--accent);font:14px 'Inter',monospace;cursor:pointer;font-weight:500;transition:.2s;display:inline-flex;align-items:center;gap:6px}
+    .btn:hover{background:rgba(60,60,90,.85);border-color:rgba(100,140,200,.5);color:#fff;transform:translateY(-2px);box-shadow:0 6px 20px rgba(60,100,180,.3)}
+    .mt-20{margin-top:20px}
+    .mb-30{margin-bottom:30px}
+    .tc{text-align:center}
+    .external-link{color:var(--accent);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
+    .external-link::after{content:' ↗';font-size:12px;transition:.2s;display:inline-block}
+    .external-link:hover::after{transform:translate(2px,-2px)}
+    footer{text-align:center;padding:24px;font-size:11px;color:#556;border-top:1px solid var(--border);background:rgba(20,20,35,.6)}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+    ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(100,140,200,.4),rgba(120,160,220,.6));border-radius:4px}
   </style>
 </head>
 <body>
@@ -472,52 +75,48 @@
   </header>
 
   <div class="container">
-    <div id="portal-login-section">
-      <div style="font:bold 14px 'Inter', monospace;color:#ffdd33;margin-bottom:14px;text-shadow:0 0 8px rgba(255,217,0,0.3);">Log in to access all features</div>
-      <input id="portal-user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
-      <input id="portal-pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
-      <button class="portal-login-btn" id="portal-login-btn">Log In</button>
-      <div id="portal-login-hint" style="font:12px 'Inter', monospace;color:#5af;margin-top:10px;min-height:18px;"></div>
+    <div id="login-box">
+      <div style="font-weight:700;color:var(--gold);margin-bottom:14px;">Log in to access all features</div>
+      <input id="user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
+      <input id="pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
+      <button class="btn" id="login-btn">Log In</button>
+      <div id="login-hint"></div>
     </div>
 
-    <div id="portal-content">
-      <div id="portal-logged-in">
-        <div style="font:14px 'Inter', monospace;color:#8d8;margin-bottom:20px;">Logged in as <span id="portal-user-name">—</span></div>
+    <div id="logged-in">
+      <div id="account-info">
+        <span class="label">Logged in as</span> <span class="name" id="user-name">—</span>
       </div>
+    </div>
 
-      <!-- Page sections -->
-      <div id="page-home" class="page-section">
-        <div class="section-title">🌟 FEATURES</div>
+    <div id="content">
+      <div class="section-title">🌟 FEATURES</div>
+      <div class="card-grid">
         <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
           <div class="icon">🎮</div>
           <div class="name">Play BlockForge</div>
           <div class="desc">Launch the game in a new tab</div>
         </a>
-
         <div class="card" data-page="textures">
           <div class="icon">🎨</div>
           <div class="name">Texture Packs</div>
-          <div class="desc">Browse and install custom texture packs made by the community</div>
+          <div class="desc">Browse and install custom texture packs</div>
         </div>
-
         <div class="card coming">
           <div class="icon">🛍️</div>
           <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
           <div class="desc">Support BlockForge and unlock exclusive items</div>
         </div>
-
         <div class="card" data-page="feedback">
           <div class="icon">💬</div>
           <div class="name">Feedback</div>
-          <div class="desc">Report bugs, suggest features, and help shape the game</div>
+          <div class="desc">Report bugs, suggest features</div>
         </div>
-
         <div class="card" data-page="skins">
           <div class="icon">👕</div>
           <div class="name">Community Skins</div>
           <div class="desc">Custom skins created by players</div>
         </div>
-
         <div class="card coming">
           <div class="icon">🌐</div>
           <div class="name">Servers <span class="badge-coming">Coming Soon</span></div>
@@ -530,170 +129,159 @@
         <div class="card" data-page="suggestions">
           <div class="icon">💡</div>
           <div class="name">Feature Suggestions</div>
-          <div class="desc">Propose and vote on new features for BlockForge</div>
+          <div class="desc">Propose and vote on new features</div>
         </div>
-
         <div class="card" data-page="bugs">
           <div class="icon">🐛</div>
           <div class="name">Bugs</div>
           <div class="desc">Track and manage bug reports</div>
         </div>
       </div>
+
+      <div id="page-textures" class="page">
+        <h2>Texture Packs</h2>
+        <p>Custom texture packs created by the community.</p>
+        <ul>
+          <li><a href="#" onclick="alert('Coming soon');return false">Faithful 32x</a> <span style="color:#777;font-size:11px;margin-left:10px">— Classic faithful style</span></li>
+          <li><a href="#" onclick="alert('Coming soon');return false">Bare Bones</a> <span style="color:#777;font-size:11px;margin-left:10px">— Clean minimalist look</span></li>
+          <li><a href="#" onclick="alert('Coming soon');return false">Pastel Craft</a> <span style="color:#777;font-size:11px;margin-left:10px">— Soft pastel colors</span></li>
+        </ul>
+        <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack</a></p>
+        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-skins" class="page">
+        <h2>Community Skins</h2>
+        <p>Player-created skins for BlockForge.</p>
+        <ul>
+          <li><a href="#" onclick="alert('Coming soon');return false">Dragon Knight</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player1</span></li>
+          <li><a href="#" onclick="alert('Coming soon');return false">Cyber Ninja</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player2</span></li>
+          <li><a href="#" onclick="alert('Coming soon');return false">Pixel Cat</a> <span style="color:#777;font-size:11px;margin-left:10px">— by Player3</span></li>
+        </ul>
+        <p style="color:#777;font-size:12px;margin-top:16px">More coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin</a></p>
+        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-feedback" class="page">
+        <h2>Feedback</h2>
+        <p>Help shape BlockForge by reporting bugs or suggesting features.</p>
+        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues</a></p>
+        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-suggestions" class="page">
+        <h2>Feature Suggestions</h2>
+        <p>Propose and vote on new features.</p>
+        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests</a></p>
+        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-bugs" class="page">
+        <h2>Bugs</h2>
+        <p>Track and manage bug reports.</p>
+        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports</a></p>
+        <div class="mt-20"><button class="btn" onclick="goHome()">← Back to Portal</button></div>
+      </div>
     </div>
 
-    <div id="page-textures" class="page-section">
-      <h2>Texture Packs</h2>
-      <p>Custom texture packs created by the community. Selected packs will be available to use in-game.</p>
-      <ul>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Faithful 32x</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Classic faithful style</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Bare Bones</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Clean minimalist look</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own texture packs!');return false;">Pastel Craft</a> <span style="color:#777;font-size:11px;margin-left:10px;">— Soft pastel colors</span></li>
-      </ul>
-      <p style="color:#777;font-size:12px;margin-top:16px;">More texture packs coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Suggest a pack &rarr;</a></p>
-      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
-    </div>
-
-    <div id="page-skins" class="page-section">
-      <h2>Community Skins</h2>
-      <p>Player-created skins for BlockForge. Download skins and they will appear in your skin selection.</p>
-      <ul>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Dragon Knight</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player1</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Cyber Ninja</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player2</span></li>
-        <li><a href="#" onclick="alert('Coming soon — upload your own skin!');return false;">Pixel Cat</a> <span style="color:#777;font-size:11px;margin-left:10px;">— by Player3</span></li>
-      </ul>
-      <p style="color:#777;font-size:12px;margin-top:16px;">More skins coming soon. <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Submit your skin &rarr;</a></p>
-      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
-    </div>
-
-    <div id="page-feedback" class="page-section">
-      <h2>Feedback</h2>
-      <p>Help shape BlockForge by reporting bugs, suggesting features, or sharing your thoughts.</p>
-      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues &rarr;</a></p>
-      <p style="color:#777;font-size:12px;margin-top:16px;">You can also email feedback directly.</p>
-      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
-    </div>
-
-    <div id="page-suggestions" class="page-section">
-      <h2>Feature Suggestions</h2>
-      <p>Help shape BlockForge by proposing new features and voting on existing suggestions.</p>
-      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests on GitHub &rarr;</a></p>
-      <p style="color:#777;font-size:12px;margin-top:16px;">Submit your ideas and help shape the future of the game.</p>
-      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
-    </div>
-
-    <div id="page-bugs" class="page-section">
-      <h2>Bugs</h2>
-      <p>Track and manage bug reports for BlockForge.</p>
-      <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports on GitHub &rarr;</a></p>
-      <p style="color:#777;font-size:12px;margin-top:16px;">Help us squash bugs by reporting issues you find.</p>
-      <div style="margin-top:24px;"><button class="btn-back" onclick="navigateHome()">&larr; Back to Portal</button></div>
-    </div>
-
-    <div style="text-align:center;margin-bottom:30px;">
-      <button class="btn-back" onclick="window.close()">Close Portal</button>
+    <div class="tc mb-30">
+      <button class="btn" onclick="window.close()">Close Portal</button>
     </div>
   </div>
 
-  <footer>
-    BlockForge Portal &middot; Not affiliated with Mojang AB &middot; Data stored locally
-  </footer>
+  <footer>BlockForge Portal · Not affiliated with Mojang AB · Data stored locally</footer>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {
-      const params = new URLSearchParams(location.search);
-      let userName = params.get('user') || '';
-      let userRole = params.get('role') || '';
-      const devRoles = ['dev', 'gamedev', 'owner'];
+      const url = new URL(location.href);
+      const userName = url.searchParams.get('user') || '';
+      const userRole = url.searchParams.get('role') || '';
+      const isDev = ['dev','gamedev','owner'].includes(userRole);
       
-      if (devRoles.includes(userRole)) {
-        document.querySelectorAll('.dev-only').forEach(el => el.classList.remove('dev-only'));
-      }
+      if (isDev) document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'block');
       
-      const userBadge = document.getElementById('user-badge');
-      const loggedIn = document.getElementById('portal-logged-in');
-      const loginSection = document.getElementById('portal-login-section');
-      const userNameDisplay = document.getElementById('portal-user-name');
-
-      function showPage(pageId) {
-        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-        const el = document.getElementById('page-' + pageId);
-        if (el) {
-          el.classList.add('active');
-          const url = new URL(location.href);
-          url.searchParams.set('page', pageId);
-          if (userName) url.searchParams.set('user', userName);
-          if (userRole) url.searchParams.set('role', userRole);
-          history.pushState({ page: pageId }, '', url);
-        } else {
-          navigateHome();
-        }
-      }
-
-      function navigateHome() {
-        document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
-        document.getElementById('page-home').classList.add('active');
-        const url = new URL(location.href);
-        url.searchParams.delete('page');
-        if (userName) url.searchParams.set('user', userName);
-        if (userRole) url.searchParams.set('role', userRole);
-        history.pushState({ page: 'home' }, '', url);
-      }
-
-      document.querySelectorAll('.card[data-page]').forEach(card => {
-        card.addEventListener('click', () => {
-          const page = card.dataset.page;
-          if (page === 'textures' || page === 'skins' || page === 'suggestions' || page === 'bugs') {
-            if (!userName) { alert('Please log in to access this feature.'); return; }
-          }
-          showPage(page);
-        });
-      });
-
-      // Initialize UI based on URL params
-      const portalContent = document.getElementById('portal-content');
+      const loginBox = document.getElementById('login-box');
+      const loggedIn = document.getElementById('logged-in');
+      const content = document.getElementById('content');
       
       if (userName) {
-        userBadge.textContent = userName;
+        loginBox.style.display = 'none';
         loggedIn.style.display = 'block';
-        userNameDisplay.textContent = userName;
-        loginSection.style.display = 'none';
-        portalContent.style.display = 'block';
-        document.getElementById('page-home').classList.add('active');
+        content.style.display = 'block';
+        document.getElementById('user-badge').textContent = userName;
+        document.getElementById('user-name').textContent = userName;
       } else {
+        loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
-        loginSection.style.display = 'block';
-        portalContent.style.display = 'none';
+        content.style.display = 'none';
       }
-
-      const pageParam = params.get('page');
-      if (pageParam && document.getElementById('page-' + pageParam)) {
-        showPage(pageParam);
-      }
-
-      window.addEventListener('popstate', () => {
-        const p = new URLSearchParams(location.search).get('page');
-        if (p) { showPage(p); } else { navigateHome(); }
+      
+      // Login button
+      document.getElementById('login-btn').addEventListener('click', function() {
+        const user = document.getElementById('user-input').value.trim().slice(0, 16);
+        const pass = document.getElementById('pass-input').value;
+        const hint = document.getElementById('login-hint');
+        if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
+        if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
+        const role = userRole ? '&role=' + encodeURIComponent(userRole) : '';
+        location.href = 'portal.html?user=' + encodeURIComponent(user) + role;
       });
-
-      document.getElementById('portal-login-btn')?.addEventListener('click', () => {
-        const user = document.getElementById('portal-user-input').value.trim().slice(0, 16);
-        const pass = document.getElementById('portal-pass-input').value;
-        const hint = document.getElementById('portal-login-hint');
-        
-        if (!user) { 
-          hint.textContent = 'Enter a username'; 
-          hint.style.color = '#f85'; 
-          return; 
+      
+      // Card navigation
+      document.querySelectorAll('.card[data-page]').forEach(function(card) {
+        card.addEventListener('click', function() {
+          var page = this.dataset.page;
+          if (!userName) { alert('Please log in first.'); return; }
+          document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+          document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = 'none'; });
+          document.querySelectorAll('.section-title').forEach(function(s) { 
+            if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
+          });
+          var el = document.getElementById('page-' + page);
+          if (el) el.classList.add('active');
+          var u = new URL(location.href);
+          u.searchParams.set('page', page);
+          if (userName) u.searchParams.set('user', userName);
+          if (userRole) u.searchParams.set('role', userRole);
+          history.pushState({page: page}, '', u);
+        });
+      });
+      
+      // Navigate home
+      window.goHome = function() {
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = ''; });
+        document.querySelectorAll('.section-title').forEach(function(s) { s.style.display = ''; });
+        var u = new URL(location.href);
+        u.searchParams.delete('page');
+        if (userName) u.searchParams.set('user', userName);
+        if (userRole) u.searchParams.set('role', userRole);
+        history.pushState({page: 'home'}, '', u);
+      };
+      
+      // Handle page param on load
+      var pageParam = url.searchParams.get('page');
+      if (pageParam && userName) {
+        var el = document.getElementById('page-' + pageParam);
+        if (el) {
+          goHome();
+          document.querySelector('.card[data-page="' + pageParam + '"]').click();
         }
-        if (pass.length < 3) { 
-          hint.textContent = 'Password too short'; 
-          hint.style.color = '#f85'; 
-          return; 
+      }
+      
+      // Popstate
+      window.addEventListener('popstate', function(e) {
+        var p = new URLSearchParams(location.search).get('page');
+        if (p && document.getElementById('page-' + p)) {
+          document.querySelectorAll('.page').forEach(function(x) { x.classList.remove('active'); });
+          document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = 'none'; });
+          document.querySelectorAll('.section-title').forEach(function(s) { 
+            if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
+          });
+          document.getElementById('page-' + p).classList.add('active');
+        } else {
+          goHome();
         }
-        
-        hint.textContent = 'Logging in...';
-        const roleParam = userRole ? '&role=' + encodeURIComponent(userRole) : '';
-        window.location.href = 'portal.html?user=' + encodeURIComponent(user) + roleParam;
       });
     });
   </script>
