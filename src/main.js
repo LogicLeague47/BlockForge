@@ -3538,8 +3538,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         try {
           const mapUrl = assetBase() + 'parkour-chunks.bin.gz';
           const data = await loadImportedParkourChunks(mapUrl);
-          _importedParkourData = data;
           const spawn = buildImportedParkour(world, data);
+          data.spawnPos = spawn;
+          _importedParkourData = data;
           player.position.set(spawn.x, spawn.y, spawn.z);
           player.velocity.set(0, 0, 0);
           player.spawnPoint.set(spawn.x, spawn.y, spawn.z);
@@ -5634,8 +5635,7 @@ function loop() {
       const _voidFloor = _isImportedParkour && _importedParkourData
         ? _importedParkourData.minY - 2 : 180;
       if (player.position.y < _voidFloor) {
-        const respawn = _isImportedParkour && _importedParkourData
-          ? { x: 0.5, y: _importedParkourData.spawnY + 2, z: 0.5 }
+        const respawn = _isImportedParkour && _importedParkourData?.spawnPos
           : getRespawnPosition();
         if (respawn) {
           player.position.set(respawn.x, respawn.y, respawn.z);

@@ -317,7 +317,10 @@ export async function loadImportedParkourChunks(url) {
 export function buildImportedParkour(world, data) {
   const { buf, view } = data;
   const count = data.count;
-  const spawnY = data.spawnY;
+
+  const centerX = Math.round((data.minX + data.maxX) / 2);
+  const centerZ = Math.round((data.minZ + data.maxZ) / 2);
+  let lowestSolid = 255;
 
   // Place all blocks into _chunkEdits (bulk, no chunk creation)
   let placed = 0;
@@ -330,13 +333,13 @@ export function buildImportedParkour(world, data) {
     if (b !== 0) {
       world.bulkSetBlock(x, y, z, b);
       placed++;
+      if (Math.abs(x - centerX) <= 2 && Math.abs(z - centerZ) <= 2 && b !== 9 && y < lowestSolid) {
+        lowestSolid = y;
+      }
     }
   }
   console.log(`[Parkour] Placed ${placed} blocks in world`);
 
-  // Calculate spawn position at center of map, just above floor
-  const spawnX = Math.round((data.minX + data.maxX) / 2);
-  const spawnZ = Math.round((data.minZ + data.maxZ) / 2);
-  const spawnYAdjusted = Math.max(data.minY + 3, spawnY || data.minY + 3);
-  return { x: spawnX + 0.5, y: spawnYAdjusted, z: spawnZ + 0.5 };
+  const spawnYAdjusted = lowestSolid + 1;
+  return { x: centerX + 0.5, y: spawnYAdjusted, z: centerZ + 0.5 };
 }
