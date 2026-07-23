@@ -64,33 +64,36 @@ export function calcBiome(n, wx, wz, h) {
   const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
   const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
 
-  // Ocean biomes (continentalness < 0)
+  // Ocean biomes (excluded from land % — ~30% of world)
   if (cont < -0.2) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
   
   // Beach: near sea level on coast
   if (h >= SEA_LEVEL - 1 && h <= SEA_LEVEL + 3 && cont < 0.1) return BIOMES.BEACH;
   
-  // Mountains: high continentalness + low erosion
+  // Stony Peaks (~10% of land): high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
   
-  // Temperature-based biomes (with humidity) — plains is the common default
-  if (t < -0.55) return BIOMES.SNOWY;
-  if (t < 0.0) {
-    if (hu > 0.25) return BIOMES.TAIGA;
-    return BIOMES.PLAINS;
+  // Snowy Forest (~10% of land): cold temperatures
+  if (t < -0.4) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
+  
+  // Forest (~25% of land): cool to mild with humidity
+  if (t < 0.3 && hu > -0.1) {
+    if (hu > 0.4) return BIOMES.DARK_FOREST;
+    if (hu > 0.15) return BIOMES.FOREST;
+    if (hu > 0.05) return BIOMES.BIRCH_FOREST;
+    return BIOMES.FOREST;
   }
-  if (t < 0.3) {
-    if (hu > 0.35) return BIOMES.DARK_FOREST;
-    if (hu > 0.2) return BIOMES.FOREST;
-    if (hu > 0.1) return BIOMES.BIRCH_FOREST;
-    return BIOMES.PLAINS;
-  }
+  
+  // Plains (~31% of land): moderate temperatures, default
   if (t < 0.5) {
-    if (hu > 0.35) return BIOMES.JUNGLE;
-    return hu > 0.05 ? BIOMES.SAVANNA : BIOMES.PLAINS;
+    if (hu > 0.3 && hu < 0.5) return BIOMES.FOREST;
+    return BIOMES.PLAINS;
   }
-  if (hu < -0.15) return BIOMES.DESERT;
+  
+  // Other (~24% of land): hot climates (desert, jungle, savanna)
+  if (hu < -0.1) return BIOMES.DESERT;
   if (hu > 0.3) return BIOMES.JUNGLE;
+  if (hu > 0.05) return BIOMES.SAVANNA;
   return BIOMES.PLAINS;
 }
 

@@ -139,6 +139,8 @@ const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(IS_MOBILE ? 1 : Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 // Graphics quality controls the internal render resolution (the main FPS lever
 // on high-DPI/Retina screens, where a full-ratio buffer can be 4x the pixels).
@@ -385,6 +387,16 @@ function buildMenuBackground() {
 // --- lights ---
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(50, 100, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 2048;
+sun.shadow.mapSize.height = 2048;
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 200;
+sun.shadow.camera.left = -80;
+sun.shadow.camera.right = 80;
+sun.shadow.camera.top = 80;
+sun.shadow.camera.bottom = -80;
+sun.shadow.bias = -0.001;
 scene.add(sun);
 const ambient = new THREE.AmbientLight(0xbfd4ff, 0.55);
 scene.add(ambient);
@@ -2378,6 +2390,10 @@ function renderRecentServers() {
 }
 
 function showMultiplayerMenu() {
+  if (playerName.startsWith('Guest')) {
+    addChatLine('Create an account to play multiplayer!', '#fa0');
+    return;
+  }
   const mpUsername = document.getElementById('input-mp-username');
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
@@ -2439,6 +2455,10 @@ function joinServer(name, seed) {
 }
 
 function _doNetworkJoin(name, seed) {
+  if (playerName.startsWith('Guest')) {
+    addChatLine('Create an account to play multiplayer!', '#fa0');
+    return;
+  }
   let cgUsername = '';
   try { cgUsername = window.CrazyGames?.SDK?.user?.getUsername?.() || ''; } catch {}
   let skinIdx = getStoredSkinIndex();
@@ -2732,8 +2752,9 @@ function setupNetworkHandlers() {
         }
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
+        try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
-          window.location.href = '?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
+          ui.showMenu('main');
         }, 600);
       }
     } else {
@@ -5034,18 +5055,22 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Auto-login when redirected from /u/ with ?user= param (already authed there)
-  const _urlUserParam = new URLSearchParams(location.search).get('user');
-  const _urlRoleParam = new URLSearchParams(location.search).get('role');
-  if (_urlUserParam) {
-    playerName = _urlUserParam;
-    playerRole = _urlRoleParam || 'player';
-    setSkinUser(playerName);
-    const nameTag = document.getElementById('menu-player-name');
-    if (nameTag) nameTag.textContent = playerName;
-    _refreshDevButtons();
-    ui.showMenu('main');
-  } else {
+  // Auto-login from localStorage (safe — not from URL params)
+  try {
+    const savedName = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
+    const savedRole = localStorage.getItem('bf_role') || 'player';
+    if (savedName) {
+      playerName = savedName;
+      playerRole = savedRole;
+      setSkinUser(playerName);
+      const nameTag = document.getElementById('menu-player-name');
+      if (nameTag) nameTag.textContent = playerName;
+      _refreshDevButtons();
+      ui.showMenu('main');
+    } else {
+      ui.showMenu('login');
+    }
+  } catch (_) {
     ui.showMenu('login');
   }
   showOneTimeMessages();
@@ -6003,6 +6028,13 @@ function loop() {
   const targetFov = player && player.sprinting ? 80 : (player && player.cameraMode !== 0 ? 70 : 75);
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 8);
   camera.updateProjectionMatrix();
+
+  // Update shadow camera to follow player
+  if (player) {
+    const p = player.position;
+    sun.target.position.set(p.x, 0, p.z);
+    sun.target.updateMatrixWorld();
+  }
 
   renderer.render(scene, camera);
 
