@@ -300,15 +300,15 @@ export async function loadImportedParkourChunks(url) {
   const buf = await decompressGzip(compressed);
 
   const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
-  const version = view.getInt32(0);
-  const minX = view.getInt32(4);
-  const maxX = view.getInt32(8);
-  const minY = view.getInt32(12);
-  const maxY = view.getInt32(16);
-  const minZ = view.getInt32(20);
-  const maxZ = view.getInt32(24);
-  const spawnY = view.getInt32(28);
-  const count = view.getInt32(32);
+  const version = view.getInt32(0, false);  // Big Endian (conversion script writes BE header)
+  const minX = view.getInt32(4, false);
+  const maxX = view.getInt32(8, false);
+  const minY = view.getInt32(12, false);
+  const maxY = view.getInt32(16, false);
+  const minZ = view.getInt32(20, false);
+  const maxZ = view.getInt32(24, false);
+  const spawnY = view.getInt32(28, false);
+  const count = view.getInt32(32, false);
 
   console.log(`[Parkour] Loaded map: X[${minX}..${maxX}] Y[${minY}..${maxY}] Z[${minZ}..${maxZ}] spawnY=${spawnY} blocks=${count}`);
   return { version, minX, maxX, minY, maxY, minZ, maxZ, spawnY, count, buf, view };
@@ -323,10 +323,10 @@ export function buildImportedParkour(world, data) {
   let placed = 0;
   for (let i = 0; i < count; i++) {
     const off = 36 + i * 16;
-    const x = view.getInt32(off);
-    const y = view.getInt32(off + 4);
-    const z = view.getInt32(off + 8);
-    const b = view.getInt32(off + 12);
+    const x = view.getInt32(off, true);   // Little Endian (body is LE)
+    const y = view.getInt32(off + 4, true);
+    const z = view.getInt32(off + 8, true);
+    const b = view.getInt32(off + 12, true);
     if (b !== 0) {
       world.bulkSetBlock(x, y, z, b);
       placed++;
