@@ -5010,11 +5010,6 @@ function initMenu() {
   const loginCreateBtn = document.getElementById('btn-login-create');
   const loginGoBtn = document.getElementById('btn-login-go');
 
-  // Pre-fill saved username
-  try {
-    const savedUser = localStorage.getItem('bf_login_user');
-    if (savedUser && loginUser) loginUser.value = savedUser;
-  } catch (_) {}
   _refreshDevButtons();
 
   function setLoginDisabled(disabled) {
@@ -5056,12 +5051,20 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Pre-fill login form from saved credentials, but always show login screen
+  // Strip legacy URL params that could trigger auto-login via old cached code
+  try {
+    const p = new URLSearchParams(location.search);
+    if (p.has('user') || p.has('role')) {
+      p.delete('user'); p.delete('role');
+      const q = p.toString();
+      history.replaceState(null, '', q ? '?' + q : location.pathname + location.hash);
+    }
+  } catch (_) {}
+
+  // Pre-fill saved username (NOT password — Safari auto-fill can trigger submit)
   try {
     const savedName = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
-    const savedPass = localStorage.getItem('bf_login_pass') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
-    if (savedPass && loginPass) loginPass.value = savedPass;
   } catch (_) {}
   ui.showMenu('login');
   showOneTimeMessages();
