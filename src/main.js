@@ -17,7 +17,7 @@ import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
 import { calcBiome } from './worldgen.js';
-import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, deleteCustomSkin, setSelectedCustomSkin } from './skins.js';
+import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, deleteCustomSkin, setSelectedCustomSkin, setSkinUser, getStoredSkinIndex } from './skins.js';
 import { PlayerModel } from './playermodel.js';
 import { SkinEditor } from './skineditor.js';
 import { getKeybinds, setKeybind, resetKeybinds, keyName, KEYBIND_ACTIONS } from './keybinds.js';
@@ -2441,8 +2441,7 @@ function joinServer(name, seed) {
 function _doNetworkJoin(name, seed) {
   let cgUsername = '';
   try { cgUsername = window.CrazyGames?.SDK?.user?.getUsername?.() || ''; } catch {}
-  let skinIdx = 0;
-  try { skinIdx = parseInt(localStorage.getItem('blockforge_skin') || '0', 10); } catch {}
+  let skinIdx = getStoredSkinIndex();
 
   // If we have a local server entry, create it on the network
   // (server.js auto-joins if the room already exists)
@@ -2719,6 +2718,7 @@ function setupNetworkHandlers() {
         const pass = document.getElementById('login-password');
         if (pass) localStorage.setItem('bf_login_pass', pass.value);
       } catch (_) {}
+      setSkinUser(playerName);
       const nameTag = document.getElementById('menu-player-name');
       if (nameTag) nameTag.textContent = playerName;
       _refreshDevButtons();
@@ -3908,6 +3908,7 @@ function initMenu() {
     const saved = localStorage.getItem('bf_player_name');
     if (saved) { playerName = filterProfanity(saved); hadSavedName = true; }
   } catch (_) {}
+  setSkinUser(playerName);
 
   // Load ALL settings from localStorage
   function loadSetting(id, key) {
@@ -5016,7 +5017,20 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  ui.showMenu('login');
+  // Auto-login when redirected from /u/ with ?user= param (already authed there)
+  const _urlUserParam = new URLSearchParams(location.search).get('user');
+  const _urlRoleParam = new URLSearchParams(location.search).get('role');
+  if (_urlUserParam) {
+    playerName = _urlUserParam;
+    playerRole = _urlRoleParam || 'player';
+    setSkinUser(playerName);
+    const nameTag = document.getElementById('menu-player-name');
+    if (nameTag) nameTag.textContent = playerName;
+    _refreshDevButtons();
+    ui.showMenu('main');
+  } else {
+    ui.showMenu('login');
+  }
   showOneTimeMessages();
   crazyGamesSDK().then((sdk) => {
     if (!sdk) return;
@@ -5056,6 +5070,7 @@ function initMenu() {
           .then(data => {
             if (!data.ok) { showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
             playerName = filterProfanity(data.username) || 'Player';
+            setSkinUser(playerName);
             try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
             const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
             if (!network.connected) {
@@ -5110,6 +5125,7 @@ function initMenu() {
             if (!name) { inputEl.focus(); return; }
             playerName = filterProfanity(name);
             if (!playerName) playerName = 'Player';
+            setSkinUser(playerName);
             try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
@@ -6381,11 +6397,11 @@ document.getElementById('btn-blockforge-portal')?.addEventListener('click', () =
   const role = encodeURIComponent(playerRole || '');
   window.open('portal.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
-// Bottom-right: Account Info → opens user-data page
+// Bottom-right: Account Info → opens user-data page at /u/data.html
 document.getElementById('btn-account-info')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
   const role = encodeURIComponent(playerRole || '');
-  window.open('user-data.html' + (user ? '?user=' + user + '&role=' + role : ''));
+  window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
 
 requestAnimationFrame(loop);

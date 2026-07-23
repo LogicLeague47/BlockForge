@@ -134,22 +134,31 @@ const STORAGE_KEY = 'blockforge_skin';
 const STORAGE_KEY_CUSTOM = 'blockforge_custom_skin_data'; // legacy single custom skin
 const STORAGE_KEY_CUSTOM_LIST = 'blockforge_custom_skins'; // array of saved custom skins
 
+// Per-account skin storage — each account gets its own skin setting.
+let _skinUser = '';
+export function setSkinUser(username) { _skinUser = username || ''; }
+function _p(key) { return _skinUser ? key + '_' + encodeURIComponent(_skinUser) : key; }
+
 // --- Saved custom skins library -------------------------------------------
 export function getCustomSkins() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOM_LIST);
+    const raw = localStorage.getItem(_p(STORAGE_KEY_CUSTOM_LIST));
     if (raw) { const list = JSON.parse(raw); if (Array.isArray(list)) return list; }
   } catch {}
   // Migrate a legacy single custom skin into the list.
   try {
     const old = localStorage.getItem(STORAGE_KEY_CUSTOM);
-    if (old) { localStorage.setItem(STORAGE_KEY_CUSTOM_LIST, JSON.stringify([old])); return [old]; }
+    if (old) {
+      localStorage.setItem(_p(STORAGE_KEY_CUSTOM_LIST), JSON.stringify([old]));
+      localStorage.removeItem(STORAGE_KEY_CUSTOM);
+      return [old];
+    }
   } catch {}
   return [];
 }
 
 function _saveCustomSkins(list) {
-  try { localStorage.setItem(STORAGE_KEY_CUSTOM_LIST, JSON.stringify(list)); } catch {}
+  try { localStorage.setItem(_p(STORAGE_KEY_CUSTOM_LIST), JSON.stringify(list)); } catch {}
 }
 
 // Add a new custom skin to the library and select it. Returns its index.
@@ -170,18 +179,18 @@ export function deleteCustomSkin(index) {
   _saveCustomSkins(list);
   // Fix up the current selection if it pointed at/after the removed skin.
   try {
-    const sel = localStorage.getItem(STORAGE_KEY) || '';
+    const sel = localStorage.getItem(_p(STORAGE_KEY)) || '';
     if (sel.startsWith('custom:')) {
       const cur = parseInt(sel.slice(7), 10);
-      if (cur === index) localStorage.setItem(STORAGE_KEY, '0');       // fell back to preset
-      else if (cur > index) localStorage.setItem(STORAGE_KEY, 'custom:' + (cur - 1));
+      if (cur === index) localStorage.setItem(_p(STORAGE_KEY), '0');       // fell back to preset
+      else if (cur > index) localStorage.setItem(_p(STORAGE_KEY), 'custom:' + (cur - 1));
     }
   } catch {}
   reloadCustomSkin();
 }
 
 export function setSelectedCustomSkin(index) {
-  try { localStorage.setItem(STORAGE_KEY, 'custom:' + index); } catch {}
+  try { localStorage.setItem(_p(STORAGE_KEY), 'custom:' + index); } catch {}
   reloadCustomSkin();
 }
 
@@ -196,7 +205,7 @@ function _loadCustomCanvas() {
   _customCanvasLoading = true;
   _customCanvasPromise = new Promise((resolve) => {
     try {
-      const dataUrl = localStorage.getItem(STORAGE_KEY_CUSTOM);
+      const dataUrl = localStorage.getItem(_p(STORAGE_KEY_CUSTOM));
       if (!dataUrl) {
         _customCanvasLoading = false;
         resolve(null);
@@ -228,7 +237,7 @@ function _loadCustomCanvas() {
 
 export function getSelectedSkin() {
   try {
-    const saved = localStorage.getItem(STORAGE_KEY);
+    const saved = localStorage.getItem(_p(STORAGE_KEY));
     if (saved && saved.startsWith('custom:')) {
       const idx = parseInt(saved.slice(7), 10);
       const list = getCustomSkins();
@@ -251,15 +260,26 @@ export function getSelectedSkin() {
 
 export function setSelectedSkin(index) {
   try {
-    localStorage.setItem(STORAGE_KEY, String(index));
+    localStorage.setItem(_p(STORAGE_KEY), String(index));
   } catch {}
+}
+
+export function getStoredSkinIndex() {
+  try {
+    const saved = localStorage.getItem(_p(STORAGE_KEY));
+    if (saved === null || saved === '') return 0;
+    if (saved.startsWith('custom:')) return 0;
+    const idx = parseInt(saved, 10);
+    if (idx >= 0 && idx < SKIN_PRESETS.length) return idx;
+  } catch {}
+  return 0;
 }
 
 // Called by the skin editor after saving — stores the data URL and selects it
 export function saveCustomSkin(dataUrl) {
   try {
-    localStorage.setItem(STORAGE_KEY_CUSTOM, dataUrl);
-    localStorage.setItem(STORAGE_KEY, 'custom');
+    localStorage.setItem(_p(STORAGE_KEY_CUSTOM), dataUrl);
+    localStorage.setItem(_p(STORAGE_KEY), 'custom');
     // Flag for achievement tracking
     localStorage.setItem('bf_custom_skin_created', '1');
     // Reload the cached canvas

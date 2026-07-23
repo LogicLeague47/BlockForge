@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge - Sign In</title>
+  <link rel="icon" type="image/png" href="../BlockForge.png">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a12;color:#e0e0e0;font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0,rgba(30,40,80,.15) 0,transparent 70%);pointer-events:none}
+    .card{background:rgba(20,20,40,.85);border:1px solid rgba(80,80,120,.3);border-radius:16px;padding:40px;width:380px;max-width:92%;box-shadow:0 0 60px rgba(60,100,180,.08);backdrop-filter:blur(8px);position:relative;z-index:1}
+    h1{font-size:28px;text-align:center;margin-bottom:4px;letter-spacing:4px;background:linear-gradient(135deg,#fff 0%,#8af 40%,#c084fc 70%,#f472b6 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .sub{text-align:center;font-size:11px;color:#7a8eff;letter-spacing:3px;margin-bottom:28px;text-transform:uppercase}
+    label{font-size:12px;color:#aab;display:block;margin-bottom:5px;letter-spacing:1px}
+    input{width:100%;padding:11px 14px;background:rgba(0,0,0,.4);color:#fff;border:1px solid rgba(80,80,120,.4);border-radius:8px;font:14px 'Inter',monospace;outline:none;margin-bottom:16px;transition:border-color .2s,box-shadow .2s}
+    input:focus{border-color:#8af;box-shadow:0 0 0 3px rgba(100,140,255,.15)}
+    .btn{width:100%;padding:12px;background:linear-gradient(135deg,#3a6a9a,#2a5a8a);border:1px solid #2a4a7a;border-radius:8px;color:#fff;font:14px 'Inter',monospace;cursor:pointer;font-weight:600;transition:.25s}
+    .btn:hover{background:linear-gradient(135deg,#4a7aaa,#3a6a9a);transform:translateY(-2px);box-shadow:0 8px 28px rgba(60,120,200,.35)}
+    .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+    .btn-row{display:flex;gap:10px;margin-top:4px}
+    .btn-row .btn{width:auto;flex:1}
+    .hint{font-size:12px;margin-top:12px;min-height:18px;text-align:center}
+    .hint.ok{color:#5d5}
+    .hint.err{color:#f55}
+    .hint.info{color:#fa0}
+    .or-divider{text-align:center;color:#556;font-size:11px;margin:16px 0;letter-spacing:2px}
+    .guest-link{text-align:center;margin-top:16px}
+    .guest-link a{color:#5af;font-size:12px;text-decoration:none;cursor:pointer}
+    .guest-link a:hover{text-decoration:underline}
+    footer{text-align:center;padding:20px;font-size:10px;color:#445;margin-top:20px;position:relative;z-index:1}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>BLOCKFORGE</h1>
+    <div class="sub">Sign In</div>
+    <label for="user-input">Username</label>
+    <input id="user-input" type="text" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Enter your username">
+    <label for="pass-input">Password</label>
+    <input id="pass-input" type="password" maxlength="32" autocomplete="off" placeholder="Enter your password">
+    <div class="btn-row">
+      <button class="btn" id="btn-login">Log In</button>
+      <button class="btn" id="btn-create">Create</button>
+    </div>
+    <div class="hint" id="hint"></div>
+    <div class="or-divider">or</div>
+    <div class="guest-link"><a id="guest-link">Continue as Guest</a></div>
+  </div>
+  <footer>BlockForge · Sign in with your account to play</footer>
+  <script>
+    (function() {
+      var WS_URL = 'wss://blockforge-server.onrender.com';
+      var hint = document.getElementById('hint');
+      var userInput = document.getElementById('user-input');
+      var passInput = document.getElementById('pass-input');
+      var loginBtn = document.getElementById('btn-login');
+      var createBtn = document.getElementById('btn-create');
+
+      function setHint(text, cls) {
+        hint.textContent = text;
+        hint.className = 'hint' + (cls ? ' ' + cls : '');
+      }
+
+      function setButtons(disabled) {
+        loginBtn.disabled = disabled;
+        createBtn.disabled = disabled;
+      }
+
+      function doAuth(mode) {
+        var user = userInput.value.trim().slice(0, 16);
+        var pass = passInput.value;
+        if (!user) { setHint('Please enter a username.', 'err'); userInput.focus(); return; }
+        if (pass.length < 3) { setHint('Password must be at least 3 characters.', 'err'); passInput.focus(); return; }
+        setButtons(true);
+        setHint(mode === 'register' ? 'Creating account...' : 'Logging in...', 'info');
+
+        var ws = new WebSocket(WS_URL);
+        var done = false;
+        var timeout = setTimeout(function() {
+          if (!done) {
+            done = true;
+            ws.close();
+            setButtons(false);
+            setHint('Cannot reach server. Check your connection.', 'err');
+          }
+        }, 8000);
+
+        ws.onopen = function() {
+          ws.send(JSON.stringify({ type: 'auth', playerName: user, password: pass, mode: mode }));
+        };
+
+        ws.onmessage = function(e) {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          ws.close();
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type !== 'auth_result') {
+              setButtons(false);
+              setHint('Unexpected server response.', 'err');
+              return;
+            }
+            if (msg.ok) {
+              var username = msg.username || user;
+              var role = msg.role || 'player';
+              try {
+                localStorage.setItem('bf_player_name', username);
+                localStorage.setItem('bf_login_user', username);
+                localStorage.setItem('bf_login_pass', pass);
+              } catch(_) {}
+              setHint('Success! Redirecting...', 'ok');
+              setTimeout(function() {
+                window.location.href = '../?user=' + encodeURIComponent(username) + '&role=' + encodeURIComponent(role);
+              }, 400);
+            } else {
+              setButtons(false);
+              setHint(msg.reason || 'Login failed.', 'err');
+            }
+          } catch(_) {
+            setButtons(false);
+            setHint('Failed to parse server response.', 'err');
+          }
+        };
+
+        ws.onerror = function() {
+          if (done) return;
+          done = true;
+          clearTimeout(timeout);
+          setButtons(false);
+          setHint('Connection failed. Server may be offline.', 'err');
+        };
+      }
+
+      loginBtn.addEventListener('click', function() { doAuth('login'); });
+      createBtn.addEventListener('click', function() { doAuth('register'); });
+      passInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') doAuth('login'); });
+
+      document.getElementById('guest-link').addEventListener('click', function() {
+        window.location.href = '../';
+      });
+
+      userInput.focus();
+    })();
+  </script>
+</body>
+</html>

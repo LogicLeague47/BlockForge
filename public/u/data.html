@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge - User Data</title>
+  <link rel="icon" type="image/png" href="../BlockForge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a12;color:#e0e0e0;font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 50% 0,rgba(30,40,80,.15) 0,transparent 70%);pointer-events:none}
+    header{background:linear-gradient(135deg,#1a1a2e,#0e0e1a);border-bottom:1px solid rgba(80,80,120,.3);padding:24px 32px;display:flex;align-items:center;justify-content:space-between;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+    header h1{font-size:32px;color:#fff;text-shadow:2px 2px 0 #3f3f3f;letter-spacing:6px;font-weight:700}
+    header .sub{font-size:12px;color:#7a8eff;letter-spacing:3px;font-weight:500}
+    .container{max-width:700px;margin:36px auto;padding:0 28px;flex:1;width:100%}
+    .card{background:rgba(30,30,55,.8);border:1px solid rgba(80,80,120,.3);border-radius:12px;padding:28px;margin-bottom:20px}
+    .card h2{font-size:18px;color:#ffdd33;letter-spacing:2px;margin-bottom:16px;font-weight:600}
+    .info-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid rgba(80,80,120,.15);font-size:14px}
+    .info-row:last-child{border-bottom:none}
+    .info-label{color:#888;font-weight:500}
+    .info-value{color:#fff;font-weight:600;text-align:right;max-width:60%;word-break:break-all}
+    .info-value.accent{color:#7af}
+    .info-value.dim{color:#666}
+    .btn{padding:12px 28px;background:rgba(40,40,65,.7);border:1px solid rgba(80,80,120,.3);border-radius:8px;color:#c0c0ff;font:14px 'Inter',monospace;cursor:pointer;font-weight:500;transition:.2s;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
+    .btn:hover{background:rgba(60,60,90,.85);border-color:rgba(100,140,200,.5);color:#fff;transform:translateY(-2px);box-shadow:0 6px 20px rgba(60,100,180,.3)}
+    .mt-20{margin-top:20px}
+    .mb-30{margin-bottom:30px}
+    .tc{text-align:center}
+    .danger{color:#f55;font-size:12px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(80,80,120,.15)}
+    .danger-btn{padding:8px 20px;background:rgba(120,40,40,.3);border:1px solid rgba(200,60,60,.3);border-radius:6px;color:#f55;font:12px 'Inter',monospace;cursor:pointer;transition:.2s;margin-top:10px}
+    .danger-btn:hover{background:rgba(150,50,50,.4);border-color:rgba(200,60,60,.5)}
+    footer{text-align:center;padding:24px;font-size:11px;color:#556;border-top:1px solid rgba(80,80,120,.2);background:rgba(20,20,35,.6)}
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>BLOCKFORGE</h1>
+      <div class="sub">USER DATA</div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="card">
+      <h2>Account Information</h2>
+      <div class="info-row">
+        <span class="info-label">Username</span>
+        <span class="info-value" id="ud-username">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Password</span>
+        <span class="info-value dim" id="ud-password">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Signed in with</span>
+        <span class="info-value accent" id="ud-provider">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Role</span>
+        <span class="info-value" id="ud-role">—</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Game Statistics</h2>
+      <div class="info-row">
+        <span class="info-label">Total Play Time</span>
+        <span class="info-value" id="ud-playtime">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Blocks Placed</span>
+        <span class="info-value" id="ud-blocks-placed">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Blocks Broken</span>
+        <span class="info-value" id="ud-blocks-broken">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Mobs Killed</span>
+        <span class="info-value" id="ud-mobs-killed">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Deaths</span>
+        <span class="info-value" id="ud-deaths">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Distance Walked</span>
+        <span class="info-value" id="ud-distance">0m</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Local Data</h2>
+      <div class="info-row">
+        <span class="info-label">Worlds Saved</span>
+        <span class="info-value" id="ud-worlds">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Skins Saved</span>
+        <span class="info-value" id="ud-skins">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Settings Saved</span>
+        <span class="info-value" id="ud-settings">Yes</span>
+      </div>
+    </div>
+
+    <div class="danger">
+      <p>All data is stored locally on your device. No personal data is collected or shared.</p>
+      <button class="danger-btn" id="btn-clear-data">Clear All Local Data</button>
+    </div>
+
+    <div class="tc mb-30 mt-20">
+      <button class="btn" onclick="window.history.back()">Back to Game</button>
+    </div>
+  </div>
+
+  <footer>BlockForge User Data · Not affiliated with Mojang AB · Data stored locally</footer>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Read from URL params first (game passes ?user=&role=)
+      const url = new URL(location.href);
+      const urlUser = url.searchParams.get('user') || '';
+      const urlRole = url.searchParams.get('role') || '';
+
+      // Fall back to localStorage keys that the game actually uses
+      const username = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '—';
+      const password = localStorage.getItem('bf_login_pass') || '';
+      const provider = 'password';
+      const role = urlRole || '—';
+
+      document.getElementById('ud-username').textContent = username;
+      document.getElementById('ud-password').textContent = password ? '\u2022'.repeat(Math.min(password.length, 16)) : '—';
+      document.getElementById('ud-provider').textContent = provider;
+      document.getElementById('ud-role').textContent = role;
+
+      // Game doesn't track individual stats — show actual available data
+      const renderDist = localStorage.getItem('bf_render_dist') || '—';
+      const fov = localStorage.getItem('bf_fov') || '—';
+      const volume = localStorage.getItem('bf_volume') || '—';
+      const sensitivity = localStorage.getItem('bf_sensitivity') || '—';
+
+      document.getElementById('ud-playtime').textContent = '— (not tracked)';
+      document.getElementById('ud-blocks-placed').textContent = '—';
+      document.getElementById('ud-blocks-broken').textContent = '—';
+      document.getElementById('ud-mobs-killed').textContent = '—';
+      document.getElementById('ud-deaths').textContent = '—';
+      document.getElementById('ud-distance').textContent = '—';
+
+      // Load local data info
+      const worlds = Object.keys(localStorage).filter(k => k.startsWith('bf_world_')).length;
+      const skins = Object.keys(localStorage).filter(k => k.startsWith('bf_skin_')).length;
+      const settingsCount = ['bf_render_dist','bf_fov','bf_volume','bf_sensitivity','bf_autojump','bf_settings']
+        .filter(k => localStorage.getItem(k)).length;
+      const hasRecentServers = localStorage.getItem('bf_recent_servers') ? true : false;
+
+      document.getElementById('ud-worlds').textContent = worlds;
+      document.getElementById('ud-skins').textContent = skins;
+      document.getElementById('ud-settings').textContent = settingsCount + ' setting' + (settingsCount !== 1 ? 's' : '');
+
+      // Clear data button
+      document.getElementById('btn-clear-data').addEventListener('click', function() {
+        if (confirm('Are you sure you want to clear all local data? This cannot be undone.')) {
+          Object.keys(localStorage).filter(k => k.startsWith('bf_')).forEach(k => localStorage.removeItem(k));
+          location.reload();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
