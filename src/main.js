@@ -5056,24 +5056,14 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Auto-login from localStorage (safe — not from URL params)
+  // Pre-fill login form from saved credentials, but always show login screen
   try {
     const savedName = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
-    const savedRole = localStorage.getItem('bf_role') || 'player';
-    if (savedName) {
-      playerName = savedName;
-      playerRole = savedRole;
-      setSkinUser(playerName);
-      const nameTag = document.getElementById('menu-player-name');
-      if (nameTag) nameTag.textContent = playerName;
-      _refreshDevButtons();
-      ui.showMenu('main');
-    } else {
-      ui.showMenu('login');
-    }
-  } catch (_) {
-    ui.showMenu('login');
-  }
+    const savedPass = localStorage.getItem('bf_login_pass') || '';
+    if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
+    if (savedPass && loginPass) loginPass.value = savedPass;
+  } catch (_) {}
+  ui.showMenu('login');
   showOneTimeMessages();
   crazyGamesSDK().then((sdk) => {
     if (!sdk) return;
