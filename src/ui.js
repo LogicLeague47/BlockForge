@@ -1515,6 +1515,11 @@ export class UI {
     if (name === 'main') this._cycleSplash();
     const mp = document.querySelector('.menu-player-preview');
     if (mp) mp.style.display = (name === 'login') ? 'none' : '';
+    // Show bottom buttons only on main menu, hide on login
+    const bl = document.querySelector('.menu-bottom-left');
+    const br = document.querySelector('.menu-bottom-right');
+    if (bl) bl.style.display = (name === 'login') ? 'none' : '';
+    if (br) br.style.display = (name === 'login') ? 'none' : '';
   }
 
   _cycleSplash() {
