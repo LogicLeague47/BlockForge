@@ -2243,9 +2243,8 @@ function submitChat() {
   } else {
     // Regular chat message
     if (network.connected && network.roomName) {
-      // Send to server — server broadcasts back to all including us
       network.sendChat(text);
-      return;
+      // Don't return — show locally too, server echo will be deduplicated below
     }
     const role = currentServer ? currentServer.getRole(playerName) : null;
     const isGameDev = role === ROLE_GAMEDEV;
@@ -2583,6 +2582,8 @@ function setupNetworkHandlers() {
   };
 
   network.onChat = (name, role, text) => {
+    // Skip our own messages — already displayed locally
+    if (name === playerName) return;
     const safeText = filterProfanity(text);
     const safeName = filterProfanity(name);
     let chatHtml;
