@@ -2733,7 +2733,7 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         setTimeout(() => {
-          window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
+          window.location.href = '?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
         }, 600);
       }
     } else {
