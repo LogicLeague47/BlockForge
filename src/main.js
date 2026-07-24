@@ -2761,15 +2761,7 @@ function setupNetworkHandlers() {
           network.devListAccounts();
         }
       } else {
-        if (loginHint) {
-        const base = location.pathname.replace(/\/[^\/]*$/, '/');
-        const linkUrl = location.origin + base + 'u/?user=' + encodeURIComponent(playerName);
-        const msgText = msg.created
-          ? 'Account created! Welcome, ' + playerName + '.'
-          : 'Logged in! Welcome back, ' + playerName + '.';
-        loginHint.style.color = '#5f5';
-        loginHint.innerHTML = msgText + '<br><span style="font-size:11px;color:#7cf;">Your Player Link: <a href="' + linkUrl + '" target="_blank" style="color:#7cf;text-decoration:underline;">' + linkUrl + '</a></span>';
-      }
+        if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
           ui.showMenu('main');
