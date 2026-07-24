@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { CHUNK_SIZE } from './world.js';
 import { buildChunkGeometry } from './mesher.js';
 import { BLOCK, BLOCKS } from './blocks.js';
+import { createOpaqueMaterial, createTransparentMaterial, createWaterMaterial } from './shaders.js';
 
 export class ChunkMeshManager {
   constructor(scene, world, atlasTexture) {
@@ -13,31 +14,10 @@ export class ChunkMeshManager {
     this.world = world;
     this.atlasTexture = atlasTexture;
 
-    this.opaqueMaterial = new THREE.MeshLambertMaterial({
-      map: atlasTexture,
-      vertexColors: true,
-      alphaTest: 0.1,
-      side: THREE.FrontSide,
-    });
-
-    this.transMaterial = new THREE.MeshLambertMaterial({
-      map: atlasTexture,
-      vertexColors: true,
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      side: THREE.FrontSide,
-      polygonOffset: true,
-      polygonOffsetFactor: -1,
-    });
-    // Dedicated water material: no vertex colors, uniform blue
-    this.waterMaterial = new THREE.MeshLambertMaterial({
-      color: 0x2f62bc,
-      transparent: true,
-      opacity: 0.55,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
+    // Custom shader materials replacing MeshLambertMaterial
+    this.opaqueMaterial = createOpaqueMaterial(atlasTexture);
+    this.transMaterial = createTransparentMaterial(atlasTexture);
+    this.waterMaterial = createWaterMaterial();
 
     this.meshes = new Map(); // "cx,cz" -> { group, opaque, trans }
 

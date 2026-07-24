@@ -34,6 +34,8 @@ import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
 import { GreenstoneSystem } from './greenstone.js';
 import { VoiceChat } from './voice.js';
+import { updateShaderUniforms } from './shaders.js';
+import { GodRayPass } from './godrays.js';
 
 const REACH = 6;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
@@ -404,6 +406,9 @@ const ambient = new THREE.AmbientLight(0x667799, 0.15);
 scene.add(ambient);
 const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
+
+// --- god rays post-processing ---
+let godRayPass = null;
 
 // --- sun & moon ---
 const sunMesh = new THREE.Mesh(
@@ -3307,6 +3312,11 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   scene.fog.far = 16 * (renderDist + 2);
   scene.fog.near = 16 * 5;
 
+  // Initialize god rays post-processing (after scene is ready)
+  if (graphicsQuality !== 'low') {
+    godRayPass = new GodRayPass(renderer, scene, camera, sun);
+  }
+
   // Apply FOV and volume at world load
   camera.fov = parseInt(document.getElementById('set-fov')?.value) || 75;
   camera.updateProjectionMatrix();
@@ -6056,7 +6066,42 @@ function loop() {
     sun.target.updateMatrixWorld();
   }
 
-  renderer.render(scene, camera);
+  // Update custom shader uniforms (sun direction, fog, shadows)
+  if (manager) {
+    // Shadow bias matrix: clip space (-1..1) -> texture space (0..1)
+    const _shadowBias = new THREE.Matrix4();
+    _shadowBias.set(
+      0.5, 0, 0, 0.5,
+      0, 0.5, 0, 0.5,
+      0, 0, 0.5, 0.5,
+      0, 0, 0, 1
+    );
+    const shadowMatrix = new THREE.Matrix4();
+    shadowMatrix.multiplyMatrices(_shadowBias, sun.shadow.camera.projectionMatrix);
+    shadowMatrix.multiply(sun.shadow.camera.matrixWorldInverse);
+
+    updateShaderUniforms({
+      opaqueMat: manager.opaqueMaterial,
+      transMat: manager.transMaterial,
+      waterMat: manager.waterMaterial,
+      sun,
+      fogColor: scene.fog.color,
+      fogNear: scene.fog.near,
+      fogFar: scene.fog.far,
+      time: performance.now() * 0.001,
+      shadowMatrix,
+      shadowTarget: sun.shadow.map,
+    });
+  }
+
+  // Render scene (with god rays if enabled)
+  if (godRayPass && graphicsQuality !== 'low') {
+    // GodRayPass handles rendering internally; if it skips (night), render normally
+    const rendered = godRayPass.render(dayTime);
+    if (!rendered) renderer.render(scene, camera);
+  } else {
+    renderer.render(scene, camera);
+  }
 
   // --- Attack cooldown indicator (ring around crosshair) ---
   const cooldownEl = document.getElementById('attack-cooldown');

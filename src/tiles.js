@@ -304,31 +304,63 @@ const PAINTERS = {
   },
 
   leaves(ctx, x0, y0, rng) {
-    // Minecraft leaves: bright green with depth.
-    noisy(ctx, x0, y0, [58, 120, 32], 0.14, rng);
-    // Darker leaf clumps (inner shadow).
-    for (let i = 0; i < 22; i++) {
-      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
-      ctx.fillStyle = rng() < 0.5 ? 'rgb(40,92,22)' : 'rgb(50,104,26)';
-      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    // Minecraft-style leaves with real transparency holes.
+    // Start fully transparent, draw leaf clusters on top.
+    ctx.clearRect(x0, y0, TILE, TILE);
+
+    // Draw leaf clusters (irregular blobs that leave gaps between them)
+    const clusters = 12 + (rng() * 6 | 0);
+    for (let i = 0; i < clusters; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const size = 3 + (rng() * 4 | 0);
+      // Base leaf color with variance
+      const g = 100 + (rng() * 60 | 0);
+      const r = 30 + (rng() * 25 | 0);
+      const b = 15 + (rng() * 15 | 0);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      // Draw irregular blob
+      for (let dy = -size; dy <= size; dy++) {
+        for (let dx = -size; dx <= size; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > size + rng() * 1.5 - 0.5) continue;
+          const px = cx + dx, py = cy + dy;
+          if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
-    // Mid-tone leaves.
-    for (let i = 0; i < 18; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = 'rgb(72,140,42)';
-      ctx.fillRect(x0 + x, y0 + y, 1 + (rng() * 2 | 0), 1);
-    }
-    // Bright sun-lit edges (light filtering through).
+
+    // Darker inner shadow patches
     for (let i = 0; i < 14; i++) {
       const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = 'rgb(112,188,62)';
+      const w = 2 + (rng() * 2 | 0);
+      const h = 2 + (rng() * 2 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(25,60,15,0.6)' : 'rgba(35,75,20,0.5)';
+      for (let dy = 0; dy < h; dy++) {
+        for (let dx = 0; dx < w; dx++) {
+          const px = x + dx, py = y + dy;
+          if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    // Bright highlights (sun-lit edges)
+    for (let i = 0; i < 20; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = `rgba(${140 + (rng() * 40 | 0)},${200 + (rng() * 40 | 0)},${80 + (rng() * 30 | 0)},0.7)`;
       ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
-    // A few darker gaps (holes between leaves).
-    for (let i = 0; i < 3; i++) {
-      const x = (rng() * (TILE - 2)) | 0, y = (rng() * (TILE - 2)) | 0;
-      ctx.fillStyle = 'rgba(28,58,18,0.5)';
-      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+
+    // Leaf veins (thin darker lines)
+    for (let i = 0; i < 6; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      const len = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = 'rgba(40,80,25,0.4)';
+      for (let j = 0; j < len; j++) {
+        const px = sx + j, py = sy + (rng() > 0.5 ? 1 : 0);
+        if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
+      }
     }
   },
 
@@ -918,18 +950,48 @@ const PAINTERS = {
   },
 
   dark_leaves(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [35, 60, 25], 0.13, rng);
-    for (let i = 0; i < 16; i++) {
-      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
-      ctx.fillStyle = 'rgb(28,50,20)';
-      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    // Dark oak leaves with transparency holes — darker palette than regular leaves.
+    ctx.clearRect(x0, y0, TILE, TILE);
+
+    // Dense dark green clusters with gaps
+    const clusters = 14 + (rng() * 5 | 0);
+    for (let i = 0; i < clusters; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const size = 2 + (rng() * 3 | 0);
+      const g = 65 + (rng() * 40 | 0);
+      const r = 20 + (rng() * 15 | 0);
+      const b = 12 + (rng() * 10 | 0);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      for (let dy = -size; dy <= size; dy++) {
+        for (let dx = -size; dx <= size; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > size + rng() * 1.2 - 0.3) continue;
+          const px = cx + dx, py = cy + dy;
+          if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
+
+    // Deeper shadows
     for (let i = 0; i < 10; i++) {
       const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = 'rgb(60,105,40)';
+      ctx.fillStyle = 'rgba(15,35,10,0.5)';
+      for (let dy = 0; dy < 2; dy++) {
+        for (let dx = 0; dx < 2; dx++) {
+          const px = x + dx, py = y + dy;
+          if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    // Subtle highlights
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = `rgba(${70 + (rng() * 30 | 0)},${120 + (rng() * 30 | 0)},${45 + (rng() * 20 | 0)},0.6)`;
       ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
-    speckle(ctx, x0, y0, rng, 4, ['rgb(90,150,55)']);
   },
 
   snow_block(ctx, x0, y0, rng) {
