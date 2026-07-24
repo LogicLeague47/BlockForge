@@ -2762,7 +2762,8 @@ function setupNetworkHandlers() {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
-          ui.showMenu('main');
+          const base = location.pathname.replace(/\/[^\/]*$/, '/');
+          location.href = base + 'u/?user=' + encodeURIComponent(playerName);
         }, 600);
       }
     } else {
