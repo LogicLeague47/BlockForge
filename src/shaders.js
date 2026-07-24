@@ -338,7 +338,7 @@ export function createWaterMaterial(fogColor) {
  * @param {THREE.WebGLRenderTarget} [params.shadowTarget]
  */
 export function updateShaderUniforms({ opaqueMat, transMat, waterMat, sun, fogColor, fogNear, fogFar, time, shadowMatrix, shadowTarget }) {
-  const sunDir = sun.direction.clone().normalize();
+  const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
 
   if (opaqueMat) {
     opaqueMat.uniforms.sunDirection.value.copy(sunDir);
