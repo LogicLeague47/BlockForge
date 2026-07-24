@@ -2761,10 +2761,8 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
-        try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
         setTimeout(() => {
-          const base = location.pathname.replace(/\/[^\/]*$/, '/');
-          location.href = base + 'u/?user=' + encodeURIComponent(playerName) + '&from=game';
+          ui.showMenu('main');
         }, 600);
       }
     } else {
@@ -5089,15 +5087,11 @@ function initMenu() {
     const urlUser = new URLSearchParams(location.search).get('user');
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
-    // Auto-login when visiting via /u/ redirect with saved credentials
+    // Auto-login ONLY when visiting via /u/ redirect with saved credentials
     const savedPass = localStorage.getItem('bf_login_pass') || '';
-    if (urlUser && savedPass && savedPass.length >= 3) {
+    if (urlUser && savedPass && savedPass.length >= 3 && fromU) {
       loginPass.value = savedPass;
       autoLogin = true;
-    }
-    // Bot bypass detection: if someone pastes URL directly (not via /u/), block auto-login
-    if (urlUser && !fromU && !autoLogin) {
-      // No saved credentials + not from /u/ — they must log in manually
     }
   } catch (_) {}
   if (autoLogin) {
