@@ -4331,9 +4331,8 @@ function initMenu() {
   // --- Player Link (shareable /u/ link) ---
   document.getElementById('btn-player-link')?.addEventListener('click', () => {
     const u = encodeURIComponent(playerName || '');
-    const r = encodeURIComponent(playerRole || '');
     const base = location.pathname.replace(/\/[^/]*$/, '/');
-    const url = location.origin + base + 'u/' + (u ? '?user=' + u + (r ? '&role=' + r : '') : '');
+    const url = location.origin + base + 'u/?user=' + u;
     window.open(url, '_blank');
   });
 

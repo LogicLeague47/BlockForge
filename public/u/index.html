@@ -22,12 +22,14 @@
     .guest{margin-top:8px}
     .guest a{font:11px monospace;color:#888;text-decoration:underline;cursor:pointer}
     .guest a:hover{color:#bbb}
+    .notfound{font:bold 14px monospace;color:#f55;margin-bottom:12px}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">BLOCKFORGE</div>
     <div class="sub">PLAYER LOGIN</div>
+    <div class="notfound" id="notfound" style="display:none"></div>
     <div class="name" id="pname">Loading...</div>
     <div class="role" id="prole"></div>
     <div class="hint" id="hint"></div>
@@ -38,37 +40,50 @@
   </div>
   <script>
     (function() {
-      var player = '';
-      try { player = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || ''; } catch(e) {}
-      var savedPass = '';
-      try { savedPass = localStorage.getItem('bf_login_pass') || ''; } catch(e) {}
-      var role = '';
-      try { role = localStorage.getItem('bf_role') || ''; } catch(e) {}
+      // Get username from URL: /u/?user=LogicLeague or /u/LogicLeague/
+      var urlUser = '';
+      try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
+      // Also support /u/LogicLeague/ path format
+      if (!urlUser) {
+        var path = location.pathname;
+        var match = path.match(/\/u\/([^/]+)\/?$/);
+        if (match) urlUser = decodeURIComponent(match[1]);
+      }
 
       var nameEl = document.getElementById('pname');
       var roleEl = document.getElementById('prole');
       var passEl = document.getElementById('pass');
       var hintEl = document.getElementById('hint');
       var btnEl = document.getElementById('login-btn');
+      var notFoundEl = document.getElementById('notfound');
 
-      if (!player) {
-        nameEl.textContent = 'Not logged in';
-        roleEl.textContent = '';
+      if (!urlUser) {
+        notFoundEl.textContent = 'No player specified';
+        notFoundEl.style.display = '';
+        nameEl.textContent = '';
         hintEl.style.color = '#f55';
-        hintEl.textContent = 'Please log in at the main page first.';
+        hintEl.textContent = 'Add ?user=YourName to the URL.';
         passEl.style.display = 'none';
         btnEl.style.display = 'none';
         return;
       }
 
-      nameEl.textContent = player;
-      roleEl.textContent = role ? 'Role: ' + role : '';
-      if (savedPass) { passEl.value = savedPass; }
+      nameEl.textContent = urlUser;
 
-      // Auto-login if password is saved
-      if (savedPass && savedPass.length >= 3) {
-        hintEl.textContent = 'Auto-logging in...';
-        setTimeout(function() { btnEl.click(); }, 400);
+      // Check if this player exists in accounts.json (server-side check)
+      // For now, show the form — server validates on login
+
+      // Pre-fill saved password if this is the same player
+      var savedUser = '';
+      try { savedUser = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || ''; } catch(e) {}
+      var savedPass = '';
+      try { savedPass = localStorage.getItem('bf_login_pass') || ''; } catch(e) {}
+      var savedRole = '';
+      try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
+
+      if (savedUser === urlUser && savedPass) {
+        passEl.value = savedPass;
+        roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
       }
 
       var sent = false;
@@ -80,15 +95,18 @@
         hintEl.style.color = '#5a8'; hintEl.textContent = 'Logging in...';
         btnEl.disabled = true;
 
-        // Save password for background auth
-        try { localStorage.setItem('bf_login_pass', pw); } catch(e) {}
+        // Save credentials
+        try {
+          localStorage.setItem('bf_player_name', urlUser);
+          localStorage.setItem('bf_login_user', urlUser);
+          localStorage.setItem('bf_login_pass', pw);
+        } catch(e) {}
 
-        // Set auth flag so the main game knows we came from /u/
+        // Set auth flag
         try { sessionStorage.setItem('bf_from_u', '1'); } catch(e) {}
 
         // Redirect to main game
-        var params = '?user=' + encodeURIComponent(player);
-        if (role) params += '&role=' + encodeURIComponent(role);
+        var params = '?user=' + encodeURIComponent(urlUser);
         window.location.href = '../' + params;
       });
 
@@ -96,7 +114,7 @@
         if (e.key === 'Enter') btnEl.click();
       });
 
-      if (!savedPass) passEl.focus();
+      passEl.focus();
     })();
   </script>
 </body>
