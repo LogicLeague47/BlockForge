@@ -2761,6 +2761,7 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
+        try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
         setTimeout(() => {
           const base = location.pathname.replace(/\/[^\/]*$/, '/');
           location.href = base + 'u/?user=' + encodeURIComponent(playerName);
