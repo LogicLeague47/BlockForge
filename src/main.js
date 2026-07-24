@@ -2762,7 +2762,13 @@ function setupNetworkHandlers() {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
-          ui.showMenu('main');
+          if (window._autoLoggingIn) {
+            window._autoLoggingIn = false;
+            ui.showMenu('main');
+          } else {
+            sessionStorage.setItem('bf_from_u', '1');
+            window.location.href = 'u/?user=' + encodeURIComponent(playerName);
+          }
         }, 600);
       }
     } else {
@@ -5084,7 +5090,10 @@ function initMenu() {
   try {
     fromU = sessionStorage.getItem('bf_from_u') === '1';
     if (fromU) sessionStorage.removeItem('bf_from_u');
-    const urlUser = new URLSearchParams(location.search).get('user');
+    const params = new URLSearchParams(location.search);
+    const urlUser = params.get('user');
+    const fromGame = params.get('from') === 'game';
+    if (fromGame) fromU = true;
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
     // Auto-login ONLY when visiting via /u/ redirect with saved credentials
@@ -5096,6 +5105,7 @@ function initMenu() {
   } catch (_) {}
   if (autoLogin) {
     // Skip login screen entirely — go straight to main menu after auth
+    window._autoLoggingIn = true;
     ui.showMenu('main');
     setTimeout(() => doLogin('login'), 100);
   } else {
@@ -5884,7 +5894,6 @@ function loop() {
   }
 
   loader.update(player.position.x, player.position.z);
-  manager.tick();
 
   // Spawn mobs for newly generated chunks (throttled to once per second)
   if (mobManager) {

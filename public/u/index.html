@@ -99,7 +99,7 @@
         });
 
         playBtnEl.addEventListener('click', function() {
-          window.location.href = '../?user=' + encodeURIComponent(urlUser);
+          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
         });
       } else {
         // Pasted directly — bypass warning
