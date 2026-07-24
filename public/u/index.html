@@ -69,6 +69,10 @@
 
       var fromU = false;
       try { fromU = sessionStorage.getItem('bf_from_u') === '1'; } catch(e) {}
+      try {
+        var fromParam = new URLSearchParams(location.search).get('from') || '';
+        if (fromParam === 'game') fromU = true;
+      } catch(e) {}
       if (fromU) sessionStorage.removeItem('bf_from_u');
 
       var savedRole = '';

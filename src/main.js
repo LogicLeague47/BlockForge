@@ -2764,7 +2764,7 @@ function setupNetworkHandlers() {
         try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
         setTimeout(() => {
           const base = location.pathname.replace(/\/[^\/]*$/, '/');
-          location.href = base + 'u/?user=' + encodeURIComponent(playerName);
+          location.href = base + 'u/?user=' + encodeURIComponent(playerName) + '&from=game';
         }, 600);
       }
     } else {
