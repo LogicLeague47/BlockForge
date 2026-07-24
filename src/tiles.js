@@ -2072,7 +2072,8 @@ export function buildAtlas(seed = 1337) {
   canvas.width = ATLAS; canvas.height = ATLAS;
   const ctx = canvas.getContext('2d');
   ctx.imageSmoothingEnabled = false;
-  ctx.clearRect(0, 0, ATLAS, ATLAS);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, ATLAS, ATLAS);
 
   for (const [name, [tx, ty]] of Object.entries(TILES)) {
     const rng = mulberry32(seed + tx * 131 + ty * 17 + name.length);
