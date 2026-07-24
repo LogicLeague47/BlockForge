@@ -388,20 +388,21 @@ function buildMenuBackground() {
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(50, 100, 30);
 sun.castShadow = true;
-sun.shadow.mapSize.width = 2048;
-sun.shadow.mapSize.height = 2048;
+sun.shadow.mapSize.width = 4096;
+sun.shadow.mapSize.height = 4096;
 sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = 200;
-sun.shadow.camera.left = -80;
-sun.shadow.camera.right = 80;
-sun.shadow.camera.top = 80;
-sun.shadow.camera.bottom = -80;
-sun.shadow.bias = -0.001;
+sun.shadow.camera.far = 250;
+sun.shadow.camera.left = -100;
+sun.shadow.camera.right = 100;
+sun.shadow.camera.top = 100;
+sun.shadow.camera.bottom = -100;
+sun.shadow.bias = -0.0005;
+sun.shadow.normalBias = 0.02;
 scene.add(sun);
 scene.add(sun.target);
-const ambient = new THREE.AmbientLight(0x8899bb, 0.25);
+const ambient = new THREE.AmbientLight(0x667799, 0.15);
 scene.add(ambient);
-const hemi = new THREE.HemisphereLight(0x88ddff, 0x4a6a3a, 0.15);
+const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
 
 // --- sun & moon ---
@@ -2244,7 +2245,7 @@ function submitChat() {
   } else {
     // Regular chat message
     if (network.connected && network.roomName) {
-      network.sendChat(text);
+      try { network.sendChat(text); } catch (_) {}
       // Don't return — show locally too, server echo will be deduplicated below
     }
     const role = currentServer ? currentServer.getRole(playerName) : null;
@@ -3152,21 +3153,6 @@ function updateSky(dt) {
   scene.background.copy(skyColor);
   scene.fog.color.copy(skyColor);
 
-  // Scale lights by time of day — bright at noon, dim at night
-  const dayBrightness = Math.max(0, sinA); // 0 at night, 1 at noon
-  const sunIntensity = 0.15 + dayBrightness * 1.2;   // night: 0.15, day: 1.35
-  const ambIntensity = 0.15 + dayBrightness * 0.5;    // night: 0.15, day: 0.65
-  const hemiIntensity = 0.1 + dayBrightness * 0.45;   // night: 0.1, day: 0.55
-
-  // Sun color shifts warm at dawn/dusk, white at noon
-  const warmth = sinA < 0.5 ? Math.max(0, sinA) * 2 : Math.max(0, (1 - sinA) * 2);
-  const sunR = 1.0;
-  const sunG = 0.85 + warmth * 0.15;
-  const sunB = 0.7 + warmth * 0.3;
-  sun.color.setRGB(sunR * sunIntensity, sunG * sunIntensity, sunB * sunIntensity);
-  ambient.intensity = ambIntensity;
-  hemi.intensity = hemiIntensity;
-
   // Weather: darken sky during rain/thunder
   if (weather === 'rain' || weather === 'thunder') {
     const darkening = weather === 'thunder' ? 0.55 : 0.7;
@@ -3190,25 +3176,29 @@ function updateSky(dt) {
   }
 
   sun.position.set(Math.cos(angle) * 500, Math.sin(angle) * 500, 0);
-  sun.intensity = Math.max(0.1, sinA * 0.5 + 0.5) * 1.5;
-  ambient.intensity = 0.15 + Math.max(0, sinA) * 0.4;
-  // Sunset/sunrise color shift
+  sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0;
+  ambient.intensity = 0.08 + Math.max(0, sinA) * 0.35;
+  hemi.intensity = 0.04 + Math.max(0, sinA) * 0.15;
   if (sinA > 0.3) {
     sun.color.setHex(0xfff5e0);
-  } else if (sinA > 0) {
-    const t = sinA / 0.3;
-    sun.color.lerpColors(new THREE.Color(0xff5500), new THREE.Color(0xfff5e0), t);
-    ambient.color.lerpColors(new THREE.Color(0x995533), new THREE.Color(0x8899bb), t);
-    hemi.color.lerpColors(new THREE.Color(0xcc8844), new THREE.Color(0x88ddff), t);
-  } else if (sinA > -0.1) {
-    const t = (sinA + 0.1) / 0.1;
-    sun.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0xff5500), t);
-    ambient.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0x995533), t);
-    hemi.color.lerpColors(new THREE.Color(0x111133), new THREE.Color(0xcc8844), t);
+    ambient.color.setHex(0x667799);
+    hemi.color.setHex(0x88bbff);
+  } else if (sinA > 0.05) {
+    const t = (sinA - 0.05) / 0.25;
+    sun.color.lerpColors(new THREE.Color(0xff4400), new THREE.Color(0xfff5e0), t);
+    ambient.color.lerpColors(new THREE.Color(0x884422), new THREE.Color(0x667799), t);
+    hemi.color.lerpColors(new THREE.Color(0xbb7733), new THREE.Color(0x88bbff), t);
+  } else if (sinA > -0.05) {
+    sun.color.lerpColors(new THREE.Color(0x220022), new THREE.Color(0xff4400), (sinA + 0.05) / 0.1);
+    ambient.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0x884422), (sinA + 0.05) / 0.1);
+    hemi.color.lerpColors(new THREE.Color(0x111133), new THREE.Color(0xbb7733), (sinA + 0.05) / 0.1);
   } else {
-    sun.color.setHex(0x111122);
+    sun.color.setHex(0x220022);
+    sun.intensity = 0.05;
     ambient.color.setHex(0x111122);
+    ambient.intensity = 0.04;
     hemi.color.setHex(0x111133);
+    hemi.intensity = 0.02;
   }
   sunMesh.position.copy(sun.position);
   moonMesh.position.set(-sun.position.x, -sun.position.y, -sun.position.z);
@@ -3875,6 +3865,9 @@ function renderStatsScreen() {
 }
 
 function initMenu() {
+  console.log('BlockForge build 2026-07-24 v3 – shadows, sunsets, per-mob hit sounds, auto-login, bypass detection');
+  const verEl = document.getElementById('menu-version');
+  if (verEl) verEl.textContent = 'v2026-07-24';
   // Clean up stale local server data — only OfficialSMP is a valid server,
   // so remove any other locally-saved servers (e.g. old MyWorld1) and purge
   // them from the recently-played list.
@@ -3928,6 +3921,11 @@ function initMenu() {
       if (isInstant) {
         const roomId = window.CrazyGames?.SDK?.lobby?.getRoomId?.();
         if (roomId) {
+          // Bypass detection: must be authenticated before joining multiplayer
+          if (!sessionStorage.getItem('bf_authenticated')) {
+            addChatLine('Please log in first to join multiplayer.', '#f55');
+            return;
+          }
           // Skip menu — go straight into multiplayer
           addChatLine('Instant multiplayer — joining room...', '#5f5');
           ui.showMenu(null);
@@ -3948,17 +3946,22 @@ function initMenu() {
     const params = new URLSearchParams(location.search);
     const joinRoom = params.get('join');
     if (joinRoom && !window.CrazyGames?.SDK?.lobby?.isInstantMultiplayer?.()) {
-      joiningViaLink = true;
-      setTimeout(() => {
-        addChatLine('Joining room from invite link...', '#5f5');
-        ui.showMenu(null);
-        if (network.connected) {
-          _doNetworkJoin(joinRoom);
-        } else {
-          network.connect(MP_SERVER_URL);
-          network.onConnectedOnce(() => _doNetworkJoin(joinRoom));
-        }
-      }, 1200);
+      // Bypass detection: must be authenticated before joining multiplayer
+      if (!sessionStorage.getItem('bf_authenticated')) {
+        console.log('Blocked join link — not authenticated');
+      } else {
+        joiningViaLink = true;
+        setTimeout(() => {
+          addChatLine('Joining room from invite link...', '#5f5');
+          ui.showMenu(null);
+          if (network.connected) {
+            _doNetworkJoin(joinRoom);
+          } else {
+            network.connect(MP_SERVER_URL);
+            network.onConnectedOnce(() => _doNetworkJoin(joinRoom));
+          }
+        }, 1200);
+      }
     }
   } catch (_) {}
 
@@ -5073,12 +5076,22 @@ function initMenu() {
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
   // Pre-fill username from /u/ redirect URL params or saved storage (NOT password — prevents Safari auto-submit)
+  let autoLogin = false;
   try {
     const urlUser = new URLSearchParams(location.search).get('user');
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
+    // Auto-login when visiting via /u/ redirect with saved credentials
+    const savedPass = localStorage.getItem('bf_login_pass') || '';
+    if (urlUser && savedPass && savedPass.length >= 3) {
+      loginPass.value = savedPass;
+      autoLogin = true;
+    }
   } catch (_) {}
   ui.showMenu('login');
+  if (autoLogin) {
+    setTimeout(() => doLogin('login'), 300);
+  }
   showOneTimeMessages();
   crazyGamesSDK().then((sdk) => {
     if (!sdk) return;

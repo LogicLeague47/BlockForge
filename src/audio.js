@@ -32,7 +32,6 @@ export class Audio {
     this._musicStarted = false;
     this._stepBuffers = {};
     this._digBuffers = {};
-    this._hitBuffers = [];
     this._zombieBuffers = [];
     this._skeletonBuffers = [];
     this._spiderBuffers = [];
@@ -154,35 +153,6 @@ export class Audio {
     const bufs = this._digBuffers[mat];
     if (!bufs || bufs.length === 0) return false;
     const buf = bufs[(Math.random() * bufs.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 1.0;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── HIT SOUND BUFFERS ──────────────────────────────────────────────
-  // Meaty punch sounds (CC-BY DavidW).
-
-  _loadHitBuffers() {
-    this._hitBuffers = [];
-    for (let i = 1; i <= 9; i++) {
-      fetch(assetUrl(`/Sounds/hit/punch_${i}.wav`)).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-        this._hitBuffers.push(buf);
-      }).catch(e => console.warn('[Audio] load failed:', e));
-    }
-  }
-
-  _playHitBuffer() {
-    if (!this.ctx || !this.enabled || this._hitBuffers.length === 0) return false;
-    const buf = this._hitBuffers[(Math.random() * this._hitBuffers.length) | 0];
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     const g = this.ctx.createGain();
