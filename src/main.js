@@ -34,8 +34,6 @@ import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
 import { GreenstoneSystem } from './greenstone.js';
 import { VoiceChat } from './voice.js';
-import { updateShaderUniforms } from './shaders.js';
-import { GodRayPass } from './godrays.js';
 
 const REACH = 6;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
@@ -408,7 +406,7 @@ const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
 
 // --- god rays post-processing ---
-let godRayPass = null;
+
 
 // --- sun & moon ---
 const sunMesh = new THREE.Mesh(
@@ -2921,7 +2919,6 @@ window._exitParkourToMinigames = () => {
   if (breakParticles) { breakParticles.clear(); breakParticles = null; }
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
-  if (godRayPass) { godRayPass.dispose(); godRayPass = null; }
   weather = 'clear'; weatherTimer = 0;
   try { audio.stopRain(); } catch (_) {}
   ui.showMenu('minigames');
@@ -3312,12 +3309,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 
   scene.fog.far = 16 * (renderDist + 2);
   scene.fog.near = 16 * 5;
-
-  // Initialize god rays post-processing (after scene is ready)
-  if (godRayPass) { godRayPass.dispose(); godRayPass = null; }
-  if (graphicsQuality !== 'low') {
-    godRayPass = new GodRayPass(renderer, scene, camera, sun);
-  }
 
   // Apply FOV and volume at world load
   camera.fov = parseInt(document.getElementById('set-fov')?.value) || 75;
@@ -5107,9 +5098,12 @@ function initMenu() {
       // No saved credentials + not from /u/ — they must log in manually
     }
   } catch (_) {}
-  ui.showMenu('login');
   if (autoLogin) {
-    setTimeout(() => doLogin('login'), 300);
+    // Skip login screen entirely — go straight to main menu after auth
+    ui.showMenu('main');
+    setTimeout(() => doLogin('login'), 100);
+  } else {
+    ui.showMenu('login');
   }
   showOneTimeMessages();
   crazyGamesSDK().then((sdk) => {
@@ -6075,35 +6069,8 @@ function loop() {
     sun.target.updateMatrixWorld();
   }
 
-  // Update custom shader uniforms (sun direction, fog)
-  if (manager) {
-    updateShaderUniforms({
-      opaqueMat: manager.opaqueMaterial,
-      transMat: manager.transMaterial,
-      waterMat: manager.waterMaterial,
-      sun,
-      fogColor: scene.fog.color,
-      fogNear: scene.fog.near,
-      fogFar: scene.fog.far,
-      time: performance.now() * 0.001,
-    });
-  }
-
-  // Render scene (with god rays if enabled)
-  if (godRayPass && graphicsQuality !== 'low') {
-    // Compute sun height from dayTime (0..1, 1 = sun overhead)
-    let _angle;
-    if (dayTime < DAY_FRAC) {
-      _angle = (dayTime / DAY_FRAC) * Math.PI;
-    } else {
-      _angle = Math.PI + ((dayTime - DAY_FRAC) / (1 - DAY_FRAC)) * Math.PI;
-    }
-    const sunHeight = Math.max(0, Math.sin(_angle));
-    const rendered = godRayPass.render(sunHeight);
-    if (!rendered) renderer.render(scene, camera);
-  } else {
-    renderer.render(scene, camera);
-  }
+  // Render scene
+  renderer.render(scene, camera);
 
   // --- Attack cooldown indicator (ring around crosshair) ---
   const cooldownEl = document.getElementById('attack-cooldown');

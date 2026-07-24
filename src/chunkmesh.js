@@ -6,7 +6,6 @@ import * as THREE from 'three';
 import { CHUNK_SIZE } from './world.js';
 import { buildChunkGeometry } from './mesher.js';
 import { BLOCK, BLOCKS } from './blocks.js';
-import { createOpaqueMaterial, createTransparentMaterial, createWaterMaterial } from './shaders.js';
 
 export class ChunkMeshManager {
   constructor(scene, world, atlasTexture) {
@@ -14,10 +13,10 @@ export class ChunkMeshManager {
     this.world = world;
     this.atlasTexture = atlasTexture;
 
-    // Custom shader materials replacing MeshLambertMaterial
-    this.opaqueMaterial = createOpaqueMaterial(atlasTexture);
-    this.transMaterial = createTransparentMaterial(atlasTexture);
-    this.waterMaterial = createWaterMaterial();
+    // Shared materials for all chunks
+    this.opaqueMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture });
+    this.transMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, transparent: true, alphaTest: 0.1, side: THREE.DoubleSide, depthWrite: false });
+    this.waterMaterial = new THREE.MeshLambertMaterial({ map: atlasTexture, transparent: true, opacity: 0.55, side: THREE.DoubleSide, depthWrite: false });
 
     this.meshes = new Map(); // "cx,cz" -> { group, opaque, trans }
 
@@ -92,7 +91,7 @@ export class ChunkMeshManager {
     this._buildChunk(cx, cz);
   }
 
-  // Queue a chunk for deferred rebuild (used by block place/break).
+  // Queue a chunk for deferred rebuild (e.g. when a block changes).
   _markDirty(cx, cz) {
     const k = cx + ',' + cz;
     if (this._dirtySet.has(k)) return;
@@ -105,43 +104,42 @@ export class ChunkMeshManager {
   // Queue a chunk and its 4 neighbours for deferred rebuild.
   refreshAround(cx, cz) {
     this._markDirty(cx, cz);
-    this._markDirty(cx + 1, cz);
-    this._markDirty(cx - 1, cz);
-    this._markDirty(cx, cz + 1);
-    this._markDirty(cx, cz - 1);
+    for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      this._markDirty(cx + dx, cz + dz);
+    }
   }
 
-  // Process dirty chunks within a time budget. Call every frame.
-  tick() {
-    if (!this._dirtyList.length) return;
-    const start = performance.now();
-    while (this._dirtyList.length && (performance.now() - start) < this.MESH_BUDGET_MS) {
+  // Process deferred rebuilds (called each frame with a time budget).
+  update() {
+    const t0 = performance.now();
+    while (this._dirtyList.length && performance.now() - t0 < this.MESH_BUDGET_MS) {
       const { cx, cz } = this._dirtyList.shift();
-      const k = cx + ',' + cz;
-      this._dirtySet.delete(k);
+      this._dirtySet.delete(cx + ',' + cz);
       this._buildChunk(cx, cz);
     }
   }
 
+  // Remove a chunk from the scene.
   remove(cx, cz) {
     const k = cx + ',' + cz;
-    this._dirtySet.delete(k);
-    const e = this.meshes.get(k);
-    if (e) {
-      this.scene.remove(e.group);
-      e.opaque.geometry.dispose();
-      if (e.trans) { e.trans.geometry.dispose(); }
-      if (e.water) { e.water.geometry.dispose(); }
-      this.meshes.delete(k);
-    }
+    const entry = this.meshes.get(k);
+    if (!entry) return;
+    this.scene.remove(entry.group);
+    entry.opaque.geometry.dispose();
+    if (entry.trans) entry.trans.geometry.dispose();
+    if (entry.water) entry.water.geometry.dispose();
+    this.meshes.delete(k);
   }
 
   clear() {
+    for (const [k, entry] of this.meshes) {
+      this.scene.remove(entry.group);
+      entry.opaque.geometry.dispose();
+      if (entry.trans) entry.trans.geometry.dispose();
+      if (entry.water) entry.water.geometry.dispose();
+    }
+    this.meshes.clear();
     this._dirtySet.clear();
     this._dirtyList.length = 0;
-    for (const k of this.meshes.keys()) {
-      const [cx, cz] = k.split(',').map(Number);
-      this.remove(cx, cz);
-    }
   }
 }

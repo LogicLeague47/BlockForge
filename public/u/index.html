@@ -11,24 +11,35 @@
     .card{background:rgba(0,0,0,0.55);border:1px solid rgba(80,80,100,0.35);border-radius:8px;padding:28px 32px;max-width:400px;width:90%;text-align:center}
     .logo{font-size:22px;letter-spacing:6px;color:#fff;margin-bottom:2px}
     .sub{font:11px monospace;color:#7ab;letter-spacing:2px;margin-bottom:18px}
-    .bypass-msg{font:bold 13px monospace;color:#f55;line-height:1.6;margin-bottom:12px}
+    .name{font:bold 18px monospace;color:#ffdd33;margin-bottom:4px}
+    .role{font:11px monospace;color:#7af;margin-bottom:16px}
+    input{width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;margin-bottom:10px;box-sizing:border-box}
+    input:focus{border-color:#5af}
+    .btn{width:100%;padding:12px;font-size:13px;border:1px solid #2a5a2a;background:linear-gradient(180deg,#4a7a4a 0%,#3a6a3a 40%,#2a5a2a 60%,#1a4a1a 100%);color:#fff;border-radius:4px;cursor:pointer;font-family:monospace}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .hint{font:11px monospace;min-height:16px;margin:8px 0;color:#5a8}
     .footer{font:9px monospace;color:rgba(255,255,255,0.25);margin-top:14px}
     .guest{margin-top:8px}
     .guest a{font:11px monospace;color:#888;text-decoration:underline;cursor:pointer}
     .guest a:hover{color:#bbb}
+    .notfound{font:bold 14px monospace;color:#f55;margin-bottom:12px}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">BLOCKFORGE</div>
     <div class="sub">PLAYER LOGIN</div>
-    <div class="bypass-msg" id="bypass-msg"></div>
-    <div class="guest"><a href="../">Go to main login</a></div>
+    <div class="notfound" id="notfound" style="display:none"></div>
+    <div class="name" id="pname">Loading...</div>
+    <div class="role" id="prole"></div>
+    <div class="hint" id="hint"></div>
+    <input id="pass" type="password" placeholder="Password" maxlength="32" autocomplete="off" />
+    <button class="btn" id="login-btn">LOG IN</button>
+    <div class="guest"><a href="../">Not you? Go to main login</a></div>
     <div class="footer">By continuing, you agree to the Terms of Service</div>
   </div>
   <script>
     (function() {
-      var bypassEl = document.getElementById('bypass-msg');
       var urlUser = '';
       try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
       if (!urlUser) {
@@ -37,12 +48,64 @@
         if (match) urlUser = decodeURIComponent(match[1]);
       }
 
+      var nameEl = document.getElementById('pname');
+      var roleEl = document.getElementById('prole');
+      var passEl = document.getElementById('pass');
+      var hintEl = document.getElementById('hint');
+      var btnEl = document.getElementById('login-btn');
+      var notFoundEl = document.getElementById('notfound');
+
       if (!urlUser) {
-        bypassEl.textContent = 'No player specified.';
+        notFoundEl.textContent = 'No player specified';
+        notFoundEl.style.display = '';
+        nameEl.textContent = '';
+        hintEl.style.color = '#f55';
+        hintEl.textContent = 'Add ?user=YourName to the URL.';
+        passEl.style.display = 'none';
+        btnEl.style.display = 'none';
         return;
       }
 
-      bypassEl.textContent = 'You may not bypass login. Please log in through the game.';
+      nameEl.textContent = urlUser;
+
+      var savedUser = '';
+      try { savedUser = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || ''; } catch(e) {}
+      var savedPass = '';
+      try { savedPass = localStorage.getItem('bf_login_pass') || ''; } catch(e) {}
+      var savedRole = '';
+      try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
+
+      if (savedUser === urlUser && savedPass) {
+        passEl.value = savedPass;
+        roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
+      }
+
+      var sent = false;
+      btnEl.addEventListener('click', function() {
+        if (sent) return;
+        var pw = passEl.value || '';
+        if (pw.length < 3) { hintEl.style.color = '#f85'; hintEl.textContent = 'Password must be at least 3 characters.'; passEl.focus(); return; }
+        sent = true;
+        hintEl.style.color = '#5a8'; hintEl.textContent = 'Logging in...';
+        btnEl.disabled = true;
+
+        try {
+          localStorage.setItem('bf_player_name', urlUser);
+          localStorage.setItem('bf_login_user', urlUser);
+          localStorage.setItem('bf_login_pass', pw);
+        } catch(e) {}
+
+        try { sessionStorage.setItem('bf_from_u', '1'); } catch(e) {}
+
+        var params = '?user=' + encodeURIComponent(urlUser);
+        window.location.href = '../' + params;
+      });
+
+      passEl.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') btnEl.click();
+      });
+
+      passEl.focus();
     })();
   </script>
 </body>
