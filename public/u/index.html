@@ -13,14 +13,11 @@
     .sub{font:11px monospace;color:#7ab;letter-spacing:2px;margin-bottom:18px}
     .name{font:bold 18px monospace;color:#ffdd33;margin-bottom:4px}
     .role{font:11px monospace;color:#7af;margin-bottom:16px}
-    .link-box{background:rgba(0,0,0,0.4);border:1px solid rgba(120,200,255,0.3);border-radius:4px;padding:10px;margin:12px 0;word-break:break-all;font:12px monospace;color:#7cf;cursor:pointer;user-select:all}
-    .link-box:hover{border-color:rgba(120,200,255,0.6)}
     .hint{font:11px monospace;min-height:16px;margin:8px 0;color:#5a8}
     .btn{width:100%;padding:12px;font-size:13px;border:1px solid #2a5a2a;background:linear-gradient(180deg,#4a7a4a 0%,#3a6a3a 40%,#2a5a2a 60%,#1a4a1a 100%);color:#fff;border-radius:4px;cursor:pointer;font-family:monospace}
     .btn:disabled{opacity:0.5;cursor:not-allowed}
     .footer{font:9px monospace;color:rgba(255,255,255,0.25);margin-top:14px}
     .bypass{font:bold 13px monospace;color:#f55;line-height:1.6}
-    .copy-ok{font:11px monospace;color:#5f5;margin-top:6px}
   </style>
 </head>
 <body>
@@ -31,8 +28,6 @@
     <div class="role" id="prole"></div>
     <div class="hint" id="hint"></div>
     <div id="homepage" style="display:none">
-      <div class="link-box" id="link-box" title="Click to copy"></div>
-      <div class="copy-ok" id="copy-ok"></div>
       <button class="btn" id="play-btn" style="margin-top:14px;">Play BlockForge</button>
     </div>
     <div class="bypass" id="bypass" style="display:none"></div>
@@ -54,8 +49,6 @@
       var subtitleEl = document.getElementById('subtitle');
       var homepageEl = document.getElementById('homepage');
       var bypassEl = document.getElementById('bypass');
-      var linkBoxEl = document.getElementById('link-box');
-      var copyOkEl = document.getElementById('copy-ok');
       var playBtnEl = document.getElementById('play-btn');
 
       if (!urlUser) {
@@ -79,24 +72,11 @@
 
       if (fromU) {
         // Opened from within the game — show user homepage
-        subtitleEl.textContent = 'PLAYER LINK';
+        subtitleEl.textContent = 'PLAYER';
         nameEl.textContent = urlUser;
         roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
 
-        var linkUrl = location.origin + location.pathname + '?user=' + encodeURIComponent(urlUser);
-        linkBoxEl.textContent = linkUrl;
-
         homepageEl.style.display = '';
-
-        linkBoxEl.addEventListener('click', function() {
-          try {
-            navigator.clipboard.writeText(linkUrl);
-            copyOkEl.textContent = 'Link copied!';
-            setTimeout(function() { copyOkEl.textContent = ''; }, 2000);
-          } catch(e) {
-            copyOkEl.textContent = 'Select and copy manually';
-          }
-        });
 
         playBtnEl.addEventListener('click', function() {
           window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
