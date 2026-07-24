@@ -2921,6 +2921,7 @@ window._exitParkourToMinigames = () => {
   if (breakParticles) { breakParticles.clear(); breakParticles = null; }
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+  if (godRayPass) { godRayPass.dispose(); godRayPass = null; }
   weather = 'clear'; weatherTimer = 0;
   try { audio.stopRain(); } catch (_) {}
   ui.showMenu('minigames');
@@ -3313,6 +3314,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   scene.fog.near = 16 * 5;
 
   // Initialize god rays post-processing (after scene is ready)
+  if (godRayPass) { godRayPass.dispose(); godRayPass = null; }
   if (graphicsQuality !== 'low') {
     godRayPass = new GodRayPass(renderer, scene, camera, sun);
   }
@@ -6096,8 +6098,15 @@ function loop() {
 
   // Render scene (with god rays if enabled)
   if (godRayPass && graphicsQuality !== 'low') {
-    // GodRayPass handles rendering internally; if it skips (night), render normally
-    const rendered = godRayPass.render(dayTime);
+    // Compute sun height from dayTime (0..1, 1 = sun overhead)
+    let _angle;
+    if (dayTime < DAY_FRAC) {
+      _angle = (dayTime / DAY_FRAC) * Math.PI;
+    } else {
+      _angle = Math.PI + ((dayTime - DAY_FRAC) / (1 - DAY_FRAC)) * Math.PI;
+    }
+    const sunHeight = Math.max(0, Math.sin(_angle));
+    const rendered = godRayPass.render(sunHeight);
     if (!rendered) renderer.render(scene, camera);
   } else {
     renderer.render(scene, camera);

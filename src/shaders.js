@@ -10,8 +10,6 @@ import * as THREE from 'three';
 // ── Shared vertex code ─────────────────────────────────────────────────────
 const terrainVert = /* glsl */ `
   attribute vec3 color;
-  attribute vec2 uv;
-  attribute vec3 normal;
 
   uniform mat4 modelMatrix;
   uniform mat4 viewMatrix;
@@ -165,8 +163,6 @@ const transFrag = /* glsl */ `
 // ── Water fragment ──────────────────────────────────────────────────────────
 const waterVert = /* glsl */ `
   attribute vec3 color;
-  attribute vec2 uv;
-  attribute vec3 normal;
 
   uniform mat4 modelMatrix;
   uniform mat4 viewMatrix;
