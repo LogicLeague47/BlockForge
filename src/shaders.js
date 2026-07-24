@@ -347,7 +347,7 @@ export function updateShaderUniforms({ opaqueMat, transMat, waterMat, sun, fogCo
     opaqueMat.uniforms.fogNear.value = fogNear;
     opaqueMat.uniforms.fogFar.value = fogFar;
     if (shadowMatrix) opaqueMat.uniforms.shadowMatrix.value.copy(shadowMatrix);
-    if (shadowTarget) opaqueMat.uniforms.shadowMap.value = shadowTarget.texture;
+    if (shadowTarget && shadowTarget.texture) opaqueMat.uniforms.shadowMap.value = shadowTarget.texture;
   }
 
   if (transMat) {
@@ -357,7 +357,7 @@ export function updateShaderUniforms({ opaqueMat, transMat, waterMat, sun, fogCo
     transMat.uniforms.fogNear.value = fogNear;
     transMat.uniforms.fogFar.value = fogFar;
     if (shadowMatrix) transMat.uniforms.shadowMatrix.value.copy(shadowMatrix);
-    if (shadowTarget) transMat.uniforms.shadowMap.value = shadowTarget.texture;
+    if (shadowTarget && shadowTarget.texture) transMat.uniforms.shadowMap.value = shadowTarget.texture;
   }
 
   if (waterMat) {

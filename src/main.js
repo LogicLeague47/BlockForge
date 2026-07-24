@@ -6097,6 +6097,7 @@ function loop() {
       0, 0, 0.5, 0.5,
       0, 0, 0, 1
     );
+    sun.shadow.camera.updateMatrixWorld(true);
     const shadowMatrix = new THREE.Matrix4();
     shadowMatrix.multiplyMatrices(_shadowBias, sun.shadow.camera.projectionMatrix);
     shadowMatrix.multiply(sun.shadow.camera.matrixWorldInverse);

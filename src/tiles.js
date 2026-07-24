@@ -935,46 +935,40 @@ const PAINTERS = {
   },
 
   dark_leaves(ctx, x0, y0, rng) {
-    // Dark oak leaves with transparency holes — darker palette than regular leaves.
+    // Dark oak leaves: same checkerboard pattern, darker palette.
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Dense dark green clusters with gaps
-    const clusters = 14 + (rng() * 5 | 0);
-    for (let i = 0; i < clusters; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const size = 2 + (rng() * 3 | 0);
-      const g = 65 + (rng() * 40 | 0);
-      const r = 20 + (rng() * 15 | 0);
-      const b = 12 + (rng() * 10 | 0);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      for (let dy = -size; dy <= size; dy++) {
-        for (let dx = -size; dx <= size; dx++) {
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > size + rng() * 1.2 - 0.3) continue;
-          const px = cx + dx, py = cy + dy;
-          if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
-          ctx.fillRect(x0 + px, y0 + py, 1, 1);
-        }
+    const greens = [
+      [28, 50, 20],    // very dark
+      [35, 60, 25],    // dark
+      [45, 75, 32],    // mid
+      [55, 90, 38],    // lighter
+    ];
+
+    for (let py = 0; py < TILE; py++) {
+      for (let px = 0; px < TILE; px++) {
+        const diag = (px + py) % 2 === 0;
+        const chance = diag ? 0.72 : 0.22;
+        if (rng() > chance) continue;
+
+        const shade = greens[(rng() * greens.length) | 0];
+        const v = (rng() * 12 - 6) | 0;
+        ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
+        ctx.fillRect(x0 + px, y0 + py, 1, 1);
       }
     }
 
-    // Deeper shadows
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 25; i++) {
       const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = 'rgba(15,35,10,0.5)';
-      for (let dy = 0; dy < 2; dy++) {
-        for (let dx = 0; dx < 2; dx++) {
-          const px = x + dx, py = y + dy;
-          if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
-        }
-      }
+      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(15,30,10,0.35)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
 
-    // Subtle highlights
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 15; i++) {
       const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = `rgba(${70 + (rng() * 30 | 0)},${120 + (rng() * 30 | 0)},${45 + (rng() * 20 | 0)},0.6)`;
+      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(70,120,45,0.35)';
       ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
   },

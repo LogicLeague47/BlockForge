@@ -65,6 +65,8 @@ export class ChunkMeshManager {
       if (trans.index) tg.setIndex(new THREE.BufferAttribute(trans.index, 1));
       transMesh = new THREE.Mesh(tg, this.transMaterial);
       transMesh.renderOrder = 1;
+      transMesh.castShadow = true;
+      transMesh.receiveShadow = true;
       group.add(transMesh);
     }
 
