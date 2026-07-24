@@ -6075,21 +6075,8 @@ function loop() {
     sun.target.updateMatrixWorld();
   }
 
-  // Update custom shader uniforms (sun direction, fog, shadows)
+  // Update custom shader uniforms (sun direction, fog)
   if (manager) {
-    // Shadow bias matrix: clip space (-1..1) -> texture space (0..1)
-    const _shadowBias = new THREE.Matrix4();
-    _shadowBias.set(
-      0.5, 0, 0, 0.5,
-      0, 0.5, 0, 0.5,
-      0, 0, 0.5, 0.5,
-      0, 0, 0, 1
-    );
-    sun.shadow.camera.updateMatrixWorld(true);
-    const shadowMatrix = new THREE.Matrix4();
-    shadowMatrix.multiplyMatrices(_shadowBias, sun.shadow.camera.projectionMatrix);
-    shadowMatrix.multiply(sun.shadow.camera.matrixWorldInverse);
-
     updateShaderUniforms({
       opaqueMat: manager.opaqueMaterial,
       transMat: manager.transMaterial,
@@ -6099,8 +6086,6 @@ function loop() {
       fogNear: scene.fog.near,
       fogFar: scene.fog.far,
       time: performance.now() * 0.001,
-      shadowMatrix,
-      shadowTarget: sun.shadow.map,
     });
   }
 
