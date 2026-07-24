@@ -95,7 +95,6 @@ const opaqueFrag = /* glsl */ `
 
   void main() {
     vec4 tex = texture2D(atlas, vUv);
-    if (tex.a < 0.01) discard;
 
     vec3 normal = normalize(vNormal);
     vec3 lightDir = normalize(sunDirection);
