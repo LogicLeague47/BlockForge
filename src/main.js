@@ -4333,11 +4333,7 @@ function initMenu() {
     const u = encodeURIComponent(playerName || '');
     const r = encodeURIComponent(playerRole || '');
     const url = location.origin + '/u/' + (u ? '?user=' + u + (r ? '&role=' + r : '') : '');
-    navigator.clipboard.writeText(url).then(() => {
-      addChatLine('Player link copied: ' + url, '#5f5');
-    }).catch(() => {
-      addChatLine('Player link: ' + url, '#5af');
-    });
+    window.open(url, '_blank');
   });
 
   // --- Feedback ---
