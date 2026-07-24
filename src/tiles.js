@@ -304,63 +304,48 @@ const PAINTERS = {
   },
 
   leaves(ctx, x0, y0, rng) {
-    // Minecraft-style leaves with real transparency holes.
-    // Start fully transparent, draw leaf clusters on top.
+    // Minecraft leaves: 32x32 with clear transparency holes.
+    // Pattern: ~50% filled pixels in a diagonal/checkerboard layout.
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Draw leaf clusters (irregular blobs that leave gaps between them)
-    const clusters = 12 + (rng() * 6 | 0);
-    for (let i = 0; i < clusters; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const size = 3 + (rng() * 4 | 0);
-      // Base leaf color with variance
-      const g = 100 + (rng() * 60 | 0);
-      const r = 30 + (rng() * 25 | 0);
-      const b = 15 + (rng() * 15 | 0);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      // Draw irregular blob
-      for (let dy = -size; dy <= size; dy++) {
-        for (let dx = -size; dx <= size; dx++) {
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist > size + rng() * 1.5 - 0.5) continue;
-          const px = cx + dx, py = cy + dy;
-          if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
-          ctx.fillRect(x0 + px, y0 + py, 1, 1);
-        }
+    // Green palette (4 shades matching Minecraft oak leaves)
+    const greens = [
+      [58, 120, 32],   // dark
+      [72, 140, 42],   // mid
+      [88, 160, 52],   // bright
+      [100, 175, 62],  // highlight
+    ];
+
+    for (let py = 0; py < TILE; py++) {
+      for (let px = 0; px < TILE; px++) {
+        // Diagonal checkerboard: filled on one diagonal, gaps on the other
+        const diag = (px + py) % 2 === 0;
+        // Add some randomness to break the perfect checkerboard
+        const chance = diag ? 0.75 : 0.25;
+        if (rng() > chance) continue;
+
+        const shade = greens[(rng() * greens.length) | 0];
+        // Slight per-pixel variance
+        const v = (rng() * 16 - 8) | 0;
+        ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
+        ctx.fillRect(x0 + px, y0 + py, 1, 1);
       }
     }
 
-    // Darker inner shadow patches
-    for (let i = 0; i < 14; i++) {
+    // A few darker shadow pixels for depth
+    for (let i = 0; i < 30; i++) {
       const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      const w = 2 + (rng() * 2 | 0);
-      const h = 2 + (rng() * 2 | 0);
-      ctx.fillStyle = rng() < 0.5 ? 'rgba(25,60,15,0.6)' : 'rgba(35,75,20,0.5)';
-      for (let dy = 0; dy < h; dy++) {
-        for (let dx = 0; dx < w; dx++) {
-          const px = x + dx, py = y + dy;
-          if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
-        }
-      }
-    }
-
-    // Bright highlights (sun-lit edges)
-    for (let i = 0; i < 20; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = `rgba(${140 + (rng() * 40 | 0)},${200 + (rng() * 40 | 0)},${80 + (rng() * 30 | 0)},0.7)`;
+      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(25,55,15,0.35)';
       ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
 
-    // Leaf veins (thin darker lines)
-    for (let i = 0; i < 6; i++) {
-      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
-      const len = 2 + (rng() * 3 | 0);
-      ctx.fillStyle = 'rgba(40,80,25,0.4)';
-      for (let j = 0; j < len; j++) {
-        const px = sx + j, py = sy + (rng() > 0.5 ? 1 : 0);
-        if (px < TILE && py < TILE) ctx.fillRect(x0 + px, y0 + py, 1, 1);
-      }
+    // A few bright highlight pixels
+    for (let i = 0; i < 20; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(130,200,70,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
   },
 

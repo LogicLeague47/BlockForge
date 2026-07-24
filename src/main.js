@@ -5101,7 +5101,10 @@ function initMenu() {
 
   // Pre-fill username from /u/ redirect URL params or saved storage (NOT password — prevents Safari auto-submit)
   let autoLogin = false;
+  let fromU = false;
   try {
+    fromU = sessionStorage.getItem('bf_from_u') === '1';
+    if (fromU) sessionStorage.removeItem('bf_from_u');
     const urlUser = new URLSearchParams(location.search).get('user');
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
@@ -5110,6 +5113,10 @@ function initMenu() {
     if (urlUser && savedPass && savedPass.length >= 3) {
       loginPass.value = savedPass;
       autoLogin = true;
+    }
+    // Bot bypass detection: if someone pastes URL directly (not via /u/), block auto-login
+    if (urlUser && !fromU && !autoLogin) {
+      // No saved credentials + not from /u/ — they must log in manually
     }
   } catch (_) {}
   ui.showMenu('login');
