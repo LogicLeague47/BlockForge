@@ -293,7 +293,7 @@ export function createTransparentMaterial(atlasTexture) {
     },
     transparent: true,
     depthWrite: false,
-    side: THREE.FrontSide,
+    side: THREE.DoubleSide,
     polygonOffset: true,
     polygonOffsetFactor: -1,
   });
