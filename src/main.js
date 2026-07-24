@@ -2761,7 +2761,15 @@ function setupNetworkHandlers() {
           network.devListAccounts();
         }
       } else {
-        if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
+        if (loginHint) {
+        const base = location.pathname.replace(/\/[^\/]*$/, '/');
+        const linkUrl = location.origin + base + 'u/?user=' + encodeURIComponent(playerName);
+        const msgText = msg.created
+          ? 'Account created! Welcome, ' + playerName + '.'
+          : 'Logged in! Welcome back, ' + playerName + '.';
+        loginHint.style.color = '#5f5';
+        loginHint.innerHTML = msgText + '<br><span style="font-size:11px;color:#7cf;">Your Player Link: <a href="' + linkUrl + '" target="_blank" style="color:#7cf;text-decoration:underline;">' + linkUrl + '</a></span>';
+      }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
           ui.showMenu('main');
@@ -4326,14 +4334,6 @@ function initMenu() {
   });
   document.getElementById('btn-credits-back').addEventListener('click', () => {
     ui.showMenu('main');
-  });
-
-  // --- Player Link (shareable /u/ link) ---
-  document.getElementById('btn-player-link')?.addEventListener('click', () => {
-    const u = encodeURIComponent(playerName || '');
-    const base = location.pathname.replace(/\/[^/]*$/, '/');
-    const url = location.origin + base + 'u/?user=' + u;
-    window.open(url, '_blank');
   });
 
   // --- Feedback ---
