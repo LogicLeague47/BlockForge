@@ -2139,6 +2139,9 @@
             <div style="margin-top:10px;text-align:center;">
               <button class="menu-btn secondary" id="btn-login-guest" style="width:100%;min-width:0;padding:10px 0;font-size:12px;border-color:rgba(200,200,200,0.15);background:linear-gradient(180deg,#3a3a3a 0%,#2a2a2a 40%,#1a1a1a 60%,#0a0a0a 100%);">Continue as Guest</button>
             </div>
+            <div style="margin-top:10px;text-align:center;">
+              <a id="player-link" href="/u/" style="display:inline-block;font:11px monospace;color:#7cf;text-decoration:none;border:1px solid rgba(120,200,255,0.3);border-radius:4px;padding:6px 14px;background:rgba(0,0,0,0.3);cursor:pointer;" onclick="event.preventDefault();var u=localStorage.getItem('bf_player_name')||'';var r=localStorage.getItem('bf_role')||'';var url=location.origin+'/u/'+'?user='+encodeURIComponent(u)+(r?'&role='+encodeURIComponent(r):'');navigator.clipboard.writeText(url).then(function(){var h=document.getElementById('login-hint');if(h){h.style.color='#5f5';h.textContent='Link copied! '+url;setTimeout(function(){h.textContent='';},4000);}});">&#128279; Share Player Link</a>
+            </div>
           </div>
           <div id="login-cg-section" style="display:none;">
             <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin:14px 0 10px;text-shadow:1px 1px 0 #000;">PLATFORM LOGIN</div>
@@ -2171,6 +2174,7 @@
         <button class="menu-btn" id="btn-settings">Settings</button>
         <button class="menu-btn" id="btn-feedback">Feedback</button>
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
+        <button class="menu-btn" id="btn-player-link" style="font-size:11px;padding:6px 20px;border-color:rgba(120,200,255,0.3);background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">&#128279; Player Link</button>
         <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
         <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
