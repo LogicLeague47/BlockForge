@@ -4332,7 +4332,8 @@ function initMenu() {
   document.getElementById('btn-player-link')?.addEventListener('click', () => {
     const u = encodeURIComponent(playerName || '');
     const r = encodeURIComponent(playerRole || '');
-    const url = location.origin + '/u/' + (u ? '?user=' + u + (r ? '&role=' + r : '') : '');
+    const base = location.pathname.replace(/\/[^/]*$/, '/');
+    const url = location.origin + base + 'u/' + (u ? '?user=' + u + (r ? '&role=' + r : '') : '');
     window.open(url, '_blank');
   });
 

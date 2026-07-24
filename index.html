@@ -2140,7 +2140,7 @@
               <button class="menu-btn secondary" id="btn-login-guest" style="width:100%;min-width:0;padding:10px 0;font-size:12px;border-color:rgba(200,200,200,0.15);background:linear-gradient(180deg,#3a3a3a 0%,#2a2a2a 40%,#1a1a1a 60%,#0a0a0a 100%);">Continue as Guest</button>
             </div>
             <div style="margin-top:10px;text-align:center;">
-              <a id="player-link" href="/u/" style="display:inline-block;font:11px monospace;color:#7cf;text-decoration:none;border:1px solid rgba(120,200,255,0.3);border-radius:4px;padding:6px 14px;background:rgba(0,0,0,0.3);cursor:pointer;" onclick="event.preventDefault();var u=localStorage.getItem('bf_player_name')||'';var r=localStorage.getItem('bf_role')||'';var url=location.origin+'/u/'+'?user='+encodeURIComponent(u)+(r?'&role='+encodeURIComponent(r):'');window.open(url,'_blank');">&#128279; Player Link</a>
+              <a id="player-link" href="./u/" style="display:inline-block;font:11px monospace;color:#7cf;text-decoration:none;border:1px solid rgba(120,200,255,0.3);border-radius:4px;padding:6px 14px;background:rgba(0,0,0,0.3);cursor:pointer;" onclick="event.preventDefault();var u=localStorage.getItem('bf_player_name')||'';var r=localStorage.getItem('bf_role')||'';var base=location.pathname.replace(/\\/[^\\/]*$/,'/');var url=location.origin+base+'u/'+'?user='+encodeURIComponent(u)+(r?'&role='+encodeURIComponent(r):'');window.open(url,'_blank');">&#128279; Player Link</a>
             </div>
           </div>
           <div id="login-cg-section" style="display:none;">
