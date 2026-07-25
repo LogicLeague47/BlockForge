@@ -47,6 +47,11 @@
     import * as THREE from 'three';
     import { createNoise2D, createNoise3D } from 'simplex-noise';
 
+    const TILE = 32;
+
+    function clamp(v) { return Math.max(0, Math.min(255, v)); }
+    function rnd(rng) { return rng() * 256 | 0; }
+
     function hashSeed(str) {
       let h = 2166136261 >>> 0;
       for (let i = 0; i < str.length; i++) {
@@ -69,6 +74,128 @@
       return sum / norm;
     }
 
+    const TEX = {};
+
+    function noisy(ctx, w, h, color, amount) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const v = (Math.random() * amount * 2 - amount) | 0;
+          ctx.fillStyle = `rgb(${clamp(color[0] + v)},${clamp(color[1] + v)},${clamp(color[2] + v)})`;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+
+    function speckle(ctx, w, h, count, colors) {
+      for (let i = 0; i < count; i++) {
+        ctx.fillStyle = colors[Math.random() * colors.length | 0];
+        ctx.fillRect(Math.random() * w | 0, Math.random() * h | 0, 1, 1);
+      }
+    }
+
+    function makeTile(name) {
+      const c = document.createElement('canvas');
+      c.width = TILE; c.height = TILE;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+
+      if (name === 'grass_top') {
+        noisy(ctx, TILE, TILE, [110, 185, 72], 6);
+        speckle(ctx, TILE, TILE, 12, ['rgb(95,170,50)', 'rgb(130,200,90)']);
+      } else if (name === 'grass_side') {
+        ctx.fillStyle = '#7a5a3a';
+        ctx.fillRect(0, 0, TILE, TILE);
+        noisy(ctx, TILE, 8, [90, 160, 60], 6);
+        noisy(ctx, TILE, TILE, [120, 90, 55], 4);
+        speckle(ctx, TILE, TILE, 15, ['rgb(100,75,45)', 'rgb(140,105,65)']);
+      } else if (name === 'dirt') {
+        noisy(ctx, TILE, TILE, [125, 95, 60], 8);
+        speckle(ctx, TILE, TILE, 25, ['rgb(110,80,50)', 'rgb(145,110,70)', 'rgb(90,70,45)']);
+      } else if (name === 'stone') {
+        noisy(ctx, TILE, TILE, [125, 125, 125], 10);
+        speckle(ctx, TILE, TILE, 30, ['rgb(110,110,110)', 'rgb(140,140,140)', 'rgb(90,90,90)']);
+      } else if (name === 'sand') {
+        noisy(ctx, TILE, TILE, [218, 210, 158], 6);
+        speckle(ctx, TILE, TILE, 12, ['rgb(205,195,145)', 'rgb(230,220,170)']);
+      } else if (name === 'snow') {
+        noisy(ctx, TILE, TILE, [240, 245, 255], 4);
+        speckle(ctx, TILE, TILE, 8, ['rgb(228,236,250)']);
+      } else if (name === 'wood') {
+        ctx.fillStyle = '#6b5230';
+        ctx.fillRect(0, 0, TILE, TILE);
+        noisy(ctx, TILE, TILE, [107, 82, 48], 5);
+        for (let y = 2; y < TILE; y += 6) {
+          ctx.fillStyle = `rgba(90,65,35,${0.2 + Math.random() * 0.3})`;
+          ctx.fillRect(0, y, TILE, 2);
+        }
+      } else if (name === 'leaves') {
+        noisy(ctx, TILE, TILE, [100, 168, 60], 6);
+        for (let i = 0; i < 14; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 3 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(68 + v)},${clamp(128 + v)},${clamp(40 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 8; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 2 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(135 + v)},${clamp(196 + v)},${clamp(85 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 125; i++) {
+          ctx.clearRect(Math.random() * TILE | 0, Math.random() * TILE | 0, 1, 1);
+        }
+      } else if (name === 'dark_leaves') {
+        noisy(ctx, TILE, TILE, [48, 96, 30], 6);
+        for (let i = 0; i < 16; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 3 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(32 + v)},${clamp(68 + v)},${clamp(20 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 6; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 2 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(68 + v)},${clamp(128 + v)},${clamp(46 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 100; i++) {
+          ctx.clearRect(Math.random() * TILE | 0, Math.random() * TILE | 0, 1, 1);
+        }
+      } else {
+        ctx.fillStyle = '#f0f';
+        ctx.fillRect(0, 0, TILE, TILE);
+      }
+      return c;
+    }
+
+    function tex(name) {
+      const c = makeTile(name);
+      const t = new THREE.CanvasTexture(c);
+      t.magFilter = THREE.NearestFilter;
+      t.minFilter = THREE.NearestFilter;
+      t.generateMipmaps = false;
+      return t;
+    }
+    function mat(name) { return new THREE.MeshLambertMaterial({ map: tex(name) }); }
+    function matC(color) { return new THREE.MeshLambertMaterial({ color }); }
+
     // Build the 3D background scene
     const canvas = document.getElementById('bg-canvas');
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
@@ -89,7 +216,6 @@
     scene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
     scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
 
-    // Generate terrain
     const SEED = 'u_' + (Math.random() * 99999 | 0);
     const noise = {
       continentalness: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x9E3779B9)),
@@ -119,13 +245,6 @@
         biomeMap[x][z] = t < -0.4 ? 'snow' : t < 0.1 ? (hu > 0.1 ? 'taiga' : 'forest') : t < 0.4 ? (hu > 0.2 ? 'dark_forest' : 'forest') : t < 0.6 ? (hu > 0.15 ? 'jungle' : 'savanna') : hu < -0.1 ? 'desert' : 'savanna';
       }
     }
-
-    const COLORS = {
-      grass_top: 0x79c05a, grass_side: 0x866043, grass_side_top: 0x6a9a4a,
-      dirt: 0x866043, stone: 0x7f7f7f, sand: 0xdbd3a0, snow: 0xfefefe,
-      wood: 0x6b5230, leaves: 0x59a533, dark_leaves: 0x3a7422,
-      water: 0x3f76e4, coal_ore: 0x606060, iron_ore: 0x8a7563, bedrock: 0x545454,
-    };
 
     const blocks = [];
     let grassCount = 0, dirtCount = 0, stoneCount = 0, sandCount = 0, snowCount = 0;
@@ -169,7 +288,6 @@
       }
     }
 
-    // Trees
     for (let i = 0; i < 70; i++) {
       const tx = (rng() * GRID) | 0, tz = (rng() * GRID) | 0;
       const th = heightMap[tx][tz];
@@ -193,79 +311,77 @@
       }
     }
 
-    function makeMat(color) {
-      return new THREE.MeshLambertMaterial({ color });
-    }
+    // Build textures and instanced meshes
+    const grassTop = tex('grass_top');
+    const grassSide = tex('grass_side');
+    const dirtTex = tex('dirt');
+    const stoneTex = tex('stone');
+    const sandTex = tex('sand');
+    const snowTex = tex('snow');
+    const woodTex = tex('wood');
+    const leavesTex = tex('leaves');
+    const darkLeavesTex = tex('dark_leaves');
 
-    function addInstanced(type, color, count) {
+    function addTexInstanced(type, texture, count, isTransparent) {
       if (!count) return;
       const geo = new THREE.BoxGeometry(1, 1, 1);
       let material;
       if (type === 'grass') {
-        const sideC = 0x866043;
-        const sideC2 = 0x6a9a4a;
         material = [
-          makeMat(sideC), makeMat(sideC),
-          makeMat(0x79c05a), makeMat(sideC),
-          makeMat(sideC), makeMat(sideC),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassTop }),
+          new THREE.MeshLambertMaterial({ map: dirtTex }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
         ];
+      } else if (type === 'leaves' || type === 'dark_leaves') {
+        material = new THREE.MeshLambertMaterial({ map: texture, transparent: true, depthWrite: false });
       } else {
-        material = makeMat(color);
+        material = new THREE.MeshLambertMaterial({ map: texture });
       }
       const mesh = new THREE.InstancedMesh(geo, material, count);
       let idx = 0;
       const dummy = new THREE.Object3D();
       for (const b of blocks) {
-        if (type === 'grass' ? b.type !== 'grass' :
-            type === 'dirt' ? b.type !== 'dirt' :
-            type === 'stone' ? b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore' :
-            type === 'water' ? b.type !== 'water' : b.type !== type) continue;
-
-        if (type === 'water') { dummy.position.set(b.x + 0.5, b.y + 0.01, b.z + 0.5); dummy.scale.set(1.01, 1, 1.01); }
-        else if (type === 'stone' && (b.type === 'coal_ore' || b.type === 'iron_ore')) {
-          dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
-          dummy.scale.set(1, 1, 1);
-        } else if (b.type !== type) continue;
-        else { dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5); dummy.scale.set(1, 1, 1); }
-
-        dummy.updateMatrix();
-        mesh.setMatrixAt(idx++, dummy.matrix);
-      }
-      mesh.instanceMatrix.needsUpdate = true;
-      scene.add(mesh);
-    }
-
-    function addStoneInstanced() {
-      const count = stoneCount + coalCount + ironCount;
-      if (!count) return;
-      const geo = new THREE.BoxGeometry(1, 1, 1);
-      const mat = makeMat(0x7f7f7f);
-      const mesh = new THREE.InstancedMesh(geo, mat, count);
-      let idx = 0;
-      const dummy = new THREE.Object3D();
-      for (const b of blocks) {
-        if (b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore') continue;
-        let c = 0x7f7f7f;
-        if (b.type === 'coal_ore') c = 0x606060;
-        else if (b.type === 'iron_ore') c = 0x8a7563;
-        mesh.setColorAt(idx, new THREE.Color(c));
+        if (b.type !== type) continue;
         dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
         dummy.updateMatrix();
         mesh.setMatrixAt(idx++, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
-      mesh.instanceColor.needsUpdate = true;
       scene.add(mesh);
     }
 
-    addInstanced('grass', 0, grassCount);
-    addInstanced('dirt', 0x866043, dirtCount);
-    addStoneInstanced();
-    addInstanced('sand', 0xdbd3a0, sandCount);
-    addInstanced('snow', 0xfefefe, snowCount);
-    addInstanced('wood', 0x6b5230, woodCount);
-    addInstanced('leaves', 0x59a533, leavesCount);
-    addInstanced('dark_leaves', 0x3a7422, darkLeavesCount);
+    addTexInstanced('grass', null, grassCount);
+    addTexInstanced('dirt', dirtTex, dirtCount);
+    addTexInstanced('sand', sandTex, sandCount);
+    addTexInstanced('snow', snowTex, snowCount);
+    addTexInstanced('wood', woodTex, woodCount);
+    addTexInstanced('leaves', leavesTex, leavesCount, true);
+    addTexInstanced('dark_leaves', darkLeavesTex, darkLeavesCount, true);
+
+    // Stone with per-instance color for ores
+    if (stoneCount + coalCount + ironCount > 0) {
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const mat = new THREE.MeshLambertMaterial({ map: stoneTex });
+      const mesh = new THREE.InstancedMesh(geo, mat, stoneCount + coalCount + ironCount);
+      let idx = 0;
+      const dummy = new THREE.Object3D();
+      for (const b of blocks) {
+        if (b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore') continue;
+        let c = null;
+        if (b.type === 'coal_ore') c = new THREE.Color(0x404040);
+        else if (b.type === 'iron_ore') c = new THREE.Color(0xc8a884);
+        if (c) mesh.setColorAt(idx, c);
+        dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (coalCount + ironCount > 0) mesh.instanceColor.needsUpdate = true;
+      scene.add(mesh);
+    }
 
     // Water plane
     const waterGeo = new THREE.PlaneGeometry(GRID, GRID);
@@ -275,7 +391,6 @@
     waterMesh.position.set(0, SEA + 0.01, 0);
     scene.add(waterMesh);
 
-    // Rotation animation
     let bgTime = 0;
     function animate() {
       requestAnimationFrame(animate);
