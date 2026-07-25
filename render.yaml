@@ -1,4 +1,5 @@
 services:
+  # Backend: WebSocket multiplayer server + API
   - type: web
     name: blockforge-server
     runtime: node
@@ -9,3 +10,15 @@ services:
       - key: NODE_ENV
         value: production
     healthCheckPath: /health
+
+  # Frontend: static site served on its own URL
+  # Auto-deploys from git on every push to the connected branch.
+  # Connects to blockforge-server for WebSocket multiplayer.
+  - type: static
+    name: blockforge-client
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache

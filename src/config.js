@@ -10,7 +10,7 @@
 //
 // `IS_CG_BUILD` is injected at build time via Vite's `define` (see
 // vite.config.js, mode === 'cg'). It is true ONLY for the CG build, so
-// every other deployment (Render, GitHub Pages, localhost, tunnel) keeps
+// every other deployment (Render, localhost, tunnel) keeps
 // using relative asset paths and the correct multiplayer endpoint.
 
 export const BACKEND_URL = 'wss://blockforge-server.onrender.com';
