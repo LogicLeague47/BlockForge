@@ -837,7 +837,7 @@ window.addEventListener('voice-panel-toggle', (e) => {
   } else {
     // Re-lock if game is still running and no other UI is open
     if (gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
-      renderer.domElement.requestPointerLock();
+      try { renderer.domElement.requestPointerLock(); } catch (_) {}
     }
   }
 });
@@ -2752,7 +2752,7 @@ function setupNetworkHandlers() {
             window._autoLoggingIn = false;
             ui.showMenu('main');
           } else {
-            sessionStorage.setItem('bf_from_u', '1');
+            try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
             window.location.href = 'u/?user=' + encodeURIComponent(playerName);
           }
         }, 600);

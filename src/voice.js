@@ -115,9 +115,12 @@ export class VoiceChat {
   // Only the joiner creates offers — this prevents dual-offer glare (Bug #1).
   connectToPeer(username) {
     if (this.state === STATES.OFF || username === this.username || this.peers.has(username)) return;
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+    let pc;
+    try {
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+    } catch (_) { return; }
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
@@ -159,10 +162,12 @@ export class VoiceChat {
   // The joiner's offer will arrive via handleOffer. (Bug #1 fix)
   preparePeer(username) {
     if (this.state === STATES.OFF || username === this.username || this.peers.has(username)) return;
-    // Just create the PC and add tracks — wait for the joiner's offer
-    const pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+    let pc;
+    try {
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+    } catch (_) { return; }
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
@@ -257,9 +262,11 @@ export class VoiceChat {
     let pc = this.peers.get(username);
     if (pc) return pc;
 
-    pc = new RTCPeerConnection({
-      iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-    });
+    try {
+      pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+    } catch (_) { return null; }
 
     pc.onicecandidate = (e) => {
       if (e.candidate) {
