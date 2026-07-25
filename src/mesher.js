@@ -36,6 +36,7 @@ const _GRASS_TINT = {
   [BIOMES.BEACH]:        [1.0,  1.0,  1.0],
   [BIOMES.OCEAN]:        [1.0,  1.0,  1.0],
   [BIOMES.DEEP_OCEAN]:   [1.0,  1.0,  1.0],
+  [BIOMES.RIVER]:        [1.0,  1.0,  1.0],
 };
 const _LEAF_TINT = {
   [BIOMES.PLAINS]:       [0.9, 1.0, 0.85],
@@ -52,6 +53,7 @@ const _LEAF_TINT = {
   [BIOMES.BEACH]:        [0.9, 1.0, 0.85],
   [BIOMES.OCEAN]:        [0.9, 1.0, 0.85],
   [BIOMES.DEEP_OCEAN]:   [0.9, 1.0, 0.85],
+  [BIOMES.RIVER]:        [0.9, 1.0, 0.85],
 };
 
 // Face definitions: outward normal + 4 corner offsets.

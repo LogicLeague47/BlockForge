@@ -6,7 +6,8 @@ import * as THREE from 'three';
 import { CHUNK_SIZE } from './world.js';
 import { buildChunkGeometry } from './mesher.js';
 import { BLOCK, BLOCKS } from './blocks.js';
-import { createOpaqueMaterial, createTransparentMaterial, createWaterMaterial } from './shaders.js';
+import { createOpaqueMaterial, createTransparentMaterial, createWaterMaterial, createOceanWaterMaterial, createRiverWaterMaterial } from './shaders.js';
+import { BIOMES } from './constants.js';
 
 export class ChunkMeshManager {
   constructor(scene, world, atlasTexture, fogColor) {
@@ -18,6 +19,8 @@ export class ChunkMeshManager {
     this.opaqueMaterial = createOpaqueMaterial(atlasTexture);
     this.transMaterial = createTransparentMaterial(atlasTexture);
     this.waterMaterial = createWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
+    this.oceanWaterMaterial = createOceanWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
+    this.riverWaterMaterial = createRiverWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
 
     this.meshes = new Map(); // "cx,cz" -> { group, opaque, trans }
 
@@ -72,13 +75,25 @@ export class ChunkMeshManager {
 
     let waterMesh = null;
     if (water.position.length) {
+      // Determine water material from chunk biome
+      let wMat = this.waterMaterial;
+      if (chunk.biomeMap) {
+        let oceanCount = 0, riverCount = 0;
+        for (let i = 0; i < chunk.biomeMap.length; i++) {
+          const b = chunk.biomeMap[i];
+          if (b === BIOMES.OCEAN || b === BIOMES.DEEP_OCEAN) oceanCount++;
+          else if (b === BIOMES.RIVER) riverCount++;
+        }
+        if (oceanCount > riverCount && oceanCount > 8) wMat = this.oceanWaterMaterial;
+        else if (riverCount > oceanCount && riverCount > 8) wMat = this.riverWaterMaterial;
+      }
       const wg = new THREE.BufferGeometry();
       wg.setAttribute('position', new THREE.BufferAttribute(water.position, 3));
       wg.setAttribute('uv', new THREE.BufferAttribute(water.uv, 2));
       wg.setAttribute('color', new THREE.BufferAttribute(water.color, 3));
       wg.setAttribute('normal', new THREE.BufferAttribute(water.normal, 3));
       if (water.index) wg.setIndex(new THREE.BufferAttribute(water.index, 1));
-      waterMesh = new THREE.Mesh(wg, this.waterMaterial);
+      waterMesh = new THREE.Mesh(wg, wMat);
       waterMesh.renderOrder = 2;
       group.add(waterMesh);
     }

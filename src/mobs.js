@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
+import { createShadowMesh, updateShadow, removeShadowMesh } from './shadows.js';
 
 function hexToRgb(hex) {
   return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
@@ -218,8 +219,9 @@ function mulberry32(a) {
 
 // ── Mob class ────────────────────────────────────────────────────────
 class Mob {
-  constructor(type, x, y, z) {
+  constructor(type, x, y, z, scene) {
     this.type = type;
+    this._scene = scene;
     const def = MOB_TYPES[type];
     this.hp = def.hp;
     this.maxHp = def.hp;
@@ -250,6 +252,7 @@ class Mob {
     this._fuseSwell = 0; // body swell during fuse
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
+    this._shadowMesh = this._scene ? createShadowMesh(this._scene) : null;
 
     // Cache all materials for fast hurt/flash (avoids mesh.traverse)
     this._allMats = [];
@@ -2018,6 +2021,9 @@ class Mob {
     this.mesh.position.set(this.position.x, this.position.y, this.position.z);
     this.mesh.rotation.y = this.yaw;
 
+    // Update shadow
+    updateShadow(this._shadowMesh, this.position, this.position.y, 0.5);
+
     // Leg walking animation
     const isMoving = (this.state === 'walking' || this.state === 'fleeing') && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01);
     const moveSpeed = isMoving ? Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z) : 0;
@@ -2230,6 +2236,8 @@ class Mob {
   }
 
   dispose() {
+    removeShadowMesh(this._scene, this._shadowMesh);
+    this._shadowMesh = null;
     this.mesh.traverse((child) => {
       if (child.isMesh) {
         child.geometry.dispose();
@@ -2268,7 +2276,7 @@ export class MobManager {
     if (this._remoteMobs.has(entityId)) return;
     const def = MOB_TYPES[type];
     if (!def) return;
-    const mob = new Mob(type, x, y, z);
+    const mob = new Mob(type, x, y, z, this.scene);
     mob.entityId = entityId;
     mob._isRemote = true;
     this._remoteMobs.set(entityId, mob);
@@ -2335,7 +2343,7 @@ export class MobManager {
       if (groundY < 0) continue;
       const type = types[Math.floor(rng() * types.length)];
       if (!MOB_TYPES[type]) continue;
-      const mob = new Mob(type, wx + 0.5, groundY + 1, wz + 0.5);
+      const mob = new Mob(type, wx + 0.5, groundY + 1, wz + 0.5, this.scene);
       mob.entityId = this._allocEntityId();
       this.mobs.push(mob);
       this.scene.add(mob.mesh);
@@ -2363,7 +2371,7 @@ export class MobManager {
   // Spawn a specific mob type at a world position (for dev commands).
   spawnAt(type, x, y, z) {
     if (!MOB_TYPES[type]) return null;
-    const mob = new Mob(type, x, y, z);
+    const mob = new Mob(type, x, y, z, this.scene);
     mob.entityId = this._allocEntityId();
     this.mobs.push(mob);
     this.scene.add(mob.mesh);
@@ -2469,7 +2477,7 @@ export class MobManager {
       if (bestDist < MIN_SPAWN_DISTANCE && placed.length > 0) break;
 
       const type = spawnTypes[Math.floor(rng() * spawnTypes.length)];
-      const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z);
+      const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z, this.scene);
       mob.entityId = this._allocEntityId();
       this.mobs.push(mob);
       this.scene.add(mob.mesh);
@@ -2614,6 +2622,11 @@ export class MobManager {
       }
     }
 
+    // Update remote mob shadows
+    for (const [, mob] of this._remoteMobs) {
+      updateShadow(mob._shadowMesh, mob.position, mob.position.y, 0.5);
+    }
+
     // Process explosions
     for (const exp of explosions) {
       if (this.explosionManager) {
@@ -2642,7 +2655,7 @@ export class MobManager {
           for (let j = 0; j < 2; j++) {
             const ox = (Math.random() - 0.5) * 1.5;
             const oz = (Math.random() - 0.5) * 1.5;
-            const baby = new Mob('slime', mob.position.x + ox, mob.position.y, mob.position.z + oz);
+            const baby = new Mob('slime', mob.position.x + ox, mob.position.y, mob.position.z + oz, this.scene);
             baby._slimeSize = 'small';
             baby.hp = 8;
             baby.maxHp = 8;

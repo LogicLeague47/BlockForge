@@ -120,6 +120,7 @@ const transFrag = /* glsl */ `
 // ── Water vertex ────────────────────────────────────────────────────────────
 const waterVert = /* glsl */ `
   uniform float time;
+  uniform float waveAmp;
 
   varying vec2 vUv;
   varying vec3 vWorldPos;
@@ -128,8 +129,8 @@ const waterVert = /* glsl */ `
   void main() {
     vec3 pos = position;
 
-    float wave1 = sin(pos.x * 1.2 + time * 1.5) * 0.06;
-    float wave2 = cos(pos.z * 0.9 + time * 1.1) * 0.04;
+    float wave1 = sin(pos.x * 1.2 + time * 1.5) * 0.06 * waveAmp;
+    float wave2 = cos(pos.z * 0.9 + time * 1.1) * 0.04 * waveAmp;
     pos.y += wave1 + wave2;
 
     vec4 worldPos = modelMatrix * vec4(pos, 1.0);
@@ -224,12 +225,13 @@ export function createTransparentMaterial(atlasTexture) {
   });
 }
 
-export function createWaterMaterial(fogColor) {
+function _makeWaterMaterial(fogColor, waveAmp) {
   return new THREE.ShaderMaterial({
     vertexShader: waterVert,
     fragmentShader: waterFrag,
     uniforms: {
       time: { value: 0.0 },
+      waveAmp: { value: waveAmp },
       fogColor: { value: fogColor || new THREE.Color(0x9ad0ff) },
       fogNear: { value: 80.0 },
       fogFar: { value: 144.0 },
@@ -241,8 +243,32 @@ export function createWaterMaterial(fogColor) {
   });
 }
 
-export function updateShaderUniforms({ opaqueMat, transMat, waterMat, sun, fogColor, fogNear, fogFar, time }) {
+export function createWaterMaterial(fogColor) {
+  return _makeWaterMaterial(fogColor, 1.0);
+}
+
+export function createOceanWaterMaterial(fogColor) {
+  return _makeWaterMaterial(fogColor, 3.5);
+}
+
+export function createRiverWaterMaterial(fogColor) {
+  return _makeWaterMaterial(fogColor, 0.4);
+}
+
+import { setSunDirection } from './shadows.js';
+
+function _syncWaterMat(mat, time, fogColor, fogNear, fogFar, sunDir) {
+  if (!mat) return;
+  mat.uniforms.time.value = time;
+  mat.uniforms.fogColor.value.copy(fogColor);
+  mat.uniforms.fogNear.value = fogNear;
+  mat.uniforms.fogFar.value = fogFar;
+  mat.uniforms.sunDirection.value.copy(sunDir);
+}
+
+export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, fogColor, fogNear, fogFar, time }) {
   const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
+  setSunDirection(sunDir);
 
   if (opaqueMat) {
     opaqueMat.uniforms.sunDirection.value.copy(sunDir);
@@ -260,11 +286,7 @@ export function updateShaderUniforms({ opaqueMat, transMat, waterMat, sun, fogCo
     transMat.uniforms.fogFar.value = fogFar;
   }
 
-  if (waterMat) {
-    waterMat.uniforms.time.value = time;
-    waterMat.uniforms.fogColor.value.copy(fogColor);
-    waterMat.uniforms.fogNear.value = fogNear;
-    waterMat.uniforms.fogFar.value = fogFar;
-    waterMat.uniforms.sunDirection.value.copy(sunDir);
-  }
+  _syncWaterMat(waterMat, time, fogColor, fogNear, fogFar, sunDir);
+  _syncWaterMat(oceanWaterMat, time, fogColor, fogNear, fogFar, sunDir);
+  _syncWaterMat(riverWaterMat, time, fogColor, fogNear, fogFar, sunDir);
 }

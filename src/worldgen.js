@@ -52,6 +52,18 @@ export function calcHeight(n, wx, wz) {
     h += ridge * 4 * erosionFactor;
   }
 
+  // River carving: only on land, near sea level
+  if (cont > 0.05) {
+    const riverRaw = n.river(wx * 0.012, wz * 0.012);
+    const riverVal = (riverRaw + n.river(wx * 0.025, wz * 0.025) * 0.5) / 1.5;
+    const riverStrength = 1 - Math.abs(riverVal) * 4;
+    if (riverStrength > 0.65 && h > SEA_LEVEL - 3) {
+      const carve = (riverStrength - 0.65) / 0.35;
+      const targetY = SEA_LEVEL - 2 + (1 - carve) * 2;
+      h = Math.min(h, Math.round(targetY + detail * 0.5));
+    }
+  }
+
   // Fine detail everywhere
   h += n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5) * 2;
   
@@ -63,6 +75,14 @@ export function calcBiome(n, wx, wz, h) {
   const hu = n.fbm2(n.humid, wx * 0.004, wz * 0.004, 4, 2, 0.5);
   const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
   const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
+
+  // River: narrow water channels on land
+  if (cont > 0.05 && h <= SEA_LEVEL && h >= SEA_LEVEL - 3) {
+    const riverRaw = n.river(wx * 0.012, wz * 0.012);
+    const riverVal = (riverRaw + n.river(wx * 0.025, wz * 0.025) * 0.5) / 1.5;
+    const riverStrength = 1 - Math.abs(riverVal) * 4;
+    if (riverStrength > 0.65) return BIOMES.RIVER;
+  }
 
   // Ocean biomes (excluded from land % — ~30% of world)
   if (cont < -0.2) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
@@ -106,6 +126,7 @@ export function surfBlock(biome, h) {
     case BIOMES.OCEAN:       return BLOCK.SAND;
     case BIOMES.DEEP_OCEAN:  return BLOCK.SAND;
     case BIOMES.DESERT:      return BLOCK.SAND;
+    case BIOMES.RIVER:       return BLOCK.SAND;
     case BIOMES.SNOWY:       return BLOCK.SNOW_BLOCK;
     case BIOMES.MOUNTAINS:   return h > SEA_LEVEL + 25 ? BLOCK.STONE : (h > SEA_LEVEL + 18 ? BLOCK.DIRT : BLOCK.GRASS);
     case BIOMES.TAIGA:       return BLOCK.GRASS;
@@ -122,6 +143,7 @@ export function fillBlock(biome, h) {
     case BIOMES.BEACH:       return BLOCK.SAND;
     case BIOMES.OCEAN:       return BLOCK.SAND;
     case BIOMES.DEEP_OCEAN:  return BLOCK.SAND;
+    case BIOMES.RIVER:       return BLOCK.SAND;
     case BIOMES.DESERT:      return BLOCK.SAND;
     case BIOMES.MOUNTAINS:   return BLOCK.STONE;
     default:                 return BLOCK.DIRT;

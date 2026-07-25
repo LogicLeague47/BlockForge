@@ -19,4 +19,5 @@ export const BIOMES = {
   SWAMP:      11,
   SNOWY:      12,
   MOUNTAINS:  13,
+  RIVER:      14,
 };

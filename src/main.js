@@ -5844,7 +5844,7 @@ function loop() {
       const by = Math.floor(player.position.y);
       const bz = Math.floor(player.position.z);
       const biomeId = world.noise ? calcBiome(world.noise, bx, bz, world.heightAt(bx, bz)) : '?';
-      const biomeNames = ['Plains','Forest','Desert','Taiga','Mountains','Oce','DeepOc','Beach','Snowy','Savan','DarkF','Jungl','Swamp','Birch'];
+      const biomeNames = ['Ocean','DeepOc','Beach','Plains','Forest','Birch','DarkF','Taiga','Desert','Jungle','Savanna','Swamp','Snowy','Mountains','River'];
       const cameraModes = ['First Person', 'Third Person (Back)', 'Third Person (Front)'];
       dbg.innerHTML = `XYZ: ${player.position.x.toFixed(1)} / ${player.position.y.toFixed(1)} / ${player.position.z.toFixed(1)}<br>` +
         `Chunk: ${Math.floor(bx/CHUNK_SIZE)}, ${Math.floor(bz/CHUNK_SIZE)}<br>` +
@@ -6081,6 +6081,8 @@ function loop() {
       opaqueMat: manager.opaqueMaterial,
       transMat: manager.transMaterial,
       waterMat: manager.waterMaterial,
+      oceanWaterMat: manager.oceanWaterMaterial,
+      riverWaterMat: manager.riverWaterMaterial,
       sun,
       fogColor: scene.fog.color,
       fogNear: scene.fog.near,

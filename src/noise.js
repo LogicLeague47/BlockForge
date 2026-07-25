@@ -33,7 +33,7 @@ const LAYER_SEED = [
   0x9E3779B9, 0xBF58476D, 0x6A09E667, 0xBB67AE85,
   0x3C6EF372, 0xA54FF53A, 0x510E527F, 0x9B05688C,
   0x1F83D9AB, 0x5BE0CD19, 0x243F6A88, 0xC0D16F47,
-  0x7A1542D3, 0x41C63B2D,
+  0x7A1542D3, 0x41C63B2D, 0xA2324F7E,
 ];
 
 export class Noise {
@@ -56,6 +56,7 @@ export class Noise {
     this.weirdness     = createNoise2D(mulberry32(base ^ LAYER_SEED[11]));
     this.depth         = createNoise2D(mulberry32(base ^ LAYER_SEED[12]));
     this.rng           = mulberry32(base ^ LAYER_SEED[13]);
+    this.river         = createNoise2D(mulberry32(base ^ LAYER_SEED[14]));
   }
 
   // Fractal Brownian motion (stacked octaves) in 2D, returns ~[-1,1].
