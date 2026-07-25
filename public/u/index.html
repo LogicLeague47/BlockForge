@@ -7,8 +7,9 @@
   <link rel="icon" type="image/png" href="../BlockForge.png">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    body{background:#0a0a12;color:#e0e0e0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center}
-    .card{background:rgba(0,0,0,0.55);border:1px solid rgba(80,80,100,0.35);border-radius:8px;padding:28px 32px;max-width:400px;width:90%;text-align:center}
+    body{background:#0a0a12;color:#e0e0e0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+    #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+    .card{position:relative;z-index:1;background:rgba(0,0,0,0.55);border:1px solid rgba(80,80,100,0.35);border-radius:8px;padding:28px 32px;max-width:400px;width:90%;text-align:center;backdrop-filter:blur(6px)}
     .logo{font-size:22px;letter-spacing:6px;color:#fff;margin-bottom:2px}
     .sub{font:11px monospace;color:#7ab;letter-spacing:2px;margin-bottom:18px}
     .name{font:bold 18px monospace;color:#ffdd33;margin-bottom:4px}
@@ -19,8 +20,17 @@
     .footer{font:9px monospace;color:rgba(255,255,255,0.25);margin-top:14px}
     .bypass{font:bold 13px monospace;color:#f55;line-height:1.6}
   </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "simplex-noise": "https://cdn.jsdelivr.net/npm/simplex-noise@4.0.3/dist/esm/simplex-noise.js"
+    }
+  }
+  </script>
 </head>
 <body>
+  <canvas id="bg-canvas"></canvas>
   <div class="card">
     <div class="logo">BLOCKFORGE</div>
     <div class="sub" id="subtitle"></div>
@@ -33,7 +43,257 @@
     <div class="bypass" id="bypass" style="display:none"></div>
     <div class="footer">By continuing, you agree to the Terms of Service</div>
   </div>
-  <script>
+  <script type="module">
+    import * as THREE from 'three';
+    import { createNoise2D, createNoise3D } from 'simplex-noise';
+
+    function hashSeed(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+    function mulberry32(a) {
+      return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function fbm2(fn, x, z, octaves, lacunarity, gain) {
+      let amp = 1, freq = 1, sum = 0, norm = 0;
+      for (let i = 0; i < octaves; i++) { sum += amp * fn(x * freq, z * freq); norm += amp; amp *= gain; freq *= lacunarity; }
+      return sum / norm;
+    }
+
+    // Build the 3D background scene
+    const canvas = document.getElementById('bg-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x78b9e8);
+    scene.fog = new THREE.Fog(0x87ceeb, 20, 55);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 22, 32);
+    camera.lookAt(0, 8, 0);
+
+    const sun = new THREE.DirectionalLight(0xfff8e7, 1.6);
+    sun.position.set(40, 80, 30);
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
+    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
+
+    // Generate terrain
+    const SEED = 'u_' + (Math.random() * 99999 | 0);
+    const noise = {
+      continentalness: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x9E3779B9)),
+      ridge: createNoise2D(mulberry32(hashSeed(SEED) ^ 0xBF58476D)),
+      detail: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x6A09E667)),
+      temp: createNoise2D(mulberry32(hashSeed(SEED) ^ 0xBB67AE85)),
+      humid: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x3C6EF372)),
+      ore: createNoise3D(mulberry32(hashSeed(SEED) ^ 0xA54FF53A)),
+    };
+    const rng = mulberry32(hashSeed(SEED) + 777);
+
+    const GRID = 64, SEA = 16;
+    const heightMap = [], biomeMap = [];
+    for (let x = 0; x < GRID; x++) {
+      heightMap[x] = []; biomeMap[x] = [];
+      for (let z = 0; z < GRID; z++) {
+        const cont = fbm2(noise.continentalness, x * 0.025, z * 0.025, 5, 2, 0.5);
+        const ridge = 1 - Math.abs(fbm2(noise.ridge, x * 0.03 + 100, z * 0.03 + 100, 4, 2, 0.5));
+        const detail = fbm2(noise.detail, x * 0.08, z * 0.08, 4, 2, 0.5);
+        let h;
+        if (cont < -0.1) { h = SEA - 4 + cont * 10 + detail * 3; }
+        else if (cont < 0.15) { h = SEA + (cont + 0.1) * 12 + detail * 4; }
+        else { h = SEA + 2 + (cont - 0.15) * 18 + detail * 5; if (cont > 0.4 && ridge > 0.55) h += ridge * (cont - 0.4) * 50; h += ridge * 3; }
+        heightMap[x][z] = Math.max(1, Math.min(44, Math.floor(h)));
+        const t = fbm2(noise.temp, x * 0.02 + 200, z * 0.02 + 200, 4, 2, 0.5);
+        const hu = fbm2(noise.humid, x * 0.02 + 300, z * 0.02 + 300, 4, 2, 0.5);
+        biomeMap[x][z] = t < -0.4 ? 'snow' : t < 0.1 ? (hu > 0.1 ? 'taiga' : 'forest') : t < 0.4 ? (hu > 0.2 ? 'dark_forest' : 'forest') : t < 0.6 ? (hu > 0.15 ? 'jungle' : 'savanna') : hu < -0.1 ? 'desert' : 'savanna';
+      }
+    }
+
+    const COLORS = {
+      grass_top: 0x79c05a, grass_side: 0x866043, grass_side_top: 0x6a9a4a,
+      dirt: 0x866043, stone: 0x7f7f7f, sand: 0xdbd3a0, snow: 0xfefefe,
+      wood: 0x6b5230, leaves: 0x59a533, dark_leaves: 0x3a7422,
+      water: 0x3f76e4, coal_ore: 0x606060, iron_ore: 0x8a7563, bedrock: 0x545454,
+    };
+
+    const blocks = [];
+    let grassCount = 0, dirtCount = 0, stoneCount = 0, sandCount = 0, snowCount = 0;
+    let woodCount = 0, leavesCount = 0, darkLeavesCount = 0, coalCount = 0, ironCount = 0;
+
+    function addBlock(type, x, y, z) {
+      blocks.push({ type, x, y, z });
+      if (type === 'grass') grassCount++;
+      else if (type === 'dirt') dirtCount++;
+      else if (type === 'stone') stoneCount++;
+      else if (type === 'sand') sandCount++;
+      else if (type === 'snow') snowCount++;
+      else if (type === 'wood') woodCount++;
+      else if (type === 'leaves') leavesCount++;
+      else if (type === 'dark_leaves') darkLeavesCount++;
+      else if (type === 'coal_ore') coalCount++;
+      else if (type === 'iron_ore') ironCount++;
+    }
+
+    for (let x = 0; x < GRID; x++) {
+      for (let z = 0; z < GRID; z++) {
+        const h = heightMap[x][z], biome = biomeMap[x][z], ox = x - GRID / 2, oz = z - GRID / 2;
+        for (let y = 0; y <= h; y++) {
+          let type;
+          if (y === 0) type = 'bedrock';
+          else if (y === h) {
+            type = h < SEA ? 'sand' : biome === 'desert' ? 'sand' : biome === 'snow' ? 'snow' : 'grass';
+          } else if (y > h - 4) {
+            type = h < SEA ? 'sand' : biome === 'desert' ? 'sand' : 'dirt';
+          } else {
+            type = 'stone';
+            if (y < h - 8 && y > 2) {
+              const v = noise.ore(x * 0.1, y * 0.1, z * 0.1);
+              if (v > 0.82) type = 'coal_ore';
+              else if (v > 0.88 && y < 60) type = 'iron_ore';
+            }
+          }
+          addBlock(type, ox, y, oz);
+        }
+        if (h < SEA) addBlock('water', ox, SEA, oz);
+      }
+    }
+
+    // Trees
+    for (let i = 0; i < 70; i++) {
+      const tx = (rng() * GRID) | 0, tz = (rng() * GRID) | 0;
+      const th = heightMap[tx][tz];
+      if (th < SEA + 1 || biomeMap[tx][tz] === 'desert') continue;
+      const ox = tx - GRID / 2, oz = tz - GRID / 2;
+      const treeH = 5 + (rng() * 4) | 0;
+      const isJungle = biomeMap[tx][tz] === 'jungle';
+      const trunkH = isJungle ? treeH + 3 : treeH;
+      const leafR = isJungle ? 3 : 2;
+      for (let dy = 1; dy <= trunkH; dy++) addBlock('wood', ox, th + dy, oz);
+      for (let lx = -leafR; lx <= leafR; lx++) {
+        for (let lz = -leafR; lz <= leafR; lz++) {
+          for (let ly = -1; ly <= 2; ly++) {
+            if (lx === 0 && lz === 0 && ly < 1) continue;
+            const dist = Math.abs(lx) + Math.abs(lz) + Math.abs(ly);
+            if (dist <= leafR + 1 && rng() > 0.12) {
+              addBlock(biomeMap[tx][tz] === 'dark_forest' ? 'dark_leaves' : 'leaves', ox + lx, th + trunkH + ly, oz + lz);
+            }
+          }
+        }
+      }
+    }
+
+    function makeMat(color) {
+      return new THREE.MeshLambertMaterial({ color });
+    }
+
+    function addInstanced(type, color, count) {
+      if (!count) return;
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      let material;
+      if (type === 'grass') {
+        const sideC = 0x866043;
+        const sideC2 = 0x6a9a4a;
+        material = [
+          makeMat(sideC), makeMat(sideC),
+          makeMat(0x79c05a), makeMat(sideC),
+          makeMat(sideC), makeMat(sideC),
+        ];
+      } else {
+        material = makeMat(color);
+      }
+      const mesh = new THREE.InstancedMesh(geo, material, count);
+      let idx = 0;
+      const dummy = new THREE.Object3D();
+      for (const b of blocks) {
+        if (type === 'grass' ? b.type !== 'grass' :
+            type === 'dirt' ? b.type !== 'dirt' :
+            type === 'stone' ? b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore' :
+            type === 'water' ? b.type !== 'water' : b.type !== type) continue;
+
+        if (type === 'water') { dummy.position.set(b.x + 0.5, b.y + 0.01, b.z + 0.5); dummy.scale.set(1.01, 1, 1.01); }
+        else if (type === 'stone' && (b.type === 'coal_ore' || b.type === 'iron_ore')) {
+          dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
+          dummy.scale.set(1, 1, 1);
+        } else if (b.type !== type) continue;
+        else { dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5); dummy.scale.set(1, 1, 1); }
+
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      scene.add(mesh);
+    }
+
+    function addStoneInstanced() {
+      const count = stoneCount + coalCount + ironCount;
+      if (!count) return;
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const mat = makeMat(0x7f7f7f);
+      const mesh = new THREE.InstancedMesh(geo, mat, count);
+      let idx = 0;
+      const dummy = new THREE.Object3D();
+      for (const b of blocks) {
+        if (b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore') continue;
+        let c = 0x7f7f7f;
+        if (b.type === 'coal_ore') c = 0x606060;
+        else if (b.type === 'iron_ore') c = 0x8a7563;
+        mesh.setColorAt(idx, new THREE.Color(c));
+        dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.instanceColor.needsUpdate = true;
+      scene.add(mesh);
+    }
+
+    addInstanced('grass', 0, grassCount);
+    addInstanced('dirt', 0x866043, dirtCount);
+    addStoneInstanced();
+    addInstanced('sand', 0xdbd3a0, sandCount);
+    addInstanced('snow', 0xfefefe, snowCount);
+    addInstanced('wood', 0x6b5230, woodCount);
+    addInstanced('leaves', 0x59a533, leavesCount);
+    addInstanced('dark_leaves', 0x3a7422, darkLeavesCount);
+
+    // Water plane
+    const waterGeo = new THREE.PlaneGeometry(GRID, GRID);
+    const waterMat = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
+    const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+    waterMesh.rotation.x = -Math.PI / 2;
+    waterMesh.position.set(0, SEA + 0.01, 0);
+    scene.add(waterMesh);
+
+    // Rotation animation
+    let bgTime = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      bgTime += 0.04;
+      const r = 36;
+      camera.position.set(Math.cos(bgTime) * r, 26 + Math.sin(bgTime * 0.2) * 3, Math.sin(bgTime) * r);
+      camera.lookAt(0, 10, 0);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Profile page UI logic ---
     (function() {
       var urlUser = '';
       try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
@@ -61,25 +321,19 @@
 
       var fromU = false;
       try { fromU = sessionStorage.getItem('bf_from_u') === '1'; } catch(e) {}
-      // Don't trust from=game URL param alone — only sessionStorage flag proves /u/ was reached via game redirect.
-      // Keep bf_from_u in sessionStorage so the game page can also verify it.
 
       var savedRole = '';
       try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
 
       if (fromU) {
-        // Opened from within the game — show user homepage
         subtitleEl.textContent = 'PLAYER';
         nameEl.textContent = urlUser;
         roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-
         homepageEl.style.display = '';
-
         playBtnEl.addEventListener('click', function() {
           window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
         });
       } else {
-        // Pasted directly — bypass warning
         subtitleEl.textContent = '';
         nameEl.textContent = urlUser;
         roleEl.textContent = '';

@@ -3665,7 +3665,29 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           setTimeout(() => showTutorial(), 500);
         }
       }, 400);
+    }).catch((err) => {
+      console.error('[BlockForge] World load failed:', err);
+      clearInterval(_tipInterval);
+      ui.hideLoading();
+      cgLoadingStop();
+      gameRunning = false;
+      isMultiplayer = false;
+      currentServer = null;
+      ui.showMenu('main');
+      const el = document.getElementById('mp-error');
+      if (el) { el.textContent = 'Failed to load world: ' + (err?.message || err); el.style.color = '#f55'; setTimeout(() => { el.textContent = ''; }, 6000); }
     });
+  }).catch((err) => {
+    console.error('[BlockForge] World init failed:', err);
+    clearInterval(_tipInterval);
+    ui.hideLoading();
+    cgLoadingStop();
+    gameRunning = false;
+    isMultiplayer = false;
+    currentServer = null;
+    ui.showMenu('main');
+    const el = document.getElementById('mp-error');
+    if (el) { el.textContent = 'Failed to initialize: ' + (err?.message || err); el.style.color = '#f55'; setTimeout(() => { el.textContent = ''; }, 6000); }
   });
 }
 
