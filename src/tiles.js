@@ -339,13 +339,44 @@ const PAINTERS = {
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
+    // Minecraft oak leaves: dense green with small scattered transparent
+    // holes and subtle darker/lighter patches. Matches the classic look.
     const base = [78, 148, 44];
+    const dark = [55, 115, 32];
+    const light = [100, 175, 62];
+
+    // Per-pixel base with subtle noise
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const v = (rng() * 8 - 4) | 0;
         ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
         ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
+    }
+
+    // Dark patches — small 2-3px groups, scattered
+    for (let i = 0; i < 12; i++) {
+      const px = (rng() * (TILE - 3)) | 0;
+      const py = (rng() * (TILE - 3)) | 0;
+      const pw = 2 + (rng() * 2 | 0);
+      const ph = 2 + (rng() * 2 | 0);
+      const v = (rng() * 6 - 3) | 0;
+      ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, pw, ph);
+    }
+
+    // Light patches — small, scattered
+    for (let i = 0; i < 8; i++) {
+      const px = (rng() * (TILE - 2)) | 0;
+      const py = (rng() * (TILE - 2)) | 0;
+      const v = (rng() * 6 - 3) | 0;
+      ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, 2, 2);
+    }
+
+    // Small scattered transparent holes — 1px each, ~20 of them
+    for (let i = 0; i < 20; i++) {
+      ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
 
@@ -938,12 +969,35 @@ const PAINTERS = {
     ctx.clearRect(x0, y0, TILE, TILE);
 
     const base = [35, 68, 26];
+    const dark = [22, 48, 18];
+    const light = [52, 95, 40];
+
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const v = (rng() * 8 - 4) | 0;
         ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
         ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
+    }
+
+    for (let i = 0; i < 14; i++) {
+      const px = (rng() * (TILE - 3)) | 0;
+      const py = (rng() * (TILE - 3)) | 0;
+      const v = (rng() * 6 - 3) | 0;
+      ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+
+    for (let i = 0; i < 6; i++) {
+      const px = (rng() * (TILE - 2)) | 0;
+      const py = (rng() * (TILE - 2)) | 0;
+      const v = (rng() * 6 - 3) | 0;
+      ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, 2, 2);
+    }
+
+    for (let i = 0; i < 15; i++) {
+      ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
 
