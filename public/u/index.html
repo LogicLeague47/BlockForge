@@ -61,11 +61,8 @@
 
       var fromU = false;
       try { fromU = sessionStorage.getItem('bf_from_u') === '1'; } catch(e) {}
-      try {
-        var fromParam = new URLSearchParams(location.search).get('from') || '';
-        if (fromParam === 'game') fromU = true;
-      } catch(e) {}
-      if (fromU) sessionStorage.removeItem('bf_from_u');
+      // Don't trust from=game URL param alone — only sessionStorage flag proves /u/ was reached via game redirect.
+      // Keep bf_from_u in sessionStorage so the game page can also verify it.
 
       var savedRole = '';
       try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}

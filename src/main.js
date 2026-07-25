@@ -5093,8 +5093,7 @@ function initMenu() {
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
     const urlUser = params.get('user');
-    const fromGame = params.get('from') === 'game';
-    if (fromGame) fromU = true;
+    // Only trust sessionStorage for fromU — from=game URL param alone is bypassable.
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
     // Auto-login ONLY when visiting via /u/ redirect with saved credentials

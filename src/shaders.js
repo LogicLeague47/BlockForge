@@ -8,13 +8,12 @@
 import * as THREE from 'three';
 
 // ── Shared vertex code ─────────────────────────────────────────────────────
+// Note: modelMatrix, viewMatrix, projectionMatrix, modelViewMatrix, normalMatrix,
+// cameraPosition, position, normal, and uv are auto-injected by Three.js r150+.
+// Only custom uniforms/attributes need to be declared here.
 const terrainVert = /* glsl */ `
   attribute vec3 color;
 
-  uniform mat4 modelMatrix;
-  uniform mat4 viewMatrix;
-  uniform mat4 projectionMatrix;
-  uniform mat4 modelViewMatrix;
   uniform vec3 sunDirection;
 
   varying vec2 vUv;
@@ -118,14 +117,8 @@ const transFrag = /* glsl */ `
   }
 `;
 
-// ── Water fragment ──────────────────────────────────────────────────────────
+// ── Water vertex ────────────────────────────────────────────────────────────
 const waterVert = /* glsl */ `
-  attribute vec3 color;
-
-  uniform mat4 modelMatrix;
-  uniform mat4 viewMatrix;
-  uniform mat4 projectionMatrix;
-  uniform mat4 modelViewMatrix;
   uniform float time;
 
   varying vec2 vUv;
