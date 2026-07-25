@@ -1,13 +1,8 @@
 name: Weekly Redis Backup
 
-# Dumps the Upstash Redis data (accounts, friends, rooms) into the repo's
-# backups/ folder once a week, as a disaster-recovery snapshot in case the
-# Redis database is ever lost. Requires two repo secrets:
-#   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
-
 on:
   schedule:
-    - cron: '0 3 * * 0'   # Sundays 03:00 UTC
+    - cron: '0 3 * * 0'
   workflow_dispatch:
 
 permissions:

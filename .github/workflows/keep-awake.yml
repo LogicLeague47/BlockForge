@@ -1,11 +1,5 @@
 name: Keep Render Server Awake
 
-# Pings the Render backend so the free instance never idles into sleep mode,
-# which is what causes the ~30-60s cold start. Runs every 10 minutes.
-# Note: GitHub's scheduled runs can be delayed a few minutes under load, and
-# scheduled workflows auto-disable after 60 days with no repo activity — just
-# push any commit (or click "Run workflow") to re-enable.
-
 on:
   schedule:
     - cron: '*/5 * * * *'
