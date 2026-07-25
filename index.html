@@ -1761,16 +1761,17 @@
       }
       #mobile-controls * { touch-action: none; user-select: none; -webkit-user-select: none; }
 
-      /* Joystick zone — left 45% of screen */
+      /* Joystick zone — left 40% of screen, pushed to edge */
       .mc-joystick-zone {
         position: absolute; left: 0; bottom: 0;
-        width: 45%; height: 55%;
+        width: 40%; height: 50%;
         pointer-events: auto;
         z-index: 2;
-        display: flex; align-items: center; justify-content: center;
+        display: flex; align-items: flex-end; justify-content: flex-start;
+        padding: 12px 8px;
       }
       .mc-joystick-base {
-        width: 160px; height: 160px;
+        width: 130px; height: 130px;
         border-radius: 50%;
         background: rgba(255,255,255,0.1);
         border: 3px solid rgba(255,255,255,0.28);
@@ -1778,7 +1779,7 @@
         display: flex; align-items: center; justify-content: center;
       }
       .mc-joystick-knob {
-        width: 66px; height: 66px;
+        width: 54px; height: 54px;
         border-radius: 50%;
         background: rgba(255,255,255,0.3);
         border: 3px solid rgba(255,255,255,0.5);
@@ -1794,10 +1795,10 @@
 
       /* Collapsible action panel — gear toggle reveals secondary actions */
       .mc-toggle {
-        position: absolute; right: 12px; top: 12px;
-        width: 50px; height: 50px; border-radius: 50%;
+        position: absolute; right: 8px; top: 8px;
+        width: 40px; height: 40px; border-radius: 50%;
         border: 2px solid rgba(255,255,255,0.35);
-        background: rgba(0,0,0,0.45); color: #fff; font-size: 22px;
+        background: rgba(0,0,0,0.45); color: #fff; font-size: 18px;
         pointer-events: auto; z-index: 5;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
@@ -1805,16 +1806,16 @@
       .mc-toggle:active { background: rgba(255,255,255,0.3); }
 
       .mc-action-panel {
-        position: absolute; right: 12px; top: 70px;
+        position: absolute; right: 8px; top: 52px;
         display: none;
-        grid-template-columns: repeat(2, 52px);
-        gap: 6px;
+        grid-template-columns: repeat(2, 42px);
+        gap: 4px;
         pointer-events: auto; z-index: 5;
       }
       #mobile-controls.mc-open .mc-action-panel { display: grid; }
       .mc-action-panel .mc-btn,
       .mc-action-panel .mc-btn-sm {
-        width: 52px; height: 52px; font-size: 20px; border-radius: 10px;
+        width: 42px; height: 42px; font-size: 16px; border-radius: 8px;
       }
 
       /* Top buttons — menu / chat / inventory */
@@ -1839,17 +1840,17 @@
 
       /* Primary action buttons — right side (always visible) */
       .mc-buttons {
-        position: absolute; right: 24px; bottom: 110px;
-        display: flex; flex-direction: column; gap: 14px;
+        position: absolute; right: 12px; bottom: 80px;
+        display: flex; flex-direction: column; gap: 8px;
         pointer-events: auto; z-index: 4;
       }
       .mc-btn {
-        width: 72px; height: 72px;
+        width: 56px; height: 56px;
         border-radius: 50%;
-        border: 3px solid rgba(255,255,255,0.5);
+        border: 2px solid rgba(255,255,255,0.5);
         background: rgba(255,255,255,0.18);
         color: #fff;
-        font-size: 26px;
+        font-size: 20px;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(4px);
         -webkit-backdrop-filter: blur(4px);
@@ -1860,8 +1861,8 @@
       .mc-btn.mc-active { background: rgba(120,200,255,0.5); border-color: rgba(140,220,255,0.9); }
       .mc-btn-jump { border-color: rgba(100,200,100,0.7); }
       .mc-btn-crouch { border-color: rgba(200,200,100,0.7); }
-      .mc-btn-sprint { border-color: rgba(120,200,255,0.7); font-size: 30px; }
-      .mc-btn-inv { border-color: rgba(255,210,120,0.7); font-size: 18px; }
+      .mc-btn-sprint { border-color: rgba(120,200,255,0.7); font-size: 22px; }
+      .mc-btn-inv { border-color: rgba(255,210,120,0.7); font-size: 14px; }
       .mc-btn-place { border-color: rgba(100,150,255,0.5); }
 
       /* Extra action buttons row */
@@ -1871,12 +1872,12 @@
         pointer-events: auto;
       }
       .mc-btn-sm {
-        width: 44px; height: 44px;
+        width: 36px; height: 36px;
         border-radius: 50%;
         border: 2px solid rgba(255,255,255,0.3);
         background: rgba(0,0,0,0.4);
         color: #fff;
-        font-size: 18px;
+        font-size: 14px;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(2px);
         -webkit-backdrop-filter: blur(2px);
@@ -1885,7 +1886,7 @@
       .mc-btn-drop { border-color: rgba(255,100,100,0.5); color: #ff8888; }
       .mc-btn-swap { border-color: rgba(200,200,100,0.5); }
       .mc-btn-perspective { border-color: rgba(150,200,255,0.5); }
-      .mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-size: 20px; font-weight: bold; }
+      .mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-size: 16px; font-weight: bold; }
       .mc-btn-voice { border-color: rgba(100,255,100,0.5); color: #8f8; }
       .mc-btn-exit { border-color: rgba(255,100,100,0.5); color: #f88; }
 
@@ -1943,18 +1944,18 @@
         .settings-row select, .settings-row input[type=range] { width: 100px; }
       }
       @media (orientation: landscape) and (max-height: 480px) {
-        .mc-joystick-zone { width: 40%; height: 40%; }
-        .mc-joystick-base { width: 100px; height: 100px; border-width: 2px; }
-        .mc-joystick-knob { width: 46px; height: 46px; border-width: 2px; }
-        .mc-buttons { right: 16px; bottom: 60px; gap: 10px; }
-        .mc-btn { width: 56px; height: 56px; font-size: 20px; border-width: 2px; }
-        .mc-btn-sprint { font-size: 22px; }
-        .mc-btn-inv { font-size: 15px; }
-        .mc-toggle { right: 8px; top: 8px; width: 40px; height: 40px; font-size: 18px; }
-        .mc-action-panel { right: 8px; top: 54px; gap: 4px; }
+        .mc-joystick-zone { width: 35%; height: 40%; padding: 8px 6px; }
+        .mc-joystick-base { width: 90px; height: 90px; border-width: 2px; }
+        .mc-joystick-knob { width: 40px; height: 40px; border-width: 2px; }
+        .mc-buttons { right: 8px; bottom: 50px; gap: 6px; }
+        .mc-btn { width: 44px; height: 44px; font-size: 16px; border-width: 2px; }
+        .mc-btn-sprint { font-size: 18px; }
+        .mc-btn-inv { font-size: 12px; }
+        .mc-toggle { right: 6px; top: 6px; width: 34px; height: 34px; font-size: 16px; }
+        .mc-action-panel { right: 6px; top: 44px; gap: 3px; grid-template-columns: repeat(2, 36px); }
         .mc-action-panel .mc-btn,
-        .mc-action-panel .mc-btn-sm { width: 44px; height: 44px; font-size: 16px; }
-        .mc-btn-sm { width: 36px; height: 36px; font-size: 14px; }
+        .mc-action-panel .mc-btn-sm { width: 36px; height: 36px; font-size: 14px; }
+        .mc-btn-sm { width: 30px; height: 30px; font-size: 12px; }
       }
     </style>
     <style>
