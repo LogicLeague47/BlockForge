@@ -18,7 +18,8 @@
 
 import { TILES, tileNameFor } from './blocks.js';
 
-export const TILE = 32;       // pixels per tile
+export const TILE = 32;
+export const _TILES_VER = 3;       // pixels per tile
 const COLS = 16;              // tiles per row
 const ROWS = 16;
 const ATLAS = TILE * COLS;    // 512
