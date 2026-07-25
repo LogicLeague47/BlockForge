@@ -3255,8 +3255,8 @@ const LOADING_TIPS = [
 
 function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   isDevWorld = !!opts.dev;
-  // Tear down previous game
-  if (gameRunning) {
+  // Tear down previous game (always, even if gameRunning=false from menu nav)
+  if (manager || mobManager || playerModel || droppedItemManager || world) {
     const prevParkour = isParkour;
     isParkour = false;
     if (prevParkour) {
@@ -3272,8 +3272,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (playerModel) { playerModel.dispose(); playerModel = null; }
     if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
     if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
-      if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
-      if (voiceChat) { voiceChat.stop(); voiceChat = null; }
+    if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
+    if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
