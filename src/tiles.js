@@ -993,6 +993,7 @@ const PAINTERS = {
       const cy = (rng() * TILE) | 0;
       const r = 3 + (rng() * 3 | 0);
 _leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
+    }
 
     // Light highlights on top
     for (let i = 0; i < 3; i++) {
