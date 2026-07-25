@@ -339,44 +339,13 @@ const PAINTERS = {
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Minecraft oak leaves: dense canopy with tiny scattered gaps
-    // (~85-90% coverage, holes 1-2px, never big gaps).
-    const dark = [50, 105, 28];
-    const mid = [72, 140, 42];
-    const light = [98, 172, 60];
-
-    // Dense per-pixel base (full coverage, slight noise)
+    const base = [78, 148, 44];
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
-        const v = (rng() * 10 - 5) | 0;
-        ctx.fillStyle = `rgb(${clamp(mid[0] + v)},${clamp(mid[1] + v)},${clamp(mid[2] + v)})`;
+        const v = (rng() * 8 - 4) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
         ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
-    }
-
-    // Scatter small transparent holes (1-2px) — keeps gaps small
-    for (let i = 0; i < 50; i++) {
-      const x = (rng() * TILE) | 0;
-      const y = (rng() * TILE) | 0;
-      const w = rng() > 0.6 ? 2 : 1;
-      const h = rng() > 0.6 ? 2 : 1;
-      ctx.clearRect(x0 + x, y0 + y, w, h);
-    }
-
-    // Dark shadow patches (large overlapping blobs)
-    for (let i = 0; i < 6; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const r = 4 + (rng() * 5 | 0);
-      _leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
-    }
-
-    // Light highlight patches
-    for (let i = 0; i < 4; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const r = 2 + (rng() * 3 | 0);
-      _leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
     }
   },
 
@@ -968,37 +937,13 @@ const PAINTERS = {
   dark_leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Dark oak / spruce: same dense approach, darker cooler palette
-    const dark = [22, 48, 18];
-    const mid = [35, 70, 28];
-    const light = [52, 95, 40];
-
+    const base = [35, 68, 26];
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const v = (rng() * 8 - 4) | 0;
-        ctx.fillStyle = `rgb(${clamp(mid[0] + v)},${clamp(mid[1] + v)},${clamp(mid[2] + v)})`;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
         ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
-    }
-
-    for (let i = 0; i < 40; i++) {
-      const x = (rng() * TILE) | 0;
-      const y = (rng() * TILE) | 0;
-      ctx.clearRect(x0 + x, y0 + y, 1, 1);
-    }
-
-    for (let i = 0; i < 7; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const r = 4 + (rng() * 5 | 0);
-      _leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
-    }
-
-    for (let i = 0; i < 3; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const r = 2 + (rng() * 3 | 0);
-      _leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
     }
   },
 
