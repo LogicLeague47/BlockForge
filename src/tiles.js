@@ -109,8 +109,8 @@ function _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
       const dist = Math.sqrt(dx * dx + dy * dy);
       if (dist > size + 0.5) continue;
       if (dist > size - 0.5 && rng() > 0.4) continue;
-      const px = cx + dx, py = cy + dy;
-      if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
+      const px = ((cx + dx) % TILE + TILE) % TILE;
+      const py = ((cy + dy) % TILE + TILE) % TILE;
       if (ctx.getImageData(x0 + px, y0 + py, 1, 1).data[3] > 0) continue;
       const shade = greens[(rng() * greens.length) | 0];
       const v = (rng() * 14 - 7) | 0;
@@ -330,11 +330,11 @@ const PAINTERS = {
       [100, 175, 62],
     ];
 
-    const clumpCount = 8 + (rng() * 4) | 0;
+    const clumpCount = 10 + (rng() * 4) | 0;
     for (let i = 0; i < clumpCount; i++) {
-      const cx = (rng() * (TILE - 4) + 2) | 0;
-      const cy = (rng() * (TILE - 4) + 2) | 0;
-      const size = 1.5 + rng() * 2.0;
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const size = 2.0 + rng() * 2.5;
       _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
@@ -948,11 +948,11 @@ const PAINTERS = {
       [55, 90, 38],
     ];
 
-    const clumpCount = 10 + (rng() * 3) | 0;
+    const clumpCount = 12 + (rng() * 3) | 0;
     for (let i = 0; i < clumpCount; i++) {
-      const cx = (rng() * (TILE - 4) + 2) | 0;
-      const cy = (rng() * (TILE - 4) + 2) | 0;
-      const size = 1.8 + rng() * 2.2;
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const size = 2.2 + rng() * 2.8;
       _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
