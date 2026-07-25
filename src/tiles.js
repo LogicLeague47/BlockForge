@@ -358,7 +358,7 @@ const PAINTERS = {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 3 + (rng() * 3 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
+      _leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
     }
 
     // Light highlights on top
@@ -366,7 +366,7 @@ const PAINTERS = {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 2 + (rng() * 2 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
+      _leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
     }
 
     // Fill small single-pixel gaps so it's not too sparse
@@ -992,14 +992,14 @@ const PAINTERS = {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 3 + (rng() * 3 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
-    }
+_leafCluster(ctx, x0, y0, cx, cy, r, dark, rng);
 
+    // Light highlights on top
     for (let i = 0; i < 3; i++) {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 2 + (rng() * 2 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
+      _leafCluster(ctx, x0, y0, cx, cy, r, light, rng);
     }
 
     for (let y = 0; y < TILE; y++) {
