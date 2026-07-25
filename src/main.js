@@ -481,7 +481,7 @@ scene.add(crackPlane);
 function updateBreaking(progress, hit) {
   if (progress <= 0 || !hit) { crackPlane.visible = false; return; }
   crackPlane.visible = true;
-  drawCrack(crackCanvas, Math.min(10, Math.floor(progress * 10) + 1));
+  drawCrack(crackCanvas, Math.min(1, progress));
   crackTexture.needsUpdate = true;
   // Position crack flush on the face that was hit
   const nx = hit.normal.x, ny = hit.normal.y, nz = hit.normal.z;

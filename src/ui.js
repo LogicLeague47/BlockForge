@@ -40,29 +40,8 @@ const DRUM_PIXELS = [
   [0,0,0,1,0,0,0,0,0],
 ];
 
-const CRACK_STAGES = [
-  null,
-  // Stage 1: tiny hairline crack
-  [[7,3],[8,4],[7,5]],
-  // Stage 2: small crack
-  [[6,2],[7,3],[8,4],[7,5],[6,6]],
-  // Stage 3: branching
-  [[5,1],[6,2],[7,3],[8,4],[7,5],[6,6],[5,7],[9,3],[9,5]],
-  // Stage 4: more visible
-  [[4,0],[5,1],[6,2],[7,3],[8,4],[7,5],[6,6],[5,7],[4,8],[9,2],[10,4],[9,6]],
-  // Stage 5: wider cracks
-  [[3,0],[4,1],[5,2],[6,3],[7,4],[8,5],[7,6],[6,7],[5,8],[4,9],[10,1],[11,3],[10,5],[9,7],[8,8]],
-  // Stage 6: significant cracking
-  [[2,0],[3,1],[4,2],[5,3],[6,4],[7,5],[8,6],[7,7],[6,8],[5,9],[4,10],[3,11],[11,0],[12,2],[11,4],[10,6],[9,8],[8,10]],
-  // Stage 7: heavy cracking
-  [[1,0],[2,1],[3,2],[4,3],[5,4],[6,5],[7,6],[8,7],[7,8],[6,9],[5,10],[4,11],[3,12],[13,1],[12,3],[11,5],[10,7],[9,9],[8,11],[7,12]],
-  // Stage 8: severe
-  [[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[7,10],[6,11],[5,12],[4,13],[14,0],[13,2],[12,4],[11,6],[10,8],[9,10],[8,12]],
-  // Stage 9: nearly broken
-  [[0,2],[1,3],[2,4],[3,5],[4,6],[5,7],[6,8],[7,9],[8,10],[7,11],[6,12],[5,13],[15,1],[14,3],[13,5],[12,7],[11,9],[10,11],[9,13]],
-  // Stage 10: about to shatter
-  [[0,3],[1,4],[2,5],[3,6],[4,7],[5,8],[6,9],[7,10],[8,11],[7,12],[6,13],[5,14],[15,2],[14,4],[13,6],[12,8],[11,10],[10,12],[9,14],[4,2],[5,1],[10,1],[11,2],[3,9],[4,10],[11,12],[12,11]],
-];
+// Seed for deterministic crack generation — prevents frame-to-frame jitter.
+const _crackSeed = 42;
 
 // Cache canvases to avoid expensive toDataURL every frame
 const _heartCache = new Map();
@@ -1136,57 +1115,57 @@ function drawToolIcon(x, type, material) {
   }
 }
 
+function _crackHash(i) {
+  let h = _crackSeed + i * 374761393;
+  h = ((h ^ (h >> 13)) * 1274126177) & 0x7fffffff;
+  return (h >> 16) / 32768;
+}
+
 export function drawCrack(c, stage) {
   const ctx = c.getContext('2d');
   ctx.clearRect(0, 0, 64, 64);
-  if (!stage || stage < 1 || stage > 10) return;
-  const cracks = CRACK_STAGES[stage];
-  if (!cracks) return;
+  if (!stage || stage <= 0) return;
 
-  // Dark crack lines — get thicker as stage increases
-  const thickness = 1 + stage * 0.3;
-  const alpha = 0.6 + stage * 0.04;
+  // Stage 0-1 continuous — Minecraft uses 10 stages internally,
+  // but we smoothly interpolate for a fluid animation.
+  const s = Math.min(1, stage);
+  const numSegments = Math.floor(3 + s * 28);
+  const thickness = 1 + s * 3;
+  const alpha = Math.min(1, 0.3 + s * 0.6);
 
-  // Draw individual crack segments
   ctx.strokeStyle = `rgba(0,0,0,${alpha})`;
   ctx.lineWidth = thickness;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
 
-  // Connect points into crack lines
-  if (cracks.length > 1) {
-    ctx.beginPath();
-    ctx.moveTo(cracks[0][0] * 4, cracks[0][1] * 4);
-    for (let i = 1; i < cracks.length; i++) {
-      const [cx, cy] = cracks[i];
-      ctx.lineTo(cx * 4, cy * 4);
-    }
-    ctx.stroke();
-  }
+  // Generate crack segments deterministically — no frame jitter.
+  // Cracks radiate from the center area outward, creating a web.
+  const cx = 32, cy = 32;
+  for (let i = 0; i < numSegments; i++) {
+    const h0 = _crackHash(i * 5);
+    const h1 = _crackHash(i * 5 + 1);
+    const h2 = _crackHash(i * 5 + 2);
+    const h3 = _crackHash(i * 5 + 3);
+    const h4 = _crackHash(i * 5 + 4);
 
-  // Draw branch lines at intersections
-  ctx.lineWidth = thickness * 0.7;
-  for (let i = 0; i < cracks.length; i += 3) {
-    const [cx, cy] = cracks[i];
-    if (i + 1 < cracks.length) {
-      const [nx, ny] = cracks[i + 1];
-      ctx.beginPath();
-      ctx.moveTo(cx * 4, cy * 4);
-      ctx.lineTo(nx * 4 + (Math.random() - 0.5) * 6, ny * 4 + (Math.random() - 0.5) * 6);
-      ctx.stroke();
-    }
-  }
+    // Each crack starts at a random offset from center
+    const radius = h0 * 20;
+    const angle = h1 * Math.PI * 2;
+    const x1 = cx + Math.cos(angle) * radius;
+    const y1 = cy + Math.sin(angle) * radius;
 
-  // Dark center line (main crack vein)
-  if (stage >= 5) {
-    ctx.strokeStyle = `rgba(0,0,0,${alpha * 0.8})`;
-    ctx.lineWidth = thickness + 1;
+    // Extend outward
+    const len = 4 + s * 16 + h2 * 6;
+    const dir = angle + (h3 - 0.5) * 1.5;
+    const x2 = x1 + Math.cos(dir) * len;
+    const y2 = y1 + Math.sin(dir) * len;
+
     ctx.beginPath();
-    for (let i = 0; i < cracks.length; i += 2) {
-      const [cx, cy] = cracks[i];
-      if (i === 0) ctx.moveTo(cx * 4, cy * 4);
-      else ctx.lineTo(cx * 4, cy * 4);
-    }
+    ctx.moveTo(x1, y1);
+    // Slight wobble for organic look
+    const mx = (x1 + x2) / 2 + (h4 - 0.5) * 8;
+    const my = (y1 + y2) / 2 + (h3 - 0.5) * 8;
+    ctx.quadraticCurveTo(mx, my, x2, y2);
     ctx.stroke();
   }
 }
