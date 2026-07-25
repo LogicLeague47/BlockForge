@@ -106,7 +106,7 @@ export function deleteWorld(id, dev = false, parkour = false) {
     const list = getWorldList().filter(w => w.id !== id);
     saveWorldList(list);
   }
-  localStorage.removeItem('mc-clone-world-' + id);
+  try { localStorage.removeItem('mc-clone-world-' + id); } catch (_) {}
   sdkRemove('mc-clone-world-' + id);
 }
 
@@ -143,12 +143,12 @@ export function loadWorld(id) {
 }
 
 export function clearWorld(id) {
-  localStorage.removeItem(worldDataKey(id));
+  try { localStorage.removeItem(worldDataKey(id)); } catch (_) {}
   sdkRemove(worldDataKey(id));
 }
 
 export function hasSave(id) {
-  return !!localStorage.getItem(worldDataKey(id));
+  try { return !!localStorage.getItem(worldDataKey(id)); } catch { return false; }
 }
 
 // Legacy migration: move old single-world save to multi-world format
@@ -182,9 +182,11 @@ export function hasTutorialBeenSeen() {
 }
 
 export function markTutorialSeen() {
-  const key = _userPrefix() + 'tutorial';
-  localStorage.setItem(key, '1');
-  sdkSet(key, '1');
+  try {
+    const key = _userPrefix() + 'tutorial';
+    localStorage.setItem(key, '1');
+    sdkSet(key, '1');
+  } catch (_) {}
 }
 
 export async function syncTutorialFromSdk() {
@@ -219,9 +221,11 @@ export function loadMultiplayerInventory(roomId, playerName) {
 // --- Per-user data ---
 
 export function setUserSetting(key, value) {
-  const full = _userPrefix() + key;
-  localStorage.setItem(full, JSON.stringify(value));
-  sdkSet(full, JSON.stringify(value));
+  try {
+    const full = _userPrefix() + key;
+    localStorage.setItem(full, JSON.stringify(value));
+    sdkSet(full, JSON.stringify(value));
+  } catch (_) {}
 }
 
 export function getUserSetting(key, defaultValue) {
@@ -236,36 +240,41 @@ export function getUserSetting(key, defaultValue) {
 
 // Remove any old DevTest worlds that leaked into the singleplayer list
 export function cleanDevWorldsFromPlayerList() {
-  const list = getWorldList();
-  const devWorlds = list.filter(w => w.name && w.name.startsWith('DevTest_'));
-  if (devWorlds.length === 0) return;
-  const clean = list.filter(w => !w.name || !w.name.startsWith('DevTest_'));
-  saveWorldList(clean);
-  for (const w of devWorlds) {
-    localStorage.removeItem('mc-clone-world-' + w.id);
-  }
+  try {
+    const list = getWorldList();
+    const devWorlds = list.filter(w => w.name && w.name.startsWith('DevTest_'));
+    if (devWorlds.length === 0) return;
+    const clean = list.filter(w => !w.name || !w.name.startsWith('DevTest_'));
+    saveWorldList(clean);
+    for (const w of devWorlds) {
+      try { localStorage.removeItem('mc-clone-world-' + w.id); } catch (_) {}
+    }
+  } catch (_) {}
 }
 
 export function wipeCurrentUser() {
-  const prefix = _userPrefix();
-  const keys = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(prefix)) keys.push(k);
-  }
-  for (const k of keys) localStorage.removeItem(k);
-  // Also wipe skin data
-  localStorage.removeItem('blockforge_skin');
-  localStorage.removeItem('blockforge_custom_skin_data');
+  try {
+    const prefix = _userPrefix();
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) keys.push(k);
+    }
+    for (const k of keys) localStorage.removeItem(k);
+    localStorage.removeItem('blockforge_skin');
+    localStorage.removeItem('blockforge_custom_skin_data');
+  } catch (_) {}
 }
 
 // Get all per-user data keys for the current user
 export function listUserKeys() {
-  const prefix = _userPrefix();
-  const result = [];
-  for (let i = 0; i < localStorage.length; i++) {
-    const k = localStorage.key(i);
-    if (k && k.startsWith(prefix)) result.push(k.slice(prefix.length));
-  }
-  return result;
+  try {
+    const prefix = _userPrefix();
+    const result = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.startsWith(prefix)) result.push(k.slice(prefix.length));
+    }
+    return result;
+  } catch { return []; }
 }

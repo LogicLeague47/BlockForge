@@ -339,13 +339,12 @@ const PAINTERS = {
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Minecraft oak leaves: dense green with small scattered transparent
-    // holes and subtle darker/lighter patches. Matches the classic look.
-    const base = [78, 148, 44];
-    const dark = [55, 115, 32];
-    const light = [100, 175, 62];
+    // Minecraft oak leaves: ~#6ca84a base with small scattered transparent
+    // holes (~10-15%) and subtle darker/lighter organic patches.
+    const base = [100, 168, 60];
+    const dark = [68, 128, 40];
+    const light = [135, 196, 85];
 
-    // Per-pixel base with subtle noise
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const v = (rng() * 8 - 4) | 0;
@@ -354,28 +353,44 @@ const PAINTERS = {
       }
     }
 
-    // Dark patches — small 2-3px groups, scattered
-    for (let i = 0; i < 12; i++) {
-      const px = (rng() * (TILE - 3)) | 0;
-      const py = (rng() * (TILE - 3)) | 0;
-      const pw = 2 + (rng() * 2 | 0);
-      const ph = 2 + (rng() * 2 | 0);
-      const v = (rng() * 6 - 3) | 0;
-      ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
-      ctx.fillRect(x0 + px, y0 + py, pw, ph);
+    // Organic dark clusters (drawn via _leafCluster for natural circular patches)
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
 
-    // Light patches — small, scattered
+    // Light clusters
     for (let i = 0; i < 8; i++) {
-      const px = (rng() * (TILE - 2)) | 0;
-      const py = (rng() * (TILE - 2)) | 0;
-      const v = (rng() * 6 - 3) | 0;
-      ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
-      ctx.fillRect(x0 + px, y0 + py, 2, 2);
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
 
-    // Small scattered transparent holes — 1px each, ~20 of them
-    for (let i = 0; i < 20; i++) {
+    // Scattered transparent holes — ~12% of tile (125 out of 1024)
+    for (let i = 0; i < 125; i++) {
       ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
@@ -968,9 +983,9 @@ const PAINTERS = {
   dark_leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    const base = [35, 68, 26];
-    const dark = [22, 48, 18];
-    const light = [52, 95, 40];
+    const base = [48, 96, 30];
+    const dark = [32, 68, 20];
+    const light = [68, 128, 46];
 
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
@@ -980,23 +995,41 @@ const PAINTERS = {
       }
     }
 
-    for (let i = 0; i < 14; i++) {
-      const px = (rng() * (TILE - 3)) | 0;
-      const py = (rng() * (TILE - 3)) | 0;
-      const v = (rng() * 6 - 3) | 0;
-      ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
-      ctx.fillRect(x0 + px, y0 + py, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    for (let i = 0; i < 16; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
 
     for (let i = 0; i < 6; i++) {
-      const px = (rng() * (TILE - 2)) | 0;
-      const py = (rng() * (TILE - 2)) | 0;
-      const v = (rng() * 6 - 3) | 0;
-      ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
-      ctx.fillRect(x0 + px, y0 + py, 2, 2);
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
     }
 
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 100; i++) {
       ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
