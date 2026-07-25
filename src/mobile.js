@@ -56,13 +56,15 @@ export function initMobileControls(playerRef, input, callbacks) {
       <div class="mc-joystick-base"><div class="mc-joystick-knob"></div></div>
     </div>
     <div class="mc-camera-zone"></div>
-    <button class="mc-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
-    <div class="mc-action-panel">
+    <div class="mc-buttons">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
-      <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
       <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
       <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
       <button class="mc-btn mc-btn-inv" data-action="inventory">&#127890;</button>
+    </div>
+    <button class="mc-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
+    <div class="mc-action-panel">
+      <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
       <button class="mc-btn mc-btn-chat" data-action="chat">&#128172;</button>
       <button class="mc-btn mc-btn-menu" data-action="menu">&#9208;</button>
       <button class="mc-btn-sm mc-btn-drop" data-action="drop">&#10006;</button>
