@@ -458,6 +458,7 @@ let starField = null;
 
 // --- texture atlas ---
 const atlasCanvas = buildAtlas(1337);
+const _BF_VER = 'leaf-v2';
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
 atlasTexture.magFilter = THREE.NearestFilter;
 atlasTexture.minFilter = THREE.NearestFilter;
