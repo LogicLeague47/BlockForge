@@ -324,33 +324,38 @@ const PAINTERS = {
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    const greens = [
-      [58, 120, 32],
-      [72, 140, 42],
-      [88, 160, 52],
-      [100, 175, 62],
-    ];
+    const base = [78, 148, 44];
+    const mid = [60, 125, 35];
+    const dark = [40, 85, 22];
+    const light = [100, 175, 60];
 
-    const clumpCount = 10 + (rng() * 4) | 0;
-    for (let i = 0; i < clumpCount; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const size = 2.0 + rng() * 2.5;
-      _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
+    // Full solid base fill — no see-through gaps
+    noisy(ctx, x0, y0, base, 0.04, rng);
+
+    // Dense mid-tone patches (organic depth)
+    for (let i = 0; i < 30; i++) {
+      const x = (rng() * (TILE - 8)) | 0;
+      const y = (rng() * (TILE - 8)) | 0;
+      const w = 3 + (rng() * 6) | 0;
+      const h = 3 + (rng() * 6) | 0;
+      ctx.fillStyle = `rgba(${mid[0]},${mid[1]},${mid[2]},${0.3 + rng() * 0.35})`;
+      ctx.fillRect(x0 + x, y0 + y, w, h);
     }
 
+    // Dark shadow pockets
+    for (let i = 0; i < 16; i++) {
+      const x = (rng() * (TILE - 6)) | 0;
+      const y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = `rgba(${dark[0]},${dark[1]},${dark[2]},${0.3 + rng() * 0.3})`;
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 4 | 0), 2 + (rng() * 4 | 0));
+    }
+
+    // Bright highlights (sunlit top leaves)
     for (let i = 0; i < 12; i++) {
-      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(25,55,15,0.45)';
-      ctx.fillRect(x0 + sx, y0 + sy, 2, 2);
-    }
-
-    for (let i = 0; i < 8; i++) {
-      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(130,200,70,0.4)';
-      ctx.fillRect(x0 + sx, y0 + sy, 1, 1);
+      const x = (rng() * (TILE - 4)) | 0;
+      const y = (rng() * (TILE - 4)) | 0;
+      ctx.fillStyle = `rgba(${light[0]},${light[1]},${light[2]},${0.25 + rng() * 0.3})`;
+      ctx.fillRect(x0 + x, y0 + y, 1 + (rng() * 3 | 0), 1 + (rng() * 3 | 0));
     }
   },
 
@@ -942,33 +947,34 @@ const PAINTERS = {
   dark_leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    const greens = [
-      [28, 50, 20],
-      [35, 60, 25],
-      [45, 75, 32],
-      [55, 90, 38],
-    ];
+    const base = [38, 65, 26];
+    const mid = [30, 52, 20];
+    const dark = [18, 32, 12];
+    const light = [55, 90, 38];
 
-    const clumpCount = 12 + (rng() * 3) | 0;
-    for (let i = 0; i < clumpCount; i++) {
-      const cx = (rng() * TILE) | 0;
-      const cy = (rng() * TILE) | 0;
-      const size = 2.2 + rng() * 2.8;
-      _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
+    noisy(ctx, x0, y0, base, 0.05, rng);
+
+    for (let i = 0; i < 28; i++) {
+      const x = (rng() * (TILE - 8)) | 0;
+      const y = (rng() * (TILE - 8)) | 0;
+      const w = 3 + (rng() * 6) | 0;
+      const h = 3 + (rng() * 6) | 0;
+      ctx.fillStyle = `rgba(${mid[0]},${mid[1]},${mid[2]},${0.3 + rng() * 0.35})`;
+      ctx.fillRect(x0 + x, y0 + y, w, h);
     }
 
-    for (let i = 0; i < 10; i++) {
-      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(15,30,10,0.45)';
-      ctx.fillRect(x0 + sx, y0 + sy, 2, 2);
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * (TILE - 6)) | 0;
+      const y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = `rgba(${dark[0]},${dark[1]},${dark[2]},${0.3 + rng() * 0.3})`;
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 4 | 0), 2 + (rng() * 4 | 0));
     }
 
-    for (let i = 0; i < 6; i++) {
-      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(70,120,45,0.35)';
-      ctx.fillRect(x0 + sx, y0 + sy, 1, 1);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 4)) | 0;
+      const y = (rng() * (TILE - 4)) | 0;
+      ctx.fillStyle = `rgba(${light[0]},${light[1]},${light[2]},${0.25 + rng() * 0.3})`;
+      ctx.fillRect(x0 + x, y0 + y, 1 + (rng() * 3 | 0), 1 + (rng() * 3 | 0));
     }
   },
 
