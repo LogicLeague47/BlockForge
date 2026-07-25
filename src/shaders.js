@@ -248,11 +248,11 @@ export function createWaterMaterial(fogColor) {
 }
 
 export function createOceanWaterMaterial(fogColor) {
-  return _makeWaterMaterial(fogColor, 3.5);
+  return _makeWaterMaterial(fogColor, 2.0);
 }
 
 export function createRiverWaterMaterial(fogColor) {
-  return _makeWaterMaterial(fogColor, 0.4);
+  return _makeWaterMaterial(fogColor, 0.5);
 }
 
 import { setSunDirection } from './shadows.js';
@@ -266,13 +266,17 @@ function _syncWaterMat(mat, time, fogColor, fogNear, fogFar, sunDir) {
   mat.uniforms.sunDirection.value.copy(sunDir);
 }
 
-export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, fogColor, fogNear, fogFar, time }) {
+export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time }) {
   const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
   setSunDirection(sunDir);
 
+  const sunCol = sun.color.clone().multiplyScalar(sun.intensity);
+  const ambCol = ambient.color.clone().multiplyScalar(ambient.intensity);
+
   if (opaqueMat) {
     opaqueMat.uniforms.sunDirection.value.copy(sunDir);
-    opaqueMat.uniforms.sunColor.value.copy(sun.color);
+    opaqueMat.uniforms.sunColor.value.copy(sunCol);
+    opaqueMat.uniforms.ambientColor.value.copy(ambCol);
     opaqueMat.uniforms.fogColor.value.copy(fogColor);
     opaqueMat.uniforms.fogNear.value = fogNear;
     opaqueMat.uniforms.fogFar.value = fogFar;
@@ -280,7 +284,8 @@ export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWater
 
   if (transMat) {
     transMat.uniforms.sunDirection.value.copy(sunDir);
-    transMat.uniforms.sunColor.value.copy(sun.color);
+    transMat.uniforms.sunColor.value.copy(sunCol);
+    transMat.uniforms.ambientColor.value.copy(ambCol);
     transMat.uniforms.fogColor.value.copy(fogColor);
     transMat.uniforms.fogNear.value = fogNear;
     transMat.uniforms.fogFar.value = fogFar;

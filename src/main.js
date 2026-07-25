@@ -6083,7 +6083,7 @@ function loop() {
       waterMat: manager.waterMaterial,
       oceanWaterMat: manager.oceanWaterMaterial,
       riverWaterMat: manager.riverWaterMaterial,
-      sun,
+      sun, ambient,
       fogColor: scene.fog.color,
       fogNear: scene.fog.near,
       fogFar: scene.fog.far,

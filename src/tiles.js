@@ -303,49 +303,53 @@ const PAINTERS = {
     }
   },
 
-  leaves(ctx, x0, y0, rng) {
-    // Minecraft leaves: 32x32 with clear transparency holes.
-    // Pattern: ~50% filled pixels in a diagonal/checkerboard layout.
-    ctx.clearRect(x0, y0, TILE, TILE);
-
-    // Green palette (4 shades matching Minecraft oak leaves)
-    const greens = [
-      [58, 120, 32],   // dark
-      [72, 140, 42],   // mid
-      [88, 160, 52],   // bright
-      [100, 175, 62],  // highlight
-    ];
-
-    for (let py = 0; py < TILE; py++) {
-      for (let px = 0; px < TILE; px++) {
-        // Diagonal checkerboard: filled on one diagonal, gaps on the other
-        const diag = (px + py) % 2 === 0;
-        // Add some randomness to break the perfect checkerboard
-        const chance = diag ? 0.75 : 0.25;
-        if (rng() > chance) continue;
-
+  _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
+    for (let dy = -size; dy <= size; dy++) {
+      for (let dx = -size; dx <= size; dx++) {
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > size + 0.5) continue;
+        if (dist > size - 0.5 && rng() > 0.4) continue;
+        const px = cx + dx, py = cy + dy;
+        if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
+        if (ctx.getImageData(x0 + px, y0 + py, 1, 1).data[3] > 0) continue;
         const shade = greens[(rng() * greens.length) | 0];
-        // Slight per-pixel variance
-        const v = (rng() * 16 - 8) | 0;
+        const v = (rng() * 14 - 7) | 0;
         ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
         ctx.fillRect(x0 + px, y0 + py, 1, 1);
       }
     }
+  },
 
-    // A few darker shadow pixels for depth
-    for (let i = 0; i < 30; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(25,55,15,0.35)';
-      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+  leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+
+    const greens = [
+      [58, 120, 32],
+      [72, 140, 42],
+      [88, 160, 52],
+      [100, 175, 62],
+    ];
+
+    const clumpCount = 8 + (rng() * 4) | 0;
+    for (let i = 0; i < clumpCount; i++) {
+      const cx = (rng() * (TILE - 4) + 2) | 0;
+      const cy = (rng() * (TILE - 4) + 2) | 0;
+      const size = 1.5 + rng() * 2.0;
+      this._leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
-    // A few bright highlight pixels
-    for (let i = 0; i < 20; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+    for (let i = 0; i < 12; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(25,55,15,0.45)';
+      ctx.fillRect(x0 + sx, y0 + sy, 2, 2);
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
       ctx.fillStyle = 'rgba(130,200,70,0.4)';
-      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      ctx.fillRect(x0 + sx, y0 + sy, 1, 1);
     }
   },
 
@@ -935,41 +939,35 @@ const PAINTERS = {
   },
 
   dark_leaves(ctx, x0, y0, rng) {
-    // Dark oak leaves: same checkerboard pattern, darker palette.
     ctx.clearRect(x0, y0, TILE, TILE);
 
     const greens = [
-      [28, 50, 20],    // very dark
-      [35, 60, 25],    // dark
-      [45, 75, 32],    // mid
-      [55, 90, 38],    // lighter
+      [28, 50, 20],
+      [35, 60, 25],
+      [45, 75, 32],
+      [55, 90, 38],
     ];
 
-    for (let py = 0; py < TILE; py++) {
-      for (let px = 0; px < TILE; px++) {
-        const diag = (px + py) % 2 === 0;
-        const chance = diag ? 0.72 : 0.22;
-        if (rng() > chance) continue;
-
-        const shade = greens[(rng() * greens.length) | 0];
-        const v = (rng() * 12 - 6) | 0;
-        ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
-        ctx.fillRect(x0 + px, y0 + py, 1, 1);
-      }
+    const clumpCount = 10 + (rng() * 3) | 0;
+    for (let i = 0; i < clumpCount; i++) {
+      const cx = (rng() * (TILE - 4) + 2) | 0;
+      const cy = (rng() * (TILE - 4) + 2) | 0;
+      const size = 1.8 + rng() * 2.2;
+      this._leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
-    for (let i = 0; i < 25; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
-      ctx.fillStyle = 'rgba(15,30,10,0.35)';
-      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    for (let i = 0; i < 10; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
+      ctx.fillStyle = 'rgba(15,30,10,0.45)';
+      ctx.fillRect(x0 + sx, y0 + sy, 2, 2);
     }
 
-    for (let i = 0; i < 15; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      if (ctx.getImageData(x0 + x, y0 + y, 1, 1).data[3] === 0) continue;
+    for (let i = 0; i < 6; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      if (ctx.getImageData(x0 + sx, y0 + sy, 1, 1).data[3] === 0) continue;
       ctx.fillStyle = 'rgba(70,120,45,0.35)';
-      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      ctx.fillRect(x0 + sx, y0 + sy, 1, 1);
     }
   },
 

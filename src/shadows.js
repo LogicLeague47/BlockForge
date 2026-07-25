@@ -16,7 +16,7 @@ export function createShadowMesh(scene) {
     color: 0x000000,
     transparent: true,
     opacity: 0.35,
-    depthWrite: false,
+    depthWrite: true,
     depthTest: true,
   });
   const mesh = new THREE.Mesh(geo, mat);
