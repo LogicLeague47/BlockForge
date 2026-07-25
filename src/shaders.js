@@ -204,6 +204,25 @@ export function createOpaqueMaterial(atlasTexture) {
   });
 }
 
+export function createCutoutMaterial(atlasTexture) {
+  return new THREE.ShaderMaterial({
+    vertexShader: terrainVert,
+    fragmentShader: transFrag,
+    uniforms: {
+      atlas: { value: atlasTexture },
+      sunDirection: { value: new THREE.Vector3(0.4, 0.8, 0.3).normalize() },
+      sunColor: { value: new THREE.Color(1.0, 0.98, 0.92) },
+      ambientColor: { value: new THREE.Color(0.4, 0.45, 0.55) },
+      fogColor: { value: new THREE.Color(0x9ad0ff) },
+      fogNear: { value: 80.0 },
+      fogFar: { value: 144.0 },
+    },
+    alphaTest: 0.1,
+    depthWrite: true,
+    side: THREE.DoubleSide,
+  });
+}
+
 export function createTransparentMaterial(atlasTexture) {
   return new THREE.ShaderMaterial({
     vertexShader: terrainVert,
@@ -266,7 +285,7 @@ function _syncWaterMat(mat, time, fogColor, fogNear, fogFar, sunDir) {
   mat.uniforms.sunDirection.value.copy(sunDir);
 }
 
-export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time }) {
+export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time }) {
   const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
   setSunDirection(sunDir);
 
@@ -289,6 +308,15 @@ export function updateShaderUniforms({ opaqueMat, transMat, waterMat, oceanWater
     transMat.uniforms.fogColor.value.copy(fogColor);
     transMat.uniforms.fogNear.value = fogNear;
     transMat.uniforms.fogFar.value = fogFar;
+  }
+
+  if (cutoutMat) {
+    cutoutMat.uniforms.sunDirection.value.copy(sunDir);
+    cutoutMat.uniforms.sunColor.value.copy(sunCol);
+    cutoutMat.uniforms.ambientColor.value.copy(ambCol);
+    cutoutMat.uniforms.fogColor.value.copy(fogColor);
+    cutoutMat.uniforms.fogNear.value = fogNear;
+    cutoutMat.uniforms.fogFar.value = fogFar;
   }
 
   _syncWaterMat(waterMat, time, fogColor, fogNear, fogFar, sunDir);

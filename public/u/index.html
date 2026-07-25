@@ -394,7 +394,7 @@
     let bgTime = 0;
     function animate() {
       requestAnimationFrame(animate);
-      bgTime += 0.04;
+      bgTime += 0.012;
       const r = 36;
       camera.position.set(Math.cos(bgTime) * r, 26 + Math.sin(bgTime * 0.2) * 3, Math.sin(bgTime) * r);
       camera.lookAt(0, 10, 0);

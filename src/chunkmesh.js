@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { CHUNK_SIZE } from './world.js';
 import { buildChunkGeometry } from './mesher.js';
 import { BLOCK, BLOCKS } from './blocks.js';
-import { createOpaqueMaterial, createTransparentMaterial, createWaterMaterial, createOceanWaterMaterial, createRiverWaterMaterial } from './shaders.js';
+import { createOpaqueMaterial, createCutoutMaterial, createTransparentMaterial, createWaterMaterial, createOceanWaterMaterial, createRiverWaterMaterial } from './shaders.js';
 import { BIOMES } from './constants.js';
 
 export class ChunkMeshManager {
@@ -17,12 +17,13 @@ export class ChunkMeshManager {
 
     // Shared custom shader materials for all chunks
     this.opaqueMaterial = createOpaqueMaterial(atlasTexture);
+    this.cutoutMaterial = createCutoutMaterial(atlasTexture);
     this.transMaterial = createTransparentMaterial(atlasTexture);
     this.waterMaterial = createWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
     this.oceanWaterMaterial = createOceanWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
     this.riverWaterMaterial = createRiverWaterMaterial(fogColor || new THREE.Color(0x9ad0ff));
 
-    this.meshes = new Map(); // "cx,cz" -> { group, opaque, trans }
+    this.meshes = new Map(); // "cx,cz" -> { group, opaque, cutout, trans }
 
     // Dirty chunk queue: rebuilds are deferred and processed with a time budget
     this._dirtySet = new Set();
@@ -38,10 +39,11 @@ export class ChunkMeshManager {
     if (entry) {
       this.scene.remove(entry.group);
       entry.opaque.geometry.dispose();
+      if (entry.cutout) entry.cutout.geometry.dispose();
       if (entry.trans) entry.trans.geometry.dispose();
       if (entry.water) entry.water.geometry.dispose();
     }
-    const { opaque, trans, water } = buildChunkGeometry(chunk, this.world);
+    const { opaque, cutout, trans, water } = buildChunkGeometry(chunk, this.world);
 
     const og = new THREE.BufferGeometry();
     og.setAttribute('position', new THREE.BufferAttribute(opaque.position, 3));
@@ -57,6 +59,20 @@ export class ChunkMeshManager {
 
     const group = new THREE.Group();
     group.add(opaqueMesh);
+
+    let cutoutMesh = null;
+    if (cutout.position.length) {
+      const cg = new THREE.BufferGeometry();
+      cg.setAttribute('position', new THREE.BufferAttribute(cutout.position, 3));
+      cg.setAttribute('uv', new THREE.BufferAttribute(cutout.uv, 2));
+      cg.setAttribute('color', new THREE.BufferAttribute(cutout.color, 3));
+      cg.setAttribute('normal', new THREE.BufferAttribute(cutout.normal, 3));
+      if (cutout.index) cg.setIndex(new THREE.BufferAttribute(cutout.index, 1));
+      cutoutMesh = new THREE.Mesh(cg, this.cutoutMaterial);
+      cutoutMesh.castShadow = true;
+      cutoutMesh.receiveShadow = true;
+      group.add(cutoutMesh);
+    }
 
     let transMesh = null;
     if (trans.position.length) {
@@ -99,7 +115,7 @@ export class ChunkMeshManager {
     }
 
     this.scene.add(group);
-    this.meshes.set(k, { group, opaque: opaqueMesh, trans: transMesh, water: waterMesh });
+    this.meshes.set(k, { group, opaque: opaqueMesh, cutout: cutoutMesh, trans: transMesh, water: waterMesh });
   }
 
   // Immediate build — used by the loader for initial chunk generation only.
@@ -142,6 +158,7 @@ export class ChunkMeshManager {
     if (!entry) return;
     this.scene.remove(entry.group);
     entry.opaque.geometry.dispose();
+    if (entry.cutout) entry.cutout.geometry.dispose();
     if (entry.trans) entry.trans.geometry.dispose();
     if (entry.water) entry.water.geometry.dispose();
     this.meshes.delete(k);
@@ -151,6 +168,7 @@ export class ChunkMeshManager {
     for (const [k, entry] of this.meshes) {
       this.scene.remove(entry.group);
       entry.opaque.geometry.dispose();
+      if (entry.cutout) entry.cutout.geometry.dispose();
       if (entry.trans) entry.trans.geometry.dispose();
       if (entry.water) entry.water.geometry.dispose();
     }

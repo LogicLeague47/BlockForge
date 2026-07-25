@@ -169,6 +169,7 @@ export function buildChunkGeometry(chunk, world) {
   const baseZ = chunk.cz * CHUNK_SIZE;
 
   const opaque = { pos: [], uv: [], col: [], nor: [], idx: [] };
+  const cutout = { pos: [], uv: [], col: [], nor: [], idx: [] };
   const trans = { pos: [], uv: [], col: [], nor: [], idx: [] };
   const water = { pos: [], uv: [], col: [], nor: [], idx: [] };
 
@@ -200,7 +201,7 @@ export function buildChunkGeometry(chunk, world) {
 
         const wx = baseX + x, wz = baseZ + z;
         const isWater = def.liquid;
-        const target = isWater ? water : (def.transparent ? trans : opaque);
+        const target = isWater ? water : (def.cutout ? cutout : (def.transparent ? trans : opaque));
 
         if (def.plant) {
           pushPlant(target, wx, y, wz, b);
@@ -284,7 +285,7 @@ export function buildChunkGeometry(chunk, world) {
     }
   }
 
-  return { opaque: toGeometry(opaque), trans: toGeometry(trans), water: toGeometry(water) };
+  return { opaque: toGeometry(opaque), cutout: toGeometry(cutout), trans: toGeometry(trans), water: toGeometry(water) };
 }
 
 // Sample 3 neighbours per corner (side1, side2, corner) for ambient occlusion.

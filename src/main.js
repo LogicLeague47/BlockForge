@@ -381,7 +381,7 @@ sun.shadow.camera.left = -100;
 sun.shadow.camera.right = 100;
 sun.shadow.camera.top = 100;
 sun.shadow.camera.bottom = -100;
-sun.shadow.bias = -0.0005;
+    sun.shadow.bias = 0.002;
 sun.shadow.normalBias = 0.02;
 scene.add(sun);
 scene.add(sun.target);
@@ -5769,7 +5769,7 @@ function loop() {
 
   // damage sound + camera shake
   if (player.damageTimer > 0 && prevDamageTimer <= 0) {
-    audio.damage();
+    audio.playHurt();
     _cameraShakeIntensity = 0.15;
     const dmgOverlay = document.getElementById('damage-overlay');
     if (dmgOverlay) {
@@ -6089,6 +6089,7 @@ function loop() {
   if (manager) {
     updateShaderUniforms({
       opaqueMat: manager.opaqueMaterial,
+      cutoutMat: manager.cutoutMaterial,
       transMat: manager.transMaterial,
       waterMat: manager.waterMaterial,
       oceanWaterMat: manager.oceanWaterMaterial,

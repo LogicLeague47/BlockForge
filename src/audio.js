@@ -37,6 +37,7 @@ export class Audio {
     this._spiderBuffers = [];
     this._eatBuffers = [];
     this._placeBuffers = {};
+    this._hurtBuffers = [];
   }
 
   init() {
@@ -340,6 +341,23 @@ export class Audio {
     src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
     return true;
+  }
+
+  // ── PLAYER HURT SOUNDS ─────────────────────────────────────────────
+  // Procedural hurt sound: short grunt + impact thud.
+
+  playHurt() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      // Sharp impact crack
+      { noise: 'white', dur: 0.05, gain: 0.5, bp: 1500, bq: 1.2, atk: 0.001, rel: 0.06 },
+      // Deep thud body
+      { noise: 'brown', dur: 0.12, gain: 0.4, lp: 300, atk: 0.002, rel: 0.15 },
+      // Vocal grunt tone
+      { wave: 'sawtooth', freq: 150, dur: 0.08, gain: 0.2, atk: 0.001, rel: 0.08 },
+      // Low resonance
+      { wave: 'sine', freq: 80, dur: 0.1, gain: 0.25, atk: 0.003, rel: 0.12 },
+    ]);
   }
 
   // ── MUSIC SYSTEM ─────────────────────────────────────────────────────
