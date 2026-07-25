@@ -4335,22 +4335,24 @@ function initMenu() {
 
   // --- Feedback ---
   function renderFeedbackList() {
-    const list = document.getElementById('feedback-list');
-    const entries = JSON.parse(localStorage.getItem('bf_feedback') || '[]');
-    list.innerHTML = '';
-    if (entries.length === 0) {
-      list.innerHTML = '<div style="font:11px monospace;color:#666;text-align:center;padding:8px;">No submissions yet</div>';
-      return;
-    }
-    entries.slice().reverse().forEach(e => {
-      const div = document.createElement('div');
-      div.style.cssText = 'background:#0a1a2a;border:1px solid #345;border-radius:4px;padding:6px 8px;';
-      const icon = e.type === 'bug' ? '\u{1F41B}' : '\u{1F4A1}';
-      const label = e.type === 'bug' ? 'Bug' : 'Feature';
-      const color = e.type === 'bug' ? '#e88' : '#8cf';
-      div.innerHTML = `<div style="font:10px monospace;color:${color};margin-bottom:2px;">${icon} ${label} &mdash; ${e.date}</div><div style="font:11px monospace;color:#bbb;word-break:break-word;">${e.text.replace(/</g,'&lt;')}</div>`;
-      list.appendChild(div);
-    });
+    try {
+      const list = document.getElementById('feedback-list');
+      const entries = JSON.parse(localStorage.getItem('bf_feedback') || '[]');
+      list.innerHTML = '';
+      if (entries.length === 0) {
+        list.innerHTML = '<div style="font:11px monospace;color:#666;text-align:center;padding:8px;">No submissions yet</div>';
+        return;
+      }
+      entries.slice().reverse().forEach(e => {
+        const div = document.createElement('div');
+        div.style.cssText = 'background:#0a1a2a;border:1px solid #345;border-radius:4px;padding:6px 8px;';
+        const icon = e.type === 'bug' ? '\u{1F41B}' : '\u{1F4A1}';
+        const label = e.type === 'bug' ? 'Bug' : 'Feature';
+        const color = e.type === 'bug' ? '#e88' : '#8cf';
+        div.innerHTML = `<div style="font:10px monospace;color:${color};margin-bottom:2px;">${icon} ${label} &mdash; ${e.date}</div><div style="font:11px monospace;color:#bbb;word-break:break-word;">${e.text.replace(/</g,'&lt;')}</div>`;
+        list.appendChild(div);
+      });
+    } catch (_) {}
   }
   document.getElementById('btn-feedback').addEventListener('click', () => {
     ui.showMenu('feedback');
@@ -4364,15 +4366,16 @@ function initMenu() {
     const type = document.getElementById('feedback-type').value;
     const status = document.getElementById('feedback-status');
     if (!text) { status.textContent = 'Please enter some text'; status.style.color = '#e88'; return; }
-    const entries = JSON.parse(localStorage.getItem('bf_feedback') || '[]');
-    const date = new Date().toLocaleDateString();
-    entries.push({ type, text, date });
-    localStorage.setItem('bf_feedback', JSON.stringify(entries));
-    document.getElementById('feedback-text').value = '';
-    status.textContent = 'Submitted! Thank you.';
-    status.style.color = '#5a5';
-    renderFeedbackList();
-    setTimeout(() => { status.textContent = ''; }, 3000);
+    try {
+      const entries = JSON.parse(localStorage.getItem('bf_feedback') || '[]');
+      entries.push({ type, text, date: new Date().toLocaleDateString() });
+      localStorage.setItem('bf_feedback', JSON.stringify(entries));
+      document.getElementById('feedback-text').value = '';
+      status.textContent = 'Submitted! Thank you.';
+      status.style.color = '#5a5';
+      renderFeedbackList();
+      setTimeout(() => { status.textContent = ''; }, 3000);
+    } catch (_) { status.textContent = 'Failed to save feedback.'; status.style.color = '#e88'; }
   });
 
   // --- Tutorial ---
