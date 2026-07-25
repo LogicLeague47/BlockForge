@@ -4105,7 +4105,7 @@ function initMenu() {
     if (player) player.autoJump = e.target.value !== '0';
     try { localStorage.setItem('bf_autojump', e.target.value); } catch (_) {}
   });
-  document.getElementById('set-volume')?.addEventListener('change', (e) => {
+  document.getElementById('set-volume')?.addEventListener('input', (e) => {
     const vol = Math.max(0, Math.min(100, parseInt(e.target.value) || 50)) / 100;
     if (audio && audio.master) audio.master.gain.value = vol;
     try { localStorage.setItem('bf_volume', e.target.value); } catch (_) {}
