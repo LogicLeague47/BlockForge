@@ -121,6 +121,21 @@ function _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
   }
 }
 
+function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      if (dist > radius - 1.2 && rng() > 0.45) continue;
+      const px = ((cx + dx) % TILE + TILE) % TILE;
+      const py = ((cy + dy) % TILE + TILE) % TILE;
+      const v = (rng() * 10 - 5) | 0;
+      ctx.fillStyle = `rgb(${clamp(color[0] + v)},${clamp(color[1] + v)},${clamp(color[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, 1, 1);
+    }
+  }
+}
+
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
     // Meadow-green base with natural variation (Minecraft uses ~95,159,53).
@@ -321,21 +336,6 @@ const PAINTERS = {
     }
   },
 
-  _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
-    for (let dy = -radius; dy <= radius; dy++) {
-      for (let dx = -radius; dx <= radius; dx++) {
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > radius) continue;
-        if (dist > radius - 1.2 && rng() > 0.45) continue;
-        const px = ((cx + dx) % TILE + TILE) % TILE;
-        const py = ((cy + dy) % TILE + TILE) % TILE;
-        const v = (rng() * 10 - 5) | 0;
-        ctx.fillStyle = `rgb(${clamp(color[0] + v)},${clamp(color[1] + v)},${clamp(color[2] + v)})`;
-        ctx.fillRect(x0 + px, y0 + py, 1, 1);
-      }
-    }
-  },
-
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
@@ -350,7 +350,7 @@ const PAINTERS = {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 4 + (rng() * 4 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, mid, rng);
+      _leafCluster(ctx, x0, y0, cx, cy, r, mid, rng);
     }
 
     // Dark clusters for depth/shadow
@@ -985,7 +985,7 @@ const PAINTERS = {
       const cx = (rng() * TILE) | 0;
       const cy = (rng() * TILE) | 0;
       const r = 4 + (rng() * 4 | 0);
-      this._leafCluster(ctx, x0, y0, cx, cy, r, mid, rng);
+      _leafCluster(ctx, x0, y0, cx, cy, r, mid, rng);
     }
 
     for (let i = 0; i < 5; i++) {
