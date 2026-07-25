@@ -103,6 +103,23 @@ function speckle(ctx, x0, y0, rng, count, colors, w = 1, h = 1) {
 }
 
 // --- individual tile painters ------------------------------------------------
+function _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
+  for (let dy = -size; dy <= size; dy++) {
+    for (let dx = -size; dx <= size; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > size + 0.5) continue;
+      if (dist > size - 0.5 && rng() > 0.4) continue;
+      const px = cx + dx, py = cy + dy;
+      if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
+      if (ctx.getImageData(x0 + px, y0 + py, 1, 1).data[3] > 0) continue;
+      const shade = greens[(rng() * greens.length) | 0];
+      const v = (rng() * 14 - 7) | 0;
+      ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
+      ctx.fillRect(x0 + px, y0 + py, 1, 1);
+    }
+  }
+}
+
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
     // Meadow-green base with natural variation (Minecraft uses ~95,159,53).
@@ -303,23 +320,6 @@ const PAINTERS = {
     }
   },
 
-  _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
-    for (let dy = -size; dy <= size; dy++) {
-      for (let dx = -size; dx <= size; dx++) {
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > size + 0.5) continue;
-        if (dist > size - 0.5 && rng() > 0.4) continue;
-        const px = cx + dx, py = cy + dy;
-        if (px < 0 || px >= TILE || py < 0 || py >= TILE) continue;
-        if (ctx.getImageData(x0 + px, y0 + py, 1, 1).data[3] > 0) continue;
-        const shade = greens[(rng() * greens.length) | 0];
-        const v = (rng() * 14 - 7) | 0;
-        ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
-        ctx.fillRect(x0 + px, y0 + py, 1, 1);
-      }
-    }
-  },
-
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
@@ -335,7 +335,7 @@ const PAINTERS = {
       const cx = (rng() * (TILE - 4) + 2) | 0;
       const cy = (rng() * (TILE - 4) + 2) | 0;
       const size = 1.5 + rng() * 2.0;
-      this._leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
+      _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
     for (let i = 0; i < 12; i++) {
@@ -953,7 +953,7 @@ const PAINTERS = {
       const cx = (rng() * (TILE - 4) + 2) | 0;
       const cy = (rng() * (TILE - 4) + 2) | 0;
       const size = 1.8 + rng() * 2.2;
-      this._leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
+      _leafClump(ctx, x0, y0, cx, cy, size, greens, rng);
     }
 
     for (let i = 0; i < 10; i++) {

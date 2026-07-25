@@ -47,7 +47,9 @@
             col: String(col || ''),
             stack: stack || ''
           });
+          var fullError = (type || 'Error') + ': ' + (msg || '') + '\nFile: ' + (file || '') + '\nLine: ' + line + ', Col: ' + col + '\n\nStack:\n' + (stack || '');
           banner.innerHTML = '<span style="flex:1;">&#9888; ' + shortMsg.replace(/</g,'&lt;') + '</span>' +
+            '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(fullError) + ')" style="background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;padding:2px 8px;cursor:pointer;font:12px monospace;margin-right:4px;">Copy</button>' +
             '<a href="debug.html?' + params.toString() + '" target="_blank" style="color:#fff;text-decoration:underline;white-space:nowrap;">View Debug Report</a>' +
             '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;padding:2px 8px;cursor:pointer;font:12px monospace;">Dismiss</button>';
           document.body.appendChild(banner);
