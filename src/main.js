@@ -12,6 +12,7 @@ import { Audio } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
+import { updateShaderUniforms } from './shaders.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
@@ -3295,7 +3296,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour });
   const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
-  manager = new ChunkMeshManager(scene, world, atlasTexture);
+  manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
   loader = new ChunkLoader(world, manager, renderDist);
   explosionManager = new ExplosionManager(scene, world, audio);
   mobManager = new MobManager(scene, world, audio, explosionManager);
@@ -5894,6 +5895,7 @@ function loop() {
   }
 
   loader.update(player.position.x, player.position.z);
+  manager.update();
 
   // Spawn mobs for newly generated chunks (throttled to once per second)
   if (mobManager) {
@@ -6072,6 +6074,20 @@ function loop() {
     const p = player.position;
     sun.target.position.set(p.x, 0, p.z);
     sun.target.updateMatrixWorld();
+  }
+
+  // Sync custom shader uniforms every frame
+  if (manager) {
+    updateShaderUniforms({
+      opaqueMat: manager.opaqueMaterial,
+      transMat: manager.transMaterial,
+      waterMat: manager.waterMaterial,
+      sun,
+      fogColor: scene.fog.color,
+      fogNear: scene.fog.near,
+      fogFar: scene.fog.far,
+      time: performance.now() / 1000,
+    });
   }
 
   // Render scene
