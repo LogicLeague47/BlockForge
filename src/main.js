@@ -833,7 +833,7 @@ document.addEventListener('pointerlockchange', () => {
 // Voice panel toggle — lock/unlock pointer
 window.addEventListener('voice-panel-toggle', (e) => {
   if (e.detail && e.detail.open) {
-    if (document.pointerLockElement) document.exitPointerLock();
+    if (document.pointerLockElement) document.exitPointerLock?.();
   } else {
     // Re-lock if game is still running and no other UI is open
     if (gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
@@ -929,7 +929,7 @@ document.addEventListener('mousemove', (e) => {
     } else {
       ui.openInventory(player.inventory, 2, player.isCreative());
       achievements.incrementStat('inventoryOpened');
-      document.exitPointerLock();
+      document.exitPointerLock?.();
     }
     return;
   }
@@ -1245,14 +1245,14 @@ document.addEventListener('mousedown', (e) => {
     if (hit && hit.block === BLOCK.CRAFTING) {
       ui.openInventory(player.inventory, 3, false);
       achievements.incrementStat('inventoryOpened');
-      document.exitPointerLock();
+      document.exitPointerLock?.();
     } else if (hit && hit.block === BLOCK.FURNACE) {
       ui.openFurnace(player.inventory);
-      document.exitPointerLock();
+      document.exitPointerLock?.();
     } else if (hit && hit.block === BLOCK.CHEST) {
       const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
       ui.openChest(slots, player.inventory, hit.x, hit.y, hit.z);
-      document.exitPointerLock();
+      document.exitPointerLock?.();
     } else if (hit && (hit.block === BLOCK.BED || hit.block === BLOCK.BED_FOOT)) {
       trySleep();
     } else if (hit && (hit.block === BLOCK.OAK_DOOR || hit.block === BLOCK.IRON_DOOR)) {
@@ -1902,7 +1902,7 @@ function trySleep() {
   sleepPhase = 1;
   sleepTimer = 0;
   sleepOverlay.style.opacity = 0;
-  document.exitPointerLock();
+  document.exitPointerLock?.();
 }
 
 function showSleepMessage(text) {
@@ -1934,7 +1934,7 @@ function showOfferBanner() {
   // Store the item to give
   banner._offerItemId = itemId;
   // Hide pointer lock so keys work
-  document.exitPointerLock();
+  document.exitPointerLock?.();
 }
 
 function hideOfferBanner() {
@@ -2018,7 +2018,7 @@ function openChat(prefix) {
   if (inp) { inp.value = prefix || ''; inp.focus(); }
   // Release pointer lock so WASD/camera controls stop
   if (document.pointerLockElement) {
-    document.exitPointerLock();
+    document.exitPointerLock?.();
   }
   // Clear all held keys so player stops moving
   for (const k in input.keys) input.keys[k] = false;
@@ -2921,7 +2921,7 @@ window._exitParkourToMinigames = () => {
 function showTutorial() {
   const overlay = document.getElementById('tutorial-overlay');
   if (overlay) overlay.style.display = 'flex';
-  document.exitPointerLock();
+  document.exitPointerLock?.();
 }
 
 function closeTutorial() {
@@ -6236,7 +6236,7 @@ function loop() {
   // Death detection
   if (player.isDead() && !ui.isOverlayShown()) {
     ui.showMenu('death');
-    document.exitPointerLock();
+    document.exitPointerLock?.();
     // Populate death stats
     const ds = document.getElementById('death-stats');
     if (ds) {
