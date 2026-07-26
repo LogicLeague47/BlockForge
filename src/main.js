@@ -2214,11 +2214,26 @@ function submitChat() {
         '/time <day|noon|night|midnight>',
         '/difficulty <peaceful|easy|normal|hard>',
         '/weather <clear|rain|thunder>',
-        '/spawn <type> — Spawn mob',
         '/heal — Restore health',
         '/kill — Die',
-        '/help — Show this help',
       ];
+      if (isDevWorld) {
+        cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager>`);
+        cmds.push(`/village|house|blacksmith|well|farm|lamp|tower|desert_temple|jungle_temple — Spawn structure`);
+      }
+      if (inMultiplayer) {
+        cmds.push(
+          '/pm <player> <message>',
+          '/staff <player> — Promote to staff',
+          '/admin <player> — Promote to admin',
+          '/deop <player> — Demote to player',
+          '/kick <player> — Kick a player',
+          '/ban <player> [reason]',
+          '/unban <player>',
+          '/list — List online players',
+        );
+      }
+      cmds.push('/help — Show this help');
       addChatLine(cmds.join('\n'), '#5f5');
       return;
     }

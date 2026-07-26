@@ -2757,7 +2757,7 @@ export class MobManager {
 
       // Ray-AABB intersection test
       let tmin = -Infinity, tmax = Infinity;
-      const ox = playerPos.x, oy = playerPos.y + 1.62, oz = playerPos.z;
+      const ox = playerPos.x, oy = playerPos.y, oz = playerPos.z;
       const dx = lookDir.x, dy = lookDir.y, dz = lookDir.z;
 
       if (dx !== 0) {

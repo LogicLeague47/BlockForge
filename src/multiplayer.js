@@ -319,15 +319,16 @@ export function executeCommand(input, playerName, server) {
     }
     case 'help': {
       const cmds = [
-        '/staff <player> — Promote to staff',
-        '/admin <player> — Promote to admin',
-        '/deop <player> — Demote to player',
-        '/kick <player> — Kick a player',
-        '/ban <player> [reason] — Ban a player',
-        '/unban <player> — Unban a player',
+        '/help — Show this help',
         '/list — List online players',
+        '/pm <player> <message> — Private message',
         '/gamemode <creative|survival> — Change gamemode (admin)',
-        '/help — Show this help'
+        '/staff <player> — Promote to staff (admin)',
+        '/admin <player> — Promote to admin (owner)',
+        '/deop <player> — Demote to player (admin)',
+        '/kick <player> — Kick a player (staff)',
+        '/ban <player> [reason] — Ban a player (staff)',
+        '/unban <player> — Unban a player (admin)',
       ];
       return { ok: true, msg: cmds.join('\n') };
     }
