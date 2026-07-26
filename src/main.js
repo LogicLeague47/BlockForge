@@ -384,13 +384,14 @@ sun.castShadow = true;
 sun.shadow.mapSize.width = 4096;
 sun.shadow.mapSize.height = 4096;
 sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = 250;
-sun.shadow.camera.left = -40;
-sun.shadow.camera.right = 40;
-sun.shadow.camera.top = 40;
-sun.shadow.camera.bottom = -40;
+sun.shadow.camera.far = 700;
+sun.shadow.camera.left = -50;
+sun.shadow.camera.right = 50;
+sun.shadow.camera.top = 50;
+sun.shadow.camera.bottom = -50;
 sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
+sun.shadow.camera.updateProjectionMatrix();
 scene.add(sun);
 scene.add(sun.target);
 const ambient = new THREE.AmbientLight(0x667799, 0.15);
@@ -3193,7 +3194,9 @@ function updateSky(dt) {
     else if (camera) starField.position.copy(camera.position);
   }
 
-  sun.position.set(Math.cos(angle) * 500, Math.sin(angle) * 500, 0);
+  const sunBaseX = player ? player.position.x : 0;
+  const sunBaseZ = player ? player.position.z : 0;
+  sun.position.set(Math.cos(angle) * 500 + sunBaseX, Math.sin(angle) * 500, Math.sin(angle * 0.7) * 200 + sunBaseZ);
   sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0;
   ambient.intensity = 0.08 + Math.max(0, sinA) * 0.35;
   hemi.intensity = 0.04 + Math.max(0, sinA) * 0.15;
@@ -3219,7 +3222,7 @@ function updateSky(dt) {
     hemi.intensity = 0.02;
   }
   sunMesh.position.copy(sun.position);
-  moonMesh.position.set(-sun.position.x, -sun.position.y, -sun.position.z);
+  moonMesh.position.set(-Math.cos(angle) * 500 + sunBaseX, -Math.sin(angle) * 500, -Math.sin(angle * 0.7) * 200 + sunBaseZ);
 }
 
 // =========================================================
@@ -6122,6 +6125,7 @@ function loop() {
       fogNear: scene.fog.near,
       fogFar: scene.fog.far,
       time: performance.now() / 1000,
+      renderer,
     });
   }
 

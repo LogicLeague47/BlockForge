@@ -15,12 +15,14 @@ const terrainVert = /* glsl */ `
   attribute vec3 color;
 
   uniform vec3 sunDirection;
+  uniform mat4 shadowMatrix;
 
   varying vec2 vUv;
   varying vec3 vColor;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
   varying float vFogDepth;
+  varying vec4 vShadowCoord;
 
   void main() {
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
@@ -28,6 +30,7 @@ const terrainVert = /* glsl */ `
     vUv = uv;
     vColor = color;
     vNormal = normal;
+    vShadowCoord = shadowMatrix * worldPos;
 
     vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
     vFogDepth = -mvPos.z;
@@ -46,15 +49,33 @@ const fragHelpers = /* glsl */ `
   uniform vec3 fogColor;
   uniform float fogNear;
   uniform float fogFar;
+  uniform sampler2D shadowMap;
 
   varying vec2 vUv;
   varying vec3 vColor;
   varying vec3 vNormal;
   varying vec3 vWorldPos;
   varying float vFogDepth;
+  varying vec4 vShadowCoord;
 
   float lambert(vec3 n, vec3 l) {
     return max(dot(n, l), 0.0);
+  }
+
+  float getShadow() {
+    vec3 sc = vShadowCoord.xyz / vShadowCoord.w;
+    sc = sc * 0.5 + 0.5;
+    if (sc.z > 1.0 || sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0) return 1.0;
+    float shadow = 0.0;
+    vec2 texelSize = vec2(1.0 / 4096.0);
+    float bias = 0.0005;
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        float pcfDepth = texture2D(shadowMap, sc.xy + vec2(float(x), float(y)) * texelSize).r;
+        shadow += sc.z - bias > pcfDepth ? 0.3 : 1.0;
+      }
+    }
+    return shadow / 9.0;
   }
 `;
 
@@ -76,6 +97,10 @@ const opaqueFrag = /* glsl */ `
 
     // Lighting: ambient floor + diffuse + hemisphere
     float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
+
+    // Apply shadow
+    float shadow = getShadow();
+    lighting *= shadow;
 
     // Vertex color carries AO and biome tint
     vec3 baseColor = tex.rgb * vColor;
@@ -106,6 +131,9 @@ const transFrag = /* glsl */ `
     float hemi = normal.y * 0.5 + 0.5;
 
     float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
+
+    float shadow = getShadow();
+    lighting *= shadow;
 
     vec3 baseColor = tex.rgb * vColor;
     vec3 finalColor = baseColor * (sunColor * lighting + ambientColor * 0.25);
@@ -199,6 +227,8 @@ export function createOpaqueMaterial(atlasTexture) {
       fogColor: { value: new THREE.Color(0x9ad0ff) },
       fogNear: { value: 80.0 },
       fogFar: { value: 144.0 },
+      shadowMatrix: { value: new THREE.Matrix4() },
+      shadowMap: { value: null },
     },
     side: THREE.FrontSide,
   });
@@ -216,6 +246,8 @@ export function createCutoutMaterial(atlasTexture) {
       fogColor: { value: new THREE.Color(0x9ad0ff) },
       fogNear: { value: 80.0 },
       fogFar: { value: 144.0 },
+      shadowMatrix: { value: new THREE.Matrix4() },
+      shadowMap: { value: null },
     },
     alphaTest: 0.1,
     depthWrite: true,
@@ -235,6 +267,8 @@ export function createTransparentMaterial(atlasTexture) {
       fogColor: { value: new THREE.Color(0x9ad0ff) },
       fogNear: { value: 80.0 },
       fogFar: { value: 144.0 },
+      shadowMatrix: { value: new THREE.Matrix4() },
+      shadowMap: { value: null },
     },
     transparent: true,
     depthWrite: false,
@@ -285,39 +319,31 @@ function _syncWaterMat(mat, time, fogColor, fogNear, fogFar, sunDir) {
   mat.uniforms.sunDirection.value.copy(sunDir);
 }
 
-export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time }) {
+export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time, renderer }) {
   const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
   setSunDirection(sunDir);
 
   const sunCol = sun.color.clone().multiplyScalar(sun.intensity);
   const ambCol = ambient.color.clone().multiplyScalar(ambient.intensity);
 
-  if (opaqueMat) {
-    opaqueMat.uniforms.sunDirection.value.copy(sunDir);
-    opaqueMat.uniforms.sunColor.value.copy(sunCol);
-    opaqueMat.uniforms.ambientColor.value.copy(ambCol);
-    opaqueMat.uniforms.fogColor.value.copy(fogColor);
-    opaqueMat.uniforms.fogNear.value = fogNear;
-    opaqueMat.uniforms.fogFar.value = fogFar;
+  const shadowMat = sun.shadow.matrix;
+  const shadowTex = sun.shadow.map ? sun.shadow.map.texture : null;
+
+  function _applyTerrain(m) {
+    if (!m) return;
+    m.uniforms.sunDirection.value.copy(sunDir);
+    m.uniforms.sunColor.value.copy(sunCol);
+    m.uniforms.ambientColor.value.copy(ambCol);
+    m.uniforms.fogColor.value.copy(fogColor);
+    m.uniforms.fogNear.value = fogNear;
+    m.uniforms.fogFar.value = fogFar;
+    m.uniforms.shadowMatrix.value.copy(shadowMat);
+    if (shadowTex) m.uniforms.shadowMap.value = shadowTex;
   }
 
-  if (transMat) {
-    transMat.uniforms.sunDirection.value.copy(sunDir);
-    transMat.uniforms.sunColor.value.copy(sunCol);
-    transMat.uniforms.ambientColor.value.copy(ambCol);
-    transMat.uniforms.fogColor.value.copy(fogColor);
-    transMat.uniforms.fogNear.value = fogNear;
-    transMat.uniforms.fogFar.value = fogFar;
-  }
-
-  if (cutoutMat) {
-    cutoutMat.uniforms.sunDirection.value.copy(sunDir);
-    cutoutMat.uniforms.sunColor.value.copy(sunCol);
-    cutoutMat.uniforms.ambientColor.value.copy(ambCol);
-    cutoutMat.uniforms.fogColor.value.copy(fogColor);
-    cutoutMat.uniforms.fogNear.value = fogNear;
-    cutoutMat.uniforms.fogFar.value = fogFar;
-  }
+  _applyTerrain(opaqueMat);
+  _applyTerrain(transMat);
+  _applyTerrain(cutoutMat);
 
   _syncWaterMat(waterMat, time, fogColor, fogNear, fogFar, sunDir);
   _syncWaterMat(oceanWaterMat, time, fogColor, fogNear, fogFar, sunDir);
