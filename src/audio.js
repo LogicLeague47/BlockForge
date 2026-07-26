@@ -31,13 +31,10 @@ export class Audio {
     this._musicElement = null;
     this._musicStarted = false;
     this._stepBuffers = {};
-    this._digBuffers = {};
     this._zombieBuffers = [];
     this._skeletonBuffers = [];
     this._spiderBuffers = [];
     this._eatBuffers = [];
-    this._placeBuffers = {};
-    this._hurtBuffers = [];
   }
 
   init() {
@@ -70,8 +67,6 @@ export class Audio {
     if (this._sfxLoaded) return;
     this._sfxLoaded = true;
     this._loadStepBuffers();
-    this._loadDigBuffers();
-    this._loadPlaceBuffers();
     this._loadZombieBuffers();
     this._loadSkeletonBuffers();
     this._loadSpiderBuffers();
@@ -121,90 +116,6 @@ export class Audio {
     g.connect(this.master);
     src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
-  }
-
-  // ── DIG SOUND BUFFERS ──────────────────────────────────────────────
-  // Real recorded breaking/digging sounds from CC0 sources.
-  // Maps material → array of AudioBuffers.
-
-  _loadDigBuffers() {
-    this._digBuffers = {};
-    const matFiles = {
-      stone: ['/Sounds/dig/break1.wav', '/Sounds/dig/break2.wav', '/Sounds/dig/break3.wav'],
-      dirt: ['/Sounds/dig/break2.wav', '/Sounds/dig/break3.wav'],
-      sand: ['/Sounds/dig/break1.wav'],
-      wood: ['/Sounds/dig/break1.wav', '/Sounds/dig/break2.wav'],
-      leaves: ['/Sounds/dig/break3.wav'],
-    };
-    for (const [mat, files] of Object.entries(matFiles)) {
-      this._digBuffers[mat] = [];
-      for (const f of files) {
-        fetch(assetUrl(f)).then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-          this._digBuffers[mat].push(buf);
-        }).catch(e => console.warn('[Audio] load failed:', e));
-      }
-    }
-  }
-
-  _playDigBuffer(mat) {
-    if (!this.ctx || !this.enabled) return false;
-    const bufs = this._digBuffers[mat];
-    if (!bufs || bufs.length === 0) return false;
-    const buf = bufs[(Math.random() * bufs.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 1.0;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── PLACE SOUND BUFFERS ────────────────────────────────────────────
-  // Block placing sounds: drop/break WAVs.
-
-  _loadPlaceBuffers() {
-    this._placeBuffers = {};
-    const matFiles = {
-      general: ['/Sounds/place/drop1.wav', '/Sounds/place/drop2.wav', '/Sounds/place/drop3.wav'],
-      stone: ['/Sounds/place/punch1.wav', '/Sounds/place/punch2.wav'],
-      wood: ['/Sounds/place/drop4.wav', '/Sounds/place/drop5.wav'],
-      dirt: ['/Sounds/place/drop2.wav', '/Sounds/place/drop3.wav'],
-      sand: ['/Sounds/place/drop1.wav'],
-      glass: ['/Sounds/place/drop4.wav'],
-    };
-    for (const [mat, files] of Object.entries(matFiles)) {
-      this._placeBuffers[mat] = [];
-      for (const f of files) {
-        fetch(assetUrl(f)).then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-          this._placeBuffers[mat].push(buf);
-        }).catch(e => console.warn('[Audio] load failed:', e));
-      }
-    }
-  }
-
-  _playPlaceBuffer(mat) {
-    if (!this.ctx || !this.enabled) return false;
-    const bufs = this._placeBuffers[mat] || this._placeBuffers.general;
-    if (!bufs || bufs.length === 0) return false;
-    const buf = bufs[(Math.random() * bufs.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 0.9;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
   }
 
   // ── ZOMBIE SOUND BUFFERS ──────────────────────────────────────────
@@ -559,7 +470,6 @@ export class Audio {
 
   // STONE: Hard, sharp crunch — heavy impact with gravel scatter
   _stone_dig() {
-    if (this._playDigBuffer('stone')) return;
     this._playLayers([
       // deep impact thud
       { noise: 'brown', dur: 0.22, gain: 0.6, lp: 350, lq: 0.8, atk: 0.005, rel: 0.4 },
@@ -584,7 +494,6 @@ export class Audio {
   }
 
   _stone_place() {
-    if (this._playPlaceBuffer('stone')) return;
     this._playLayers([
       { noise: 'brown', dur: 0.15, gain: 0.45, lp: 300, atk: 0.005, rel: 0.3 },
       { noise: 'white', dur: 0.08, gain: 0.3, bp: 1500, bq: 2, atk: 0.003, rel: 0.2 },
@@ -594,7 +503,6 @@ export class Audio {
 
   // DIRT: Soft, muffled, earthy — low thud with damp grain
   _dirt_dig() {
-    if (this._playDigBuffer('dirt')) return;
     this._playLayers([
       // deep muffled thud
       { noise: 'brown', dur: 0.18, gain: 0.5, lp: 200, lq: 0.6, atk: 0.008, rel: 0.35 },
@@ -617,7 +525,6 @@ export class Audio {
   }
 
   _dirt_place() {
-    if (this._playPlaceBuffer('dirt')) return;
     this._playLayers([
       { noise: 'brown', dur: 0.12, gain: 0.4, lp: 220, atk: 0.008, rel: 0.3 },
       { noise: 'pink', dur: 0.08, gain: 0.2, lp: 500, atk: 0.005, rel: 0.25 },
@@ -626,7 +533,6 @@ export class Audio {
 
   // WOOD: Hollow, resonant, warm — snap with body
   _wood_dig() {
-    if (this._playDigBuffer('wood')) return;
     this._playLayers([
       // wooden snap
       { noise: 'white', dur: 0.08, gain: 0.45, bp: 900, bq: 2.5, atk: 0.002, rel: 0.15 },
@@ -651,7 +557,6 @@ export class Audio {
   }
 
   _wood_place() {
-    if (this._playPlaceBuffer('wood')) return;
     this._playLayers([
       { noise: 'white', dur: 0.06, gain: 0.35, bp: 900, bq: 2.5, atk: 0.002, rel: 0.12 },
       { wave: 'sine', freq: 300, dur: 0.1, gain: 0.15, atk: 0.003, rel: 0.25 },
@@ -661,7 +566,6 @@ export class Audio {
 
   // LEAVES: Light, airy, wispy — delicate rustle
   _leaves_dig() {
-    if (this._playDigBuffer('leaves')) return;
     this._playLayers([
       // airy rustle
       { noise: 'white', dur: 0.12, gain: 0.25, hp: 4000, hq: 0.4, atk: 0.005, rel: 0.2 },
@@ -684,7 +588,6 @@ export class Audio {
   }
 
   _leaves_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.06, gain: 0.15, hp: 4500, atk: 0.005, rel: 0.15 },
       { noise: 'pink', dur: 0.04, gain: 0.08, bp: 3000, bq: 0.6, atk: 0.008, rel: 0.2 },
@@ -693,7 +596,6 @@ export class Audio {
 
   // SAND: Granular, gritty, loose — hiss with fine scatter
   _sand_dig() {
-    if (this._playDigBuffer('sand')) return;
     this._playLayers([
       // main hiss
       { noise: 'white', dur: 0.18, gain: 0.4, bp: 4000, bq: 0.7, atk: 0.003, rel: 0.2 },
@@ -716,7 +618,6 @@ export class Audio {
   }
 
   _sand_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.1, gain: 0.3, bp: 3800, bq: 0.7, atk: 0.003, rel: 0.18 },
       { noise: 'brown', dur: 0.06, gain: 0.12, lp: 450, atk: 0.008, rel: 0.2 },
@@ -725,7 +626,6 @@ export class Audio {
 
   // GLASS: Sharp, brittle, tinkling — high crackle
   _glass_dig() {
-    if (this._playDigBuffer('glass')) return;
     this._playLayers([
       // sharp shatter
       { noise: 'white', dur: 0.06, gain: 0.5, hp: 6000, hq: 1.5, atk: 0.001, rel: 0.1 },
@@ -739,7 +639,6 @@ export class Audio {
   }
 
   _glass_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.04, gain: 0.35, hp: 5000, hq: 2, atk: 0.001, rel: 0.08 },
       { wave: 'sine', freq: 1600, dur: 0.05, gain: 0.15, atk: 0.001, rel: 0.06 },
@@ -755,7 +654,6 @@ export class Audio {
 
   // SNOW: Soft powdery crunch — light, airy, compressed
   _snow_dig() {
-    if (this._playDigBuffer('snow')) return;
     this._playLayers([
       // powdery crunch
       { noise: 'white', dur: 0.15, gain: 0.3, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.2 },
@@ -778,7 +676,6 @@ export class Audio {
   }
 
   _snow_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.08, gain: 0.2, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
       { noise: 'pink', dur: 0.06, gain: 0.1, bp: 1600, bq: 0.5, atk: 0.008, rel: 0.18 },
@@ -787,7 +684,6 @@ export class Audio {
 
   // GRAVEL: Loose rocky tumbling crunch — deeper than sand, more granular
   _gravel_dig() {
-    if (this._playDigBuffer('gravel')) return;
     this._playLayers([
       // rocky tumble
       { noise: 'white', dur: 0.2, gain: 0.45, bp: 2500, bq: 0.8, atk: 0.002, rel: 0.2 },
@@ -810,7 +706,6 @@ export class Audio {
   }
 
   _gravel_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.12, gain: 0.35, bp: 2300, bq: 0.8, atk: 0.003, rel: 0.18 },
       { noise: 'brown', dur: 0.08, gain: 0.2, lp: 650, atk: 0.005, rel: 0.2 },
@@ -819,7 +714,6 @@ export class Audio {
 
   // METAL: Sharp metallic clank — bright, resonant ping
   _metal_dig() {
-    if (this._playDigBuffer('metal')) return;
     this._playLayers([
       // metallic ring
       { wave: 'square', freq: 1200, dur: 0.12, gain: 0.35, atk: 0.001, rel: 0.15 },
@@ -844,7 +738,6 @@ export class Audio {
   }
 
   _metal_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { wave: 'square', freq: 1100, dur: 0.08, gain: 0.3, atk: 0.001, rel: 0.1 },
       { noise: 'white', dur: 0.04, gain: 0.25, hp: 3200, hq: 2, atk: 0.001, rel: 0.08 },
@@ -854,7 +747,6 @@ export class Audio {
 
   // BRIMSTONE: Hot, crackling stone — fire undertone
   _brimstone_dig() {
-    if (this._playDigBuffer('brimstone')) return;
     this._playLayers([
       // hot stone crack
       { noise: 'white', dur: 0.1, gain: 0.4, bp: 1800, bq: 1.5, atk: 0.002, rel: 0.15 },
@@ -873,7 +765,6 @@ export class Audio {
   }
 
   _brimstone_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.08, gain: 0.3, bp: 1700, bq: 1.5, atk: 0.002, rel: 0.12 },
       { noise: 'brown', dur: 0.1, gain: 0.2, lp: 420, atk: 0.005, rel: 0.2 },
@@ -882,7 +773,6 @@ export class Audio {
 
   // PLANT: Soft organic rustle — hay, flowers, leaves-adjacent
   _plant_dig() {
-    if (this._playDigBuffer('plant')) return;
     this._playLayers([
       // soft rustle
       { noise: 'white', dur: 0.1, gain: 0.2, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.18 },
@@ -903,7 +793,6 @@ export class Audio {
   }
 
   _plant_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'white', dur: 0.05, gain: 0.15, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
       { noise: 'pink', dur: 0.04, gain: 0.08, bp: 2100, bq: 0.5, atk: 0.008, rel: 0.18 },
@@ -912,7 +801,6 @@ export class Audio {
 
   // LIQUID: Bubbling, gurgling — for lava
   _liquid_dig() {
-    if (this._playDigBuffer('liquid')) return;
     this._playLayers([
       // thick bubble pop
       { noise: 'brown', dur: 0.2, gain: 0.4, bp: 400, bq: 2, atk: 0.003, rel: 0.25 },
@@ -935,7 +823,6 @@ export class Audio {
   }
 
   _liquid_place() {
-    if (this._playPlaceBuffer('general')) return;
     this._playLayers([
       { noise: 'brown', dur: 0.12, gain: 0.3, bp: 450, bq: 2, atk: 0.003, rel: 0.2 },
       { wave: 'sine', freq: 190, dur: 0.1, gain: 0.15, atk: 0.005, rel: 0.15 },

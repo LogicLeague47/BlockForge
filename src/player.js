@@ -600,7 +600,7 @@ export class Player {
             if (delta < 0) {
               // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
               const landBlock = this.world.getBlock(Math.floor(this.position.x), y, Math.floor(this.position.z));
-              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK) {
+              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && landBlock !== BLOCK.WATER) {
                 const fallDistance = this.fallStartY - this.position.y;
                 if (fallDistance > 3) {
                   const damage = Math.floor(fallDistance - 3);

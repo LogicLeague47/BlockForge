@@ -389,8 +389,8 @@ const PAINTERS = {
       }
     }
 
-    // Scattered transparent holes — ~2% of tile (20 out of 1024)
-    for (let i = 0; i < 20; i++) {
+    // Scattered transparent holes — ~3.5% of tile (35 out of 1024)
+    for (let i = 0; i < 35; i++) {
       ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
@@ -1029,7 +1029,7 @@ const PAINTERS = {
       }
     }
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 25; i++) {
       ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
     }
   },
