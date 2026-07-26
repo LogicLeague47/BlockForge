@@ -817,7 +817,8 @@ export class Audio {
     if (!this.ctx || !this.enabled) return;
     const dur = 0.2 + Math.random() * 0.15;
     const ctx = this.ctx;
-    for (let i = 0; i < 2 + (Math.random() * 2) | 0; i++) {
+    const pigSnorts = 2 + ((Math.random() * 2) | 0);
+    for (let i = 0; i < pigSnorts; i++) {
       const t = ctx.currentTime + i * 0.08;
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
