@@ -326,6 +326,7 @@ export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat,
   const sunCol = sun.color.clone().multiplyScalar(sun.intensity);
   const ambCol = ambient.color.clone().multiplyScalar(ambient.intensity);
 
+  sun.shadow.updateMatrices(sun);
   const shadowMat = sun.shadow.matrix;
   const shadowTex = sun.shadow.map ? sun.shadow.map.texture : null;
 
