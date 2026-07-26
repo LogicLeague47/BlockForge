@@ -413,6 +413,7 @@ export class Player {
       this.velocity.y -= SWIM_GRAVITY * dt;
       this.velocity.y = Math.max(this.velocity.y, -3);
       if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
+      this.fallStartY = -1;
     } else {
       this.velocity.y -= GRAVITY * dt;
       if (input.keys[kb.jump] && this.onGround) {
@@ -600,7 +601,7 @@ export class Player {
             if (delta < 0) {
               // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
               const landBlock = this.world.getBlock(Math.floor(this.position.x), y, Math.floor(this.position.z));
-              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && landBlock !== BLOCK.WATER) {
+              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && !this.inWater) {
                 const fallDistance = this.fallStartY - this.position.y;
                 if (fallDistance > 3) {
                   const damage = Math.floor(fallDistance - 3);

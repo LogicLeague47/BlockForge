@@ -1,6 +1,7 @@
 // Sound effects + music player via the Web Audio API.
 // Block sounds loaded from CC0 Kenney impact sounds (public/Sounds/).
-// Mob, eating, weather, and ambient sounds are procedural.
+// Mob sounds loaded from CC0 creature sounds (public/Sounds/).
+// Eating, weather, and ambient sounds are procedural.
 
 import { assetBase } from './config.js';
 function assetUrl(p) { return assetBase() + String(p).replace(/^\//, ''); }
@@ -61,6 +62,21 @@ export class Audio {
       'sand_dig1','sand_dig2','sand_dig3',
       'sand_step1',
       'leaves_dig1','leaves_dig2',
+      'player_hurt1','player_hurt2',
+      'zombie_groan1','zombie_groan2','zombie_groan3','zombie_groan4',
+      'zombie_hurt1','zombie_hurt2',
+      'skeleton_bone1','skeleton_bone2','skeleton_bone3',
+      'skeleton_hurt1','skeleton_hurt2',
+      'spider_hiss1','spider_hiss2','spider_hiss3',
+      'spider_hurt1','spider_attack1','spider_attack2',
+      'slime1','slime2','slime3',
+      'slime_hurt1','slime_hurt2',
+      'cow1','cow2',
+      'pig1','pig2',
+      'sheep1','sheep2',
+      'chicken1','chicken2',
+      'creature_hurt1','creature_hurt2','creature_hurt3',
+      'monster1','monster2','monster3',
     ];
     for (const name of names) {
       try {
@@ -85,6 +101,10 @@ export class Audio {
     g.connect(this.master);
     src.onended = () => { try { g.disconnect(); } catch (_) {} };
     src.start();
+  }
+
+  _bufs(...names) {
+    return names.map(n => this._buffers[n]).filter(Boolean);
   }
 
   loadSfx() {}
@@ -856,6 +876,8 @@ export class Audio {
 
   playHurt() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('player_hurt1', 'player_hurt2');
+    if (bufs.length) { this._playBuf(bufs, 0.5, 0.15); return; }
     this._playLayers([
       { noise: 'white', dur: 0.05, gain: 0.5, bp: 1500, bq: 1.2, atk: 0.001, rel: 0.06 },
       { noise: 'brown', dur: 0.12, gain: 0.4, lp: 300, atk: 0.002, rel: 0.15 },
@@ -868,6 +890,8 @@ export class Audio {
 
   cowSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('cow1', 'cow2');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
     const dur = 0.5 + Math.random() * 0.3;
     const ctx = this.ctx;
     const buf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -890,6 +914,8 @@ export class Audio {
 
   pigSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('pig1', 'pig2');
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
     const dur = 0.2 + Math.random() * 0.15;
     const ctx = this.ctx;
     const pigSnorts = 2 + ((Math.random() * 2) | 0);
@@ -917,6 +943,8 @@ export class Audio {
 
   sheepSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('sheep1', 'sheep2');
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
     const dur = 0.3 + Math.random() * 0.2;
     const ctx = this.ctx;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -941,6 +969,8 @@ export class Audio {
 
   hurtAnimal() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('creature_hurt1', 'creature_hurt2', 'creature_hurt3');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
     const ctx = this.ctx;
     const dur = 0.15;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -954,6 +984,8 @@ export class Audio {
 
   hurtCow() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('cow1', 'cow2');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
     const ctx = this.ctx;
     const dur = 0.25;
     const buf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -975,6 +1007,8 @@ export class Audio {
 
   hurtPig() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('pig1', 'pig2');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
     const ctx = this.ctx;
     const dur = 0.18;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -996,6 +1030,8 @@ export class Audio {
 
   hurtSheep() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('sheep1', 'sheep2');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
     const ctx = this.ctx;
     const dur = 0.22;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1018,6 +1054,8 @@ export class Audio {
 
   hurtChicken() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('chicken1', 'chicken2');
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.2); return; }
     const ctx = this.ctx;
     const dur = 0.12;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1031,6 +1069,8 @@ export class Audio {
 
   hurtZombie() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('zombie_hurt1', 'zombie_hurt2', 'monster1');
+    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
     const ctx = this.ctx;
     const dur = 0.25;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1044,6 +1084,8 @@ export class Audio {
 
   hurtSkeleton() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('skeleton_hurt1', 'skeleton_hurt2', 'creature_hurt1');
+    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
     const ctx = this.ctx;
     const dur = 0.18;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1057,6 +1099,8 @@ export class Audio {
 
   hurtSpider() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('spider_hurt1', 'bug_04');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
     const ctx = this.ctx;
     const dur = 0.15;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1070,6 +1114,8 @@ export class Audio {
 
   hurtSlime() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('slime_hurt1', 'slime_hurt2', 'slime3');
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.15); return; }
     const ctx = this.ctx;
     const dur = 0.2;
     const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
@@ -1085,6 +1131,8 @@ export class Audio {
 
   zombieSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('zombie_groan1', 'zombie_groan2', 'zombie_groan3', 'zombie_groan4', 'monster2', 'monster3');
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
     const ctx = this.ctx;
     // Low groan: filtered noise + low sine
     const dur = 0.6;
@@ -1108,6 +1156,8 @@ export class Audio {
 
   skeletonSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('skeleton_bone1', 'skeleton_bone2', 'skeleton_bone3');
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
     const ctx = this.ctx;
     // Bone rattle: short noise bursts
     const dur = 0.3;
@@ -1127,6 +1177,8 @@ export class Audio {
 
   spiderSound() {
     if (!this.ctx || !this.enabled) return;
+    const bufs = this._bufs('spider_hiss1', 'spider_hiss2', 'spider_hiss3');
+    if (bufs.length) { this._playBuf(bufs, 0.25, 0.2); return; }
     const ctx = this.ctx;
     // Hiss: high-pass noise
     const dur = 0.4;

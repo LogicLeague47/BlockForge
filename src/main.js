@@ -181,6 +181,17 @@ menuBgScene.fog = new THREE.Fog(0x87ceeb, 20, 55);
 menuBgScene.background = new THREE.Color(0x78b9e8);
 const menuBgSun = new THREE.DirectionalLight(0xfff8e7, 1.6);
 menuBgSun.position.set(40, 80, 30);
+menuBgSun.castShadow = true;
+menuBgSun.shadow.mapSize.width = 2048;
+menuBgSun.shadow.mapSize.height = 2048;
+menuBgSun.shadow.camera.near = 0.5;
+menuBgSun.shadow.camera.far = 200;
+menuBgSun.shadow.camera.left = -40;
+menuBgSun.shadow.camera.right = 40;
+menuBgSun.shadow.camera.top = 40;
+menuBgSun.shadow.camera.bottom = -40;
+menuBgSun.shadow.bias = -0.001;
+menuBgSun.shadow.camera.updateProjectionMatrix();
 menuBgScene.add(menuBgSun);
 menuBgScene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
 menuBgScene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
@@ -358,6 +369,7 @@ function buildMenuBackground() {
       mesh.setMatrixAt(idx++, dummy.matrix);
     }
     mesh.instanceMatrix.needsUpdate = true;
+    mesh.receiveShadow = true;
     menuBgScene.add(mesh);
   }
   // Build water as a single flat plane (no grid lines)
@@ -371,6 +383,9 @@ function buildMenuBackground() {
     waterMesh.position.set(0, SEA + 0.01, 0);
     menuBgScene.add(waterMesh);
   }
+
+  menuBgScene.add(menuBgSun.target);
+  menuBgSun.target.position.set(0, 0, 0);
 
   menuBgCamera.position.set(0, 22, 32);
   menuBgCamera.lookAt(0, 8, 0);
@@ -2772,13 +2787,7 @@ function setupNetworkHandlers() {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
         setTimeout(() => {
-          if (window._autoLoggingIn) {
-            window._autoLoggingIn = false;
-            ui.showMenu('main');
-          } else {
-            try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
-            window.location.href = 'u/?user=' + encodeURIComponent(playerName);
-          }
+          ui.showMenu('main');
         }, 600);
       }
     } else {
@@ -3533,6 +3542,23 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
       if (isParkour) showMinigames();
       else showWorldList();
+    },
+    onF3() {
+      if (!gameRunning) return;
+      const dbg = document.getElementById('debug-overlay');
+      if (dbg) dbg.style.display = dbg.style.display === 'none' ? '' : 'none';
+    },
+    onDoubleTap() {
+      if (!gameRunning) return;
+      // Double-tap to equip: swap current hotbar item with offhand
+      const sel = player.inventory.selected;
+      const curSlot = player.inventory.slots[sel];
+      const offhand = player.inventory.offhand;
+      if (curSlot || offhand) {
+        player.inventory.slots[sel] = offhand || null;
+        player.inventory.offhand = curSlot || null;
+        syncUIMode();
+      }
     },
   });
   if (saved?.player) {

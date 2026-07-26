@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
-import { createShadowMesh, updateShadow, removeShadowMesh } from './shadows.js';
+// Blob shadows removed — real shadow map shadows used instead
 
 function hexToRgb(hex) {
   return [(hex >> 16) & 255, (hex >> 8) & 255, hex & 255];
@@ -252,7 +252,9 @@ class Mob {
     this._fuseSwell = 0; // body swell during fuse
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
-    this._shadowMesh = this._scene ? createShadowMesh(this._scene) : null;
+    this.mesh.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
 
     // Cache all materials for fast hurt/flash (avoids mesh.traverse)
     this._allMats = [];
@@ -2021,9 +2023,6 @@ class Mob {
     this.mesh.position.set(this.position.x, this.position.y, this.position.z);
     this.mesh.rotation.y = this.yaw;
 
-    // Update shadow
-    updateShadow(this._shadowMesh, this.position, this.position.y, 0.5);
-
     // Leg walking animation
     const isMoving = (this.state === 'walking' || this.state === 'fleeing') && (Math.abs(this.velocity.x) > 0.01 || Math.abs(this.velocity.z) > 0.01);
     const moveSpeed = isMoving ? Math.sqrt(this.velocity.x * this.velocity.x + this.velocity.z * this.velocity.z) : 0;
@@ -2236,8 +2235,6 @@ class Mob {
   }
 
   dispose() {
-    removeShadowMesh(this._scene, this._shadowMesh);
-    this._shadowMesh = null;
     this.mesh.traverse((child) => {
       if (child.isMesh) {
         child.geometry.dispose();
@@ -2622,9 +2619,8 @@ export class MobManager {
       }
     }
 
-    // Update remote mob shadows
+    // Remote mob shadows handled by shadow map
     for (const [, mob] of this._remoteMobs) {
-      updateShadow(mob._shadowMesh, mob.position, mob.position.y, 0.5);
     }
 
     // Process explosions

@@ -3,7 +3,7 @@ import { isBlockItem, isTool, itemDef } from './items.js';
 import { TOOL_PALETTES, makeItemIconCanvas } from './ui.js';
 import { TILES, tileNameFor } from './blocks.js';
 import { PlayerAnimData, calculatePose } from './animations.js';
-import { createShadowMesh, updateShadow, removeShadowMesh } from './shadows.js';
+// Blob shadows removed — real shadow map shadows used instead
 
 const SCALE = 1 / 16;
 function px(v) { return v * SCALE; }
@@ -271,8 +271,10 @@ export class PlayerModel {
     this.animData = new PlayerAnimData();
 
     this.skin = createSkinCanvas(preset);
-    this._shadowMesh = createShadowMesh(scene);
     this._buildBody();
+    this.group.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
   }
 
   _buildBody() {
@@ -551,7 +553,7 @@ export class PlayerModel {
     this.leftLegPivot.rotation.x = pose.leftLegRotX;
     this.rightLegPivot.rotation.x = pose.rightLegRotX;
 
-    updateShadow(this._shadowMesh, playerPos, playerPos.y, 0.45);
+    // Shadow map handles shadows — no blob shadow needed
   }
 
   // Trigger hurt tilt animation (called when player takes damage)
@@ -665,8 +667,6 @@ export class PlayerModel {
   }
 
   dispose() {
-    removeShadowMesh(this.scene, this._shadowMesh);
-    this._shadowMesh = null;
     this.scene.remove(this.group);
     this.group.traverse((o) => {
       if (o.geometry) o.geometry.dispose();

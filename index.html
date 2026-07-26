@@ -1751,7 +1751,7 @@
         font: 10px monospace; color: #666;
       }
 
-      /* ── Mobile touch controls (MultiCraft-style) ── */
+      /* ── Mobile touch controls (Bedrock-style) ── */
       #mobile-controls {
         display: none;
         position: fixed; inset: 0;
@@ -1761,134 +1761,117 @@
       }
       #mobile-controls * { touch-action: none; user-select: none; -webkit-user-select: none; }
 
-      /* Joystick zone — left 40% of screen, pushed to edge */
+      /* Joystick zone — bottom-left */
       .mc-joystick-zone {
         position: absolute; left: 0; bottom: 0;
-        width: 40%; height: 50%;
-        pointer-events: auto;
-        z-index: 2;
+        width: 38%; height: 45%;
+        pointer-events: auto; z-index: 2;
         display: flex; align-items: flex-end; justify-content: flex-start;
-        padding: 12px 8px;
+        padding: 10px 6px;
       }
       .mc-joystick-base {
-        width: 130px; height: 130px;
+        width: 110px; height: 110px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.1);
-        border: 3px solid rgba(255,255,255,0.28);
+        background: rgba(255,255,255,0.08);
+        border: 2px solid rgba(255,255,255,0.25);
         position: relative;
         display: flex; align-items: center; justify-content: center;
       }
       .mc-joystick-knob {
-        width: 54px; height: 54px;
+        width: 46px; height: 46px;
         border-radius: 50%;
-        background: rgba(255,255,255,0.3);
-        border: 3px solid rgba(255,255,255,0.5);
+        background: rgba(255,255,255,0.28);
+        border: 2px solid rgba(255,255,255,0.45);
         transition: transform 0.05s ease-out;
       }
 
-      /* Camera / break zone — full screen (look + tap-to-break) */
+      /* Camera zone — full screen (behind everything) */
       .mc-camera-zone {
         position: absolute; inset: 0;
-        pointer-events: auto;
-        z-index: 1;
+        pointer-events: auto; z-index: 1;
       }
 
-      /* Collapsible action panel — gear toggle reveals secondary actions */
+      /* Jump button — bottom-right, big */
+      .mc-main-btns {
+        position: absolute; right: 16px; bottom: 16px;
+        pointer-events: auto; z-index: 4;
+      }
+      .mc-btn {
+        width: 62px; height: 62px;
+        border-radius: 50%;
+        border: 2px solid rgba(100,200,100,0.7);
+        background: rgba(255,255,255,0.15);
+        color: #fff; font-size: 22px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        transition: background 0.1s, transform 0.1s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      .mc-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
+
+      /* Side buttons — sprint, crouch, inventory — between joystick and jump */
+      .mc-side-btns {
+        position: absolute; left: 50%; bottom: 16px;
+        transform: translateX(-50%);
+        display: flex; gap: 10px;
+        pointer-events: auto; z-index: 4;
+      }
+      .mc-btn-mid {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.35);
+        background: rgba(0,0,0,0.4);
+        color: #fff; font-size: 16px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        transition: background 0.1s, transform 0.1s;
+      }
+      .mc-btn-mid:active { background: rgba(255,255,255,0.35); transform: scale(0.9); }
+      .mc-btn-mid.mc-active { background: rgba(120,200,255,0.5); border-color: rgba(140,220,255,0.9); }
+      .mc-btn-sprint { border-color: rgba(120,200,255,0.6); }
+      .mc-btn-crouch { border-color: rgba(200,200,100,0.6); }
+      .mc-btn-inv { border-color: rgba(255,210,120,0.6); font-size: 14px; }
+
+      /* Gear toggle — top-right */
       .mc-toggle {
         position: absolute; right: 8px; top: 8px;
-        width: 40px; height: 40px; border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.35);
-        background: rgba(0,0,0,0.45); color: #fff; font-size: 18px;
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.5); color: #fff; font-size: 16px;
         pointer-events: auto; z-index: 5;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
       }
       .mc-toggle:active { background: rgba(255,255,255,0.3); }
 
+      /* Action panel — grid of small buttons below gear */
       .mc-action-panel {
-        position: absolute; right: 8px; top: 52px;
+        position: absolute; right: 8px; top: 48px;
         display: none;
-        grid-template-columns: repeat(2, 42px);
-        gap: 4px;
+        grid-template-columns: repeat(2, 38px);
+        gap: 3px;
         pointer-events: auto; z-index: 5;
       }
       #mobile-controls.mc-open .mc-action-panel { display: grid; }
-      .mc-action-panel .mc-btn,
-      .mc-action-panel .mc-btn-sm {
-        width: 42px; height: 42px; font-size: 16px; border-radius: 8px;
-      }
-
-      /* Top buttons — menu / chat / inventory */
-      .mc-top-buttons {
-        position: absolute; right: 12px; top: 12px;
-        display: flex; flex-direction: row; gap: 10px;
-        pointer-events: auto;
-      }
-      .mc-tbtn {
-        width: 46px; height: 46px;
-        border-radius: 10px;
+      .mc-btn-ap {
+        width: 38px; height: 38px; font-size: 14px; border-radius: 8px;
         border: 2px solid rgba(255,255,255,0.3);
-        background: rgba(0,0,0,0.4);
-        color: #fff; font-size: 18px;
+        background: rgba(0,0,0,0.5); color: #fff;
         display: flex; align-items: center; justify-content: center;
         backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        transition: background 0.1s;
       }
-      .mc-tbtn:active { background: rgba(255,255,255,0.3); }
-      .mc-btn-menu { border-color: rgba(255,255,255,0.4); }
-      .mc-btn-chat { border-color: rgba(120,180,255,0.5); }
-      .mc-btn-inv { border-color: rgba(255,210,120,0.5); font-size: 15px; }
-
-      /* Primary action buttons — right side (always visible) */
-      .mc-buttons {
-        position: absolute; right: 12px; bottom: 80px;
-        display: flex; flex-direction: column; gap: 8px;
-        pointer-events: auto; z-index: 4;
-      }
-      .mc-btn {
-        width: 56px; height: 56px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.5);
-        background: rgba(255,255,255,0.18);
-        color: #fff;
-        font-size: 20px;
-        display: flex; align-items: center; justify-content: center;
-        backdrop-filter: blur(4px);
-        -webkit-backdrop-filter: blur(4px);
-        transition: background 0.1s, transform 0.1s;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      }
-      .mc-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.92); }
-      .mc-btn.mc-active { background: rgba(120,200,255,0.5); border-color: rgba(140,220,255,0.9); }
-      .mc-btn-jump { border-color: rgba(100,200,100,0.7); }
-      .mc-btn-crouch { border-color: rgba(200,200,100,0.7); }
-      .mc-btn-sprint { border-color: rgba(120,200,255,0.7); font-size: 22px; }
-      .mc-btn-inv { border-color: rgba(255,210,120,0.7); font-size: 14px; }
-      .mc-btn-place { border-color: rgba(100,150,255,0.5); }
-
-      /* Extra action buttons row */
-      .mc-extra-buttons {
-        position: absolute; right: 100px; bottom: 20px;
-        display: flex; flex-direction: row; gap: 10px;
-        pointer-events: auto;
-      }
-      .mc-btn-sm {
-        width: 36px; height: 36px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.3);
-        background: rgba(0,0,0,0.4);
-        color: #fff;
-        font-size: 14px;
-        display: flex; align-items: center; justify-content: center;
-        backdrop-filter: blur(2px);
-        -webkit-backdrop-filter: blur(2px);
-      }
-      .mc-btn-sm:active { background: rgba(255,255,255,0.3); }
-      .mc-btn-drop { border-color: rgba(255,100,100,0.5); color: #ff8888; }
-      .mc-btn-swap { border-color: rgba(200,200,100,0.5); }
-      .mc-btn-perspective { border-color: rgba(150,200,255,0.5); }
-      .mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-size: 16px; font-weight: bold; }
-      .mc-btn-voice { border-color: rgba(100,255,100,0.5); color: #8f8; }
-      .mc-btn-exit { border-color: rgba(255,100,100,0.5); color: #f88; }
+      .mc-btn-ap:active { background: rgba(255,255,255,0.35); }
+      .mc-btn-ap.mc-btn-place { border-color: rgba(100,150,255,0.5); }
+      .mc-btn-ap.mc-btn-chat { border-color: rgba(120,180,255,0.5); }
+      .mc-btn-ap.mc-btn-menu { border-color: rgba(255,255,255,0.4); }
+      .mc-btn-ap.mc-btn-drop { border-color: rgba(255,100,100,0.5); color: #ff8888; }
+      .mc-btn-ap.mc-btn-swap { border-color: rgba(200,200,100,0.5); }
+      .mc-btn-ap.mc-btn-perspective { border-color: rgba(150,200,255,0.5); }
+      .mc-btn-ap.mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-weight: bold; }
+      .mc-btn-ap.mc-btn-f3 { border-color: rgba(255,200,50,0.6); color: #fc0; font-size: 12px; font-weight: bold; }
+      .mc-btn-ap.mc-btn-voice { border-color: rgba(100,255,100,0.5); color: #8f8; }
+      .mc-btn-ap.mc-btn-exit { border-color: rgba(255,100,100,0.5); color: #f88; }
 
       .voice-tab { flex:1; padding:8px 0; font:600 13px sans-serif; color:#888; cursor:pointer; text-align:center; border-bottom:2px solid transparent; transition:color 0.15s,border-color 0.15s; }
       .voice-tab:hover { color:#bbb; }
@@ -1944,18 +1927,17 @@
         .settings-row select, .settings-row input[type=range] { width: 100px; }
       }
       @media (orientation: landscape) and (max-height: 480px) {
-        .mc-joystick-zone { width: 35%; height: 40%; padding: 8px 6px; }
-        .mc-joystick-base { width: 90px; height: 90px; border-width: 2px; }
-        .mc-joystick-knob { width: 40px; height: 40px; border-width: 2px; }
-        .mc-buttons { right: 8px; bottom: 50px; gap: 6px; }
-        .mc-btn { width: 44px; height: 44px; font-size: 16px; border-width: 2px; }
-        .mc-btn-sprint { font-size: 18px; }
-        .mc-btn-inv { font-size: 12px; }
-        .mc-toggle { right: 6px; top: 6px; width: 34px; height: 34px; font-size: 16px; }
-        .mc-action-panel { right: 6px; top: 44px; gap: 3px; grid-template-columns: repeat(2, 36px); }
-        .mc-action-panel .mc-btn,
-        .mc-action-panel .mc-btn-sm { width: 36px; height: 36px; font-size: 14px; }
-        .mc-btn-sm { width: 30px; height: 30px; font-size: 12px; }
+        .mc-joystick-zone { width: 32%; height: 40%; padding: 6px 4px; }
+        .mc-joystick-base { width: 85px; height: 85px; border-width: 2px; }
+        .mc-joystick-knob { width: 36px; height: 36px; border-width: 2px; }
+        .mc-main-btns { right: 10px; bottom: 10px; }
+        .mc-btn { width: 50px; height: 50px; font-size: 18px; }
+        .mc-side-btns { gap: 6px; bottom: 10px; }
+        .mc-btn-mid { width: 40px; height: 40px; font-size: 14px; }
+        .mc-toggle { right: 5px; top: 5px; width: 30px; height: 30px; font-size: 14px; }
+        .mc-action-panel { right: 5px; top: 38px; gap: 2px; grid-template-columns: repeat(2, 32px); }
+        .mc-btn-ap { width: 32px; height: 32px; font-size: 12px; }
+        .mc-btn-ap.mc-btn-f3 { font-size: 10px; }
       }
     </style>
     <style>

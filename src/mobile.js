@@ -36,6 +36,9 @@ export function initMobileControls(playerRef, input, callbacks) {
     _holdTimer: null,
     sprintOn: false,
     crouchOn: false,
+    _lastTapTime: 0,
+    _lastTapX: 0,
+    _lastTapY: 0,
   };
 
   if (!isMobile) return state;
@@ -56,23 +59,26 @@ export function initMobileControls(playerRef, input, callbacks) {
       <div class="mc-joystick-base"><div class="mc-joystick-knob"></div></div>
     </div>
     <div class="mc-camera-zone"></div>
-    <div class="mc-buttons">
+    <div class="mc-main-btns">
       <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
-      <button class="mc-btn mc-btn-sprint" data-action="sprint">&#187;</button>
-      <button class="mc-btn mc-btn-crouch" data-action="crouch">&#9660;</button>
-      <button class="mc-btn mc-btn-inv" data-action="inventory">&#127890;</button>
+    </div>
+    <div class="mc-side-btns">
+      <button class="mc-btn-mid mc-btn-sprint" data-action="sprint">&#187;</button>
+      <button class="mc-btn-mid mc-btn-crouch" data-action="crouch">&#9660;</button>
+      <button class="mc-btn-mid mc-btn-inv" data-action="inventory">&#127890;</button>
     </div>
     <button class="mc-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
     <div class="mc-action-panel">
-      <button class="mc-btn mc-btn-place" data-action="place">&#9995;</button>
-      <button class="mc-btn mc-btn-chat" data-action="chat">&#128172;</button>
-      <button class="mc-btn mc-btn-menu" data-action="menu">&#9208;</button>
-      <button class="mc-btn-sm mc-btn-drop" data-action="drop">&#10006;</button>
-      <button class="mc-btn-sm mc-btn-swap" data-action="swapHands">&#8646;</button>
-      <button class="mc-btn-sm mc-btn-perspective" data-action="perspective">&#128065;</button>
-      <button class="mc-btn-sm mc-btn-cmd" data-action="command">/</button>
-      ${showVoice ? '<button class="mc-btn-sm mc-btn-voice" data-action="voice">&#127908;</button>' : ''}
-      <button class="mc-btn-sm mc-btn-exit" data-action="exit">&#128682;</button>
+      <button class="mc-btn-ap mc-btn-place" data-action="place">&#9995;</button>
+      <button class="mc-btn-ap mc-btn-chat" data-action="chat">&#128172;</button>
+      <button class="mc-btn-ap mc-btn-menu" data-action="menu">&#9208;</button>
+      <button class="mc-btn-ap mc-btn-drop" data-action="drop">&#10006;</button>
+      <button class="mc-btn-ap mc-btn-swap" data-action="swapHands">&#8646;</button>
+      <button class="mc-btn-ap mc-btn-perspective" data-action="perspective">&#128065;</button>
+      <button class="mc-btn-ap mc-btn-cmd" data-action="command">/</button>
+      <button class="mc-btn-ap mc-btn-f3" data-action="f3">F3</button>
+      ${showVoice ? '<button class="mc-btn-ap mc-btn-voice" data-action="voice">&#127908;</button>' : ''}
+      <button class="mc-btn-ap mc-btn-exit" data-action="exit">&#128682;</button>
     </div>
   `;
   document.body.appendChild(root);
@@ -143,6 +149,18 @@ export function initMobileControls(playerRef, input, callbacks) {
   cameraZone.addEventListener('touchstart', (e) => {
     e.stopPropagation();
     const t = e.changedTouches[0];
+    // Double-tap to equip item
+    const now = Date.now();
+    const dtap = now - state._lastTapTime;
+    const dist = Math.hypot(t.clientX - state._lastTapX, t.clientY - state._lastTapY);
+    if (dtap < 350 && dist < 50 && !state._cameraActive) {
+      if (callbacks.onDoubleTap) callbacks.onDoubleTap();
+      state._lastTapTime = 0;
+      return;
+    }
+    state._lastTapTime = now;
+    state._lastTapX = t.clientX;
+    state._lastTapY = t.clientY;
     state._cameraActive = true;
     state._cameraTouchId = t.identifier;
     state._cameraLastX = t.clientX;
@@ -258,6 +276,8 @@ export function initMobileControls(playerRef, input, callbacks) {
       if (callbacks.onVoice) callbacks.onVoice();
     } else if (action === 'exit' && down) {
       if (callbacks.onExit) callbacks.onExit();
+    } else if (action === 'f3' && down) {
+      if (callbacks.onF3) callbacks.onF3();
     }
   }
 

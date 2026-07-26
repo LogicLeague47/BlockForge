@@ -6,7 +6,7 @@ import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
 import { TILES, tileNameFor } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
-import { createShadowMesh, updateShadow, removeShadowMesh } from './shadows.js';
+// Blob shadows removed — real shadow map shadows used instead
 
 const COLLECT_RANGE = 1.5;
 const MAGNET_RANGE = 4.0; // start lerping toward player at this distance
@@ -58,8 +58,10 @@ export class DroppedItem {
 
     this.group.renderOrder = 1;
     this.scene.add(this.group);
+    this.group.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
 
-    this._shadowMesh = createShadowMesh(scene);
     this._dropGroundY = y;
   }
 
@@ -107,8 +109,6 @@ export class DroppedItem {
         this.group.scale.setScalar(scale);
       }
     }
-
-    updateShadow(this._shadowMesh, { x: this.x, y: this._dropGroundY, z: this.z }, this._dropGroundY, 0.2);
   }
 
   checkCollect(px, py, pz) {
@@ -125,8 +125,6 @@ export class DroppedItem {
   }
 
   dispose() {
-    removeShadowMesh(this.scene, this._shadowMesh);
-    this._shadowMesh = null;
     if (this.group) {
       this.scene.remove(this.group);
       this.group.traverse(c => {
