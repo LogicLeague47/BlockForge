@@ -330,8 +330,16 @@ function buildMenuBackground() {
       const sideTex = atlasTex(tileNameFor(blockId, 'side'));
       const topTex = atlasTex(tileNameFor(blockId, 'top'));
       const botTex = atlasTex(tileNameFor(blockId, 'bottom'));
-      if (topTex && botTex && sideTex) {
-        const mk = (t) => new THREE.MeshLambertMaterial({ map: t });
+      const isCutout = blockId === BLOCK.LEAVES || blockId === BLOCK.DARK_OAK_LEAVES;
+      const mkLeaf = (t) => new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.1, side: THREE.DoubleSide });
+      const mk = (t) => new THREE.MeshLambertMaterial({ map: t });
+      if (isCutout) {
+        if (topTex && botTex && sideTex) {
+          material = [mkLeaf(sideTex), mkLeaf(sideTex), mkLeaf(topTex), mkLeaf(botTex), mkLeaf(sideTex), mkLeaf(sideTex)];
+        } else {
+          material = mkLeaf(sideTex);
+        }
+      } else if (topTex && botTex && sideTex) {
         material = [mk(sideTex), mk(sideTex), mk(topTex), mk(botTex), mk(sideTex), mk(sideTex)];
       } else {
         material = new THREE.MeshLambertMaterial({ map: sideTex });
