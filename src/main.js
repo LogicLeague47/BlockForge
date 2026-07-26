@@ -377,11 +377,11 @@ sun.shadow.mapSize.width = 4096;
 sun.shadow.mapSize.height = 4096;
 sun.shadow.camera.near = 0.5;
 sun.shadow.camera.far = 250;
-sun.shadow.camera.left = -100;
-sun.shadow.camera.right = 100;
-sun.shadow.camera.top = 100;
-sun.shadow.camera.bottom = -100;
-    sun.shadow.bias = 0.002;
+sun.shadow.camera.left = -40;
+sun.shadow.camera.right = 40;
+sun.shadow.camera.top = 40;
+sun.shadow.camera.bottom = -40;
+sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.02;
 scene.add(sun);
 scene.add(sun.target);
@@ -472,7 +472,7 @@ crackTexture.minFilter = THREE.NearestFilter;
 crackTexture.generateMipmaps = false;
 const crackMaterial = new THREE.MeshBasicMaterial({
   map: crackTexture, transparent: true, depthTest: true, depthWrite: false,
-  polygonOffset: true, polygonOffsetFactor: -10, polygonOffsetUnits: -10,
+  polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
 });
 const crackPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.001, 1.001), crackMaterial);
 crackPlane.visible = false;

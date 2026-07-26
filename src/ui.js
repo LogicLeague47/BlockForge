@@ -1126,47 +1126,66 @@ export function drawCrack(c, stage) {
   ctx.clearRect(0, 0, 64, 64);
   if (!stage || stage <= 0) return;
 
-  // Stage 0-1 continuous — Minecraft uses 10 stages internally,
-  // but we smoothly interpolate for a fluid animation.
   const s = Math.min(1, stage);
-  const numSegments = Math.floor(3 + s * 28);
-  const thickness = 1 + s * 3;
-  const alpha = Math.min(1, 0.3 + s * 0.6);
+  // Minecraft uses 10 discrete stages; map 0-1 → 1-10
+  const stageIdx = Math.max(1, Math.ceil(s * 10));
+
+  // Darken overlay increases with stage
+  const overlayAlpha = 0.1 + s * 0.35;
+  ctx.fillStyle = `rgba(0,0,0,${overlayAlpha})`;
+  ctx.fillRect(0, 0, 64, 64);
+
+  // Crack lines: denser and thicker as stage increases
+  const numCracks = 4 + stageIdx * 4;
+  const thickness = 0.8 + stageIdx * 0.35;
+  const alpha = Math.min(1, 0.5 + s * 0.5);
 
   ctx.strokeStyle = `rgba(0,0,0,${alpha})`;
   ctx.lineWidth = thickness;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+  ctx.lineCap = 'square';
+  ctx.lineJoin = 'miter';
 
-  // Generate crack segments deterministically — no frame jitter.
-  // Cracks radiate from the center area outward, creating a web.
+  // Generate cracks from center outward, web-like
   const cx = 32, cy = 32;
-  for (let i = 0; i < numSegments; i++) {
-    const h0 = _crackHash(i * 5);
-    const h1 = _crackHash(i * 5 + 1);
-    const h2 = _crackHash(i * 5 + 2);
-    const h3 = _crackHash(i * 5 + 3);
-    const h4 = _crackHash(i * 5 + 4);
+  for (let i = 0; i < numCracks; i++) {
+    const h0 = _crackHash(i * 7);
+    const h1 = _crackHash(i * 7 + 1);
+    const h2 = _crackHash(i * 7 + 2);
+    const h3 = _crackHash(i * 7 + 3);
+    const h4 = _crackHash(i * 7 + 4);
+    const h5 = _crackHash(i * 7 + 5);
 
-    // Each crack starts at a random offset from center
-    const radius = h0 * 20;
+    // Start from a point near center
+    const startR = h0 * 12;
     const angle = h1 * Math.PI * 2;
-    const x1 = cx + Math.cos(angle) * radius;
-    const y1 = cy + Math.sin(angle) * radius;
-
-    // Extend outward
-    const len = 4 + s * 16 + h2 * 6;
-    const dir = angle + (h3 - 0.5) * 1.5;
-    const x2 = x1 + Math.cos(dir) * len;
-    const y2 = y1 + Math.sin(dir) * len;
+    let x = cx + Math.cos(angle) * startR;
+    let y = cy + Math.sin(angle) * startR;
 
     ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    // Slight wobble for organic look
-    const mx = (x1 + x2) / 2 + (h4 - 0.5) * 8;
-    const my = (y1 + y2) / 2 + (h3 - 0.5) * 8;
-    ctx.quadraticCurveTo(mx, my, x2, y2);
+    ctx.moveTo(x, y);
+
+    // 2-3 segment crack with sharp angles (like real cracks)
+    const segs = 2 + (h2 > 0.5 ? 1 : 0);
+    for (let j = 0; j < segs; j++) {
+      const len = 6 + h3 * 14 + j * 3;
+      // Sharp angular direction changes (not smooth curves)
+      const dir = angle + (h4 - 0.5) * 3 + j * (h5 - 0.5) * 2;
+      x += Math.cos(dir) * len;
+      y += Math.sin(dir) * len;
+      ctx.lineTo(x, y);
+    }
     ctx.stroke();
+
+    // Branch cracks at higher stages
+    if (stageIdx >= 4 && h0 > 0.4) {
+      const bx = x, by = y;
+      const bLen = 3 + h3 * 8;
+      const bDir = angle + h4 * Math.PI;
+      ctx.beginPath();
+      ctx.moveTo(bx, by);
+      ctx.lineTo(bx + Math.cos(bDir) * bLen, by + Math.sin(bDir) * bLen);
+      ctx.stroke();
+    }
   }
 }
 
