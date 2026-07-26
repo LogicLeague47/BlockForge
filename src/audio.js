@@ -2,20 +2,7 @@
 // 100% open source — every sound synthesized at runtime, no external files needed.
 
 import { assetBase } from './config.js';
-// Asset paths resolve relative to the page on normal deployments, but on the
-// CrazyGames build they point at our Render server (which serves the full
-// dist/) so the heavy audio files can be streamed instead of bundled.
 function assetUrl(p) { return assetBase() + String(p).replace(/^\//, ''); }
-//
-// Each block type gets a unique sonic signature:
-//   Stone:   sharp crunch + deep resonance (hard, heavy)
-//   Dirt:    soft muffled thud + earthy grain (soft, damp)
-//   Wood:    hollow snap + woody resonance (warm, resonant)
-//   Leaves:  light airy rustle (delicate, wispy)
-//   Sand:    granular hiss + scatter (loose, gritty)
-//   Glass:   sharp crackle + tonal ping (brittle, bright)
-//   Water:   bubbly splash + descending sweep
-//   Cobble:  deeper stone crunch
 
 export class Audio {
   constructor() {
@@ -25,16 +12,8 @@ export class Audio {
     this.musicGain = null;
     this.wind = null;
     this._stepCooldown = 0;
-    this._musicTracks = [];
-    this._currentTrack = -1;
     this._musicPlaying = false;
-    this._musicElement = null;
-    this._musicStarted = false;
-    this._stepBuffers = {};
-    this._zombieBuffers = [];
-    this._skeletonBuffers = [];
-    this._spiderBuffers = [];
-    this._eatBuffers = [];
+    this._musicEl = null;
   }
 
   init() {
@@ -59,221 +38,13 @@ export class Audio {
     }, { passive: true });
   }
 
-  // Lazily fetch the (large) SFX buffers. Called once after gameplay
-  // starts so these ~13MB of sounds don't count against the CrazyGames
-  // initial-download budget, and so the stripped CG build can stream
-  // them from our server instead of bundling them.
-  loadSfx() {
-    if (this._sfxLoaded) return;
-    this._sfxLoaded = true;
-    this._loadStepBuffers();
-    this._loadZombieBuffers();
-    this._loadSkeletonBuffers();
-    this._loadSpiderBuffers();
-    this._loadEatBuffers();
-  }
+  loadSfx() {}
 
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
 
-  // ── STEP SOUND BUFFERS ──────────────────────────────────────────────
-  // Real recorded footstep sounds from CC0 sources (OpenGameArt.org)
-  // Loaded as AudioBuffers for low-latency playback.
-
-  _loadStepBuffers() {
-    this._stepBuffers = {};
-    const materials = [
-      'stone','dirt','wood','leaves','sand','snow',
-      'gravel','metal','plant','liquid'
-    ];
-    for (const mat of materials) {
-      this._stepBuffers[mat] = [];
-      for (let v = 1; v <= 9; v++) {
-        const url = assetUrl(`/Sounds/step/${mat}${v}.wav`);
-        fetch(url).then(r => {
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          return r.arrayBuffer();
-        }).then(ab => {
-          return this.ctx.decodeAudioData(ab);
-        }).then(buf => {
-          this._stepBuffers[mat].push(buf);
-        }).catch(e => console.warn('[Audio] load failed:', e));
-      }
-    }
-  }
-
-  _playStepBuffer(mat) {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._stepBuffers[mat];
-    if (!bufs || bufs.length === 0) return;
-    const buf = bufs[(Math.random() * bufs.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 0.9;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-  }
-
-  // ── ZOMBIE SOUND BUFFERS ──────────────────────────────────────────
-
-  _loadZombieBuffers() {
-    this._zombieBuffers = [];
-    const files = [
-      '/Sounds/zombie/zombienoise1.ogg',
-      '/Sounds/zombie/zombienoise2.ogg',
-      '/Sounds/zombie/zombienoise3.ogg',
-      '/Sounds/zombie/fastzombie1.ogg',
-    ];
-    for (const f of files) {
-      fetch(assetUrl(f)).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-        this._zombieBuffers.push(buf);
-      }).catch(e => console.warn('[Audio] load failed:', e));
-    }
-  }
-
-  _playZombieBuffer() {
-    if (!this.ctx || !this.enabled || this._zombieBuffers.length === 0) return false;
-    const buf = this._zombieBuffers[(Math.random() * this._zombieBuffers.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 0.9;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── SKELETON SOUND BUFFERS ────────────────────────────────────────
-
-  _loadSkeletonBuffers() {
-    this._skeletonBuffers = [];
-    for (let i = 0; i <= 9; i++) {
-      fetch(assetUrl(`/Sounds/skeleton/${i}.ogg`)).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-        this._skeletonBuffers.push(buf);
-      }).catch(e => console.warn('[Audio] load failed:', e));
-    }
-  }
-
-  _playSkeletonBuffer() {
-    if (!this.ctx || !this.enabled || this._skeletonBuffers.length === 0) return false;
-    const buf = this._skeletonBuffers[(Math.random() * this._skeletonBuffers.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 0.9;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── SPIDER SOUND BUFFERS ──────────────────────────────────────────
-
-  _loadSpiderBuffers() {
-    this._spiderBuffers = [];
-    const files = [
-      '/Sounds/spider/bug_01.ogg',
-      '/Sounds/spider/bug_02.ogg',
-      '/Sounds/spider/bug_03.ogg',
-      '/Sounds/spider/bug_04.ogg',
-      '/Sounds/spider/scream_01.ogg',
-      '/Sounds/spider/scream_02.ogg',
-    ];
-    for (const f of files) {
-      fetch(assetUrl(f)).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-        this._spiderBuffers.push(buf);
-      }).catch(e => console.warn('[Audio] load failed:', e));
-    }
-  }
-
-  _playSpiderBuffer() {
-    if (!this.ctx || !this.enabled || this._spiderBuffers.length === 0) return false;
-    const buf = this._spiderBuffers[(Math.random() * this._spiderBuffers.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 0.9;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── EAT SOUND BUFFERS ─────────────────────────────────────────────
-
-  _loadEatBuffers() {
-    this._eatBuffers = [];
-    const files = [
-      '/Sounds/eating/nom.wav',
-      '/Sounds/eating/crunch.1.ogg',
-      '/Sounds/eating/crunch.2.ogg',
-      '/Sounds/eating/crunch.3.ogg',
-      '/Sounds/eating/crunch.4.ogg',
-      '/Sounds/eating/crunch.5.ogg',
-      '/Sounds/eating/crunch.6.ogg',
-      '/Sounds/eating/crunch.7.ogg',
-    ];
-    for (const f of files) {
-      fetch(assetUrl(f)).then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.arrayBuffer();
-      }).then(ab => this.ctx.decodeAudioData(ab)).then(buf => {
-        this._eatBuffers.push(buf);
-      }).catch(e => console.warn('[Audio] load failed:', e));
-    }
-  }
-
-  _playEatBuffer() {
-    if (!this.ctx || !this.enabled || this._eatBuffers.length === 0) return false;
-    const buf = this._eatBuffers[(Math.random() * this._eatBuffers.length) | 0];
-    const src = this.ctx.createBufferSource();
-    src.buffer = buf;
-    const g = this.ctx.createGain();
-    g.gain.value = 1.0;
-    src.connect(g);
-    g.connect(this.master);
-    src.onended = () => { try { g.disconnect(); } catch (_) {} };
-    src.start();
-    return true;
-  }
-
-  // ── PLAYER HURT SOUNDS ─────────────────────────────────────────────
-  // Procedural hurt sound: short grunt + impact thud.
-
-  playHurt() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      // Sharp impact crack
-      { noise: 'white', dur: 0.05, gain: 0.5, bp: 1500, bq: 1.2, atk: 0.001, rel: 0.06 },
-      // Deep thud body
-      { noise: 'brown', dur: 0.12, gain: 0.4, lp: 300, atk: 0.002, rel: 0.15 },
-      // Vocal grunt tone
-      { wave: 'sawtooth', freq: 150, dur: 0.08, gain: 0.2, atk: 0.001, rel: 0.08 },
-      // Low resonance
-      { wave: 'sine', freq: 80, dur: 0.1, gain: 0.25, atk: 0.003, rel: 0.12 },
-    ]);
-  }
-
-  // ── MUSIC SYSTEM ─────────────────────────────────────────────────────
-  // Uses HTML5 <audio> elements with simple volume fading.
-  // Music plays on first user gesture (browser autoplay policy).
+  // ── ZOMBIE SOUNDS (procedural) ─────────────────────────────────────
 
   _initMusic() {
     this._musicPaths = [
@@ -483,14 +254,10 @@ export class Audio {
   }
 
   _stone_step() {
-    if (this._stepBuffers.stone && this._stepBuffers.stone.length > 0) {
-      this._playStepBuffer('stone');
-    } else {
-      this._playLayers([
-        { noise: 'brown', dur: 0.08, gain: 0.3, lp: 400, atk: 0.005, rel: 0.25 },
-        { noise: 'white', dur: 0.05, gain: 0.2, bp: 2000, bq: 1.5, atk: 0.003, rel: 0.2 },
-      ]);
-    }
+    this._playLayers([
+      { noise: 'brown', dur: 0.08, gain: 0.3, lp: 400, atk: 0.005, rel: 0.25 },
+      { noise: 'white', dur: 0.05, gain: 0.2, bp: 2000, bq: 1.5, atk: 0.003, rel: 0.2 },
+    ]);
   }
 
   _stone_place() {
@@ -514,14 +281,10 @@ export class Audio {
   }
 
   _dirt_step() {
-    if (this._stepBuffers.dirt && this._stepBuffers.dirt.length > 0) {
-      this._playStepBuffer('dirt');
-    } else {
-      this._playLayers([
-        { noise: 'brown', dur: 0.06, gain: 0.2, lp: 250, atk: 0.01, rel: 0.3 },
-        { noise: 'pink', dur: 0.04, gain: 0.1, lp: 500, atk: 0.01, rel: 0.25 },
-      ]);
-    }
+    this._playLayers([
+      { noise: 'brown', dur: 0.06, gain: 0.2, lp: 250, atk: 0.01, rel: 0.3 },
+      { noise: 'pink', dur: 0.04, gain: 0.1, lp: 500, atk: 0.01, rel: 0.25 },
+    ]);
   }
 
   _dirt_place() {
@@ -546,14 +309,10 @@ export class Audio {
   }
 
   _wood_step() {
-    if (this._stepBuffers.wood && this._stepBuffers.wood.length > 0) {
-      this._playStepBuffer('wood');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.05, gain: 0.2, bp: 800, bq: 2, atk: 0.003, rel: 0.15 },
-        { wave: 'sine', freq: 280, dur: 0.08, gain: 0.1, atk: 0.005, rel: 0.2 },
-      ]);
-    }
+    this._playLayers([
+      { noise: 'white', dur: 0.05, gain: 0.2, bp: 800, bq: 2, atk: 0.003, rel: 0.15 },
+      { wave: 'sine', freq: 280, dur: 0.08, gain: 0.1, atk: 0.005, rel: 0.2 },
+    ]);
   }
 
   _wood_place() {
@@ -577,14 +336,10 @@ export class Audio {
   }
 
   _leaves_step() {
-    if (this._stepBuffers.leaves && this._stepBuffers.leaves.length > 0) {
-      this._playStepBuffer('leaves');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.04, gain: 0.1, hp: 5000, atk: 0.005, rel: 0.15 },
-        { noise: 'pink', dur: 0.03, gain: 0.06, bp: 3500, bq: 0.5, atk: 0.008, rel: 0.2 },
-      ]);
-    }
+    this._playLayers([
+      { noise: 'white', dur: 0.04, gain: 0.1, hp: 5000, atk: 0.005, rel: 0.15 },
+      { noise: 'pink', dur: 0.03, gain: 0.06, bp: 3500, bq: 0.5, atk: 0.008, rel: 0.2 },
+    ]);
   }
 
   _leaves_place() {
@@ -607,13 +362,10 @@ export class Audio {
   }
 
   _sand_step() {
-    if (this._stepBuffers.sand && this._stepBuffers.sand.length > 0) {
-      this._playStepBuffer('sand');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.06, gain: 0.2, bp: 3500, bq: 0.6, atk: 0.003, rel: 0.15 },
-        { noise: 'white', dur: 0.04, gain: 0.12, hp: 6000, atk: 0.002, rel: 0.12 },
-      ]);
+    this._playLayers([
+      { noise: 'white', dur: 0.06, gain: 0.2, bp: 3500, bq: 0.6, atk: 0.003, rel: 0.15 },
+      { noise: 'white', dur: 0.04, gain: 0.12, hp: 6000, atk: 0.002, rel: 0.12 },
+    ]);
     }
   }
 
@@ -665,14 +417,10 @@ export class Audio {
   }
 
   _snow_step() {
-    if (this._stepBuffers.snow && this._stepBuffers.snow.length > 0) {
-      this._playStepBuffer('snow');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.06, gain: 0.15, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.15 },
-        { noise: 'pink', dur: 0.04, gain: 0.08, bp: 1800, bq: 0.5, atk: 0.008, rel: 0.18 },
-      ]);
-    }
+    this._playLayers([
+    { noise: 'white', dur: 0.06, gain: 0.15, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.15 },
+    { noise: 'pink', dur: 0.04, gain: 0.08, bp: 1800, bq: 0.5, atk: 0.008, rel: 0.18 },
+    ]);
   }
 
   _snow_place() {
@@ -695,14 +443,10 @@ export class Audio {
   }
 
   _gravel_step() {
-    if (this._stepBuffers.gravel && this._stepBuffers.gravel.length > 0) {
-      this._playStepBuffer('gravel');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.07, gain: 0.25, bp: 2200, bq: 0.7, atk: 0.003, rel: 0.15 },
-        { noise: 'brown', dur: 0.05, gain: 0.12, lp: 700, atk: 0.005, rel: 0.18 },
-      ]);
-    }
+    this._playLayers([
+    { noise: 'white', dur: 0.07, gain: 0.25, bp: 2200, bq: 0.7, atk: 0.003, rel: 0.15 },
+    { noise: 'brown', dur: 0.05, gain: 0.12, lp: 700, atk: 0.005, rel: 0.18 },
+    ]);
   }
 
   _gravel_place() {
@@ -727,14 +471,10 @@ export class Audio {
   }
 
   _metal_step() {
-    if (this._stepBuffers.metal && this._stepBuffers.metal.length > 0) {
-      this._playStepBuffer('metal');
-    } else {
-      this._playLayers([
-        { wave: 'square', freq: 1000, dur: 0.04, gain: 0.2, atk: 0.001, rel: 0.06 },
-        { noise: 'white', dur: 0.03, gain: 0.15, hp: 3500, hq: 1.5, atk: 0.001, rel: 0.05 },
-      ]);
-    }
+    this._playLayers([
+    { wave: 'square', freq: 1000, dur: 0.04, gain: 0.2, atk: 0.001, rel: 0.06 },
+    { noise: 'white', dur: 0.03, gain: 0.15, hp: 3500, hq: 1.5, atk: 0.001, rel: 0.05 },
+    ]);
   }
 
   _metal_place() {
@@ -782,14 +522,10 @@ export class Audio {
   }
 
   _plant_step() {
-    if (this._stepBuffers.plant && this._stepBuffers.plant.length > 0) {
-      this._playStepBuffer('plant');
-    } else {
-      this._playLayers([
-        { noise: 'white', dur: 0.04, gain: 0.1, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.12 },
-        { noise: 'pink', dur: 0.03, gain: 0.06, bp: 2200, bq: 0.5, atk: 0.008, rel: 0.15 },
-      ]);
-    }
+    this._playLayers([
+    { noise: 'white', dur: 0.04, gain: 0.1, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.12 },
+    { noise: 'pink', dur: 0.03, gain: 0.06, bp: 2200, bq: 0.5, atk: 0.008, rel: 0.15 },
+    ]);
   }
 
   _plant_place() {
@@ -812,14 +548,10 @@ export class Audio {
   }
 
   _liquid_step() {
-    if (this._stepBuffers.liquid && this._stepBuffers.liquid.length > 0) {
-      this._playStepBuffer('liquid');
-    } else {
-      this._playLayers([
-        { noise: 'brown', dur: 0.08, gain: 0.2, bp: 500, bq: 1.8, atk: 0.005, rel: 0.15 },
-        { wave: 'sine', freq: 200, dur: 0.06, gain: 0.1, atk: 0.008, rel: 0.12 },
-      ]);
-    }
+    this._playLayers([
+    { noise: 'brown', dur: 0.08, gain: 0.2, bp: 500, bq: 1.8, atk: 0.005, rel: 0.15 },
+    { wave: 'sine', freq: 200, dur: 0.06, gain: 0.1, atk: 0.008, rel: 0.12 },
+    ]);
   }
 
   _liquid_place() {
@@ -1027,7 +759,6 @@ export class Audio {
 
   eatBite() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playEatBuffer()) return;
     this._playLayers([
       { noise: 'white', dur: 0.06, gain: 0.35, hp: 2000, hq: 1.2, atk: 0.001, rel: 0.12 },
       { noise: 'brown', dur: 0.1, gain: 0.25, bp: 600, bq: 1.5, atk: 0.002, rel: 0.15 },
@@ -1037,7 +768,6 @@ export class Audio {
 
   eatChew() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playEatBuffer()) return;
     this._playLayers([
       // wet squishy chew
       { noise: 'pink', dur: 0.08, gain: 0.2, bp: 1200, bq: 2, atk: 0.002, rel: 0.12 },
@@ -1048,43 +778,88 @@ export class Audio {
     ]);
   }
 
-  // ── ANIMAL SOUNDS ────────────────────────────────────────────────────
-  // Real MP3 sounds loaded from /Sounds/
+  // ── PLAYER HURT SOUND ──────────────────────────────────────────────
 
-  _animalSound(files) {
-    if (!this.enabled) return;
-    const src = files[(Math.random() * files.length) | 0];
-    const el = new window.Audio(assetUrl(src));
-    el.volume = 0.6;
-    el.play().catch(e => console.warn('[Audio] play() failed:', e));
+  playHurt() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.05, gain: 0.5, bp: 1500, bq: 1.2, atk: 0.001, rel: 0.06 },
+      { noise: 'brown', dur: 0.12, gain: 0.4, lp: 300, atk: 0.002, rel: 0.15 },
+      { wave: 'sawtooth', freq: 150, dur: 0.08, gain: 0.2, atk: 0.001, rel: 0.08 },
+      { wave: 'sine', freq: 80, dur: 0.1, gain: 0.25, atk: 0.003, rel: 0.12 },
+    ]);
   }
 
+  // ── ANIMAL SOUNDS (procedural) ─────────────────────────────────────
+
   cowSound() {
-    this._animalSound([
-      '/Sounds/cow_idle1.mp3',
-      '/Sounds/cow_idle2.mp3',
-      '/Sounds/cow_idle3.mp3',
-      '/Sounds/cow_idle4.mp3',
-      '/Sounds/cow_idle5.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const dur = 0.5 + Math.random() * 0.3;
+    const ctx = this.ctx;
+    const buf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const lp = this._filter('lowpass', 400, 0.6);
+    const g = this._gain(0);
+    this._envGain(g, 0.18, dur, 0.08, 0.3);
+    src.connect(lp); lp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(90, ctx.currentTime + dur * 0.7);
+    osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.12, dur, 0.06, 0.3);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
   }
 
   pigSound() {
-    this._animalSound([
-      '/Sounds/pig_idle1.mp3',
-      '/Sounds/pig_idle2.mp3',
-      '/Sounds/pig_idle3.mp3',
-      '/Sounds/pig_idle4.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const dur = 0.2 + Math.random() * 0.15;
+    const ctx = this.ctx;
+    for (let i = 0; i < 2 + (Math.random() * 2) | 0; i++) {
+      const t = ctx.currentTime + i * 0.08;
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300 + Math.random() * 200, t);
+      osc.frequency.linearRampToValueAtTime(200 + Math.random() * 100, t + 0.06);
+      const g = this._gain(0);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.12, t + 0.01);
+      g.gain.linearRampToValueAtTime(0, t + 0.06);
+      osc.connect(g); g.connect(this.master);
+      osc.start(t); osc.stop(t + 0.07);
+    }
+    const buf = this._noise(Math.floor(ctx.sampleRate * 0.08), ctx.sampleRate);
+    const src = this._src(buf);
+    const hp = this._filter('highpass', 2000, 0.5);
+    const g = this._gain(0);
+    this._envGain(g, 0.1, 0.08, 0.005, 0.1);
+    src.connect(hp); hp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + 0.1);
   }
 
   sheepSound() {
-    this._animalSound([
-      '/Sounds/sheep_idle1.mp3',
-      '/Sounds/sheep_idle2.mp3',
-      '/Sounds/sheep_idle3.mp3',
-      '/Sounds/sheep_idle4.mp3',
-    ]);
+    if (!this.ctx || !this.enabled) return;
+    const dur = 0.3 + Math.random() * 0.2;
+    const ctx = this.ctx;
+    const buf = this._noise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const src = this._src(buf);
+    const bp = this._filter('bandpass', 700, 1.5);
+    const g = this._gain(0);
+    this._envGain(g, 0.15, dur, 0.02, 0.25);
+    src.connect(bp); bp.connect(g); g.connect(this.master);
+    src.start(); src.stop(ctx.currentTime + dur + 0.05);
+    const osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(200 + Math.random() * 60, ctx.currentTime);
+    osc.frequency.linearRampToValueAtTime(160, ctx.currentTime + dur * 0.6);
+    osc.frequency.linearRampToValueAtTime(180, ctx.currentTime + dur);
+    const og = this._gain(0);
+    this._envGain(og, 0.08, dur, 0.02, 0.25);
+    osc.connect(og); og.connect(this.master);
+    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
   }
 
   // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
@@ -1235,7 +1010,6 @@ export class Audio {
 
   zombieSound() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playZombieBuffer()) return;
     const ctx = this.ctx;
     // Low groan: filtered noise + low sine
     const dur = 0.6;
@@ -1259,7 +1033,6 @@ export class Audio {
 
   skeletonSound() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playSkeletonBuffer()) return;
     const ctx = this.ctx;
     // Bone rattle: short noise bursts
     const dur = 0.3;
@@ -1279,7 +1052,6 @@ export class Audio {
 
   spiderSound() {
     if (!this.ctx || !this.enabled) return;
-    if (this._playSpiderBuffer()) return;
     const ctx = this.ctx;
     // Hiss: high-pass noise
     const dur = 0.4;
