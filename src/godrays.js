@@ -247,6 +247,7 @@ export class GodRayPass {
     this.renderer.setRenderTarget(null);
     this.godRayPass.renderToScreen = true;
     this.godRayPass.render(this.renderer, null, this.sceneRT);
+    this.godRayPass.renderToScreen = false;
 
     return true;
   }

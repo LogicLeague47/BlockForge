@@ -50,6 +50,7 @@ const fragHelpers = /* glsl */ `
   uniform float fogNear;
   uniform float fogFar;
   uniform sampler2D shadowMap;
+  uniform vec2 shadowMapSize;
 
   varying vec2 vUv;
   varying vec3 vColor;
@@ -62,17 +63,16 @@ const fragHelpers = /* glsl */ `
     return max(dot(n, l), 0.0);
   }
 
-  float getShadow() {
+  float getShadow(vec3 normal, vec3 lightDir) {
     vec3 sc = vShadowCoord.xyz / vShadowCoord.w;
-    sc = sc * 0.5 + 0.5;
     if (sc.z > 1.0 || sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0) return 1.0;
     float shadow = 0.0;
-    vec2 texelSize = vec2(1.0 / 4096.0);
-    float bias = 0.0005;
+    vec2 texelSize = 1.0 / shadowMapSize;
+    float slopeBias = 0.0005 + 0.005 * (1.0 - max(dot(normal, lightDir), 0.0));
     for (int x = -1; x <= 1; x++) {
       for (int y = -1; y <= 1; y++) {
         float pcfDepth = texture2D(shadowMap, sc.xy + vec2(float(x), float(y)) * texelSize).r;
-        shadow += sc.z - bias > pcfDepth ? 0.3 : 1.0;
+        shadow += sc.z - slopeBias > pcfDepth ? 0.3 : 1.0;
       }
     }
     return shadow / 9.0;
@@ -99,7 +99,7 @@ const opaqueFrag = /* glsl */ `
     float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
 
     // Apply shadow
-    float shadow = getShadow();
+    float shadow = getShadow(normal, lightDir);
     lighting *= shadow;
 
     // Vertex color carries AO and biome tint
@@ -132,7 +132,7 @@ const transFrag = /* glsl */ `
 
     float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
 
-    float shadow = getShadow();
+    float shadow = getShadow(normal, lightDir);
     lighting *= shadow;
 
     vec3 baseColor = tex.rgb * vColor;
@@ -164,7 +164,7 @@ const waterVert = /* glsl */ `
     vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     vWorldPos = worldPos.xyz;
     vUv = uv;
-    vNormal = normalize(mat3(modelMatrix) * normal);
+    vNormal = normalize(normalMatrix * normal);
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     gl_Position = projectionMatrix * mvPos;
@@ -192,7 +192,7 @@ const waterFrag = /* glsl */ `
                         cos(scrolledUv.y * 10.0 + time * 1.5) * 0.15;
     vec3 waterColor = waterBase + vec3(wavePattern * 0.3, wavePattern * 0.4, wavePattern * 0.2);
 
-    vec3 viewDir = normalize(-vWorldPos);
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
     vec3 halfVec = normalize(normalize(sunDirection) + viewDir);
     float spec = pow(max(dot(vNormal, halfVec), 0.0), 64.0) * 0.6;
 
@@ -205,7 +205,7 @@ const waterFrag = /* glsl */ `
     rim = pow(rim, 3.0) * 0.25;
     finalColor += vec3(rim);
 
-    float dist = length(vWorldPos);
+    float dist = distance(vWorldPos, cameraPosition);
     float fogFactor = smoothstep(fogNear, fogFar, dist);
     finalColor = mix(finalColor, fogColor, fogFactor);
 
@@ -229,6 +229,7 @@ export function createOpaqueMaterial(atlasTexture) {
       fogFar: { value: 144.0 },
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
+      shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
     },
     side: THREE.FrontSide,
   });
@@ -248,6 +249,7 @@ export function createCutoutMaterial(atlasTexture) {
       fogFar: { value: 144.0 },
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
+      shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
     },
     alphaTest: 0.1,
     depthWrite: true,
@@ -269,6 +271,7 @@ export function createTransparentMaterial(atlasTexture) {
       fogFar: { value: 144.0 },
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
+      shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
     },
     transparent: true,
     depthWrite: false,
@@ -340,6 +343,7 @@ export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat,
     m.uniforms.fogFar.value = fogFar;
     m.uniforms.shadowMatrix.value.copy(shadowMat);
     if (shadowTex) m.uniforms.shadowMap.value = shadowTex;
+    m.uniforms.shadowMapSize.value.copy(sun.shadow.mapSize);
   }
 
   _applyTerrain(opaqueMat);
