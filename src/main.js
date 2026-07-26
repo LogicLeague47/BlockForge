@@ -3615,7 +3615,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     parkourLoadPromise = (async () => {
       if (_isImportedParkour) {
         // Load imported Minecraft parkour map from binary
-        console.log('[Parkour] Loading imported map...');
         try {
           const mapUrl = assetBase() + 'parkour-chunks.bin.gz';
           const data = await loadImportedParkourChunks(mapUrl);
@@ -3642,7 +3641,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       } else {
         // Build procedural parkour levels in a clean void world
         const PARKOUR_Y = 200;
-        console.log('[Parkour] Building procedural levels...');
         resetParkourState();
         buildParkourLobby(world, 0, PARKOUR_Y, 0);
         _parkourLevelEnds = buildAllLevels(world, 0, PARKOUR_Y, -12);
@@ -3935,9 +3933,8 @@ function renderStatsScreen() {
 }
 
 function initMenu() {
-  console.log('BlockForge build 2026-07-24 v3 – shadows, sunsets, per-mob hit sounds, auto-login, bypass detection');
   const verEl = document.getElementById('menu-version');
-  if (verEl) verEl.textContent = 'v2026-07-24';
+  if (verEl) verEl.textContent = 'v2026-07-26';
   // Clean up stale local server data — only OfficialSMP is a valid server,
   // so remove any other locally-saved servers (e.g. old MyWorld1) and purge
   // them from the recently-played list.
