@@ -444,13 +444,10 @@
         subtitleEl.textContent = 'PLAYER';
         nameEl.textContent = urlUser;
         roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-        homepageEl.style.display = '';
-        playBtnEl.addEventListener('click', function() {
-          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-        });
+        homepageEl.style.display = 'none';
         setTimeout(function() {
           window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-        }, 1500);
+        }, 1200);
       } else {
         subtitleEl.textContent = '';
         nameEl.textContent = urlUser;
