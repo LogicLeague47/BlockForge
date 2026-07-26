@@ -5169,6 +5169,7 @@ function initMenu() {
   if (autoLogin) {
     // Skip login screen entirely — go straight to main menu after auth
     window._autoLoggingIn = true;
+    _backgroundAuth = true;
     ui.showMenu('main');
     setTimeout(() => doLogin('login'), 100);
   } else {
