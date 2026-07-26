@@ -366,7 +366,6 @@ export class Audio {
       { noise: 'white', dur: 0.06, gain: 0.2, bp: 3500, bq: 0.6, atk: 0.003, rel: 0.15 },
       { noise: 'white', dur: 0.04, gain: 0.12, hp: 6000, atk: 0.002, rel: 0.12 },
     ]);
-    }
   }
 
   _sand_place() {
