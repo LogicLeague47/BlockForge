@@ -448,6 +448,9 @@
         playBtnEl.addEventListener('click', function() {
           window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
         });
+        setTimeout(function() {
+          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+        }, 1500);
       } else {
         subtitleEl.textContent = '';
         nameEl.textContent = urlUser;
