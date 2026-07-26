@@ -5941,7 +5941,7 @@ function loop() {
       const plateKey = `${plateX},${plateY},${plateZ}`;
       if (!redstoneStates.has(plateKey)) {
         redstoneStates.set(plateKey, { blockId: plateBlock, expiresAt: Infinity });
-        console.log(`[Redstone] Pressure plate activated at ${plateKey}`);
+        // Pressure plate activated
       }
     } else {
       // Check if player stepped off a previously active pressure plate

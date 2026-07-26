@@ -17,7 +17,7 @@ const WORDS = [
   'penis','penises','porn','porno','pornography','pussy','pussies','pussylips',
   'tits','titties','titty','twat','twatface','twats',
   // General profanity
-  'ass','assface','asshat','asshead','asshole','asswipe','asswipe',
+  'ass','assface','asshat','asshead','asshole','asswipe',
   'bastard','bigass','bullshit','crap','damn','damnit','dipshit',
   'douche','douchebag','dumbass','dumbshit','goddamn','goddamnit',
   'hell','horseshit','jackass','jackoff','jerkoff','kissass','lameass',

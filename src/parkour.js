@@ -310,7 +310,7 @@ export async function loadImportedParkourChunks(url) {
   const spawnY = view.getInt32(28, false);
   const count = view.getInt32(32, false);
 
-  console.log(`[Parkour] Loaded map: X[${minX}..${maxX}] Y[${minY}..${maxY}] Z[${minZ}..${maxZ}] spawnY=${spawnY} blocks=${count}`);
+  // Loaded map
   return { version, minX, maxX, minY, maxY, minZ, maxZ, spawnY, count, buf, view };
 }
 
@@ -338,7 +338,7 @@ export function buildImportedParkour(world, data) {
       }
     }
   }
-  console.log(`[Parkour] Placed ${placed} blocks in world`);
+  // Placed blocks in world
 
   const spawnYAdjusted = lowestSolid + 1;
   return { x: centerX + 0.5, y: spawnYAdjusted, z: centerZ + 0.5 };

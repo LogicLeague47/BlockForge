@@ -1001,6 +1001,11 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
 
   const playerData = { name: playerName, role, skinIndex, cgUsername: cgUsername || '', x: 0, y: 40, z: 0, yaw: 0, ws };
   room.players.set(ws, playerData);
+
+  if (room.players.size > 6) {
+    safeSend(ws, JSON.stringify({ type: 'chat', name: '§eServer', role: '', text: `§e⚠ There are ${room.players.size} players in this room. Performance may degrade with more than 6.` }));
+  }
+
   ws._playerData = playerData;
   ws._roomName = roomName;
 

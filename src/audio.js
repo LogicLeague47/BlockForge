@@ -937,7 +937,11 @@ export class Audio {
   sheepSound() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('sheep1', 'sheep2');
-    if (bufs.length) this._playBuf(bufs, 0.3, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
+    this._playLayers([
+      { wave: 'sine', freq: 220, dur: 0.25, gain: 0.12, atk: 0.02, rel: 0.3 },
+      { wave: 'sine', freq: 160, dur: 0.35, gain: 0.1, atk: 0.05, rel: 0.35 },
+    ]);
   }
 
   // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
@@ -945,55 +949,100 @@ export class Audio {
   hurtAnimal() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('creature_hurt1', 'creature_hurt2', 'creature_hurt3');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.2);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
+    this._playLayers([
+      { wave: 'sine', freq: 400, dur: 0.12, gain: 0.15, atk: 0.003, rel: 0.08 },
+      { noise: 'brown', dur: 0.1, gain: 0.1, lp: 500, atk: 0.002, rel: 0.1 },
+    ]);
   }
 
   hurtCow() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('cow1', 'cow2');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.1);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
+    this._playLayers([
+      { wave: 'sine', freq: 100, dur: 0.2, gain: 0.15, atk: 0.01, rel: 0.15 },
+      { noise: 'brown', dur: 0.18, gain: 0.12, lp: 300, atk: 0.005, rel: 0.15 },
+    ]);
   }
 
   hurtPig() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('pig1', 'pig2');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.1);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
+    this._playLayers([
+      { wave: 'sawtooth', freq: 450, dur: 0.12, gain: 0.12, atk: 0.003, rel: 0.08 },
+      { wave: 'sawtooth', freq: 300, dur: 0.15, gain: 0.1, atk: 0.005, rel: 0.1 },
+    ]);
   }
 
   hurtSheep() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('sheep1', 'sheep2');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.1);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
+    this._playLayers([
+      { wave: 'sine', freq: 300, dur: 0.15, gain: 0.12, atk: 0.005, rel: 0.1 },
+      { wave: 'sine', freq: 200, dur: 0.2, gain: 0.08, atk: 0.008, rel: 0.12 },
+    ]);
   }
 
   hurtChicken() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('chicken1', 'chicken2');
-    if (bufs.length) this._playBuf(bufs, 0.3, 0.2);
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.2); return; }
+    this._playLayers([
+      { wave: 'square', freq: 1500, dur: 0.04, gain: 0.08, atk: 0.001, rel: 0.04 },
+      { wave: 'square', freq: 2000, dur: 0.03, gain: 0.06, atk: 0.001, rel: 0.03 },
+    ]);
   }
 
   hurtZombie() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('zombie_hurt1', 'zombie_hurt2', 'monster1');
-    if (bufs.length) this._playBuf(bufs, 0.4, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
+    this._playLayers([
+      { wave: 'sawtooth', freq: 150, dur: 0.18, gain: 0.2, atk: 0.005, rel: 0.12 },
+      { noise: 'brown', dur: 0.15, gain: 0.12, lp: 250, atk: 0.003, rel: 0.1 },
+    ]);
   }
 
   hurtSkeleton() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('skeleton_hurt1', 'skeleton_hurt2', 'creature_hurt1');
-    if (bufs.length) this._playBuf(bufs, 0.4, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 1500 + i * 400;
+      const g = this._gain(0);
+      const tt = t + i * 0.04;
+      g.gain.setValueAtTime(0, tt);
+      g.gain.linearRampToValueAtTime(0.06, tt + 0.005);
+      g.gain.linearRampToValueAtTime(0, tt + 0.03);
+      osc.connect(g); g.connect(this.master);
+      osc.start(tt); osc.stop(tt + 0.04);
+    }
   }
 
   hurtSpider() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('spider_hurt1', 'bug_04');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.2);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
+    this._playLayers([
+      { noise: 'pink', dur: 0.12, gain: 0.15, hp: 2000, bp: 3000, bq: 0.5, atk: 0.002, rel: 0.08 },
+    ]);
   }
 
   hurtSlime() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('slime_hurt1', 'slime_hurt2', 'slime3');
-    if (bufs.length) this._playBuf(bufs, 0.35, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.35, 0.15); return; }
+    this._playLayers([
+      { wave: 'sine', freq: 200, dur: 0.15, gain: 0.12, atk: 0.008, rel: 0.12 },
+      { noise: 'brown', dur: 0.12, gain: 0.1, lp: 200, atk: 0.005, rel: 0.1 },
+    ]);
   }
 
   // ── HOSTILE MOB SOUNDS (procedural) ────────────────────────────────
@@ -1001,19 +1050,59 @@ export class Audio {
   zombieSound() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('zombie_groan1', 'zombie_groan2', 'zombie_groan3', 'zombie_groan4', 'monster2', 'monster3');
-    if (bufs.length) this._playBuf(bufs, 0.3, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const dur = 0.6;
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(95, t);
+    osc.frequency.linearRampToValueAtTime(65, t + dur * 0.6);
+    osc.frequency.linearRampToValueAtTime(55, t + dur);
+    const lp = this._filter('lowpass', 300, 0.7);
+    const g = this._gain(0);
+    this._envGain(g, 0.18, dur, 0.1, 0.35);
+    osc.connect(lp); lp.connect(g); g.connect(this.master);
+    osc.start(); osc.stop(t + dur + 0.05);
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(130, t);
+    osc2.frequency.linearRampToValueAtTime(100, t + dur * 0.5);
+    osc2.frequency.linearRampToValueAtTime(90, t + dur);
+    const g2 = this._gain(0);
+    this._envGain(g2, 0.1, dur, 0.08, 0.3);
+    osc2.connect(g2); g2.connect(this.master);
+    osc2.start(); osc2.stop(t + dur + 0.05);
   }
 
   skeletonSound() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('skeleton_bone1', 'skeleton_bone2', 'skeleton_bone3');
-    if (bufs.length) this._playBuf(bufs, 0.3, 0.15);
+    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    for (let i = 0; i < 3; i++) {
+      const tt = t + i * 0.12;
+      const osc = ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 800 + i * 300;
+      const g = this._gain(0);
+      g.gain.setValueAtTime(0, tt);
+      g.gain.linearRampToValueAtTime(0.06, tt + 0.005);
+      g.gain.linearRampToValueAtTime(0, tt + 0.03);
+      osc.connect(g); g.connect(this.master);
+      osc.start(tt); osc.stop(tt + 0.04);
+    }
   }
 
   spiderSound() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('spider_hiss1', 'spider_hiss2', 'spider_hiss3');
-    if (bufs.length) this._playBuf(bufs, 0.25, 0.2);
+    if (bufs.length) { this._playBuf(bufs, 0.25, 0.2); return; }
+    this._playLayers([
+      { noise: 'pink', dur: 0.35, gain: 0.12, hp: 2500, bp: 4000, bq: 0.4, atk: 0.02, rel: 0.3 },
+      { wave: 'sine', freq: 3000, dur: 0.3, gain: 0.03, atk: 0.01, rel: 0.2 },
+    ]);
   }
 
 
@@ -1042,7 +1131,12 @@ export class Audio {
   }
 
   hurtHostile() {
-    return;
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'square', freq: 200, dur: 0.15, gain: 0.15, atk: 0.005, rel: 0.1 },
+      { noise: 'brown', dur: 0.12, gain: 0.1, lp: 300, atk: 0.003, rel: 0.1 },
+    ]);
+  }
 
   // ── AMBIENT WIND ─────────────────────────────────────────────────────
 
