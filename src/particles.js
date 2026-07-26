@@ -7,7 +7,7 @@
 
 import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
-import { BIOMES } from './world.js';
+import { BIOMES } from './constants.js';
 
 // ── Block color lookup for break particles ──────────────────────────────
 

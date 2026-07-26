@@ -11,12 +11,30 @@ import { promisify } from 'util';
 const scryptAsync = promisify(scrypt);
 
 async function getPlayerData(username) {
-  const data = await redisCmd(['GET', `player_data:${username}`]);
-  return data ? JSON.parse(data) : { stats: {}, settings: {} };
+  if (USE_REDIS) {
+    const data = await redisCmd(['GET', `player_data:${username}`]);
+    return data ? JSON.parse(data) : { stats: {}, settings: {} };
+  }
+  try {
+    const f = join(__dirname, 'player-data.json');
+    if (!existsSync(f)) return { stats: {}, settings: {} };
+    const all = JSON.parse(readFileSync(f, 'utf8'));
+    return all[username] || { stats: {}, settings: {} };
+  } catch { return { stats: {}, settings: {} }; }
 }
 
 async function setPlayerData(username, data) {
-  await redisCmd(['SET', `player_data:${username}`, JSON.stringify(data)]);
+  if (USE_REDIS) {
+    await redisCmd(['SET', `player_data:${username}`, JSON.stringify(data)]);
+    return;
+  }
+  try {
+    const f = join(__dirname, 'player-data.json');
+    let all = {};
+    if (existsSync(f)) all = JSON.parse(readFileSync(f, 'utf8'));
+    all[username] = data;
+    writeFileSync(f, JSON.stringify(all, null, 2));
+  } catch {}
 }
 
 const PROFANITY_WORDS = [
@@ -68,6 +86,7 @@ function safeSend(ws, data) {
 const PORT = process.env.PORT || 4000;
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_FILE = join(__dirname, 'server-data.json');
+const IS_LAN = process.argv.includes('--lan');
 const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
 const FRIENDS_FILE = join(__dirname, 'friends.json');
 
@@ -1824,7 +1843,6 @@ handleLeave = function(ws) {
 };
 
 // ── Start ─────────────────────────────────────────────────────────────
-const IS_LAN = process.argv.includes('--lan');
 (async () => {
   await loadRooms();
   await loadAccounts();

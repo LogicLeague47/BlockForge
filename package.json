@@ -10,18 +10,20 @@
     "server": "node server.js",
     "start": "node server.js",
     "build:cg": "vite build --mode cg && node scripts/strip-cg.mjs",
-    "package": "bash package.sh"
+    "package": "bash package.sh",
+    "lint": "eslint src/",
+    "typecheck": "echo 'No TS setup yet'"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.2",
-    "@capacitor/cli": "^8.4.2",
-    "@capacitor/core": "^8.4.2",
-    "@capacitor/ios": "^8.4.2",
     "simplex-noise": "^4.0.1",
     "three": "^0.169.0",
     "ws": "^8.16.0"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
     "vite": "^5.4.0"
   }
 }
