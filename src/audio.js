@@ -50,6 +50,10 @@ export class Audio {
       'cow1','cow2',
       'pig1','pig2',
       'sheep1','sheep2',
+      'Fantozzi-StoneL1','Fantozzi-StoneL2','Fantozzi-StoneL3',
+      'Fantozzi-StoneR1','Fantozzi-StoneR2','Fantozzi-StoneR3',
+      'Fantozzi-SandL1','Fantozzi-SandL2','Fantozzi-SandL3',
+      'Fantozzi-SandR1','Fantozzi-SandR2','Fantozzi-SandR3',
     ];
     for (const name of names) {
       try {
@@ -275,9 +279,8 @@ export class Audio {
   // ── BLOCK STEP SOUNDS ────────────────────────────────────────────────
 
   _stone_step() {
-    if (this._buffers.stone_step1) {
-      return this._playBuf([this._buffers.stone_step1, this._buffers.stone_step2, this._buffers.stone_step3], 0.35, 0.12);
-    }
+    const b = this._bufs('stone_step1','stone_step2','stone_step3','Fantozzi-StoneL1','Fantozzi-StoneL2','Fantozzi-StoneL3','Fantozzi-StoneR1','Fantozzi-StoneR2','Fantozzi-StoneR3');
+    if (b.length) return this._playBuf(b, 0.35, 0.12);
     this._playLayers([
       { noise: 'brown', dur: 0.08, gain: 0.3, lp: 400, atk: 0.005, rel: 0.25 },
       { noise: 'white', dur: 0.05, gain: 0.2, bp: 2000, bq: 1.5, atk: 0.003, rel: 0.2 },
@@ -316,9 +319,8 @@ export class Audio {
 
   // SAND: Granular, gritty, loose — hiss with fine scatter
   _sand_step() {
-    if (this._buffers.sand_step1) {
-      return this._playBuf([this._buffers.sand_step1], 0.2, 0.12);
-    }
+    const b = this._bufs('sand_step1','Fantozzi-SandL1','Fantozzi-SandL2','Fantozzi-SandL3','Fantozzi-SandR1','Fantozzi-SandR2','Fantozzi-SandR3');
+    if (b.length) return this._playBuf(b, 0.2, 0.12);
     this._playLayers([
       { noise: 'white', dur: 0.06, gain: 0.2, bp: 3500, bq: 0.6, atk: 0.003, rel: 0.15 },
       { noise: 'white', dur: 0.04, gain: 0.12, hp: 6000, atk: 0.002, rel: 0.12 },

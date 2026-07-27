@@ -415,7 +415,7 @@ export class Player {
       if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
       this.fallStartY = -1;
     } else {
-      if (!this.onGround) this.velocity.y -= GRAVITY * dt;
+      this.velocity.y -= GRAVITY * dt;
       if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
@@ -530,23 +530,24 @@ export class Player {
   }
 
   // Edge protection: when crouching on ground, prevent walking off block edges.
-  // Checks if the player's AABB at the new X/Z position still has ground beneath it.
+  // Checks that at least one corner of the AABB has ground beneath at the new
+  // position, so you can reach the absolute edge before being stopped.
   _crouchEdgeBlocked(dx, dz) {
     if (!this.crouching || this.flying || !this.onGround) return false;
     const nx = this.position.x + dx;
     const nz = this.position.z + dz;
-    // Check all 4 corners of the player AABB at the new position
+    const footY = Math.floor(this.position.y - 0.05);
     const corners = [
       [nx - PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
       [nx + PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
       [nx - PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH],
       [nx + PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH]
     ];
-    const footY = Math.floor(this.position.y - 0.05);
+    let hasGround = false;
     for (const [cx, cz] of corners) {
-      if (!this._solid(Math.floor(cx), footY, Math.floor(cz))) return true;
+      if (this._solid(Math.floor(cx), footY, Math.floor(cz))) { hasGround = true; break; }
     }
-    return false;
+    return !hasGround;
   }
 
   moveAxis(axis, delta) {
