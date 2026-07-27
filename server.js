@@ -86,6 +86,7 @@ function filterProfanity(text) {
 
 function safeSend(ws, data) {
   if (ws && ws.readyState === 1) {
+    if (ws.bufferedAmount > 65536) return;
     try { ws.send(data); } catch (_) { /* ignored */ }
   }
 }
@@ -1199,14 +1200,17 @@ function handlePosition(ws, msg) {
   pd.crouching = !!msg.crouching;
   pd.armor = msg.armor || null;
 
-  // Rate-limit broadcast: max 25Hz per player (server side)
+  // Rate-limit broadcast: max 20Hz per player (server side)
   const now = Date.now();
-  if (pd._lastBroadcast && now - pd._lastBroadcast < 30) return;
+  if (pd._lastBroadcast && now - pd._lastBroadcast < 50) return;
   pd._lastBroadcast = now;
 
   // Broadcast position as binary — proximity culled (skip players >64 blocks away)
-  const nameBytes = Buffer.from(pd.name, 'utf8');
-  const binBuf = Buffer.alloc(1 + 1 + nameBytes.length + 16 + 1);
+  if (!pd._nameBuf) pd._nameBuf = Buffer.from(pd.name, 'utf8');
+  const nameBytes = pd._nameBuf;
+  const maxSize = 1 + 1 + nameBytes.length + 16 + 1;
+  if (!pd._posBuf || pd._posBuf.length < maxSize) pd._posBuf = Buffer.alloc(64);
+  const binBuf = pd._posBuf;
   binBuf.writeUInt8(0x01, 0);
   binBuf.writeUInt8(nameBytes.length, 1);
   nameBytes.copy(binBuf, 2);
@@ -1884,10 +1888,13 @@ const _armorInterval = setInterval(() => {
   for (const [, room] of rooms) {
     for (const [ws, pd] of room.players) {
       if (!pd.armor) continue;
-      const nameBytes = Buffer.from(pd.name, 'utf8');
+      if (!pd._nameBuf) pd._nameBuf = Buffer.from(pd.name, 'utf8');
+      const nameBytes = pd._nameBuf;
       const armorStr = pd.armor || '';
       const armorBytes = Buffer.from(armorStr, 'utf8');
-      const binBuf = Buffer.alloc(3 + nameBytes.length + armorBytes.length);
+      const maxSize = 3 + nameBytes.length + armorBytes.length;
+      if (!pd._armorBuf || pd._armorBuf.length < maxSize) pd._armorBuf = Buffer.alloc(maxSize);
+      const binBuf = pd._armorBuf;
       binBuf.writeUInt8(0x03, 0); // type: armor sync
       binBuf.writeUInt8(nameBytes.length, 1);
       nameBytes.copy(binBuf, 2);

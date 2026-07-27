@@ -1,7 +1,6 @@
 // Sound effects + music player via the Web Audio API.
-// Block sounds loaded from CC0 Kenney impact sounds (public/Sounds/).
-// Mob sounds loaded from CC0 creature sounds (public/Sounds/).
-// Eating, weather, and ambient sounds are procedural.
+// Mob sounds from CC0 creature sounds (public/Sounds/).
+// Footstep sounds from CC0 Kenney impact sounds (public/Sounds/).
 
 import { assetBase } from './config.js';
 function assetUrl(p) { return assetBase() + String(p).replace(/^\//, ''); }
@@ -12,7 +11,6 @@ export class Audio {
     this.enabled = true;
     this.master = null;
     this.musicGain = null;
-    this.wind = null;
     this._stepCooldown = 0;
     this._musicPlaying = false;
     this._musicEl = null;
@@ -82,13 +80,9 @@ export class Audio {
     return names.map(n => this._buffers[n]).filter(Boolean);
   }
 
-  loadSfx() {}
-
   resume() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
-
-  // ── ZOMBIE SOUNDS (procedural) ─────────────────────────────────────
 
   _initMusic() {
     this._musicPaths = [
