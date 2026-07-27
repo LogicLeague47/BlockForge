@@ -4315,47 +4315,86 @@ function initMenu() {
   });
 
   // --- Updates ---
-  const COMMITS = [
-    { h: '905becf', t: 'Crouch Overhaul + Weather + Underground + Visual Polish', d: '<b>BUGS FIXED</b><br>- Player floats after walking off edge (gravity now always applies)<br>- Crouch edge protection too restrictive (now uses center foot check)<br>- Crouch uncrouch head-stuck check (can\'t stand up in 1-block gap)<br>- Remote players spawned at world origin instead of player position<br>- Shadow matrix desync between custom shaders and Three.js render<br><br><b>UPDATES</b><br>- Crouch: smooth camera transition, fall damage negation, faster animation<br>- Water: fresnel-based reflections, sharper specular<br>- Chunks: priority queue loads nearest chunks first<br>- Day/night: golden hour glow, smooth sun/ambient lerp, cloud tinting<br><br><b>NEW FEATURES</b><br>- Weather system: rain (2000 particles), snow (1000), thunderstorms, biome-based<br>- Underground: ore veins, stalactites/stalagmites, deepslate cave biome, lava caverns, underground lakes<br>- Item tooltips: name, durability, defense, hunger on hover<br>- Grass/foliage sway: vertex shader wind animation<br>- Block preview ghost: green/red tint for valid/obstructed placement<br>- Dynamic fog: rain reduces visibility, color adapts to weather' },
-    { h: '7e4c1bc', t: 'Fix Build & Startup Issues', d: 'Fixed: IS_LAN hoisting (moved above all usage). Fixed: package.json (@capacitor/* to devDependencies, added lint/typecheck scripts). Removed: .launch.err from repo. Fixed: BIOMES import path in particles.js.' },
-    { h: '1d20e86', t: 'Breast Stroke Swimming Animation', d: 'Added: Breast stroke swimming animation for first-person and third-person views. Frog kick leg motion (synchronous). Forward body lean when swimming. Head lift for breathing in rhythm with stroke. Slower tempo for swimming limb swing.' },
-    { h: 'a1daed0', t: 'Remove Animal Sounds + Head Bobbing', d: 'Added: Head bobbing (vertical bob and horizontal sway synced to movement, 8Hz walking / 11Hz sprinting). Fixed: All animal ambient and hurt sounds removed (cow/pig/sheep).' },
-    { h: '8b91532', t: 'Remove All SFX Except Footsteps', d: 'Added: CC0 Fantozzi footstep samples from OpenGameArt (stone and sand). Removed: 65 unused OGG sound files (hostile mobs, dig/place, hurt). Only footsteps + music remain.' },
-    { h: 'fd3809f', t: 'Clean Up Audio Code', d: 'Fixed: Removed stale comments, dead code (wind property, loadSfx), and outdated header. Cleaned up audio.js to only contain active footstep and music systems.' },
-    { h: '27831b6', t: 'Fix 120 BUGS_SCAN Issues', d: 'Fixed: Server-side guest account persistence, block ID >127 truncation, position || vs ??, fragile monkey-patch pattern, redundant intervals. Fixed: Player NaN normalize crash, zero-vector normalize guard, gravity applied on-ground, knockback Math.abs, capture position at collision start. Fixed: UI .toDataURL() cache to prevent per-frame allocations, DOM leak (reusable img element). Fixed: surfaceMap not updating on block removal, network pingInterval ordering, duplicate owner in multiplayer, worldgen river octaves and cave width. Added: Chunk loading safety, items skip physics when chunk unloaded, public markDirty wrapper, JSON structure validation, accounts.json/player-data.json to .gitignore.' },
-    { h: '66b7ba3', t: 'Fix Shadow Rendering', d: 'Fixed: Shadow matrix mismatch — pass view camera to updateMatrices() so Three.js r169 computes correct matrix. Added: Shadow texel snapping to prevent shimmer/swimming as player moves. Fixed: Shadow target Y uses player position instead of hardcoded 0.' },
-    { h: '3d7f236', t: 'Remove Hostile Mob Sounds', d: 'Removed: All zombie, skeleton, spider, slime, creeper sounds. Removed: All hurt sounds for hostile mobs and generic animal hurt. Only pig/cow/sheep + footsteps + music remain.' },
-    { h: '6eef0d1', t: 'Fix Shader Bugs', d: 'Fixed: getShadow() double-bias (removed *0.5+0.5). Added: shadowMapSize uniform, slope-dependent shadow bias. Fixed: water viewDir uses cameraPosition instead of origin. Fixed: water fog distance uses cameraPosition. Fixed: water vertex normal uses normalMatrix for non-uniform scale. Fixed: GodRayPass renderToScreen reset after use.' },
-    { h: '7e4c1bc', t: 'Fix Build & Startup Issues', d: 'Fixed: IS_LAN hoisting (moved above all usage). Fixed: package.json (@capacitor/* to devDependencies, added lint/typecheck scripts). Removed: .launch.err from repo. Fixed: BIOMES import path in particles.js.' },
-    { h: '1be1232', t: 'Polish & Optimization', d: 'Added: Oscillator-based mob sounds for all mob types (zombie/skeleton/spider/cow/pig/sheep). Added: Server performance warning when >6 players in a room. Fixed: Server getPlayerData/setPlayerData local JSON fallback. Removed: Debug logs.' },
-    { h: '33ef9ec', t: 'Fix Shadow Sync & Mob Sounds', d: 'Fixed: Shadow matrix sync (updateShaderUniforms now reads sun.shadow.matrix after calling updateMatrices). Removed: Noisy procedural mob sounds.' },
-    { h: 'a9775a0', t: 'Streamline Login Flow', d: 'Fixed: /u/ profile page auto-redirects to game after 1.2s. Removed: Play BlockForge button (unnecessary step). Fixed: _backgroundAuth prevents redirect loop.' },
-    { h: '74767f9', t: 'Add Real-Time Shadows', d: 'Added: Shadow map sampling with PCF to all terrain materials. Added: shadowMatrix and shadowMap uniforms. Added: Sun/moon follow player for correct shadow rendering. Added: 48 CC0 Kenney impact sounds for footstep/dig/place.' },
-    { h: 'f4571e5', t: 'Procedural Sound Synthesis', d: 'Removed: ALL non-open-source sound files. Replaced: Every sound with purely procedural Web Audio API synthesis. Added: Brown/pink/white noise generators, envelope shaping, filter chains for realistic step sounds.' },
-    { h: '79c898d', t: 'Shadow & Visual Polish', d: 'Fixed: Shadow camera tightened from ±100 to ±40 for better resolution. Fixed: Shadow bias (-0.0005). Improved: Block break cracks with Minecraft-style angular web pattern.' },
-    { h: 'cf2577c', t: 'Switch to Render Hosting', d: 'Added: Render static site service for frontend. Removed: GitHub Actions workflows. Fixed: MP_SERVER_URL to always use BACKEND_URL when not localhost.' },
-    { h: '8c6809d', t: 'Fix Ghost Blocks & Rendering', d: 'Fixed: Ghost blocks from previous worlds persisting in scene. Fixed: Shadow rendering, water waves, leaf clumps, day/night lighting.' },
-    { h: '0d32fee', t: 'Dynamic Shadows & Rivers', d: 'Added: Dynamic entity shadows. Added: River biome with flowing water animation. Added: Ocean/river wave effects.' },
-    { h: 'fbb2a12', t: 'Fix Login & Menu Flow', d: 'Fixed: Broken manager.tick() call removed. Added: Redirect to /u/ page after login. Added: from=game parameter for auto-login flow.' },
+  // --- Updates ---
+  const UPDATE_SECTIONS = [
+    {
+      heading: 'BlockForge Beta — Latest Build',
+      bugs: [
+        'Player floats after walking off edge — gravity now always applies',
+        'Crouch edge protection too restrictive — now uses center foot check',
+        'Crouch uncrouch head-stuck check — prevents standing in 1-block gap',
+        'Remote players spawned at world origin instead of player position',
+        'Shadow matrix desync between custom shaders and Three.js render',
+        'Shadow matrix mismatch — pass camera to updateMatrices()',
+        'Shadow texel shimmer/swimming — added texel snapping',
+        'Shadow target Y hardcoded to 0 — now uses player Y',
+        'getShadow() double-bias artifact — removed *0.5+0.5',
+        'Water viewDir/fog using origin instead of cameraPosition',
+        'Water vertex normal broken with non-uniform scale',
+        'GodRayPass renderToScreen not reset after use',
+        'Ghost blocks from previous worlds persisting in scene',
+        '120 BUGS_SCAN issues across 16 files (NaN crash, zero-vector normalize, duplicate owner, ping interval, river octaves, cave width, surfaceMap not updating, IMG DOM leak, toDataURL() per-frame allocations, server guest persistence, block ID truncation, fragile monkey-patch, redundant intervals)',
+        'Build: IS_LAN hoisting, package.json cleanup, .launch.err removed',
+        'BIOMES import path broken in particles.js',
+        'Login redirect loop — _backgroundAuth fixed',
+        'Server getPlayerData/setPlayerData JSON fallback',
+        'Broken manager.tick() call removed',
+      ],
+      updates: [
+        '65 unused OGG sound files deleted (hostile mobs, dig, place, hurt)',
+        'Animal ambient and hurt sounds removed (cow/pig/sheep)',
+        'All hostile mob sounds removed (zombie/skeleton/spider/slime/creeper)',
+        'All non-open-source sound files removed — replaced with procedural synthesis',
+        'Audio code cleaned up — stale comments and dead code removed',
+        'CC0 Fantozzi footstep samples from OpenGameArt (stone + sand)',
+        '48 CC0 Kenney impact sounds for footstep/dig/place',
+        'Switch to Render hosting — removed GitHub Actions workflows',
+        'MP_SERVER_URL uses BACKEND_URL when not localhost',
+        'Server performance warning when >6 players in a room',
+        'accounts.json and player-data.json added to .gitignore',
+        'Debug logs removed from parkour.js',
+        'Profanity list duplicate removed',
+        'Oscillator-based mob sounds — later replaced with no-ops',
+        'Crouch: smooth camera transition, fall damage negation, faster animation',
+        'Water: fresnel-based reflections, sharper specular',
+        'Chunks: priority queue loads nearest chunks first',
+        'Day/night: golden hour glow, smooth sun/ambient lerp, cloud tinting',
+      ],
+      features: [
+        'Weather system: rain (2000 particles), snow (1000), thunderstorms, biome-based probability, smooth transitions',
+        'Underground biome: ore veins, stalactites/stalagmites, deepslate cave biome, lava caverns, underground lakes, mob-proof lighting',
+        'Item tooltips: name, durability, defense, hunger on hover',
+        'Grass/foliage sway: vertex shader wind animation',
+        'Block preview ghost: green/red tint for valid/obstructed placement',
+        'Dynamic fog: rain reduces visibility, color adapts to weather',
+        'Real-time shadows: PCF shadow mapping on all terrain materials, shadowMatrix + shadowMap uniforms, sun/moon follow player',
+        'Dynamic entity shadows',
+        'River biome with flowing water animation, ocean/river wave effects',
+        'Head bobbing: vertical bob + horizontal sway (8Hz walking, 11Hz sprinting)',
+        'Breast stroke swimming animation: frog kick, forward lean, head lift for breath',
+        'Block break cracks — Minecraft-style angular web pattern',
+        'Shadow camera tightened for better resolution, slope-dependent bias',
+        'Shadow map sampling with PCF for softer shadows',
+        'Render static site service on Render',
+      ],
+    },
   ];
   document.getElementById('btn-updates').addEventListener('click', () => {
     ui.showMenu('updates');
     ui._prevMenu = 'main';
     const list = document.getElementById('updates-list');
     if (!list.dataset.rendered) {
-      list.innerHTML = COMMITS.map(c => `
-        <div class="update-entry" data-hash="${c.h}" style="cursor:pointer;padding:8px 10px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,0.05);border-left:3px solid #5af;">
-          <div style="font:bold 13px monospace;color:#fff;">${c.t}</div>
-          <div style="font:10px monospace;color:#888;margin-top:2px;">${c.h}</div>
-          <div class="update-detail" style="font:11px monospace;color:#aaa;margin-top:6px;display:none;line-height:1.5;">${c.d}</div>
+      list.innerHTML = UPDATE_SECTIONS.map(s => `
+        <div style="margin-bottom:16px;">
+          <div style="font:bold 14px monospace;color:#fa0;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid rgba(255,170,0,0.3);">${s.heading}</div>
+          <div style="font:bold 12px monospace;color:#f88;margin-bottom:6px;padding-left:4px;">BUGS FIXED</div>
+          ${s.bugs.map(b => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">${b}</div>`).join('')}
+          <div style="font:bold 12px monospace;color:#8cf;margin-top:10px;margin-bottom:6px;padding-left:4px;">UPDATES</div>
+          ${s.updates.map(u => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">${u}</div>`).join('')}
+          <div style="font:bold 12px monospace;color:#8f8;margin-top:10px;margin-bottom:6px;padding-left:4px;">NEW FEATURES</div>
+          ${s.features.map(f => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">${f}</div>`).join('')}
         </div>
       `).join('');
-      list.addEventListener('click', (e) => {
-        const entry = e.target.closest('.update-entry');
-        if (!entry) return;
-        const detail = entry.querySelector('.update-detail');
-        detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
-      });
       list.dataset.rendered = '1';
     }
   });
