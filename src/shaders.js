@@ -322,14 +322,14 @@ function _syncWaterMat(mat, time, fogColor, fogNear, fogFar, sunDir) {
   mat.uniforms.sunDirection.value.copy(sunDir);
 }
 
-export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time, renderer }) {
+export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat, oceanWaterMat, riverWaterMat, sun, ambient, fogColor, fogNear, fogFar, time, renderer, camera }) {
   const sunDir = new THREE.Vector3().subVectors(sun.position, sun.target.position).normalize();
   setSunDirection(sunDir);
 
   const sunCol = sun.color.clone().multiplyScalar(sun.intensity);
   const ambCol = ambient.color.clone().multiplyScalar(ambient.intensity);
 
-  sun.shadow.updateMatrices(sun);
+  sun.shadow.updateMatrices(sun, camera);
   const shadowMat = sun.shadow.matrix;
   const shadowTex = sun.shadow.map ? sun.shadow.map.texture : null;
 

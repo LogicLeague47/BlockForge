@@ -6132,8 +6132,22 @@ function loop() {
   // Update shadow camera to follow player
   if (player) {
     const p = player.position;
-    sun.target.position.set(p.x, 0, p.z);
+    sun.target.position.set(p.x, p.y, p.z);
     sun.target.updateMatrixWorld();
+
+    // Snap shadow camera to texel grid to prevent shimmer
+    const sc = sun.shadow.camera;
+    const tW = (sc.right - sc.left) / sun.shadow.mapSize.width;
+    const tH = (sc.top - sc.bottom) / sun.shadow.mapSize.height;
+    const lv = new THREE.Matrix4().lookAt(sun.position, sun.target.position, sun.up);
+    const lp = new THREE.Vector3().copy(sun.target.position).applyMatrix4(lv);
+    const sx = Math.round(lp.x / tW) * tW;
+    const sy = Math.round(lp.y / tH) * tH;
+    if (sx !== lp.x || sy !== lp.y) {
+      const off = new THREE.Vector3(sx - lp.x, sy - lp.y, 0).applyMatrix4(new THREE.Matrix4().copy(lv).invert());
+      sun.position.add(off);
+      sun.target.position.add(off);
+    }
   }
 
   // Sync custom shader uniforms every frame
@@ -6151,6 +6165,7 @@ function loop() {
       fogFar: scene.fog.far,
       time: performance.now() / 1000,
       renderer,
+      camera,
     });
   }
 
