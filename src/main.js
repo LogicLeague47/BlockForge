@@ -517,7 +517,8 @@ scene.add(crackPlane);
 // --- Ghost block preview (semi-transparent block at placement position) ---
 const ghostGeo = new THREE.BoxGeometry(1, 1, 1);
 const ghostMat = new THREE.MeshBasicMaterial({
-  transparent: true, opacity: 0.35, depthWrite: false, color: 0xffffff
+  transparent: true, opacity: 0.35, depthWrite: false, color: 0xffffff,
+  polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1,
 });
 const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
 ghostMesh.visible = false;
@@ -1898,7 +1899,7 @@ function doBreak(hit, b) {
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
   // drop item
   if (player.isSurvival()) {
-    const drop = blockDrop(b, toolHarvestLevel(toolId || 0)); // toolId may be null (bare hand) — default to harvest level 0
+    const drop = blockDrop(b, toolHarvestLevel(toolId || 0));
     if (drop) player.inventory.add(drop, 1);
     syncUIMode();
   }
@@ -1906,6 +1907,7 @@ function doBreak(hit, b) {
   achievements.incrementMapStat('blocksBroken', `${b}`);
   achievements.incrementStat('totalBlocksBroken');
   manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+  audio?.blockBreak(b);
 
   if (player.isSurvival()) player.addExhaustion(0.05);
   // XP for mining: ore blocks give more
@@ -2943,13 +2945,12 @@ window._exitParkourToMinigames = () => {
   if (mobManager) { mobManager.clear(); mobManager = null; }
   if (explosionManager) { explosionManager.clear(); explosionManager = null; }
   if (playerModel) { playerModel.dispose(); playerModel = null; }
-  if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
+  if (weatherSystem) { weatherSystem.clear(); weatherSystem = null; }
   if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
   if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
   if (breakParticles) { breakParticles.clear(); breakParticles = null; }
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
-  weather = 'clear'; weatherTimer = 0;
   try {  } catch (_) { console.warn("operation failed"); }
   ui.showMenu('minigames');
 };
@@ -3128,7 +3129,7 @@ function updateSky(dt) {
   _sunPos.lerp(sun.position, 0.1);
 
   // Golden hour: boost warmth when sun is near the horizon
-  const nearHorizon = Math.abs(Math.abs(sinA) - 0) < 0.3;
+  const nearHorizon = Math.abs(sinA) < 0.3;
   const goldenBoost = nearHorizon ? 1.0 + (0.5 * (1 - Math.abs(sinA) / 0.3)) : 1.0;
   sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0 * goldenBoost;
 
@@ -3325,8 +3326,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           doorStates.delete(doorKey);
         } else {
           doorStates.set(doorKey, { blockId: hit.block });
-  world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
-  if (audio && !player.isCreative()) audio.blockBreak(b);
+          world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
         }
         manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
       } else if (hit && hit.block === BLOCK.LEVER) {
@@ -3546,8 +3546,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     player.setGamemode('adventure');
     if (mobManager) { mobManager.clear(); }
     dayTime = 0.3;
-    weather = 'clear';
-    weatherTimer = 0;
+    if (weatherSystem) { weatherSystem.setState('clear'); }
     if (player.inventory) {
       player.inventory.slots.fill(null);
       player.inventory.offhand = null;
@@ -4313,6 +4312,53 @@ function initMenu() {
   document.getElementById('tab-bans').addEventListener('click', () => renderAdminPanel('bans'));
   document.getElementById('btn-admin-back').addEventListener('click', () => {
     showMultiplayerMenu();
+  });
+
+  // --- Updates ---
+  const COMMITS = [
+    { h: '1d20e86', t: 'Breast Stroke Swimming Animation', d: 'Added: Breast stroke swimming animation for first-person and third-person views. Frog kick leg motion (synchronous). Forward body lean when swimming. Head lift for breathing in rhythm with stroke. Slower tempo for swimming limb swing.' },
+    { h: 'a1daed0', t: 'Remove Animal Sounds + Head Bobbing', d: 'Added: Head bobbing (vertical bob and horizontal sway synced to movement, 8Hz walking / 11Hz sprinting). Fixed: All animal ambient and hurt sounds removed (cow/pig/sheep).' },
+    { h: '8b91532', t: 'Remove All SFX Except Footsteps', d: 'Added: CC0 Fantozzi footstep samples from OpenGameArt (stone and sand). Removed: 65 unused OGG sound files (hostile mobs, dig/place, hurt). Only footsteps + music remain.' },
+    { h: 'fd3809f', t: 'Clean Up Audio Code', d: 'Fixed: Removed stale comments, dead code (wind property, loadSfx), and outdated header. Cleaned up audio.js to only contain active footstep and music systems.' },
+    { h: '27831b6', t: 'Fix 120 BUGS_SCAN Issues', d: 'Fixed: Server-side guest account persistence, block ID >127 truncation, position || vs ??, fragile monkey-patch pattern, redundant intervals. Fixed: Player NaN normalize crash, zero-vector normalize guard, gravity applied on-ground, knockback Math.abs, capture position at collision start. Fixed: UI .toDataURL() cache to prevent per-frame allocations, DOM leak (reusable img element). Fixed: surfaceMap not updating on block removal, network pingInterval ordering, duplicate owner in multiplayer, worldgen river octaves and cave width. Added: Chunk loading safety, items skip physics when chunk unloaded, public markDirty wrapper, JSON structure validation, accounts.json/player-data.json to .gitignore.' },
+    { h: '66b7ba3', t: 'Fix Shadow Rendering', d: 'Fixed: Shadow matrix mismatch — pass view camera to updateMatrices() so Three.js r169 computes correct matrix. Added: Shadow texel snapping to prevent shimmer/swimming as player moves. Fixed: Shadow target Y uses player position instead of hardcoded 0.' },
+    { h: '3d7f236', t: 'Remove Hostile Mob Sounds', d: 'Removed: All zombie, skeleton, spider, slime, creeper sounds. Removed: All hurt sounds for hostile mobs and generic animal hurt. Only pig/cow/sheep + footsteps + music remain.' },
+    { h: '6eef0d1', t: 'Fix Shader Bugs', d: 'Fixed: getShadow() double-bias (removed *0.5+0.5). Added: shadowMapSize uniform, slope-dependent shadow bias. Fixed: water viewDir uses cameraPosition instead of origin. Fixed: water fog distance uses cameraPosition. Fixed: water vertex normal uses normalMatrix for non-uniform scale. Fixed: GodRayPass renderToScreen reset after use.' },
+    { h: '7e4c1bc', t: 'Fix Build & Startup Issues', d: 'Fixed: IS_LAN hoisting (moved above all usage). Fixed: package.json (@capacitor/* to devDependencies, added lint/typecheck scripts). Removed: .launch.err from repo. Fixed: BIOMES import path in particles.js.' },
+    { h: '1be1232', t: 'Polish & Optimization', d: 'Added: Oscillator-based mob sounds for all mob types (zombie/skeleton/spider/cow/pig/sheep). Added: Server performance warning when >6 players in a room. Fixed: Server getPlayerData/setPlayerData local JSON fallback. Removed: Debug logs.' },
+    { h: '33ef9ec', t: 'Fix Shadow Sync & Mob Sounds', d: 'Fixed: Shadow matrix sync (updateShaderUniforms now reads sun.shadow.matrix after calling updateMatrices). Removed: Noisy procedural mob sounds.' },
+    { h: 'a9775a0', t: 'Streamline Login Flow', d: 'Fixed: /u/ profile page auto-redirects to game after 1.2s. Removed: Play BlockForge button (unnecessary step). Fixed: _backgroundAuth prevents redirect loop.' },
+    { h: '74767f9', t: 'Add Real-Time Shadows', d: 'Added: Shadow map sampling with PCF to all terrain materials. Added: shadowMatrix and shadowMap uniforms. Added: Sun/moon follow player for correct shadow rendering. Added: 48 CC0 Kenney impact sounds for footstep/dig/place.' },
+    { h: 'f4571e5', t: 'Procedural Sound Synthesis', d: 'Removed: ALL non-open-source sound files. Replaced: Every sound with purely procedural Web Audio API synthesis. Added: Brown/pink/white noise generators, envelope shaping, filter chains for realistic step sounds.' },
+    { h: '79c898d', t: 'Shadow & Visual Polish', d: 'Fixed: Shadow camera tightened from ±100 to ±40 for better resolution. Fixed: Shadow bias (-0.0005). Improved: Block break cracks with Minecraft-style angular web pattern.' },
+    { h: 'cf2577c', t: 'Switch to Render Hosting', d: 'Added: Render static site service for frontend. Removed: GitHub Actions workflows. Fixed: MP_SERVER_URL to always use BACKEND_URL when not localhost.' },
+    { h: '8c6809d', t: 'Fix Ghost Blocks & Rendering', d: 'Fixed: Ghost blocks from previous worlds persisting in scene. Fixed: Shadow rendering, water waves, leaf clumps, day/night lighting.' },
+    { h: '0d32fee', t: 'Dynamic Shadows & Rivers', d: 'Added: Dynamic entity shadows. Added: River biome with flowing water animation. Added: Ocean/river wave effects.' },
+    { h: 'fbb2a12', t: 'Fix Login & Menu Flow', d: 'Fixed: Broken manager.tick() call removed. Added: Redirect to /u/ page after login. Added: from=game parameter for auto-login flow.' },
+  ];
+  document.getElementById('btn-updates').addEventListener('click', () => {
+    ui.showMenu('updates');
+    ui._prevMenu = 'main';
+    const list = document.getElementById('updates-list');
+    if (!list.dataset.rendered) {
+      list.innerHTML = COMMITS.map(c => `
+        <div class="update-entry" data-hash="${c.h}" style="cursor:pointer;padding:8px 10px;margin-bottom:4px;border-radius:4px;background:rgba(255,255,255,0.05);border-left:3px solid #5af;">
+          <div style="font:bold 13px monospace;color:#fff;">${c.t}</div>
+          <div style="font:10px monospace;color:#888;margin-top:2px;">${c.h}</div>
+          <div class="update-detail" style="font:11px monospace;color:#aaa;margin-top:6px;display:none;line-height:1.5;">${c.d}</div>
+        </div>
+      `).join('');
+      list.addEventListener('click', (e) => {
+        const entry = e.target.closest('.update-entry');
+        if (!entry) return;
+        const detail = entry.querySelector('.update-detail');
+        detail.style.display = detail.style.display === 'none' ? 'block' : 'none';
+      });
+      list.dataset.rendered = '1';
+    }
+  });
+  document.getElementById('btn-updates-back').addEventListener('click', () => {
+    ui.showMenu('main');
   });
 
   // --- Credits ---
@@ -5935,7 +5981,10 @@ function loop() {
   }
 
   updateSky(dt);
-  updateWeather(dt);
+  if (weatherSystem && player) {
+    const b = world.biomeAt(Math.floor(player.position.x), Math.floor(player.position.z), Math.floor(player.position.y));
+    weatherSystem.update(player.position, camera, performance.now() / 1000, dt, b);
+  }
   greenstoneSystem.update(dt, world);
   updateCoordsHud(dt);
   updateTimeHud();
@@ -6071,7 +6120,7 @@ function loop() {
     scene.fog.near = 1; scene.fog.far = 22;
     if (underwaterOverlay) underwaterOverlay.style.display = 'block';
   } else {
-    const isRaining = weather === 'rain' || weather === 'thunder';
+    const isRaining = weatherSystem ? weatherSystem.getRainIntensity() > 0.1 : false;
     const fogFar = 16 * (renderDist + 2) * (isRaining ? 0.6 : 1.0);
     scene.fog.far = fogFar;
     scene.fog.near = fogFar * 0.35;
