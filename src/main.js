@@ -8,7 +8,7 @@ import { Player } from './player.js';
 import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
-import { Audio } from './audio.js';
+import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
 import { ViewModel } from './viewmodel.js';
@@ -35,6 +35,7 @@ import { network } from './network.js';
 import { filterProfanity } from './profanity.js';
 import { GreenstoneSystem } from './greenstone.js';
 import { VoiceChat } from './voice.js';
+import { WeatherSystem } from './weather.js';
 
 const REACH = 6;
 const DAY_LENGTH = 960; // 16 min total: 10 day + 6 night
@@ -513,6 +514,16 @@ const crackPlane = new THREE.Mesh(new THREE.PlaneGeometry(1.001, 1.001), crackMa
 crackPlane.visible = false;
 scene.add(crackPlane);
 
+// --- Ghost block preview (semi-transparent block at placement position) ---
+const ghostGeo = new THREE.BoxGeometry(1, 1, 1);
+const ghostMat = new THREE.MeshBasicMaterial({
+  transparent: true, opacity: 0.35, depthWrite: false, color: 0xffffff
+});
+const ghostMesh = new THREE.Mesh(ghostGeo, ghostMat);
+ghostMesh.visible = false;
+ghostMesh.renderOrder = 999;
+scene.add(ghostMesh);
+
 function updateBreaking(progress, hit) {
   if (progress <= 0 || !hit) { crackPlane.visible = false; return; }
   crackPlane.visible = true;
@@ -539,7 +550,7 @@ function updateBreaking(progress, hit) {
 }
 
 // --- UI / audio ---
-const ui = new UI(atlasCanvas);
+const ui = new UI(atlasCanvas, audio);
 ui._onSync = syncUIMode;
 ui.onCraft = (itemId, count) => {
   achievements.addItemsCrafted(count);
@@ -561,7 +572,7 @@ ui.onCraft = (itemId, count) => {
 ui.onSmelt = (inputItem, count) => {
   achievements.incrementMapStat('smelted', inputItem, count);
 };
-const audio = new Audio();
+const audio = new AudioManager();
 const achievements = new AchievementManager();
 
 // --- sleep overlay ---
@@ -1644,6 +1655,7 @@ function placeBlock(slotOverride) {
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
 
   world.setBlock(x, y, z, itemId);
+  if (audio) audio.blockPlace(itemId);
   if (network.isInRoom()) network.sendBlockUpdate(x, y, z, itemId);
 
   // Block place particles: small dust puff
@@ -2229,9 +2241,9 @@ function submitChat() {
     // /weather command — singleplayer only
     if (cmdPart === 'weather' && !inMultiplayer) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
-      if (val === 'clear') { weather = 'clear'; addChatLine('Weather set to clear.', '#5f5'); }
-      else if (val === 'rain' || val === 'rainy') { weather = 'rain'; addChatLine('Weather set to rain.', '#5f5'); }
-      else if (val === 'thunder' || val === 'storm') { weather = 'thunder'; addChatLine('Weather set to thunder.', '#5f5'); }
+      if (val === 'clear') { weatherSystem?.setState('clear'); addChatLine('Weather set to clear.', '#5f5'); }
+      else if (val === 'rain' || val === 'rainy') { weatherSystem?.setState('rain'); addChatLine('Weather set to rain.', '#5f5'); }
+      else if (val === 'thunder' || val === 'storm') { weatherSystem?.setState('thunder'); addChatLine('Weather set to thunder.', '#5f5'); }
       else addChatLine('Usage: /weather <clear|rain|thunder>', '#f55');
       return;
     }
@@ -2964,104 +2976,9 @@ let dayTime = 0.3;
 let totalDays = 1;
 
 // --- weather system ---
-let weather = 'clear'; // 'clear' | 'rain' | 'thunder'
-let weatherTimer = 0;
-let weatherDuration = 300; // starts clear for a while (overridden properly in startGame)
-const WEATHER_MIN_CLEAR = 120;  // min seconds of clear sky
-const WEATHER_MAX_CLEAR = 600;
-const WEATHER_MIN_RAIN = 30;
-const WEATHER_MAX_RAIN = 120;
-let thunderFlash = 0;
-let rainDrops = null;
-let RAIN_COUNT = 2000;
-let rainPositions = null;
-let rainVelocities = null;
-let _rainSplashTimer = 0;
+let weatherSystem = null;
 
-function initRain() {
-  RAIN_COUNT = graphicsQuality === 'low' ? 500 : graphicsQuality === 'high' ? 3000 : 2000;
-  const geo = new THREE.BufferGeometry();
-  rainPositions = new Float32Array(RAIN_COUNT * 3);
-  rainVelocities = new Float32Array(RAIN_COUNT);
-  for (let i = 0; i < RAIN_COUNT; i++) {
-    rainPositions[i * 3] = (Math.random() - 0.5) * 80;
-    rainPositions[i * 3 + 1] = Math.random() * 40;
-    rainPositions[i * 3 + 2] = (Math.random() - 0.5) * 80;
-    rainVelocities[i] = 15 + Math.random() * 10;
-  }
-  geo.setAttribute('position', new THREE.BufferAttribute(rainPositions, 3));
-  const mat = new THREE.PointsMaterial({
-    color: 0x99bbdd,
-    size: 0.15,
-    transparent: true,
-    opacity: 0.5,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-  });
-  rainDrops = new THREE.Points(geo, mat);
-  rainDrops.visible = false;
-  scene.add(rainDrops);
-}
 
-function updateWeather(dt) {
-  weatherTimer += dt;
-  if (weatherTimer >= weatherDuration) {
-    weatherTimer = 0;
-    const wasRaining = weather === 'rain' || weather === 'thunder';
-    if (weather === 'clear') {
-      weather = Math.random() < 0.6 ? 'rain' : 'thunder';
-      weatherDuration = WEATHER_MIN_RAIN + Math.random() * (WEATHER_MAX_RAIN - WEATHER_MIN_RAIN);
-    } else {
-      weather = 'clear';
-      weatherDuration = WEATHER_MIN_CLEAR + Math.random() * (WEATHER_MAX_CLEAR - WEATHER_MIN_CLEAR);
-    }
-    const isRaining = weather === 'rain' || weather === 'thunder';
-    if (isRaining && !wasRaining) {
-      try {  } catch (_) { console.warn("operation failed"); }
-    } else if (!isRaining && wasRaining) {
-      try {  } catch (_) { console.warn("operation failed"); }
-    }
-  }
-  // Rain particles
-  const isRaining = weather === 'rain' || weather === 'thunder';
-  if (rainDrops) {
-    rainDrops.visible = isRaining;
-    if (isRaining && player) {
-      const pos = rainDrops.geometry.attributes.position.array;
-      const px = player.position.x, pz = player.position.z;
-      _rainSplashTimer = (_rainSplashTimer || 0) - dt;
-      for (let i = 0; i < RAIN_COUNT; i++) {
-        pos[i * 3 + 1] -= rainVelocities[i] * dt;
-        if (pos[i * 3 + 1] < -2) {
-          // Spawn splash particle at impact (only a few per frame)
-          if (_rainSplashTimer <= 0 && graphicsQuality !== 'low' && Math.random() < 0.05) {
-            _rainSplashTimer = 0.08;
-            const mat = new THREE.MeshBasicMaterial({ color: 0x88aacc, transparent: true, opacity: 0.4 });
-            const m = new THREE.Mesh(_particleGeoTiny, mat);
-            m.position.set(pos[i * 3], 0.1, pos[i * 3 + 2]);
-            scene.add(m);
-            _particles.push({ mesh: m, vx: (Math.random()-0.5)*0.5, vy: 0.8+Math.random()*0.5, vz: (Math.random()-0.5)*0.5, life: 0.3, maxLife: 0.3 });
-          }
-          pos[i * 3] = px + (Math.random() - 0.5) * 80;
-          pos[i * 3 + 1] = 30 + Math.random() * 10;
-          pos[i * 3 + 2] = pz + (Math.random() - 0.5) * 80;
-        }
-      }
-      rainDrops.geometry.attributes.position.needsUpdate = true;
-    }
-  }
-  // Thunder flash
-  if (weather === 'thunder') {
-    if (Math.random() < dt * 0.3) {
-      thunderFlash = 0.3 + Math.random() * 0.2;
-      try {  } catch (_) { console.warn("operation failed"); }
-    }
-  }
-  if (thunderFlash > 0) {
-    thunderFlash -= dt * 2;
-    if (thunderFlash <= 0) thunderFlash = 0;
-  }
-}
 
 // --- coordinates HUD ---
 let coordsHudVisible = true;
@@ -3109,6 +3026,8 @@ const _lerpB = new THREE.Color();
 const _lerpResult = new THREE.Color();
 const _nightColor = new THREE.Color();
 const _whiteColor = new THREE.Color(0xffffff);
+const _sunPos = new THREE.Vector3();
+let _lastSinA = 0;
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
   _lerpA.set(a);
@@ -3136,6 +3055,7 @@ function updateSky(dt) {
 
   // angle: 0 = sunrise/horizon, π/2 = noon, π = sunset/horizon, 3π/2 = midnight
   const sinA = Math.sin(angle); // -1 to 1, positive during day
+  _lastSinA = sinA;
   const cosA = Math.cos(angle);
 
   // Sky color: piecewise based on sun position
@@ -3174,15 +3094,18 @@ function updateSky(dt) {
   scene.background.copy(skyColor);
   scene.fog.color.copy(skyColor);
 
-  // Weather: darken sky during rain/thunder
-  if (weather === 'rain' || weather === 'thunder') {
-    const darkening = weather === 'thunder' ? 0.55 : 0.7;
-    scene.background.multiplyScalar(darkening);
-    scene.fog.color.multiplyScalar(darkening);
-  }
-  // Thunder flash overlay
-  if (thunderFlash > 0) {
-    scene.background.lerp(_whiteColor, thunderFlash * 0.6);
+  // Weather: darken sky during rain
+  if (weatherSystem) {
+    const ri = weatherSystem.getRainIntensity();
+    if (ri > 0.01) {
+      const d = 1 - ri * 0.3;
+      scene.background.multiplyScalar(d);
+      scene.fog.color.multiplyScalar(d);
+    }
+    const tf = weatherSystem.getThunderFlash();
+    if (tf > 0.01) {
+      scene.background.lerp(_whiteColor, tf * 0.6);
+    }
   }
 
   // Stars: visible only at night, fade in/out with twilight.
@@ -3199,9 +3122,22 @@ function updateSky(dt) {
   const sunBaseX = player ? player.position.x : 0;
   const sunBaseZ = player ? player.position.z : 0;
   sun.position.set(Math.cos(angle) * 500 + sunBaseX, Math.sin(angle) * 500, Math.sin(angle * 0.7) * 200 + sunBaseZ);
-  sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0;
-  ambient.intensity = 0.08 + Math.max(0, sinA) * 0.35;
-  hemi.intensity = 0.04 + Math.max(0, sinA) * 0.15;
+
+  // Smooth sun position for shadow calculations (reduces jitter when teleporting)
+  if (_sunPos.length() === 0) _sunPos.copy(sun.position);
+  _sunPos.lerp(sun.position, 0.1);
+
+  // Golden hour: boost warmth when sun is near the horizon
+  const nearHorizon = Math.abs(Math.abs(sinA) - 0) < 0.3;
+  const goldenBoost = nearHorizon ? 1.0 + (0.5 * (1 - Math.abs(sinA) / 0.3)) : 1.0;
+  sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0 * goldenBoost;
+
+  // Smooth ambient/hemi transitions by lerping toward targets
+  const targetAmbientI = 0.08 + Math.max(0, sinA) * 0.35;
+  const targetHemiI = 0.04 + Math.max(0, sinA) * 0.15;
+  ambient.intensity += (targetAmbientI - ambient.intensity) * Math.min(1, dt * 5);
+  hemi.intensity += (targetHemiI - hemi.intensity) * Math.min(1, dt * 5);
+
   if (sinA > 0.3) {
     sun.color.setHex(0xfff5e0);
     ambient.color.setHex(0x667799);
@@ -3211,6 +3147,12 @@ function updateSky(dt) {
     sun.color.lerpColors(new THREE.Color(0xff4400), new THREE.Color(0xfff5e0), t);
     ambient.color.lerpColors(new THREE.Color(0x884422), new THREE.Color(0x667799), t);
     hemi.color.lerpColors(new THREE.Color(0xbb7733), new THREE.Color(0x88bbff), t);
+    // Golden hour orange shift for sun color
+    if (nearHorizon) {
+      const warmth = 1 - Math.abs(sinA) / 0.3;
+      const orange = new THREE.Color(0xff8800);
+      sun.color.lerp(orange, warmth * 0.4);
+    }
   } else if (sinA > -0.05) {
     sun.color.lerpColors(new THREE.Color(0x220022), new THREE.Color(0xff4400), (sinA + 0.05) / 0.1);
     ambient.color.lerpColors(new THREE.Color(0x111122), new THREE.Color(0x884422), (sinA + 0.05) / 0.1);
@@ -3222,6 +3164,14 @@ function updateSky(dt) {
     ambient.intensity = 0.04;
     hemi.color.setHex(0x111133);
     hemi.intensity = 0.02;
+  }
+  // Darken ambient light during rain
+  if (weatherSystem) {
+    const ri = weatherSystem.getRainIntensity();
+    if (ri > 0.5) {
+      const t = (ri - 0.5) / 0.5;
+      ambient.intensity *= (1 - t * 0.4);
+    }
   }
   sunMesh.position.copy(sun.position);
   moonMesh.position.set(-Math.cos(angle) * 500 + sunBaseX, -Math.sin(angle) * 500, -Math.sin(angle * 0.7) * 200 + sunBaseZ);
@@ -3283,16 +3233,14 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (mobManager) { mobManager.clear(); mobManager = null; }
     if (explosionManager) { explosionManager.clear(); explosionManager = null; }
     if (playerModel) { playerModel.dispose(); playerModel = null; }
-    if (rainDrops) { scene.remove(rainDrops); rainDrops = null; }
+    if (weatherSystem) { weatherSystem.clear(); weatherSystem = null; }
     if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
     if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
     if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
-    weather = 'clear';
-    weatherTimer = 0;
-    weatherDuration = WEATHER_MIN_CLEAR + Math.random() * (WEATHER_MAX_CLEAR - WEATHER_MIN_CLEAR);
+    if (weatherSystem) { weatherSystem.setState('clear'); }
     try {  } catch (_) { console.warn("operation failed"); }
   }
 
@@ -3323,7 +3271,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   breakParticles = new BreakParticles(scene);
   ambientParticles = new AmbientParticles(scene);
   cloudSystem = new CloudSystem(scene);
-  initRain();
+  weatherSystem = new WeatherSystem(scene);
   playerModel = new PlayerModel(scene, getSelectedSkin(), atlasCanvas);
   { const sk = getSelectedSkin(); viewmodel.setSkinColor(sk?.skin, sk?.skin2); }
 
@@ -3377,7 +3325,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           doorStates.delete(doorKey);
         } else {
           doorStates.set(doorKey, { blockId: hit.block });
-          world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+  world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+  if (audio && !player.isCreative()) audio.blockBreak(b);
         }
         manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
       } else if (hit && hit.block === BLOCK.LEVER) {
@@ -5953,6 +5902,21 @@ function loop() {
   loader.update(player.position.x, player.position.z);
   manager.update();
 
+  // Show/hide "Building world..." while chunks are still loading
+  const buildingEl = document.getElementById('building-status');
+  if (buildingEl) {
+    const allLoaded = loader.allVisibleLoaded && manager._dirtyList.length === 0;
+    if (allLoaded) {
+      if (buildingEl.style.display !== 'none') {
+        buildingEl.style.display = 'none';
+      }
+    } else {
+      if (buildingEl.style.display !== '') {
+        buildingEl.style.display = '';
+      }
+    }
+  }
+
   // Spawn mobs for newly generated chunks (throttled to once per second)
   if (mobManager) {
     _mobSpawnTimer = (_mobSpawnTimer || 0) - dt;
@@ -6107,7 +6071,18 @@ function loop() {
     scene.fog.near = 1; scene.fog.far = 22;
     if (underwaterOverlay) underwaterOverlay.style.display = 'block';
   } else {
-    scene.fog.near = 16 * 5; scene.fog.far = 16 * (renderDist + 2);
+    const isRaining = weather === 'rain' || weather === 'thunder';
+    const fogFar = 16 * (renderDist + 2) * (isRaining ? 0.6 : 1.0);
+    scene.fog.far = fogFar;
+    scene.fog.near = fogFar * 0.35;
+    if (isRaining) {
+      scene.fog.color.setHex(0x8899aa);
+    } else if (dayTime < 0.2 || dayTime > 0.8) {
+      scene.fog.color.setHex(0x1a1a2e);
+    } else {
+      scene.fog.color.copy(skyColor);
+    }
+    scene.background.copy(scene.fog.color);
     if (underwaterOverlay) underwaterOverlay.style.display = 'none';
   }
 
@@ -6118,14 +6093,33 @@ function loop() {
     ambientParticles.setBiome(world.biomeAt(Math.floor(player.position.x), Math.floor(player.position.z), Math.floor(player.position.y)));
     ambientParticles.update(dt, player.position);
   }
-  if (cloudSystem && graphicsQuality !== 'low') cloudSystem.update(dt, dayTime, player.position.x, player.position.z);
+  if (cloudSystem && graphicsQuality !== 'low') cloudSystem.update(dt, dayTime, player.position.x, player.position.z, _lastSinA);
+
+  // ── GHOST BLOCK PREVIEW ──
+  if (player && !ui.isOverlayShown() && !ui.inventoryOpen && !ui.furnaceOpen && !ui.chestOpen) {
+    const hit = currentTarget();
+    const slot = player.inventory.getSelected();
+    const itemId = slot ? slot.item : null;
+    if (hit && itemId != null && isBlockItem(itemId) && !(player && player.isAdventure())) {
+      const placePos = hit.place;
+      const existing = world.getBlock(placePos.x, placePos.y, placePos.z);
+      ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.5, placePos.z + 0.5);
+      ghostMesh.visible = true;
+      ghostMesh.material.color.setHex(existing !== 0 ? 0xff4444 : 0x44ff44);
+      ghostMesh.material.opacity = existing !== 0 ? 0.25 : 0.35;
+    } else {
+      ghostMesh.visible = false;
+    }
+  } else {
+    ghostMesh.visible = false;
+  }
 
   // Sprint FOV effect (subtle zoom out when sprinting)
   const targetFov = player && player.sprinting ? 80 : (player && player.cameraMode !== 0 ? 70 : 75);
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 8);
   camera.updateProjectionMatrix();
 
-  // Update shadow camera to follow player
+  // Update shadow camera to follow player (use smoothed _sunPos)
   if (player) {
     const p = player.position;
     sun.target.position.set(p.x, p.y, p.z);
@@ -6135,13 +6129,13 @@ function loop() {
     const sc = sun.shadow.camera;
     const tW = (sc.right - sc.left) / sun.shadow.mapSize.width;
     const tH = (sc.top - sc.bottom) / sun.shadow.mapSize.height;
-    const lv = new THREE.Matrix4().lookAt(sun.position, sun.target.position, sun.up);
+    const lv = new THREE.Matrix4().lookAt(_sunPos, sun.target.position, sun.up);
     const lp = new THREE.Vector3().copy(sun.target.position).applyMatrix4(lv);
     const sx = Math.round(lp.x / tW) * tW;
     const sy = Math.round(lp.y / tH) * tH;
     if (sx !== lp.x || sy !== lp.y) {
       const off = new THREE.Vector3(sx - lp.x, sy - lp.y, 0).applyMatrix4(new THREE.Matrix4().copy(lv).invert());
-      sun.position.add(off);
+      _sunPos.add(off);
       sun.target.position.add(off);
     }
   }

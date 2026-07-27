@@ -327,7 +327,7 @@ export class CloudSystem {
     }
   }
 
-  update(dt, dayTime, playerX, playerZ) {
+  update(dt, dayTime, playerX, playerZ, sinA) {
     // Move clouds
     for (const c of this.clouds) {
       c.group.position.x += c.speed * dt;
@@ -342,13 +342,28 @@ export class CloudSystem {
     this.group.position.z = playerZ;
 
     // Cloud brightness follows day/night
-    const sinA = dayTime !== undefined ? Math.sin(dayTime * Math.PI * 2 - Math.PI * 0.5) : 1;
-    const brightness = Math.max(0.15, Math.min(1, sinA * 0.8 + 0.5));
+    const sA = sinA !== undefined ? sinA : (dayTime !== undefined ? Math.sin(dayTime * Math.PI * 2 - Math.PI * 0.5) : 1);
+    const brightness = Math.max(0.15, Math.min(1, sA * 0.8 + 0.5));
+
+    // Golden hour tint: orange/pink when sun is near horizon
+    const nearHorizon = Math.abs(sA) < 0.3;
+    let tintR = 1, tintG = 1, tintB = 1;
+    if (nearHorizon && sA > 0) {
+      const warmth = 1 - sA / 0.3;
+      tintR = 1;
+      tintG = 0.7 + warmth * 0.2;
+      tintB = 0.5 + warmth * 0.3;
+    } else if (nearHorizon && sA < 0) {
+      const warmth = 1 + sA / 0.3;
+      tintR = 1;
+      tintG = 0.7 + warmth * 0.2;
+      tintB = 0.5 + warmth * 0.3;
+    }
 
     for (const c of this.clouds) {
       for (const child of c.group.children) {
         if (child.material) {
-          child.material.color.setRGB(brightness, brightness, brightness * 1.02);
+          child.material.color.setRGB(brightness * tintR, brightness * tintG, brightness * tintB * 1.02);
         }
       }
     }

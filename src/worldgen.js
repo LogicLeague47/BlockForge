@@ -4,18 +4,16 @@
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 
-// Minecraft ore distribution (scaled to WORLD_HEIGHT=128)
-// Coal: Y 1-96, very common. Iron: Y 1-64, common.
-// Gold: Y 1-32, uncommon. Diamond: Y 1-16, very rare.
-const ORE_SPEC = [
-  { block: BLOCK.COAL_ORE,    surfaceDepth: 2,  threshold: 0.80, min: 1, max: 96 },
-  { block: BLOCK.COPPER_ORE,  surfaceDepth: 5,  threshold: 0.84, min: 1, max: 64 },
-  { block: BLOCK.IRON_ORE,    surfaceDepth: 5,  threshold: 0.85, min: 1, max: 64 },
-  { block: BLOCK.GOLD_ORE,    surfaceDepth: 10, threshold: 0.90, min: 1, max: 32 },
-  { block: BLOCK.GREENSTONE_ORE, surfaceDepth: 8, threshold: 0.88, min: 1, max: 48 },
-  { block: BLOCK.DIAMOND_ORE, surfaceDepth: 16, threshold: 0.95, min: 1, max: 16 },
-  { block: BLOCK.EMERALD_ORE, surfaceDepth: 16, threshold: 0.96, min: 1, max: 20 },
-  { block: BLOCK.PRISMITE_ORE,surfaceDepth: 16, threshold: 0.992, min: 1, max: 12 },
+// Ore vein specs for cluster-based generation
+const ORE_VEINS = [
+  { block: BLOCK.COAL_ORE,        minY: 1,  maxY: 96,  attempts: 12, minSize: 8,  maxSize: 16, shape: 'spherical' },
+  { block: BLOCK.COPPER_ORE,      minY: 1,  maxY: 64,  attempts: 8,  minSize: 4,  maxSize: 8,  shape: 'spherical' },
+  { block: BLOCK.IRON_ORE,        minY: 1,  maxY: 64,  attempts: 8,  minSize: 4,  maxSize: 8,  shape: 'elongated' },
+  { block: BLOCK.GOLD_ORE,        minY: 1,  maxY: 32,  attempts: 4,  minSize: 3,  maxSize: 6,  shape: 'tight' },
+  { block: BLOCK.GREENSTONE_ORE,  minY: 1,  maxY: 48,  attempts: 6,  minSize: 4,  maxSize: 10, shape: 'spherical' },
+  { block: BLOCK.DIAMOND_ORE,     minY: 1,  maxY: 16,  attempts: 2,  minSize: 2,  maxSize: 5,  shape: 'tight' },
+  { block: BLOCK.EMERALD_ORE,     minY: 1,  maxY: 20,  attempts: 1,  minSize: 1,  maxSize: 3,  shape: 'tight' },
+  { block: BLOCK.PRISMITE_ORE,    minY: 1,  maxY: 12,  attempts: 1,  minSize: 1,  maxSize: 3,  shape: 'single' },
 ];
 
 export function calcHeight(n, wx, wz) {
@@ -178,15 +176,6 @@ export function generateColumn(n, chunk, x, z, wx, wz) {
       const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
       const ravDepth = n.cave(wx * 0.008, y * 0.005, wz * 0.008);
       if (Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
-    }
-
-    if (b === BLOCK.STONE) {
-      for (const o of ORE_SPEC) {
-        if (y >= o.min && y <= o.max && (h - y) >= o.surfaceDepth) {
-          const v = n.ore(wx * 0.1 + o.block, y * 0.1, wz * 0.1);
-          if (v > o.threshold) { b = o.block; break; }
-        }
-      }
     }
 
     chunk.set(x, y, z, b);

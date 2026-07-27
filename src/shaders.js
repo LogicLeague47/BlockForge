@@ -16,6 +16,8 @@ const terrainVert = /* glsl */ `
 
   uniform vec3 sunDirection;
   uniform mat4 shadowMatrix;
+  uniform float time;
+  uniform float windStrength;
 
   varying vec2 vUv;
   varying vec3 vColor;
@@ -25,14 +27,22 @@ const terrainVert = /* glsl */ `
   varying vec4 vShadowCoord;
 
   void main() {
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vec3 pos = position;
+
+    float greenTint = color.g - max(color.r, color.b);
+    float isPlant = step(0.15, greenTint);
+    float wind = sin(time * 1.2 + pos.x * 3.0 + pos.z * 2.0) * windStrength * isPlant;
+    pos.x += wind;
+    pos.z += sin(time * 0.9 + pos.x * 3.5 + pos.z * 2.5) * windStrength * isPlant;
+
+    vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     vWorldPos = worldPos.xyz;
     vUv = uv;
     vColor = color;
     vNormal = normal;
     vShadowCoord = shadowMatrix * worldPos;
 
-    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
+    vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
     vFogDepth = -mvPos.z;
     gl_Position = projectionMatrix * mvPos;
   }
@@ -194,22 +204,21 @@ const waterFrag = /* glsl */ `
 
     vec3 viewDir = normalize(cameraPosition - vWorldPos);
     vec3 halfVec = normalize(normalize(sunDirection) + viewDir);
-    float spec = pow(max(dot(vNormal, halfVec), 0.0), 64.0) * 0.6;
+    float spec = pow(max(dot(vNormal, halfVec), 0.0), 128.0) * 0.8;
 
     float NdotL = max(dot(vNormal, normalize(sunDirection)), 0.0);
     float lighting = 0.3 + NdotL * 0.5;
 
     vec3 finalColor = waterColor * lighting + vec3(spec);
 
-    float rim = 1.0 - max(dot(viewDir, vNormal), 0.0);
-    rim = pow(rim, 3.0) * 0.25;
-    finalColor += vec3(rim);
+    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+    finalColor = mix(finalColor, fogColor, fresnel * 0.4);
 
     float dist = distance(vWorldPos, cameraPosition);
     float fogFactor = smoothstep(fogNear, fogFar, dist);
     finalColor = mix(finalColor, fogColor, fogFactor);
 
-    gl_FragColor = vec4(finalColor, 0.55);
+    gl_FragColor = vec4(finalColor, 0.6);
   }
 `;
 
@@ -230,6 +239,8 @@ export function createOpaqueMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      time: { value: 0.0 },
+      windStrength: { value: 0.0 },
     },
     side: THREE.FrontSide,
   });
@@ -250,6 +261,8 @@ export function createCutoutMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      time: { value: 0.0 },
+      windStrength: { value: 0.0 },
     },
     alphaTest: 0.1,
     depthWrite: true,
@@ -272,6 +285,8 @@ export function createTransparentMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      time: { value: 0.0 },
+      windStrength: { value: 0.0 },
     },
     transparent: true,
     depthWrite: false,
@@ -344,6 +359,8 @@ export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat,
     m.uniforms.shadowMatrix.value.copy(shadowMat);
     if (shadowTex) m.uniforms.shadowMap.value = shadowTex;
     m.uniforms.shadowMapSize.value.copy(sun.shadow.mapSize);
+    m.uniforms.time.value = time;
+    m.uniforms.windStrength.value = 0.02;
   }
 
   _applyTerrain(opaqueMat);

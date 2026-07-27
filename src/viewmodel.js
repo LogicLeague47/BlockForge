@@ -398,12 +398,13 @@ export class ViewModel {
       py += m; rx -= m * 0.4;
     }
 
-    // Swim pose: arms forward and a bit higher, gentler motion
+    // Swim pose: breast stroke — arms sweep out and pull back
     if (swimPose > 0) {
-      py += swimPose * 0.12;
-      px += swimPose * 0.05;
-      rx -= swimPose * 0.5;
-      ry += swimPose * 0.15;
+      const bp = this.animData.bobPhase * 0.5;
+      py += swimPose * 0.12 + Math.abs(Math.cos(bp)) * swimPose * 0.04;
+      px += swimPose * 0.1 + Math.sin(bp) * swimPose * 0.12;
+      rx -= swimPose * 0.5 + Math.cos(bp) * swimPose * 0.45;
+      ry += Math.sin(bp) * swimPose * 0.35;
     }
     // Fly pose: arms relax back slightly
     if (flyPose > 0) {
@@ -440,7 +441,12 @@ export class ViewModel {
 
     if (!this.animData.onGround && this.animData.vy > 0.5) { ohPy += Math.min(this.animData.vy, 12) * 0.012; ohRx -= 0.2; }
     if (this.animData.landT > 0) { ohPy -= this.animData.landT * 0.12; }
-    if (swimPose > 0) { ohPy += swimPose * 0.12; ohRx -= swimPose * 0.5; ohRy -= swimPose * 0.15; }
+    if (swimPose > 0) {
+      const bp = this.animData.bobPhase * 0.5;
+      ohPy += swimPose * 0.12 + Math.abs(Math.cos(bp)) * swimPose * 0.04;
+      ohRx -= swimPose * 0.5 + Math.cos(bp) * swimPose * 0.45;
+      ohRy -= Math.sin(bp) * swimPose * 0.35;
+    }
     if (flyPose > 0) { ohRx += flyPose * 0.15; ohRy += flyPose * 0.04; }
     if (this.animData.mining && swingT === 0) { const m = Math.sin(this.animData.clock * 22 + 1) * 0.05; ohPy += m; ohRx += m * 0.4; }
 

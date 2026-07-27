@@ -16,6 +16,7 @@ export class ChunkLoader {
     this.lastPCZ = Infinity;
     this.budget = 2;          // chunks built per frame
     this.genBudget = 4;       // chunks generated per frame (heavier)
+    this.allVisibleLoaded = false;
   }
 
   setRadius(r) {
@@ -35,6 +36,17 @@ export class ChunkLoader {
       this.unloadFar(pcx, pcz);
     }
 
+    // Dynamic priority: re-sort queue by distance each frame
+    if (this.queue.length > 1) {
+      this.queue.sort((a, b) => {
+        const [ax, az] = a.split(',').map(Number);
+        const [bx, bz] = b.split(',').map(Number);
+        const da = (ax - pcx) ** 2 + (az - pcz) ** 2;
+        const db = (bx - pcx) ** 2 + (bz - pcz) ** 2;
+        return da - db;
+      });
+    }
+
     // generate a few queued chunks this frame
     let gen = this.genBudget;
     while (gen-- > 0 && this.queue.length) {
@@ -43,6 +55,8 @@ export class ChunkLoader {
       const chunk = this.world.getChunk(cx, cz, true);
       if (chunk.generated) this.manager.markDirty(cx, cz);
     }
+
+    this.allVisibleLoaded = this.queue.length === 0;
   }
 
   rebuildQueue(pcx, pcz) {

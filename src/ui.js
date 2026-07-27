@@ -1208,8 +1208,9 @@ export function drawCrack(c, stage) {
 }
 
 export class UI {
-  constructor(atlasCanvas) {
+  constructor(atlasCanvas, audio) {
     this.atlas = atlasCanvas;
+    this.audio = audio;
     this.hotbarEl = document.getElementById('hotbar');
     this.hudEl = document.getElementById('hud');
     this.overlayEl = document.getElementById('overlay');
@@ -1285,6 +1286,14 @@ export class UI {
 
     this.pauseEl = document.getElementById('menu-pause');
 
+    this._tooltipEl = document.createElement('div');
+    this._tooltipEl.style.cssText =
+      'position:fixed;z-index:9999;pointer-events:none;display:none;' +
+      'background:rgba(0,0,0,0.8);color:#fff;font:11px monospace;' +
+      'padding:2px 6px;border-radius:4px;max-width:200px;word-wrap:break-word;';
+    document.body.appendChild(this._tooltipEl);
+    this._hoveredSlotData = null;
+
     this.buildHotbar();
   }
 
@@ -1354,6 +1363,7 @@ export class UI {
       }
       slotEl.appendChild(num);
       slotEl.addEventListener('click', () => { if (this.onHotbarSelect) this.onHotbarSelect(i); });
+      this._addSlotTooltipListeners(slotEl, s);
       this.hotbarEl.appendChild(slotEl);
       this.slots.push(slotEl);
     }
@@ -1379,6 +1389,61 @@ export class UI {
 
   selectedBlock() {
     return null;
+  }
+
+  _buildTooltipContent(slot) {
+    if (!slot) return '';
+    const id = slot.item;
+    const def = itemDef(id);
+    if (!def) return 'Unknown';
+    let html = `<b>${def.name}</b>`;
+    if (def.tool) {
+      const cur = slot.durability != null ? slot.durability : def.tool.durability;
+      const max = def.tool.maxDurability;
+      html += `<br>Durability: ${cur}/${max}`;
+    } else if (def.armor) {
+      html += `<br>Defense: +${def.armor.defense}`;
+    } else if (def.food != null) {
+      html += `<br>Hunger: +${def.food}`;
+    }
+    return html;
+  }
+
+  _onSlotMouseEnter(slotData, e) {
+    this._hoveredSlotData = slotData;
+    const html = this._buildTooltipContent(slotData);
+    if (!html) { this._onSlotMouseLeave(); return; }
+    this._tooltipEl.innerHTML = html;
+    this._tooltipEl.style.display = 'block';
+    this._positionTooltip(e);
+  }
+
+  _onSlotMouseMove(e) {
+    if (this._hoveredSlotData) this._positionTooltip(e);
+  }
+
+  _onSlotMouseLeave() {
+    this._hoveredSlotData = null;
+    this._tooltipEl.style.display = 'none';
+  }
+
+  _positionTooltip(e) {
+    const x = e.clientX + 12;
+    const y = e.clientY + 12;
+    const el = this._tooltipEl;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      if (r.right > window.innerWidth) el.style.left = (e.clientX - r.width - 4) + 'px';
+      if (r.bottom > window.innerHeight) el.style.top = (e.clientY - r.height - 4) + 'px';
+    });
+  }
+
+  _addSlotTooltipListeners(slotEl, slotData) {
+    slotEl.addEventListener('mouseenter', (e) => this._onSlotMouseEnter(slotData, e));
+    slotEl.addEventListener('mousemove', (e) => this._onSlotMouseMove(e));
+    slotEl.addEventListener('mouseleave', () => this._onSlotMouseLeave());
   }
 
   // --- held item name -------------------------------------------------------
@@ -1659,6 +1724,7 @@ export class UI {
 
   // --- inventory screen -----------------------------------------------------
   openInventory(inventory, gridSize = 2, creative = false) {
+    if (this.audio) this.audio.inventoryOpen();
     this.inventoryOpen = true;
     this._inventoryRef = inventory;
     this.craftingGrid = new CraftingGrid(gridSize);
@@ -1678,6 +1744,7 @@ export class UI {
   }
 
   closeInventory() {
+    if (this.audio) this.audio.inventoryClose();
     if (this._inventoryRef && this.craftingGrid) {
       this.craftingGrid.returnAll(this._inventoryRef);
     }
@@ -1729,6 +1796,7 @@ export class UI {
       }
       slotEl.addEventListener('click', (e) => this._onInvSlotClick(i, e.shiftKey));
       slotEl.addEventListener('contextmenu', (e) => { e.preventDefault(); this._onInvSlotRightClick(i); });
+      this._addSlotTooltipListeners(slotEl, s);
       this.inventoryGrid.appendChild(slotEl);
     }
   }
@@ -1759,6 +1827,7 @@ export class UI {
         }
       }
       slotEl.addEventListener('click', () => this._onCraftSlotClick(i));
+      this._addSlotTooltipListeners(slotEl, s);
       this.craftingInput.appendChild(slotEl);
     }
     // output
@@ -1779,6 +1848,7 @@ export class UI {
         cnt.textContent = out.count;
         this.craftingOutput.appendChild(cnt);
       }
+      this._addSlotTooltipListeners(this.craftingOutput, { item: out.id, count: out.count });
     }
     this.craftingOutput.onclick = () => this._onCraftOutputClick();
   }
@@ -1806,6 +1876,7 @@ export class UI {
         } else {
           if (label) label.style.display = '';
         }
+        this._addSlotTooltipListeners(el, equipped);
         el.onclick = () => this._onOffhandSlotClick();
       } else {
         const idx = parseInt(key);
@@ -1821,6 +1892,7 @@ export class UI {
         } else {
           if (label) label.style.display = '';
         }
+        this._addSlotTooltipListeners(el, equipped);
         el.onclick = () => this._onArmorSlotClick(idx);
       }
     });
@@ -2165,6 +2237,7 @@ export class UI {
         if (s.count > 1) { const cnt = document.createElement('div'); cnt.className = 'inv-count'; cnt.textContent = s.count; slotEl.appendChild(cnt); }
       }
       const idx = i;
+      this._addSlotTooltipListeners(slotEl, s);
       slotEl.addEventListener('click', () => this._onChestSlotClick(idx));
       this.chestGrid.appendChild(slotEl);
     }
@@ -2212,6 +2285,7 @@ export class UI {
       }
       const idx = i;
       slotEl.addEventListener('click', () => this._onChestInvSlotClick(idx));
+      this._addSlotTooltipListeners(slotEl, s);
       this.chestInvGrid.appendChild(slotEl);
     }
     // Hotbar: slots 0-8 (1 row of 9)
@@ -2230,6 +2304,7 @@ export class UI {
       }
       const idx = i;
       slotEl.addEventListener('click', () => this._onChestInvSlotClick(idx));
+      this._addSlotTooltipListeners(slotEl, s);
       this.chestHotbarGrid.appendChild(slotEl);
     }
   }
@@ -2273,6 +2348,9 @@ export class UI {
     render(this.furnaceInputEl, this.furnaceSlots.input);
     render(this.furnaceFuelEl, this.furnaceSlots.fuel);
     render(this.furnaceOutputEl, this.furnaceSlots.output);
+    this._addSlotTooltipListeners(this.furnaceInputEl, this.furnaceSlots.input);
+    this._addSlotTooltipListeners(this.furnaceFuelEl, this.furnaceSlots.fuel);
+    this._addSlotTooltipListeners(this.furnaceOutputEl, this.furnaceSlots.output);
     this.furnaceInputEl.onclick = () => this._onFurnaceSlotClick('input');
     this.furnaceFuelEl.onclick = () => this._onFurnaceSlotClick('fuel');
     this.furnaceOutputEl.onclick = () => this._onFurnaceSlotClick('output');
@@ -2312,6 +2390,7 @@ export class UI {
         }
       }
       slotEl.addEventListener('click', () => this._onFurnaceInvSlotClick(i));
+      this._addSlotTooltipListeners(slotEl, s);
       this.furnaceInvGrid.appendChild(slotEl);
     }
   }
