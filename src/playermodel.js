@@ -32,8 +32,11 @@ export function createSkinCanvas(preset) {
       g.imageSmoothingEnabled = false;
       g.drawImage(img, 0, 0, TILE, TILE);
     } else {
-      // If not cached, return a placeholder and update later
+      // If not cached, draw default skin placeholder to prevent blank canvas crash
+      g.fillStyle = '#c0906a';
+      g.fillRect(0, 0, TILE, TILE);
       img.onload = () => {
+        g.clearRect(0, 0, TILE, TILE);
         g.imageSmoothingEnabled = false;
         g.drawImage(img, 0, 0, TILE, TILE);
       };

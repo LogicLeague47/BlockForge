@@ -217,7 +217,7 @@ export class RemotePlayer {
     // Update armour if changed
     if (this.armor !== this._lastArmor) {
       this._lastArmor = this.armor;
-      try { this.model.setArmor(this.armor, ARMOR); } catch (_) {}
+      try { this.model.setArmor(this.armor, ARMOR); } catch (_) { console.warn('[MP] Armor apply failed', _); }
     }
 
     // Crouch offset

@@ -128,7 +128,9 @@
 
       // Fall back to localStorage keys that the game actually uses
       const username = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '—';
-      const password = localStorage.getItem('bf_login_pass') || '';
+      const passwordRaw = localStorage.getItem('bf_login_pass') || '';
+      let password;
+      try { password = atob(passwordRaw); } catch { password = ''; }
       const provider = 'password';
       const role = urlRole || '—';
 

@@ -2704,22 +2704,9 @@ export class MobManager {
     return result;
   }
 
-  _playMobSound(type) {
-    if (!this.audio) return;
-    if (type === 'cow') this.audio.cowSound();
-    else if (type === 'pig') this.audio.pigSound();
-    else if (type === 'sheep') this.audio.sheepSound();
+  _playMobSound(type) {}
 
-  }
-
-  playHurtSound(type) {
-    if (!this.audio) return;
-    switch (type) {
-      case 'cow': this.audio.hurtCow(); break;
-      case 'pig': this.audio.hurtPig(); break;
-      case 'sheep': this.audio.hurtSheep(); break;
-    }
-  }
+  playHurtSound(type) {}
 
   // Try to hit a mob using ray-AABB intersection. Returns the hit mob or null.
   hitTest(playerPos, lookDir, reach) {

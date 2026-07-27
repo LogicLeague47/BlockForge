@@ -64,6 +64,7 @@ export class DroppedItem {
     });
 
     this._dropGroundY = y;
+    this.vy = 0;
   }
 
   _atlasTex(name) {
@@ -87,6 +88,16 @@ export class DroppedItem {
       this.collected = true;
       return;
     }
+
+    // Gravity with fall speed cap to prevent tunneling through unloaded chunks
+    this.vy -= 9.8 * dt;
+    this.vy = Math.min(this.vy, -20);
+    this.y += this.vy * dt;
+    if (this.y < this._dropGroundY + FLOAT_HEIGHT) {
+      this.y = this._dropGroundY + FLOAT_HEIGHT;
+      this.vy = 0;
+    }
+
     // Spin
     this.group.rotation.y += SPIN_SPEED * dt;
     // Bob

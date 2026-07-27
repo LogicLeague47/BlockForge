@@ -18,6 +18,9 @@
 
 import { TILES, tileNameFor } from './blocks.js';
 
+const _makeIconCache = new Map();
+const _MAKE_ICON_CACHE_MAX = 200;
+
 export const TILE = 32;
 export const _TILES_VER = 3;       // pixels per tile
 const COLS = 16;              // tiles per row
@@ -2162,6 +2165,9 @@ export function tileUVRect(name) {
 
 // Render a single block's "icon" (its side texture, or top for plants) for UI.
 export function makeIcon(blockId, atlasCanvas) {
+  const key = blockId + '_' + (atlasCanvas ? '1' : '0');
+  const cached = _makeIconCache.get(key);
+  if (cached) return cached;
   const c = document.createElement('canvas');
   c.width = TILE; c.height = TILE;
   const ctx = c.getContext('2d');
@@ -2171,5 +2177,10 @@ export function makeIcon(blockId, atlasCanvas) {
   if (t) {
     ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
   }
+  if (_makeIconCache.size >= _MAKE_ICON_CACHE_MAX) {
+    const firstKey = _makeIconCache.keys().next().value;
+    if (firstKey !== undefined) _makeIconCache.delete(firstKey);
+  }
+  _makeIconCache.set(key, c);
   return c;
 }

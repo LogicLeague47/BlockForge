@@ -8,6 +8,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join, extname } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
+import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
 
 const PORT = process.env.PORT || 4000;
@@ -41,53 +42,13 @@ async function setPlayerData(username, data) {
     if (existsSync(f)) all = JSON.parse(readFileSync(f, 'utf8'));
     all[username] = data;
     writeFileSync(f, JSON.stringify(all, null, 2));
-  } catch { /* ignored */ }
-}
-
-const PROFANITY_WORDS = [
-  'fuck','fucker','fuckers','fuckface','fuckhead','fuckhole','fucking',
-  'fuckboy','fuckbuddy','fuckstick','fucktard','fuckwit','fucked','fuckedup',
-  'blowjob','cum','cumshot','cumslut','cunnilingus','dildo','ejaculate',
-  'fellatio','handjob','hentai','masturbate','masturbation','orgasm',
-  'penis','penises','porn','porno','pornography','pussy','pussies','pussylips',
-  'tits','titties','titty','twat','twatface','twats',
-  'ass','assface','asshat','asshead','asshole','asswipe',
-  'bastard','bigass','bullshit','crap','damn','damnit','dipshit',
-  'douche','douchebag','dumbass','dumbshit','goddamn','goddamnit',
-  'hell','horseshit','jackass','jackoff','jerkoff','kissass','lameass',
-  'loser','moron','prick','pricks','punkass','scum','scumbag',
-  'shit','shitty','sissy','stupid','turd','ugly','wiseass',
-  'idiot','bitch','bitches',
-  'boob','boobs','cock','dick','dickbag','dickbrain','dickface','dickhead',
-  'dickhole','dickless','dicks','dickwad','dickweed',
-  'beaner','beaners','chink','chinks','coon','coons','cracker',
-  'darkie','darky','gook','gooks','honky','jigaboo','jiggaboo',
-  'kike','kikes','negro','negroid','nigga','niggah','niggard',
-  'niggardly','niggas','nigger','niggers','redneck','slope','slopes',
-  'spic','spick','tacohead','wetback','whitey','wop',
-  'dyke','dykes','fag','faggot','faggots','faggy','fagot','fags',
-  'homo','queer','queers','tranny',
-  'hitler','kkk','lynch','murder','nazi','neonazi','pedo','pedophile',
-  'rape','raped','raping','rapist','swastika',
-  'bestiality','incest','lolita',
-  'cocaine','crack','heroin','junkie','meth','weed',
-  'suicide',
-  'retard','retarded',
-  'slut','sluts','slutbag','whore','whoreface','whorehouse','whores',
-  'cunt','cuntface','cuntlicker','cunts',
-  'kill yourself','kys','commit suicide','neck yourself',
-  'unalive yourself','rope yourself',
-];
-const _profRegex = new RegExp(`\\b(${PROFANITY_WORDS.map(w => w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\b`, 'gi');
-function filterProfanity(text) {
-  if (!text) return text;
-  return text.replace(_profRegex, (m) => '*'.repeat(m.length));
+  } catch { console.warn('[Data] setPlayerData JSON write failed'); }
 }
 
 function safeSend(ws, data) {
   if (ws && ws.readyState === 1) {
     if (ws.bufferedAmount > 65536) return;
-    try { ws.send(data); } catch (_) { /* ignored */ }
+    try { ws.send(data); } catch (_) { console.warn('[Server] safeSend failed:', _); }
   }
 }
 
@@ -123,7 +84,7 @@ function redisSaveDebounced(key, getValue, ms = 1500) {
   if (!USE_REDIS) return;
   clearTimeout(_redisTimers[key]);
   _redisTimers[key] = setTimeout(() => {
-    redisCmd(['SET', 'bf:' + key, JSON.stringify(getValue())]).catch(() => { /* ignored */ });
+    redisCmd(['SET', 'bf:' + key, JSON.stringify(getValue())]).catch(err => { console.warn('[Redis] debounced save failed:', err); });
   }, ms);
 }
 
@@ -155,7 +116,7 @@ function saveRooms() {
     redisSaveDebounced('server-data', () => ({ rooms: _roomsToObj(), stats: serverStats }));
     return;
   }
-  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2));   } catch { /* ignored */ }
+  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2));   } catch { console.warn('[Data] saveRooms file write failed'); }
 }
 
 // Debounced room save for high-frequency events (block edits) so a crash loses
@@ -185,7 +146,7 @@ function _applyRoomsData(data) {
         created: r.created || Date.now()
       });
     }
-    console.log(`[Data] Loaded ${rooms.size} rooms`);
+    console.log(`[Data] Applied rooms data (${rooms.size} rooms)`);
   }
 }
 
@@ -258,7 +219,7 @@ async function loadAccounts() {
   if (USE_REDIS) {
     let redisAccounts = {};
     const data = await redisCmd(['GET', 'accounts']);
-    if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch { /* ignored */ } }
+    if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch { console.warn('[Data] Failed to parse Redis accounts JSON'); } }
     // Source accounts override Redis so they always come from the committed file.
     accounts = { ...redisAccounts, ...fileAccounts };
     console.log(`[Data] Accounts: ${Object.keys(redisAccounts).length} from Redis + ${Object.keys(fileAccounts).length} from source`);
@@ -277,7 +238,7 @@ function saveAccounts() {
     });
     return;
   }
-  try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch { /* ignored */ }
+  try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch { console.warn('[Data] saveAccounts file write failed'); }
 }
 
 async function hashPassword(password, salt) {
@@ -755,7 +716,7 @@ const server = http.createServer((req, res) => {
 });
 
 // ── WebSocket server ──────────────────────────────────────────────────
-const wss = new WebSocketServer({ server, maxPayload: 64 * 1024 }); // 64KB max message
+const wss = new WebSocketServer({ server, maxPayload: 256 * 1024 }); // 256KB max message
 
 // Rate limiter: max 30 messages per second per connection
 function isRateLimited(ws) {
@@ -790,12 +751,13 @@ function isRateLimited(ws) {
           const crouching = buf.readUInt8(off) === 1;
           handlePosition(ws, { x, y, z, yaw, crouching });
         }
-      } catch (_) { /* ignored */ }
+      } catch (_) { console.warn('[Server] Binary message parse failed'); }
       return;
     }
     let msg;
     try { msg = JSON.parse(raw); } catch { return; }
     if (isRateLimited(ws)) return;
+    if (typeof msg !== 'object' || msg === null) return;
 
     try {
     switch (msg.type) {
@@ -808,7 +770,7 @@ function isRateLimited(ws) {
       case 'list_rooms': handleListRooms(ws); break;
       case 'position': handlePosition(ws, msg); break;
       case 'armor_update':
-        if (ws._playerData) ws._playerData.armor = msg.armor || null;
+        if (ws._playerData) ws._playerData.armor = msg.armor ?? null;
         break;
       case 'player_damage': handlePlayerDamage(ws, msg); break;
       case 'chat': handleChat(ws, msg); break;
@@ -1029,7 +991,7 @@ function _joinRoom(ws, room, roomName, playerName, role, skinIndex, cgUsername) 
   room.players.set(ws, playerData);
 
   if (room.players.size > 6) {
-    safeSend(ws, JSON.stringify({ type: 'chat', name: '§eServer', role: '', text: `§e⚠ There are ${room.players.size} players in this room. Performance may degrade with more than 6.` }));
+    safeSend(ws, JSON.stringify({ type: 'chat', name: '§eServer', role: '', text: `§e⚠ There are ${room.players.size} players in this room. Performance may drop with more than 6.` }));
   }
 
   ws._playerData = playerData;
@@ -1086,7 +1048,7 @@ function handleBlockUpdate(ws, msg) {
   const roomName = ws._roomName;
   const room = getRoom(roomName);
   if (!room || !room.edits) return;
-  const x = msg.x | 0, y = msg.y | 0, z = msg.z | 0;
+  const x = Math.floor(Number(msg.x)) || 0, y = Math.floor(Number(msg.y)) || 0, z = Math.floor(Number(msg.z)) || 0;
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
   if (y < 0 || y > 256) return;
   const block = Math.floor(Math.abs(msg.block)) || 0;
@@ -1100,8 +1062,8 @@ function handleBlockUpdate(ws, msg) {
 function handleMobSpawn(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!room) return;
-  const id = msg.id | 0;
-  const type = String(msg.type || '').slice(0, 32);
+  const id = Math.floor(Number(msg.id)) || 0;
+  const type = String(msg.type ?? '').slice(0, 32);
   if (!id || !type) return;
   const x = +msg.x || 0, y = +msg.y || 0, z = +msg.z || 0;
   room.mobs.set(id, { type, x, y, z });
@@ -1111,7 +1073,7 @@ function handleMobSpawn(ws, msg) {
 function handleMobPosition(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!room) return;
-  const id = msg.id | 0;
+  const id = Math.floor(Number(msg.id)) || 0;
   if (!id) return;
   const x = +msg.x || 0, y = +msg.y || 0, z = +msg.z || 0;
   const yaw = +msg.yaw || 0;
@@ -1128,15 +1090,15 @@ function handleMobPosition(ws, msg) {
 function handleMobDamage(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!room) return;
-  const id = msg.id | 0;
+  const id = Math.floor(Number(msg.id)) || 0;
   if (!id) return;
-  broadcast(room, { type: 'mob_damage', id, hp: msg.hp | 0 }, ws);
+  broadcast(room, { type: 'mob_damage', id, hp: Math.floor(Number(msg.hp)) || 0 }, ws);
 }
 
 function handleMobDeath(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!room) return;
-  const id = msg.id | 0;
+  const id = Math.floor(Number(msg.id)) || 0;
   if (!id) return;
   room.mobs.delete(id);
   broadcast(room, { type: 'mob_death', id }, ws);
@@ -1167,7 +1129,7 @@ function handleLeave(ws) {
         if (group.size === 0) voiceGroups.delete(code);
       }
     }
-  } catch (_) { /* ignored */ }
+  } catch (_) { console.warn('[Room] handleLeave cleanup error:', _); }
 
   ws._playerData = null;
   ws._roomName = null;
@@ -1196,9 +1158,9 @@ function handlePosition(ws, msg) {
   pd.x = newX;
   pd.y = newY;
   pd.z = newZ;
-  pd.yaw = msg.yaw || 0;
+  pd.yaw = msg.yaw ?? 0;
   pd.crouching = !!msg.crouching;
-  pd.armor = msg.armor || null;
+  pd.armor = msg.armor ?? null;
 
   // Rate-limit broadcast: max 20Hz per player (server side)
   const now = Date.now();
@@ -1250,7 +1212,7 @@ function handleChat(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!pd || !room) return;
 
-  const text = filterProfanity((msg.text || '').trim());
+  const text = filterProfanity((msg.text ?? '').trim());
   if (!text) return;
 
   broadcast(room, { type: 'chat', name: pd.name, role: pd.role, text });
@@ -1261,7 +1223,7 @@ function handleCommand(ws, msg) {
   const room = getRoom(ws._roomName);
   if (!pd || !room) return;
 
-  const text = (msg.text || '').trim();
+  const text = (msg.text ?? '').trim();
   if (!text.startsWith('/')) return;
 
   const parts = text.split(/\s+/);
@@ -1450,7 +1412,7 @@ function handleFriendRequest(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   const me = pd.name;
-  const target = filterProfanity((msg.name || '').trim());
+  const target = filterProfanity((msg.name ?? '').trim());
   if (!target) return sendFriendMsg(ws, 'Enter a username.', false);
   if (target === me) return sendFriendMsg(ws, "You can't friend yourself.", false);
   if (!IS_LAN && !accounts[target]) return sendFriendMsg(ws, `No player named "${target}".`, false);
@@ -1477,7 +1439,7 @@ function handleFriendAccept(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   const me = pd.name;
-  const from = filterProfanity((msg.name || '').trim());
+  const from = filterProfanity((msg.name ?? '').trim());
   const mine = _friendRec(me);
   if (!mine.incoming.includes(from)) return sendFriendMsg(ws, 'No such request.', false);
   const theirs = _friendRec(from);
@@ -1495,7 +1457,7 @@ function handleFriendDecline(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   const me = pd.name;
-  const from = filterProfanity((msg.name || '').trim());
+  const from = filterProfanity((msg.name ?? '').trim());
   const mine = _friendRec(me);
   mine.incoming = mine.incoming.filter(n => n !== from);
   const theirs = _friendRec(from);
@@ -1509,7 +1471,7 @@ function handleFriendRemove(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   const me = pd.name;
-  const other = filterProfanity((msg.name || '').trim());
+  const other = filterProfanity((msg.name ?? '').trim());
   const mine = _friendRec(me);
   const theirs = _friendRec(other);
   mine.friends = mine.friends.filter(n => n !== other);
@@ -1529,16 +1491,16 @@ function handlePlayerStatsGet(ws, msg) {
   if (!pd) return;
   getPlayerData(pd.name).then(data => {
     safeSend(ws, JSON.stringify({ type: 'player_stats', stats: data.stats || {} }));
-  }).catch(() => {});
+  }).catch(err => { console.warn('[Data] handlePlayerStatsGet failed:', err); });
 }
 
 function handlePlayerStatsSet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   getPlayerData(pd.name).then(data => {
-    Object.assign(data.stats, msg.stats || {});
+    Object.assign(data.stats, msg.stats ?? {});
     return setPlayerData(pd.name, data);
-  }).catch(() => {});
+  }).catch(err => { console.warn('[Data] handlePlayerStatsSet failed:', err); });
 }
 
 function handlePlayerSettingsGet(ws, msg) {
@@ -1546,16 +1508,16 @@ function handlePlayerSettingsGet(ws, msg) {
   if (!pd) return;
   getPlayerData(pd.name).then(data => {
     safeSend(ws, JSON.stringify({ type: 'player_settings', settings: data.settings || {} }));
-  }).catch(() => {});
+  }).catch(err => { console.warn('[Data] handlePlayerSettingsGet failed:', err); });
 }
 
 function handlePlayerSettingsSet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   getPlayerData(pd.name).then(data => {
-    Object.assign(data.settings, msg.settings || {});
+    Object.assign(data.settings, msg.settings ?? {});
     return setPlayerData(pd.name, data);
-  }).catch(() => {});
+  }).catch(err => { console.warn('[Data] handlePlayerSettingsSet failed:', err); });
 }
 
 function handleDevGetAllPlayers(ws, msg) {
@@ -1630,7 +1592,7 @@ function handleDevGetAccount(ws, msg) {
 function handleDevSetTag(ws, msg) {
   if (!isDev(ws)) return;
   const target = msg.target;
-  const tag = (msg.tag || '').trim().slice(0, 20);
+  const tag = (msg.tag ?? '').trim().slice(0, 20);
   if (!target || !accounts[target]) {
     safeSend(ws, JSON.stringify({ type: 'dev_set_tag_result', ok: false, reason: 'Account not found' }));
     return;
@@ -1780,7 +1742,7 @@ function broadcastVoice(roomName, msg, exclude) {
 function handleVoiceGroup(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
-  const code = (msg.code || '').toUpperCase().slice(0, 8);
+  const code = (msg.code ?? '').toUpperCase().slice(0, 8);
   if (!code) return;
 
   if (msg.type === 'voice_group_create' || msg.type === 'voice_group_join') {
@@ -1846,6 +1808,7 @@ function removeVoiceClient(ws, roomName) {
 }
 
 // ── Start ─────────────────────────────────────────────────────────────
+let _hbInterval;
 (async () => {
   await loadRooms();
   await loadAccounts();
@@ -1869,7 +1832,7 @@ function removeVoiceClient(ws, roomName) {
 
   // Server-side WebSocket heartbeat — ping all clients every 30s, terminate dead ones
   // This prevents Render's reverse proxy from closing idle WebSocket connections
-  const _hbInterval = setInterval(() => {
+  _hbInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) {
         console.log(`[Heartbeat] Terminating stale client`);
@@ -1881,6 +1844,8 @@ function removeVoiceClient(ws, roomName) {
   }, 30000);
 
   process.on('exit', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); });
+  process.on('SIGTERM', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); process.exit(0); });
+  process.on('SIGINT', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); process.exit(0); });
 })();
 
 // Armor sync every 2 seconds (separate from position packets)

@@ -87,16 +87,16 @@ function crazyGamesSDK() {
   return _cgSdkPromise;
 }
 function cgGameplayStart() {
-  try { window.CrazyGames?.SDK?.game?.gameplaystart?.(); } catch (_) {}
+  try { window.CrazyGames?.SDK?.game?.gameplaystart?.(); } catch (_) { console.warn("CG SDK gameplayStart failed"); }
 }
 function cgGameplayStop() {
-  try { window.CrazyGames?.SDK?.game?.gameplaystop?.(); } catch (_) {}
+  try { window.CrazyGames?.SDK?.game?.gameplaystop?.(); } catch (_) { console.warn("CG SDK gameplayStop failed"); }
 }
 function cgLoadingStart() {
-  try { window.CrazyGames?.SDK?.game?.loadingstart?.(); } catch (_) {}
+  try { window.CrazyGames?.SDK?.game?.loadingstart?.(); } catch (_) { console.warn("CG SDK loadingStart failed"); }
 }
 function cgLoadingStop() {
-  try { window.CrazyGames?.SDK?.game?.loadingstop?.(); } catch (_) {}
+  try { window.CrazyGames?.SDK?.game?.loadingstop?.(); } catch (_) { console.warn("CG SDK loadingStop failed"); }
 }
 function cgMidgameAd(callbacks) {
   if (!isOnCrazyGames()) {
@@ -112,13 +112,24 @@ function cgMidgameAd(callbacks) {
   }
 }
 function cgHappyTime() {
-  try { window.CrazyGames?.SDK?.game?.happytime?.(); } catch (_) {}
+  try { window.CrazyGames?.SDK?.game?.happytime?.(); } catch (_) { console.warn("CG SDK happyTime failed"); }
+}
+// WARNING: Password "encryption" below is NOT secure — it is simple XOR
+// obfuscation that prevents casual visual reading of localStorage values.
+// It provides NO real cryptographic protection. DO NOT use for sensitive data.
+function _xorEncode(str) {
+  let out = '';
+  for (let i = 0; i < str.length; i++) out += String.fromCharCode(str.charCodeAt(i) ^ 0x5A);
+  return out;
+}
+function _xorDecode(str) {
+  return _xorEncode(str); // symmetric
 }
 const app = document.getElementById('app');
 
 // Mobile devices are far weaker — detect early so we can cap the render
 // resolution and view distance for a playable frame rate.
-const IS_MOBILE = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+const IS_MOBILE = ('ontouchstart' in window && navigator.maxTouchPoints > 0);
 
 // --- renderer / scene / camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -141,10 +152,12 @@ function applyGraphicsQuality() {
 }
 
 // Block iOS/Android double-tap-to-zoom (which can get "stuck" zoomed in since
-// user-scalable=no is ignored on iOS). Only cancels the rapid second tap.
+// user-scalable=no is ignored on iOS). Only cancel multi-touch (pinch-zoom)
+// gestures — single taps are left alone so click handlers still fire.
 if (IS_MOBILE) {
-  let _lastTapTime = 0;
+  let _lastTapTime = 0; // timestamp of the last touchend, used below
   document.addEventListener('touchend', (e) => {
+    if (e.changedTouches.length > 1) { e.preventDefault(); return; }
     const now = Date.now();
     if (now - _lastTapTime <= 300) e.preventDefault();
     _lastTapTime = now;
@@ -169,7 +182,7 @@ window.addEventListener('resize', () => {
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  if (menuBgCamera) {
+    if (typeof menuBgCamera !== 'undefined' && menuBgCamera) {
     menuBgCamera.aspect = w / h;
     menuBgCamera.updateProjectionMatrix();
   }
@@ -760,13 +773,13 @@ let _chatAutoHideTimer = null;
 try {
   const gs = window.CrazyGames?.SDK?.game?.getGameSettings?.();
   if (gs && gs.disableChat) chatDisabled = true;
-} catch (_) {}
+} catch (_) { console.warn("operation failed"); }
 // Listen for live game settings changes (CrazyGames requirement)
 try {
   window.CrazyGames?.SDK?.game?.onGameSettingsUpdate?.((settings) => {
     if (settings && settings.disableChat !== undefined) chatDisabled = !!settings.disableChat;
   });
-} catch (_) {}
+} catch (_) { console.warn("operation failed"); }
 // Listen for CG auth state changes (guest logs in while playing)
 try {
   window.CrazyGames?.SDK?.user?.onAuthStateChange?.((user) => {
@@ -774,13 +787,13 @@ try {
       const newName = user.username || playerName;
       if (newName !== playerName) {
         playerName = filterProfanity(newName);
-        try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
         const nameEl = document.getElementById('menu-player-name');
         if (nameEl) nameEl.textContent = playerName;
       }
     }
   });
-} catch (_) {}
+} catch (_) { console.warn("operation failed"); }
 
 // --- sleep state ---
 let sleeping = false;
@@ -824,7 +837,7 @@ function lockPointer() {
     if (p && typeof p.then === 'function') {
       p.catch(e => { e && e.preventDefault && e.preventDefault(); });
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 }
 
 renderer.domElement.addEventListener('click', () => {
@@ -834,6 +847,8 @@ renderer.domElement.addEventListener('click', () => {
 
 document.addEventListener('pointerlockchange', () => {
   pointerLocked = document.pointerLockElement === renderer.domElement;
+  // External pointer lock change — we didn't initiate it, so bail out.
+  if (pointerLocked && !_relocking) return;
   // Don't open the pause menu if we just closed a UI panel and are trying to re-lock,
   // or if chat/inventory/chest/furnace is open, or if on mobile, or voice panel is open.
   if (_relocking) {
@@ -859,7 +874,7 @@ window.addEventListener('voice-panel-toggle', (e) => {
   } else {
     // Re-lock if game is still running and no other UI is open
     if (gameRunning && !ui.inventoryOpen && !ui.furnaceOpen && !ui.isOverlayShown()) {
-      try { renderer.domElement.requestPointerLock(); } catch (_) {}
+      try { renderer.domElement.requestPointerLock(); } catch (_) { console.warn("pointer lock request failed"); }
     }
   }
 });
@@ -1088,7 +1103,7 @@ function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
   const main = document.getElementById('friends-main');
   let pass = '';
-  try { pass = atob(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) {}
+  try { pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) { console.warn("localStorage read failed"); }
   // Friends require a logged-in account.
   if (!playerName || !pass) {
     if (note) note.style.display = '';
@@ -1165,11 +1180,15 @@ function renderFriends() {
 
 // --- Controls / key bindings screen ----------------------------------------
 let _rebinding = null;
+let _controlsKeybindsCache = '';
 
 function renderControls() {
   const list = document.getElementById('controls-list');
   if (!list) return;
   const kb = getKeybinds();
+  const snapshot = JSON.stringify(kb);
+  if (snapshot === _controlsKeybindsCache && list.children.length > 0) return;
+  _controlsKeybindsCache = snapshot;
   list.innerHTML = '';
   for (const act of KEYBIND_ACTIONS) {
     const row = document.createElement('div');
@@ -1206,14 +1225,6 @@ function startRebind(action, btn) {
   };
   document.addEventListener('keydown', handler, true);
   _rebinding.handler = handler;
-}
-
-function cancelRebind() {
-  if (_rebinding && _rebinding.handler) {
-    document.removeEventListener('keydown', _rebinding.handler, true);
-  }
-  _rebinding = null;
-  document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('listening'));
 }
 
 // mouse wheel cycles hotbar
@@ -1875,7 +1886,7 @@ function doBreak(hit, b) {
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
   // drop item
   if (player.isSurvival()) {
-    const drop = blockDrop(b, toolHarvestLevel(toolId || 0));
+    const drop = blockDrop(b, toolHarvestLevel(toolId || 0)); // toolId may be null (bare hand) — default to harvest level 0
     if (drop) player.inventory.add(drop, 1);
     syncUIMode();
   }
@@ -2144,7 +2155,7 @@ function submitChat() {
       }
       // Search for item by name in ITEM enum
       let foundId = null;
-      for (const [key, val] of Object.entries(ITEM)) {
+      for (const [key, val] of Object.entries(ITEM).filter(([k]) => typeof k === 'string')) {
         if (key === itemName) { foundId = val; break; }
       }
       if (foundId == null) {
@@ -2268,7 +2279,7 @@ function submitChat() {
   } else {
     // Regular chat message
     if (network.connected && network.roomName) {
-      try { network.sendChat(text); } catch (_) {}
+      try { network.sendChat(text); } catch (_) { console.warn("network sendChat failed"); }
       // Don't return — show locally too, server echo will be deduplicated below
     }
     const role = currentServer ? currentServer.getRole(playerName) : null;
@@ -2310,7 +2321,7 @@ function addRecentServer(name) {
   const recent = getRecentServers().filter(s => s !== name);
   recent.unshift(name);
   if (recent.length > 10) recent.length = 10;
-  try { localStorage.setItem('bf_recent_servers', JSON.stringify(recent)); } catch (_) {}
+  try { localStorage.setItem('bf_recent_servers', JSON.stringify(recent)); } catch (_) { console.warn("localStorage write failed"); }
 }
 
 function renderServerList(filter, remoteRooms) {
@@ -2482,7 +2493,7 @@ function _doNetworkJoin(name, seed) {
   // If we have a local server entry, create it on the network
   // (server.js auto-joins if the room already exists)
   let password = '';
-  try { password = atob(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) {}
+  try { password = _xorDecode(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) { console.warn("localStorage read failed"); }
   const localServer = Server.load(name);
   const ownerSecret = localServer ? localServer.ownerSecret : null;
   if (localServer) {
@@ -2544,7 +2555,7 @@ function setupNetworkHandlers() {
         isJoinable: true,
         maxPlayers: maxPlayers || 10,
       });
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
 
     // Track multiplayer for achievements
     achievements.incrementStat('multiplayerJoined');
@@ -2563,7 +2574,7 @@ function setupNetworkHandlers() {
       if (!mpRenderer || !player || !world) return;
       for (const p of players) {
         if (p.name === playerName) continue;
-        const sy = world.heightAt(0, 0) + 1;
+        const sy = world.heightAt(Math.floor(player.position.x), Math.floor(player.position.z)) + 1;
         mpRenderer.addPlayer(p.name, p.skinIndex || 0, 0, sy, 0, p.role, p.cgUsername);
       }
     }, 500);
@@ -2571,7 +2582,7 @@ function setupNetworkHandlers() {
 
   network.onPlayerJoin = (name, role, skinIndex, cgUsername) => {
     if (!mpRenderer || !player || !world) return;
-    const sy = world.heightAt(0, 0) + 1;
+    const sy = world.heightAt(Math.floor(player.position.x), Math.floor(player.position.z)) + 1;
     mpRenderer.addPlayer(name, skinIndex || 0, 0, sy, 0, role, cgUsername);
     addChatLine(`${name} joined the game`, '#5f5');
   };
@@ -2648,7 +2659,7 @@ function setupNetworkHandlers() {
     isMultiplayer = false;
     currentServer = null;
     network.disconnect();
-    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
     ui.showMenu('multiplayer');
     showMultiplayerMenu();
   };
@@ -2709,7 +2720,7 @@ function setupNetworkHandlers() {
     if (gameRunning && isMultiplayer) {
       if (voiceChat) { voiceChat.stop(); voiceChat = null; }
       addChatLine('Disconnected from server.', '#f55');
-      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
       cgGameplayStop();
       gameRunning = false;
       isMultiplayer = false;
@@ -2749,8 +2760,8 @@ function setupNetworkHandlers() {
         localStorage.setItem('bf_player_name', playerName);
         localStorage.setItem('bf_login_user', playerName);
         const pass = document.getElementById('login-password');
-        if (pass) localStorage.setItem('bf_login_pass', btoa(pass.value));
-      } catch (_) {}
+        if (pass) localStorage.setItem('bf_login_pass', _xorEncode(pass.value));
+      } catch (_) { console.warn("operation failed"); }
       sessionStorage.setItem('bf_authenticated', '1');
       setSkinUser(playerName);
       const nameTag = document.getElementById('menu-player-name');
@@ -2766,8 +2777,8 @@ function setupNetworkHandlers() {
         }
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
-        try { localStorage.setItem('bf_role', playerRole); } catch (_) {}
-        try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) {}
+        try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
+        try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) { console.warn("operation failed"); }
         setTimeout(() => {
           window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
         }, 600);
@@ -2877,7 +2888,7 @@ window._joinServer = (name) => {
   if (mpInput) {
     const v = filterProfanity((mpInput.value || '').trim()) || 'Player';
     playerName = v;
-    try { localStorage.setItem('bf_player_name', v); } catch (_) {}
+    try { localStorage.setItem('bf_player_name', v); } catch (_) { console.warn("localStorage write failed"); }
   }
   joinServer(name);
 };
@@ -2890,13 +2901,13 @@ window._deleteServer = (name) => {
     network._send({ type: 'delete_room', room: name });
   }
   // Remove from localStorage
-  try { localStorage.removeItem('bf_server_' + name); } catch (_) {}
+  try { localStorage.removeItem('bf_server_' + name); } catch (_) { console.warn("localStorage write failed"); }
   // Remove from recent servers
   const recent = getRecentServers().filter(s => s !== name);
-  try { localStorage.setItem('bf_recent_servers', JSON.stringify(recent)); } catch (_) {}
+  try { localStorage.setItem('bf_recent_servers', JSON.stringify(recent)); } catch (_) { console.warn("localStorage write failed"); }
   if (network.roomName === name) {
     network.leaveRoom();
-    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
   }
   renderServerList(undefined, _remoteRoomCache);
   renderRecentServers();
@@ -2927,7 +2938,7 @@ window._exitParkourToMinigames = () => {
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
   weather = 'clear'; weatherTimer = 0;
-  try {  } catch (_) {}
+  try {  } catch (_) { console.warn("operation failed"); }
   ui.showMenu('minigames');
 };
 
@@ -3006,9 +3017,9 @@ function updateWeather(dt) {
     }
     const isRaining = weather === 'rain' || weather === 'thunder';
     if (isRaining && !wasRaining) {
-      try {  } catch (_) {}
+      try {  } catch (_) { console.warn("operation failed"); }
     } else if (!isRaining && wasRaining) {
-      try {  } catch (_) {}
+      try {  } catch (_) { console.warn("operation failed"); }
     }
   }
   // Rain particles
@@ -3043,7 +3054,7 @@ function updateWeather(dt) {
   if (weather === 'thunder') {
     if (Math.random() < dt * 0.3) {
       thunderFlash = 0.3 + Math.random() * 0.2;
-      try {  } catch (_) {}
+      try {  } catch (_) { console.warn("operation failed"); }
     }
   }
   if (thunderFlash > 0) {
@@ -3282,7 +3293,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     weather = 'clear';
     weatherTimer = 0;
     weatherDuration = WEATHER_MIN_CLEAR + Math.random() * (WEATHER_MAX_CLEAR - WEATHER_MIN_CLEAR);
-    try {  } catch (_) {}
+    try {  } catch (_) { console.warn("operation failed"); }
   }
 
   isParkour = !!opts.parkour;
@@ -3395,7 +3406,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-            try {  } catch (_) {}
+            try {  } catch (_) { console.warn("operation failed"); }
             used = true;
           }
         } else if (slot && isBlockItem(slot.item)) {
@@ -3411,7 +3422,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
               syncUIMode();
               achievements.incrementStat('foodEaten');
               if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-              try {  } catch (_) {}
+              try {  } catch (_) { console.warn("operation failed"); }
             }
           } else if (isBlockItem(oh.item)) {
             placeBlock(oh);
@@ -3435,7 +3446,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (b == null || b === BLOCK.AIR) return;
       doBreak(hit, b);
       viewmodel.swing();
-      
+
     },
     onAttack(x, y) {
       // Returns true if the tap hit a mob (so it's an attack, not a break).
@@ -3449,7 +3460,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const crit = isCriticalHit();
       const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
       mobHit.takeDamage(finalDmg, camera.position);
-      
+
       if (crit) spawnCritParticles(mobHit.position);
       viewmodel.swing();
       mobManager.playHurtSound(mobHit.type);
@@ -3521,7 +3532,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       saveCurrentWorld();
       cgGameplayStop();
       if (isMultiplayer) network.leaveRoom();
-      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
       if (isParkour) showMinigames();
       else showWorldList();
     },
@@ -3692,7 +3703,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         ui.hideLoading();
         lockPointer();
         cgGameplayStart();
-        try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(); } catch (_) {}
+        try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(); } catch (_) { console.warn("audio operation failed"); }
         if (!hasTutorialBeenSeen()) {
           setTimeout(() => showTutorial(), 500);
         }
@@ -3791,7 +3802,7 @@ function renderAchievementScreen() {
       try {
         const ic = makeIcon(a.icon, atlasCanvas);
         iconHtml = ic.toDataURL ? `<img class="ach-card-icon" src="${ic.toDataURL()}" />` : '';
-      } catch (_) {}
+      } catch (_) { console.warn("operation failed"); }
       card.innerHTML = `${iconHtml}<div class="ach-card-info"><div class="ach-card-name">${unlocked ? a.name : '???'}</div><div class="ach-card-desc">${unlocked ? a.desc : 'Locked'}</div></div>`;
       grid.appendChild(card);
     }
@@ -3928,7 +3939,7 @@ function initMenu() {
     }
     const rec = getRecentServers().filter(s => s === 'OfficialSMP');
     localStorage.setItem('bf_recent_servers', JSON.stringify(rec));
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Migrate old save + purge leaked dev worlds
   migrateLegacy();
@@ -3955,7 +3966,7 @@ function initMenu() {
         network.onConnectedOnce(() => _doNetworkJoin(roomId));
       }
     });
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Client-side keepalive: ping server every 5 min while tab is open
   setInterval(() => {
@@ -3986,7 +3997,7 @@ function initMenu() {
           return;
         }
       }
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
   }, 1000);
 
   // Check if joining via standalone shareable link (?join=ROOM)
@@ -4011,14 +4022,14 @@ function initMenu() {
         }, 1200);
       }
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Load saved player name
   let hadSavedName = false;
   try {
     const saved = localStorage.getItem('bf_player_name');
     if (saved) { playerName = filterProfanity(saved); hadSavedName = true; }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
   setSkinUser(playerName);
 
   // Load ALL settings from localStorage
@@ -4029,7 +4040,7 @@ function initMenu() {
         const el = document.getElementById(id);
         if (el) el.value = v;
       }
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
   }
   loadSetting('set-render-distance', 'bf_render_dist');
   loadSetting('set-fov', 'bf_fov');
@@ -4046,7 +4057,7 @@ function initMenu() {
       mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(sens) / 100));
       window.__mouseSens = mouseSensitivity;
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Load volume setting (applied to audio when audio is initialized)
   try {
@@ -4057,7 +4068,7 @@ function initMenu() {
       const volNum = Math.max(0, Math.min(100, parseInt(vol) || 50)) / 100;
       if (audio && audio.master) audio.master.gain.value = volNum;
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Load FPS setting into a module-level flag
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
@@ -4073,14 +4084,14 @@ function initMenu() {
     if (!hadSavedName && launchedFromCG && !joiningViaLink) {
       setTimeout(() => showNamePrompt(), 1200);
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Check for custom skin creation achievement
   try {
     if (localStorage.getItem('bf_custom_skin_created') === '1') {
       achievements.setStat('customSkinCreated', 1);
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
 
   // Achievement toast callback
   achievements.onUnlock((ach) => {
@@ -4099,7 +4110,7 @@ function initMenu() {
         const ctx = iconEl.getContext('2d');
         ctx.imageSmoothingEnabled = false;
         ctx.drawImage(iconCanvas, 0, 0, 40, 40);
-      } catch (_) {}
+      } catch (_) { console.warn("operation failed"); }
     }
     toast.classList.add('show');
     setTimeout(() => toast.classList.remove('show'), 3000);
@@ -4110,7 +4121,7 @@ function initMenu() {
   function startMusicOnce() {
     if (musicStarted) return;
     musicStarted = true;
-    try { audio.init(); audio.resume(); audio.startMusic(); } catch (_) {}
+    try { audio.init(); audio.resume(); audio.startMusic(); } catch (_) { console.warn("audio operation failed"); }
     document.removeEventListener('click', startMusicOnce);
     document.removeEventListener('pointerlockchange', startMusicOnce);
   }
@@ -4121,7 +4132,7 @@ function initMenu() {
   document.getElementById('set-render-distance')?.addEventListener('change', (e) => {
     renderDist = parseInt(e.target.value) || 7;
     if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
-    try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
     // Apply to current world if loaded
     scene.fog.far = 16 * (renderDist + 2);
     scene.fog.near = 16 * 5;
@@ -4130,30 +4141,30 @@ function initMenu() {
   document.getElementById('set-fov')?.addEventListener('change', (e) => {
     camera.fov = parseInt(e.target.value) || 75;
     camera.updateProjectionMatrix();
-    try { localStorage.setItem('bf_fov', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_fov', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-autojump')?.addEventListener('change', (e) => {
     if (player) player.autoJump = e.target.value !== '0';
-    try { localStorage.setItem('bf_autojump', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_autojump', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-volume')?.addEventListener('input', (e) => {
     const vol = Math.max(0, Math.min(100, parseInt(e.target.value) || 50)) / 100;
     if (audio && audio.master) audio.master.gain.value = vol;
-    try { localStorage.setItem('bf_volume', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_volume', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-fps')?.addEventListener('change', (e) => {
     showFps = e.target.value !== '0';
-    try { localStorage.setItem('bf_fps', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_fps', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
     window.__mouseSens = mouseSensitivity;
-    try { localStorage.setItem('bf_sensitivity', e.target.value); } catch (_) {}
+    try { localStorage.setItem('bf_sensitivity', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-quality')?.addEventListener('change', (e) => {
     graphicsQuality = e.target.value || 'medium';
     applyGraphicsQuality();
-    try { localStorage.setItem('bf_quality', graphicsQuality); } catch (_) {}
+    try { localStorage.setItem('bf_quality', graphicsQuality); } catch (_) { console.warn("localStorage write failed"); }
   });
 
   // --- Main menu ---
@@ -4323,7 +4334,7 @@ function initMenu() {
     const seedInput = (document.getElementById('input-server-seed')?.value || '').trim();
     const isPrivate = document.getElementById('sv-priv-private')?.classList.contains('selected');
     playerName = pname;
-    try { localStorage.setItem('bf_player_name', pname); } catch (_) {}
+    try { localStorage.setItem('bf_player_name', pname); } catch (_) { console.warn("localStorage write failed"); }
     if (!name) return;
     createServer(name, maxP, mode, seedInput || undefined, isPrivate);
   });
@@ -4383,7 +4394,7 @@ function initMenu() {
         div.innerHTML = `<div style="font:10px monospace;color:${color};margin-bottom:2px;">${icon} ${label} &mdash; ${e.date}</div><div style="font:11px monospace;color:#bbb;word-break:break-word;">${e.text.replace(/</g,'&lt;')}</div>`;
         list.appendChild(div);
       });
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
   }
   document.getElementById('btn-feedback').addEventListener('click', () => {
     ui.showMenu('feedback');
@@ -4548,11 +4559,15 @@ function initMenu() {
     renderControls();
   });
   document.getElementById('btn-controls-back').addEventListener('click', () => {
-    cancelRebind();
+    if (_rebinding && _rebinding.handler) document.removeEventListener('keydown', _rebinding.handler, true);
+    _rebinding = null;
+    document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('listening'));
     ui.showMenu('settings');
   });
   document.getElementById('btn-controls-reset').addEventListener('click', () => {
-    cancelRebind();
+    if (_rebinding && _rebinding.handler) document.removeEventListener('keydown', _rebinding.handler, true);
+    _rebinding = null;
+    document.querySelectorAll('.key-btn').forEach(b => b.classList.remove('listening'));
     resetKeybinds();
     renderControls();
   });
@@ -4658,7 +4673,7 @@ function initMenu() {
   document.getElementById('btn-resume').addEventListener('click', () => {
     ui.hidePause();
     cgGameplayStart();
-    try { audio.loadSfx(); } catch (_) {}
+    try { audio.loadSfx(); } catch (_) { console.warn("audio operation failed"); }
     lockPointer();
   });
   document.getElementById('btn-pause-settings').addEventListener('click', () => {
@@ -4671,7 +4686,7 @@ function initMenu() {
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
-    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
     cgMidgameAd({
       adStarted() { audio.stopMusic(); },
       adFinished() { if (isParkour) showMinigames(); else showWorldList(); },
@@ -4703,7 +4718,7 @@ function initMenu() {
     saveCurrentWorld();
     cgGameplayStop();
     if (isMultiplayer) network.leaveRoom();
-    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+    try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
     cgMidgameAd({
       adStarted() { audio.stopMusic(); },
       adFinished() { if (isParkour) showMinigames(); else deathQuitToMenu(); },
@@ -4742,7 +4757,7 @@ function initMenu() {
           _backgroundAuth = true;
           const url = network.serverUrl || MP_SERVER_URL;
           network.onConnectedOnce(() => {
-            const pass = atob(localStorage.getItem('bf_login_pass') || '') || '';
+            const pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
             network.sendAuth(playerName, pass, 'login');
           });
           if (!network.connected) network.connect(url);
@@ -5138,12 +5153,12 @@ function initMenu() {
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
     // Auto-login ONLY when visiting via /u/ redirect with saved credentials
-    const savedPass = atob(localStorage.getItem('bf_login_pass') || '') || '';
+    const savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
     if (urlUser && savedPass && savedPass.length >= 3 && fromU) {
       loginPass.value = savedPass;
       autoLogin = true;
     }
-  } catch (_) {}
+  } catch (_) { console.warn("operation failed"); }
   if (autoLogin) {
     // Skip login screen entirely — go straight to main menu after auth
     window._autoLoggingIn = true;
@@ -5162,7 +5177,7 @@ function initMenu() {
         const ni = document.getElementById('login-username');
         if (ni && !ni.value) ni.value = cgName;
       }
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
   });
 
   // Show password form and CrazyGames login on both CG and the regular website.
@@ -5193,7 +5208,7 @@ function initMenu() {
             if (!data.ok) { showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
             playerName = filterProfanity(data.username) || 'Player';
             setSkinUser(playerName);
-            try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+            try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
             const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
             if (!network.connected) {
               network.connect(MP_SERVER_URL);
@@ -5204,7 +5219,7 @@ function initMenu() {
             }
           })
           .catch(() => { showToast('CG auth network error', '#f44', 4); });
-      } catch (_) {}
+      } catch (_) { console.warn("operation failed"); }
     });
   }
 
@@ -5248,7 +5263,7 @@ function initMenu() {
             playerName = filterProfanity(name);
             if (!playerName) playerName = 'Player';
             setSkinUser(playerName);
-            try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+            try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
             if (!network.connected) {
@@ -5263,7 +5278,7 @@ function initMenu() {
         } else {
           // Fallback if name prompt elements not found
           playerName = suggestedName;
-          try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+          try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
             network.connect(MP_SERVER_URL);
@@ -5293,7 +5308,7 @@ function initMenu() {
     clearToast();
     const num = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit random
     playerName = 'Guest' + String(num).slice(0, 8);
-    try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+    try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
     const attempt = () => network.sendIdentityAuth('guest', playerName, playerName);
     if (!network.connected) {
       network.connect(MP_SERVER_URL);
@@ -5312,7 +5327,7 @@ function initMenu() {
       const privacy = document.getElementById('footer-privacy');
       if (terms) { terms.href = './terms.html'; terms.textContent = 'Terms'; }
       if (privacy) { privacy.href = './privacy.html'; privacy.textContent = 'Privacy Policy'; }
-    } catch (_) {}
+    } catch (_) { console.warn("operation failed"); }
   }
 }
 
@@ -5329,7 +5344,7 @@ function showNamePrompt() {
     if (!name) { inputEl.focus(); return; }
     playerName = filterProfanity(name);
     if (!playerName) playerName = 'Player';
-    try { localStorage.setItem('bf_player_name', playerName); } catch (_) {}
+    try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
     const nameTag = document.getElementById('menu-player-name');
     if (nameTag) nameTag.textContent = playerName;
     promptEl.style.display = 'none';
@@ -5517,7 +5532,7 @@ function loop() {
           const crit = isCriticalHit();
           const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
           mobHit.takeDamage(finalDmg, camera.position);
-          
+
           if (crit) spawnCritParticles(mobHit.position);
           viewmodel.swing();
           mobManager.playHurtSound(mobHit.type);
@@ -5625,7 +5640,7 @@ function loop() {
             } else {
               const elapsed = (now - lastBreakSound) / 1000;
               if (elapsed > 0.3) {
-                
+
                 lastBreakSound = now;
               }
               breakingElapsed += dt;
@@ -5688,7 +5703,7 @@ function loop() {
       if (checkCheckpoint(player, world)) {
         const lvl = getCurrentLevelInfo();
         if (lvl) addChatLine(`Checkpoint: Level ${lvl.id} — ${lvl.name}`, '#5f5');
-        
+
       }
 
       // Check for level/parkour completion
@@ -5698,7 +5713,7 @@ function loop() {
           const time = getParkourTimerFormatted();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
           cgHappyTime();
-          
+
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');
           setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
@@ -5709,12 +5724,12 @@ function loop() {
         if (result === 'level_complete') {
           const lvl = getCurrentLevelInfo();
           if (lvl) addChatLine(`Level ${lvl.id}: ${lvl.name} — Go!`, '#ff0');
-          
+
         } else if (result === 'parkour_complete') {
           const time = getParkourTimerFormatted();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
           cgHappyTime();
-          
+
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');
           setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
@@ -5801,7 +5816,7 @@ function loop() {
 
   // damage sound + camera shake
   if (player.damageTimer > 0 && prevDamageTimer <= 0) {
-    
+
     _cameraShakeIntensity = 0.15;
     const dmgOverlay = document.getElementById('damage-overlay');
     if (dmgOverlay) {
@@ -5860,7 +5875,7 @@ function loop() {
       const armorKey = armorIds.join(',');
       if (armorKey !== _lastLocalArmorKey) {
         _lastLocalArmorKey = armorKey;
-        try { playerModel.setArmor(armorIds, ARMOR); } catch (_) {}
+        try { playerModel.setArmor(armorIds, ARMOR); } catch (_) { console.warn("playerModel operation failed"); }
         if (network.connected && network.roomName) network.sendArmor(armorKey || null);
       }
     }
@@ -5963,7 +5978,7 @@ function loop() {
 
   // Eating chew sounds (periodic while eating)
   if (player && player.eating && player.eatBiteTimer <= 0) {
-    try {  } catch (_) {}
+    try {  } catch (_) { console.warn("operation failed"); }
     player.eatBiteTimer = 0.35;
   }
 
@@ -6390,7 +6405,7 @@ function drawMiniCustomSkin(cvs, dataUrl) {
   const img = new Image();
   img.onload = () => {
     ctx.clearRect(0, 0, cvs.width, cvs.height);
-    const draw = (sx, sy, sw, sh, dx, dy) => { try { ctx.drawImage(img, sx, sy, sw, sh, dx, dy, sw, sh); } catch (_) {} };
+    const draw = (sx, sy, sw, sh, dx, dy) => { try { ctx.drawImage(img, sx, sy, sw, sh, dx, dy, sw, sh); } catch (_) { console.warn("icon rendering failed"); } };
     // Front faces from the standard MC layout, composed into a 16x32 avatar.
     draw(8, 8, 8, 8, 4, 0);    // head
     draw(20, 20, 8, 12, 4, 8); // body
@@ -6521,7 +6536,7 @@ let skinEditor = null;
 document.getElementById('btn-skins-edit')?.addEventListener('click', () => {
   ui.showMenu('skin-editor');
   setTimeout(() => {
-    if (skinEditor) { try { skinEditor.destroy(); } catch (_) {} }
+    if (skinEditor) { try { skinEditor.destroy(); } catch (_) { console.warn("skin editor operation failed"); } }
     skinEditor = new SkinEditor();
     skinEditor.init();
   }, 50);

@@ -182,6 +182,19 @@ export class World {
       }
     }
 
+    // Cache dominant biome for water material (avoids O(n²) scan each mesh rebuild)
+    {
+      let oc = 0, rc = 0;
+      for (let i = 0; i < chunk.biomeMap.length; i++) {
+        const b = chunk.biomeMap[i];
+        if (b === BIOMES.OCEAN || b === BIOMES.DEEP_OCEAN) oc++;
+        else if (b === BIOMES.RIVER) rc++;
+      }
+      if (oc > rc && oc > 8) chunk._dominantBiome = 'ocean';
+      else if (rc > oc && rc > 8) chunk._dominantBiome = 'river';
+      else chunk._dominantBiome = 'default';
+    }
+
     chunk.generated = true;
   }
 

@@ -449,7 +449,7 @@ export class ViewModel {
   }
 
   renderOverlay() {
-    if (!this.visible) return;
+    if (!this.visible || !this.scene || !this.camera) return;
     this.renderer.clearDepth();
     this.renderer.render(this.scene, this.camera);
   }

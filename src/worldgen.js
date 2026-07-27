@@ -54,8 +54,9 @@ export function calcHeight(n, wx, wz) {
 
   // River carving: only on land, near sea level
   if (cont > 0.05) {
-    const riverRaw = n.river(wx * 0.012, wz * 0.012);
-    const riverVal = (riverRaw + n.fbm2(n.river, wx * 0.025, wz * 0.025, 4, 2, 0.5) * 0.5) / 1.5;
+    const octaves = 4;
+    const riverRaw = n.river(wx * 0.012, wz * 0.012) / octaves;
+    const riverVal = (riverRaw + n.fbm2(n.river, wx * 0.025, wz * 0.025, octaves, 2, 0.5) * 0.5) / 1.5;
     const riverStrength = 1 - Math.abs(riverVal) * 4;
     if (riverStrength > 0.65 && h > SEA_LEVEL - 3) {
       const carve = (riverStrength - 0.65) / 0.35;

@@ -93,16 +93,8 @@ export class ChunkMeshManager {
     if (water.position.length) {
       // Determine water material from chunk biome
       let wMat = this.waterMaterial;
-      if (chunk.biomeMap) {
-        let oceanCount = 0, riverCount = 0;
-        for (let i = 0; i < chunk.biomeMap.length; i++) {
-          const b = chunk.biomeMap[i];
-          if (b === BIOMES.OCEAN || b === BIOMES.DEEP_OCEAN) oceanCount++;
-          else if (b === BIOMES.RIVER) riverCount++;
-        }
-        if (oceanCount > riverCount && oceanCount > 8) wMat = this.oceanWaterMaterial;
-        else if (riverCount > oceanCount && riverCount > 8) wMat = this.riverWaterMaterial;
-      }
+      if (chunk._dominantBiome === 'ocean') wMat = this.oceanWaterMaterial;
+      else if (chunk._dominantBiome === 'river') wMat = this.riverWaterMaterial;
       const wg = new THREE.BufferGeometry();
       wg.setAttribute('position', new THREE.BufferAttribute(water.position, 3));
       wg.setAttribute('uv', new THREE.BufferAttribute(water.uv, 2));

@@ -1292,8 +1292,7 @@ export class UI {
   buildHotbar() {
     this.hotbarEl.innerHTML = '';
     this.slots = [];
-    HOTBAR_BLOCKS.forEach((blockId, i) => {
-      if (blockId == null) return;
+    HOTBAR_BLOCKS.filter(b => b != null).forEach((blockId, i) => {
       const slot = document.createElement('div');
       slot.className = 'slot' + (i === 0 ? ' active' : '');
       const num = document.createElement('div');

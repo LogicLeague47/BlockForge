@@ -1,6 +1,5 @@
-// Sound effects + music player via the Web Audio API.
-// Mob sounds from CC0 creature sounds (public/Sounds/).
-// Footstep sounds from CC0 Kenney impact sounds (public/Sounds/).
+// Footstep sounds + music player via the Web Audio API.
+// CC0 footstep samples from Kenney and Fantozzi (OpenGameArt).
 
 import { assetBase } from './config.js';
 function assetUrl(p) { return assetBase() + String(p).replace(/^\//, ''); }
@@ -47,9 +46,6 @@ export class Audio {
       'snow_step1','snow_step2','snow_step3',
       'gravel_step1','gravel_step2',
       'sand_step1',
-      'cow1','cow2',
-      'pig1','pig2',
-      'sheep1','sheep2',
       'Fantozzi-StoneL1','Fantozzi-StoneL2','Fantozzi-StoneL3',
       'Fantozzi-StoneR1','Fantozzi-StoneR2','Fantozzi-StoneR3',
       'Fantozzi-SandL1','Fantozzi-SandL2','Fantozzi-SandL3',
@@ -437,96 +433,6 @@ export class Audio {
       default:
         return this._stone_step();
     }
-  }
-
-  // ── ANIMAL SOUNDS (procedural) ─────────────────────────────────────
-
-  cowSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('cow1', 'cow2');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
-    const dur = 0.5 + Math.random() * 0.3;
-    const ctx = this.ctx;
-    const buf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const src = this._src(buf);
-    const lp = this._filter('lowpass', 400, 0.6);
-    const g = this._gain(0);
-    this._envGain(g, 0.18, dur, 0.08, 0.3);
-    src.connect(lp); lp.connect(g); g.connect(this.master);
-    src.start(); src.stop(ctx.currentTime + dur + 0.05);
-    const osc = ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, ctx.currentTime);
-    osc.frequency.linearRampToValueAtTime(90, ctx.currentTime + dur * 0.7);
-    osc.frequency.linearRampToValueAtTime(100, ctx.currentTime + dur);
-    const og = this._gain(0);
-    this._envGain(og, 0.12, dur, 0.06, 0.3);
-    osc.connect(og); og.connect(this.master);
-    osc.start(); osc.stop(ctx.currentTime + dur + 0.05);
-  }
-
-  pigSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('pig1', 'pig2');
-    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
-    const dur = 0.2 + Math.random() * 0.15;
-    const ctx = this.ctx;
-    const pigSnorts = 2 + ((Math.random() * 2) | 0);
-    for (let i = 0; i < pigSnorts; i++) {
-      const t = ctx.currentTime + i * 0.08;
-      const osc = ctx.createOscillator();
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(300 + Math.random() * 200, t);
-      osc.frequency.linearRampToValueAtTime(200 + Math.random() * 100, t + 0.06);
-      const g = this._gain(0);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.12, t + 0.01);
-      g.gain.linearRampToValueAtTime(0, t + 0.06);
-      osc.connect(g); g.connect(this.master);
-      osc.start(t); osc.stop(t + 0.07);
-    }
-  }
-
-  sheepSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('sheep1', 'sheep2');
-    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
-    this._playLayers([
-      { wave: 'sine', freq: 220, dur: 0.25, gain: 0.12, atk: 0.02, rel: 0.3 },
-      { wave: 'sine', freq: 160, dur: 0.35, gain: 0.1, atk: 0.05, rel: 0.35 },
-    ]);
-  }
-
-  // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
-
-  hurtCow() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('cow1', 'cow2');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
-    this._playLayers([
-      { wave: 'sine', freq: 100, dur: 0.2, gain: 0.15, atk: 0.01, rel: 0.15 },
-      { noise: 'brown', dur: 0.18, gain: 0.12, lp: 300, atk: 0.005, rel: 0.15 },
-    ]);
-  }
-
-  hurtPig() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('pig1', 'pig2');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
-    this._playLayers([
-      { wave: 'sawtooth', freq: 450, dur: 0.12, gain: 0.12, atk: 0.003, rel: 0.08 },
-      { wave: 'sawtooth', freq: 300, dur: 0.15, gain: 0.1, atk: 0.005, rel: 0.1 },
-    ]);
-  }
-
-  hurtSheep() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('sheep1', 'sheep2');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.1); return; }
-    this._playLayers([
-      { wave: 'sine', freq: 300, dur: 0.15, gain: 0.12, atk: 0.005, rel: 0.1 },
-      { wave: 'sine', freq: 200, dur: 0.2, gain: 0.08, atk: 0.008, rel: 0.12 },
-    ]);
   }
 
 }

@@ -62,6 +62,7 @@ export class Player {
     this.knockback = { x: 0, y: 0, z: 0 }; // decaying impulse separate from input velocity
     this.crouching = false;
     this.sprinting = false;
+    this._bobPhase = 0;
     this.inWater = false;
     this.headInWater = false;
     this._lastSpaceTime = 0;
@@ -290,6 +291,7 @@ export class Player {
   }
 
   setLookFromCamera() {
+    if (this.cameraMode !== 0) return;
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.set(this.pitch, this.yaw, 0);
   }
@@ -415,7 +417,7 @@ export class Player {
       if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
       this.fallStartY = -1;
     } else {
-      this.velocity.y -= GRAVITY * dt;
+      this.velocity.y -= GRAVITY * dt; // gravity always applied (guard removed)
       if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
@@ -425,7 +427,7 @@ export class Player {
     }
 
     // --- auto-jump: step up 1-block obstacles when walking into them ---
-    if (this.autoJump && !this.flying && !this.crouching && this.onGround && !this.inWater && move.lengthSq() > 0) {
+    if (this.autoJump && !this.flying && !this.crouching && this.onGround && !this.inWater && move.lengthSq() > 0) { // no move input → nothing to step over
       const aheadX = Math.floor(this.position.x + move.x * (PLAYER_HALF_WIDTH + 0.4));
       const aheadZ = Math.floor(this.position.z + move.z * (PLAYER_HALF_WIDTH + 0.4));
       const feetY = Math.floor(this.position.y);
@@ -474,10 +476,21 @@ export class Player {
 
     // sync camera
     const crouchEyeOffset = this.crouching ? -0.25 : 0;
+    // head bob
+    const moving = this.onGround && (this.velocity.x !== 0 || this.velocity.z !== 0);
+    if (moving) {
+      this._bobPhase += dt * (this.sprinting ? 11 : 8);
+    } else {
+      this._bobPhase *= 0.85;
+    }
+    const bobV = moving ? Math.sin(this._bobPhase) * 0.04 : 0;
+    const bobH = moving ? Math.sin(this._bobPhase * 0.5) * 0.02 : 0;
     if (this.cameraMode === 0) {
       // First person: camera at eye level
       this.camera.position.copy(this.position);
-      this.camera.position.y += EYE_HEIGHT + crouchEyeOffset;
+      this.camera.position.x += Math.cos(this.yaw) * bobH;
+      this.camera.position.z += Math.sin(this.yaw) * bobH;
+      this.camera.position.y += EYE_HEIGHT + crouchEyeOffset + bobV;
     } else {
       // 3rd person: camera orbits player using yaw + pitch
       const dist = 4;

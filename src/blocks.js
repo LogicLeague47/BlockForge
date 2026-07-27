@@ -75,9 +75,10 @@ export const BLOCK = {
   PAINTING: 67,
   IRON_DOOR: 68,
   WOOL: 69,
-  BOOK: 70,       // item, not block
-  CLOCK: 71,      // item, not block
-  COMPASS: 72,    // item, not block
+  // Items that share block IDs for legacy mapping / historical reasons
+  BOOK: 70,
+  CLOCK: 71,
+  COMPASS: 72,
   GREENSTONE_ORE: 73,
   GREENSTONE_BLOCK: 74,
   GREENSTONE_DUST: 75,

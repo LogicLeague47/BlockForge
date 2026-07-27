@@ -1,6 +1,6 @@
 // Multiplayer server management, staff permissions, chat, and commands.
 //
-// Role hierarchy: owner > admin > staff > player
+// Role hierarchy (by level): dev > gamedev > owner > admin > staff > player
 // - Owner: full control, can promote/demote anyone, change settings
 // - Admin: can kick/ban players, manage staff, but can't kick/ban other admins
 // - Staff: can kick/ban players, but can't manage staff or other staff
@@ -24,7 +24,7 @@ export const ROLE_STAFF = 'staff';
 export const ROLE_PLAYER = 'player';
 export const ROLE_DEV = 'dev';
 
-const ROLE_LEVEL = { [ROLE_GAMEDEV]: 6, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1, [ROLE_DEV]: 5 };
+const ROLE_LEVEL = { [ROLE_DEV]: 6, [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1 };
 
 // Hardcoded GameDev account
 const GAMEDEV_ACCOUNT = 'LogicLeague';
