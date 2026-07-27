@@ -2528,8 +2528,7 @@ export class MobManager {
             mob.fusing = true;
             mob.fuseTimer = def.fuseTime || 1.5;
             mob._fuseFlashPhase = 0;
-            // Play hiss
-            if (this.audio) this.audio.creeperHiss();
+            // Play hiss (removed)
           }
 
           // Update fuse
@@ -2710,24 +2709,15 @@ export class MobManager {
     if (type === 'cow') this.audio.cowSound();
     else if (type === 'pig') this.audio.pigSound();
     else if (type === 'sheep') this.audio.sheepSound();
-    else if (type === 'zombie') this.audio.zombieSound();
-    else if (type === 'skeleton') this.audio.skeletonSound();
-    else if (type === 'spider') this.audio.spiderSound();
 
   }
 
   playHurtSound(type) {
     if (!this.audio) return;
     switch (type) {
-      case 'zombie': this.audio.hurtZombie(); break;
-      case 'skeleton': this.audio.hurtSkeleton(); break;
-      case 'spider': this.audio.hurtSpider(); break;
-      case 'slime': this.audio.hurtSlime(); break;
       case 'cow': this.audio.hurtCow(); break;
       case 'pig': this.audio.hurtPig(); break;
       case 'sheep': this.audio.hurtSheep(); break;
-      case 'chicken': this.audio.hurtChicken(); break;
-      default: this.audio.hurtAnimal(); break;
     }
   }
 

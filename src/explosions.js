@@ -20,10 +20,7 @@ export class ExplosionManager {
     const destroyed = [];
     const p = Math.ceil(power);
 
-    // Sound
-    if (this.audio) {
-      try { this.audio.explosionSound(); } catch (_) {}
-    }
+    // Sound (removed)
 
     // Destroy blocks in a sphere
     for (let dx = -p; dx <= p; dx++) {

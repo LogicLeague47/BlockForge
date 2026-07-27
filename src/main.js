@@ -1254,7 +1254,7 @@ document.addEventListener('mousedown', (e) => {
       if (hit && isBlockItem(hit.block)) {
         player.inventory.slots[player.inventory.selected] = { item: hit.block, count: 1 };
         syncUIMode();
-        audio.place(hit.block);
+        
       }
       e.preventDefault();
     }
@@ -1338,7 +1338,7 @@ document.addEventListener('mousedown', (e) => {
           syncUIMode();
           achievements.incrementStat('foodEaten');
           if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-          try { audio.eatBite(); } catch (_) {}
+          try {  } catch (_) {}
           used = true;
         }
       } else if (slot && isBlockItem(slot.item)) {
@@ -1368,7 +1368,7 @@ document.addEventListener('mousedown', (e) => {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-            try { audio.eatBite(); } catch (_) {}
+            try {  } catch (_) {}
           }
         } else if (isBlockItem(oh.item)) {
           placeBlock(oh);
@@ -1704,7 +1704,7 @@ function placeBlock(slotOverride) {
     syncUIMode();
   }
   manager.refreshAround(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
-  audio.place(itemId);
+  // place sfx removed
   // Achievement stats: block placed
   achievements.incrementMapStat('blocksPlaced', `${itemId}`);
   achievements.incrementStat('blocksPlacedAny');
@@ -1736,7 +1736,7 @@ function handleBucket(held, hit) {
       achievements.incrementStat('bucketLava');
     }
     syncUIMode();
-    audio.place();
+    
     return true;
   }
 
@@ -1753,7 +1753,7 @@ function handleBucket(held, hit) {
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
     syncUIMode();
-    audio.place();
+    
     return true;
   }
 
@@ -1769,7 +1769,7 @@ function handleBucket(held, hit) {
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
     syncUIMode();
-    audio.place();
+    
     return true;
   }
 
@@ -1888,7 +1888,7 @@ function doBreak(hit, b) {
   achievements.incrementMapStat('blocksBroken', `${b}`);
   achievements.incrementStat('totalBlocksBroken');
   manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
-  audio.dig(b);
+  
   player.addExhaustion(0.05);
   // XP for mining: ore blocks give more
   const oreXp = { [BLOCK.COAL_ORE]: 2, [BLOCK.IRON_ORE]: 3, [BLOCK.GOLD_ORE]: 5, [BLOCK.DIAMOND_ORE]: 7, [BLOCK.COPPER_ORE]: 3, [BLOCK.EMERALD_ORE]: 7, [BLOCK.PRISMITE_ORE]: 10 };
@@ -2946,7 +2946,7 @@ window._exitParkourToMinigames = () => {
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
   weather = 'clear'; weatherTimer = 0;
-  try { audio.stopRain(); } catch (_) {}
+  try {  } catch (_) {}
   ui.showMenu('minigames');
 };
 
@@ -3025,9 +3025,9 @@ function updateWeather(dt) {
     }
     const isRaining = weather === 'rain' || weather === 'thunder';
     if (isRaining && !wasRaining) {
-      try { audio.startRain(); } catch (_) {}
+      try {  } catch (_) {}
     } else if (!isRaining && wasRaining) {
-      try { audio.stopRain(); } catch (_) {}
+      try {  } catch (_) {}
     }
   }
   // Rain particles
@@ -3062,7 +3062,7 @@ function updateWeather(dt) {
   if (weather === 'thunder') {
     if (Math.random() < dt * 0.3) {
       thunderFlash = 0.3 + Math.random() * 0.2;
-      try { audio.thunder(); } catch (_) {}
+      try {  } catch (_) {}
     }
   }
   if (thunderFlash > 0) {
@@ -3301,7 +3301,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     weather = 'clear';
     weatherTimer = 0;
     weatherDuration = WEATHER_MIN_CLEAR + Math.random() * (WEATHER_MAX_CLEAR - WEATHER_MIN_CLEAR);
-    try { audio.stopRain(); } catch (_) {}
+    try {  } catch (_) {}
   }
 
   isParkour = !!opts.parkour;
@@ -3414,7 +3414,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-            try { audio.eatBite(); } catch (_) {}
+            try {  } catch (_) {}
             used = true;
           }
         } else if (slot && isBlockItem(slot.item)) {
@@ -3430,7 +3430,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
               syncUIMode();
               achievements.incrementStat('foodEaten');
               if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-              try { audio.eatBite(); } catch (_) {}
+              try {  } catch (_) {}
             }
           } else if (isBlockItem(oh.item)) {
             placeBlock(oh);
@@ -3454,7 +3454,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (b == null || b === BLOCK.AIR) return;
       doBreak(hit, b);
       viewmodel.swing();
-      audio.dig(b);
+      
     },
     onAttack(x, y) {
       // Returns true if the tap hit a mob (so it's an attack, not a break).
@@ -3468,7 +3468,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const crit = isCriticalHit();
       const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
       mobHit.takeDamage(finalDmg, camera.position);
-      audio.hit();
+      
       if (crit) spawnCritParticles(mobHit.position);
       viewmodel.swing();
       mobManager.playHurtSound(mobHit.type);
@@ -5536,7 +5536,7 @@ function loop() {
           const crit = isCriticalHit();
           const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
           mobHit.takeDamage(finalDmg, camera.position);
-          audio.hit();
+          
           if (crit) spawnCritParticles(mobHit.position);
           viewmodel.swing();
           mobManager.playHurtSound(mobHit.type);
@@ -5644,7 +5644,7 @@ function loop() {
             } else {
               const elapsed = (now - lastBreakSound) / 1000;
               if (elapsed > 0.3) {
-                audio.dig(b);
+                
                 lastBreakSound = now;
               }
               breakingElapsed += dt;
@@ -5707,7 +5707,7 @@ function loop() {
       if (checkCheckpoint(player, world)) {
         const lvl = getCurrentLevelInfo();
         if (lvl) addChatLine(`Checkpoint: Level ${lvl.id} — ${lvl.name}`, '#5f5');
-        audio.levelComplete();
+        
       }
 
       // Check for level/parkour completion
@@ -5717,7 +5717,7 @@ function loop() {
           const time = getParkourTimerFormatted();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
           cgHappyTime();
-          audio.finish();
+          
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');
           setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
@@ -5728,12 +5728,12 @@ function loop() {
         if (result === 'level_complete') {
           const lvl = getCurrentLevelInfo();
           if (lvl) addChatLine(`Level ${lvl.id}: ${lvl.name} — Go!`, '#ff0');
-          audio.levelComplete();
+          
         } else if (result === 'parkour_complete') {
           const time = getParkourTimerFormatted();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
           cgHappyTime();
-          audio.finish();
+          
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');
           setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
@@ -5820,7 +5820,7 @@ function loop() {
 
   // damage sound + camera shake
   if (player.damageTimer > 0 && prevDamageTimer <= 0) {
-    audio.playHurt();
+    
     _cameraShakeIntensity = 0.15;
     const dmgOverlay = document.getElementById('damage-overlay');
     if (dmgOverlay) {
@@ -5982,7 +5982,7 @@ function loop() {
 
   // Eating chew sounds (periodic while eating)
   if (player && player.eating && player.eatBiteTimer <= 0) {
-    try { audio.eatChew(); } catch (_) {}
+    try {  } catch (_) {}
     player.eatBiteTimer = 0.35;
   }
 

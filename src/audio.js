@@ -43,40 +43,15 @@ export class Audio {
 
   async _loadBuffers() {
     const names = [
-      'stone_dig1','stone_dig2','stone_dig3',
-      'stone_place1','stone_place2',
       'stone_step1','stone_step2','stone_step3',
-      'dirt_dig1','dirt_dig2','dirt_dig3',
       'dirt_step1','dirt_step2','dirt_step3',
-      'wood_dig1','wood_dig2','wood_dig3',
-      'wood_place1','wood_place2',
       'wood_step1','wood_step2','wood_step3',
-      'glass_dig1','glass_dig2','glass_dig3',
-      'glass_place1','glass_place2',
-      'metal_dig1','metal_dig2','metal_dig3',
-      'metal_place1','metal_place2',
       'snow_step1','snow_step2','snow_step3',
-      'snow_dig1','snow_dig2',
-      'gravel_dig1','gravel_dig2','gravel_dig3',
       'gravel_step1','gravel_step2',
-      'sand_dig1','sand_dig2','sand_dig3',
       'sand_step1',
-      'leaves_dig1','leaves_dig2',
-      'player_hurt1','player_hurt2',
-      'zombie_groan1','zombie_groan2','zombie_groan3','zombie_groan4',
-      'zombie_hurt1','zombie_hurt2',
-      'skeleton_bone1','skeleton_bone2','skeleton_bone3',
-      'skeleton_hurt1','skeleton_hurt2',
-      'spider_hiss1','spider_hiss2','spider_hiss3',
-      'spider_hurt1','spider_attack1','spider_attack2',
-      'slime1','slime2','slime3',
-      'slime_hurt1','slime_hurt2',
       'cow1','cow2',
       'pig1','pig2',
       'sheep1','sheep2',
-      'chicken1','chicken2',
-      'creature_hurt1','creature_hurt2','creature_hurt3',
-      'monster1','monster2','monster3',
     ];
     for (const name of names) {
       try {
@@ -303,23 +278,7 @@ export class Audio {
     }
   }
 
-  // ── WEATHER SOUNDS ──────────────────────────────────────────────────
-
-  // Thunder: a sharp lightning crack followed by a rolling low rumble.
-  // ── BLOCK SOUNDS ─────────────────────────────────────────────────────
-
-  // STONE: Hard, sharp crunch — heavy impact with gravel scatter
-  _stone_dig() {
-    if (this._buffers.stone_dig1) {
-      return this._playBuf([this._buffers.stone_dig1, this._buffers.stone_dig2, this._buffers.stone_dig3], 0.6, 0.15);
-    }
-    this._playLayers([
-      { noise: 'brown', dur: 0.22, gain: 0.6, lp: 350, lq: 0.8, atk: 0.005, rel: 0.4 },
-      { noise: 'white', dur: 0.14, gain: 0.45, bp: 1800, bq: 1.8, atk: 0.003, rel: 0.25 },
-      { noise: 'white', dur: 0.1, gain: 0.3, hp: 5000, hq: 0.5, atk: 0.002, rel: 0.15 },
-      { wave: 'square', freq: 120, dur: 0.08, gain: 0.15, atk: 0.003, rel: 0.2 },
-    ]);
-  }
+  // ── BLOCK STEP SOUNDS ────────────────────────────────────────────────
 
   _stone_step() {
     if (this._buffers.stone_step1) {
@@ -331,29 +290,7 @@ export class Audio {
     ]);
   }
 
-  _stone_place() {
-    if (this._buffers.stone_place1) {
-      return this._playBuf([this._buffers.stone_place1, this._buffers.stone_place2], 0.5, 0.12);
-    }
-    this._playLayers([
-      { noise: 'brown', dur: 0.15, gain: 0.45, lp: 300, atk: 0.005, rel: 0.3 },
-      { noise: 'white', dur: 0.08, gain: 0.3, bp: 1500, bq: 2, atk: 0.003, rel: 0.2 },
-      { wave: 'square', freq: 100, dur: 0.06, gain: 0.12, atk: 0.003, rel: 0.15 },
-    ]);
-  }
-
   // DIRT: Soft, muffled, earthy — low thud with damp grain
-  _dirt_dig() {
-    if (this._buffers.dirt_dig1) {
-      return this._playBuf([this._buffers.dirt_dig1, this._buffers.dirt_dig2, this._buffers.dirt_dig3], 0.5, 0.15);
-    }
-    this._playLayers([
-      { noise: 'brown', dur: 0.18, gain: 0.5, lp: 200, lq: 0.6, atk: 0.008, rel: 0.35 },
-      { noise: 'pink', dur: 0.12, gain: 0.3, lp: 600, lq: 0.5, atk: 0.005, rel: 0.3 },
-      { noise: 'white', dur: 0.06, gain: 0.1, bp: 1200, bq: 0.8, atk: 0.01, rel: 0.2 },
-    ]);
-  }
-
   _dirt_step() {
     if (this._buffers.dirt_step1) {
       return this._playBuf([this._buffers.dirt_step1, this._buffers.dirt_step2, this._buffers.dirt_step3], 0.25, 0.12);
@@ -364,26 +301,7 @@ export class Audio {
     ]);
   }
 
-  _dirt_place() {
-    this._playLayers([
-      { noise: 'brown', dur: 0.12, gain: 0.4, lp: 220, atk: 0.008, rel: 0.3 },
-      { noise: 'pink', dur: 0.08, gain: 0.2, lp: 500, atk: 0.005, rel: 0.25 },
-    ]);
-  }
-
   // WOOD: Hollow, resonant, warm — snap with body
-  _wood_dig() {
-    if (this._buffers.wood_dig1) {
-      return this._playBuf([this._buffers.wood_dig1, this._buffers.wood_dig2, this._buffers.wood_dig3], 0.55, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.08, gain: 0.45, bp: 900, bq: 2.5, atk: 0.002, rel: 0.15 },
-      { wave: 'sine', freq: 320, dur: 0.15, gain: 0.2, atk: 0.003, rel: 0.3 },
-      { noise: 'brown', dur: 0.12, gain: 0.35, bp: 400, bq: 1.2, atk: 0.005, rel: 0.3 },
-      { wave: 'triangle', freq: 180, dur: 0.1, gain: 0.1, atk: 0.005, rel: 0.25 },
-    ]);
-  }
-
   _wood_step() {
     if (this._buffers.wood_step1) {
       return this._playBuf([this._buffers.wood_step1, this._buffers.wood_step2, this._buffers.wood_step3], 0.3, 0.12);
@@ -394,29 +312,7 @@ export class Audio {
     ]);
   }
 
-  _wood_place() {
-    if (this._buffers.wood_place1) {
-      return this._playBuf([this._buffers.wood_place1, this._buffers.wood_place2], 0.45, 0.12);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.35, bp: 900, bq: 2.5, atk: 0.002, rel: 0.12 },
-      { wave: 'sine', freq: 300, dur: 0.1, gain: 0.15, atk: 0.003, rel: 0.25 },
-      { noise: 'brown', dur: 0.08, gain: 0.2, bp: 350, bq: 1, atk: 0.005, rel: 0.2 },
-    ]);
-  }
-
   // LEAVES: Light, airy, wispy — delicate rustle
-  _leaves_dig() {
-    if (this._buffers.leaves_dig1) {
-      return this._playBuf([this._buffers.leaves_dig1, this._buffers.leaves_dig2], 0.3, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.12, gain: 0.25, hp: 4000, hq: 0.4, atk: 0.005, rel: 0.2 },
-      { noise: 'pink', dur: 0.1, gain: 0.15, bp: 3000, bq: 0.6, atk: 0.008, rel: 0.25 },
-      { noise: 'brown', dur: 0.06, gain: 0.08, lp: 600, atk: 0.01, rel: 0.2 },
-    ]);
-  }
-
   _leaves_step() {
     this._playLayers([
       { noise: 'white', dur: 0.04, gain: 0.1, hp: 5000, atk: 0.005, rel: 0.15 },
@@ -424,25 +320,7 @@ export class Audio {
     ]);
   }
 
-  _leaves_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.15, hp: 4500, atk: 0.005, rel: 0.15 },
-      { noise: 'pink', dur: 0.04, gain: 0.08, bp: 3000, bq: 0.6, atk: 0.008, rel: 0.2 },
-    ]);
-  }
-
   // SAND: Granular, gritty, loose — hiss with fine scatter
-  _sand_dig() {
-    if (this._buffers.sand_dig1) {
-      return this._playBuf([this._buffers.sand_dig1, this._buffers.sand_dig2, this._buffers.sand_dig3], 0.45, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.18, gain: 0.4, bp: 4000, bq: 0.7, atk: 0.003, rel: 0.2 },
-      { noise: 'white', dur: 0.12, gain: 0.3, hp: 6000, hq: 0.4, atk: 0.002, rel: 0.15 },
-      { noise: 'brown', dur: 0.1, gain: 0.15, lp: 500, atk: 0.008, rel: 0.25 },
-    ]);
-  }
-
   _sand_step() {
     if (this._buffers.sand_step1) {
       return this._playBuf([this._buffers.sand_step1], 0.2, 0.12);
@@ -453,36 +331,7 @@ export class Audio {
     ]);
   }
 
-  _sand_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.1, gain: 0.3, bp: 3800, bq: 0.7, atk: 0.003, rel: 0.18 },
-      { noise: 'brown', dur: 0.06, gain: 0.12, lp: 450, atk: 0.008, rel: 0.2 },
-    ]);
-  }
-
   // GLASS: Sharp, brittle, tinkling — high crackle
-  _glass_dig() {
-    if (this._buffers.glass_dig1) {
-      return this._playBuf([this._buffers.glass_dig1, this._buffers.glass_dig2, this._buffers.glass_dig3], 0.55, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.5, hp: 6000, hq: 1.5, atk: 0.001, rel: 0.1 },
-      { wave: 'sine', freq: 1800, dur: 0.08, gain: 0.25, atk: 0.001, rel: 0.08 },
-      { noise: 'white', dur: 0.05, gain: 0.3, bp: 4000, bq: 2, atk: 0.001, rel: 0.08 },
-      { wave: 'triangle', freq: 2400, dur: 0.04, gain: 0.12, atk: 0.001, rel: 0.06 },
-    ]);
-  }
-
-  _glass_place() {
-    if (this._buffers.glass_place1) {
-      return this._playBuf([this._buffers.glass_place1, this._buffers.glass_place2], 0.35, 0.12);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.04, gain: 0.35, hp: 5000, hq: 2, atk: 0.001, rel: 0.08 },
-      { wave: 'sine', freq: 1600, dur: 0.05, gain: 0.15, atk: 0.001, rel: 0.06 },
-    ]);
-  }
-
   _glass_step() {
     this._playLayers([
       { noise: 'white', dur: 0.03, gain: 0.2, hp: 5000, hq: 1.5, atk: 0.001, rel: 0.04 },
@@ -491,17 +340,6 @@ export class Audio {
   }
 
   // SNOW: Soft powdery crunch — light, airy, compressed
-  _snow_dig() {
-    if (this._buffers.snow_dig1) {
-      return this._playBuf([this._buffers.snow_dig1, this._buffers.snow_dig2], 0.4, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.15, gain: 0.3, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.2 },
-      { noise: 'pink', dur: 0.12, gain: 0.2, bp: 1500, bq: 0.6, atk: 0.008, rel: 0.25 },
-      { noise: 'white', dur: 0.06, gain: 0.1, hp: 6000, hq: 0.3, atk: 0.003, rel: 0.12 },
-    ]);
-  }
-
   _snow_step() {
     if (this._buffers.snow_step1) {
       return this._playBuf([this._buffers.snow_step1, this._buffers.snow_step2, this._buffers.snow_step3], 0.2, 0.12);
@@ -512,25 +350,7 @@ export class Audio {
     ]);
   }
 
-  _snow_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.08, gain: 0.2, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
-      { noise: 'pink', dur: 0.06, gain: 0.1, bp: 1600, bq: 0.5, atk: 0.008, rel: 0.18 },
-    ]);
-  }
-
   // GRAVEL: Loose rocky tumbling crunch — deeper than sand, more granular
-  _gravel_dig() {
-    if (this._buffers.gravel_dig1) {
-      return this._playBuf([this._buffers.gravel_dig1, this._buffers.gravel_dig2, this._buffers.gravel_dig3], 0.5, 0.15);
-    }
-    this._playLayers([
-      { noise: 'white', dur: 0.2, gain: 0.45, bp: 2500, bq: 0.8, atk: 0.002, rel: 0.2 },
-      { noise: 'brown', dur: 0.15, gain: 0.3, lp: 800, atk: 0.005, rel: 0.25 },
-      { noise: 'white', dur: 0.1, gain: 0.25, hp: 4500, hq: 0.6, atk: 0.002, rel: 0.15 },
-    ]);
-  }
-
   _gravel_step() {
     if (this._buffers.gravel_step1) {
       return this._playBuf([this._buffers.gravel_step1, this._buffers.gravel_step2], 0.25, 0.12);
@@ -541,26 +361,7 @@ export class Audio {
     ]);
   }
 
-  _gravel_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.12, gain: 0.35, bp: 2300, bq: 0.8, atk: 0.003, rel: 0.18 },
-      { noise: 'brown', dur: 0.08, gain: 0.2, lp: 650, atk: 0.005, rel: 0.2 },
-    ]);
-  }
-
   // METAL: Sharp metallic clank — bright, resonant ping
-  _metal_dig() {
-    if (this._buffers.metal_dig1) {
-      return this._playBuf([this._buffers.metal_dig1, this._buffers.metal_dig2, this._buffers.metal_dig3], 0.55, 0.12);
-    }
-    this._playLayers([
-      { wave: 'square', freq: 1200, dur: 0.12, gain: 0.35, atk: 0.001, rel: 0.15 },
-      { noise: 'white', dur: 0.06, gain: 0.4, hp: 3000, hq: 2, atk: 0.001, rel: 0.08 },
-      { wave: 'sine', freq: 800, dur: 0.15, gain: 0.15, atk: 0.002, rel: 0.2 },
-      { noise: 'brown', dur: 0.08, gain: 0.2, lp: 500, atk: 0.003, rel: 0.15 },
-    ]);
-  }
-
   _metal_step() {
     this._playLayers([
     { wave: 'square', freq: 1000, dur: 0.04, gain: 0.2, atk: 0.001, rel: 0.06 },
@@ -568,29 +369,7 @@ export class Audio {
     ]);
   }
 
-  _metal_place() {
-    if (this._buffers.metal_place1) {
-      return this._playBuf([this._buffers.metal_place1, this._buffers.metal_place2], 0.45, 0.1);
-    }
-    this._playLayers([
-      { wave: 'square', freq: 1100, dur: 0.08, gain: 0.3, atk: 0.001, rel: 0.1 },
-      { noise: 'white', dur: 0.04, gain: 0.25, hp: 3200, hq: 2, atk: 0.001, rel: 0.08 },
-      { wave: 'sine', freq: 900, dur: 0.1, gain: 0.12, atk: 0.002, rel: 0.15 },
-    ]);
-  }
-
   // BRIMSTONE: Hot, crackling stone — fire undertone
-  _brimstone_dig() {
-    this._playLayers([
-      // hot stone crack
-      { noise: 'white', dur: 0.1, gain: 0.4, bp: 1800, bq: 1.5, atk: 0.002, rel: 0.15 },
-      // fire crackle undertone
-      { noise: 'pink', dur: 0.12, gain: 0.2, hp: 2000, hq: 0.8, atk: 0.005, rel: 0.2 },
-      // deep heat body
-      { noise: 'brown', dur: 0.15, gain: 0.25, lp: 400, atk: 0.005, rel: 0.25 },
-    ]);
-  }
-
   _brimstone_step() {
     this._playLayers([
       { noise: 'white', dur: 0.05, gain: 0.2, bp: 1600, bq: 1.2, atk: 0.003, rel: 0.12 },
@@ -598,23 +377,7 @@ export class Audio {
     ]);
   }
 
-  _brimstone_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.08, gain: 0.3, bp: 1700, bq: 1.5, atk: 0.002, rel: 0.12 },
-      { noise: 'brown', dur: 0.1, gain: 0.2, lp: 420, atk: 0.005, rel: 0.2 },
-    ]);
-  }
-
   // PLANT: Soft organic rustle — hay, flowers, leaves-adjacent
-  _plant_dig() {
-    this._playLayers([
-      // soft rustle
-      { noise: 'white', dur: 0.1, gain: 0.2, hp: 3000, hq: 0.5, atk: 0.005, rel: 0.18 },
-      // organic body
-      { noise: 'pink', dur: 0.08, gain: 0.12, bp: 2000, bq: 0.6, atk: 0.008, rel: 0.2 },
-    ]);
-  }
-
   _plant_step() {
     this._playLayers([
     { noise: 'white', dur: 0.04, gain: 0.1, hp: 3500, hq: 0.4, atk: 0.005, rel: 0.12 },
@@ -622,25 +385,7 @@ export class Audio {
     ]);
   }
 
-  _plant_place() {
-    this._playLayers([
-      { noise: 'white', dur: 0.05, gain: 0.15, hp: 3200, hq: 0.5, atk: 0.005, rel: 0.15 },
-      { noise: 'pink', dur: 0.04, gain: 0.08, bp: 2100, bq: 0.5, atk: 0.008, rel: 0.18 },
-    ]);
-  }
-
   // LIQUID: Bubbling, gurgling — for lava
-  _liquid_dig() {
-    this._playLayers([
-      // thick bubble pop
-      { noise: 'brown', dur: 0.2, gain: 0.4, bp: 400, bq: 2, atk: 0.003, rel: 0.25 },
-      // gurgle
-      { wave: 'sine', freq: 180, dur: 0.15, gain: 0.2, atk: 0.005, rel: 0.2 },
-      // hiss
-      { noise: 'white', dur: 0.1, gain: 0.15, hp: 2000, hq: 0.6, atk: 0.008, rel: 0.15 },
-    ]);
-  }
-
   _liquid_step() {
     this._playLayers([
     { noise: 'brown', dur: 0.08, gain: 0.2, bp: 500, bq: 1.8, atk: 0.005, rel: 0.15 },
@@ -648,60 +393,7 @@ export class Audio {
     ]);
   }
 
-  _liquid_place() {
-    this._playLayers([
-      { noise: 'brown', dur: 0.12, gain: 0.3, bp: 450, bq: 2, atk: 0.003, rel: 0.2 },
-      { wave: 'sine', freq: 190, dur: 0.1, gain: 0.15, atk: 0.005, rel: 0.15 },
-    ]);
-  }
-
   // ── PUBLIC API ───────────────────────────────────────────────────────
-
-  dig(blockId) {
-    switch (blockId) {
-      // STONE family: stone, cobble, ores, obsidian, terracotta, furnace, buttons, pressure plates, doors, prismite, mossy cobble, walls, blocks
-      case 3: case 4: case 9: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 39: case 42: case 43: case 44: case 48: case 49: case 52: case 53: case 54: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: case 83:
-        return this._stone_dig();
-      // DIRT family: grass, dirt, podzol, mycelium, carpet, wool, greenstone dust, clay
-      case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
-        return this._dirt_dig();
-      // WOOD family: logs, planks, bricks, pumpkin, cactus, bookshelf, TNT, workbench, beds, ladder, fence, door, sign, painting, greenstone torch, piston
-      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
-        return this._wood_dig();
-      // LEAVES family: leaves, flowers
-      case 6: case 22: case 23: case 36:
-        return this._leaves_dig();
-      // SAND family: sand, red sand, quicksand
-      case 7: case 29: case 85:
-        return this._sand_dig();
-      // GLASS family: glass, glass pane, void glass
-      case 16: case 46: case 84:
-        return this._glass_dig();
-      // SNOW family
-      case 15: case 31: case 37:
-        return this._snow_dig();
-      // GRAVEL
-      case 18:
-        return this._gravel_dig();
-      // BRIMSTONE (hot stone)
-      case 28: case 45: case 82:
-        return this._brimstone_dig();
-      // METAL: iron/gold blocks, iron bars
-      case 50: case 51: case 81:
-        return this._metal_dig();
-      // LIQUID (lava)
-      case 80:
-        return this._liquid_dig();
-      // PLANT: torch
-      case 41:
-        return this._plant_dig();
-      // WATER
-      case 8:
-        return this.splash();
-      default:
-        return this._stone_dig();
-    }
-  }
 
   step(blockId) {
     if (!this.ctx || !this.enabled) return;
@@ -749,141 +441,6 @@ export class Audio {
       default:
         return this._stone_step();
     }
-  }
-
-  place(blockId) {
-    if (blockId) return this.placeBlock(blockId);
-    this._dirt_place();
-  }
-
-  placeBlock(blockId) {
-    switch (blockId) {
-      // STONE family
-      case 3: case 4: case 9: case 11: case 12: case 13: case 14: case 25: case 30: case 32: case 39: case 42: case 43: case 44: case 48: case 49: case 52: case 53: case 54: case 59: case 60: case 62: case 63: case 64: case 65: case 68: case 73: case 74: case 77: case 83:
-        return this._stone_place();
-      // DIRT family
-      case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
-        return this._dirt_place();
-      // WOOD family
-      case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
-        return this._wood_place();
-      // LEAVES family
-      case 6: case 22: case 23: case 36:
-        return this._leaves_place();
-      // SAND family
-      case 7: case 29: case 85:
-        return this._sand_place();
-      // GLASS family
-      case 16: case 46: case 84:
-        return this._glass_place();
-      // SNOW family
-      case 15: case 31: case 37:
-        return this._snow_place();
-      // GRAVEL
-      case 18:
-        return this._gravel_place();
-      // BRIMSTONE
-      case 28: case 45: case 82:
-        return this._brimstone_place();
-      // METAL
-      case 50: case 51: case 81:
-        return this._metal_place();
-      // LIQUID
-      case 80:
-        return this._liquid_place();
-      // PLANT
-      case 41:
-        return this._plant_place();
-      default:
-        return this._stone_place();
-    }
-  }
-
-  splash() {
-    if (!this.ctx || !this.enabled) return;
-    const ctx = this.ctx;
-    const dur = 0.35;
-    const len = Math.floor(ctx.sampleRate * dur);
-    const buf = this._noise(len, ctx.sampleRate);
-    const src = this._src(buf);
-    const f = this._filter('lowpass', 2000, 0.5);
-    f.frequency.setValueAtTime(3000, ctx.currentTime);
-    f.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + dur);
-    const g = this._gain(0);
-    this._envGain(g, 0.45, dur, 0.01, 0.3);
-    src.connect(f); f.connect(g); g.connect(this.master);
-    src.start(); src.stop(ctx.currentTime + dur + 0.05);
-    // bubble pops
-    for (let i = 0; i < 4; i++) {
-      setTimeout(() => {
-        if (!this.ctx || !this.enabled) return;
-        const osc = this.ctx.createOscillator();
-        const gg = this._gain(0);
-        osc.type = 'sine';
-        osc.frequency.value = 250 + Math.random() * 500;
-        this._envGain(gg, 0.1, 0.06, 0.01, 0.3);
-        osc.connect(gg); gg.connect(this.master);
-        osc.start(); osc.stop(this.ctx.currentTime + 0.06);
-      }, 60 + i * 55 + Math.random() * 30);
-    }
-  }
-
-  damage() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { noise: 'white', dur: 0.08, gain: 0.5, hp: 200, atk: 0.001, rel: 0.08 },
-      { noise: 'brown', dur: 0.15, gain: 0.35, lp: 250, atk: 0.002, rel: 0.18 },
-      { wave: 'sawtooth', freq: 120, dur: 0.07, gain: 0.15, atk: 0.001, rel: 0.08 },
-      { wave: 'sine', freq: 60, dur: 0.12, gain: 0.25, atk: 0.003, rel: 0.15 },
-    ]);
-  }
-
-  hit() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { noise: 'white', dur: 0.05, gain: 0.55, hp: 3000, atk: 0.001, rel: 0.06 },
-      { noise: 'brown', dur: 0.1, gain: 0.3, lp: 500, atk: 0.002, rel: 0.12 },
-      { wave: 'sawtooth', freq: 200, dur: 0.04, gain: 0.18, atk: 0.001, rel: 0.06 },
-      { wave: 'sine', freq: 80, dur: 0.08, gain: 0.2, atk: 0.002, rel: 0.1 },
-    ]);
-  }
-
-  // ── EATING SOUND ──────────────────────────────────────────────────────
-  // Crunchy bite + chewy texture + soft swallow
-
-  eatBite() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.35, hp: 2000, hq: 1.2, atk: 0.001, rel: 0.12 },
-      { noise: 'brown', dur: 0.1, gain: 0.25, bp: 600, bq: 1.5, atk: 0.002, rel: 0.15 },
-      { wave: 'square', freq: 350, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.06 },
-    ]);
-  }
-
-  eatChew() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      // wet squishy chew
-      { noise: 'pink', dur: 0.08, gain: 0.2, bp: 1200, bq: 2, atk: 0.002, rel: 0.12 },
-      // soft mastication low
-      { noise: 'brown', dur: 0.1, gain: 0.15, lp: 500, atk: 0.003, rel: 0.2 },
-      // tonal swallow hint
-      { wave: 'sine', freq: 280, dur: 0.05, gain: 0.06, atk: 0.002, rel: 0.08 },
-    ]);
-  }
-
-  // ── PLAYER HURT SOUND ──────────────────────────────────────────────
-
-  playHurt() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('player_hurt1', 'player_hurt2');
-    if (bufs.length) { this._playBuf(bufs, 0.5, 0.15); return; }
-    this._playLayers([
-      { noise: 'white', dur: 0.05, gain: 0.5, bp: 1500, bq: 1.2, atk: 0.001, rel: 0.06 },
-      { noise: 'brown', dur: 0.12, gain: 0.4, lp: 300, atk: 0.002, rel: 0.15 },
-      { wave: 'sawtooth', freq: 150, dur: 0.08, gain: 0.2, atk: 0.001, rel: 0.08 },
-      { wave: 'sine', freq: 80, dur: 0.1, gain: 0.25, atk: 0.003, rel: 0.12 },
-    ]);
   }
 
   // ── ANIMAL SOUNDS (procedural) ─────────────────────────────────────
@@ -946,16 +503,6 @@ export class Audio {
 
   // ── PER-MOB HURT SOUNDS ─────────────────────────────────────────────
 
-  hurtAnimal() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('creature_hurt1', 'creature_hurt2', 'creature_hurt3');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
-    this._playLayers([
-      { wave: 'sine', freq: 400, dur: 0.12, gain: 0.15, atk: 0.003, rel: 0.08 },
-      { noise: 'brown', dur: 0.1, gain: 0.1, lp: 500, atk: 0.002, rel: 0.1 },
-    ]);
-  }
-
   hurtCow() {
     if (!this.ctx || !this.enabled) return;
     const bufs = this._bufs('cow1', 'cow2');
@@ -986,270 +533,4 @@ export class Audio {
     ]);
   }
 
-  hurtChicken() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('chicken1', 'chicken2');
-    if (bufs.length) { this._playBuf(bufs, 0.3, 0.2); return; }
-    this._playLayers([
-      { wave: 'square', freq: 1500, dur: 0.04, gain: 0.08, atk: 0.001, rel: 0.04 },
-      { wave: 'square', freq: 2000, dur: 0.03, gain: 0.06, atk: 0.001, rel: 0.03 },
-    ]);
-  }
-
-  hurtZombie() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('zombie_hurt1', 'zombie_hurt2', 'monster1');
-    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
-    this._playLayers([
-      { wave: 'sawtooth', freq: 150, dur: 0.18, gain: 0.2, atk: 0.005, rel: 0.12 },
-      { noise: 'brown', dur: 0.15, gain: 0.12, lp: 250, atk: 0.003, rel: 0.1 },
-    ]);
-  }
-
-  hurtSkeleton() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('skeleton_hurt1', 'skeleton_hurt2', 'creature_hurt1');
-    if (bufs.length) { this._playBuf(bufs, 0.4, 0.15); return; }
-    const ctx = this.ctx;
-    const t = ctx.currentTime;
-    for (let i = 0; i < 4; i++) {
-      const osc = ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = 1500 + i * 400;
-      const g = this._gain(0);
-      const tt = t + i * 0.04;
-      g.gain.setValueAtTime(0, tt);
-      g.gain.linearRampToValueAtTime(0.06, tt + 0.005);
-      g.gain.linearRampToValueAtTime(0, tt + 0.03);
-      osc.connect(g); g.connect(this.master);
-      osc.start(tt); osc.stop(tt + 0.04);
-    }
-  }
-
-  hurtSpider() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('spider_hurt1', 'bug_04');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.2); return; }
-    this._playLayers([
-      { noise: 'pink', dur: 0.12, gain: 0.15, hp: 2000, bp: 3000, bq: 0.5, atk: 0.002, rel: 0.08 },
-    ]);
-  }
-
-  hurtSlime() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('slime_hurt1', 'slime_hurt2', 'slime3');
-    if (bufs.length) { this._playBuf(bufs, 0.35, 0.15); return; }
-    this._playLayers([
-      { wave: 'sine', freq: 200, dur: 0.15, gain: 0.12, atk: 0.008, rel: 0.12 },
-      { noise: 'brown', dur: 0.12, gain: 0.1, lp: 200, atk: 0.005, rel: 0.1 },
-    ]);
-  }
-
-  // ── HOSTILE MOB SOUNDS (procedural) ────────────────────────────────
-
-  zombieSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('zombie_groan1', 'zombie_groan2', 'zombie_groan3', 'zombie_groan4', 'monster2', 'monster3');
-    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
-    const ctx = this.ctx;
-    const t = ctx.currentTime;
-    const dur = 0.6;
-    const osc = ctx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(95, t);
-    osc.frequency.linearRampToValueAtTime(65, t + dur * 0.6);
-    osc.frequency.linearRampToValueAtTime(55, t + dur);
-    const lp = this._filter('lowpass', 300, 0.7);
-    const g = this._gain(0);
-    this._envGain(g, 0.18, dur, 0.1, 0.35);
-    osc.connect(lp); lp.connect(g); g.connect(this.master);
-    osc.start(); osc.stop(t + dur + 0.05);
-    const osc2 = ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.setValueAtTime(130, t);
-    osc2.frequency.linearRampToValueAtTime(100, t + dur * 0.5);
-    osc2.frequency.linearRampToValueAtTime(90, t + dur);
-    const g2 = this._gain(0);
-    this._envGain(g2, 0.1, dur, 0.08, 0.3);
-    osc2.connect(g2); g2.connect(this.master);
-    osc2.start(); osc2.stop(t + dur + 0.05);
-  }
-
-  skeletonSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('skeleton_bone1', 'skeleton_bone2', 'skeleton_bone3');
-    if (bufs.length) { this._playBuf(bufs, 0.3, 0.15); return; }
-    const ctx = this.ctx;
-    const t = ctx.currentTime;
-    for (let i = 0; i < 3; i++) {
-      const tt = t + i * 0.12;
-      const osc = ctx.createOscillator();
-      osc.type = 'square';
-      osc.frequency.value = 800 + i * 300;
-      const g = this._gain(0);
-      g.gain.setValueAtTime(0, tt);
-      g.gain.linearRampToValueAtTime(0.06, tt + 0.005);
-      g.gain.linearRampToValueAtTime(0, tt + 0.03);
-      osc.connect(g); g.connect(this.master);
-      osc.start(tt); osc.stop(tt + 0.04);
-    }
-  }
-
-  spiderSound() {
-    if (!this.ctx || !this.enabled) return;
-    const bufs = this._bufs('spider_hiss1', 'spider_hiss2', 'spider_hiss3');
-    if (bufs.length) { this._playBuf(bufs, 0.25, 0.2); return; }
-    this._playLayers([
-      { noise: 'pink', dur: 0.35, gain: 0.12, hp: 2500, bp: 4000, bq: 0.4, atk: 0.02, rel: 0.3 },
-      { wave: 'sine', freq: 3000, dur: 0.3, gain: 0.03, atk: 0.01, rel: 0.2 },
-    ]);
-  }
-
-
-
-  explosionSound() {
-    if (!this.ctx || !this.enabled) return;
-    const ctx = this.ctx;
-    // Deep boom + debris
-    const dur = 0.8;
-    // Low boom
-    const boomBuf = this._brownNoise(Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const boomSrc = this._src(boomBuf);
-    const boomLp = this._filter('lowpass', 250, 0.5);
-    const boomG = this._gain(0);
-    this._envGain(boomG, 0.6, dur, 0.01, 0.5);
-    boomSrc.connect(boomLp); boomLp.connect(boomG); boomG.connect(this.master);
-    boomSrc.start(); boomSrc.stop(ctx.currentTime + dur + 0.05);
-    // Sharp crack
-    const crackBuf = this._noise(Math.floor(ctx.sampleRate * 0.15), ctx.sampleRate);
-    const crackSrc = this._src(crackBuf);
-    const crackHp = this._filter('highpass', 800, 0.6);
-    const crackG = this._gain(0);
-    this._envGain(crackG, 0.4, 0.15, 0.005, 0.1);
-    crackSrc.connect(crackHp); crackHp.connect(crackG); crackG.connect(this.master);
-    crackSrc.start(); crackSrc.stop(ctx.currentTime + 0.2);
-  }
-
-  hurtHostile() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { wave: 'square', freq: 200, dur: 0.15, gain: 0.15, atk: 0.005, rel: 0.1 },
-      { noise: 'brown', dur: 0.12, gain: 0.1, lp: 300, atk: 0.003, rel: 0.1 },
-    ]);
-  }
-
-  // ── AMBIENT WIND ─────────────────────────────────────────────────────
-
-  startWind() {
-    if (!this.ctx) return;
-    const ctx = this.ctx;
-    const len = ctx.sampleRate * 4;
-    const buf = this._brownNoise(len, ctx.sampleRate);
-    const src = this._src(buf, true);
-    const f = this._filter('lowpass', 200, 0.3);
-    const g = this._gain(0.015);
-    src.connect(f); f.connect(g); g.connect(this.master);
-    src.start();
-    this.wind = { src, g };
-  }
-
-  setWindIntensity(v) {
-    if (this.wind) this.wind.g.gain.value = 0.015 + v * 0.035;
-  }
-
-  // ── RAIN AMBIENT ──────────────────────────────────────────────────────
-
-  startRain() {
-    if (!this.ctx || this._rainSrc) return;
-    const ctx = this.ctx;
-    const len = ctx.sampleRate * 3;
-    const buf = this._pinkNoise(len, ctx.sampleRate);
-    const src = this._src(buf, true);
-    const hp = this._filter('highpass', 800, 0.5);
-    const lp = this._filter('lowpass', 8000, 0.3);
-    const g = this._gain(0);
-    src.connect(hp); hp.connect(lp); lp.connect(g); g.connect(this.master);
-    src.start();
-    this._rainSrc = src;
-    this._rainGain = g;
-    this._rainFadeTo(0.12, 2);
-  }
-
-  stopRain() {
-    if (!this._rainSrc) return;
-    this._rainFadeTo(0, 2);
-    const src = this._rainSrc;
-    setTimeout(() => { try { src.stop(); } catch (_) {} }, 2500);
-    this._rainSrc = null;
-    this._rainGain = null;
-  }
-
-  _rainFadeTo(target, dur) {
-    const g = this._rainGain;
-    if (!g) return;
-    if (dur <= 0) { g.gain.value = target; return; }
-    const step = (target - g.gain.value) / (dur * 30);
-    const iv = setInterval(() => {
-      if (!g) { clearInterval(iv); return; }
-      g.gain.value += step;
-      if ((step > 0 && g.gain.value >= target) || (step < 0 && g.gain.value <= target)) {
-        g.gain.value = target;
-        clearInterval(iv);
-      }
-    }, 1000 / 30);
-  }
-
-  // ── THUNDER ───────────────────────────────────────────────────────────
-
-  thunder() {
-    if (!this.ctx || !this.enabled) return;
-    const ctx = this.ctx;
-
-    // Initial crack — sharp noise burst
-    const crackDur = 0.4;
-    const crackBuf = this._noise(Math.floor(ctx.sampleRate * crackDur), ctx.sampleRate);
-    const crackSrc = this._src(crackBuf);
-    const crackHp = this._filter('highpass', 1000, 0.6);
-    const crackG = this._gain(0);
-    this._envGain(crackG, 0.55, crackDur, 0.002, 0.25);
-    crackSrc.connect(crackHp); crackHp.connect(crackG); crackG.connect(this.master);
-    crackSrc.start(); crackSrc.stop(ctx.currentTime + crackDur + 0.05);
-
-    // Rolling rumble — brown noise with slow swell
-    const rumbleDur = 2.5;
-    const rumbleBuf = this._brownNoise(Math.floor(ctx.sampleRate * rumbleDur), ctx.sampleRate);
-    const rumbleSrc = this._src(rumbleBuf);
-    const rumbleLp = this._filter('lowpass', 220, 0.4);
-    const rumbleG = this._gain(0);
-    // swell in then out
-    const t = ctx.currentTime;
-    rumbleG.gain.setValueAtTime(0, t);
-    rumbleG.gain.linearRampToValueAtTime(0.5, t + 0.2);
-    rumbleG.gain.setValueAtTime(0.5, t + rumbleDur - 0.8);
-    rumbleG.gain.linearRampToValueAtTime(0, t + rumbleDur);
-    rumbleSrc.connect(rumbleLp); rumbleLp.connect(rumbleG); rumbleG.connect(this.master);
-    rumbleSrc.start(); rumbleSrc.stop(ctx.currentTime + rumbleDur + 0.05);
-  }
-
-  // ── PARKOUR SOUNDS ──────────────────────────────────────────────────
-
-  levelComplete() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { wave: 'sine', freq: 880, dur: 0.08, gain: 0.2, atk: 0.005, rel: 0.2 },
-      { wave: 'sine', freq: 1320, dur: 0.1, gain: 0.25, atk: 0.008, rel: 0.3 },
-      { wave: 'sine', freq: 1760, dur: 0.12, gain: 0.15, atk: 0.01, rel: 0.35 },
-    ]);
-  }
-
-  finish() {
-    if (!this.ctx || !this.enabled) return;
-    this._playLayers([
-      { wave: 'sine', freq: 523, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
-      { wave: 'sine', freq: 659, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
-      { wave: 'sine', freq: 784, dur: 0.15, gain: 0.2, atk: 0.01, rel: 0.3 },
-      { wave: 'sine', freq: 1047, dur: 0.25, gain: 0.3, atk: 0.01, rel: 0.5 },
-      { wave: 'triangle', freq: 1047, dur: 0.3, gain: 0.1, atk: 0.02, rel: 0.5 },
-    ]);
-  }
 }
