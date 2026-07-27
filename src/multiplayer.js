@@ -24,7 +24,7 @@ export const ROLE_STAFF = 'staff';
 export const ROLE_PLAYER = 'player';
 export const ROLE_DEV = 'dev';
 
-const ROLE_LEVEL = { [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1, [ROLE_DEV]: 6 };
+const ROLE_LEVEL = { [ROLE_GAMEDEV]: 6, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1, [ROLE_DEV]: 5 };
 
 // Hardcoded GameDev account
 const GAMEDEV_ACCOUNT = 'LogicLeague';
@@ -234,6 +234,9 @@ export class Server {
       s.created = d.created || Date.now();
       s.ownerSecret = d.ownerSecret || Server.generateSecret();
       s.isPrivate = !!d.isPrivate;
+      if (d.ownerName && !s.players.find(p => p.name === d.ownerName)) {
+        s._addPlayer(d.ownerName, ROLE_OWNER);
+      }
       return s;
     } catch (_) { return null; }
   }

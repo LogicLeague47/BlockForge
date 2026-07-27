@@ -43,9 +43,11 @@ const DRUM_PIXELS = [
 // Seed for deterministic crack generation — prevents frame-to-frame jitter.
 const _crackSeed = 42;
 
-// Cache canvases to avoid expensive toDataURL every frame
+// Cache canvases and data URLs to avoid expensive toDataURL every frame
 const _heartCache = new Map();
 const _drumCache = new Map();
+const _heartUrlCache = new Map();
+const _drumUrlCache = new Map();
 
 function drawPixelIcon(pixels, fullCol, halfL, halfR, emptyCol, full, half, cache) {
   const key = `${full ? 1 : 0}${half ? 1 : 0}`;
@@ -73,6 +75,22 @@ function drawHeart(full, half) {
 
 function drawDrumstick(full, half) {
   return drawPixelIcon(DRUM_PIXELS, DRUM_COLS, DRUM_HALF_L, DRUM_HALF_R, DRUM_EMPTY, full, half, _drumCache);
+}
+
+function drawHeartUrl(full, half) {
+  const key = `${full ? 1 : 0}${half ? 1 : 0}`;
+  if (_heartUrlCache.has(key)) return _heartUrlCache.get(key);
+  const url = drawHeart(full, half).toDataURL();
+  _heartUrlCache.set(key, url);
+  return url;
+}
+
+function drawDrumstickUrl(full, half) {
+  const key = `${full ? 1 : 0}${half ? 1 : 0}`;
+  if (_drumUrlCache.has(key)) return _drumUrlCache.get(key);
+  const url = drawDrumstick(full, half).toDataURL();
+  _drumUrlCache.set(key, url);
+  return url;
 }
 
 // --- item / tool icon painter -------------------------------------------------
@@ -1204,6 +1222,7 @@ export class UI {
 
     this.barsEl = document.getElementById('status-bars');
     this.armorBarEl = document.getElementById('armor-bar');
+    this._iconUrlCache = new Map();
 
     // Hide game UI elements immediately so they don't flash over menus
     ['hotbar', 'crosshair', 'crosshair-dot', 'status-bars', 'xp-bar', 'armor-bar', 'offhand-slot', 'chat-hud', 'coords-hud'].forEach(id => {
@@ -1274,6 +1293,7 @@ export class UI {
     this.hotbarEl.innerHTML = '';
     this.slots = [];
     HOTBAR_BLOCKS.forEach((blockId, i) => {
+      if (blockId == null) return;
       const slot = document.createElement('div');
       slot.className = 'slot' + (i === 0 ? ' active' : '');
       const num = document.createElement('div');
@@ -1345,6 +1365,14 @@ export class UI {
     return makeItemIconCanvas(itemId);
   }
 
+  _getCachedIconUrl(itemId) {
+    if (this._iconUrlCache.has(itemId)) return this._iconUrlCache.get(itemId);
+    const c = this.makeItemIcon(itemId);
+    const url = c.toDataURL();
+    this._iconUrlCache.set(itemId, url);
+    return url;
+  }
+
   setActive(i) {
     this.active = ((i % HOTBAR_SLOTS) + HOTBAR_SLOTS) % HOTBAR_SLOTS;
     this.slots.forEach((s, idx) => s.classList.toggle('active', idx === this.active));
@@ -1374,8 +1402,7 @@ export class UI {
     for (let i = 9; i >= 0; i--) {
       const val = player.health - i * 2;
       const full = val >= 2, half = val >= 1;
-      const img = drawHeart(full, half && !full);
-      hh += `<img src="${img.toDataURL()}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
+      hh += `<img src="${drawHeartUrl(full, half && !full)}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.healthBar.innerHTML = hh;
 
@@ -1384,8 +1411,7 @@ export class UI {
     for (let i = 0; i < 10; i++) {
       const val = player.hunger - i * 2;
       const full = val >= 2, half = val >= 1;
-      const img = drawDrumstick(full, half && !full);
-      fh += `<img src="${img.toDataURL()}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
+      fh += `<img src="${drawDrumstickUrl(full, half && !full)}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.hungerBar.innerHTML = fh;
     // Hunger warning pulse when below 3 drumsticks (6 hunger)
@@ -1399,20 +1425,18 @@ export class UI {
         const slot = armorSlots[i];
         const equipped = player.inventory.armor[i];
         const label = slot.querySelector('.armor-slot-label');
-        // Remove old icon
-        const oldIcon = slot.querySelector('img');
-        if (oldIcon) oldIcon.remove();
+        let img = slot.querySelector('img');
+        if (!img) {
+          img = document.createElement('img');
+          img.style.cssText = 'width:22px;height:22px;image-rendering:pixelated;';
+          slot.appendChild(img);
+        }
         if (equipped) {
-          const iconCanvas = this.makeItemIcon(equipped.item);
-          if (iconCanvas) {
-            const img = document.createElement('img');
-            img.src = iconCanvas.toDataURL();
-            img.style.width = '22px'; img.style.height = '22px';
-            img.style.imageRendering = 'pixelated';
-            slot.appendChild(img);
-            if (label) label.style.display = 'none';
-          }
+          img.src = this._getCachedIconUrl(equipped.item);
+          img.style.display = '';
+          if (label) label.style.display = 'none';
         } else {
+          img.style.display = 'none';
           if (label) label.style.display = '';
         }
       }
@@ -1427,19 +1451,18 @@ export class UI {
         const slot = armorSlots[i];
         const equipped = player.inventory.armor[i];
         const label = slot.querySelector('.armor-slot-label');
-        const oldIcon = slot.querySelector('img');
-        if (oldIcon) oldIcon.remove();
+        let img = slot.querySelector('img');
+        if (!img) {
+          img = document.createElement('img');
+          img.style.cssText = 'width:22px;height:22px;image-rendering:pixelated;';
+          slot.appendChild(img);
+        }
         if (equipped) {
-          const iconCanvas = this.makeItemIcon(equipped.item);
-          if (iconCanvas) {
-            const img = document.createElement('img');
-            img.src = iconCanvas.toDataURL();
-            img.style.width = '22px'; img.style.height = '22px';
-            img.style.imageRendering = 'pixelated';
-            slot.appendChild(img);
-            if (label) label.style.display = 'none';
-          }
+          img.src = this._getCachedIconUrl(equipped.item);
+          img.style.display = '';
+          if (label) label.style.display = 'none';
         } else {
+          img.style.display = 'none';
           if (label) label.style.display = '';
         }
       }
@@ -1447,30 +1470,30 @@ export class UI {
     // Off-hand HUD
     const offhandEl = document.getElementById('offhand-slot');
     if (offhandEl && player.inventory) {
-      const oldIcon = offhandEl.querySelector('img');
-      if (oldIcon) oldIcon.remove();
-      const oldCount = offhandEl.querySelector('.inv-count');
-      if (oldCount) oldCount.remove();
-      const label = offhandEl.querySelector('.offhand-label');
       const equipped = player.inventory.offhand;
+      const label = offhandEl.querySelector('.offhand-label');
+      let offImg = offhandEl.querySelector('img');
+      if (!offImg) {
+        offImg = document.createElement('img');
+        offImg.style.cssText = 'width:30px;height:30px;image-rendering:pixelated;';
+        offhandEl.appendChild(offImg);
+      }
+      let cnt = offhandEl.querySelector('.inv-count');
+      if (!cnt) {
+        cnt = document.createElement('div');
+        cnt.className = 'inv-count';
+        cnt.style.cssText = 'position:absolute;bottom:1px;right:2px;font:bold 9px monospace;color:#fff;text-shadow:1px 1px 0 #000;';
+        offhandEl.appendChild(cnt);
+      }
       if (equipped) {
-        const iconCanvas = this.makeItemIcon(equipped.item);
-        if (iconCanvas) {
-          const img = document.createElement('img');
-          img.src = iconCanvas.toDataURL();
-          img.style.width = '30px'; img.style.height = '30px';
-          img.style.imageRendering = 'pixelated';
-          offhandEl.appendChild(img);
-          if (label) label.style.display = 'none';
-        }
-        if (equipped.count > 1) {
-          const cnt = document.createElement('div');
-          cnt.className = 'inv-count';
-          cnt.textContent = equipped.count;
-          cnt.style.cssText = 'position:absolute;bottom:1px;right:2px;font:bold 9px monospace;color:#fff;text-shadow:1px 1px 0 #000;';
-          offhandEl.appendChild(cnt);
-        }
+        offImg.src = this._getCachedIconUrl(equipped.item);
+        offImg.style.display = '';
+        if (label) label.style.display = 'none';
+        cnt.textContent = equipped.count;
+        cnt.style.display = equipped.count > 1 ? '' : 'none';
       } else {
+        offImg.style.display = 'none';
+        cnt.style.display = 'none';
         if (label) label.style.display = '';
       }
     }

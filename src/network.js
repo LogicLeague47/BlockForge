@@ -121,10 +121,10 @@ export class Network {
     this.ws.onclose = () => {
       const wasConnected = this.connected;
       const hadJoinInfo = !!this._lastJoinInfo;
+      if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
       this.connected = false;
       this.ws = null;
       this.roomName = null;
-      if (this._pingInterval) { clearInterval(this._pingInterval); this._pingInterval = null; }
       console.log('[Net] Disconnected');
 
       if (wasConnected && !this._intentionalClose) {

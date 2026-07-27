@@ -5,6 +5,8 @@ dist/
 .DS_Store
 __MACOSX/
 friends.json
+accounts.json
+player-data.json
 .idea/
 noip.conf
 .launch.err

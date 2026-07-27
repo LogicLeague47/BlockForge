@@ -3,12 +3,19 @@
 
 import { WebSocketServer } from 'ws';
 import http from 'http';
-import { readFileSync, writeFileSync, existsSync, readFile } from 'fs';
+import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
 const scryptAsync = promisify(scrypt);
+
+const PORT = process.env.PORT || 4000;
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_FILE = join(__dirname, 'server-data.json');
+const IS_LAN = process.argv.includes('--lan');
+const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
+const FRIENDS_FILE = join(__dirname, 'friends.json');
 
 async function getPlayerData(username) {
   if (USE_REDIS) {
@@ -34,7 +41,7 @@ async function setPlayerData(username, data) {
     if (existsSync(f)) all = JSON.parse(readFileSync(f, 'utf8'));
     all[username] = data;
     writeFileSync(f, JSON.stringify(all, null, 2));
-  } catch {}
+  } catch { /* ignored */ }
 }
 
 const PROFANITY_WORDS = [
@@ -79,16 +86,11 @@ function filterProfanity(text) {
 
 function safeSend(ws, data) {
   if (ws && ws.readyState === 1) {
-    try { ws.send(data); } catch (_) {}
+    try { ws.send(data); } catch (_) { /* ignored */ }
   }
 }
 
-const PORT = process.env.PORT || 4000;
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = join(__dirname, 'server-data.json');
-const IS_LAN = process.argv.includes('--lan');
-const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
-const FRIENDS_FILE = join(__dirname, 'friends.json');
+
 
 // ── Persistence ───────────────────────────────────────────────────────
 // Render's free tier has an ephemeral filesystem (wiped on every redeploy), so
@@ -120,7 +122,7 @@ function redisSaveDebounced(key, getValue, ms = 1500) {
   if (!USE_REDIS) return;
   clearTimeout(_redisTimers[key]);
   _redisTimers[key] = setTimeout(() => {
-    redisCmd(['SET', key, JSON.stringify(getValue())]).catch(() => {});
+    redisCmd(['SET', 'bf:' + key, JSON.stringify(getValue())]).catch(() => { /* ignored */ });
   }, ms);
 }
 
@@ -128,6 +130,7 @@ let rooms = new Map();
 let serverStats = { dailyUsers: {}, monthlyUsers: {}, serversCreated: 0 };
 
 function _roomsToObj() {
+  if (!rooms) return {};
   const obj = {};
   for (const [name, room] of rooms) {
     obj[name] = {
@@ -151,7 +154,7 @@ function saveRooms() {
     redisSaveDebounced('server-data', () => ({ rooms: _roomsToObj(), stats: serverStats }));
     return;
   }
-  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2)); } catch {}
+  try { writeFileSync(DATA_FILE, JSON.stringify({ rooms: _roomsToObj(), stats: serverStats }, null, 2));   } catch { /* ignored */ }
 }
 
 // Debounced room save for high-frequency events (block edits) so a crash loses
@@ -254,7 +257,7 @@ async function loadAccounts() {
   if (USE_REDIS) {
     let redisAccounts = {};
     const data = await redisCmd(['GET', 'accounts']);
-    if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch {} }
+    if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch { /* ignored */ } }
     // Source accounts override Redis so they always come from the committed file.
     accounts = { ...redisAccounts, ...fileAccounts };
     console.log(`[Data] Accounts: ${Object.keys(redisAccounts).length} from Redis + ${Object.keys(fileAccounts).length} from source`);
@@ -273,7 +276,7 @@ function saveAccounts() {
     });
     return;
   }
-  try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch {}
+  try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch { /* ignored */ }
 }
 
 async function hashPassword(password, salt) {
@@ -369,7 +372,7 @@ async function loadFriends() {
 }
 function saveFriends() {
   if (USE_REDIS) { redisSaveDebounced('friends', () => friends); return; }
-  try { writeFileSync(FRIENDS_FILE, JSON.stringify(friends)); } catch {}
+  try { writeFileSync(FRIENDS_FILE, JSON.stringify(friends)); } catch { /* ignored */ }
 }
 function _friendRec(name) {
   if (!friends[name]) friends[name] = { friends: [], incoming: [], outgoing: [] };
@@ -381,6 +384,7 @@ function _friendRec(name) {
 }
 // Find the online ws for a given username (any room), or null.
 function _wsForUser(name) {
+  if (!wss || !wss.clients) return null;
   for (const ws of wss.clients) {
     if (ws._playerData && ws._playerData.name === name) return ws;
   }
@@ -484,20 +488,21 @@ const CORS = {
 };
 
 function serveFile(filePath, res) {
-  readFile(filePath, (err, data) => {
-    if (err) {
-      // SPA fallback → serve index.html
-      readFile(join(PUBLIC_DIR, 'index.html'), (e2, html) => {
-        if (e2) { res.writeHead(404, CORS); res.end('Not found'); return; }
-        res.writeHead(200, { ...CORS, 'Content-Type': MIME['.html'] });
-        res.end(html);
-      });
-      return;
-    }
+  try {
+    const data = readFileSync(filePath);
     const ext = extname(filePath).toLowerCase();
     res.writeHead(200, { ...CORS, 'Content-Type': MIME[ext] || 'application/octet-stream' });
     res.end(data);
-  });
+  } catch {
+    try {
+      const html = readFileSync(join(PUBLIC_DIR, 'index.html'));
+      res.writeHead(200, { ...CORS, 'Content-Type': MIME['.html'] });
+      res.end(html);
+    } catch {
+      res.writeHead(404, CORS);
+      res.end('Not found');
+    }
+  }
 }
 
 // ── OAuth handlers (GitHub, Google, Microsoft) ──────────────────────
@@ -784,7 +789,7 @@ function isRateLimited(ws) {
           const crouching = buf.readUInt8(off) === 1;
           handlePosition(ws, { x, y, z, yaw, crouching });
         }
-      } catch (_) {}
+      } catch (_) { /* ignored */ }
       return;
     }
     let msg;
@@ -885,6 +890,7 @@ async function handleAuth(ws, msg) {
   // so friend management works from the menu without joining a world.
   if (auth.ok && !ws._roomName) {
     const acc = accounts[resolvedUsername] || {};
+    if (!accounts[resolvedUsername]) accounts[resolvedUsername] = acc;
     const resolvedRole = resolveRole(null, resolvedUsername) || acc.role || ROLE_PLAYER;
     const isGuest = identityType === 'guest';
     if (isGuest && !acc.isGuest) { acc.isGuest = true; saveAccounts(); }
@@ -1082,7 +1088,7 @@ function handleBlockUpdate(ws, msg) {
   const x = msg.x | 0, y = msg.y | 0, z = msg.z | 0;
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
   if (y < 0 || y > 256) return;
-  const block = (msg.block | 0) || 0;
+  const block = Math.floor(Math.abs(msg.block)) || 0;
   room.edits.set(`${x},${y},${z}`, block);
   // Broadcast to everyone else in the room
   broadcast(room, { type: 'block_update', x, y, z, block }, ws);
@@ -1148,6 +1154,20 @@ function handleLeave(ws) {
     console.log(`[Room] ${pd.name} left "${roomName}" (${room.players.size} players)`);
   }
 
+  try {
+    removeVoiceClient(ws, roomName);
+    for (const [code, group] of voiceGroups) {
+      if (group.has(ws)) {
+        group.delete(ws);
+        const name = pd.name || 'Unknown';
+        for (const member of group) {
+          safeSend(member, JSON.stringify({ type: 'voice_group_peer_leave', name }));
+        }
+        if (group.size === 0) voiceGroups.delete(code);
+      }
+    }
+  } catch (_) { /* ignored */ }
+
   ws._playerData = null;
   ws._roomName = null;
 }
@@ -1163,7 +1183,7 @@ function handlePosition(ws, msg) {
   if (!pd || !room) return;
 
   // Basic speed validation (anti-speed-hack)
-  const newX = msg.x || 0, newY = msg.y || 0, newZ = msg.z || 0;
+  const newX = msg.x ?? 0, newY = msg.y ?? 0, newZ = msg.z ?? 0;
   if (pd.lastX != null) {
     const dx = newX - pd.lastX, dy = newY - pd.lastY, dz = newZ - pd.lastZ;
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
@@ -1821,27 +1841,6 @@ function removeVoiceClient(ws, roomName) {
   broadcastVoice(roomName, { type: 'voice_peer_leave', name }, ws);
 }
 
-// Patch handleLeave to also clean up voice
-const _origHandleLeave = handleLeave;
-handleLeave = function(ws) {
-  try {
-    const roomName = ws._roomName;
-    removeVoiceClient(ws, roomName);
-    // Clean up voice groups
-    for (const [code, group] of voiceGroups) {
-      if (group.has(ws)) {
-        group.delete(ws);
-        const name = ws._playerData ? ws._playerData.name : 'Unknown';
-        for (const member of group) {
-          safeSend(member, JSON.stringify({ type: 'voice_group_peer_leave', name }));
-        }
-        if (group.size === 0) voiceGroups.delete(code);
-      }
-    }
-  } catch (_) {}
-  _origHandleLeave(ws);
-};
-
 // ── Start ─────────────────────────────────────────────────────────────
 (async () => {
   await loadRooms();
@@ -1866,7 +1865,7 @@ handleLeave = function(ws) {
 
   // Server-side WebSocket heartbeat — ping all clients every 30s, terminate dead ones
   // This prevents Render's reverse proxy from closing idle WebSocket connections
-  setInterval(() => {
+  const _hbInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) {
         console.log(`[Heartbeat] Terminating stale client`);
@@ -1876,13 +1875,12 @@ handleLeave = function(ws) {
       ws.ping();
     });
   }, 30000);
+
+  process.on('exit', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); });
 })();
 
-// Save every 30 seconds
-setInterval(saveRooms, 30000);
-
 // Armor sync every 2 seconds (separate from position packets)
-setInterval(() => {
+const _armorInterval = setInterval(() => {
   for (const [, room] of rooms) {
     for (const [ws, pd] of room.players) {
       if (!pd.armor) continue;

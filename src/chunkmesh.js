@@ -133,6 +133,11 @@ export class ChunkMeshManager {
     this._dirtyList.push({ cx, cz });
   }
 
+  // Public wrapper for _markDirty
+  markDirty(cx, cz) {
+    this._markDirty(cx, cz);
+  }
+
   // Queue a chunk and its 4 neighbours for deferred rebuild.
   refreshAround(cx, cz) {
     this._markDirty(cx, cz);

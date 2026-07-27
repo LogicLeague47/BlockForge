@@ -90,6 +90,10 @@ export class World {
     // Keep surfaceMap in sync so the mesher knows the highest block
     if (v !== 0 && y > c.surfaceMap[lz * CHUNK_SIZE + lx]) {
       c.surfaceMap[lz * CHUNK_SIZE + lx] = y;
+    } else if (v === 0 && y >= c.surfaceMap[lz * CHUNK_SIZE + lx]) {
+      let ny = y - 1;
+      while (ny >= 0 && c.get(lx, ny, lz) === 0) ny--;
+      c.surfaceMap[lz * CHUNK_SIZE + lx] = ny;
     }
     if (recordEdit) {
       this.edits.set(`${x},${y},${z}`, v);
@@ -152,7 +156,7 @@ export class World {
       generateFeatures(chunk, baseX, baseZ, n);
 
       // Structures (villages) — placed after terrain/features, before player edits.
-      try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { /* never break chunk gen */ }
+      try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
     }
 
     // Apply player edits for this chunk — O(1) lookup via _chunkEdits index
@@ -170,6 +174,10 @@ export class World {
         chunk.set(lx, ey, lz, v);
         if (ey > chunk.surfaceMap[lz * CHUNK_SIZE + lx]) {
           chunk.surfaceMap[lz * CHUNK_SIZE + lx] = ey;
+        } else if (v === 0 && ey >= chunk.surfaceMap[lz * CHUNK_SIZE + lx]) {
+          let ny = ey - 1;
+          while (ny >= 0 && chunk.get(lx, ny, lz) === 0) ny--;
+          chunk.surfaceMap[lz * CHUNK_SIZE + lx] = ny;
         }
       }
     }

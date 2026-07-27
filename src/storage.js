@@ -116,7 +116,8 @@ export function saveWorld(id, data) {
   try {
     const json = JSON.stringify(data);
     // Write backup first, then current (atomic-ish)
-    try { localStorage.setItem(worldDataKey(id) + '_bak', localStorage.getItem(worldDataKey(id))); } catch (_) {}
+    const bak = localStorage.getItem(worldDataKey(id));
+    if (bak !== null) { try { localStorage.setItem(worldDataKey(id) + '_bak', bak); } catch (_) {} }
     localStorage.setItem(worldDataKey(id), json);
     sdkSet(worldDataKey(id), json);
     return true;
@@ -130,7 +131,13 @@ export function loadWorld(id) {
   try {
     const raw = localStorage.getItem(worldDataKey(id));
     if (raw) {
-      try { return JSON.parse(raw); } catch (e) {
+      try {
+        const data = JSON.parse(raw);
+        if (typeof data !== 'object' || data === null || !('seed' in data && 'edits' in data)) {
+          throw new Error('Invalid structure');
+        }
+        return data;
+      } catch (e) {
         console.warn('Save corrupted, trying backup...');
         const bak = localStorage.getItem(worldDataKey(id) + '_bak');
         if (bak) {

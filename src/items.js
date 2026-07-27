@@ -249,7 +249,7 @@ const ARMOR = {};
       if (id != null) ARMOR[id] = {
         material: m, piece: p,
         slotIdx: ARMOR_PIECES[p].slotIdx,
-        defense: ARMOR_PIECES[p].defense,
+        defense: ARMOR_PIECES[p].defense + (ARMOR_MATERIALS[m]?.defense || 0),
         totalDefense: ARMOR_MATERIALS[m].defense,
         durability: ARMOR_MATERIALS[m].durability,
       };

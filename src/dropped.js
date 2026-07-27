@@ -6,6 +6,7 @@ import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
 import { TILES, tileNameFor } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
+import { CHUNK_SIZE } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
 
 const COLLECT_RANGE = 1.5;
@@ -140,9 +141,10 @@ export class DroppedItem {
 
 // Manages all dropped item entities in the world
 export class DroppedItemManager {
-  constructor(scene, atlasCanvas) {
+  constructor(scene, atlasCanvas, world) {
     this.scene = scene;
     this.atlasCanvas = atlasCanvas;
+    this.world = world;
     this.items = [];
   }
 
@@ -159,6 +161,9 @@ export class DroppedItemManager {
   update(dt, playerPos) {
     for (let i = this.items.length - 1; i >= 0; i--) {
       const item = this.items[i];
+      const cx = Math.floor(item.x / CHUNK_SIZE);
+      const cz = Math.floor(item.z / CHUNK_SIZE);
+      if (!this.world || !this.world.getChunk(cx, cz)) continue;
       item.update(dt, playerPos);
       if (item.collected) {
         item.dispose();

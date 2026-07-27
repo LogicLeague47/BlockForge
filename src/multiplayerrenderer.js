@@ -178,7 +178,6 @@ export class RemotePlayer {
         i0 = i;
         break;
       }
-      i0 = i;
     }
     const i1 = Math.min(i0 + 1, buf.length - 1);
     const s0 = buf[i0];

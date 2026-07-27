@@ -32,6 +32,8 @@ const FLY_SPEED = 11;
 const JUMP_VELOCITY = 8.4;
 const SWIM_GRAVITY = 6;
 const SWIM_SPEED = 3.5;
+const EAT_SPEED = 1.3;
+const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
 
 // Pre-allocated reusable vectors (avoids per-frame GC pressure)
 const _forward = new THREE.Vector3();
@@ -248,12 +250,6 @@ export class Player {
     if (this.damageTimer > 0) this.damageTimer -= dt;
     if (!this.isSurvival()) return;
 
-    // sprinting exhaustion: 0.1 per meter
-    if (this.sprinting && (Math.abs(this.velocity.x) + Math.abs(this.velocity.z)) > 0.1) {
-      const speed = Math.sqrt(this.velocity.x ** 2 + this.velocity.z ** 2);
-      this.addExhaustion(0.1 * speed * dt);
-    }
-
     // regen: 1 HP / 4s when hunger >= 18 (costs 6.0 exhaustion per HP)
     if (this.hunger >= 18 && this.health < this.maxHealth) {
       if ((this.regenAcc = (this.regenAcc || 0) + dt) >= 4) {
@@ -356,7 +352,6 @@ export class Player {
     this._spaceHeld = !!input.keys[kb.jump];
 
     // --- desired horizontal velocity from input ---
-    const EAT_SPEED = 1.3;  // slower than crouch when eating
     const speed = this.flying ? FLY_SPEED
       : this.inWater ? SWIM_SPEED
       : this.eating ? EAT_SPEED
@@ -388,6 +383,11 @@ export class Player {
     this.velocity.x = move.x;
     this.velocity.z = move.z;
 
+    // sprinting exhaustion: 0.1 per meter
+    if (this.sprinting && move.lengthSq() > 0.01) {
+      this.addExhaustion(0.1 * move.length() * dt);
+    }
+
     // --- ladder detection ---
     const feetBlockX = Math.floor(this.position.x);
     const feetBlockY = Math.floor(this.position.y);
@@ -415,7 +415,7 @@ export class Player {
       if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
       this.fallStartY = -1;
     } else {
-      this.velocity.y -= GRAVITY * dt;
+      if (!this.onGround) this.velocity.y -= GRAVITY * dt;
       if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
@@ -445,7 +445,7 @@ export class Player {
     let dz = this.velocity.z * dt;
 
     // Knockback impulse (decays quickly, separate from input velocity).
-    if (Math.abs(this.knockback.x) > 0.001 || this.knockback.y > 0.001 || Math.abs(this.knockback.z) > 0.001) {
+    if (Math.abs(this.knockback.x) > 0.001 || Math.abs(this.knockback.y) > 0.001 || Math.abs(this.knockback.z) > 0.001) {
       dx += this.knockback.x * dt;
       dy += this.knockback.y * dt;
       dz += this.knockback.z * dt;
@@ -573,6 +573,9 @@ export class Player {
   }
 
   _collideAxis(axis, delta) {
+    // Capture position for landBlock lookup (may change during axis sweeps)
+    const _posX = this.position.x;
+    const _posZ = this.position.z;
     const min = _minBox.set(
       this.position.x - PLAYER_HALF_WIDTH,
       this.position.y,
@@ -600,7 +603,7 @@ export class Player {
           } else {
             if (delta < 0) {
               // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
-              const landBlock = this.world.getBlock(Math.floor(this.position.x), y, Math.floor(this.position.z));
+              const landBlock = this.world.getBlock(Math.floor(_posX), y, Math.floor(_posZ));
               if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && !this.inWater) {
                 const fallDistance = this.fallStartY - this.position.y;
                 if (fallDistance > 3) {
@@ -613,7 +616,6 @@ export class Player {
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);
-                const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
                 this.velocity.y = Math.min(fallSpeed, MAX_BOUNCE_VEL);
                 this.onGround = false;
               } else {

@@ -55,7 +55,7 @@ export function calcHeight(n, wx, wz) {
   // River carving: only on land, near sea level
   if (cont > 0.05) {
     const riverRaw = n.river(wx * 0.012, wz * 0.012);
-    const riverVal = (riverRaw + n.river(wx * 0.025, wz * 0.025) * 0.5) / 1.5;
+    const riverVal = (riverRaw + n.fbm2(n.river, wx * 0.025, wz * 0.025, 4, 2, 0.5) * 0.5) / 1.5;
     const riverStrength = 1 - Math.abs(riverVal) * 4;
     if (riverStrength > 0.65 && h > SEA_LEVEL - 3) {
       const carve = (riverStrength - 0.65) / 0.35;
@@ -170,7 +170,7 @@ export function generateColumn(n, chunk, x, z, wx, wz) {
       const c3 = n.cave(wx * 0.02, y * 0.03, wz * 0.02);
       const c4 = n.cave2(wx * 0.018, y * 0.025, wz * 0.018);
 
-      if (Math.abs(c1) < 0.06 && Math.abs(c2) < 0.06) b = BLOCK.AIR;
+      if (Math.abs(c1) < 0.12 && Math.abs(c2) < 0.12) b = BLOCK.AIR;
       else if (Math.abs(c3) < 0.085 && Math.abs(c4) < 0.085) b = BLOCK.AIR;
 
       const ravX = n.cave(wx * 0.01, y * 0.15, wz * 0.06);
@@ -308,10 +308,10 @@ export function plantTree(chunk, x, y, z, rng, type) {
     for (let dx = -r; dx <= r; dx++) {
       for (let dz = -r; dz <= r; dz++) {
         if (Math.abs(dx) === r && Math.abs(dz) === r && rng() < 0.4) continue;
-        const lx = x + dx, ly2 = top + ly, lz = z + dz;
+        const lx = x + dx, layerY = top + ly, lz = z + dz;
         if (lx < 0 || lx >= CHUNK_SIZE || lz < 0 || lz >= CHUNK_SIZE) continue;
-        if (ly2 >= WORLD_HEIGHT) continue;
-        if (chunk.get(lx, ly2, lz) === BLOCK.AIR) chunk.set(lx, ly2, lz, leafBlock);
+        if (layerY >= WORLD_HEIGHT) continue;
+        if (chunk.get(lx, layerY, lz) === BLOCK.AIR) chunk.set(lx, layerY, lz, leafBlock);
       }
     }
   }

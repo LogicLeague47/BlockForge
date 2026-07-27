@@ -169,8 +169,10 @@ window.addEventListener('resize', () => {
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  menuBgCamera.aspect = w / h;
-  menuBgCamera.updateProjectionMatrix();
+  if (menuBgCamera) {
+    menuBgCamera.aspect = w / h;
+    menuBgCamera.updateProjectionMatrix();
+  }
 });
 
 // --- Menu Background 3D Scene (real rotating terrain) ---
@@ -414,9 +416,6 @@ scene.add(ambient);
 const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
 
-// --- god rays post-processing ---
-
-
 // --- sun & moon ---
 const sunMesh = new THREE.Mesh(
   new THREE.SphereGeometry(4, 16, 16),
@@ -466,7 +465,6 @@ let starField = null;
 
 // --- texture atlas ---
 const atlasCanvas = buildAtlas(1337);
-const _BF_VER = 'leaf-v2';
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
 atlasTexture.magFilter = THREE.NearestFilter;
 atlasTexture.minFilter = THREE.NearestFilter;
@@ -1062,7 +1060,7 @@ function showPlayerList() {
     names = [playerName || 'You'];
   }
   const namesEl = el.querySelector('.pl-names');
-  namesEl.innerHTML = '';
+  namesEl.textContent = '';
   for (const n of names) {
     const d = document.createElement('div');
     d.className = 'pl-row';
@@ -1090,7 +1088,7 @@ function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
   const main = document.getElementById('friends-main');
   let pass = '';
-  try { pass = localStorage.getItem('bf_login_pass') || ''; } catch (_) {}
+  try { pass = atob(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) {}
   // Friends require a logged-in account.
   if (!playerName || !pass) {
     if (note) note.style.display = '';
@@ -1254,7 +1252,7 @@ document.addEventListener('mousedown', (e) => {
       if (hit && isBlockItem(hit.block)) {
         player.inventory.slots[player.inventory.selected] = { item: hit.block, count: 1 };
         syncUIMode();
-        
+
       }
       e.preventDefault();
     }
@@ -1338,7 +1336,6 @@ document.addEventListener('mousedown', (e) => {
           syncUIMode();
           achievements.incrementStat('foodEaten');
           if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-          try {  } catch (_) {}
           used = true;
         }
       } else if (slot && isBlockItem(slot.item)) {
@@ -1368,7 +1365,6 @@ document.addEventListener('mousedown', (e) => {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-            try {  } catch (_) {}
           }
         } else if (isBlockItem(oh.item)) {
           placeBlock(oh);
@@ -1680,9 +1676,8 @@ function placeBlock(slotOverride) {
   if (itemId === BLOCK.BED) {
     const dirX = Math.round(-Math.sin(player.yaw));
     const dirZ = Math.round(-Math.cos(player.yaw));
-    // Place foot block beside the head (perpendicular to look direction)
-    const footX = x + (Math.abs(dirX) > Math.abs(dirZ) ? 0 : 1);
-    const footZ = z + (Math.abs(dirX) > Math.abs(dirZ) ? (dirX >= 0 ? 1 : -1) : 0);
+    const footX = x + dirX;
+    const footZ = z + dirZ;
     if (world.getBlock(footX, y, footZ) === BLOCK.AIR) {
       world.setBlock(footX, y, footZ, BLOCK.BED_FOOT);
       if (network.isInRoom()) network.sendBlockUpdate(footX, y, footZ, BLOCK.BED_FOOT);
@@ -1691,7 +1686,7 @@ function placeBlock(slotOverride) {
   viewmodel.swing();
   placeAnimTimer = 0.3;
   // consume in survival
-  if (player.isSurvival()) {
+  if (slot && player.isSurvival()) {
     slot.count--;
     if (slot.count <= 0) {
       if (slotOverride) {
@@ -1736,7 +1731,7 @@ function handleBucket(held, hit) {
       achievements.incrementStat('bucketLava');
     }
     syncUIMode();
-    
+
     return true;
   }
 
@@ -1753,7 +1748,7 @@ function handleBucket(held, hit) {
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
     syncUIMode();
-    
+
     return true;
   }
 
@@ -1769,7 +1764,7 @@ function handleBucket(held, hit) {
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
     syncUIMode();
-    
+
     return true;
   }
 
@@ -1888,8 +1883,8 @@ function doBreak(hit, b) {
   achievements.incrementMapStat('blocksBroken', `${b}`);
   achievements.incrementStat('totalBlocksBroken');
   manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
-  
-  player.addExhaustion(0.05);
+
+  if (player.isSurvival()) player.addExhaustion(0.05);
   // XP for mining: ore blocks give more
   const oreXp = { [BLOCK.COAL_ORE]: 2, [BLOCK.IRON_ORE]: 3, [BLOCK.GOLD_ORE]: 5, [BLOCK.DIAMOND_ORE]: 7, [BLOCK.COPPER_ORE]: 3, [BLOCK.EMERALD_ORE]: 7, [BLOCK.PRISMITE_ORE]: 10 };
   const xpGain = oreXp[b] || 1;
@@ -2157,7 +2152,7 @@ function submitChat() {
         return;
       }
       if (player) {
-        player.inventory.add({ item: foundId, count });
+        player.inventory.add(foundId, count);
         syncUIMode();
       }
       addChatLine(`Gave ${count}x ${itemName}.`, '#5f5');
@@ -2325,19 +2320,10 @@ function renderServerList(filter, remoteRooms) {
   // Track which rooms are actually online on the server
   const remoteNames = new Set((remoteRooms || []).map(r => r.name));
 
-  // Only show OfficialSMP — filter out all local servers
   const all = [];
   // Always include OfficialSMP
   const official = Server.load('OfficialSMP') || { name: 'OfficialSMP', seed: 12345, gameMode: 'survival', maxPlayers: 50, players: [] };
   all.push(official);
-  // Add any remote rooms that aren't already listed
-  if (remoteRooms) {
-    for (const r of remoteRooms) {
-      if (!all.find(s => s.name === r.name)) {
-        all.push({ name: r.name, seed: r.seed, gameMode: r.gameMode, maxPlayers: r.maxPlayers, ownerName: r.owner, players: Array(r.playerCount).fill(null), _remote: true });
-      }
-    }
-  }
 
   // Mark local servers that are also on the network
   for (const s of all) {
@@ -2496,7 +2482,7 @@ function _doNetworkJoin(name, seed) {
   // If we have a local server entry, create it on the network
   // (server.js auto-joins if the room already exists)
   let password = '';
-  try { password = localStorage.getItem('bf_login_pass') || ''; } catch (_) {}
+  try { password = atob(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) {}
   const localServer = Server.load(name);
   const ownerSecret = localServer ? localServer.ownerSecret : null;
   if (localServer) {
@@ -2577,21 +2563,16 @@ function setupNetworkHandlers() {
       if (!mpRenderer || !player || !world) return;
       for (const p of players) {
         if (p.name === playerName) continue;
-        const sx = player.position.x + (Math.random() - 0.5) * 30;
-        const sz = player.position.z + (Math.random() - 0.5) * 30;
-        const sy = world.heightAt(Math.floor(sx), Math.floor(sz)) + 1;
-        mpRenderer.addPlayer(p.name, p.skinIndex || 0, sx, sy, sz, p.role, p.cgUsername);
+        const sy = world.heightAt(0, 0) + 1;
+        mpRenderer.addPlayer(p.name, p.skinIndex || 0, 0, sy, 0, p.role, p.cgUsername);
       }
     }, 500);
   };
 
   network.onPlayerJoin = (name, role, skinIndex, cgUsername) => {
     if (!mpRenderer || !player || !world) return;
-    // Spawn at a random position near the local player
-    const sx = player.position.x + (Math.random() - 0.5) * 20;
-    const sz = player.position.z + (Math.random() - 0.5) * 20;
-    const sy = world.heightAt(Math.floor(sx), Math.floor(sz)) + 1;
-    mpRenderer.addPlayer(name, skinIndex || 0, sx, sy, sz, role, cgUsername);
+    const sy = world.heightAt(0, 0) + 1;
+    mpRenderer.addPlayer(name, skinIndex || 0, 0, sy, 0, role, cgUsername);
     addChatLine(`${name} joined the game`, '#5f5');
   };
 
@@ -2768,7 +2749,7 @@ function setupNetworkHandlers() {
         localStorage.setItem('bf_player_name', playerName);
         localStorage.setItem('bf_login_user', playerName);
         const pass = document.getElementById('login-password');
-        if (pass) localStorage.setItem('bf_login_pass', pass.value);
+        if (pass) localStorage.setItem('bf_login_pass', btoa(pass.value));
       } catch (_) {}
       sessionStorage.setItem('bf_authenticated', '1');
       setSkinUser(playerName);
@@ -3326,7 +3307,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     sendMobPosition: (id, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
     sendMobDeath: (id) => network.sendMobDeath(id),
   };
-  droppedItemManager = new DroppedItemManager(scene, atlasCanvas);
+  droppedItemManager = new DroppedItemManager(scene, atlasCanvas, world);
   mpRenderer = new MultiplayerRenderer(scene);
   breakParticles = new BreakParticles(scene);
   ambientParticles = new AmbientParticles(scene);
@@ -4761,7 +4742,7 @@ function initMenu() {
           _backgroundAuth = true;
           const url = network.serverUrl || MP_SERVER_URL;
           network.onConnectedOnce(() => {
-            const pass = localStorage.getItem('bf_login_pass') || '';
+            const pass = atob(localStorage.getItem('bf_login_pass') || '') || '';
             network.sendAuth(playerName, pass, 'login');
           });
           if (!network.connected) network.connect(url);
@@ -5157,7 +5138,7 @@ function initMenu() {
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
     // Auto-login ONLY when visiting via /u/ redirect with saved credentials
-    const savedPass = localStorage.getItem('bf_login_pass') || '';
+    const savedPass = atob(localStorage.getItem('bf_login_pass') || '') || '';
     if (urlUser && savedPass && savedPass.length >= 3 && fromU) {
       loginPass.value = savedPass;
       autoLogin = true;

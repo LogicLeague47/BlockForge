@@ -41,7 +41,7 @@ export class ChunkLoader {
       const k = this.queue.shift();
       const [cx, cz] = k.split(',').map(Number);
       const chunk = this.world.getChunk(cx, cz, true);
-      if (chunk.generated) this.manager._markDirty(cx, cz);
+      if (chunk.generated) this.manager.markDirty(cx, cz);
     }
   }
 
@@ -62,7 +62,7 @@ export class ChunkLoader {
 
   unloadFar(pcx, pcz) {
     const limit = this.radius + 3;
-    for (const k of [...this.manager.meshes.keys()]) {
+    for (const k of this.manager.meshes.keys()) {
       const [cx, cz] = k.split(',').map(Number);
       if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
         this.manager.remove(cx, cz);
