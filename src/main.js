@@ -4315,67 +4315,55 @@ function initMenu() {
   });
 
   // --- Updates ---
-  // --- Updates ---
+  // To add a new update section, push an object to UPDATE_SECTIONS:
+  // { heading: 'v1.2 — Title', bugs: [...], updates: [...], features: [...] }
+  // The newest entry (index 0) is expanded by default; older ones are collapsed.
   const UPDATE_SECTIONS = [
     {
-      heading: 'BlockForge Beta — Latest Build',
+      heading: 'v0.9 — Crouch & Weather Overhaul',
       bugs: [
         'Player floats after walking off edge — gravity now always applies',
         'Crouch edge protection too restrictive — now uses center foot check',
         'Crouch uncrouch head-stuck check — prevents standing in 1-block gap',
         'Remote players spawned at world origin instead of player position',
         'Shadow matrix desync between custom shaders and Three.js render',
-        'Shadow matrix mismatch — pass camera to updateMatrices()',
-        'Shadow texel shimmer/swimming — added texel snapping',
-        'Shadow target Y hardcoded to 0 — now uses player Y',
         'getShadow() double-bias artifact — removed *0.5+0.5',
         'Water viewDir/fog using origin instead of cameraPosition',
         'Water vertex normal broken with non-uniform scale',
         'GodRayPass renderToScreen not reset after use',
         'Ghost blocks from previous worlds persisting in scene',
-        '120 BUGS_SCAN issues across 16 files (NaN crash, zero-vector normalize, duplicate owner, ping interval, river octaves, cave width, surfaceMap not updating, IMG DOM leak, toDataURL() per-frame allocations, server guest persistence, block ID truncation, fragile monkey-patch, redundant intervals)',
-        'Build: IS_LAN hoisting, package.json cleanup, .launch.err removed',
-        'BIOMES import path broken in particles.js',
+        '120 BUGS_SCAN issues (NaN crash, zero-vector normalize, surfaceMap, DOM leaks, server guest persistence, block ID truncation, river octaves, cave width, duplicate owner, etc.)',
+        'Build: IS_LAN hoisting, package.json, .launch.err, BIOMES import',
         'Login redirect loop — _backgroundAuth fixed',
         'Server getPlayerData/setPlayerData JSON fallback',
-        'Broken manager.tick() call removed',
       ],
       updates: [
-        '65 unused OGG sound files deleted (hostile mobs, dig, place, hurt)',
-        'Animal ambient and hurt sounds removed (cow/pig/sheep)',
-        'All hostile mob sounds removed (zombie/skeleton/spider/slime/creeper)',
-        'All non-open-source sound files removed — replaced with procedural synthesis',
-        'Audio code cleaned up — stale comments and dead code removed',
-        'CC0 Fantozzi footstep samples from OpenGameArt (stone + sand)',
-        '48 CC0 Kenney impact sounds for footstep/dig/place',
-        'Switch to Render hosting — removed GitHub Actions workflows',
-        'MP_SERVER_URL uses BACKEND_URL when not localhost',
-        'Server performance warning when >6 players in a room',
-        'accounts.json and player-data.json added to .gitignore',
-        'Debug logs removed from parkour.js',
-        'Profanity list duplicate removed',
-        'Oscillator-based mob sounds — later replaced with no-ops',
-        'Crouch: smooth camera transition, fall damage negation, faster animation',
+        'Crouch: smooth camera transition, fall damage negation, faster animation, center-foot edge protection',
         'Water: fresnel-based reflections, sharper specular',
         'Chunks: priority queue loads nearest chunks first',
         'Day/night: golden hour glow, smooth sun/ambient lerp, cloud tinting',
+        '65 unused OGG files deleted — only CC0 footsteps + music remain',
+        'All animal and hostile mob sounds removed',
+        'All non-open-source sounds replaced with procedural synthesis',
+        'CC0 Fantozzi footstep samples from OpenGameArt',
+        '48 CC0 Kenney impact sounds for footstep/dig/place',
+        'Switch to Render hosting, MP_SERVER_URL uses BACKEND_URL',
+        'Server performance warning when >6 players in a room',
       ],
       features: [
-        'Weather system: rain (2000 particles), snow (1000), thunderstorms, biome-based probability, smooth transitions',
-        'Underground biome: ore veins, stalactites/stalagmites, deepslate cave biome, lava caverns, underground lakes, mob-proof lighting',
+        'Weather system: rain (2000 particles), snow (1000), thunderstorms, biome-based probability',
+        'Underground biome: ore veins, stalactites, deepslate caves, lava caverns, underground lakes',
         'Item tooltips: name, durability, defense, hunger on hover',
         'Grass/foliage sway: vertex shader wind animation',
         'Block preview ghost: green/red tint for valid/obstructed placement',
         'Dynamic fog: rain reduces visibility, color adapts to weather',
-        'Real-time shadows: PCF shadow mapping on all terrain materials, shadowMatrix + shadowMap uniforms, sun/moon follow player',
+        'Real-time shadows: PCF shadow mapping, sun/moon follow player',
         'Dynamic entity shadows',
-        'River biome with flowing water animation, ocean/river wave effects',
-        'Head bobbing: vertical bob + horizontal sway (8Hz walking, 11Hz sprinting)',
-        'Breast stroke swimming animation: frog kick, forward lean, head lift for breath',
-        'Block break cracks — Minecraft-style angular web pattern',
-        'Shadow camera tightened for better resolution, slope-dependent bias',
-        'Shadow map sampling with PCF for softer shadows',
-        'Render static site service on Render',
+        'River biome with flowing water animation',
+        'Head bobbing: vertical + horizontal sway (8Hz walking, 11Hz sprinting)',
+        'Breast stroke swimming: frog kick, forward lean, head lift',
+        'Block break cracks — angular web pattern',
+        'Shadow bias & camera tightened for better resolution',
       ],
     },
   ];
@@ -4384,17 +4372,33 @@ function initMenu() {
     ui._prevMenu = 'main';
     const list = document.getElementById('updates-list');
     if (!list.dataset.rendered) {
-      list.innerHTML = UPDATE_SECTIONS.map(s => `
-        <div style="margin-bottom:16px;">
-          <div style="font:bold 14px monospace;color:#fa0;margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid rgba(255,170,0,0.3);">${s.heading}</div>
-          <div style="font:bold 12px monospace;color:#f88;margin-bottom:6px;padding-left:4px;">BUGS FIXED</div>
-          ${s.bugs.map(b => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">${b}</div>`).join('')}
-          <div style="font:bold 12px monospace;color:#8cf;margin-top:10px;margin-bottom:6px;padding-left:4px;">UPDATES</div>
-          ${s.updates.map(u => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">${u}</div>`).join('')}
-          <div style="font:bold 12px monospace;color:#8f8;margin-top:10px;margin-bottom:6px;padding-left:4px;">NEW FEATURES</div>
-          ${s.features.map(f => `<div style="font:11px monospace;color:#ccc;padding:3px 8px;margin-bottom:2px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">${f}</div>`).join('')}
+      list.innerHTML = UPDATE_SECTIONS.map((s, i) => `
+        <div class="update-section" style="margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">
+          <div class="update-head" data-idx="${i}" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.08);font:bold 13px monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;">
+            <span>${s.heading}</span>
+            <span class="update-arrow" style="font-size:10px;transition:.2s;">${i === 0 ? '▲' : '▼'}</span>
+          </div>
+          <div class="update-body" style="padding:${i === 0 ? '10px 12px' : '0 12px'};max-height:${i === 0 ? 'none' : '0'};overflow:hidden;transition:.25s;">
+            <div style="font:bold 11px monospace;color:#f88;margin-bottom:4px;">BUGS FIXED</div>
+            ${s.bugs.map(b => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">${b}</div>`).join('')}
+            <div style="font:bold 11px monospace;color:#8cf;margin-top:8px;margin-bottom:4px;">UPDATES</div>
+            ${s.updates.map(u => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">${u}</div>`).join('')}
+            <div style="font:bold 11px monospace;color:#8f8;margin-top:8px;margin-bottom:4px;">NEW FEATURES</div>
+            ${s.features.map(f => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">${f}</div>`).join('')}
+          </div>
         </div>
       `).join('');
+      list.addEventListener('click', (e) => {
+        const head = e.target.closest('.update-head');
+        if (!head) return;
+        const sec = head.closest('.update-section');
+        const body = sec.querySelector('.update-body');
+        const arrow = head.querySelector('.update-arrow');
+        const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
+        body.style.maxHeight = isOpen ? '0' : 'none';
+        body.style.padding = isOpen ? '0 12px' : '10px 12px';
+        arrow.textContent = isOpen ? '▼' : '▲';
+      });
       list.dataset.rendered = '1';
     }
   });
