@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockForge - YouTube Short</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; font-family: 'Segoe UI', Arial, sans-serif; overflow: hidden; }
+
+#canvas {
+  width: min(100vw, 56.25vh);
+  height: min(177.78vw, 100vh);
+  background: #1a1a2e;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── Scene management ── */
+.scene {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.8s ease;
+}
+.scene.active { opacity: 1; pointer-events: auto; }
+
+/* ── Scene 1: Hook ── */
+#scene-1 { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+#scene-1 .tagline {
+  font-size: clamp(28px, 5vw, 52px);
+  font-weight: 900;
+  text-align: center;
+  color: #fff;
+  padding: 0 20px;
+  line-height: 1.3;
+  text-shadow: 0 0 40px rgba(100,150,255,0.3);
+}
+#scene-1 .tagline span { color: #5af; }
+#scene-1 .subtitle {
+  font-size: clamp(14px, 2.5vw, 24px);
+  color: #8899bb;
+  margin-top: 20px;
+  text-align: center;
+  padding: 0 20px;
+}
+
+/* ── Scene 2: Features grid ── */
+#scene-2 { background: #0d1117; }
+.feature-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(8px, 1.5vw, 16px);
+  padding: 20px;
+  max-width: 500px;
+  width: 100%;
+}
+.feature-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: clamp(10px, 2vw, 20px);
+  text-align: center;
+  transform: scale(0.8);
+  opacity: 0;
+  transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.feature-card.show { transform: scale(1); opacity: 1; }
+.feature-card .icon { font-size: clamp(28px, 5vw, 48px); margin-bottom: 6px; }
+.feature-card .label {
+  font-size: clamp(10px, 1.8vw, 16px);
+  font-weight: 700;
+  color: #fff;
+}
+.feature-card .desc {
+  font-size: clamp(8px, 1.4vw, 12px);
+  color: #8899bb;
+  margin-top: 2px;
+}
+
+/* ── Scene 3: CTA ── */
+#scene-3 { background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }
+#scene-3 .cta-title {
+  font-size: clamp(24px, 4vw, 42px);
+  font-weight: 900;
+  color: #fff;
+  text-align: center;
+  padding: 0 20px;
+}
+#scene-3 .cta-url {
+  font-size: clamp(20px, 3.5vw, 36px);
+  font-weight: 700;
+  background: linear-gradient(90deg, #5af, #a7f);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-top: 16px;
+  padding: 12px 30px;
+  border: 2px solid rgba(100,150,255,0.3);
+  border-radius: 16px;
+  text-align: center;
+}
+#scene-3 .cta-sub {
+  font-size: clamp(12px, 2vw, 18px);
+  color: #667799;
+  margin-top: 20px;
+  text-align: center;
+  padding: 0 20px;
+}
+#scene-3 .qr-placeholder {
+  margin-top: 24px;
+  width: 100px;
+  height: 100px;
+  background: rgba(255,255,255,0.05);
+  border: 2px dashed rgba(255,255,255,0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #556;
+  font-size: 11px;
+  text-align: center;
+}
+
+/* ── Animated blocks background ── */
+#block-bg {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.block-particle {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  opacity: 0.15;
+  animation: float-up linear infinite;
+}
+@keyframes float-up {
+  0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.15; }
+  90% { opacity: 0.15; }
+  100% { transform: translateY(-20vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── Typing cursor ── */
+.cursor { display: inline-block; width: 3px; height: 1.2em; background: #5af; margin-left: 2px; animation: blink 0.8s step-end infinite; vertical-align: text-bottom; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ── Progress bar ── */
+#progress {
+  position: absolute;
+  bottom: 0; left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, #5af, #a7f);
+  transition: width 0.1s linear;
+  z-index: 100;
+}
+
+/* ── Skip button ── */
+#skip-btn {
+  position: absolute;
+  bottom: 16px;
+  right: 16px;
+  z-index: 99;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #889;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+#skip-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+
+/* ── Audio indicator ── */
+#audio-status {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #556;
+  font-size: 11px;
+  z-index: 50;
+  opacity: 0.6;
+}
+
+/* ── Block reveal animation ── */
+.block-row {
+  display: flex;
+  gap: 4px;
+  margin: 8px 0;
+}
+.block-cell {
+  width: clamp(18px, 3vw, 32px);
+  height: clamp(18px, 3vw, 32px);
+  border-radius: 3px;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.block-cell.show { opacity: 1; transform: scale(1); }
+</style>
+</head>
+<body>
+
+<div id="canvas">
+  <!-- Floating block background -->
+  <div id="block-bg"></div>
+
+  <!-- Progress bar -->
+  <div id="progress"></div>
+
+  <!-- Skip button -->
+  <button id="skip-btn">SKIP ›</button>
+
+  <!-- Scene 1: Hook -->
+  <div id="scene-1" class="scene active">
+    <div class="tagline" id="hook-text"></div>
+    <div class="subtitle" id="hook-sub"></div>
+  </div>
+
+  <!-- Scene 2: Features -->
+  <div id="scene-2" class="scene">
+    <div style="font-size:clamp(14px,2.5vw,22px);font-weight:800;color:#fff;margin-bottom:12px;">WHAT IS BLOCKFORGE?</div>
+    <div class="feature-grid" id="feature-grid"></div>
+  </div>
+
+  <!-- Scene 3: CTA -->
+  <div id="scene-3" class="scene">
+    <div class="cta-title">Ready to build?</div>
+    <div class="cta-url" id="cta-url">blockforge-1.onrender.com</div>
+    <div class="cta-sub">Free. No download. Runs in your browser.</div>
+    <div class="qr-placeholder">SCAN QR<br>TO PLAY</div>
+  </div>
+
+  <div id="audio-status">🔇 Audio placeholder — add ElevenLabs voiceover</div>
+</div>
+
+<script>
+// ── Config ──
+const TOTAL_DURATION = 20; // seconds
+const SCENES = [
+  { id: 'scene-1', start: 0, end: 5.5 },
+  { id: 'scene-2', start: 5.5, end: 14 },
+  { id: 'scene-3', start: 14, end: 20 },
+];
+
+const FEATURES = [
+  { icon: '⛏️', label: 'Survival Mode', desc: 'Mine, craft, fight, explore' },
+  { icon: '🌍', label: 'Multiplayer', desc: 'Play with friends, voice chat' },
+  { icon: '🎨', label: 'Custom Skins', desc: 'Built-in pixel editor' },
+  { icon: '⚡', label: 'Greenstone', desc: 'Redstone-style circuits' },
+  { icon: '🌦️', label: 'Dynamic Weather', desc: 'Rain, snow, thunderstorms' },
+  { icon: '🏔️', label: '14 Biomes', desc: 'Oceans to mountains' },
+  { icon: '🏃', label: 'Parkour', desc: '10 built-in levels' },
+  { icon: '🎮', label: 'Free & Online', desc: 'No download needed' },
+];
+
+// ── Block particles ──
+const BLOCK_COLORS = ['#5B8C2A','#8B6B3B','#6B7B8B','#4A7A1A','#3A5A8B','#A06B3B','#C0C0C0','#5A3A1A','#2A4A7A'];
+const blockBg = document.getElementById('block-bg');
+for (let i = 0; i < 30; i++) {
+  const el = document.createElement('div');
+  el.className = 'block-particle';
+  el.style.left = Math.random() * 100 + '%';
+  el.style.width = el.style.height = (10 + Math.random() * 20) + 'px';
+  el.style.background = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
+  el.style.borderRadius = Math.random() > 0.5 ? '3px' : '50%';
+  el.style.animationDuration = (15 + Math.random() * 20) + 's';
+  el.style.animationDelay = -(Math.random() * 20) + 's';
+  el.style.opacity = 0.05 + Math.random() * 0.1;
+  blockBg.appendChild(el);
+}
+
+// ── Typewriter effect ──
+function typeWriter(el, text, speed, callback) {
+  let i = 0;
+  el.innerHTML = '';
+  function tick() {
+    if (i < text.length) {
+      const char = text[i];
+      if (char === '<') {
+        const tagEnd = text.indexOf('>', i);
+        el.innerHTML += text.slice(i, tagEnd + 1);
+        i = tagEnd + 1;
+      } else {
+        el.innerHTML += char === '\n' ? '<br>' : char;
+        i++;
+      }
+      setTimeout(tick, speed + (Math.random() - 0.5) * speed * 0.5);
+    } else if (callback) callback();
+  }
+  tick();
+}
+
+// ── Build features grid ──
+const grid = document.getElementById('feature-grid');
+FEATURES.forEach((f, i) => {
+  const card = document.createElement('div');
+  card.className = 'feature-card';
+  card.innerHTML = `<div class="icon">${f.icon}</div><div class="label">${f.label}</div><div class="desc">${f.desc}</div>`;
+  card.dataset.index = i;
+  grid.appendChild(card);
+});
+
+// ── Block reveal animation for scene 2 ──
+function buildBlockReveal() {
+  const container = document.getElementById('scene-2');
+  const row = document.createElement('div');
+  row.className = 'block-row';
+  row.style.marginBottom = '16px';
+  const blocks = ['#5B8C2A','#8B6B3B','#6B7B8B','#C0C0C0','#A06B3B','#3A5A8B','#5A3A1A','#4A7A1A','#2A4A7A'];
+  blocks.forEach((c, i) => {
+    const cell = document.createElement('div');
+    cell.className = 'block-cell';
+    cell.style.background = c;
+    cell.style.transitionDelay = (i * 0.05) + 's';
+    row.appendChild(cell);
+  });
+  container.insertBefore(row, container.firstChild);
+  setTimeout(() => {
+    row.querySelectorAll('.block-cell').forEach(el => el.classList.add('show'));
+  }, 100);
+}
+
+// ── Scene management ──
+let currentSceneIdx = 0;
+let startTime = null;
+let animId = null;
+let skipped = false;
+
+function activateScene(idx) {
+  document.querySelectorAll('.scene').forEach(s => s.classList.remove('active'));
+  const scene = document.getElementById(SCENES[idx].id);
+  if (scene) scene.classList.add('active');
+  currentSceneIdx = idx;
+
+  // Scene-specific triggers
+  if (SCENES[idx].id === 'scene-1') {
+    const hookEl = document.getElementById('hook-text');
+    const subEl = document.getElementById('hook-sub');
+    hookEl.innerHTML = '';
+    subEl.innerHTML = '';
+    setTimeout(() => {
+      typeWriter(hookEl, 'Want a <span>Minecraft</span>\nexperience but\ndon\'t have Minecraft?', 40, () => {
+        setTimeout(() => {
+          typeWriter(subEl, 'Meet BlockForge. It\'s free.', 30);
+        }, 200);
+      });
+    }, 300);
+  }
+
+  if (SCENES[idx].id === 'scene-2') {
+    const cards = document.querySelectorAll('.feature-card');
+    cards.forEach((card, i) => {
+      setTimeout(() => card.classList.add('show'), i * 120 + 200);
+    });
+  }
+}
+
+function tick(timestamp) {
+  if (!startTime) startTime = timestamp;
+  const elapsed = (timestamp - startTime) / 1000;
+  const progress = Math.min(elapsed / TOTAL_DURATION, 1);
+  document.getElementById('progress').style.width = (progress * 100) + '%';
+
+  // Scene transitions
+  for (let i = SCENES.length - 1; i >= 0; i--) {
+    if (elapsed >= SCENES[i].start && currentSceneIdx !== i) {
+      activateScene(i);
+      break;
+    }
+  }
+
+  if (elapsed < TOTAL_DURATION && !skipped) {
+    animId = requestAnimationFrame(tick);
+  } else {
+    // Loop: show CTA indefinitely
+    document.getElementById('progress').style.width = '100%';
+  }
+}
+
+// ── Skip button ──
+document.getElementById('skip-btn').addEventListener('click', () => {
+  skipped = true;
+  if (animId) cancelAnimationFrame(animId);
+  activateScene(2); // Jump to CTA
+  document.getElementById('progress').style.width = '100%';
+  document.getElementById('skip-btn').textContent = '↻ RESTART';
+  document.getElementById('skip-btn').onclick = () => location.reload();
+});
+
+// ── Init ──
+buildBlockReveal();
+activateScene(0);
+document.addEventListener('click', () => {
+  if (!startTime) startTime = performance.now();
+  if (!animId) animId = requestAnimationFrame(tick);
+}, { once: true });
+
+// Auto-start after 1s
+setTimeout(() => {
+  if (!startTime) {
+    startTime = performance.now();
+    animId = requestAnimationFrame(tick);
+  }
+}, 1000);
+
+// ── Audio hook placeholder ──
+// ElevenLabs voiceover placeholder:
+// Replace with:
+//   const audio = new Audio('voiceover.mp3');
+//   audio.play();
+// Sync timings:
+//   0.0s  "Want a Minecraft experience but don't have Minecraft?"
+//   5.5s  "BlockForge is a free voxel game that runs in your browser."
+//   8.0s  "Survive, build, craft, and explore with friends online."
+//   10.5s "Customize your skin, master parkour, build redstone machines."
+//   13.0s "No downloads. No payment. Just play."
+//   14.0s "Join at blockforge-1.onrender.com"
+console.log('[Promo] Ready — add ElevenLabs voiceover when you have the API key');
+</script>
+</body>
+</html>
