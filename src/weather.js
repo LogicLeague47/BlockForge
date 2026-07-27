@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { BIOMES } from './constants.js';
 
-const RAIN_AREA = 24;
+const RAIN_HALF = 12;
 const RAIN_HEIGHT = 30;
 const RAIN_COUNT = 2000;
 
-const SNOW_AREA = 24;
+const SNOW_HALF = 12;
 const SNOW_HEIGHT = 25;
 const SNOW_COUNT = 1000;
 
@@ -87,9 +87,9 @@ export class WeatherSystem {
     const pos = new Float32Array(RAIN_COUNT * 3);
     this.rainVel = new Float32Array(RAIN_COUNT);
     for (let i = 0; i < RAIN_COUNT; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * RAIN_AREA * 2;
+      pos[i * 3] = (Math.random() - 0.5) * RAIN_HALF * 2;
       pos[i * 3 + 1] = Math.random() * RAIN_HEIGHT;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * RAIN_AREA * 2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * RAIN_HALF * 2;
       this.rainVel[i] = 20 * (0.85 + Math.random() * 0.3);
     }
     const geo = new THREE.BufferGeometry();
@@ -116,9 +116,9 @@ export class WeatherSystem {
     this.snowSway = new Float32Array(SNOW_COUNT);
     this.snowPhase = new Float32Array(SNOW_COUNT);
     for (let i = 0; i < SNOW_COUNT; i++) {
-      pos[i * 3] = (Math.random() - 0.5) * SNOW_AREA * 2;
+      pos[i * 3] = (Math.random() - 0.5) * SNOW_HALF * 2;
       pos[i * 3 + 1] = Math.random() * SNOW_HEIGHT;
-      pos[i * 3 + 2] = (Math.random() - 0.5) * SNOW_AREA * 2;
+      pos[i * 3 + 2] = (Math.random() - 0.5) * SNOW_HALF * 2;
       this.snowVel[i] = 4 * (0.7 + Math.random() * 0.6);
       this.snowSway[i] = 0.3 + Math.random() * 0.4;
       this.snowPhase[i] = Math.random() * Math.PI * 2;
@@ -148,7 +148,6 @@ export class WeatherSystem {
     this.state = s;
     this.weatherTimer = 0;
     this.weatherDuration = 120 + Math.random() * 480;
-    this.transitionTimer = 0;
     if (s === 'clear') {
       this._targetRain = 0;
       this._targetSnow = 0;
@@ -225,7 +224,7 @@ export class WeatherSystem {
   _updateRainParticles(playerPos, dt) {
     const pos = this._rainPos;
     const px = playerPos.x, py = playerPos.y, pz = playerPos.z;
-    const half = RAIN_AREA;
+    const half = RAIN_HALF;
     const killY = py - 2;
     const respawnY = py + RAIN_HEIGHT;
 
@@ -247,7 +246,7 @@ export class WeatherSystem {
   _updateSnowParticles(playerPos, time, dt) {
     const pos = this._snowPos;
     const px = playerPos.x, py = playerPos.y, pz = playerPos.z;
-    const half = SNOW_AREA;
+    const half = SNOW_HALF;
     const killY = py - 2;
     const respawnY = py + SNOW_HEIGHT;
 

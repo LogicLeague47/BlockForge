@@ -207,6 +207,256 @@ export function generateFeatures(chunk, baseX, baseZ, n) {
   }
 }
 
+// =====================================================================
+// Underground generation: ore veins, stalactites, lakes, cave biomes
+// =====================================================================
+
+function isStone(b) {
+  return b === BLOCK.STONE || b === BLOCK.DEEPSLATE;
+}
+
+// --- Ore Veins ---
+
+function placeOreCluster(chunk, cx, cy, cz, blockId, veinSize, shape, rng) {
+  let rx, ry, rz;
+  switch (shape) {
+    case 'single':
+      for (let i = 0; i < veinSize; i++) {
+        const dx = (rng() * 3 - 1) | 0;
+        const dy = (rng() * 2 - 1) | 0;
+        const dz = (rng() * 3 - 1) | 0;
+        const x = cx + dx, y = cy + dy, z = cz + dz;
+        if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE) continue;
+        if (isStone(chunk.get(x, y, z))) chunk.set(x, y, z, blockId);
+      }
+      return;
+    case 'elongated':
+      rx = 3; ry = 1; rz = 2;
+      break;
+    case 'tight':
+      rx = 1; ry = 1; rz = 1;
+      break;
+    case 'spherical':
+    default:
+      rx = 2; ry = 2; rz = 2;
+      break;
+  }
+
+  let placed = 0;
+  const target = veinSize;
+  const maxAttempts = 60;
+  for (let attempt = 0; attempt < maxAttempts && placed < target; attempt++) {
+    const dx = (rng() * 2 - 1) * rx;
+    const dy = (rng() * 2 - 1) * ry;
+    const dz = (rng() * 2 - 1) * rz;
+    const x = Math.round(cx + dx);
+    const y = Math.round(cy + dy);
+    const z = Math.round(cz + dz);
+    if (x < 0 || x >= CHUNK_SIZE || y < 0 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE) continue;
+    const edx = dx / rx, edy = dy / ry, edz = dz / rz;
+    if (edx * edx + edy * edy + edz * edz > 1) continue;
+    if (!isStone(chunk.get(x, y, z))) continue;
+    chunk.set(x, y, z, blockId);
+    placed++;
+  }
+}
+
+function generateOreVeins(chunk, baseX, baseZ) {
+  for (const spec of ORE_VEINS) {
+    const { block, minY, maxY, attempts, minSize, maxSize, shape } = spec;
+    const seed = (baseX * 73856093) ^ (baseZ * 19349663) ^ (block * 83492791);
+    const rng = mulberryLocal(seed >>> 0);
+
+    for (let a = 0; a < attempts; a++) {
+      const x = (rng() * CHUNK_SIZE) | 0;
+      const z = (rng() * CHUNK_SIZE) | 0;
+      const y = minY + ((rng() * (maxY - minY + 1)) | 0);
+      if (y < 0 || y >= WORLD_HEIGHT) continue;
+      if (!isStone(chunk.get(x, y, z))) continue;
+
+      const veinSize = minSize + ((rng() * (maxSize - minSize + 1)) | 0);
+      const clusterSeed = (seed + a * 7919) >>> 0;
+      const clusterRng = mulberryLocal(clusterSeed);
+      placeOreCluster(chunk, x, y, z, block, veinSize, shape, clusterRng);
+    }
+
+    // Extra ore attempts in deepslate zone (Y < 4) — "more ores"
+    if (minY < 4) {
+      const extra = Math.max(1, (attempts * 0.5) | 0);
+      for (let a = 0; a < extra; a++) {
+        const x = (rng() * CHUNK_SIZE) | 0;
+        const z = (rng() * CHUNK_SIZE) | 0;
+        const y = 1 + ((rng() * 3) | 0);
+        if (!isStone(chunk.get(x, y, z))) continue;
+        const veinSize = minSize + ((rng() * (maxSize - minSize + 1)) | 0);
+        const cs = (seed + a * 7919 + 0xDEADBEEF) >>> 0;
+        placeOreCluster(chunk, x, y, z, block, veinSize, shape, mulberryLocal(cs));
+      }
+    }
+  }
+}
+
+// --- Stalactites & Stalagmites ---
+
+function placeStalactite(chunk, x, y, z, height, material) {
+  for (let i = 0; i < height && y - i >= 0; i++) {
+    const py = y - i;
+    if (i === 0 && height >= 2) {
+      for (let dx = 0; dx < 2 && x + dx < CHUNK_SIZE; dx++) {
+        for (let dz = 0; dz < 2 && z + dz < CHUNK_SIZE; dz++) {
+          if (chunk.get(x + dx, py, z + dz) === BLOCK.AIR)
+            chunk.set(x + dx, py, z + dz, material);
+        }
+      }
+    } else {
+      if (chunk.get(x, py, z) === BLOCK.AIR)
+        chunk.set(x, py, z, material);
+    }
+  }
+}
+
+function placeStalagmite(chunk, x, y, z, height, material) {
+  for (let i = 0; i < height && y + i < WORLD_HEIGHT; i++) {
+    const py = y + i;
+    if (i === 0 && height >= 2) {
+      for (let dx = 0; dx < 2 && x + dx < CHUNK_SIZE; dx++) {
+        for (let dz = 0; dz < 2 && z + dz < CHUNK_SIZE; dz++) {
+          if (chunk.get(x + dx, py, z + dz) === BLOCK.AIR)
+            chunk.set(x + dx, py, z + dz, material);
+        }
+      }
+    } else {
+      if (chunk.get(x, py, z) === BLOCK.AIR)
+        chunk.set(x, py, z, material);
+    }
+  }
+}
+
+function generateCaveDecorations(chunk, baseX, baseZ) {
+  for (let x = 1; x < CHUNK_SIZE - 1; x++) {
+    for (let z = 1; z < CHUNK_SIZE - 1; z++) {
+      for (let y = 3; y < WORLD_HEIGHT - 3; y++) {
+        if (chunk.get(x, y, z) !== BLOCK.AIR) continue;
+
+        const above = chunk.get(x, y + 1, z);
+        const below = chunk.get(x, y - 1, z);
+
+        // Stalactite: air below stone ceiling
+        if (isStone(above) && below === BLOCK.AIR) {
+          const wx = baseX + x, wz = baseZ + z;
+          const seed = (wx * 73856093) ^ (wz * 19349663) ^ (y * 83492791);
+          const rng = mulberryLocal(seed >>> 0);
+          if (rng() < 0.15) {
+            const height = 1 + ((rng() * 4) | 0);
+            const isDripstone = y >= 30 && y <= 50 && rng() < 0.4;
+            placeStalactite(chunk, x, y, z, height, isDripstone ? BLOCK.STONE : BLOCK.STONE);
+          }
+        }
+
+        // Stalagmite: air above stone floor
+        if (isStone(below) && above === BLOCK.AIR) {
+          const wx = baseX + x, wz = baseZ + z;
+          const seed = (wx * 73856093) ^ (wz * 19349663) ^ (y * 83492791 + 1);
+          const rng = mulberryLocal(seed >>> 0);
+          if (rng() < 0.12) {
+            const height = 1 + ((rng() * 3) | 0);
+            const isDripstone = y >= 30 && y <= 50 && rng() < 0.4;
+            placeStalagmite(chunk, x, y, z, height, isDripstone ? BLOCK.STONE : BLOCK.STONE);
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- Underground Lakes ---
+
+function generateUndergroundLakes(chunk) {
+  for (let x = 2; x < CHUNK_SIZE - 2; x++) {
+    for (let z = 2; z < CHUNK_SIZE - 2; z++) {
+      for (let y = 2; y < 32; y++) {
+        if (chunk.get(x, y, z) !== BLOCK.AIR) continue;
+        const floor = chunk.get(x, y - 1, z);
+        if (!isStone(floor) && floor !== BLOCK.DIRT && floor !== BLOCK.SAND) continue;
+
+        const wx = x, wz = z;
+        const seed = (wx * 73856093) ^ (wz * 19349663) ^ (y * 83492791);
+        const rng = mulberryLocal(seed >>> 0);
+
+        if (rng() < 0.06) {
+          const radius = 2 + ((rng() * 3) | 0);
+          const depth = 1 + ((rng() * 3) | 0);
+          const isLava = y < 10 && rng() < 0.3;
+
+          for (let dx = -radius; dx <= radius; dx++) {
+            for (let dz = -radius; dz <= radius; dz++) {
+              const dist = Math.sqrt(dx * dx + dz * dz);
+              if (dist > radius + 0.5) continue;
+              const px = x + dx, pz = z + dz;
+              if (px < 0 || px >= CHUNK_SIZE || pz < 0 || pz >= CHUNK_SIZE) continue;
+              for (let d = 0; d < depth; d++) {
+                const py = y - d;
+                if (py < 0) break;
+                if (d === 0) {
+                  if (chunk.get(px, py, pz) === BLOCK.AIR)
+                    chunk.set(px, py, pz, isLava ? BLOCK.LAVA : BLOCK.WATER);
+                } else {
+                  if (chunk.get(px, py, pz) === BLOCK.STONE || chunk.get(px, py, pz) === BLOCK.DEEPSLATE)
+                    chunk.set(px, py, pz, isLava ? BLOCK.LAVA : BLOCK.WATER);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+// --- Cave Biomes ---
+
+function applyDeepslateBiome(chunk) {
+  for (let x = 0; x < CHUNK_SIZE; x++) {
+    for (let z = 0; z < CHUNK_SIZE; z++) {
+      for (let y = 1; y < 4; y++) {
+        if (chunk.get(x, y, z) === BLOCK.STONE)
+          chunk.set(x, y, z, BLOCK.DEEPSLATE);
+      }
+    }
+  }
+}
+
+function widenLavaCaverns(chunk, baseX, baseZ, n) {
+  for (let x = 1; x < CHUNK_SIZE - 1; x++) {
+    for (let z = 1; z < CHUNK_SIZE - 1; z++) {
+      for (let y = 1; y < 10; y++) {
+        const b = chunk.get(x, y, z);
+        if (!isStone(b)) continue;
+        if (chunk.get(x - 1, y, z) === BLOCK.AIR ||
+            chunk.get(x + 1, y, z) === BLOCK.AIR ||
+            chunk.get(x, y - 1, z) === BLOCK.AIR ||
+            chunk.get(x, y + 1, z) === BLOCK.AIR ||
+            chunk.get(x, y, z - 1) === BLOCK.AIR ||
+            chunk.get(x, y, z + 1) === BLOCK.AIR) {
+          const wx = baseX + x, wz = baseZ + z;
+          const nv = n.cave(wx * 0.05, y * 0.06, wz * 0.05);
+          if (Math.abs(nv) < 0.2) {
+            chunk.set(x, y, z, BLOCK.AIR);
+          }
+        }
+      }
+    }
+  }
+}
+
+export function generateUnderground(chunk, baseX, baseZ, n) {
+  applyDeepslateBiome(chunk);
+  generateOreVeins(chunk, baseX, baseZ);
+  widenLavaCaverns(chunk, baseX, baseZ, n);
+  generateCaveDecorations(chunk, baseX, baseZ);
+  generateUndergroundLakes(chunk);
+}
+
 function placeFeature(chunk, x, h, z, biome, roll, local, top) {
   switch (biome) {
     case BIOMES.DARK_FOREST:

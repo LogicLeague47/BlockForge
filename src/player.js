@@ -61,6 +61,7 @@ export class Player {
     this.flying = false;
     this.knockback = { x: 0, y: 0, z: 0 }; // decaying impulse separate from input velocity
     this.crouching = false;
+    this._crouchSmooth = 0;
     this.sprinting = false;
     this._bobPhase = 0;
     this.inWater = false;
@@ -335,7 +336,26 @@ export class Player {
     this.headInWater = this.eyeBlock() === BLOCK.WATER;
 
     const kb = getKeybinds();
-    this.crouching = (!!input.keys[kb.crouch] || !!input.keys['KeyC']) && !this.flying;
+    const wantCrouch = (!!input.keys[kb.crouch] || !!input.keys['KeyC']) && !this.flying;
+    // Crouching negates fall damage
+    if (wantCrouch && this.onGround) this.fallStartY = -1;
+    // Uncrouch head check: can't stand up if there's a solid block at head level
+    if (!wantCrouch && this._crouchSmooth > 0.01) {
+      const hx = Math.floor(this.position.x);
+      const hy = Math.floor(this.position.y + 1.6);
+      const hz = Math.floor(this.position.z);
+      if (this._solid(hx, hy, hz) || this._solid(hx, hy + 1, hz)) {
+        this.crouching = true;
+        this._crouchSmooth = Math.max(this._crouchSmooth, 0.5);
+      } else {
+        this.crouching = false;
+      }
+    } else {
+      this.crouching = wantCrouch;
+    }
+    // Smooth crouch transition
+    const targetCrouch = this.crouching ? 1 : 0;
+    this._crouchSmooth += (targetCrouch - this._crouchSmooth) * Math.min(1, dt * 12);
     // Sprinting: disabled when starving (hunger = 0), crouching, or eating
     if (this.isSurvival() && this.hunger <= 0) this.sprinting = false;
     else this.sprinting = !!input.keys[kb.sprint] && !this.crouching && !this.eating;
@@ -475,7 +495,7 @@ export class Player {
     this.tickSurvival(dt);
 
     // sync camera
-    const crouchEyeOffset = this.crouching ? -0.25 : 0;
+    const crouchEyeOffset = this._crouchSmooth * -0.35;
     // head bob
     const moving = this.onGround && (this.velocity.x !== 0 || this.velocity.z !== 0);
     if (moving) {
@@ -543,24 +563,14 @@ export class Player {
   }
 
   // Edge protection: when crouching on ground, prevent walking off block edges.
-  // Checks that at least one corner of the AABB has ground beneath at the new
-  // position, so you can reach the absolute edge before being stopped.
+  // Uses the center foot position so you can reach the absolute block edge
+  // before being stopped (Minecraft-style).
   _crouchEdgeBlocked(dx, dz) {
     if (!this.crouching || this.flying || !this.onGround) return false;
     const nx = this.position.x + dx;
     const nz = this.position.z + dz;
     const footY = Math.floor(this.position.y - 0.05);
-    const corners = [
-      [nx - PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
-      [nx + PLAYER_HALF_WIDTH, nz - PLAYER_HALF_WIDTH],
-      [nx - PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH],
-      [nx + PLAYER_HALF_WIDTH, nz + PLAYER_HALF_WIDTH]
-    ];
-    let hasGround = false;
-    for (const [cx, cz] of corners) {
-      if (this._solid(Math.floor(cx), footY, Math.floor(cz))) { hasGround = true; break; }
-    }
-    return !hasGround;
+    return !this._solid(Math.floor(nx), footY, Math.floor(nz));
   }
 
   moveAxis(axis, delta) {

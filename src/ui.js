@@ -1440,8 +1440,9 @@ export class UI {
     });
   }
 
-  _addSlotTooltipListeners(slotEl, slotData) {
-    slotEl.addEventListener('mouseenter', (e) => this._onSlotMouseEnter(slotData, e));
+  _addSlotTooltipListeners(slotEl, slotData, furnaceKey) {
+    const getSlot = () => furnaceKey ? this.furnaceSlots[furnaceKey] : slotData;
+    slotEl.addEventListener('mouseenter', (e) => this._onSlotMouseEnter(getSlot(), e));
     slotEl.addEventListener('mousemove', (e) => this._onSlotMouseMove(e));
     slotEl.addEventListener('mouseleave', () => this._onSlotMouseLeave());
   }
@@ -2180,6 +2181,13 @@ export class UI {
     this.furnaceScreen.classList.add('open');
     this.renderFurnaceSlots();
     this._renderFurnaceInventory(inventory);
+    // Add tooltip listeners once (elements persist, slot data looked up dynamically)
+    if (!this.furnaceInputEl._hasTooltip) {
+      this._addSlotTooltipListeners(this.furnaceInputEl, null, 'input');
+      this._addSlotTooltipListeners(this.furnaceFuelEl, null, 'fuel');
+      this._addSlotTooltipListeners(this.furnaceOutputEl, null, 'output');
+      this.furnaceInputEl._hasTooltip = this.furnaceFuelEl._hasTooltip = this.furnaceOutputEl._hasTooltip = true;
+    }
   }
 
   closeFurnace() {
@@ -2348,9 +2356,6 @@ export class UI {
     render(this.furnaceInputEl, this.furnaceSlots.input);
     render(this.furnaceFuelEl, this.furnaceSlots.fuel);
     render(this.furnaceOutputEl, this.furnaceSlots.output);
-    this._addSlotTooltipListeners(this.furnaceInputEl, this.furnaceSlots.input);
-    this._addSlotTooltipListeners(this.furnaceFuelEl, this.furnaceSlots.fuel);
-    this._addSlotTooltipListeners(this.furnaceOutputEl, this.furnaceSlots.output);
     this.furnaceInputEl.onclick = () => this._onFurnaceSlotClick('input');
     this.furnaceFuelEl.onclick = () => this._onFurnaceSlotClick('fuel');
     this.furnaceOutputEl.onclick = () => this._onFurnaceSlotClick('output');

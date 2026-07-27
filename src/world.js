@@ -4,7 +4,7 @@
 import { Noise } from './noise.js';
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
-import { generateColumn, generateFeatures, calcBiome, calcHeight } from './worldgen.js';
+import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight } from './worldgen.js';
 import { generateVillages } from './structures.js';
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
@@ -153,6 +153,7 @@ export class World {
         }
       }
 
+      generateUnderground(chunk, baseX, baseZ, n);
       generateFeatures(chunk, baseX, baseZ, n);
 
       // Structures (villages) — placed after terrain/features, before player edits.
