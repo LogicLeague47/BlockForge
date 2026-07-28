@@ -305,7 +305,10 @@ FEATURES.forEach((f, i) => {
 });
 
 // ── Block reveal animation for scene 2 ──
+let _blockRevealBuilt = false;
 function buildBlockReveal() {
+  if (_blockRevealBuilt) return;
+  _blockRevealBuilt = true;
   const container = document.getElementById('scene-2');
   const row = document.createElement('div');
   row.className = 'block-row';
@@ -319,9 +322,9 @@ function buildBlockReveal() {
     row.appendChild(cell);
   });
   container.insertBefore(row, container.firstChild);
-  setTimeout(() => {
+  requestAnimationFrame(() => {
     row.querySelectorAll('.block-cell').forEach(el => el.classList.add('show'));
-  }, 100);
+  });
 }
 
 // ── Scene management ──
@@ -352,6 +355,7 @@ function activateScene(idx) {
   }
 
   if (SCENES[idx].id === 'scene-2') {
+    buildBlockReveal();
     const cards = document.querySelectorAll('.feature-card');
     cards.forEach((card, i) => {
       setTimeout(() => card.classList.add('show'), i * 120 + 200);
@@ -392,7 +396,6 @@ document.getElementById('skip-btn').addEventListener('click', () => {
 });
 
 // ── Init ──
-buildBlockReveal();
 activateScene(0);
 document.addEventListener('click', () => {
   if (!startTime) startTime = performance.now();

@@ -3561,10 +3561,12 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           const spawn = buildImportedParkour(world, data);
           data.spawnPos = spawn;
           _importedParkourData = data;
+          resetParkourState();
           player.position.set(spawn.x, spawn.y, spawn.z);
           player.velocity.set(0, 0, 0);
           player.spawnPoint.set(spawn.x, spawn.y, spawn.z);
           startParkourTimer();
+          addChatLine('Welcome to 100 Levels! Climb the spiral tower to the top!', '#0ff');
         } catch (e) {
           console.error('[Parkour] Failed to load imported map:', e);
           addChatLine('Parkour map loading failed. Falling back to procedural levels.', '#f55');
@@ -3626,7 +3628,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   // before any chunks are generated. Without this, primeAsync generates
   // empty chunks because _chunkEdits is still empty during generateChunk().
   const _parkourReady = parkourLoadPromise
-    ? parkourLoadPromise.then(() => ui.updateLoading(5, 'Parkour map loaded.'))
+    ? parkourLoadPromise.then(() => ui.updateLoading(5, _isImportedParkour ? '100-level map loaded.' : 'Parkour map loaded.'))
     : Promise.resolve();
 
   _parkourReady.then(() => {
@@ -5741,8 +5743,12 @@ function loop() {
     if (isParkour && world && player) {
       // Check for checkpoints
       if (checkCheckpoint(player, world)) {
-        const lvl = getCurrentLevelInfo();
-        if (lvl) addChatLine(`Checkpoint: Level ${lvl.id} — ${lvl.name}`, '#5f5');
+        if (_isImportedParkour) {
+          addChatLine('Checkpoint saved!', '#5f5');
+        } else {
+          const lvl = getCurrentLevelInfo();
+          if (lvl) addChatLine(`Checkpoint: Level ${lvl.id} — ${lvl.name}`, '#5f5');
+        }
 
       }
 
