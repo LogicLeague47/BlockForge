@@ -403,23 +403,26 @@ const FEATURES = [
   { icon: '🎮', label: 'Free & Online', desc: 'No download needed' },
 ];
 
-// Game block colors
+// Actual game block colors (from src/main.js BLOCK_COLORS)
 const COLORS = {
-  grass: '#5B8C2A',
-  dirt: '#8B6B3B',
-  stone: '#6B7B8B',
+  grass: '#5daa34',
+  dirt: '#866043',
+  stone: '#888888',
+  cobble: '#777777',
   deepslate: '#4A5A6A',
-  planks: '#C0A060',
-  log: '#6B4A2A',
-  leaves: '#4A7A1A',
-  water: '#3A6B8B',
-  sand: '#D4C080',
-  brick: '#B06050',
-  gold: '#E8C830',
-  quartz: '#E8E0D0',
-  wool: '#E8E8E8',
-  bedrock: '#3A3A3A',
-  snow: '#E8F0F8',
+  wood: '#6b5230',
+  leaves: '#4a9a2a',
+  planks: '#b8945a',
+  log: '#6b5230',
+  water: '#3a7acc',
+  sand: '#dbc67b',
+  brick: '#9a4a3a',
+  gold: '#d4c060',
+  gravel: '#8a8278',
+  snow: '#f0f0f8',
+  bedrock: '#555555',
+  coal: '#444444',
+  iron: '#b8a080',
 };
 
 const BLOCK_COLORS = Object.values(COLORS);
@@ -432,9 +435,10 @@ styleSheet.textContent = `
 document.head.appendChild(styleSheet);
 
 // ── Build terrain columns ──
-function buildTerrain(container, cols, heights, layers) {
+function buildTerrain(container, cols, heights, layers, startX) {
   const wrap = document.createElement('div');
   wrap.style.cssText = 'display:flex;gap:0;align-items:flex-end;';
+  const xOff = startX || 0;
   for (let c = 0; c < cols; c++) {
     const h = heights[c];
     const col = document.createElement('div');
@@ -442,10 +446,6 @@ function buildTerrain(container, cols, heights, layers) {
     for (let ly = 0; ly < h; ly++) {
       const b = document.createElement('div');
       b.style.cssText = `width:16px;height:16px;background:${layers[c][ly] || '#000'};`;
-      // Alternate shade for depth
-      if (ly === h - 1) {
-        b.style.borderTop = '1px solid rgba(255,255,255,0.1)';
-      }
       col.appendChild(b);
     }
     wrap.appendChild(col);
@@ -454,76 +454,87 @@ function buildTerrain(container, cols, heights, layers) {
   return wrap;
 }
 
-// ── Generate terrain for each scene ──
-function buildScene1Terrain() {
-  const wrap = document.getElementById('scene-1');
+// ── Generate terrain for a scene ──
+function buildSceneTerrain(sceneId, opts) {
+  const wrap = document.getElementById(sceneId);
   const tw = document.createElement('div');
-  tw.className = 'terrain-wrap';
-  tw.style.cssText = 'position:absolute;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:0;z-index:1;';
-  const COLS = 40;
+  tw.style.cssText = `position:absolute;bottom:0;left:${opts.left || '50%'};${opts.left === '0' ? '' : 'transform:translateX(-50%);'}display:flex;gap:0;z-index:1;`;
+  const COLS = opts.cols || 40;
   const cols = [];
   const lay = [];
+  const dirt = opts.dirt || COLORS.dirt;
+  const grass = opts.grass || COLORS.grass;
+  const stone = opts.stone || COLORS.stone;
+  const bedrock = opts.bedrock || COLORS.bedrock;
   for (let c = 0; c < COLS; c++) {
     const dx = c - COLS / 2;
-    // Hills using simple parabola
-    const hill = Math.max(1, 6 - Math.abs(dx) * 0.15);
-    const h = Math.floor(hill + (Math.sin(dx * 0.8) * 0.8 + Math.sin(dx * 0.3) * 0.5));
-    cols.push(h + 2); // +2 for grass/dirt
+    const base = opts.flat ? 3 : Math.max(1, (opts.baseHeight || 6) - Math.abs(dx) * (opts.falloff || 0.15));
+    const h = Math.floor(base + (Math.sin(dx * (opts.freq || 0.8) + (opts.phase || 0)) * (opts.amp || 0.8) + Math.sin(dx * (opts.freq2 || 0.3)) * (opts.amp2 || 0.5)));
+    cols.push(h + 2);
     const l = [];
-    // bedrock
-    l.push(COLORS.bedrock);
-    // stone
-    for (let s = 0; s < h - 1; s++) l.push(s % 2 === 0 ? COLORS.stone : '#5A6A7A');
-    // dirt
-    l.push(COLORS.dirt);
-    // grass
-    l.push(COLORS.grass);
+    l.push(bedrock);
+    for (let s = 0; s < h - 1; s++) l.push(s % 2 === 0 ? stone : opts.stoneAlt || stone);
+    l.push(dirt);
+    l.push(grass);
     lay.push(l);
   }
   buildTerrain(tw, COLS, cols, lay);
 
-  // Add tree at center
-  const treeCol = tw.children[0].children[Math.floor(COLS / 2)];
-  if (treeCol) {
-    const treeY = cols[Math.floor(COLS / 2)];
-    // Trunk
-    for (let t = 0; t < 4; t++) {
-      const trunk = document.createElement('div');
-      trunk.style.cssText = 'width:16px;height:16px;background:' + COLORS.log + ';';
-      tw.appendChild(trunk);
-    }
-    // Leaves
-    for (let lx = -1; lx <= 1; lx++) {
-      for (let lz = -1; lz <= 1; lz++) {
-        const leaf = document.createElement('div');
-        leaf.style.cssText = `position:absolute;bottom:${(treeY + 4 + lz) * 16}px;left:${(COLS/2 + lx) * 16 - (lx === 0 ? 0 : 0)}px;width:16px;height:16px;background:${COLORS.leaves};opacity:0.9;`;
-        if (lz === -1 && lx === 0) tw.appendChild(leaf);
+  // Add tree at specified position
+  if (opts.treePos !== undefined) {
+    const treeCol = tw.children[0].children[opts.treePos];
+    if (treeCol) {
+      const treeY = cols[opts.treePos];
+      const tx = (opts.treePos - COLS / 2) * 16;
+      // Trunk on top of grass
+      for (let t = 0; t < 4; t++) {
+        const trunk = document.createElement('div');
+        trunk.style.cssText = `position:absolute;bottom:${(treeY + t) * 16}px;left:50%;transform:translateX(-50%);width:16px;height:16px;background:${opts.log || COLORS.wood};`;
+        tw.appendChild(trunk);
+      }
+      // Leaves canopy
+      const leafY = treeY + 4;
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let ly = 0; ly <= 2; ly++) {
+          const dist = Math.abs(lx) + (ly === 1 ? 0 : 1);
+          if (dist > 2) continue;
+          const leaf = document.createElement('div');
+          leaf.style.cssText = `position:absolute;bottom:${(leafY + ly) * 16}px;left:50%;transform:translateX(calc(-50% + ${lx * 16}px));width:16px;height:16px;background:${opts.leaves || COLORS.leaves};opacity:0.85;border-radius:1px;`;
+          tw.appendChild(leaf);
+        }
       }
     }
   }
+
   wrap.insertBefore(tw, wrap.querySelector('.overlay'));
 }
 
+// ── Build terrain for each scene ──
+function buildScene1Terrain() {
+  buildSceneTerrain('scene-1', {
+    left: '50%', cols: 40, baseHeight: 6, falloff: 0.15,
+    freq: 0.8, amp: 0.8, freq2: 0.3, amp2: 0.5,
+    treePos: 20,
+  });
+}
+
+function buildScene2Terrain() {
+  buildSceneTerrain('scene-2', {
+    left: '50%', cols: 30, baseHeight: 4, falloff: 0.12,
+    freq: 1.0, amp: 1.0, freq2: 0.4, amp2: 0.6,
+    grass: '#6aba3a', // slightly brighter grass for variety
+    treePos: 15,
+  });
+}
+
 function buildScene3Terrain() {
-  const wrap = document.getElementById('scene-3');
-  const tw = document.createElement('div');
-  tw.style.cssText = 'position:absolute;bottom:0;left:0;right:0;display:flex;gap:0;z-index:1;';
-  const COLS = 40;
-  const cols = [];
-  const lay = [];
-  for (let c = 0; c < COLS; c++) {
-    const dx = c - COLS / 2;
-    const hill = Math.max(1, 5 - Math.abs(dx) * 0.2);
-    const h = Math.floor(hill + Math.sin(dx * 1.2) * 0.5);
-    cols.push(h + 1);
-    const l = [];
-    l.push(COLORS.bedrock);
-    for (let s = 0; s < h - 1; s++) l.push(s % 2 === 0 ? COLORS.deepslate : '#3A4A5A');
-    l.push(COLORS.dirt);
-    l.push(COLORS.grass);
-    lay.push(l);
-  }
-  buildTerrain(tw, COLS, cols, lay);
+  buildSceneTerrain('scene-3', {
+    left: '0', cols: 48, baseHeight: 5, falloff: 0.2,
+    freq: 1.2, amp: 0.5, freq2: 0.3, amp2: 0.3,
+    stone: COLORS.deepslate, stoneAlt: '#3A4A5A',
+    grass: '#4a7a3a', // darker night grass
+    treePos: 30,
+  });
 }
 
 // ── Stars for night scene ──
@@ -676,6 +687,7 @@ document.getElementById('skip-btn').addEventListener('click', () => {
 
 // ── Init ──
 buildScene1Terrain();
+buildScene2Terrain();
 buildScene3Terrain();
 buildStars();
 activateScene(0);
