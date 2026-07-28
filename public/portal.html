@@ -145,6 +145,11 @@
           <div class="name">Texture Packs</div>
           <div class="desc">Browse and install custom texture packs</div>
         </div>
+        <div class="card" data-page="updates">
+          <div class="icon">📰</div>
+          <div class="name">Updates</div>
+          <div class="desc">Latest changes, new features, and bug fixes</div>
+        </div>
         <div class="card coming">
           <div class="icon">🛍️</div>
           <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
@@ -184,6 +189,13 @@
           <div class="name">Bugs</div>
           <div class="desc">Track and manage bug reports</div>
         </div>
+      </div>
+
+      <div id="page-updates" class="page">
+        <h2>📰 Updates</h2>
+        <p>Latest changes, bug fixes, and new features for BlockForge.</p>
+        <div id="portal-updates-list"></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
       <div id="page-textures" class="page">
@@ -303,6 +315,7 @@
           if (userName) u.searchParams.set('user', userName);
           if (userRole) u.searchParams.set('role', userRole);
           history.pushState({page: page}, '', u);
+          if (page === 'updates') renderUpdates();
           if (page === 'servers') fetchServerList();
         });
       });
@@ -342,11 +355,80 @@
             if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
           });
           document.getElementById('page-' + p).classList.add('active');
+          if (p === 'updates') renderUpdates();
           if (p === 'servers') fetchServerList();
         } else {
           goHome();
         }
       });
+
+      // ── Updates ────────────────────────────────────────────────────────
+      var UPDATE_SECTIONS = [
+        {
+          heading: 'v0.9 — Crouch & Weather Overhaul',
+          bugs: [
+            'Player floats after walking off edge — gravity now always applies',
+            'Crouch edge protection too restrictive — now uses center foot check',
+            'Crouch uncrouch head-stuck check — prevents standing in 1-block gap',
+            'Remote players spawned at world origin instead of player position',
+            'Shadow matrix desync between custom shaders and Three.js render',
+            'Ghost blocks from previous worlds persisting in scene',
+            '120 BUGS_SCAN issues (NaN crash, zero-vector normalize, surfaceMap, DOM leaks, etc.)',
+            'Login redirect loop — _backgroundAuth fixed',
+          ],
+          updates: [
+            'Crouch: smooth camera transition, fall damage negation, faster animation',
+            'Water: fresnel-based reflections, sharper specular',
+            'Chunks: priority queue loads nearest chunks first',
+            'Day/night: golden hour glow, smooth sun/ambient lerp, cloud tinting',
+            'All sounds replaced with CC0/OpenGameArt / procedural synthesis',
+            'Switch to Render hosting, MP_SERVER_URL uses BACKEND_URL',
+          ],
+          features: [
+            'Weather system: rain (2000 particles), snow (1000), thunderstorms',
+            'Underground biome: ore veins, stalactites, deepslate caves, lava caverns',
+            'Item tooltips: name, durability, defense, hunger on hover',
+            'Grass/foliage sway: vertex shader wind animation',
+            'Block preview ghost: green/red tint for valid/obstructed placement',
+            'Dynamic fog: rain reduces visibility, color adapts to weather',
+            'Real-time shadows: PCF shadow mapping, sun/moon follow player',
+            'River biome with flowing water animation',
+            'Head bobbing: vertical + horizontal sway (8Hz walking, 11Hz sprinting)',
+            'Breast stroke swimming: frog kick, forward lean, head lift',
+            'Block break cracks — angular web pattern',
+          ],
+        },
+      ];
+      function renderUpdates() {
+        var list = document.getElementById('portal-updates-list');
+        if (!list || list.dataset.rendered) return;
+        list.innerHTML = UPDATE_SECTIONS.map(function(s, i) {
+          return '<div class="update-section" style="margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">' +
+            '<div class="update-head" data-idx="' + i + '" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.08);font:bold 13px monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;">' +
+            '<span>' + s.heading + '</span>' +
+            '<span class="update-arrow" style="font-size:10px;transition:.2s;">' + (i === 0 ? '▲' : '▼') + '</span></div>' +
+            '<div class="update-body" style="padding:' + (i === 0 ? '10px 12px' : '0 12px') + ';max-height:' + (i === 0 ? 'none' : '0') + ';overflow:hidden;transition:.25s;">' +
+            '<div style="font:bold 11px monospace;color:#f88;margin-bottom:4px;">BUGS FIXED</div>' +
+            s.bugs.map(function(b) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">' + b + '</div>'; }).join('') +
+            '<div style="font:bold 11px monospace;color:#8cf;margin-top:8px;margin-bottom:4px;">UPDATES</div>' +
+            s.updates.map(function(u) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">' + u + '</div>'; }).join('') +
+            '<div style="font:bold 11px monospace;color:#8f8;margin-top:8px;margin-bottom:4px;">NEW FEATURES</div>' +
+            s.features.map(function(f) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">' + f + '</div>'; }).join('') +
+            '</div></div>';
+        }).join('');
+        list.addEventListener('click', function(e) {
+          var head = e.target.closest('.update-head');
+          if (!head) return;
+          var sec = head.closest('.update-section');
+          var body = sec.querySelector('.update-body');
+          var arrow = head.querySelector('.update-arrow');
+          var isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
+          body.style.maxHeight = isOpen ? '0' : 'none';
+          body.style.padding = isOpen ? '0 12px' : '10px 12px';
+          arrow.textContent = isOpen ? '▼' : '▲';
+        });
+        list.dataset.rendered = '1';
+      }
 
       // ── Server browser ─────────────────────────────────────────────────
       var SRV_WS = 'wss://blockforge-server.onrender.com';

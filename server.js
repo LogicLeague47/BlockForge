@@ -666,6 +666,46 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // --- CrazyGames OAuth-link endpoint (used when on CG and linking GitHub/Google) ---
+  if (pathname === '/auth/cg-link' && req.method === 'POST') {
+    const corsOrigin = req.headers.origin || '*';
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': corsOrigin,
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    let body = '';
+    let bodyBytes = 0;
+    req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 4096) { req.destroy(); } });
+    req.on('end', () => {
+      try {
+        const { cgUserId, cgUsername } = JSON.parse(body);
+        if (!cgUserId) { res.end(JSON.stringify({ ok: false, reason: 'Missing cgUserId' })); return; }
+        let username = findAccountByIdentity('crazygames', cgUserId);
+        if (!username) {
+          const safeName = filterProfanity(cgUsername || 'Player').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'Player';
+          let finalName = safeName;
+          let counter = 1;
+          while (accounts[finalName]) {
+            finalName = Array.from(safeName).slice(0, 14).join('') + String(counter);
+            counter++;
+            if (counter > 100) { finalName = 'Player' + Date.now().toString(36); break; }
+          }
+          accounts[finalName] = { hash: '', salt: '', role: ROLE_PLAYER, tag: '', identities: { crazygames: cgUserId } };
+          saveAccounts();
+          username = finalName;
+        }
+        const linkToken = randomBytes(16).toString('hex');
+        linkSessions.set(linkToken, { username, createdAt: Date.now() });
+        res.end(JSON.stringify({ ok: true, linkToken, username }));
+      } catch (e) {
+        res.end(JSON.stringify({ ok: false, reason: 'Invalid request' }));
+      }
+    });
+    return;
+  }
+
   // --- CrazyGames identity endpoint ---
   if (pathname === '/auth/crazygames' && req.method === 'POST') {
     const corsOrigin = req.headers.origin || '*';

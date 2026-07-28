@@ -5268,7 +5268,38 @@ function initMenu() {
   function startOAuth(provider) {
     const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
     const origin = window.location.origin;
-    const popup = window.open(`${serverUrl}/auth/${provider}?origin=${encodeURIComponent(origin)}`, 'oauth', 'width=600,height=700');
+
+    // On CrazyGames: auto-link OAuth identity with the CG account
+    if (isOnCrazyGames()) {
+      crazyGamesSDK().then(sdk => {
+        if (!sdk) { openOAuthPopup(provider, serverUrl, origin); return; }
+        const cgId = sdk.user?.getId?.();
+        const cgName = sdk.user?.getUsername?.();
+        if (!cgId) { openOAuthPopup(provider, serverUrl, origin); return; }
+        fetch(`${serverUrl}/auth/cg-link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cgUserId: cgId, cgUsername: cgName || 'Player' }),
+        })
+          .then(r => r.json())
+          .then(data => {
+            if (data.ok && data.linkToken) {
+              openOAuthPopup(provider, serverUrl, origin, data.linkToken);
+            } else {
+              openOAuthPopup(provider, serverUrl, origin);
+            }
+          })
+          .catch(() => openOAuthPopup(provider, serverUrl, origin));
+      });
+      return;
+    }
+
+    openOAuthPopup(provider, serverUrl, origin);
+  }
+
+  function openOAuthPopup(provider, serverUrl, origin, linkToken) {
+    const url = `${serverUrl}/auth/${provider}?origin=${encodeURIComponent(origin)}${linkToken ? '&linkToken=' + linkToken : ''}`;
+    const popup = window.open(url, 'oauth', 'width=600,height=700');
     if (!popup) {
       showToast('Please allow popups for OAuth login', '#ff0', 4);
       return;
@@ -5288,6 +5319,23 @@ function initMenu() {
         }
         const suggestedName = filterProfanity(e.data.username) || 'Player';
         const providerId = e.data.providerId || suggestedName;
+
+        // If already linked (CG auto-merge or existing link), skip name prompt
+        if (e.data.linked) {
+          playerName = suggestedName;
+          setSkinUser(playerName);
+          try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+          const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
+          if (!network.connected) {
+            network.connect(MP_SERVER_URL);
+            network.onConnectedOnce(attempt);
+            setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+          } else {
+            attempt();
+          }
+          return;
+        }
+
         // Show name prompt with suggested name from provider
         const promptEl = document.getElementById('name-prompt');
         const inputEl = document.getElementById('name-prompt-input');
