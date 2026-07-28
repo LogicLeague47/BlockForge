@@ -187,46 +187,58 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.6) 100%);
   z-index: 1;
 }
+#scene-3 .cta-card {
+  background: rgba(8,8,20,0.55);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(100,140,255,0.1);
+  border-radius: 16px;
+  padding: clamp(20px, 3vw, 32px) clamp(24px, 4vw, 40px);
+  text-align: center;
+  max-width: 440px;
+  width: 90%;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.4), 0 0 0 1px rgba(100,160,255,0.04);
+}
 #scene-3 .cta-title {
   font-size: clamp(24px, 4vw, 42px);
   font-weight: 900;
-  color: #fff;
-  text-align: center;
-  padding: 0 20px;
-}
-#scene-3 .cta-url {
-  font-size: clamp(20px, 3.5vw, 36px);
-  font-weight: 700;
-  background: linear-gradient(90deg, #5af, #a7f);
+  background: linear-gradient(135deg, #e0e8ff 0%, #8af 50%, #c084fc 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-top: 16px;
-  padding: 12px 30px;
-  border: 2px solid rgba(100,150,255,0.3);
-  border-radius: 16px;
   text-align: center;
-  backdrop-filter: blur(4px);
+  line-height: 1.2;
+}
+#scene-3 .cta-url {
+  font-size: clamp(16px, 2.5vw, 24px);
+  font-weight: 700;
+  color: #8af;
+  margin-top: 16px;
+  padding: 10px 24px;
+  border: 1px solid rgba(100,150,255,0.2);
+  border-radius: 12px;
+  text-align: center;
+  background: rgba(0,0,0,0.3);
+  display: inline-block;
 }
 #scene-3 .cta-sub {
-  font-size: clamp(12px, 2vw, 18px);
+  font-size: clamp(12px, 2vw, 16px);
   color: #99aabb;
-  margin-top: 20px;
+  margin-top: 16px;
   text-align: center;
-  padding: 0 20px;
+  line-height: 1.5;
 }
 #scene-3 .qr-placeholder {
-  margin-top: 24px;
-  width: 100px;
-  height: 100px;
+  margin: 20px auto 0;
+  width: 80px;
+  height: 80px;
   background: rgba(0,0,0,0.4);
-  border: 2px dashed rgba(255,255,255,0.15);
-  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #778;
-  font-size: 11px;
+  color: #556;
+  font-size: 10px;
   text-align: center;
 }
 
@@ -367,10 +379,12 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
     </div>
     <div class="overlay"></div>
     <div class="scene-content">
-      <div class="cta-title">Ready to build?</div>
-      <div class="cta-url" id="cta-url">blockforge-1.onrender.com</div>
-      <div class="cta-sub">Free. No download. Runs in your browser.</div>
-      <div class="qr-placeholder">SCAN QR<br>TO PLAY</div>
+      <div class="cta-card">
+        <div class="cta-title">Ready to build?</div>
+        <div class="cta-url" id="cta-url">blockforge-1.onrender.com</div>
+        <div class="cta-sub">Free &bull; No download &bull; In your browser</div>
+        <div class="qr-placeholder">SCAN QR<br>TO PLAY</div>
+      </div>
     </div>
   </div>
 
@@ -551,18 +565,18 @@ function buildStars() {
   }
 }
 
-// ── Block particles ──
+// ── Block particles (reduced for cleaner look) ──
 const blockBg = document.getElementById('block-bg');
-for (let i = 0; i < 20; i++) {
+for (let i = 0; i < 8; i++) {
   const el = document.createElement('div');
   el.className = 'block-particle';
   el.style.left = Math.random() * 100 + '%';
-  el.style.width = el.style.height = (10 + Math.random() * 16) + 'px';
+  el.style.width = el.style.height = (10 + Math.random() * 12) + 'px';
   el.style.background = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
   el.style.borderRadius = '2px';
-  el.style.animationDuration = (18 + Math.random() * 15) + 's';
-  el.style.animationDelay = -(Math.random() * 20) + 's';
-  el.style.opacity = 0.05 + Math.random() * 0.08;
+  el.style.animationDuration = (25 + Math.random() * 20) + 's';
+  el.style.animationDelay = -(Math.random() * 30) + 's';
+  el.style.opacity = 0.04 + Math.random() * 0.04;
   blockBg.appendChild(el);
 }
 
