@@ -551,6 +551,8 @@ function updateBreaking(progress, hit) {
 }
 
 // --- UI / audio ---
+const audio = new AudioManager();
+const achievements = new AchievementManager();
 const ui = new UI(atlasCanvas, audio);
 ui._onSync = syncUIMode;
 ui.onCraft = (itemId, count) => {
@@ -573,8 +575,6 @@ ui.onCraft = (itemId, count) => {
 ui.onSmelt = (inputItem, count) => {
   achievements.incrementMapStat('smelted', inputItem, count);
 };
-const audio = new AudioManager();
-const achievements = new AchievementManager();
 
 // --- sleep overlay ---
 const sleepOverlay = document.getElementById('sleep-overlay');
