@@ -22,11 +22,75 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   display: flex; flex-direction: column; justify-content: center; align-items: center;
   opacity: 0; pointer-events: none;
   transition: opacity 0.8s ease;
+  z-index: 1;
 }
 .scene.active { opacity: 1; pointer-events: auto; }
 
+/* ── Game scene backgrounds ── */
+.game-bg {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+.game-bg .sky {
+  position: absolute; top: 0; left: 0; right: 0; height: 60%;
+  background: linear-gradient(180deg, #4a90d9 0%, #87ceeb 50%, #b8dff0 100%);
+}
+.game-bg .sky-sunset {
+  position: absolute; top: 0; left: 0; right: 0; height: 60%;
+  background: linear-gradient(180deg, #1a1a3e 0%, #d4764a 30%, #f4a460 50%, #87ceeb 70%, #b8dff0 100%);
+}
+.game-bg .sky-night {
+  position: absolute; top: 0; left: 0; right: 0; height: 60%;
+  background: linear-gradient(180deg, #0a0a1a 0%, #1a1a3e 40%, #2a2a4e 100%);
+}
+
+/* Sun */
+.game-bg .sun {
+  position: absolute;
+  width: 40px; height: 40px;
+  background: #ffe066;
+  border-radius: 50%;
+  box-shadow: 0 0 60px #ffe06666;
+}
+
+/* Moon */
+.game-bg .moon {
+  position: absolute;
+  width: 32px; height: 32px;
+  background: #ccd;
+  border-radius: 50%;
+  box-shadow: 0 0 40px rgba(200,200,220,0.3);
+}
+
+/* Clouds */
+.game-bg .cloud {
+  position: absolute;
+  display: flex; gap: 1px;
+  opacity: 0.7;
+}
+.game-bg .cloud div {
+  width: 18px; height: 10px;
+  background: rgba(255,255,255,0.8);
+  border-radius: 5px;
+}
+
+/* Terrain columns */
+.terrain-col {
+  position: absolute;
+  display: flex; flex-direction: column-reverse;
+}
+.terrain-col .b { width: 16px; flex-shrink: 0; }
+
 /* ── Scene 1: Hook ── */
-#scene-1 { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+#scene-1 .terrain-wrap {
+  position: absolute;
+  bottom: 0; left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 0;
+}
 #scene-1 .tagline {
   font-size: clamp(28px, 5vw, 52px);
   font-weight: 900;
@@ -35,18 +99,43 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   padding: 0 20px;
   line-height: 1.3;
   text-shadow: 0 0 40px rgba(100,150,255,0.3);
+  position: relative; z-index: 2;
 }
 #scene-1 .tagline span { color: #5af; }
 #scene-1 .subtitle {
   font-size: clamp(14px, 2.5vw, 24px);
-  color: #8899bb;
+  color: #fff;
   margin-top: 20px;
   text-align: center;
   padding: 0 20px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
+  position: relative; z-index: 2;
+}
+#scene-1 .overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.6) 0%, transparent 50%, rgba(0,0,0,0.3) 100%);
+  z-index: 1;
 }
 
 /* ── Scene 2: Features grid ── */
-#scene-2 { background: #0d1117; }
+#scene-2 .terrain-bg {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end;
+  z-index: 0;
+}
+#scene-2 .terrain-bg .col-group {
+  display: flex; gap: 0;
+}
+#scene-2 .scene-content {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  width: 100%;
+}
+#scene-2 .overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.55);
+  z-index: 1;
+}
 .feature-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -56,8 +145,10 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   width: 100%;
 }
 .feature-card {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1px solid rgba(255,255,255,0.1);
   border-radius: 12px;
   padding: clamp(10px, 2vw, 20px);
   text-align: center;
@@ -74,12 +165,28 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
 }
 .feature-card .desc {
   font-size: clamp(8px, 1.4vw, 12px);
-  color: #8899bb;
+  color: #99aabb;
   margin-top: 2px;
 }
 
 /* ── Scene 3: CTA ── */
-#scene-3 { background: linear-gradient(135deg, #0a0a1a, #1a1a3e, #0a0a1a); }
+#scene-3 .terrain-bg {
+  position: absolute; inset: 0;
+  display: flex; align-items: flex-end;
+  z-index: 0;
+}
+#scene-3 .terrain-bg .col-group {
+  display: flex; gap: 0;
+}
+#scene-3 .scene-content {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+}
+#scene-3 .overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.4) 60%, rgba(0,0,0,0.6) 100%);
+  z-index: 1;
+}
 #scene-3 .cta-title {
   font-size: clamp(24px, 4vw, 42px);
   font-weight: 900;
@@ -99,10 +206,11 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   border: 2px solid rgba(100,150,255,0.3);
   border-radius: 16px;
   text-align: center;
+  backdrop-filter: blur(4px);
 }
 #scene-3 .cta-sub {
   font-size: clamp(12px, 2vw, 18px);
-  color: #667799;
+  color: #99aabb;
   margin-top: 20px;
   text-align: center;
   padding: 0 20px;
@@ -111,22 +219,33 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   margin-top: 24px;
   width: 100px;
   height: 100px;
-  background: rgba(255,255,255,0.05);
+  background: rgba(0,0,0,0.4);
   border: 2px dashed rgba(255,255,255,0.15);
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #556;
+  color: #778;
   font-size: 11px;
   text-align: center;
 }
 
-/* ── Animated blocks background ── */
+/* ── Stars ── */
+.star {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: #fff;
+  border-radius: 50%;
+  animation: twinkle 2s ease-in-out infinite alternate;
+}
+@keyframes twinkle { 0% { opacity: 0.3; } 100% { opacity: 1; } }
+
+/* ── Block particles ── */
 #block-bg {
   position: absolute; inset: 0;
   overflow: hidden;
   pointer-events: none;
+  z-index: 0;
 }
 .block-particle {
   position: absolute;
@@ -208,38 +327,65 @@ body { background: #000; display: flex; justify-content: center; align-items: ce
   <!-- Floating block background -->
   <div id="block-bg"></div>
 
-  <!-- Progress bar -->
-  <div id="progress"></div>
-
-  <!-- Skip button -->
-  <button id="skip-btn">SKIP ›</button>
-
-  <!-- Scene 1: Hook -->
+  <!-- Scene 1: Hook -- daytime landscape -->
   <div id="scene-1" class="scene active">
+    <div class="game-bg">
+      <div class="sky"></div>
+      <div class="sun" style="top:12%;right:25%;"></div>
+      <div class="cloud" style="top:8%;left:15%;animation:drift 20s linear infinite;">
+        <div></div><div></div><div></div><div></div>
+      </div>
+      <div class="cloud" style="top:18%;left:60%;animation:drift 25s linear infinite;">
+        <div></div><div></div><div></div>
+      </div>
+    </div>
+    <div class="overlay"></div>
     <div class="tagline" id="hook-text"></div>
     <div class="subtitle" id="hook-sub"></div>
   </div>
 
-  <!-- Scene 2: Features -->
+  <!-- Scene 2: Features -- biome mosaic -->
   <div id="scene-2" class="scene">
-    <div style="font-size:clamp(14px,2.5vw,22px);font-weight:800;color:#fff;margin-bottom:12px;">WHAT IS BLOCKFORGE?</div>
-    <div class="feature-grid" id="feature-grid"></div>
+    <div class="game-bg">
+      <div class="sky"></div>
+      <div class="cloud" style="top:10%;left:30%;animation:drift 22s linear infinite;">
+        <div></div><div></div><div></div>
+      </div>
+    </div>
+    <div class="overlay"></div>
+    <div class="scene-content">
+      <div style="font-size:clamp(14px,2.5vw,22px);font-weight:800;color:#fff;margin-bottom:12px;text-shadow:0 2px 8px rgba(0,0,0,0.9);">WHAT IS BLOCKFORGE?</div>
+      <div class="feature-grid" id="feature-grid"></div>
+    </div>
   </div>
 
-  <!-- Scene 3: CTA -->
+  <!-- Scene 3: CTA -- night scene -->
   <div id="scene-3" class="scene">
-    <div class="cta-title">Ready to build?</div>
-    <div class="cta-url" id="cta-url">blockforge-1.onrender.com</div>
-    <div class="cta-sub">Free. No download. Runs in your browser.</div>
-    <div class="qr-placeholder">SCAN QR<br>TO PLAY</div>
+    <div class="game-bg">
+      <div class="sky-night"></div>
+      <div class="moon" style="top:15%;left:65%;"></div>
+    </div>
+    <div class="overlay"></div>
+    <div class="scene-content">
+      <div class="cta-title">Ready to build?</div>
+      <div class="cta-url" id="cta-url">blockforge-1.onrender.com</div>
+      <div class="cta-sub">Free. No download. Runs in your browser.</div>
+      <div class="qr-placeholder">SCAN QR<br>TO PLAY</div>
+    </div>
   </div>
 
   <div id="audio-status">🔇 Audio placeholder — add ElevenLabs voiceover</div>
 </div>
 
+<!-- Progress bar -->
+<div id="progress"></div>
+
+<!-- Skip button -->
+<button id="skip-btn">SKIP ›</button>
+
 <script>
 // ── Config ──
-const TOTAL_DURATION = 20; // seconds
+const TOTAL_DURATION = 20;
 const SCENES = [
   { id: 'scene-1', start: 0, end: 5.5 },
   { id: 'scene-2', start: 5.5, end: 14 },
@@ -257,19 +403,155 @@ const FEATURES = [
   { icon: '🎮', label: 'Free & Online', desc: 'No download needed' },
 ];
 
+// Game block colors
+const COLORS = {
+  grass: '#5B8C2A',
+  dirt: '#8B6B3B',
+  stone: '#6B7B8B',
+  deepslate: '#4A5A6A',
+  planks: '#C0A060',
+  log: '#6B4A2A',
+  leaves: '#4A7A1A',
+  water: '#3A6B8B',
+  sand: '#D4C080',
+  brick: '#B06050',
+  gold: '#E8C830',
+  quartz: '#E8E0D0',
+  wool: '#E8E8E8',
+  bedrock: '#3A3A3A',
+  snow: '#E8F0F8',
+};
+
+const BLOCK_COLORS = Object.values(COLORS);
+
+// ── Drift animation ──
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+@keyframes drift { 0% { transform: translateX(-100px); } 100% { transform: translateX(calc(100vw + 100px)); } }
+`;
+document.head.appendChild(styleSheet);
+
+// ── Build terrain columns ──
+function buildTerrain(container, cols, heights, layers) {
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'display:flex;gap:0;align-items:flex-end;';
+  for (let c = 0; c < cols; c++) {
+    const h = heights[c];
+    const col = document.createElement('div');
+    col.style.cssText = 'display:flex;flex-direction:column-reverse;';
+    for (let ly = 0; ly < h; ly++) {
+      const b = document.createElement('div');
+      b.style.cssText = `width:16px;height:16px;background:${layers[c][ly] || '#000'};`;
+      // Alternate shade for depth
+      if (ly === h - 1) {
+        b.style.borderTop = '1px solid rgba(255,255,255,0.1)';
+      }
+      col.appendChild(b);
+    }
+    wrap.appendChild(col);
+  }
+  container.appendChild(wrap);
+  return wrap;
+}
+
+// ── Generate terrain for each scene ──
+function buildScene1Terrain() {
+  const wrap = document.getElementById('scene-1');
+  const tw = document.createElement('div');
+  tw.className = 'terrain-wrap';
+  tw.style.cssText = 'position:absolute;bottom:0;left:50%;transform:translateX(-50%);display:flex;gap:0;z-index:1;';
+  const COLS = 40;
+  const cols = [];
+  const lay = [];
+  for (let c = 0; c < COLS; c++) {
+    const dx = c - COLS / 2;
+    // Hills using simple parabola
+    const hill = Math.max(1, 6 - Math.abs(dx) * 0.15);
+    const h = Math.floor(hill + (Math.sin(dx * 0.8) * 0.8 + Math.sin(dx * 0.3) * 0.5));
+    cols.push(h + 2); // +2 for grass/dirt
+    const l = [];
+    // bedrock
+    l.push(COLORS.bedrock);
+    // stone
+    for (let s = 0; s < h - 1; s++) l.push(s % 2 === 0 ? COLORS.stone : '#5A6A7A');
+    // dirt
+    l.push(COLORS.dirt);
+    // grass
+    l.push(COLORS.grass);
+    lay.push(l);
+  }
+  buildTerrain(tw, COLS, cols, lay);
+
+  // Add tree at center
+  const treeCol = tw.children[0].children[Math.floor(COLS / 2)];
+  if (treeCol) {
+    const treeY = cols[Math.floor(COLS / 2)];
+    // Trunk
+    for (let t = 0; t < 4; t++) {
+      const trunk = document.createElement('div');
+      trunk.style.cssText = 'width:16px;height:16px;background:' + COLORS.log + ';';
+      tw.appendChild(trunk);
+    }
+    // Leaves
+    for (let lx = -1; lx <= 1; lx++) {
+      for (let lz = -1; lz <= 1; lz++) {
+        const leaf = document.createElement('div');
+        leaf.style.cssText = `position:absolute;bottom:${(treeY + 4 + lz) * 16}px;left:${(COLS/2 + lx) * 16 - (lx === 0 ? 0 : 0)}px;width:16px;height:16px;background:${COLORS.leaves};opacity:0.9;`;
+        if (lz === -1 && lx === 0) tw.appendChild(leaf);
+      }
+    }
+  }
+  wrap.insertBefore(tw, wrap.querySelector('.overlay'));
+}
+
+function buildScene3Terrain() {
+  const wrap = document.getElementById('scene-3');
+  const tw = document.createElement('div');
+  tw.style.cssText = 'position:absolute;bottom:0;left:0;right:0;display:flex;gap:0;z-index:1;';
+  const COLS = 40;
+  const cols = [];
+  const lay = [];
+  for (let c = 0; c < COLS; c++) {
+    const dx = c - COLS / 2;
+    const hill = Math.max(1, 5 - Math.abs(dx) * 0.2);
+    const h = Math.floor(hill + Math.sin(dx * 1.2) * 0.5);
+    cols.push(h + 1);
+    const l = [];
+    l.push(COLORS.bedrock);
+    for (let s = 0; s < h - 1; s++) l.push(s % 2 === 0 ? COLORS.deepslate : '#3A4A5A');
+    l.push(COLORS.dirt);
+    l.push(COLORS.grass);
+    lay.push(l);
+  }
+  buildTerrain(tw, COLS, cols, lay);
+}
+
+// ── Stars for night scene ──
+function buildStars() {
+  const bg = document.querySelector('#scene-3 .game-bg');
+  for (let i = 0; i < 40; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 55 + '%';
+    s.style.animationDelay = Math.random() * 3 + 's';
+    s.style.width = s.style.height = (1 + Math.random() * 2) + 'px';
+    bg.appendChild(s);
+  }
+}
+
 // ── Block particles ──
-const BLOCK_COLORS = ['#5B8C2A','#8B6B3B','#6B7B8B','#4A7A1A','#3A5A8B','#A06B3B','#C0C0C0','#5A3A1A','#2A4A7A'];
 const blockBg = document.getElementById('block-bg');
-for (let i = 0; i < 30; i++) {
+for (let i = 0; i < 20; i++) {
   const el = document.createElement('div');
   el.className = 'block-particle';
   el.style.left = Math.random() * 100 + '%';
-  el.style.width = el.style.height = (10 + Math.random() * 20) + 'px';
+  el.style.width = el.style.height = (10 + Math.random() * 16) + 'px';
   el.style.background = BLOCK_COLORS[Math.floor(Math.random() * BLOCK_COLORS.length)];
-  el.style.borderRadius = Math.random() > 0.5 ? '3px' : '50%';
-  el.style.animationDuration = (15 + Math.random() * 20) + 's';
+  el.style.borderRadius = '2px';
+  el.style.animationDuration = (18 + Math.random() * 15) + 's';
   el.style.animationDelay = -(Math.random() * 20) + 's';
-  el.style.opacity = 0.05 + Math.random() * 0.1;
+  el.style.opacity = 0.05 + Math.random() * 0.08;
   blockBg.appendChild(el);
 }
 
@@ -313,7 +595,7 @@ function buildBlockReveal() {
   const row = document.createElement('div');
   row.className = 'block-row';
   row.style.marginBottom = '16px';
-  const blocks = ['#5B8C2A','#8B6B3B','#6B7B8B','#C0C0C0','#A06B3B','#3A5A8B','#5A3A1A','#4A7A1A','#2A4A7A'];
+  const blocks = Object.values(COLORS);
   blocks.forEach((c, i) => {
     const cell = document.createElement('div');
     cell.className = 'block-cell';
@@ -321,7 +603,7 @@ function buildBlockReveal() {
     cell.style.transitionDelay = (i * 0.05) + 's';
     row.appendChild(cell);
   });
-  container.insertBefore(row, container.firstChild);
+  container.appendChild(row);
   requestAnimationFrame(() => {
     row.querySelectorAll('.block-cell').forEach(el => el.classList.add('show'));
   });
@@ -339,7 +621,6 @@ function activateScene(idx) {
   if (scene) scene.classList.add('active');
   currentSceneIdx = idx;
 
-  // Scene-specific triggers
   if (SCENES[idx].id === 'scene-1') {
     const hookEl = document.getElementById('hook-text');
     const subEl = document.getElementById('hook-sub');
@@ -369,7 +650,6 @@ function tick(timestamp) {
   const progress = Math.min(elapsed / TOTAL_DURATION, 1);
   document.getElementById('progress').style.width = (progress * 100) + '%';
 
-  // Scene transitions
   for (let i = SCENES.length - 1; i >= 0; i--) {
     if (elapsed >= SCENES[i].start && currentSceneIdx !== i) {
       activateScene(i);
@@ -380,7 +660,6 @@ function tick(timestamp) {
   if (elapsed < TOTAL_DURATION && !skipped) {
     animId = requestAnimationFrame(tick);
   } else {
-    // Loop: show CTA indefinitely
     document.getElementById('progress').style.width = '100%';
   }
 }
@@ -389,20 +668,22 @@ function tick(timestamp) {
 document.getElementById('skip-btn').addEventListener('click', () => {
   skipped = true;
   if (animId) cancelAnimationFrame(animId);
-  activateScene(2); // Jump to CTA
+  activateScene(2);
   document.getElementById('progress').style.width = '100%';
   document.getElementById('skip-btn').textContent = '↻ RESTART';
   document.getElementById('skip-btn').onclick = () => location.reload();
 });
 
 // ── Init ──
+buildScene1Terrain();
+buildScene3Terrain();
+buildStars();
 activateScene(0);
 document.addEventListener('click', () => {
   if (!startTime) startTime = performance.now();
   if (!animId) animId = requestAnimationFrame(tick);
 }, { once: true });
 
-// Auto-start after 1s
 setTimeout(() => {
   if (!startTime) {
     startTime = performance.now();
@@ -411,17 +692,6 @@ setTimeout(() => {
 }, 1000);
 
 // ── Audio hook placeholder ──
-// ElevenLabs voiceover placeholder:
-// Replace with:
-//   const audio = new Audio('voiceover.mp3');
-//   audio.play();
-// Sync timings:
-//   0.0s  "Want a Minecraft experience but don't have Minecraft?"
-//   5.5s  "BlockForge is a free voxel game that runs in your browser."
-//   8.0s  "Survive, build, craft, and explore with friends online."
-//   10.5s "Customize your skin, master parkour, build redstone machines."
-//   13.0s "No downloads. No payment. Just play."
-//   14.0s "Join at blockforge-1.onrender.com"
 console.log('[Promo] Ready — add ElevenLabs voiceover when you have the API key');
 </script>
 </body>

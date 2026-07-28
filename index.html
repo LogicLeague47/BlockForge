@@ -33,6 +33,31 @@
     <script>
       // Global error banner — catches ALL runtime errors and shows a red bar linking to debug.html
       (function() {
+        function copyError(text, btn) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+              btn.textContent = 'Copied!';
+              setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            }).catch(function() {
+              fallbackCopy(text, btn);
+            });
+          } else {
+            fallbackCopy(text, btn);
+          }
+        }
+        function fallbackCopy(text, btn) {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand('copy');
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+          } catch (_) {}
+          document.body.removeChild(ta);
+        }
         function showErrorBanner(msg, file, line, col, stack, type) {
           if (document.getElementById('error-banner')) return;
           var banner = document.createElement('div');
@@ -48,10 +73,11 @@
             stack: stack || ''
           });
           var fullError = (type || 'Error') + ': ' + (msg || '') + '\nFile: ' + (file || '') + '\nLine: ' + line + ', Col: ' + col + '\n\nStack:\n' + (stack || '');
+          var copyData = JSON.stringify(fullError);
           banner.innerHTML = '<span style="flex:1;">&#9888; ' + shortMsg.replace(/</g,'&lt;') + '</span>' +
-            '<button onclick="navigator.clipboard.writeText(' + JSON.stringify(fullError) + ')" style="background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;padding:2px 8px;cursor:pointer;font:12px monospace;margin-right:4px;">Copy</button>' +
-            '<a href="debug.html?' + params.toString() + '" target="_blank" style="color:#fff;text-decoration:underline;white-space:nowrap;">View Debug Report</a>' +
-            '<button onclick="this.parentElement.remove()" style="background:none;border:1px solid rgba(255,255,255,0.3);color:#fff;padding:2px 8px;cursor:pointer;font:12px monospace;">Dismiss</button>';
+            '<button onclick="copyError(' + copyData + ', this)" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:3px 10px;cursor:pointer;font:12px monospace;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.12)\'">Copy</button>' +
+            '<a href="debug.html?' + params.toString() + '" target="_blank" style="color:#fff;text-decoration:underline;white-space:nowrap;font:12px monospace;">Debug</a>' +
+            '<button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:3px 8px;cursor:pointer;font:12px monospace;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">Dismiss</button>';
           document.body.appendChild(banner);
         }
         window.addEventListener('error', function(e) {
