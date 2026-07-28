@@ -611,28 +611,19 @@ FEATURES.forEach((f, i) => {
   grid.appendChild(card);
 });
 
-// ── Block reveal animation for scene 2 ──
-let _blockRevealBuilt = false;
-function buildBlockReveal() {
-  if (_blockRevealBuilt) return;
-  _blockRevealBuilt = true;
-  const container = document.getElementById('scene-2');
-  const row = document.createElement('div');
-  row.className = 'block-row';
-  row.style.marginBottom = '16px';
-  const blocks = Object.values(COLORS);
-  blocks.forEach((c, i) => {
-    const cell = document.createElement('div');
-    cell.className = 'block-cell';
-    cell.style.background = c;
-    cell.style.transitionDelay = (i * 0.05) + 's';
-    row.appendChild(cell);
-  });
-  container.appendChild(row);
-  requestAnimationFrame(() => {
-    row.querySelectorAll('.block-cell').forEach(el => el.classList.add('show'));
-  });
-}
+// ── Block reveal for scene 2 ──
+const _blockRow = document.createElement('div');
+_blockRow.className = 'block-row';
+_blockRow.style.cssText = 'margin-top:12px;';
+const blocks = Object.values(COLORS);
+blocks.forEach((c, i) => {
+  const cell = document.createElement('div');
+  cell.className = 'block-cell';
+  cell.style.background = c;
+  cell.style.transitionDelay = (i * 0.05) + 's';
+  _blockRow.appendChild(cell);
+});
+document.querySelector('#scene-2 .scene-content').appendChild(_blockRow);
 
 // ── Scene management ──
 let currentSceneIdx = 0;
@@ -661,7 +652,7 @@ function activateScene(idx) {
   }
 
   if (SCENES[idx].id === 'scene-2') {
-    buildBlockReveal();
+    _blockRow.querySelectorAll('.block-cell').forEach(el => el.classList.add('show'));
     const cards = document.querySelectorAll('.feature-card');
     cards.forEach((card, i) => {
       setTimeout(() => card.classList.add('show'), i * 120 + 200);
