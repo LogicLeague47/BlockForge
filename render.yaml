@@ -16,7 +16,7 @@ services:
   # Connects to blockforge-server for WebSocket multiplayer.
   - type: static
     name: blockforge-client
-    buildCommand: npm install && npm run build
+    buildCommand: (apt-get update -y && apt-get install -y zip || true) && npm install && npm run build
     staticPublishPath: ./dist
     headers:
       - path: /*

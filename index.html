@@ -2292,7 +2292,7 @@
         <div class="menu-title" style="font-size:32px;">🛠 UTILITIES &amp; DOWNLOADS</div>
         <div style="font:12px monospace;color:#aaa;margin-bottom:8px;">Download the game for your platform</div>
         <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:440px;">
-          <a class="dl-card" href="/downloads/mac-arm64.tgz">
+          <a class="dl-card" data-file="mac-arm64">
             <div class="dl-icon">🍎</div>
             <div class="dl-info">
               <div class="dl-name">Mac — Apple Silicon</div>
@@ -2300,7 +2300,7 @@
             </div>
             <div class="dl-arrow">→</div>
           </a>
-          <a class="dl-card" href="/downloads/mac-x64.tgz">
+          <a class="dl-card" data-file="mac-x64">
             <div class="dl-icon">🖥</div>
             <div class="dl-info">
               <div class="dl-name">Mac — Intel</div>
@@ -2308,7 +2308,7 @@
             </div>
             <div class="dl-arrow">→</div>
           </a>
-          <a class="dl-card" href="/downloads/windows.tgz">
+          <a class="dl-card" data-file="windows">
             <div class="dl-icon">🪟</div>
             <div class="dl-info">
               <div class="dl-name">Windows</div>
@@ -2316,7 +2316,7 @@
             </div>
             <div class="dl-arrow">→</div>
           </a>
-          <a class="dl-card" href="/downloads/android.tgz">
+          <a class="dl-card" data-file="android">
             <div class="dl-icon">🤖</div>
             <div class="dl-info">
               <div class="dl-name">Android</div>
@@ -2324,7 +2324,7 @@
             </div>
             <div class="dl-arrow">→</div>
           </a>
-          <a class="dl-card" href="/downloads/iphone-ipa.tgz">
+          <a class="dl-card" data-file="iphone-ipa">
             <div class="dl-icon">📱</div>
             <div class="dl-info">
               <div class="dl-name">iPhone / iOS</div>
@@ -2337,6 +2337,18 @@
           <b style="color:#fa0;">iPhone / iOS:</b> You <b>must</b> install <b>SideStore</b> and <b>LiveContainer</b> to sideload this IPA.
         </div>
         <button class="menu-btn secondary" id="btn-download-back" style="margin-top:16px;">BACK</button>
+        <script>
+        // Set correct download links from manifest
+        fetch('/downloads/manifest.json').then(r=>r.json()).then(m=>{
+          document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
+            const f=el.dataset.file; if(f) el.href='/downloads/'+f+'.'+m.ext;
+          });
+        }).catch(()=>{
+          document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
+            const f=el.dataset.file; if(f) el.href='/downloads/'+f+'.zip';
+          });
+        });
+        </script>
       </div>
 
       <!-- Fixed viewport elements -->
