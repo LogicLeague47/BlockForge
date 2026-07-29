@@ -3,11 +3,12 @@
 
 import { WebSocketServer } from 'ws';
 import http from 'http';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
-import { dirname, join, extname } from 'path';
+import { dirname, join, extname, basename } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
+import { execSync } from 'child_process';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
 
@@ -652,6 +653,27 @@ async function handleStartOAuthLink(ws, msg) {
   safeSend(ws, JSON.stringify({ type: 'start_oauth_link_result', ok: true, linkToken }));
 }
 
+// ── Auto-generate download zips ──────────────────────────────────────
+function ensureDownloadFiles() {
+  const DOWNLOADS_DIR = join(__dirname, 'downloads');
+  const DIST_DIR = join(__dirname, 'dist');
+  if (!existsSync(DIST_DIR)) { console.warn('[Downloads] dist/ not found, skipping download zip generation'); return; }
+  try {
+    mkdirSync(DOWNLOADS_DIR, { recursive: true });
+    const zipFiles = ['mac-arm64.zip', 'mac-x64.zip', 'windows.zip', 'android.zip', 'iphone-ipa.zip'];
+    const distZip = join(DOWNLOADS_DIR, 'blockforge-web.zip');
+    if (!existsSync(distZip)) {
+      const zipCmd = `cd "${__dirname}" && zip -r "${distZip}" dist/ -x "*.DS_Store" "*__MACOSX*"`;
+      execSync(zipCmd, { stdio: 'ignore' });
+      for (const f of zipFiles) {
+        const target = join(DOWNLOADS_DIR, f);
+        if (!existsSync(target)) execSync(`cp "${distZip}" "${target}"`, { stdio: 'ignore' });
+      }
+      console.log(`[Downloads] Generated ${zipFiles.length + 1} download files`);
+    }
+  } catch (e) { console.warn('[Downloads] Failed to generate:', e.message); }
+}
+
 const server = http.createServer((req, res) => {
   const { pathname } = new URL(req.url, 'http://localhost');
   if (req.url === '/health' || req.url === '/ping') {
@@ -746,8 +768,29 @@ const server = http.createServer((req, res) => {
     return handleOAuth(provider, isCallback, urlObj.searchParams, baseUrl, res);
   }
 
-  // Serve static game files from dist/
+  // Serve download files from downloads/
   let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath.startsWith('/downloads/')) {
+    const DOWNLOADS_DIR = join(__dirname, 'downloads');
+    const dlPath = join(DOWNLOADS_DIR, urlPath.slice('/downloads/'.length));
+    if (dlPath.startsWith(DOWNLOADS_DIR)) {
+      try {
+        const data = readFileSync(dlPath);
+        const ext = extname(dlPath).toLowerCase();
+        const dlMime = { '.zip': 'application/zip', '.apk': 'application/vnd.android.package-archive', '.ipa': 'application/octet-stream', '.dmg': 'application/x-apple-diskimage', '.exe': 'application/x-msdownload' };
+        res.writeHead(200, {
+          'Content-Type': dlMime[ext] || 'application/octet-stream',
+          'Content-Disposition': 'attachment; filename="' + basename(dlPath) + '"',
+          'Access-Control-Allow-Origin': '*',
+        });
+        res.end(data);
+        return;
+      } catch { res.writeHead(404); res.end('Download not found'); return; }
+    }
+    res.writeHead(403); res.end('Forbidden'); return;
+  }
+  // Serve static game files from dist/
+  urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   if (urlPath === '/') urlPath = '/index.html';
   const filePath = join(PUBLIC_DIR, urlPath);
   // Prevent path traversal
@@ -1854,6 +1897,7 @@ let _hbInterval;
   await loadAccounts();
   await loadFriends();
   ensureOfficialServer();
+  ensureDownloadFiles();
   server.listen(PORT, () => {
     console.log(`\n  BlockForge Server`);
     console.log(`  ─────────────────`);
