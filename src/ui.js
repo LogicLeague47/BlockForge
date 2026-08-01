@@ -1615,7 +1615,6 @@ export class UI {
       'More Updates Coming Soon!',
       'Also try Terraria!',
       '100% JavaScript!',
-      'Open source!',
       'Block by block!',
       'Made with love!',
       'Not affiliated with Mojang!',
