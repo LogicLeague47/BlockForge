@@ -4123,14 +4123,6 @@ function initMenu() {
     renderWorldList();
   });
 
-  // --- Download menu ---
-  document.getElementById('btn-download')?.addEventListener('click', () => {
-    ui.showMenu('download');
-  });
-  document.getElementById('btn-download-back')?.addEventListener('click', () => {
-    ui.showMenu('main');
-  });
-
   // --- Minigames menu ---
   document.getElementById('btn-minigames')?.addEventListener('click', () => {
     ui.showMenu('minigames');
