@@ -55,14 +55,16 @@ jobs:
           APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_TEAM_ID: ${{ secrets.APPLE_API_TEAM_ID }}
-      - name: Build Mac DMGs (arm64 + x64)
+      - name: Bump patch version (enables auto-update on every deploy)
+        run: node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json'));const v=p.version.split('.').map(Number);v[2]++;p.version=v.join('.');fs.writeFileSync('package.json',JSON.stringify(p,null,2));console.log('version ->',p.version)"
+      - name: Build Mac app (x64 DMG, then arm64 DMG + auto-update zip)
         run: |
-          npx electron-builder --mac dmg --arm64
-          npx electron-builder --mac dmg --x64
-      - name: Upload DMGs to GitHub Release
+          npx electron-builder --mac --x64 --publish never
+          npx electron-builder --mac --arm64 --publish never
+      - name: Upload Mac builds to GitHub Release
         run: |
           gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
-          gh release upload binaries release/BlockForge-mac-arm64.dmg release/BlockForge-mac-x64.dmg --clobber
+          gh release upload binaries release/BlockForge-mac-arm64.dmg release/BlockForge-mac-x64.dmg release/BlockForge-mac-arm64.zip release/latest-mac.yml --clobber
 
   build-android-apk:
     runs-on: ubuntu-latest
