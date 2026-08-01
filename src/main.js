@@ -590,128 +590,6 @@ const underwaterOverlay = document.getElementById('underwater-overlay');
 // --- stars overlay ---
 const starsOverlay = document.getElementById('stars');
 
-// --- block breaking particles ---
-const PARTICLE_COUNT = 8;
-const PARTICLE_LIFE = 0.6;
-const particles = [];
-const particleGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
-
-const BLOCK_COLORS = {
-  [BLOCK.GRASS]: 0x5daa34,
-  [BLOCK.DIRT]: 0x866043,
-  [BLOCK.STONE]: 0x888888,
-  [BLOCK.COBBLESTONE]: 0x777777,
-  [BLOCK.WOOD]: 0x6b5230,
-  [BLOCK.LEAVES]: 0x4a9a2a,
-  [BLOCK.SAND]: 0xdbc67b,
-  [BLOCK.WATER]: 0x3a7acc,
-  [BLOCK.BEDROCK]: 0x555555,
-  [BLOCK.PLANKS]: 0xb8945a,
-  [BLOCK.COAL_ORE]: 0x444444,
-  [BLOCK.IRON_ORE]: 0xb8a080,
-  [BLOCK.GOLD_ORE]: 0xd4c060,
-  [BLOCK.DIAMOND_ORE]: 0x60d4d4,
-  [BLOCK.GLASS]: 0xc8e8f0,
-  [BLOCK.BRICK]: 0x9a4a3a,
-  [BLOCK.GRAVEL]: 0x8a8278,
-  [BLOCK.CLAY]: 0xa0a0b0,
-  [BLOCK.PUMPKIN]: 0xc87820,
-  [BLOCK.CACTUS]: 0x3a8a2a,
-  [BLOCK.FLOWER_RED]: 0xcc3333,
-  [BLOCK.FLOWER_YELLOW]: 0xdddd33,
-  [BLOCK.OBSIDIAN]: 0x1a0a2a,
-  [BLOCK.NETHERRACK]: 0x6a2222,
-  [BLOCK.RED_SAND]: 0xb86030,
-  [BLOCK.TERRACOTTA]: 0xb06040,
-  [BLOCK.SNOW_BLOCK]: 0xf0f0f8,
-  [BLOCK.DARK_OAK_LEAVES]: 0x2a6a1a,
-  [BLOCK.JUNGLE_WOOD]: 0x5a7a30,
-  [BLOCK.SNOW]: 0xf0f0f8,
-  [BLOCK.SNOW_GRASS]: 0xf0f0f8,
-  [BLOCK.FURNACE]: 0x888888,
-  [BLOCK.BOOKSHELF]: 0x8a6a44,
-  [BLOCK.TNT]: 0xcc3333,
-  [BLOCK.CRAFTING]: 0x8a6a44,
-  [BLOCK.BED]: 0xaa3333,
-  [BLOCK.BED_FOOT]: 0xaa3333,
-  [BLOCK.PODZOL]: 0x6a5030,
-  [BLOCK.MYCELIUM]: 0x7a7a8a,
-  [BLOCK.LADDER]: 0x8a6a3c,
-  [BLOCK.OAK_FENCE]: 0xbc9458,
-  [BLOCK.OAK_DOOR]: 0xbc9458,
-  [BLOCK.STONE_BUTTON]: 0x8a8a8a,
-  [BLOCK.LEVER]: 0x8a8a8a,
-  [BLOCK.OAK_SIGN]: 0xbc9458,
-  [BLOCK.STONE_PRESSURE_PLATE]: 0x8a8a8a,
-  [BLOCK.COPPER_ORE]: 0xb07040,
-  [BLOCK.EMERALD_ORE]: 0x40b060,
-  [BLOCK.FLOWER_POT]: 0xa06830,
-  [BLOCK.CARPET]: 0xe8e0d0,
-  [BLOCK.PAINTING]: 0xbc9458,
-  [BLOCK.IRON_DOOR]: 0xb8b8b8,
-  [BLOCK.WOOL]: 0xe8e0d0,
-  [BLOCK.GREENSTONE_ORE]: 0x1a8040,
-  [BLOCK.GREENSTONE_BLOCK]: 0x187838,
-  [BLOCK.GREENSTONE_DUST]: 0x147830,
-  [BLOCK.GREENSTONE_TORCH]: 0x28a050,
-  [BLOCK.GREENSTONE_LAMP]: 0x28a050,
-  [BLOCK.PISTON]: 0xbc9458,
-  [BLOCK.STICKY_PISTON]: 0xbc9458,
-  [BLOCK.LAVA]: 0xff6600,
-  [BLOCK.IRON_BARS]: 0x8a8a8a,
-};
-
-function spawnBreakParticles(x, y, z, blockId) {
-  const color = BLOCK_COLORS[blockId] ?? 0x888888;
-  const col = new THREE.Color(color);
-  const count = blockId === BLOCK.GLASS ? PARTICLE_COUNT * 2 : PARTICLE_COUNT;
-  for (let i = 0; i < count; i++) {
-    const brightness = 0.7 + Math.random() * 0.3;
-    const mat = new THREE.MeshLambertMaterial({
-      color: new THREE.Color(col.r * brightness, col.g * brightness, col.b * brightness),
-    });
-    const mesh = new THREE.Mesh(particleGeo, mat);
-    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-    mesh.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
-    const spread = 2.5 + Math.random() * 1.5;
-    scene.add(mesh);
-    particles.push({
-      mesh,
-      vx: (Math.random() - 0.5) * spread,
-      vy: Math.random() * 3.5 + 1.5,
-      vz: (Math.random() - 0.5) * spread,
-      life: PARTICLE_LIFE + Math.random() * 0.2,
-      rotSpeed: (Math.random() - 0.5) * 6,
-    });
-  }
-}
-
-function updateParticles(dt) {
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.life -= dt;
-    if (p.life <= 0) {
-      scene.remove(p.mesh);
-      if (p.mesh.geometry !== particleGeo) p.mesh.geometry.dispose();
-      p.mesh.material.dispose();
-      particles.splice(i, 1);
-      continue;
-    }
-    p.vy -= 9.8 * dt;
-    p.mesh.position.x += p.vx * dt;
-    p.mesh.position.y += p.vy * dt;
-    p.mesh.position.z += p.vz * dt;
-    const t = Math.max(0, p.life / PARTICLE_LIFE);
-    p.mesh.material.opacity = t;
-    p.mesh.material.transparent = true;
-    p.mesh.scale.setScalar(0.3 + t * 0.7);
-    if (p.rotSpeed) {
-      p.mesh.rotation.x += p.rotSpeed * dt;
-      p.mesh.rotation.z += p.rotSpeed * dt * 0.7;
-    }
-  }
-}
-
 // --- Game state (set by startGame) ---
 let world = null, manager = null, loader = null, player = null, mobManager = null, explosionManager = null, playerModel = null;
 let _lastLocalArmorKey = '';
@@ -737,6 +615,7 @@ let gameRunning = false;
 let voiceChat = null;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
+let baseFov = 75; // FOV setting; sprint FOV zooms from this
 let _dwState = { mode: 'creative', diff: 'normal', terrain: 'flat', mp: 'solo', maxPlayers: 10 };
 let _pendingDevWorldOpts = null;
 let gameDifficulty = 'normal'; // 'normal' | 'hard'
@@ -1830,7 +1709,6 @@ function doBreak(hit, b) {
           const nx = hit.x + dx, ny = hit.y + dy, nz = hit.z + dz;
           const nb = world.getBlock(nx, ny, nz);
           if (nb !== BLOCK.AIR && nb !== BLOCK.BEDROCK) {
-            spawnBreakParticles(nx, ny, nz, nb);
             if (breakParticles) breakParticles.emit(nb, nx, ny, nz, 8);
             world.setBlock(nx, ny, nz, BLOCK.AIR);
             if (network.isInRoom()) network.sendBlockUpdate(nx, ny, nz, 0);
@@ -1871,7 +1749,6 @@ function doBreak(hit, b) {
         }
       }
       for (const tb of treeBlocks) {
-        spawnBreakParticles(tb.x, tb.y, tb.z, tb.b);
         if (breakParticles) breakParticles.emit(tb.b, tb.x, tb.y, tb.z, 8);
         world.setBlock(tb.x, tb.y, tb.z, BLOCK.AIR);
         if (network.isInRoom()) network.sendBlockUpdate(tb.x, tb.y, tb.z, 0);
@@ -1886,8 +1763,7 @@ function doBreak(hit, b) {
     }
   }
 
-  spawnBreakParticles(hit.x, hit.y, hit.z, b);
-  if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 12);
+  if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
   // drop item
@@ -3285,7 +3161,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   scene.fog.near = 16 * 5;
 
   // Apply FOV and volume at world load
-  camera.fov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  baseFov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  camera.fov = baseFov;
   camera.updateProjectionMatrix();
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
   const vol = parseInt(document.getElementById('set-volume')?.value) || 50;
@@ -4032,8 +3909,8 @@ function initMenu() {
   // Load FPS setting into a module-level flag
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
   // Apply FOV from loaded setting
-  const fovVal = parseInt(document.getElementById('set-fov')?.value) || 75;
-  camera.fov = fovVal;
+  baseFov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  camera.fov = baseFov;
   camera.updateProjectionMatrix();
 
   // First-time name prompt (standalone / non-CG users)
@@ -4098,7 +3975,8 @@ function initMenu() {
     if (loader && loader.setRadius) loader.setRadius(renderDist);
   });
   document.getElementById('set-fov')?.addEventListener('change', (e) => {
-    camera.fov = parseInt(e.target.value) || 75;
+    baseFov = parseInt(e.target.value) || 75;
+    camera.fov = baseFov;
     camera.updateProjectionMatrix();
     try { localStorage.setItem('bf_fov', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
@@ -6375,9 +6253,8 @@ function loop() {
     if (underwaterOverlay) underwaterOverlay.style.display = 'none';
   }
 
-  // update block breaking particles (skip on low quality)
-  updateParticles(dt);
-  if (breakParticles && graphicsQuality !== 'low') breakParticles.update(dt);
+  // update block breaking particles
+  if (breakParticles) breakParticles.update(dt);
   if (ambientParticles && graphicsQuality !== 'low') {
     ambientParticles.setBiome(world.biomeAt(Math.floor(player.position.x), Math.floor(player.position.z), Math.floor(player.position.y)));
     ambientParticles.update(dt, player.position);
@@ -6403,8 +6280,9 @@ function loop() {
     ghostMesh.visible = false;
   }
 
-  // Sprint FOV effect (subtle zoom out when sprinting)
-  const targetFov = player && player.sprinting ? 80 : (player && player.cameraMode !== 0 ? 70 : 75);
+  // Sprint FOV effect (smooth zoom out when sprinting, respects the FOV setting)
+  const baseTarget = (player && player.cameraMode !== 0) ? baseFov - 5 : baseFov;
+  const targetFov = player && player.sprinting ? baseTarget + 5 : baseTarget;
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 8);
   camera.updateProjectionMatrix();
 

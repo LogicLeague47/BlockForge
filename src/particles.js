@@ -69,31 +69,40 @@ export class BreakParticles {
   }
 
   emit(blockId, x, y, z, count) {
-    count = count || 12;
+    count = count || 16;
     const color = getBlockColor(blockId);
     for (let i = 0; i < count; i++) {
-      const size = 0.04 + Math.random() * 0.06;
+      const size = 0.05 + Math.random() * 0.09;
       const mat = new THREE.MeshLambertMaterial({
         color: new THREE.Color(
-          color[0] * (0.8 + Math.random() * 0.4),
-          color[1] * (0.8 + Math.random() * 0.4),
-          color[2] * (0.8 + Math.random() * 0.4)
+          color[0] * (0.7 + Math.random() * 0.5),
+          color[1] * (0.7 + Math.random() * 0.5),
+          color[2] * (0.7 + Math.random() * 0.5)
         ),
       });
       const mesh = new THREE.Mesh(this._geo, mat);
       mesh.scale.set(size, size, size);
-      mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+      // Spawn across the whole block volume
+      mesh.position.set(
+        x + 0.2 + Math.random() * 0.6,
+        y + 0.2 + Math.random() * 0.6,
+        z + 0.2 + Math.random() * 0.6
+      );
 
-      // Random velocity — burst outward and up
-      const vx = (Math.random() - 0.5) * 3;
-      const vy = 2 + Math.random() * 3;
-      const vz = (Math.random() - 0.5) * 3;
+      // Burst outward and up
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.5 + Math.random() * 2.5;
+      const vx = Math.cos(angle) * speed * 0.6;
+      const vy = 2 + Math.random() * 3.5;
+      const vz = Math.sin(angle) * speed * 0.6;
 
       this.particles.push({
         mesh, vx, vy, vz,
-        life: 0.4 + Math.random() * 0.4,
+        size,
+        life: 0.5 + Math.random() * 0.5,
         age: 0,
-        rotSpeed: (Math.random() - 0.5) * 10,
+        floor: y + 0.05,
+        rotSpeed: (Math.random() - 0.5) * 12,
       });
       this.group.add(mesh);
     }
@@ -110,16 +119,24 @@ export class BreakParticles {
         continue;
       }
       // Physics
-      p.vy -= 12 * dt; // gravity
+      p.vy -= 14 * dt; // gravity
       p.mesh.position.x += p.vx * dt;
       p.mesh.position.y += p.vy * dt;
       p.mesh.position.z += p.vz * dt;
+      // One satisfying tumble bounce off the floor of the broken block
+      if (p.mesh.position.y < p.floor && p.vy < 0) {
+        p.mesh.position.y = p.floor;
+        p.vy = -p.vy * 0.35;
+        p.vx *= 0.6;
+        p.vz *= 0.6;
+      }
       p.mesh.rotation.x += p.rotSpeed * dt;
       p.mesh.rotation.z += p.rotSpeed * dt;
-      // Fade out
-      const alpha = 1 - p.age / p.life;
+      // Fade out and shrink
+      const t = p.age / p.life;
       p.mesh.material.transparent = true;
-      p.mesh.material.opacity = alpha;
+      p.mesh.material.opacity = 1 - t;
+      p.mesh.scale.setScalar(p.size * (1 - t * 0.6));
     }
   }
 

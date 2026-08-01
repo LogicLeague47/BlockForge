@@ -398,9 +398,9 @@ function calcArmPose(state, side) {
   // ── Crouch: arms slightly forward ──
   armRx += rad(15) * sneak * (1 - inAir);
 
-  // ── Break animation ──
+  // ── Break animation (one-sided chop, always in front of the player) ──
   if (state.breaking && isRight) {
-    const mineSwing = Math.sin(state._minePhase) * rad(80);
+    const mineSwing = rad(15) + (1 - Math.cos(state._minePhase)) * rad(55);
     armRx = mineSwing;
     armRy = rad(10);
   }

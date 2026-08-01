@@ -464,6 +464,7 @@ export class PlayerModel {
 
     // Position at the bottom of the arm (the hand), pushed forward (-Z = character front)
     wrap.position.set(0, -px(ARM.h - 1), -px(3));
+    wrap.userData.baseRot = { x: wrap.rotation.x, y: wrap.rotation.y, z: wrap.rotation.z };
     this._heldMesh = wrap;
     this.rightArm.add(wrap);
   }
@@ -555,6 +556,15 @@ export class PlayerModel {
 
     this.leftLegPivot.rotation.x = pose.leftLegRotX;
     this.rightLegPivot.rotation.x = pose.rightLegRotX;
+
+    // Held item: pitch the tip into the block during the swing/break so it
+    // looks like the tool leads the hit, not just trails along rigidly.
+    if (this._heldMesh && this._heldMesh.userData.baseRot) {
+      const b = this._heldMesh.userData.baseRot;
+      const swing = this.animData.swingProgress > 0 ? 0.8 * Math.sin(this.animData.swingProgress * Math.PI) : 0;
+      const chop = this.animData.breaking ? 0.35 * (1 - Math.cos(this.animData._minePhase)) : 0;
+      this._heldMesh.rotation.x = b.x + chop + swing;
+    }
 
     // Shadow map handles shadows — no blob shadow needed
   }
