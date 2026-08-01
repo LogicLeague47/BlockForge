@@ -1223,49 +1223,77 @@ const PAINTERS = {
   },
 
   chest_top(ctx, x0, y0, rng) {
-    // Brown planks with darker border
-    noisy(ctx, x0, y0, [150, 110, 55], 0.06, rng);
-    // Dark border
-    ctx.fillStyle = 'rgba(90,65,30,0.7)';
+    // Crate top: warm planks, center lid seam with steel hinges + steel trim
+    noisy(ctx, x0, y0, [135, 92, 52], 0.06, rng);
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let y = 8; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Lid seam down the center
+    ctx.fillStyle = 'rgba(50,32,14,0.6)';
+    for (let y = 0; y < TILE; y++) ctx.fillRect(x0 + 15, y0 + y, 2, 1);
+    // Steel hinges
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0 + 12, y0 + 6, 8, 3);
+    ctx.fillRect(x0 + 12, y0 + 23, 8, 3);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 13, y0 + 7, 1, 1); ctx.fillRect(x0 + 18, y0 + 7, 1, 1);
+    ctx.fillRect(x0 + 13, y0 + 24, 1, 1); ctx.fillRect(x0 + 18, y0 + 24, 1, 1);
+    // Steel edge trim
+    ctx.fillStyle = 'rgb(140,145,155)';
     for (let x = 0; x < TILE; x++) { ctx.fillRect(x0 + x, y0, 1, 1); ctx.fillRect(x0 + x, y0 + TILE - 1, 1, 1); }
+    ctx.fillStyle = 'rgb(90,95,105)';
     for (let y = 0; y < TILE; y++) { ctx.fillRect(x0, y0 + y, 1, 1); ctx.fillRect(x0 + TILE - 1, y0 + y, 1, 1); }
-    // Center latch
-    ctx.fillStyle = 'rgb(180,160,80)';
-    ctx.fillRect(x0 + 14, y0 + 15, 4, 2);
   },
 
   chest_side(ctx, x0, y0, rng) {
-    // Brown wood with vertical planks
-    noisy(ctx, x0, y0, [140, 100, 45], 0.06, rng);
-    // Plank lines
-    ctx.fillStyle = 'rgba(90,65,30,0.4)';
-    for (let x = 6; x < TILE; x += 8) {
-      for (let y = 0; y < TILE; y++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    // Crate side: warm brown planks with a diagonal X-brace and steel corners
+    noisy(ctx, x0, y0, [130, 88, 50], 0.06, rng);
+    // Horizontal plank seams
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let y = 8; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
-    // Bottom trim
-    ctx.fillStyle = 'rgba(100,70,30,0.6)';
-    for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + TILE - 1, 1, 1);
-    // Highlight top edge
-    ctx.fillStyle = 'rgba(180,140,70,0.4)';
-    for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0, 1, 1);
+    // Diagonal X-brace
+    ctx.strokeStyle = 'rgba(70,45,20,0.6)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'square';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 2, y0 + 2); ctx.lineTo(x0 + TILE - 3, y0 + TILE - 3);
+    ctx.moveTo(x0 + TILE - 3, y0 + 2); ctx.lineTo(x0 + 2, y0 + TILE - 3);
+    ctx.stroke();
+    // Steel corner plates (top)
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0, y0, 5, 5); ctx.fillRect(x0 + TILE - 5, y0, 5, 5);
+    ctx.fillStyle = 'rgb(90,95,105)';
+    ctx.fillRect(x0, y0 + 4, 5, 1); ctx.fillRect(x0 + TILE - 5, y0 + 4, 5, 1);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 2, y0 + 2, 1, 1); ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, 1);
   },
 
   chest_front(ctx, x0, y0, rng) {
-    // Front face with latch
-    noisy(ctx, x0, y0, [140, 100, 45], 0.06, rng);
-    // Plank lines
-    ctx.fillStyle = 'rgba(90,65,30,0.4)';
-    for (let x = 6; x < TILE; x += 8) {
+    // Crate front: planks, steel handle bar, mounts + corner plates
+    noisy(ctx, x0, y0, [132, 89, 50], 0.06, rng);
+    // Vertical plank seams
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let x = 8; x < TILE; x += 8) {
       for (let y = 0; y < TILE; y++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
     }
-    // Metal latch (gold colored)
-    ctx.fillStyle = 'rgb(180,160,80)';
-    ctx.fillRect(x0 + 13, y0 + 13, 6, 6);
-    ctx.fillStyle = 'rgb(200,180,100)';
-    ctx.fillRect(x0 + 14, y0 + 14, 4, 4);
-    // Bottom trim
-    ctx.fillStyle = 'rgba(100,70,30,0.6)';
-    for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + TILE - 1, 1, 1);
+    // Handle mounts
+    ctx.fillStyle = 'rgb(110,115,125)';
+    ctx.fillRect(x0 + 4, y0 + 13, 3, 6); ctx.fillRect(x0 + TILE - 7, y0 + 13, 3, 6);
+    // Steel handle bar
+    ctx.fillStyle = 'rgb(90,95,105)';
+    ctx.fillRect(x0 + 6, y0 + 15, 20, 4);
+    ctx.fillStyle = 'rgb(190,195,205)';
+    ctx.fillRect(x0 + 6, y0 + 15, 20, 2);
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0 + 6, y0 + 17, 20, 1);
+    // Corner plates
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0, y0, 5, 5); ctx.fillRect(x0 + TILE - 5, y0, 5, 5);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 2, y0 + 2, 1, 1); ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, 1);
   },
 
   // --- New block painters (BlockForge expansion) ---

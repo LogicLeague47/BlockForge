@@ -20,8 +20,8 @@ export class AudioManager {
     this.master.connect(this.ctx.destination);
 
     this.musicGain = this.ctx.createGain();
-    this.musicGain.gain.value = 0.3;
-    this.musicGain.connect(this.ctx.destination);
+    this.musicGain.gain.value = 0.6;
+    this.musicGain.connect(this.master);
 
     const ctx = this.ctx;
     document.addEventListener('touchend', () => {
@@ -451,9 +451,173 @@ export class AudioManager {
 
   startMusic() {
     this._musicWanted = true;
+    if (this.ctx && !this._musicTimer) {
+      this._musicBar = 0;
+      this._musicNextBar = this.ctx.currentTime + 0.2;
+      this._musicNextMelody = this.ctx.currentTime + 1.0;
+      this._musicTimer = setInterval(() => this._musicScheduler(), 200);
+    }
   }
 
   stopMusic() {
     this._musicWanted = false;
+    if (this._musicTimer) {
+      clearInterval(this._musicTimer);
+      this._musicTimer = null;
+    }
+  }
+
+  // ── AMBIENT MUSIC (procedural, calm C418-ish loop) ─────────────────────
+  // Slow pad chords + sparse pentatonic plucks, self-scheduling with a
+  // look-ahead timer so notes stay in time.
+  _musicScheduler() {
+    if (!this.ctx || !this._musicWanted) { this.stopMusic(); return; }
+    const lookahead = 1.5;
+    const now = this.ctx.currentTime;
+    const PROG = [
+      [57, 60, 64], // Am
+      [53, 57, 60], // F
+      [60, 64, 67], // C
+      [55, 59, 62], // G
+    ];
+    while (this._musicNextBar < now + lookahead) {
+      this._padChord(PROG[this._musicBar % PROG.length], this._musicNextBar, 4);
+      this._musicNextBar += 4;
+      this._musicBar++;
+    }
+    const scale = [57, 60, 62, 64, 67, 69, 72, 76];
+    while (this._musicNextMelody < now + lookahead) {
+      if (Math.random() < 0.35) {
+        this._pluck(scale[Math.floor(Math.random() * scale.length)], this._musicNextMelody);
+      }
+      this._musicNextMelody += 1;
+    }
+  }
+
+  _padChord(notes, t, dur) {
+    if (!this.ctx) return;
+    const g = this._gain(0);
+    const lp = this._filter('lowpass', 900, 0.7);
+    g.connect(lp);
+    lp.connect(this.musicGain);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.055, t + 0.9);
+    g.gain.setValueAtTime(0.055, t + dur - 1.4);
+    g.gain.linearRampToValueAtTime(0, t + dur);
+    for (const n of notes) {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+      osc.detune.value = Math.random() * 8 - 4;
+      osc.connect(g);
+      osc.start(t);
+      osc.stop(t + dur + 0.1);
+      osc.onended = () => { try { osc.disconnect(); g.disconnect(); lp.disconnect(); } catch (_) {} };
+    }
+  }
+
+  _pluck(note, t) {
+    if (!this.ctx) return;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
+    const g = this._gain(0);
+    const lp = this._filter('lowpass', 2600, 0.4);
+    osc.connect(g);
+    g.connect(lp);
+    lp.connect(this.musicGain);
+    g.gain.setValueAtTime(0.09, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
+    osc.start(t);
+    osc.stop(t + 1.9);
+    osc.onended = () => { try { osc.disconnect(); g.disconnect(); lp.disconnect(); } catch (_) {} };
+  }
+
+  // ── GAMEPLAY SFX ────────────────────────────────────────────────────────
+
+  playerHurt() {
+    this._playLayers([
+      { wave: 'sawtooth', freq: 260, dur: 0.16, gain: 0.2, atk: 0.005, rel: 0.3 },
+      { wave: 'sawtooth', freq: 190, dur: 0.18, gain: 0.16, atk: 0.01, rel: 0.35 },
+      { noise: 'white', dur: 0.06, gain: 0.08, bp: 900, bq: 1, atk: 0.002, rel: 0.2 },
+    ]);
+  }
+
+  playerDie() {
+    if (!this.ctx || !this.enabled) return;
+    const t0 = this.ctx.currentTime;
+    [400, 320, 250, 180].forEach((f, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = f;
+      const g = this._gain(0);
+      this._envGain(g, 0.16, 0.28, 0.01, 0.5);
+      const lp = this._filter('lowpass', f * 2);
+      osc.connect(g);
+      g.connect(lp);
+      lp.connect(this.master);
+      osc.start(t0 + i * 0.15);
+      osc.stop(t0 + i * 0.15 + 0.32);
+      osc.onended = () => { try { osc.disconnect(); g.disconnect(); lp.disconnect(); } catch (_) {} };
+    });
+  }
+
+  mobHurt() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.12, gain: 0.32, lp: 500, atk: 0.003, rel: 0.3 },
+      { wave: 'sine', freq: 160, dur: 0.1, gain: 0.14, atk: 0.005, rel: 0.25 },
+    ]);
+  }
+
+  mobDeath() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.25, gain: 0.35, lp: 300, atk: 0.005, rel: 0.4 },
+      { wave: 'sine', freq: 90, dur: 0.3, gain: 0.2, atk: 0.005, rel: 0.5 },
+    ]);
+  }
+
+  explosion() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.8, gain: 0.5, lp: 400, atk: 0.002, rel: 0.5 },
+      { noise: 'white', dur: 0.35, gain: 0.24, lp: 1600, atk: 0.001, rel: 0.3 },
+      { wave: 'sine', freq: 58, dur: 0.7, gain: 0.32, atk: 0.002, rel: 0.6 },
+    ]);
+  }
+
+  eat() {
+    this._playLayers([
+      { noise: 'white', dur: 0.07, gain: 0.2, bp: 1200, bq: 1.5, atk: 0.002, rel: 0.25 },
+      { noise: 'brown', dur: 0.06, gain: 0.14, lp: 500, atk: 0.003, rel: 0.2 },
+    ]);
+  }
+
+  land() {
+    this._playLayers([
+      { noise: 'brown', dur: 0.1, gain: 0.22, lp: 320, atk: 0.002, rel: 0.3 },
+    ]);
+  }
+
+  splash() {
+    this._playLayers([
+      { noise: 'white', dur: 0.25, gain: 0.2, bp: 1500, bq: 0.8, atk: 0.005, rel: 0.4 },
+      { noise: 'white', dur: 0.12, gain: 0.12, hp: 3200, atk: 0.002, rel: 0.3 },
+    ]);
+  }
+
+  levelUp() {
+    if (!this.ctx || !this.enabled) return;
+    const t0 = this.ctx.currentTime;
+    [72, 76, 79, 84].forEach((n, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'square';
+      osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+      const g = this._gain(0);
+      this._envGain(g, 0.07, 0.18, 0.01, 0.5);
+      osc.connect(g);
+      g.connect(this.master);
+      osc.start(t0 + i * 0.07);
+      osc.stop(t0 + i * 0.07 + 0.22);
+      osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
+    });
   }
 }

@@ -1,5 +1,5 @@
 // Explosion system — handles block destruction + player damage in a radius.
-// Used by Creepers and TNT.
+// Used by TNT.
 
 import { BLOCK, BLOCKS } from './blocks.js';
 import * as THREE from 'three';
@@ -17,6 +17,7 @@ export class ExplosionManager {
   // Create an explosion at (x, y, z) with given power (radius in blocks).
   // Returns the array of {x, y, z} block positions that were destroyed.
   explode(x, y, z, power = 3) {
+    if (this.audio) this.audio.explosion();
     const destroyed = [];
     const p = Math.ceil(power);
 

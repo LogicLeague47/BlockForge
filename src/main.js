@@ -25,6 +25,7 @@ import { getKeybinds, setKeybind, resetKeybinds, keyName, KEYBIND_ACTIONS } from
 import { initMobileControls } from './mobile.js';
 import { Server, executeCommand, ROLE_OWNER, ROLE_ADMIN, ROLE_STAFF, ROLE_PLAYER, ROLE_GAMEDEV, ROLE_DEV, resolveCgUsername, getDevTag, setDevTag } from './multiplayer.js';
 import { DroppedItemManager } from './dropped.js';
+import { LitTntManager } from './tnt.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
 import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour } from './parkour.js';
@@ -569,7 +570,10 @@ ui.onCraft = (itemId, count) => {
   }
   if (player && player.isSurvival()) {
     const xpGain = Math.ceil(count * 0.5);
-    if (player.addXp(xpGain)) ui.showLevelUp(player.level);
+    if (player.addXp(xpGain)) {
+      ui.showLevelUp(player.level);
+      if (audio) audio.levelUp();
+    }
   }
 };
 ui.onSmelt = (inputItem, count) => {
@@ -742,6 +746,7 @@ let joiningViaLink = false; // true when auto-joining from a shareable link
 let mobile = null;
 let isMultiplayer = false;
 let droppedItemManager = null;
+let tntManager = null;
 let mpRenderer = null;
 let breakParticles = null, ambientParticles = null, cloudSystem = null;
 
@@ -1358,6 +1363,7 @@ document.addEventListener('mousedown', (e) => {
           if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
           syncUIMode();
           achievements.incrementStat('foodEaten');
+          if (audio) audio.eat();
           if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
           used = true;
         }
@@ -1616,21 +1622,8 @@ function updateStepParticles(dt) {
 
 // ── TNT ignition ─────────────────────────────────────────────────────
 function igniteTNT(x, y, z) {
-  // Replace TNT block with air and schedule explosion
-  world.setBlock(x, y, z, BLOCK.AIR);
-
-  // Fuse: 1.5 seconds
-  setTimeout(() => {
-    if (explosionManager) {
-      explosionManager.explode(x + 0.5, y + 0.5, z + 0.5, 4);
-    }
-    // Damage player if nearby
-    if (player) {
-      const dmg = ExplosionManager.calcDamage(x + 0.5, y + 0.5, z + 0.5, player.position, 4);
-      if (dmg > 0) player.takeDamage(dmg, { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
-      if (playerModel) playerModel.triggerHurt();
-    }
-  }, 1500);
+  // Spawns an animated lit-TNT entity that bounces and blinks, then explodes.
+  if (tntManager) tntManager.ignite(x, y, z, 1.5);
 }
 
 function placeBlock(slotOverride) {
@@ -1909,13 +1902,14 @@ function doBreak(hit, b) {
   manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
   audio?.blockBreak(b);
 
-  if (player.isSurvival()) player.addExhaustion(0.05);
+  if (player.isSurvival()) player.addExhaustion(0.005);
   // XP for mining: ore blocks give more
   const oreXp = { [BLOCK.COAL_ORE]: 2, [BLOCK.IRON_ORE]: 3, [BLOCK.GOLD_ORE]: 5, [BLOCK.DIAMOND_ORE]: 7, [BLOCK.COPPER_ORE]: 3, [BLOCK.EMERALD_ORE]: 7, [BLOCK.PRISMITE_ORE]: 10 };
   const xpGain = oreXp[b] || 1;
   if (player.isSurvival()) {
     if (player.addXp(xpGain)) {
       ui.showLevelUp(player.level);
+      if (audio) audio.levelUp();
     }
   }
 }
@@ -2947,6 +2941,7 @@ window._exitParkourToMinigames = () => {
   if (playerModel) { playerModel.dispose(); playerModel = null; }
   if (weatherSystem) { weatherSystem.clear(); weatherSystem = null; }
   if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
+  if (tntManager) { tntManager.clear(); tntManager = null; }
   if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
   if (breakParticles) { breakParticles.clear(); breakParticles = null; }
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
@@ -3236,6 +3231,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (playerModel) { playerModel.dispose(); playerModel = null; }
     if (weatherSystem) { weatherSystem.clear(); weatherSystem = null; }
     if (droppedItemManager) { droppedItemManager.clear(); droppedItemManager = null; }
+    if (tntManager) { tntManager.clear(); tntManager = null; }
     if (mpRenderer) { mpRenderer.clear(); mpRenderer = null; }
     if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
@@ -3268,6 +3264,15 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     sendMobDeath: (id) => network.sendMobDeath(id),
   };
   droppedItemManager = new DroppedItemManager(scene, atlasCanvas, world);
+  tntManager = new LitTntManager(scene, atlasCanvas, world, explosionManager);
+  tntManager.onExplode = (x, y, z) => {
+    // Damage player if nearby
+    if (player) {
+      const dmg = ExplosionManager.calcDamage(x + 0.5, y + 0.5, z + 0.5, player.position, 4);
+      if (dmg > 0) player.takeDamage(dmg, { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+      if (playerModel) playerModel.triggerHurt();
+    }
+  };
   mpRenderer = new MultiplayerRenderer(scene);
   breakParticles = new BreakParticles(scene);
   ambientParticles = new AmbientParticles(scene);
@@ -3290,6 +3295,10 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   if (player) {
     player.autoJump = (document.getElementById('set-autojump')?.value || '1') !== '0';
     player.difficulty = gameDifficulty;
+    player.onHurt = () => { if (audio) audio.playerHurt(); };
+    player.onDeath = () => { if (audio) audio.playerDie(); };
+    player.onLand = () => { if (audio) audio.land(); };
+    player.onSplash = () => { if (audio) audio.splash(); };
   }
 
   // Initialize mobile touch controls if on a touch device
@@ -4525,6 +4534,14 @@ function initMenu() {
   document.getElementById('btn-worlds-back').addEventListener('click', () => {
     ui.showMenu('main');
   });
+  document.getElementById('btn-import-world').addEventListener('click', () => {
+    document.getElementById('world-import-input').click();
+  });
+  document.getElementById('world-import-input').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) importWorldFromFile(file);
+    e.target.value = '';
+  });
 
   // --- Create world ---
   document.getElementById('btn-create-confirm').addEventListener('click', () => {
@@ -5525,9 +5542,14 @@ function renderWorldList() {
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="wc-mode ${w.gamemode}">${w.gamemode.toUpperCase()}</span>
+        <button class="wc-export" title="Export world">&darr;</button>
         <button class="wc-delete" title="Delete world">&times;</button>
       </div>
     `;
+    card.querySelector('.wc-export').addEventListener('click', (e) => {
+      e.stopPropagation();
+      exportWorld(w);
+    });
     card.querySelector('.wc-delete').addEventListener('click', (e) => {
       e.stopPropagation();
       deleteWorld(w.id);
@@ -5538,6 +5560,77 @@ function renderWorldList() {
     });
     list.appendChild(card);
   }
+}
+
+// Export a world to a downloadable .json file.
+function showWorldToast(msg, ok = true) {
+  const el = document.getElementById('world-toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.color = ok ? '#0fc' : '#f55';
+  el.style.borderColor = ok ? 'rgba(0,255,204,0.4)' : 'rgba(255,85,85,0.4)';
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 3500);
+}
+
+function exportWorld(w) {
+  const data = loadWorld(w.id);
+  const file = JSON.stringify({
+    blockforge: 1,
+    name: w.name,
+    seed: w.seed,
+    gamemode: w.gamemode,
+    difficulty: w.difficulty,
+    flat: !!w.flat,
+    createdAt: w.createdAt,
+    world: data || { seed: w.seed, edits: {} },
+  }, null, 2);
+  const blob = new Blob([file], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'BlockForge-' + (w.name || 'world').replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') + '.json';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  showWorldToast('Exported: ' + w.name + ' (save this .json file)', true);
+}
+
+// Import a world from an exported .json file (or any valid { seed, edits } object).
+function importWorldFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const parsed = JSON.parse(String(reader.result));
+      let meta = null, data = null;
+      if (parsed && parsed.blockforge === 1 && parsed.world) {
+        meta = parsed;
+        data = parsed.world;
+      } else if (parsed && typeof parsed === 'object' && 'seed' in parsed && 'edits' in parsed) {
+        meta = { name: parsed.name || 'Imported World', seed: parsed.seed, gamemode: parsed.gamemode || 'creative', difficulty: parsed.difficulty || 'normal', flat: !!parsed.flat };
+        data = parsed;
+      }
+      if (!data || typeof data !== 'object' || !('seed' in data && 'edits' in data)) {
+        throw new Error('Not a valid BlockForge world file');
+      }
+      let seed = data.seed ?? meta.seed;
+      if (typeof seed !== 'number') {
+        let h = 0;
+        const s = String(seed);
+        for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+        seed = h || 1;
+      }
+      const world = createWorld(meta.name || 'Imported World', seed, meta.gamemode || 'creative', meta.difficulty || 'normal', { flat: !!meta.flat });
+      saveWorld(world.id, data);
+      renderWorldList();
+      showWorldToast('World imported: ' + (meta.name || 'Imported World'), true);
+    } catch (e) {
+      showWorldToast('Import failed: invalid world file', false);
+    }
+  };
+  reader.readAsText(file);
 }
 
 function renderDevWorldList() {
@@ -6150,6 +6243,9 @@ function loop() {
       }
     }
   }
+
+  // Update lit TNT entities (bounce/blink animation + fuse countdown)
+  if (tntManager) tntManager.update(dt);
 
   // Update multiplayer remote players
   if (mpRenderer) {

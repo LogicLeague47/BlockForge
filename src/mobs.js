@@ -244,12 +244,6 @@ class Mob {
     this.legs = [];
     // Attack animation state
     this.attackAnim = 0; // arm swing progress (0 = idle, 1 = peak)
-    // Creeper-specific state
-    this.fusing = false;
-    this.fuseTimer = 0;
-    this.exploded = false;
-    this._fuseFlashPhase = 0;
-    this._fuseSwell = 0; // body swell during fuse
     this.mesh = this._buildMesh(def);
     this.mesh.position.copy(this.position);
     this.mesh.traverse((child) => {
@@ -527,7 +521,6 @@ class Mob {
     if (this.type === 'spider') return this._spiderTextures(def);
     if (this.type === 'zombie') return this._zombieTextures(def);
     if (this.type === 'skeleton') return this._skeletonTextures(def);
-    if (this.type === 'creeper') return this._creeperTextures(def);
     if (this.type === 'enderman') return this._endermanTextures(def);
     if (this.type === 'slime') return this._slimeTextures(def);
     if (this.type === 'villager') return this._villagerTextures(def);
@@ -1513,67 +1506,6 @@ class Mob {
     return { body, head, leg, arm };
   }
 
-  _creeperTextures(def) {
-    const s = 64;
-    const GREEN = 0x3baa3b;
-    const GREEN_DARK = 0x2d8a2d;
-
-    const greenSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3baa3b';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 18);
-      // Mottled darker patches
-      ctx.fillStyle = 'rgba(30,100,30,0.3)';
-      for (let i = 0; i < 6; i++) {
-        const px = (i * 13 + 5) % s, py = (i * 17 + 8) % s;
-        ctx.fillRect(px, py, 8 + (i % 3) * 4, 6 + (i % 2) * 4);
-      }
-    });
-    const greenTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3baa3b';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 14);
-    });
-    const greenBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2d8a2d';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const faceFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3baa3b';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 14);
-      // Creeper face: two black eyes + frown mouth
-      const eyeY = 20;
-      ctx.fillStyle = '#111';
-      // Left eye
-      ctx.fillRect(12, eyeY, 12, 12);
-      // Right eye
-      ctx.fillRect(40, eyeY, 12, 12);
-      // Mouth (upside-down T / frown)
-      ctx.fillStyle = '#111';
-      ctx.fillRect(24, 40, 16, 6);  // horizontal bar
-      ctx.fillRect(28, 46, 8, 10);   // vertical drop
-      ctx.fillRect(24, 46, 4, 8);
-      ctx.fillRect(36, 46, 4, 8);
-    });
-    const faceBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3baa3b';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 14);
-    });
-    const head = [greenSide, greenSide, greenTop, greenBot, faceBack, faceFront];
-
-    const body = [greenSide, greenSide, greenTop, greenBot, greenSide, greenSide];
-
-    const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2d8a2d';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN_DARK, 12);
-    });
-    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body, head, leg };
-  }
-
   _chickenTextures(def) {
     const s = 64;
     const WHITE = 0xf8f8f8;
@@ -2048,15 +1980,6 @@ class Mob {
           child.scale.y = 1 + breathe * 0.5;
           child.scale.x = 1;
         }
-        // Creeper body swell during fuse
-        if (this.type === 'creeper' && this.fusing) {
-          this._fuseSwell = Math.min(this._fuseSwell + dt * 0.6, 0.15);
-          const swell = 1 + this._fuseSwell;
-          child.scale.set(swell, swell, swell);
-        } else if (this.type === 'creeper') {
-          this._fuseSwell = 0;
-          child.scale.set(1, 1, 1);
-        }
       } else if (child.name === 'head') {
         child.position.y = this._origHeadY + bobAmount + breathe;
         // Pig snout wiggle
@@ -2503,7 +2426,6 @@ export class MobManager {
     }
 
     const attackEvents = [];
-    const explosions = [];
 
     // Update all mobs
     for (let i = this.mobs.length - 1; i >= 0; i--) {
@@ -2512,72 +2434,8 @@ export class MobManager {
 
       const def = MOB_TYPES[mob.type];
 
-      // ── CREEPER AI ──
-      if (mob.type === 'creeper' && playerPos) {
-        const dx = playerPos.x - mob.position.x;
-        const dz = playerPos.z - mob.position.z;
-        const dist = Math.sqrt(dx * dx + dz * dz);
-
-        if ((isNight || mob.aggro) && dist < 16 && !mob.exploded) {
-          mob.state = 'walking';
-          mob.targetYaw = Math.atan2(-dx, -dz);
-          mob.stateTimer = 0.5;
-
-          // Start fuse when close enough
-          if (dist < 3.0 && !mob.fusing) {
-            mob.fusing = true;
-            mob.fuseTimer = def.fuseTime || 1.5;
-            mob._fuseFlashPhase = 0;
-            // Play hiss (removed)
-          }
-
-          // Update fuse
-          if (mob.fusing) {
-            mob.fuseTimer -= dt;
-            mob._fuseFlashPhase += dt * 12;
-
-            // Flash red/white during fuse (using cached materials)
-            if (mob._allMats) {
-              const flashOn = Math.sin(mob._fuseFlashPhase) > 0;
-              for (let i = 0; i < mob._allMats.length; i++) {
-                mob._allMats[i].color.setHex(flashOn ? 0xff4444 : mob._savedColors[i]);
-              }
-            }
-
-            // Cancel fuse if player moves far away
-            if (dist > 5.0) {
-              mob.fusing = false;
-              mob.fuseTimer = 0;
-              mob._fuseFlashPhase = 0;
-              // Restore colors from _savedColors array
-              if (mob._allMats && mob._savedColors) {
-                for (let i = 0; i < mob._allMats.length; i++) {
-                  mob._allMats[i].color.setHex(mob._savedColors[i]);
-                }
-              }
-            }
-
-            // Explode!
-            if (mob.fuseTimer <= 0) {
-              mob.exploded = true;
-              mob.dead = true;
-              explosions.push({
-                x: mob.position.x,
-                y: mob.position.y + 0.5,
-                z: mob.position.z,
-                power: def.explosionPower || 3
-              });
-            }
-          }
-        } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20) {
-          if (dist < 4) {
-            mob.targetYaw = Math.atan2(dx, dz);
-            mob.stateTimer = 2;
-          }
-        }
-      }
-      // ── OTHER HOSTILE AI (zombie, skeleton, spider) ──
-      else if (def.hostileAtNight && playerPos) {
+      // ── HOSTILE AI (zombie, skeleton, spider) ──
+      if (def.hostileAtNight && playerPos) {
         const dx = playerPos.x - mob.position.x;
         const dz = playerPos.z - mob.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
@@ -2622,13 +2480,6 @@ export class MobManager {
     for (const [, mob] of this._remoteMobs) {
     }
 
-    // Process explosions
-    for (const exp of explosions) {
-      if (this.explosionManager) {
-        this.explosionManager.explode(exp.x, exp.y, exp.z, exp.power);
-      }
-    }
-
     // Cull mobs too far from player
     if (playerPos) {
       for (let i = this.mobs.length - 1; i >= 0; i--) {
@@ -2645,6 +2496,11 @@ export class MobManager {
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
       if (mob.dead && mob.deathTimer > 0.6) {
+        // Death sound
+        if (this.audio && !mob._deathSoundPlayed) {
+          mob._deathSoundPlayed = true;
+          this.audio.mobDeath();
+        }
         // Slime split: spawn 2 smaller slimes on death
         if (mob.type === 'slime' && mob._slimeSize !== 'small') {
           for (let j = 0; j < 2; j++) {
@@ -2693,20 +2549,15 @@ export class MobManager {
     }
 
     // Return the strongest attack this tick (backward-compatible with single-event callers)
-    if (attackEvents.length === 0 && explosions.length === 0) return null;
-    const result = {};
-    if (attackEvents.length > 0) {
-      result.attack = attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a));
-    }
-    if (explosions.length > 0) {
-      result.explosions = explosions;
-    }
-    return result;
+    if (attackEvents.length === 0) return null;
+    return { attack: attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a)) };
   }
 
   _playMobSound(type) {}
 
-  playHurtSound(type) {}
+  playHurtSound(type) {
+    if (this.audio) this.audio.mobHurt();
+  }
 
   // Try to hit a mob using ray-AABB intersection. Returns the hit mob or null.
   hitTest(playerPos, lookDir, reach) {

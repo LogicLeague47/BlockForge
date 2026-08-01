@@ -1482,6 +1482,11 @@
         font: bold 14px monospace; padding: 2px 6px; border-radius: 2px;
       }
       .world-card .wc-delete:hover { color: #f44; background: rgba(255,60,60,0.15); }
+      .world-card .wc-export {
+        background: none; border: none; color: #6a8; cursor: pointer;
+        font: bold 14px monospace; padding: 2px 6px; border-radius: 2px;
+      }
+      .world-card .wc-export:hover { color: #0fc; background: rgba(0,255,204,0.12); }
       .menu-form { display: flex; flex-direction: column; gap: 10px; width: 100%; }
       .menu-form label {
         font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: left;
@@ -2325,10 +2330,14 @@
       <div id="menu-worlds" class="menu-screen">
         <div class="menu-title" style="font-size:32px;">WORLDS</div>
         <div class="menu-panel" id="world-list"></div>
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;align-items:center;">
           <button class="menu-btn" id="btn-new-world">NEW WORLD</button>
+          <button class="menu-btn" id="btn-import-world" style="flex:0.9;min-width:auto;font-size:13px;">IMPORT WORLD</button>
           <button class="menu-btn secondary" id="btn-worlds-back">BACK</button>
         </div>
+        <input type="file" id="world-import-input" accept=".json,application/json" style="display:none;" />
+        <div id="world-toast" style="position:fixed;left:50%;bottom:60px;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#0fc;font:12px monospace;padding:8px 16px;border-radius:4px;border:1px solid rgba(0,255,204,0.4);opacity:0;transition:opacity 0.25s;pointer-events:none;z-index:9999;"></div>
+        <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:10px;text-align:center;">Tip: each world card has an <b style="color:#0fc;">⬇ export</b> button to save it as a file you can re-import.</div>
       </div>
 
       <!-- Screen: Dev Worlds -->

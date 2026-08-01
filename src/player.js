@@ -212,24 +212,27 @@ export class Player {
     this.health = Math.max(0, this.health - finalDamage);
     this.damageTimer = 0.5;
     this.addExhaustion(0.1);
+    if (this.onHurt) this.onHurt(finalDamage);
     if (this.health <= 0) this.die(source);
     return true;
   }
 
   die(source = 'generic') {
     this.health = 0;
+    if (this.onDeath) this.onDeath(source);
     // (caller in main.js handles the death overlay + respawn prompt)
   }
 
   // --- hunger / exhaustion -------------------------------------------------
   // Add exhaustion (from mining, sprinting, jumping, taking damage).
+  // Minecraft Java: 4 exhaustion == 1 food point; saturation is consumed first.
   addExhaustion(amount) {
     if (!this.isSurvival()) return;
     this.exhaustion += amount;
     while (this.exhaustion >= 4) {
       this.exhaustion -= 4;
-      if (this.saturation > 0) this.saturation = Math.max(0, this.saturation - 0.5);
-      else if (this.hunger > 0) this.hunger = Math.max(0, this.hunger - 0.5);
+      if (this.saturation > 0) this.saturation = Math.max(0, this.saturation - 1);
+      else if (this.hunger > 0) this.hunger = Math.max(0, this.hunger - 1);
     }
   }
 
@@ -252,12 +255,14 @@ export class Player {
     if (this.damageTimer > 0) this.damageTimer -= dt;
     if (!this.isSurvival()) return;
 
-    // regen: 1 HP / 4s when hunger >= 18 (costs 6.0 exhaustion per HP)
+    // regen (Minecraft Java): fast +1 HP/2s while saturation > 0, slow +1 HP/4s
+    // while saturation == 0 and hunger >= 18. Both cost 3.0 exhaustion per HP.
     if (this.hunger >= 18 && this.health < this.maxHealth) {
-      if ((this.regenAcc = (this.regenAcc || 0) + dt) >= 4) {
-        this.regenAcc -= 4;
+      const interval = this.saturation > 0 ? 2 : 4;
+      if ((this.regenAcc = (this.regenAcc || 0) + dt) >= interval) {
+        this.regenAcc -= interval;
         this.health = Math.min(this.maxHealth, this.health + 1);
-        this.addExhaustion(6);
+        this.addExhaustion(3);
       }
     } else {
       this.regenAcc = 0;
@@ -332,6 +337,9 @@ export class Player {
       Math.floor(this.position.z)
     );
     this.inWater = fb === BLOCK.WATER;
+    const wasInWater = this._wasInWater !== undefined ? this._wasInWater : false;
+    if (this.inWater && !wasInWater && this.onSplash) this.onSplash();
+    this._wasInWater = this.inWater;
     // Head-in-water check (eye level) for drowning.
     this.headInWater = this.eyeBlock() === BLOCK.WATER;
 
@@ -405,9 +413,9 @@ export class Player {
     this.velocity.x = move.x;
     this.velocity.z = move.z;
 
-    // sprinting exhaustion: 0.1 per meter
+    // sprinting exhaustion: 0.01 per meter (Java)
     if (this.sprinting && move.lengthSq() > 0.01) {
-      this.addExhaustion(0.1 * move.length() * dt);
+      this.addExhaustion(0.01 * move.length() * dt);
     }
 
     // --- ladder detection ---
@@ -630,6 +638,7 @@ export class Player {
               const landBlock = this.world.getBlock(Math.floor(_posX), y, Math.floor(_posZ));
               if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && !this.inWater) {
                 const fallDistance = this.fallStartY - this.position.y;
+                if (this.onLand && fallDistance > 0.7) this.onLand();
                 if (fallDistance > 3) {
                   const damage = Math.floor(fallDistance - 3);
                   if (damage > 0) this.takeDamage(damage, 'fall');
