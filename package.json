@@ -23,13 +23,16 @@
     },
     "files": [
       "dist/**/*",
-      "electron/**/*"
+      "electron/**/*",
+      "!dist/downloads/**"
     ],
     "win": {
       "target": ["portable"],
       "artifactName": "BlockForge-windows.exe"
     },
     "mac": {
+      "category": "public.app-category.games",
+      "icon": "build/icon.png",
       "target": ["dmg"],
       "artifactName": "BlockForge-mac-${arch}.dmg"
     },

@@ -33,8 +33,15 @@ jobs:
           node-version: 20
       - run: npm ci
       - run: npm run build
-      - name: Build DMGs
-        run: bash scripts/build-dmg.sh
+      - name: Build Mac DMGs (arm64 + x64)
+        run: |
+          npx electron-builder --mac dmg --arm64
+          npx electron-builder --mac dmg --x64
+      - name: Stage DMGs
+        run: |
+          mkdir -p downloads
+          cp release/BlockForge-mac-arm64.dmg downloads/
+          cp release/BlockForge-mac-x64.dmg downloads/
       - name: Commit DMGs
         shell: bash
         run: |
