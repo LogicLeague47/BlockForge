@@ -15,32 +15,6 @@
     "lint": "eslint src/",
     "typecheck": "echo 'No TS setup yet'"
   },
-  "build": {
-    "appId": "com.blockforge.game",
-    "productName": "BlockForge",
-    "directories": {
-      "output": "release"
-    },
-    "files": [
-      "dist/**/*",
-      "electron/**/*",
-      "!dist/downloads/**"
-    ],
-    "win": {
-      "target": ["portable"],
-      "artifactName": "BlockForge-windows.exe"
-    },
-    "mac": {
-      "category": "public.app-category.games",
-      "icon": "build/icon.png",
-      "target": ["dmg"],
-      "artifactName": "BlockForge-mac-${arch}.dmg"
-    },
-    "linux": {
-      "target": ["AppImage"],
-      "artifactName": "BlockForge-linux.${ext}"
-    }
-  },
   "dependencies": {
     "simplex-noise": "^4.0.1",
     "three": "^0.169.0",
