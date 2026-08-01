@@ -343,6 +343,7 @@ export class ViewModel {
     
     // Update animation state
     this.animData.moving = moving;
+    this.animData.sprinting = !!state.sprinting;
     this.animData.inWater = !!state.inWater;
     this.animData.flying = !!state.flying;
     this.animData.onGround = state.onGround !== false;
@@ -369,9 +370,10 @@ export class ViewModel {
     let rx = this._restRot.x;
     let ry = this._restRot.y;
 
-    const bobAmp = 0.045 * this.animData.lastMove * (1 - swimPose);
+    const sprintBoost = this.animData.sprinting ? 1 : 0;
+    const bobAmp = 0.045 * (1 + 0.7 * sprintBoost) * this.animData.lastMove * (1 - swimPose);
     py += Math.sin(this.animData.bobPhase) * bobAmp;
-    rx += Math.cos(this.animData.bobPhase) * 0.06 * this.animData.lastMove;
+    rx += Math.cos(this.animData.bobPhase) * (0.06 + 0.04 * sprintBoost) * this.animData.lastMove;
     const sway = Math.sin(this.animData.bobPhase * 0.5) * 0.04 * this.animData.lastMove;
 
     // Jump: raise arms slightly with upward velocity

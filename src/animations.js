@@ -91,12 +91,12 @@ export class PlayerAnimData {
 
     // Limb swing accumulation — FA+ style
     if (this.moving) {
-      const targetSpeed = this.inWater ? 5 : this.sprinting ? 12 : 8;
+      const targetSpeed = this.inWater ? 5 : this.sprinting ? 14 : 8;
       this._limbSwing += dt * targetSpeed;
     }
 
     // Limb speed (smoothed) — used for amplitude weighting
-    const rawSpeed = this.moving ? (this.sprinting ? 12 : 8) : 0;
+    const rawSpeed = this.moving ? (this.sprinting ? 14 : 8) : 0;
     this._limbSpeed = lerp(this._limbSpeed, rawSpeed, Math.min(1, dt * 12));
 
     // Mine phase — runs while breaking
@@ -166,6 +166,7 @@ export class ViewAnimData {
 
     // State
     this.moving = false;
+    this.sprinting = false;
     this.inWater = false;
     this.flying = false;
     this.onGround = true;
@@ -202,7 +203,7 @@ export class ViewAnimData {
     // Walk bob
     const bobTarget = this.moving ? 1 : 0;
     this._lastMove = lerp(this._lastMove || 0, bobTarget, Math.min(1, dt * 10));
-    this.bobPhase += dt * (this.inWater ? 4 : this.moving ? 10 : 4);
+    this.bobPhase += dt * (this.inWater ? 4 : this.sprinting ? 13 : this.moving ? 10 : 4);
 
     // Eat phase
     if (this.eating) {
@@ -265,7 +266,7 @@ function calcBodyPose(state) {
 
   // ── Body rotation X (forward lean) ──
   // Sprint lean + walk body tilt
-  const sprintLean = rad(10) * sprint;
+  const sprintLean = rad(16) * sprint;
   const walkTilt = rad(8) * walk * (1 - sneak);
   bodyRx += (sprintLean + walkTilt) * (1 - inAir);
 
@@ -291,7 +292,7 @@ function calcBodyPose(state) {
   // ── Body translation Y (bob) ──
   // FA+ style: sin(ls*2) for walk bounce, with landing compression
   const walkBob = Math.sin(ls * 2) * 0.12 * walk * (1 - sneak) * (1 - inAir);
-  const sprintBob = Math.sin(ls * 2) * 0.18 * run * (1 - inAir);
+  const sprintBob = Math.sin(ls * 2) * 0.22 * run * (1 - inAir);
   bodyTy += (walkBob + sprintBob) * lsSpeed * 0.5;
 
   // Landing compression — squash down briefly
@@ -308,6 +309,9 @@ function calcBodyPose(state) {
   // ── Body translation Z (depth) ──
   // Slight forward/back while walking
   bodyTz += Math.sin(ls) * 0.03 * walk;
+
+  // ── Swim: slight body roll with each stroke ──
+  bodyRz += Math.sin(ls * 0.5) * rad(6) * swim;
 
   // Climb: tilt back slightly
   if (climb) {
@@ -346,7 +350,7 @@ function calcHeadPose(state) {
   headRx += Math.sin(ls * 2) * rad(2) * walk * (1 - sneak);
 
   // ── Swim: head lift for breath (breast stroke rhythm) ──
-  headRx += Math.sin(ls * 0.5) * rad(-8) * swim;
+  headRx += Math.sin(ls * 0.5) * rad(-12) * swim;
 
   // Climb: look up
   if (climb) {
@@ -375,11 +379,15 @@ function calcArmPose(state, side) {
   // ── Walk swing ──
   // FA+: cos(ls * 0.6662) for arm swing, opposite to legs
   const walkSwing = Math.cos(ls * 0.6662) * rad(40) * walk * (1 - sneak);
-  const sprintSwing = Math.cos(ls * 0.6662) * rad(50) * sprint;
+  const sprintSwing = Math.cos(ls * 0.6662) * rad(70) * sprint;
   armRx += (walkSwing + sprintSwing) * lsSpeed * 0.5;
 
   // Opposite arm to leg direction
   if (!isRight) armRx = -armRx;
+
+  // ── Sprint: pumped arms, raised and tucked in ──
+  armRx += rad(25) * sprint;
+  armRy += (isRight ? 1 : -1) * rad(12) * sprint;
 
   // ── Idle arm sway ──
   // FA+: subtle arm rotation matching head movement
@@ -441,9 +449,10 @@ function calcArmPose(state, side) {
   // ── Swim (breast stroke) ──
   if (swim) {
     const bp = ls * 0.5;
-    armRx = rad(-80) - Math.cos(bp) * rad(55) * lsSpeed * 0.5;
-    armRy = (isRight ? 1 : -1) * Math.sin(bp) * rad(35) * lsSpeed * 0.5;
-    armRz = Math.sin(bp) * rad(8);
+    const pull = Math.max(0.6, lsSpeed) * 0.6;
+    armRx = rad(-90) - Math.cos(bp) * rad(70) * pull;
+    armRy = (isRight ? 1 : -1) * Math.sin(bp) * rad(45) * pull;
+    armRz = Math.sin(bp) * rad(12) * pull;
   }
 
   // ── Flying ──
@@ -472,7 +481,7 @@ function calcLegPose(state, side) {
   // ── Walk swing ──
   // FA+: sin(ls) for leg swing
   const walkSwing = Math.sin(ls) * rad(50) * walk * (1 - sneak);
-  const sprintSwing = Math.sin(ls) * rad(65) * sprint;
+  const sprintSwing = Math.sin(ls) * rad(80) * sprint;
   legRx += (walkSwing + sprintSwing) * lsSpeed * 0.5;
 
   // Opposite direction for other leg
@@ -483,7 +492,7 @@ function calcLegPose(state, side) {
 
   // ── Swim: breast stroke frog kick (synchronous) ──
   if (swim) {
-    legRx = Math.sin(ls * 0.5) * rad(40) * lsSpeed * 0.5;
+    legRx = Math.sin(ls * 0.5) * rad(55) * Math.max(0.6, lsSpeed) * 0.5;
   }
 
   // ── Climb: legs alternate ──

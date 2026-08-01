@@ -6099,8 +6099,7 @@ function loop() {
     const showModel = player.cameraMode !== 0;
     playerModel.setVisible(showModel);
     if (showModel) {
-      const eye = world.getBlock(Math.floor(player.position.x), Math.floor(player.position.y + player.eyeHeight), Math.floor(player.position.z));
-      const isSwimming = eye === BLOCK.WATER;
+      const isSwimming = player.inWater && !player.onGround;
       const isBreaking = input.mouseLeftHeld && pointerLocked && breakingTarget != null;
       const isPlacing = placeAnimTimer > 0;
         playerModel.update(dt, player.position, player.yaw, player.velocity, player.onGround, player.sprinting, isBreaking, isPlacing, isSwimming, player.eating, player.crouching, player.flying, player.onLadder, player.pitch);
@@ -6535,6 +6534,7 @@ function loop() {
     const mining = input.mouseLeftHeld && pointerLocked && !!breakingTarget;
     viewmodel.update(dt, false, moving, player.eating, player.crouching, {
       inWater: player.inWater,
+      sprinting: player.sprinting,
       flying: player.flying,
       onGround: player.onGround,
       onLadder: player.onLadder,
