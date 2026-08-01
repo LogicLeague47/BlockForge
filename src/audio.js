@@ -18,6 +18,14 @@ const SFX_FILES = [
   'click_001', 'click_002', 'click_003',
 ];
 
+const MUSIC_TRACKS = [
+  'Music/dreams-stasis.mp3', 'Music/eternity-0.mp3', 'Music/eternity-1.mp3',
+  'Music/eternity-2.mp3', 'Music/eternity-3.mp3', 'Music/eternity-4.mp3',
+  'Music/happy-flutes.mp3', 'Music/visions-1.mp3', 'Music/visions-2.mp3',
+  'Music/visions-3.mp3', 'Music/visions-4.mp3', 'Music/visions-5.mp3',
+  'Music/water-owl.mp3', 'Music/winds-of-venus.mp3',
+];
+
 const STEP_SAMPLES = {
   stone: ['footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002'],
   dirt: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
@@ -518,102 +526,53 @@ export class AudioManager {
 
   startMusic() {
     this._musicWanted = true;
-    if (this.ctx && !this._musicTimer) {
-      this._musicBar = 0;
-      this._musicNextBar = this.ctx.currentTime + 0.2;
-      this._musicNextMelody = this.ctx.currentTime + 1.0;
-      this._pickMusicSection();
-      this._musicTimer = setInterval(() => this._musicScheduler(), 200);
+    if (this.ctx && !this._musicPlaying) {
+      this._musicPlaylist = this._shuffleArray([...MUSIC_TRACKS]);
+      this._musicIdx = 0;
+      this._playNextTrack();
     }
   }
 
   stopMusic() {
     this._musicWanted = false;
-    if (this._musicTimer) {
-      clearInterval(this._musicTimer);
-      this._musicTimer = null;
+    if (this._musicCurrentSrc) {
+      try { this._musicCurrentSrc.pause(); } catch (_) {}
+      this._musicCurrentSrc = null;
     }
+    this._musicPlaying = false;
   }
 
-  // ── AMBIENT MUSIC (procedural, calm C418-ish loop) ─────────────────────
-  // Multiple chord progressions in different moods, randomly selected and
-  // switched every 16–32 bars so the music stays fresh.
-  _pickMusicSection() {
-    const sections = [
-      { prog: [[57,60,64],[53,57,60],[60,64,67],[55,59,62]], scale: [57,60,62,64,67,69,72,76], bpm: 1 },
-      { prog: [[62,65,69],[60,64,67],[55,59,62],[57,60,64]], scale: [60,62,64,65,67,69,72,74], bpm: 1 },
-      { prog: [[48,52,55],[50,53,57],[52,55,59],[53,57,60]], scale: [48,50,52,55,57,60,62,64], bpm: 1.15 },
-      { prog: [[55,59,62],[57,60,64],[60,64,67],[53,57,60]], scale: [55,57,59,60,62,64,67,69], bpm: 0.9 },
-      { prog: [[64,67,71],[60,64,67],[62,65,69],[57,60,64]], scale: [60,62,64,65,67,69,71,72], bpm: 1 },
-      { prog: [[50,54,57],[52,55,59],[48,52,55],[53,57,60]], scale: [48,50,52,54,55,57,60,62], bpm: 1.1 },
-    ];
-    const s = sections[Math.floor(Math.random() * sections.length)];
-    this._musicProg = s.prog;
-    this._musicScale = s.scale;
-    this._musicBpm = s.bpm;
-    this._musicSectionBars = 16 + Math.floor(Math.random() * 17); // 16–32 bars
-    this._musicBarsInSection = 0;
+  _playNextTrack() {
+    if (!this._musicWanted || !this.ctx) return;
+    if (this._musicIdx >= this._musicPlaylist.length) {
+      this._musicPlaylist = this._shuffleArray([...MUSIC_TRACKS]);
+      this._musicIdx = 0;
+    }
+    const url = this._musicPlaylist[this._musicIdx++];
+    const audio = new Audio(url);
+    audio.crossOrigin = 'anonymous';
+    audio.loop = false;
+    const source = this.ctx.createMediaElementSource(audio);
+    const g = this.ctx.createGain();
+    g.gain.value = 0.5;
+    source.connect(g);
+    g.connect(this.musicGain);
+    audio.addEventListener('ended', () => {
+      try { source.disconnect(); g.disconnect(); } catch (_) {}
+      this._musicCurrentSrc = null;
+      this._playNextTrack();
+    });
+    audio.play().catch(() => {});
+    this._musicCurrentSrc = audio;
+    this._musicPlaying = true;
   }
 
-  _musicScheduler() {
-    if (!this.ctx || !this._musicWanted) { this.stopMusic(); return; }
-    const lookahead = 1.5;
-    const now = this.ctx.currentTime;
-    const barDur = 4 * (this._musicBpm || 1);
-    while (this._musicNextBar < now + lookahead) {
-      this._padChord(this._musicProg[this._musicBar % this._musicProg.length], this._musicNextBar, barDur);
-      this._musicNextBar += barDur;
-      this._musicBar++;
-      this._musicBarsInSection++;
-      if (this._musicBarsInSection >= this._musicSectionBars) this._pickMusicSection();
+  _shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
     }
-    const scale = this._musicScale;
-    const beatDur = this._musicBpm || 1;
-    while (this._musicNextMelody < now + lookahead) {
-      if (Math.random() < 0.35) {
-        this._pluck(scale[Math.floor(Math.random() * scale.length)], this._musicNextMelody);
-      }
-      this._musicNextMelody += beatDur;
-    }
-  }
-
-  _padChord(notes, t, dur) {
-    if (!this.ctx) return;
-    const g = this._gain(0);
-    const lp = this._filter('lowpass', 900, 0.7);
-    g.connect(lp);
-    lp.connect(this.musicGain);
-    g.gain.setValueAtTime(0, t);
-    g.gain.linearRampToValueAtTime(0.055, t + 0.9);
-    g.gain.setValueAtTime(0.055, t + dur - 1.4);
-    g.gain.linearRampToValueAtTime(0, t + dur);
-    for (const n of notes) {
-      const osc = this.ctx.createOscillator();
-      osc.type = 'sine';
-      osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
-      osc.detune.value = Math.random() * 8 - 4;
-      osc.connect(g);
-      osc.start(t);
-      osc.stop(t + dur + 0.1);
-      osc.onended = () => { try { osc.disconnect(); g.disconnect(); lp.disconnect(); } catch (_) {} };
-    }
-  }
-
-  _pluck(note, t) {
-    if (!this.ctx) return;
-    const osc = this.ctx.createOscillator();
-    osc.type = 'sine';
-    osc.frequency.value = 440 * Math.pow(2, (note - 69) / 12);
-    const g = this._gain(0);
-    const lp = this._filter('lowpass', 2600, 0.4);
-    osc.connect(g);
-    g.connect(lp);
-    lp.connect(this.musicGain);
-    g.gain.setValueAtTime(0.09, t);
-    g.gain.exponentialRampToValueAtTime(0.0001, t + 1.8);
-    osc.start(t);
-    osc.stop(t + 1.9);
-    osc.onended = () => { try { osc.disconnect(); g.disconnect(); lp.disconnect(); } catch (_) {} };
+    return arr;
   }
 
   // ── GAMEPLAY SFX ────────────────────────────────────────────────────────
