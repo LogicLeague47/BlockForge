@@ -71,8 +71,10 @@ jobs:
           ./gradlew --no-daemon assembleDebug
       - name: Upload APK to GitHub Release
         run: |
+          mkdir -p downloads
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/BlockForge-android.apk
           gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
-          gh release upload binaries android/app/build/outputs/apk/debug/app-debug.apk --clobber
+          gh release upload binaries downloads/BlockForge-android.apk --clobber
 
   build-ios-ipa:
     runs-on: macos-latest
