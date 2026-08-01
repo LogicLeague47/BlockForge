@@ -522,6 +522,7 @@ export class AudioManager {
       this._musicBar = 0;
       this._musicNextBar = this.ctx.currentTime + 0.2;
       this._musicNextMelody = this.ctx.currentTime + 1.0;
+      this._pickMusicSection();
       this._musicTimer = setInterval(() => this._musicScheduler(), 200);
     }
   }
@@ -535,29 +536,44 @@ export class AudioManager {
   }
 
   // ── AMBIENT MUSIC (procedural, calm C418-ish loop) ─────────────────────
-  // Slow pad chords + sparse pentatonic plucks, self-scheduling with a
-  // look-ahead timer so notes stay in time.
+  // Multiple chord progressions in different moods, randomly selected and
+  // switched every 16–32 bars so the music stays fresh.
+  _pickMusicSection() {
+    const sections = [
+      { prog: [[57,60,64],[53,57,60],[60,64,67],[55,59,62]], scale: [57,60,62,64,67,69,72,76], bpm: 1 },
+      { prog: [[62,65,69],[60,64,67],[55,59,62],[57,60,64]], scale: [60,62,64,65,67,69,72,74], bpm: 1 },
+      { prog: [[48,52,55],[50,53,57],[52,55,59],[53,57,60]], scale: [48,50,52,55,57,60,62,64], bpm: 1.15 },
+      { prog: [[55,59,62],[57,60,64],[60,64,67],[53,57,60]], scale: [55,57,59,60,62,64,67,69], bpm: 0.9 },
+      { prog: [[64,67,71],[60,64,67],[62,65,69],[57,60,64]], scale: [60,62,64,65,67,69,71,72], bpm: 1 },
+      { prog: [[50,54,57],[52,55,59],[48,52,55],[53,57,60]], scale: [48,50,52,54,55,57,60,62], bpm: 1.1 },
+    ];
+    const s = sections[Math.floor(Math.random() * sections.length)];
+    this._musicProg = s.prog;
+    this._musicScale = s.scale;
+    this._musicBpm = s.bpm;
+    this._musicSectionBars = 16 + Math.floor(Math.random() * 17); // 16–32 bars
+    this._musicBarsInSection = 0;
+  }
+
   _musicScheduler() {
     if (!this.ctx || !this._musicWanted) { this.stopMusic(); return; }
     const lookahead = 1.5;
     const now = this.ctx.currentTime;
-    const PROG = [
-      [57, 60, 64], // Am
-      [53, 57, 60], // F
-      [60, 64, 67], // C
-      [55, 59, 62], // G
-    ];
+    const barDur = 4 * (this._musicBpm || 1);
     while (this._musicNextBar < now + lookahead) {
-      this._padChord(PROG[this._musicBar % PROG.length], this._musicNextBar, 4);
-      this._musicNextBar += 4;
+      this._padChord(this._musicProg[this._musicBar % this._musicProg.length], this._musicNextBar, barDur);
+      this._musicNextBar += barDur;
       this._musicBar++;
+      this._musicBarsInSection++;
+      if (this._musicBarsInSection >= this._musicSectionBars) this._pickMusicSection();
     }
-    const scale = [57, 60, 62, 64, 67, 69, 72, 76];
+    const scale = this._musicScale;
+    const beatDur = this._musicBpm || 1;
     while (this._musicNextMelody < now + lookahead) {
       if (Math.random() < 0.35) {
         this._pluck(scale[Math.floor(Math.random() * scale.length)], this._musicNextMelody);
       }
-      this._musicNextMelody += 1;
+      this._musicNextMelody += beatDur;
     }
   }
 
