@@ -77,15 +77,22 @@ for arch in arm64 x64; do
   mkdir -p "$STAGE"
   cp -R "$APP" "$STAGE/BlockForge.app"
   ln -sf /Applications "$STAGE/Applications"
+  SetFile -a B "$STAGE/BlockForge.app" 2>/dev/null || true
 
   hdiutil create -volname "BlockForge" -srcfolder "$STAGE" -ov -format UDRW "$TMP" >/dev/null
 
   # Apply the favicon as the mounted volume logo
-  MOUNT="$(hdiutil attach "$TMP" | tail -1 | awk '{print $NF}')"
+  MOUNT="$OUT/blockforge-mount"
+  rm -rf "$MOUNT"
+  mkdir -p "$MOUNT"
+  hdiutil attach "$TMP" -mountpoint "$MOUNT" -nobrowse >/dev/null
   cp "$APP/Contents/Resources/BlockForge.icns" "$MOUNT/.VolumeIcon.icns"
   SetFile -a C "$MOUNT" 2>/dev/null || true
+  # Bundle bit -> Finder shows BlockForge.app as an app, not a folder
+  SetFile -a B "$MOUNT/BlockForge.app" 2>/dev/null || true
   SetFile -a C "$MOUNT/BlockForge.app" 2>/dev/null || true
   hdiutil detach "$MOUNT" >/dev/null 2>&1 || true
+  rm -rf "$MOUNT"
 
   rm -f "$DMG"
   hdiutil convert "$TMP" -format UDZO -o "$DMG" >/dev/null
