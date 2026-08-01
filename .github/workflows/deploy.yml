@@ -7,6 +7,9 @@ on:
 permissions:
   contents: write
 
+env:
+  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -16,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - run: npm run build
       - name: Deploy to Render
@@ -30,27 +33,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - run: npm run build
       - name: Build Mac DMGs (arm64 + x64)
         run: |
           npx electron-builder --mac dmg --arm64
           npx electron-builder --mac dmg --x64
-      - name: Stage DMGs
+      - name: Upload DMGs to GitHub Release
         run: |
-          mkdir -p downloads
-          cp release/BlockForge-mac-arm64.dmg downloads/
-          cp release/BlockForge-mac-x64.dmg downloads/
-      - name: Commit DMGs
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f downloads/BlockForge-mac-arm64.dmg downloads/BlockForge-mac-x64.dmg
-          git commit -m "rebuild macOS .dmg downloads" || echo "no changes"
-          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
-          exit 1
+          gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
+          gh release upload binaries release/BlockForge-mac-arm64.dmg release/BlockForge-mac-x64.dmg --clobber
 
   build-android-apk:
     runs-on: ubuntu-latest
@@ -58,7 +51,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -76,19 +69,10 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
-      - name: Stage APK
+      - name: Upload APK to GitHub Release
         run: |
-          mkdir -p downloads
-          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/BlockForge-android.apk
-      - name: Commit APK
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f downloads/BlockForge-android.apk
-          git commit -m "rebuild Android .apk download" || echo "no changes"
-          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
-          exit 1
+          gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
+          gh release upload binaries android/app/build/outputs/apk/debug/app-debug.apk --clobber
 
   build-ios-ipa:
     runs-on: macos-latest
@@ -96,29 +80,24 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - run: npm run build
       - run: npx cap sync ios
       - name: Build unsigned IPA
         run: |
           cd ios/App
-          xcodebuild -project App.xcodeproj -target App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Package IPA
         run: |
           mkdir -p /tmp/ipa/Payload downloads
           cp -R ios/App/build/Build/Products/Release-iphoneos/App.app /tmp/ipa/Payload/BlockForge.app
           cd /tmp/ipa
           zip -r -y "$OLDPWD/downloads/BlockForge-iphone-ipa.ipa" Payload
-      - name: Commit IPA
-        shell: bash
+      - name: Upload IPA to GitHub Release
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f downloads/BlockForge-iphone-ipa.ipa
-          git commit -m "rebuild iOS .ipa download" || echo "no changes"
-          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
-          exit 1
+          gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
+          gh release upload binaries downloads/BlockForge-iphone-ipa.ipa --clobber
 
   build-windows-exe:
     runs-on: windows-latest
@@ -126,21 +105,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
       - run: npm ci
       - run: npm run build
       - name: Build portable EXE
         run: npx electron-builder --win portable
-      - name: Stage EXE
+      - name: Upload EXE to GitHub Release
         run: |
-          mkdir downloads -Force
-          Copy-Item release/BlockForge-windows.exe downloads/BlockForge-windows.exe
-      - name: Commit EXE
-        shell: bash
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -f downloads/BlockForge-windows.exe
-          git commit -m "rebuild Windows .exe download" || echo "no changes"
-          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
-          exit 1
+          gh release create binaries --title "BlockForge Downloads" --notes "Latest binaries built by CI" || true
+          gh release upload binaries release/BlockForge-windows.exe --clobber

@@ -4192,7 +4192,7 @@ function initMenu() {
     openFriendsMenu();
   });
   document.getElementById('btn-friends-back')?.addEventListener('click', () => {
-    ui.showMenu('main');
+    showMultiplayerMenu();
   });
   document.getElementById('btn-friend-add')?.addEventListener('click', () => {
     const input = document.getElementById('input-friend-name');
@@ -4325,76 +4325,122 @@ function initMenu() {
   });
 
   // --- Updates ---
-  // To add a new update section, push an object to UPDATE_SECTIONS:
-  // { heading: 'v1.2 — Title', bugs: [...], updates: [...], features: [...] }
-  // The newest entry (index 0) is expanded by default; older ones are collapsed.
+  // Each entry = one clickable commit button with categorized details.
+  // { hash, heading, desc, date, bugs: [], updates: [], features: [] }
   const UPDATE_SECTIONS = [
     {
-      heading: 'v0.9 — Crouch & Weather Overhaul',
-      bugs: [
-        'Player floats after walking off edge — gravity now always applies',
-        'Crouch edge protection too restrictive — now uses center foot check',
-        'Crouch uncrouch head-stuck check — prevents standing in 1-block gap',
-        'Remote players spawned at world origin instead of player position',
-        'Shadow matrix desync between custom shaders and Three.js render',
-        'getShadow() double-bias artifact — removed *0.5+0.5',
-        'Water viewDir/fog using origin instead of cameraPosition',
-        'Water vertex normal broken with non-uniform scale',
-        'GodRayPass renderToScreen not reset after use',
-        'Ghost blocks from previous worlds persisting in scene',
-        '120 BUGS_SCAN issues (NaN crash, zero-vector normalize, surfaceMap, DOM leaks, server guest persistence, block ID truncation, river octaves, cave width, duplicate owner, etc.)',
-        'Build: IS_LAN hoisting, package.json, .launch.err, BIOMES import',
-        'Login redirect loop — _backgroundAuth fixed',
-        'Server getPlayerData/setPlayerData JSON fallback',
-      ],
-      updates: [
-        'Crouch: smooth camera transition, fall damage negation, faster animation, center-foot edge protection',
-        'Water: fresnel-based reflections, sharper specular',
-        'Chunks: priority queue loads nearest chunks first',
-        'Day/night: golden hour glow, smooth sun/ambient lerp, cloud tinting',
-        '65 unused OGG files deleted — only CC0 footsteps + music remain',
-        'All animal and hostile mob sounds removed',
-        'All non-open-source sounds replaced with procedural synthesis',
-        'CC0 Fantozzi footstep samples from OpenGameArt',
-        '48 CC0 Kenney impact sounds for footstep/dig/place',
-        'Switch to Render hosting, MP_SERVER_URL uses BACKEND_URL',
-        'Server performance warning when >6 players in a room',
-      ],
-      features: [
-        'Weather system: rain (2000 particles), snow (1000), thunderstorms, biome-based probability',
-        'Underground biome: ore veins, stalactites, deepslate caves, lava caverns, underground lakes',
-        'Item tooltips: name, durability, defense, hunger on hover',
-        'Grass/foliage sway: vertex shader wind animation',
-        'Block preview ghost: green/red tint for valid/obstructed placement',
-        'Dynamic fog: rain reduces visibility, color adapts to weather',
-        'Real-time shadows: PCF shadow mapping, sun/moon follow player',
-        'Dynamic entity shadows',
-        'River biome with flowing water animation',
-        'Head bobbing: vertical + horizontal sway (8Hz walking, 11Hz sprinting)',
-        'Breast stroke swimming: frog kick, forward lean, head lift',
-        'Block break cracks — angular web pattern',
-        'Shadow bias & camera tightened for better resolution',
-      ],
+      hash: '5013d73',
+      heading: 'Electron for Mac — Real App Binary',
+      desc: 'Replaced shell-script .app with a real Electron app. DMG now contains a native Chromium window, proper bundle that Finder always recognizes.',
+      date: 'Aug 1',
+      bugs: ['Mac DMG showed as folder instead of app (missing bundle bit)'],
+      updates: ['DMG now contains real Electron app binary (not shell script)', 'Applications alias for drag-and-drop install', 'Favicon used as app icon and volume icon'],
+      features: ['Native Chromium window for Mac'],
+    },
+    {
+      hash: '9f8bdde',
+      heading: 'Mac DMG — Bundle Bit Fix',
+      desc: 'Set macOS bundle bit flag so Finder recognizes BlockForge.app as an application, not a folder.',
+      date: 'Aug 1',
+      bugs: ['BlockForge.app showed as generic folder icon on some Macs'],
+      updates: ['Bundle bit (SetFile -a B) set on app before DMG creation', 'Custom icon bit set for favicon display'],
+      features: [],
+    },
+    {
+      hash: '9f8afad',
+      heading: 'Platform Downloads — Real Native Packages',
+      desc: 'Added real platform-specific downloads: Mac .dmg, Windows .exe, Android .apk, iOS .ipa via CI pipeline.',
+      date: 'Aug 1',
+      bugs: [],
+      updates: ['Downloads renamed to BlockForge-<platform>.<ext>', 'CI pipeline builds all platforms automatically', 'Render deploy hook with fallback URL'],
+      features: ['Windows .exe via Electron', 'Android .apk via Capacitor + Gradle', 'iOS .ipa via Capacitor + Xcode (unsigned for SideStore)'],
+    },
+    {
+      hash: '3b07634',
+      heading: 'Download Button — Platform Options',
+      desc: 'Added "App Downloads" button to main menu with platform-specific download cards.',
+      date: 'Jul 31',
+      bugs: [],
+      updates: ['Download menu with Mac, Windows, Android, iPhone cards', 'iPhone card notes SideStore + LiveContainer requirement'],
+      features: ['Platform-specific download cards'],
+    },
+    {
+      hash: '07a16ac',
+      heading: 'Menu UI — Glass Morphism Overhaul',
+      desc: 'Modernized menu with glass-morphism panels, gradient text, glow effects, and smoother animations.',
+      date: 'Jul 30',
+      bugs: ['Menu cut-off on minigame screen', 'Promo-short scene 2 block rendering issues'],
+      updates: ['Glass-morphism blur on menu panels', 'Gradient text for titles', 'Glow effects on hover', 'Smoother fade-in animations'],
+      features: [],
+    },
+    {
+      hash: '905becf',
+      heading: 'Crouch, Weather & Underground Biomes',
+      desc: 'Major gameplay update: crouch mechanics, weather system, underground biomes, and visual polish.',
+      date: 'Jul 28',
+      bugs: ['Player floats after walking off edge', 'Crouch edge protection too restrictive', 'Remote players spawned at world origin', 'Shadow matrix desync', 'Ghost blocks from previous worlds', '120 BUGS_SCAN issues fixed'],
+      updates: ['Crouch: smooth camera, fall damage negation, faster animation', 'Water: fresnel reflections, sharper specular', 'Chunks: priority queue loads nearest first', 'Day/night: golden hour glow, smooth lerp', 'All sounds replaced with CC0/procedural', 'Switch to Render hosting'],
+      features: ['Weather: rain, snow, thunderstorms, biome-based', 'Underground: ore veins, stalactites, deepslate caves', 'Item tooltips on hover', 'Grass/foliage sway animation', 'Block preview ghost', 'Dynamic fog', 'Real-time PCF shadows', 'River biome', 'Head bobbing', 'Breast stroke swimming', 'Block break cracks'],
+    },
+    {
+      hash: '74767f9',
+      heading: 'Real-Time Shadows & Block Sounds',
+      desc: 'Added shadow mapping to custom shaders and CC0 Kenney block impact sounds.',
+      date: 'Jul 26',
+      bugs: ['Shadow pass not synced with custom shaders'],
+      updates: ['Shadow map in custom shaders', 'CC0 Kenney block impact sounds'],
+      features: ['Real-time PCF shadow mapping'],
+    },
+    {
+      hash: '27831b6',
+      heading: '120 Bug Fixes from BUGS_SCAN',
+      desc: 'Fixed all 120 issues found in the BUGS_SCAN audit across 16 files.',
+      date: 'Jul 25',
+      bugs: ['NaN crash on zero-vector normalize', 'SurfaceMap edge cases', 'DOM memory leaks', 'Server guest persistence', 'Block ID truncation', 'River octaves', 'Cave width', 'Duplicate owner', 'IS_LAN hoisting', 'BIOMES import', 'Login redirect loop'],
+      updates: ['Comprehensive bug scan and fix pass'],
+      features: [],
+    },
+    {
+      hash: '0884d91',
+      heading: 'Updates Accordion — Collapsible Sections',
+      desc: 'Made the Updates screen accordion-style: collapsible sections, newest expanded by default.',
+      date: 'Jul 25',
+      bugs: [],
+      updates: ['Accordion UI for updates list', 'Newest section expanded by default'],
+      features: [],
+    },
+    {
+      hash: '7802f0d',
+      heading: 'Creature Sounds & Mobile Controls',
+      desc: 'Added CC0 creature sounds, menu shadows, and mobile control improvements.',
+      date: 'Jul 24',
+      bugs: ['pigSound infinite loop (operator precedence)'],
+      updates: ['CC0 creature sounds', 'Menu shadow effects', 'Double-tap mobile controls'],
+      features: ['F3 debug overlay'],
     },
   ];
-  document.getElementById('btn-updates').addEventListener('click', () => {
+  document.getElementById('btn-updates')?.addEventListener('click', () => {
     ui.showMenu('updates');
     ui._prevMenu = 'main';
     const list = document.getElementById('updates-list');
     if (!list.dataset.rendered) {
       list.innerHTML = UPDATE_SECTIONS.map((s, i) => `
-        <div class="update-section" style="margin-bottom:8px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">
-          <div class="update-head" data-idx="${i}" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.08);font:bold 13px monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;">
-            <span>${s.heading}</span>
-            <span class="update-arrow" style="font-size:10px;transition:.2s;">${i === 0 ? '▲' : '▼'}</span>
+        <div class="update-section" style="margin-bottom:6px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">
+          <div class="update-head" data-idx="${i}" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.06);font:13px/1.4 monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;gap:8px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                <span style="font:bold 10px monospace;color:#666;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;">${s.hash}</span>
+                <span style="font:bold 10px monospace;color:#888;">${s.date}</span>
+              </div>
+              <span style="font-weight:bold;">${s.heading}</span>
+              <div style="font:11px monospace;color:#999;margin-top:2px;line-height:1.3;">${s.desc}</div>
+            </div>
+            <span class="update-arrow" style="font-size:10px;transition:.2s;flex-shrink:0;">${i === 0 ? '▲' : '▼'}</span>
           </div>
-          <div class="update-body" style="padding:${i === 0 ? '10px 12px' : '0 12px'};max-height:${i === 0 ? 'none' : '0'};overflow:hidden;transition:.25s;">
-            <div style="font:bold 11px monospace;color:#f88;margin-bottom:4px;">BUGS FIXED</div>
-            ${s.bugs.map(b => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">${b}</div>`).join('')}
-            <div style="font:bold 11px monospace;color:#8cf;margin-top:8px;margin-bottom:4px;">UPDATES</div>
-            ${s.updates.map(u => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">${u}</div>`).join('')}
-            <div style="font:bold 11px monospace;color:#8f8;margin-top:8px;margin-bottom:4px;">NEW FEATURES</div>
-            ${s.features.map(f => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">${f}</div>`).join('')}
+          <div class="update-body" style="padding:${i === 0 ? '8px 12px 10px' : '0 12px'};max-height:${i === 0 ? 'none' : '0'};overflow:hidden;transition:.25s;">
+            ${s.bugs.length ? `<div style="font:bold 10px monospace;color:#f88;margin-bottom:3px;">BUGS FIXED</div>${s.bugs.map(b => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">${b}</div>`).join('')}` : ''}
+            ${s.updates.length ? `<div style="font:bold 10px monospace;color:#8cf;margin-top:${s.bugs.length ? '8' : '0'}px;margin-bottom:3px;">UPDATES</div>${s.updates.map(u => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">${u}</div>`).join('')}` : ''}
+            ${s.features.length ? `<div style="font:bold 10px monospace;color:#8f8;margin-top:${s.updates.length || s.bugs.length ? '8' : '0'}px;margin-bottom:3px;">NEW FEATURES</div>${s.features.map(f => `<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">${f}</div>`).join('')}` : ''}
           </div>
         </div>
       `).join('');
@@ -4406,13 +4452,13 @@ function initMenu() {
         const arrow = head.querySelector('.update-arrow');
         const isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
         body.style.maxHeight = isOpen ? '0' : 'none';
-        body.style.padding = isOpen ? '0 12px' : '10px 12px';
+        body.style.padding = isOpen ? '0 12px' : '8px 12px 10px';
         arrow.textContent = isOpen ? '▼' : '▲';
       });
       list.dataset.rendered = '1';
     }
   });
-  document.getElementById('btn-updates-back').addEventListener('click', () => {
+  document.getElementById('btn-updates-back')?.addEventListener('click', () => {
     ui.showMenu('main');
   });
 
@@ -4446,14 +4492,14 @@ function initMenu() {
       });
     } catch (_) { console.warn("operation failed"); }
   }
-  document.getElementById('btn-feedback').addEventListener('click', () => {
+  document.getElementById('btn-feedback')?.addEventListener('click', () => {
     ui.showMenu('feedback');
     renderFeedbackList();
   });
-  document.getElementById('btn-feedback-back').addEventListener('click', () => {
+  document.getElementById('btn-feedback-back')?.addEventListener('click', () => {
     ui.showMenu('main');
   });
-  document.getElementById('btn-feedback-submit').addEventListener('click', () => {
+  document.getElementById('btn-feedback-submit')?.addEventListener('click', () => {
     const text = document.getElementById('feedback-text').value.trim();
     const type = document.getElementById('feedback-type').value;
     const status = document.getElementById('feedback-status');
