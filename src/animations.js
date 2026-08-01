@@ -260,13 +260,15 @@ function calcBodyPose(state) {
   let bodyRx = 0, bodyRy = 0, bodyRz = 0;
   let bodyTx = 0, bodyTy = 0, bodyTz = 0;
 
-  // ── Swim: forward body lean ──
-  bodyRx += rad(25) * swim;
+  // ── Swim: forward body lean + undulation ──
+  const swimBob = Math.sin(ls * 0.5) * 0.08 * swim;
+  bodyRx += rad(25) * swim + Math.sin(ls * 0.5) * rad(5) * swim;
+  bodyTy += swimBob;
   bodyTz += -0.1 * swim;
 
   // ── Body rotation X (forward lean) ──
-  // Sprint lean + walk body tilt
-  const sprintLean = rad(16) * sprint;
+  // Sprint lean + walk body tilt — sprint leans further forward
+  const sprintLean = rad(16) * sprint + rad(4) * sprint * lsSpeed;
   const walkTilt = rad(8) * walk * (1 - sneak);
   bodyRx += (sprintLean + walkTilt) * (1 - inAir);
 
@@ -313,6 +315,13 @@ function calcBodyPose(state) {
   // ── Swim: slight body roll with each stroke ──
   bodyRz += Math.sin(ls * 0.5) * rad(6) * swim;
 
+  // Flying: body tilts forward, slight sway
+  if (state.flying) {
+    bodyRx += rad(-10);
+    bodyTy += Math.sin(state.time * 2) * 0.04;
+    bodyRz += Math.sin(state.time * 1.5) * rad(2);
+  }
+
   // Climb: tilt back slightly
   if (climb) {
     bodyRx += rad(-10);
@@ -351,6 +360,7 @@ function calcHeadPose(state) {
 
   // ── Swim: head lift for breath (breast stroke rhythm) ──
   headRx += Math.sin(ls * 0.5) * rad(-12) * swim;
+  headRy += Math.sin(ls * 0.25) * rad(4) * swim;
 
   // Climb: look up
   if (climb) {
@@ -388,6 +398,8 @@ function calcArmPose(state, side) {
   // ── Sprint: pumped arms, raised and tucked in ──
   armRx += rad(25) * sprint;
   armRy += (isRight ? 1 : -1) * rad(12) * sprint;
+  // Forearm pumps forward during sprint
+  armRz += (isRight ? 1 : -1) * rad(-8) * sprint * lsSpeed;
 
   // ── Idle arm sway ──
   // FA+: subtle arm rotation matching head movement
@@ -453,12 +465,17 @@ function calcArmPose(state, side) {
     armRx = rad(-90) - Math.cos(bp) * rad(70) * pull;
     armRy = (isRight ? 1 : -1) * Math.sin(bp) * rad(45) * pull;
     armRz = Math.sin(bp) * rad(12) * pull;
+    // Arms tuck closer to body on recovery phase
+    const recovery = Math.max(0, -Math.cos(bp)) * 0.3;
+    armRx -= rad(15) * recovery * pull;
   }
 
-  // ── Flying ──
+  // ── Flying: arms spread wide with wind resistance ──
   if (state.flying) {
-    armRx = rad(-30);
-    armRy = (isRight ? 1 : -1) * rad(10);
+    const flyBob = Math.sin(state.time * 3) * 0.05;
+    armRx = rad(-30) + flyBob;
+    armRy = (isRight ? 1 : -1) * rad(15);
+    armRz = (isRight ? 1 : -1) * rad(-8);
   }
 
   return { armRx, armRy, armRz };
@@ -490,9 +507,11 @@ function calcLegPose(state, side) {
   // ── Crouch: legs spread ──
   legRx += rad(20) * sneak * (isRight ? 1 : -1);
 
-  // ── Swim: breast stroke frog kick (synchronous) ──
+  // ── Swim: frog kick with flutter component ──
   if (swim) {
-    legRx = Math.sin(ls * 0.5) * rad(55) * Math.max(0.6, lsSpeed) * 0.5;
+    const frogKick = Math.sin(ls * 0.5) * rad(55) * Math.max(0.6, lsSpeed) * 0.5;
+    const flutterKick = Math.sin(ls * 1.5) * rad(15) * lsSpeed * 0.4;
+    legRx = frogKick + flutterKick * (isRight ? 1 : -1);
   }
 
   // ── Climb: legs alternate ──
@@ -507,9 +526,10 @@ function calcLegPose(state, side) {
     legRx = Math.sin(t * 14) * rad(5);
   }
 
-  // ── Flying: legs together ──
+  // ── Flying: legs trail behind with slight flutter ──
   if (state.flying) {
-    legRx = rad(15);
+    const flyLeg = Math.sin(state.time * 4) * rad(5);
+    legRx = rad(15) + flyLeg;
   }
 
   return { legRx };

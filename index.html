@@ -2441,10 +2441,25 @@
               <input id="input-world-name" type="text" value="My World" maxlength="32" spellcheck="false" autocomplete="off"/>
               <label>Seed (leave blank for random)</label>
               <input id="input-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
-              <label style="display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;">
-                <input id="cb-flat-world" type="checkbox" style="width:16px;height:16px;cursor:pointer;"/>
-                <span style="color:#ccc;font-size:12px;">Superflat World</span>
-              </label>
+              <label>Terrain Type</label>
+              <div class="mode-select" id="terrain-select" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="mode-option selected" data-terrain="normal" id="terr-normal">
+                  <div class="mo-label">NORMAL</div>
+                  <div class="mo-desc">Balanced terrain</div>
+                </div>
+                <div class="mode-option" data-terrain="weird" id="terr-weird">
+                  <div class="mo-label">WEIRD</div>
+                  <div class="mo-desc">Wild terrain</div>
+                </div>
+                <div class="mode-option" data-terrain="amplified" id="terr-amplified">
+                  <div class="mo-label">AMPLIFIED</div>
+                  <div class="mo-desc">Extreme heights</div>
+                </div>
+                <div class="mode-option" data-terrain="flat" id="terr-flat">
+                  <div class="mo-label">SUPERFLAT</div>
+                  <div class="mo-desc">Flat creative</div>
+                </div>
+              </div>
             </div>
             <div class="create-preview-box" id="seed-preview-box">
               <canvas id="seed-preview-canvas" width="240" height="160" style="width:240px;height:160px;margin-top:4px;border-radius:4px;image-rendering:pixelated;border:1px solid rgba(100,100,120,0.4);display:block;"></canvas>
@@ -2762,7 +2777,23 @@
         <div class="menu-title" style="font-size:32px;">FRIENDS</div>
         <div id="friends-login-note" style="display:none;font:12px monospace;color:#fc8;margin-bottom:16px;text-align:center;max-width:420px;">Log in from the Multiplayer screen first to use friends.</div>
 
-        <!-- Add friend -->
+        <!-- DM Panel (hidden by default) -->
+        <div id="dm-panel" style="display:none;max-width:460px;width:100%;">
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;display:flex;flex-direction:column;height:420px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(80,100,120,0.4);">
+              <button id="dm-back" class="menu-btn secondary" style="min-width:auto;padding:4px 10px;font-size:11px;">←</button>
+              <div id="dm-recipient" style="font:bold 13px monospace;color:#8bd;flex:1;"></div>
+              <div id="dm-online-dot" style="width:8px;height:8px;border-radius:50%;background:#666;"></div>
+            </div>
+            <div id="dm-messages" style="flex:1;overflow-y:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="display:flex;gap:6px;padding:10px 14px;border-top:1px solid rgba(80,100,120,0.4);">
+              <input id="dm-input" type="text" placeholder="Type a message..." maxlength="200" autocomplete="off" spellcheck="false" style="flex:1;padding:8px 10px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:12px monospace;outline:none;box-sizing:border-box;"/>
+              <button class="menu-btn" id="dm-send" style="min-width:auto;padding:8px 14px;font-size:11px;">SEND</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add friend + friend list (hidden when DM panel is open) -->
         <div id="friends-main" style="max-width:460px;width:100%;">
           <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;margin-bottom:10px;">
             <div style="font:bold 11px monospace;color:#8bd;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ADD FRIEND</div>

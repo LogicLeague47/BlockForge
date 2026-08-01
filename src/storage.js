@@ -77,6 +77,8 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
     gamemode: gamemode || 'creative',
     difficulty: difficulty || 'normal',
     flat: !!opts.flat,
+    amplified: !!opts.amplified,
+    weird: !!opts.weird,
     createdAt: Date.now(),
   };
   if (opts.dev) {

@@ -16,7 +16,7 @@ const ORE_VEINS = [
   { block: BLOCK.PRISMITE_ORE,    minY: 1,  maxY: 12,  attempts: 1,  minSize: 1,  maxSize: 3,  shape: 'single' },
 ];
 
-export function calcHeight(n, wx, wz) {
+export function calcHeight(n, wx, wz, mode) {
   const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
   const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
   const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.007, wz * 0.007, 4, 2, 0.5));
@@ -65,6 +65,17 @@ export function calcHeight(n, wx, wz) {
 
   // Fine detail everywhere
   h += n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5) * 2;
+
+  // Terrain mode modifiers
+  if (mode === 'amplified') {
+    // Extreme terrain — multiply deviation from sea level
+    const deviation = h - SEA_LEVEL;
+    h = SEA_LEVEL + deviation * 2.5;
+  } else if (mode === 'normal') {
+    // Gentle terrain — dampen mountains and extreme features
+    const deviation = h - SEA_LEVEL;
+    h = SEA_LEVEL + deviation * 0.6;
+  }
   
   return Math.max(2, Math.min(WORLD_HEIGHT - 6, Math.floor(h)));
 }
@@ -149,8 +160,8 @@ export function fillBlock(biome, h) {
   }
 }
 
-export function generateColumn(n, chunk, x, z, wx, wz) {
-  const h = calcHeight(n, wx, wz);
+export function generateColumn(n, chunk, x, z, wx, wz, mode) {
+  const h = calcHeight(n, wx, wz, mode);
   const biome = calcBiome(n, wx, wz, h);
   const surf = surfBlock(biome, h);
   const sub = fillBlock(biome, h);

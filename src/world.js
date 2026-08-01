@@ -32,6 +32,8 @@ export class World {
     this.flat = !!opts.flat;
     this.void = !!opts.void;
     this.parkour = !!opts.parkour;
+    this.amplified = !!opts.amplified;
+    this.weird = !!opts.weird;
   }
 
   getChest(x, y, z) {
@@ -144,10 +146,11 @@ export class World {
         }
       }
     } else {
+      const terrainMode = this.amplified ? 'amplified' : this.weird ? 'weird' : 'normal';
       for (let x = 0; x < CHUNK_SIZE; x++) {
         for (let z = 0; z < CHUNK_SIZE; z++) {
           const wx = baseX + x, wz = baseZ + z;
-          const result = generateColumn(n, chunk, x, z, wx, wz);
+          const result = generateColumn(n, chunk, x, z, wx, wz, terrainMode);
           chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
           chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
         }

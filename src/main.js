@@ -1057,6 +1057,7 @@ function renderFriends() {
     <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(80,80,80,0.25);">
       <div style="width:8px;height:8px;border-radius:50%;background:${f.online ? '#4d4' : '#666'};box-shadow:${f.online ? '0 0 5px #4d4' : 'none'};"></div>
       <div style="flex:1;font:13px monospace;color:#eee;">${escHtml(f.name)} <span style="font-size:10px;color:${f.online ? '#6c6' : '#777'};">${f.online ? 'online' : 'offline'}</span></div>
+      <button class="fr-dm menu-btn" data-name="${escHtml(f.name)}" style="min-width:auto;padding:5px 10px;font-size:10px;background:linear-gradient(180deg,#5a7aaa,#365070);border-color:#2a5080;${f.online ? '' : 'opacity:0.5;'}">MESSAGE</button>
       <button class="fr-remove menu-btn secondary" data-name="${escHtml(f.name)}" style="min-width:auto;padding:5px 9px;font-size:10px;">REMOVE</button>
     </div>`).join('');
   // Pending outgoing (sent) requests
@@ -1072,6 +1073,80 @@ function renderFriends() {
   document.querySelectorAll('.fr-accept').forEach(b => b.addEventListener('click', () => network.friendAccept(b.dataset.name)));
   document.querySelectorAll('.fr-decline').forEach(b => b.addEventListener('click', () => network.friendDecline(b.dataset.name)));
   document.querySelectorAll('.fr-remove').forEach(b => b.addEventListener('click', () => network.friendRemove(b.dataset.name)));
+  document.querySelectorAll('.fr-dm').forEach(b => b.addEventListener('click', () => openDM(b.dataset.name)));
+}
+
+// ── Direct Messages (localStorage-based, Roblox-style) ────────────────
+function _dmKey(a, b) {
+  return 'bf_dm_' + [a, b].sort().join('__');
+}
+function _loadDMThread(name) {
+  const me = playerName || '';
+  if (!me || !name) return [];
+  try { return JSON.parse(localStorage.getItem(_dmKey(me, name)) || '[]'); } catch (_) { return []; }
+}
+function _saveDMThread(name, msgs) {
+  const me = playerName || '';
+  if (!me || !name) return;
+  try { localStorage.setItem(_dmKey(me, name), JSON.stringify(msgs)); } catch (_) {}
+}
+let _dmOpenFor = '';
+function openDM(friendName) {
+  _dmOpenFor = friendName;
+  const friendsMain = document.getElementById('friends-main');
+  const dmPanel = document.getElementById('dm-panel');
+  const dmRecipient = document.getElementById('dm-recipient');
+  const dmOnline = document.getElementById('dm-online-dot');
+  const backBtn = document.getElementById('dm-back');
+  const sendBtn = document.getElementById('dm-send');
+  const input = document.getElementById('dm-input');
+  if (friendsMain) friendsMain.style.display = 'none';
+  if (dmPanel) dmPanel.style.display = '';
+  if (dmRecipient) dmRecipient.textContent = friendName;
+  const fr = (_friendState.friends || []).find(f => f.name === friendName);
+  if (dmOnline) dmOnline.style.background = fr?.online ? '#4d4' : '#666';
+  if (input) { input.value = ''; input.focus(); }
+  renderDMMessages();
+  if (backBtn) backBtn.onclick = closeDM;
+  if (sendBtn) sendBtn.onclick = () => _dmSend();
+  if (input) input.onkeydown = (e) => { if (e.key === 'Enter') _dmSend(); };
+}
+function closeDM() {
+  _dmOpenFor = '';
+  const friendsMain = document.getElementById('friends-main');
+  const dmPanel = document.getElementById('dm-panel');
+  if (dmPanel) dmPanel.style.display = 'none';
+  if (friendsMain) friendsMain.style.display = '';
+}
+function _dmSend() {
+  if (!_dmOpenFor) return;
+  const input = document.getElementById('dm-input');
+  const text = (input?.value || '').trim();
+  if (!text) return;
+  const msgs = _loadDMThread(_dmOpenFor);
+  msgs.push({ from: playerName, text, time: Date.now() });
+  _saveDMThread(_dmOpenFor, msgs);
+  if (input) input.value = '';
+  renderDMMessages();
+}
+function renderDMMessages() {
+  const el = document.getElementById('dm-messages');
+  if (!el) return;
+  const msgs = _loadDMThread(_dmOpenFor);
+  if (msgs.length === 0) {
+    el.innerHTML = '<div style="font:11px monospace;color:#666;text-align:center;padding:20px;">Send a message to start chatting!</div>';
+    return;
+  }
+  el.innerHTML = msgs.map(m => {
+    const mine = m.from === playerName;
+    return `<div style="display:flex;${mine ? 'justify-content:flex-end' : 'justify-content:flex-start'};">
+      <div style="max-width:75%;padding:7px 10px;border-radius:8px;font:12px monospace;color:#eee;background:${mine ? 'rgba(60,100,160,0.6)' : 'rgba(50,50,60,0.6)'};border:1px solid ${mine ? 'rgba(80,120,180,0.4)' : 'rgba(80,80,100,0.3)'};">
+        ${mine ? '' : `<div style="font-size:10px;color:#8bd;margin-bottom:2px;">${escHtml(m.from)}</div>`}
+        <div>${escHtml(m.text)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.scrollTop = el.scrollHeight;
 }
 
 // --- Controls / key bindings screen ----------------------------------------
@@ -3127,7 +3202,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
-  world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour });
+  world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird });
   const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
@@ -4438,22 +4513,30 @@ function initMenu() {
       crypto.getRandomValues(buf);
       seed = buf[0];
     }
-    const mode = document.querySelector('.mode-option.selected')?.dataset.mode || 'creative';
-    const diff = document.querySelector('.mode-option[data-diff].selected')?.dataset.diff || 'normal';
-    const flatWorld = document.getElementById('cb-flat-world')?.checked || false;
-    const w = createWorld(name, seed, mode, diff, { flat: flatWorld });
-    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: w.flat });
+    const mode = document.querySelector('#menu-create .mode-option.selected[data-mode]')?.dataset.mode || 'creative';
+    const diff = document.querySelector('#menu-create .mode-option.selected[data-diff]')?.dataset.diff || 'normal';
+    const terrain = document.querySelector('#terrain-select .mode-option.selected')?.dataset.terrain || 'normal';
+    const isFlat = terrain === 'flat';
+    const isAmplified = terrain === 'amplified';
+    const isWeird = terrain === 'weird';
+    const w = createWorld(name, seed, mode, diff, { flat: isFlat, amplified: isAmplified, weird: isWeird });
+    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: w.flat, amplified: w.amplified, weird: w.weird });
   });
   document.getElementById('btn-create-back').addEventListener('click', () => {
     ui.showMenu('worlds');
     renderWorldList();
   });
 
-  // Mode select (game mode + difficulty are independent groups)
+  // Mode select (game mode + difficulty + terrain are independent groups)
   document.querySelectorAll('.mode-option').forEach(el => {
     el.addEventListener('click', () => {
-      const group = el.dataset.mode ? 'mode' : 'diff';
-      document.querySelectorAll(`.mode-option[data-${group}]`).forEach(m => m.classList.remove('selected'));
+      let group;
+      if (el.dataset.mode) group = 'mode';
+      else if (el.dataset.diff) group = 'diff';
+      else if (el.dataset.terrain) group = 'terrain';
+      else return;
+      const parent = el.closest('.mode-select') || el.parentElement;
+      parent.querySelectorAll(`.mode-option`).forEach(m => m.classList.remove('selected'));
       el.classList.add('selected');
     });
   });
@@ -5434,7 +5517,7 @@ function renderWorldList() {
       renderWorldList();
     });
     card.addEventListener('click', () => {
-      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat });
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, amplified: !!w.amplified, weird: !!w.weird });
     });
     list.appendChild(card);
   }
