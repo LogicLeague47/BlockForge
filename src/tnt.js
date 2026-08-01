@@ -147,8 +147,11 @@ export class LitTnt {
       this.group.traverse((c) => {
         if (c.geometry) c.geometry.dispose();
         if (c.material) {
-          if (c.material.map && typeof c.material.map.dispose === 'function') c.material.map.dispose();
-          c.material.dispose();
+          const mats = Array.isArray(c.material) ? c.material : [c.material];
+          for (const m of mats) {
+            if (m.map && typeof m.map.dispose === 'function') m.map.dispose();
+            m.dispose();
+          }
         }
       });
     }
