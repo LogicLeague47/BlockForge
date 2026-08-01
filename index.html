@@ -1504,15 +1504,26 @@
       }
       .mode-select { display: flex; gap: 8px; }
       .mode-option {
-        flex: 1; padding: 10px; border: 2px solid rgba(80,80,100,0.3);
-        border-radius: 4px; cursor: pointer; text-align: center;
-        transition: border-color 0.15s, background 0.15s;
+        flex: 1; padding: 12px 10px;
+        border: 2px solid var(--btn-border); border-radius: 8px;
+        cursor: pointer; text-align: center;
+        background: var(--bg-card);
+        backdrop-filter: blur(8px);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .mode-option:hover { background: rgba(60,80,60,0.3); }
-      .mode-option.selected { border-color: #6cbb3c; background: rgba(60,140,60,0.15); }
+      .mode-option:hover {
+        background: var(--bg-card-hover);
+        border-color: rgba(100,160,255,0.3);
+        box-shadow: 0 0 12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .mode-option.selected {
+        border-color: rgba(100,200,100,0.6); background: rgba(60,140,60,0.12);
+        box-shadow: 0 0 16px rgba(60,180,60,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
       .mode-option .mo-icon { font-size: 24px; margin-bottom: 4px; }
-      .mode-option .mo-label { font-size: 12px; font-weight: bold; color: #ddd; }
-      .mode-option .mo-desc { font-size: 9px; color: #999; margin-top: 2px; }
+      .mode-option .mo-label { font: bold 12px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .mode-option .mo-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 3px; }
       .menu-panel .menu-btn {
         min-width: 0;
         width: 100%;
@@ -1569,14 +1580,17 @@
       /* Create World layout — Bedrock two-column style */
       .create-layout {
         display: flex; gap: 0; width: 100%; margin-bottom: 12px;
-        border-radius: 6px; overflow: hidden;
-        border: 1px solid rgba(60,60,80,0.5);
+        border-radius: 8px; overflow: hidden;
+        border: 1px solid var(--bg-panel-border);
         min-height: 380px;
+        background: var(--bg-panel);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 0 0 1px rgba(100,160,255,0.04), inset 0 1px 0 rgba(255,255,255,0.04);
       }
       .create-left {
         width: 180px; min-width: 180px;
-        background: rgba(15,15,25,0.85);
-        border-right: 1px solid rgba(60,60,80,0.5);
+        background: rgba(8,8,16,0.5);
+        border-right: 1px solid var(--bg-panel-border);
         display: flex; flex-direction: column;
       }
       .create-sidebar-tab {
@@ -1594,28 +1608,29 @@
       }
       .create-sidebar-tab .tab-icon { margin-right: 8px; font-size: 14px; }
       .create-right {
-        flex: 1; background: rgba(20,22,30,0.9);
+        flex: 1; background: rgba(12,14,22,0.6);
         padding: 20px 24px; overflow-y: auto;
-        scrollbar-width: thin; scrollbar-color: rgba(80,80,100,0.5) transparent;
+        scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
       }
       .create-right::-webkit-scrollbar { width: 6px; }
-      .create-right::-webkit-scrollbar-thumb { background: rgba(80,80,100,0.5); border-radius: 3px; }
+      .create-right::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
       .create-section {
-        background: rgba(0,0,0,0.3); border: 1px solid rgba(60,60,80,0.4);
-        border-radius: 6px; padding: 16px 18px; margin-bottom: 14px;
+        background: var(--bg-card); border: 1px solid var(--bg-panel-border);
+        border-radius: 8px; padding: 16px 18px; margin-bottom: 14px;
       }
       .create-section-title {
-        font: bold 11px 'Segoe UI', Arial, sans-serif; color: #7ab8e0;
+        font: bold 11px 'Segoe UI', Arial, sans-serif; color: #7ab;
         letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
       }
       .create-section label {
-        font: bold 12px 'Segoe UI', Arial, sans-serif; color: #ccccdd;
+        font: bold 12px 'Segoe UI', Arial, sans-serif; color: var(--text-secondary);
         display: block; margin-bottom: 5px;
       }
       .create-section input[type="text"] {
         width: 100%; padding: 10px 12px; margin-bottom: 12px;
-        background: rgba(0,0,0,0.5); border: 1px solid rgba(80,80,100,0.4);
-        border-radius: 4px; color: #fff; font: 13px 'Segoe UI', Arial, monospace;
+        background: var(--bg-input); border: 1px solid var(--bg-input-border);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, monospace;
         box-sizing: border-box; transition: border-color 0.15s;
       }
       .create-section input[type="text"]:focus {
@@ -1625,33 +1640,34 @@
       .create-mode-btn {
         display: flex; align-items: center; gap: 10px;
         width: 100%; padding: 12px 14px; margin-bottom: 8px;
-        background: rgba(0,0,0,0.3); border: 2px solid rgba(60,60,80,0.4);
-        border-radius: 6px; cursor: pointer; transition: all 0.15s;
+        background: var(--bg-card); border: 2px solid var(--btn-border);
+        border-radius: 8px; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
         text-align: left;
+        backdrop-filter: blur(8px);
       }
-      .create-mode-btn:hover { border-color: rgba(100,140,180,0.4); background: rgba(255,255,255,0.03); }
-      .create-mode-btn.selected { border-color: #6cbb3c; background: rgba(60,140,60,0.1); }
+      .create-mode-btn:hover { border-color: rgba(100,160,255,0.3); background: var(--bg-card-hover); box-shadow: 0 0 12px var(--accent-glow); }
+      .create-mode-btn.selected { border-color: rgba(100,200,100,0.6); background: rgba(60,140,60,0.12); box-shadow: 0 0 16px rgba(60,180,60,0.2); }
       .create-mode-btn .mode-emoji { font-size: 22px; width: 32px; text-align: center; }
       .create-mode-btn .mode-info { flex: 1; }
-      .create-mode-btn .mode-title { font: bold 13px 'Segoe UI', Arial, sans-serif; color: #ddd; }
-      .create-mode-btn .mode-desc { font: 11px 'Segoe UI', Arial, sans-serif; color: #888; margin-top: 1px; }
+      .create-mode-btn .mode-title { font: bold 13px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .create-mode-btn .mode-desc { font: 11px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 1px; }
       .create-dropdown {
         width: 100%; padding: 10px 12px; margin-bottom: 12px;
-        background: rgba(0,0,0,0.5); border: 1px solid rgba(80,80,100,0.4);
-        border-radius: 4px; color: #fff; font: 13px 'Segoe UI', Arial, sans-serif;
+        background: var(--bg-input); border: 1px solid var(--bg-input-border);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, sans-serif;
         box-sizing: border-box; cursor: pointer;
         -webkit-appearance: none; appearance: none;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='2' fill='none'/%3E%3C/svg%3E");
         background-repeat: no-repeat; background-position: right 10px center;
       }
-      .create-dropdown option { background: #1a1a2e; color: #ddd; }
+      .create-dropdown option { background: #1a1a2e; color: var(--text-primary); }
       .create-toggle-row {
         display: flex; align-items: center; justify-content: space-between;
         padding: 10px 0; border-bottom: 1px solid rgba(60,60,70,0.2);
       }
       .create-toggle-row:last-child { border-bottom: none; }
-      .create-toggle-label { font: 12px 'Segoe UI', Arial, sans-serif; color: #ccc; }
-      .create-toggle-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: #777; margin-top: 1px; }
+      .create-toggle-label { font: 12px 'Segoe UI', Arial, sans-serif; color: var(--text-secondary); }
+      .create-toggle-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 1px; }
       .toggle-switch {
         width: 40px; height: 22px; border-radius: 11px;
         background: rgba(60,60,80,0.6); cursor: pointer;
@@ -1667,13 +1683,14 @@
       }
       .toggle-switch.on::after { transform: translateX(18px); }
       .create-preview-box {
-        background: rgba(0,0,0,0.3); border: 1px solid rgba(60,60,80,0.4);
-        border-radius: 6px; padding: 10px; text-align: center;
+        background: var(--bg-card); border: 1px solid var(--bg-panel-border);
+        border-radius: 8px; padding: 12px; text-align: center;
         width: 100%;
+        backdrop-filter: blur(8px);
       }
       .create-preview-icon { font-size: 36px; margin-bottom: 8px; }
-      .create-preview-text { font: bold 13px 'Segoe UI', Arial, sans-serif; color: #ddd; }
-      .create-preview-sub { font: 11px 'Segoe UI', Arial, sans-serif; color: #888; margin-top: 4px; }
+      .create-preview-text { font: bold 13px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .create-preview-sub { font: 11px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 4px; }
 
       /* Loading screen — Bedrock style */
       #loading-screen {
@@ -2444,18 +2461,22 @@
               <label>Terrain Type</label>
               <div class="mode-select" id="terrain-select" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
                 <div class="mode-option selected" data-terrain="normal" id="terr-normal">
+                  <div class="mo-icon">⛰️</div>
                   <div class="mo-label">NORMAL</div>
                   <div class="mo-desc">Balanced terrain</div>
                 </div>
                 <div class="mode-option" data-terrain="weird" id="terr-weird">
+                  <div class="mo-icon">🌀</div>
                   <div class="mo-label">WEIRD</div>
                   <div class="mo-desc">Wild terrain</div>
                 </div>
                 <div class="mode-option" data-terrain="amplified" id="terr-amplified">
+                  <div class="mo-icon">🏔️</div>
                   <div class="mo-label">AMPLIFIED</div>
                   <div class="mo-desc">Extreme heights</div>
                 </div>
                 <div class="mode-option" data-terrain="flat" id="terr-flat">
+                  <div class="mo-icon">🟩</div>
                   <div class="mo-label">SUPERFLAT</div>
                   <div class="mo-desc">Flat creative</div>
                 </div>
