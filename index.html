@@ -2339,13 +2339,15 @@
         <button class="menu-btn secondary" id="btn-download-back" style="margin-top:16px;">BACK</button>
         <script>
         // Set correct download links from manifest
+        const _dlExt = { 'mac-arm64': 'dmg', 'mac-x64': 'dmg', 'windows': 'exe', 'android': 'apk', 'iphone-ipa': 'ipa' };
         fetch('/downloads/manifest.json').then(r=>r.json()).then(m=>{
+          Object.assign(_dlExt, m.ext || {});
           document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
-            const f=el.dataset.file; if(f && m.ext[f]) el.href='/downloads/BlockForge-'+f+'.'+m.ext[f];
+            const f=el.dataset.file; if(f && _dlExt[f]) el.href='/downloads/BlockForge-'+f+'.'+_dlExt[f];
           });
         }).catch(()=>{
           document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
-            const f=el.dataset.file; if(f) el.href='/downloads/BlockForge-'+f+'.zip';
+            const f=el.dataset.file; if(f && _dlExt[f]) el.href='/downloads/BlockForge-'+f+'.'+_dlExt[f];
           });
         });
         </script>
