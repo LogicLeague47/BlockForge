@@ -1609,7 +1609,7 @@ export class UI {
   }
 
   _cycleSplash() {
-    const el = document.querySelector('.menu-splash');
+    const el = document.getElementById('main-splash') || document.querySelector('#menu-main .menu-splash');
     if (!el) return;
     // Weighted splash texts — rarer messages appear less often
     const POOL = [
