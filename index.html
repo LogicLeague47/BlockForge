@@ -2277,7 +2277,7 @@
         <button class="menu-btn" id="btn-settings">Settings</button>
         <button class="menu-btn" id="btn-updates">Updates</button>
         <button class="menu-btn" id="btn-feedback">Feedback</button>
-        <button class="menu-btn" id="btn-download" style="border-color:#0fc;background:linear-gradient(180deg,#0a3a2a 0%,#0d4a3a 40%,#0a3a2a 60%,#072a1a 100%);">🛠 Utilities</button>
+        <button class="menu-btn" id="btn-download" style="border-color:#0fc;background:linear-gradient(180deg,#0a3a2a 0%,#0d4a3a 40%,#0a3a2a 60%,#072a1a 100%);">⬇ App Downloads</button>
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
         <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
@@ -2289,7 +2289,7 @@
 
       <!-- Screen: Download -->
       <div id="menu-download" class="menu-screen">
-        <div class="menu-title" style="font-size:32px;">🛠 UTILITIES &amp; DOWNLOADS</div>
+        <div class="menu-title" style="font-size:32px;">⬇ APP DOWNLOADS</div>
         <div style="font:12px monospace;color:#aaa;margin-bottom:8px;">Download the game for your platform</div>
         <div style="display:flex;flex-direction:column;gap:8px;width:100%;max-width:440px;">
           <a class="dl-card" data-file="mac-arm64">
@@ -2341,11 +2341,11 @@
         // Set correct download links from manifest
         fetch('/downloads/manifest.json').then(r=>r.json()).then(m=>{
           document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
-            const f=el.dataset.file; if(f) el.href='/downloads/'+f+'.'+m.ext;
+            const f=el.dataset.file; if(f && m.ext[f]) el.href='/downloads/BlockForge-'+f+'.'+m.ext[f];
           });
         }).catch(()=>{
           document.querySelectorAll('#menu-download .dl-card').forEach(el=>{
-            const f=el.dataset.file; if(f) el.href='/downloads/'+f+'.zip';
+            const f=el.dataset.file; if(f) el.href='/downloads/BlockForge-'+f+'.zip';
           });
         });
         </script>

@@ -4,6 +4,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -17,3 +20,22 @@ jobs:
       - name: Deploy to Render
         run: |
           curl -s -X POST "${{ secrets.RENDER_DEPLOY_URL }}" -H "Content-Type: application/json"
+
+  build-mac-dmg:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run build
+      - name: Build DMGs
+        run: bash scripts/build-dmg.sh
+      - name: Commit DMGs
+        run: |
+          git add -f downloads/BlockForge-mac-arm64.dmg downloads/BlockForge-mac-x64.dmg
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "rebuild macOS .dmg downloads" || echo "no changes"
+          git push

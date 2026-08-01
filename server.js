@@ -755,7 +755,7 @@ const server = http.createServer((req, res) => {
       try {
         const data = readFileSync(dlPath);
         const ext = extname(dlPath).toLowerCase();
-        const dlMime = { '.tgz': 'application/gzip', '.zip': 'application/zip', '.apk': 'application/vnd.android.package-archive', '.ipa': 'application/octet-stream' };
+        const dlMime = { '.tgz': 'application/gzip', '.zip': 'application/zip', '.dmg': 'application/x-apple-diskimage', '.apk': 'application/vnd.android.package-archive', '.ipa': 'application/octet-stream' };
         res.writeHead(200, {
           'Content-Type': dlMime[ext] || 'application/octet-stream',
           'Content-Disposition': 'attachment; filename="' + basename(dlPath) + '"',
