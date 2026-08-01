@@ -1,0 +1,14 @@
+Sound Effects Credits
+=====================
+
+All files in this folder are licensed under CC0 1.0 Universal
+(https://creativecommons.org/publicdomain/zero/1.0/).
+
+Sources:
+  - Kenney.nl sound packs ("Impact Sounds", "Interface Sounds", "Digital
+    Audio") by Kenney (https://kenney.nl/assets) — CC0, no attribution
+    required, but appreciated.
+      files: footstep_*.ogg, impact*.ogg, powerUp2.ogg, click_*.ogg
+  - "Fantozzi footsteps" (sand/stone footstep recordings) — CC0, sourced
+    during earlier development.
+      files: Fantozzi-*.ogg

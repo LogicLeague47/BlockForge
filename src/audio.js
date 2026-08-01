@@ -1,4 +1,33 @@
-// Fully procedural AudioManager using the Web Audio API (no external assets).
+// AudioManager: real CC0 sound samples (Kenney.nl, public domain) layered on
+// top of fully procedural Web Audio synthesis as a fallback when samples are
+// still loading or unavailable.
+
+const SFX_FILES = [
+  'footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002',
+  'footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002',
+  'footstep_wood_000', 'footstep_wood_001', 'footstep_wood_002',
+  'footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002',
+  'impactMining_000', 'impactMining_001', 'impactMining_002', 'impactMining_003',
+  'impactGeneric_light_000', 'impactGeneric_light_001', 'impactGeneric_light_002',
+  'impactBell_heavy_000', 'impactBell_heavy_001',
+  'impactPunch_heavy_000', 'impactPunch_heavy_001', 'impactPunch_heavy_002',
+  'impactPunch_medium_000', 'impactPunch_medium_001', 'impactPunch_medium_002',
+  'impactSoft_heavy_000', 'impactSoft_heavy_001', 'impactSoft_heavy_002',
+  'impactSoft_medium_000', 'impactSoft_medium_001', 'impactSoft_medium_002',
+  'powerUp2',
+  'click_001', 'click_002', 'click_003',
+];
+
+const STEP_SAMPLES = {
+  stone: ['footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002'],
+  dirt: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
+  leaves: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
+  wood: ['footstep_wood_000', 'footstep_wood_001', 'footstep_wood_002'],
+  sand: ['footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002'],
+  snow: ['footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002'],
+  gravel: ['footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002'],
+  plant: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
+};
 
 export class AudioManager {
   constructor() {
@@ -6,6 +35,8 @@ export class AudioManager {
     this.enabled = true;
     this.master = null;
     this.musicGain = null;
+    this.sfx = {};
+    this._sfxLoading = false;
     this._stepCooldown = 0;
     this._musicWanted = false;
   }
@@ -34,7 +65,36 @@ export class AudioManager {
   }
 
   loadSfx() {
-    // no external assets needed — all procedural
+    if (!this.ctx || this._sfxLoading) return;
+    this._sfxLoading = true;
+    for (const f of SFX_FILES) {
+      fetch(`Sounds/${f}.ogg`)
+        .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+        .then((buf) => this.ctx.decodeAudioData(buf))
+        .then((ab) => { this.sfx[f] = ab; })
+        .catch(() => {});
+    }
+  }
+
+  // Play a decoded CC0 sample. Returns false (→ caller keeps the procedural
+  // fallback) when the sample is missing or still loading.
+  _sample(names, vol = 0.5, pitchVar = 0.06) {
+    if (!this.ctx || !this.enabled) return false;
+    if (Array.isArray(names)) {
+      if (!names.length) return false;
+      names = names[Math.floor(Math.random() * names.length)];
+    }
+    const buf = this.sfx[names];
+    if (!buf) return false;
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    if (pitchVar) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * pitchVar;
+    const g = this._gain(vol);
+    src.connect(g);
+    g.connect(this.master);
+    src.start();
+    src.onended = () => { try { g.disconnect(); src.disconnect(); } catch (_) {} };
+    return true;
   }
 
   // ── NOISE GENERATORS ──────────────────────────────────────────────────
@@ -389,7 +449,10 @@ export class AudioManager {
     if (now - this._stepCooldown < 0.22) return;
     this._stepCooldown = now;
 
-    switch (this._material(blockId)) {
+    const mat = this._material(blockId);
+    if (this._sample(STEP_SAMPLES[mat], 0.5, 0.08)) return;
+
+    switch (mat) {
       case 'stone': return this._stone_step();
       case 'dirt': return this._dirt_step();
       case 'wood': return this._wood_step();
@@ -407,6 +470,7 @@ export class AudioManager {
 
   blockBreak(blockId) {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactMining_000', 'impactMining_001', 'impactMining_002', 'impactMining_003'], 0.5, 0.05)) return;
     switch (this._material(blockId)) {
       case 'stone': return this._stone_break();
       case 'dirt': return this._dirt_break();
@@ -421,6 +485,7 @@ export class AudioManager {
 
   blockPlace(blockId) {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactGeneric_light_000', 'impactGeneric_light_001', 'impactGeneric_light_002'], 0.45, 0.06)) return;
     switch (this._material(blockId)) {
       case 'stone': return this._stone_place();
       case 'dirt': return this._dirt_place();
@@ -435,6 +500,7 @@ export class AudioManager {
 
   inventoryOpen() {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample('click_001', 0.35, 0)) return;
     this._playLayers([
       { wave: 'sine', freq: 600, dur: 0.08, gain: 0.12, atk: 0.005, rel: 0.15 },
       { wave: 'sine', freq: 900, dur: 0.06, gain: 0.08, atk: 0.01, rel: 0.1 },
@@ -443,6 +509,7 @@ export class AudioManager {
 
   inventoryClose() {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample('click_003', 0.35, 0)) return;
     this._playLayers([
       { wave: 'sine', freq: 800, dur: 0.06, gain: 0.1, atk: 0.005, rel: 0.12 },
       { wave: 'sine', freq: 500, dur: 0.08, gain: 0.07, atk: 0.01, rel: 0.15 },
@@ -536,6 +603,8 @@ export class AudioManager {
   // ── GAMEPLAY SFX ────────────────────────────────────────────────────────
 
   playerHurt() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactPunch_heavy_000', 'impactPunch_heavy_001', 'impactPunch_heavy_002'], 0.5, 0.06)) return;
     this._playLayers([
       { wave: 'sawtooth', freq: 260, dur: 0.16, gain: 0.2, atk: 0.005, rel: 0.3 },
       { wave: 'sawtooth', freq: 190, dur: 0.18, gain: 0.16, atk: 0.01, rel: 0.35 },
@@ -545,6 +614,7 @@ export class AudioManager {
 
   playerDie() {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactSoft_heavy_000', 'impactSoft_heavy_001', 'impactSoft_heavy_002'], 0.55, 0.03)) return;
     const t0 = this.ctx.currentTime;
     [400, 320, 250, 180].forEach((f, i) => {
       const osc = this.ctx.createOscillator();
@@ -563,6 +633,8 @@ export class AudioManager {
   }
 
   mobHurt() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactPunch_medium_000', 'impactPunch_medium_001', 'impactPunch_medium_002'], 0.45, 0.06)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.12, gain: 0.32, lp: 500, atk: 0.003, rel: 0.3 },
       { wave: 'sine', freq: 160, dur: 0.1, gain: 0.14, atk: 0.005, rel: 0.25 },
@@ -570,6 +642,8 @@ export class AudioManager {
   }
 
   mobDeath() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactSoft_heavy_000', 'impactSoft_heavy_001', 'impactSoft_heavy_002'], 0.5, 0.05)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.25, gain: 0.35, lp: 300, atk: 0.005, rel: 0.4 },
       { wave: 'sine', freq: 90, dur: 0.3, gain: 0.2, atk: 0.005, rel: 0.5 },
@@ -577,6 +651,8 @@ export class AudioManager {
   }
 
   explosion() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactBell_heavy_000', 'impactBell_heavy_001'], 0.7, 0)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.8, gain: 0.5, lp: 400, atk: 0.002, rel: 0.5 },
       { noise: 'white', dur: 0.35, gain: 0.24, lp: 1600, atk: 0.001, rel: 0.3 },
@@ -592,6 +668,8 @@ export class AudioManager {
   }
 
   land() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['impactSoft_medium_000', 'impactSoft_medium_001', 'impactSoft_medium_002'], 0.4, 0.06)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.1, gain: 0.22, lp: 320, atk: 0.002, rel: 0.3 },
     ]);
@@ -606,6 +684,7 @@ export class AudioManager {
 
   levelUp() {
     if (!this.ctx || !this.enabled) return;
+    if (this._sample('powerUp2', 0.4, 0)) return;
     const t0 = this.ctx.currentTime;
     [72, 76, 79, 84].forEach((n, i) => {
       const osc = this.ctx.createOscillator();

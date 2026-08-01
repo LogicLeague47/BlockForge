@@ -129,13 +129,14 @@
     <div id="logged-in">
       <div id="account-info">
         <span class="label">Logged in as</span> <span class="name" id="user-name">—</span>
+        <button class="btn" id="logout-btn" style="margin-top:14px;font-size:12px;padding:7px 14px;">Log Out</button>
       </div>
     </div>
 
     <div id="content">
       <div class="section-title">🌟 FEATURES</div>
       <div class="card-grid">
-        <a class="card" href="https://logicleague47.github.io/BlockForge/" target="_blank" rel="noopener">
+        <a class="card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
           <div class="icon">🎮</div>
           <div class="name">Play BlockForge</div>
           <div class="desc">Launch the game in a new tab</div>
@@ -253,10 +254,20 @@
         </div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
+
+      <div id="page-mods" class="page">
+        <h2>Mods & Addons</h2>
+        <p>BlockForge is open source, so anyone can build on it. Grab the source code, the latest release, or report an issue on GitHub.</p>
+        <ul>
+          <li><a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">BlockForge source code</a></li>
+          <li><a href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">All releases and downloads</a></li>
+        </ul>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
     </div>
 
     <div class="tc mb-30">
-      <button class="btn" onclick="window.close()">Close Portal</button>
+      <button class="btn" id="close-btn">Close Portal</button>
     </div>
   </div>
 
@@ -297,6 +308,21 @@
         const role = userRole ? '&role=' + encodeURIComponent(userRole) : '';
         location.href = 'portal.html?user=' + encodeURIComponent(user) + role;
       });
+
+      // Log out
+      document.getElementById('logout-btn').addEventListener('click', function() {
+        var u = new URL(location.href);
+        u.searchParams.delete('user');
+        u.searchParams.delete('role');
+        u.searchParams.delete('page');
+        location.href = u.toString();
+      });
+
+      // Close Portal (fall back to the game when opened as a normal tab)
+      document.getElementById('close-btn').addEventListener('click', function() {
+        window.close();
+        setTimeout(function() { location.href = 'https://blockforge-1.onrender.com/'; }, 250);
+      });
       
       // Card navigation
       document.querySelectorAll('.card[data-page]').forEach(function(card) {
@@ -323,8 +349,12 @@
       // Go home buttons
       function goHome() {
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-        document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = ''; });
-        document.querySelectorAll('.section-title').forEach(function(s) { s.style.display = ''; });
+        document.querySelectorAll('.card-grid').forEach(function(g) {
+          g.style.display = g.classList.contains('dev-only') ? (isDev ? 'block' : 'none') : '';
+        });
+        document.querySelectorAll('.section-title').forEach(function(s) {
+          s.style.display = s.classList.contains('dev-only') ? (isDev ? 'block' : 'none') : '';
+        });
         var u = new URL(location.href);
         u.searchParams.delete('page');
         if (userName) u.searchParams.set('user', userName);
@@ -364,6 +394,24 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: '44043c3',
+          heading: 'Mac App — Auto-Update & macOS 15 Fix',
+          desc: 'The Mac app now updates itself from GitHub releases, and builds without a Developer ID cert are no longer ad-hoc signed so macOS 15 stops flagging the game as malware.',
+          date: 'Aug 1',
+          bugs: ['macOS 15 "contains malware" message on ad-hoc-signed builds'],
+          updates: ['Auto-update via electron-updater (background download, restart prompt)', 'Unsigned builds when no Developer ID cert is configured', 'App version bumped to 1.0.1'],
+          features: ['Self-updating Mac app'],
+        },
+        {
+          hash: '755efdf',
+          heading: 'Gameplay: Java Regen, World Import/Export, Lit-TNT & Chest Remodel',
+          desc: 'Health regen now matches Java edition, worlds can be exported and re-imported, TNT gets a real fuse animation, and chests were remodeled into steel crates.',
+          date: 'Aug 1',
+          bugs: ['Creeper removed from the game'],
+          updates: ['Java-style regeneration (fast while saturated, slow when hunger is high)', 'World export/import in the Worlds menu', 'Lit-TNT animation with fuse spark, hop and blink', 'Chest remodeled into a steel crate', 'Procedural ambient music and layered sound effects'],
+          features: ['World export/import', 'Procedural music + SFX'],
+        },
         {
           hash: '5013d73',
           heading: 'Electron for Mac — Real App Binary',
