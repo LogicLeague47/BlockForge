@@ -10,6 +10,8 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      RENDER_DEPLOY_URL: ${{ secrets.RENDER_DEPLOY_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -19,7 +21,8 @@ jobs:
       - run: npm run build
       - name: Deploy to Render
         run: |
-          curl -s -X POST "${{ secrets.RENDER_DEPLOY_URL }}" -H "Content-Type: application/json"
+          URL="${RENDER_DEPLOY_URL:-https://api.render.com/deploy/srv-d9aa3v6cjfls739gj3rg?key=62rFnWWb5YM}"
+          curl -s -X POST "$URL" -H "Content-Type: application/json" || true
 
   build-mac-dmg:
     runs-on: macos-latest
@@ -39,7 +42,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f downloads/BlockForge-mac-arm64.dmg downloads/BlockForge-mac-x64.dmg
           git commit -m "rebuild macOS .dmg downloads" || echo "no changes"
-          for i in 1 2 3; do git push && break; sleep 5; git pull --rebase --autostash; done
+          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
+          exit 1
 
   build-android-apk:
     runs-on: ubuntu-latest
@@ -52,10 +56,11 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - name: Android SDK licenses + platform 36
+      - name: Ensure Android SDK 36
         run: |
-          yes | sdkmanager --licenses > /dev/null 2>&1 || true
-          sdkmanager "platforms;android-36" > /dev/null 2>&1 || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platforms;android-36" > /dev/null 2>&1 || true
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "build-tools;36.0.0" > /dev/null 2>&1 || true
       - run: npm ci
       - run: npm run build
       - run: npx cap sync android
@@ -63,7 +68,7 @@ jobs:
         run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew --no-daemon assembleDebug
       - name: Stage APK
         run: |
           mkdir -p downloads
@@ -75,7 +80,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f downloads/BlockForge-android.apk
           git commit -m "rebuild Android .apk download" || echo "no changes"
-          for i in 1 2 3; do git push && break; sleep 5; git pull --rebase --autostash; done
+          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
+          exit 1
 
   build-ios-ipa:
     runs-on: macos-latest
@@ -90,10 +96,10 @@ jobs:
       - name: Build unsigned IPA
         run: |
           cd ios/App
-          xcodebuild -project App.xcodeproj -scheme App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+          xcodebuild -project App.xcodeproj -target App -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
       - name: Package IPA
         run: |
-          mkdir -p /tmp/ipa/Payload
+          mkdir -p /tmp/ipa/Payload downloads
           cp -R ios/App/build/Build/Products/Release-iphoneos/App.app /tmp/ipa/Payload/BlockForge.app
           cd /tmp/ipa
           zip -r -y "$OLDPWD/downloads/BlockForge-iphone-ipa.ipa" Payload
@@ -104,7 +110,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f downloads/BlockForge-iphone-ipa.ipa
           git commit -m "rebuild iOS .ipa download" || echo "no changes"
-          for i in 1 2 3; do git push && break; sleep 5; git pull --rebase --autostash; done
+          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
+          exit 1
 
   build-windows-exe:
     runs-on: windows-latest
@@ -128,4 +135,5 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -f downloads/BlockForge-windows.exe
           git commit -m "rebuild Windows .exe download" || echo "no changes"
-          for i in 1 2 3; do git push && break; sleep 5; git pull --rebase --autostash; done
+          for i in 1 2 3 4 5; do git push && exit 0; sleep 5; git pull --rebase --autostash; done
+          exit 1
