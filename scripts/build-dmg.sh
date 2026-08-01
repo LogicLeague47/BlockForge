@@ -1,12 +1,15 @@
 #!/bin/bash
-# Build BlockForge.app and wrap it into macOS .dmg files.
-# macOS-only (uses hdiutil/sips/iconutil). Run after `npm run build`.
+# Build BlockForge.app and wrap it into a standard install .dmg:
+#   BlockForge.app  +  Applications  (drag-and-drop alias)
+# macOS-only (uses hdiutil/sips/iconutil/SetFile). Run after `npm run build`.
 set -e
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 DIST="$ROOT/dist"
 OUT="$ROOT/downloads"
 APP="$OUT/BlockForge.app"
+STAGE="$OUT/dmg-stage"
+ICON_SRC="$ROOT/public/BlockForge.png"
 
 if [ ! -d "$DIST" ]; then
   echo "[DMG] dist/ missing — run npm run build first"
@@ -18,7 +21,7 @@ if [ "$(uname)" != "Darwin" ]; then
 fi
 
 mkdir -p "$OUT"
-rm -rf "$APP"
+rm -rf "$APP" "$STAGE"
 
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
@@ -40,6 +43,7 @@ cat > "$APP/Contents/Info.plist" <<'EOF'
   <key>CFBundleVersion</key><string>1.0</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleExecutable</key><string>BlockForge</string>
+  <key>CFBundleIconFile</key><string>BlockForge</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>LSMinimumSystemVersion</key><string>10.13</string>
   <key>NSHighResolutionCapable</key><true/>
@@ -50,7 +54,7 @@ EOF
 cp -R "$DIST"/. "$APP/Contents/Resources/"
 rm -rf "$APP/Contents/Resources/downloads" "$APP/Contents/Resources/.DS_Store"
 
-ICON_SRC="$ROOT/public/BlockForge.png"
+# App icon from the favicon (BlockForge.png)
 if [ ! -f "$ICON_SRC" ]; then ICON_SRC="$DIST/BlockForge.png"; fi
 if [ -f "$ICON_SRC" ]; then
   ICONSET="$OUT/BlockForge.iconset"
@@ -67,8 +71,25 @@ fi
 
 for arch in arm64 x64; do
   DMG="$OUT/BlockForge-mac-$arch.dmg"
+  TMP="$OUT/BlockForge-mac-$arch-tmp.dmg"
+
+  # Standard install layout: app + Applications alias for drag-and-drop
+  mkdir -p "$STAGE"
+  cp -R "$APP" "$STAGE/BlockForge.app"
+  ln -sf /Applications "$STAGE/Applications"
+
+  hdiutil create -volname "BlockForge" -srcfolder "$STAGE" -ov -format UDRW "$TMP" >/dev/null
+
+  # Apply the favicon as the mounted volume logo
+  MOUNT="$(hdiutil attach "$TMP" | tail -1 | awk '{print $NF}')"
+  cp "$APP/Contents/Resources/BlockForge.icns" "$MOUNT/.VolumeIcon.icns"
+  SetFile -a C "$MOUNT" 2>/dev/null || true
+  SetFile -a C "$MOUNT/BlockForge.app" 2>/dev/null || true
+  hdiutil detach "$MOUNT" >/dev/null 2>&1 || true
+
   rm -f "$DMG"
-  hdiutil create -volname "BlockForge" -srcfolder "$APP" -ov -format UDZO "$DMG"
+  hdiutil convert "$TMP" -format UDZO -o "$DMG" >/dev/null
+  rm -rf "$STAGE" "$TMP"
   echo "[DMG] created $DMG ($(du -h "$DMG" | cut -f1))"
 done
 
