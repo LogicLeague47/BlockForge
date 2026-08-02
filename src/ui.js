@@ -2659,7 +2659,25 @@ export class UI {
         if (!inv) return;
         if (this.creative) {
           const count = ci.type === 'block' ? 64 : 1;
-          inv.slots[inv.selected] = { item: ci.id, count };
+          // Stack onto existing matching slot first, then find empty slot
+          let placed = false;
+          for (let s = 0; s < 36; s++) {
+            const slot = inv.slots[s];
+            if (slot && slot.item === ci.id) {
+              const cap = maxStack(ci.id);
+              if (slot.count < cap) {
+                slot.count = Math.min(slot.count + count, cap);
+                placed = true;
+                break;
+              }
+            }
+          }
+          if (!placed) {
+            for (let s = 0; s < 36; s++) {
+              if (!inv.slots[s]) { inv.slots[s] = { item: ci.id, count }; placed = true; break; }
+            }
+          }
+          if (!placed) inv.slots[inv.selected] = { item: ci.id, count };
           this.renderInventoryGrid(inv);
           this.buildHotbarFromInventory(inv);
           this._updateCursorVisual();

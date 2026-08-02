@@ -159,7 +159,7 @@
     <div id="content">
       <div class="section-title">🌟 FEATURES</div>
       <div class="card-grid">
-        <a class="card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
+        <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
           <div class="icon">🎮</div>
           <div class="name">Play BlockForge</div>
           <div class="desc">Launch the game in a new tab</div>
@@ -337,6 +337,11 @@
         content.style.display = 'block';
         document.getElementById('user-badge').textContent = userName;
         document.getElementById('user-name').textContent = userName;
+        // Pass user params to Play BlockForge link
+        var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
+        if (userRole) playUrl += '&role=' + encodeURIComponent(userRole);
+        var playLink = document.getElementById('play-link');
+        if (playLink) playLink.href = playUrl;
       } else {
         loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
@@ -350,7 +355,14 @@
         const hint = document.getElementById('login-hint');
         if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
         if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
+        // Save to both portal and game-compatible localStorage keys
         localStorage.setItem('bf_portal_user', user);
+        localStorage.setItem('bf_player_name', user);
+        localStorage.setItem('bf_login_user', user);
+        // XOR-encode password like the game does (symmetric XOR with 0x5A)
+        var encoded = '';
+        for (var c = 0; c < pass.length; c++) encoded += String.fromCharCode(pass.charCodeAt(c) ^ 0x5A);
+        localStorage.setItem('bf_login_pass', encoded);
         const role = userRole ? userRole : '';
         if (role) localStorage.setItem('bf_portal_role', role);
         // Show welcome splash animation
@@ -372,7 +384,7 @@
         setTimeout(function() {
           splash.classList.add('fade');
         setTimeout(function() {
-          location.href = '/portal.html?user=' + encodeURIComponent(user) + (role ? '&role=' + encodeURIComponent(role) : '');
+          location.href = '/?user=' + encodeURIComponent(user) + '&from=portal' + (role ? '&role=' + encodeURIComponent(role) : '');
         }, 600);
         }, 1800);
       });
@@ -381,13 +393,18 @@
       document.getElementById('logout-btn').addEventListener('click', function() {
         localStorage.removeItem('bf_portal_user');
         localStorage.removeItem('bf_portal_role');
+        localStorage.removeItem('bf_player_name');
+        localStorage.removeItem('bf_login_user');
+        localStorage.removeItem('bf_login_pass');
         location.href = '/portal.html';
       });
 
       // Close Portal (fall back to the game when opened as a normal tab)
       document.getElementById('close-btn').addEventListener('click', function() {
         window.close();
-        setTimeout(function() { location.href = 'https://blockforge-1.onrender.com/'; }, 250);
+        var closeUrl = 'https://blockforge-1.onrender.com/';
+        if (userName) closeUrl += '?user=' + encodeURIComponent(userName) + '&from=portal';
+        setTimeout(function() { location.href = closeUrl; }, 250);
       });
       
       // Card navigation

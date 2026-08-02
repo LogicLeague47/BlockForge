@@ -1031,6 +1031,58 @@
         text-shadow: 1px 1px 0 #000;
         pointer-events: none;
       }
+      /* Light inventory theme */
+      #inventory-screen.inv-light {
+        background: rgba(180,190,200,0.92);
+        color: #222;
+      }
+      #inventory-screen.inv-light #inventory-grid {
+        background: rgba(200,210,220,0.8);
+        border-color: rgba(150,150,160,0.6);
+      }
+      #inventory-screen.inv-light .inv-slot {
+        background: rgba(210,215,220,0.9);
+        border-color: rgba(140,140,150,0.5);
+      }
+      #inventory-screen.inv-light .inv-slot:hover {
+        background: rgba(180,190,200,0.9);
+        border-color: rgba(100,120,160,0.6);
+      }
+      #inventory-screen.inv-light .inv-slot.craft-slot {
+        background: rgba(190,200,210,0.9);
+      }
+      #inventory-screen.inv-light #inv-crafting-area {
+        background: rgba(190,200,210,0.7);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light #inv-armor-area {
+        background: rgba(190,200,210,0.7);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light .inv-armor-slot {
+        background: rgba(210,215,220,0.9);
+        border-color: rgba(140,140,150,0.5);
+      }
+      #inventory-screen.inv-light .inv-armor-slot:hover {
+        background: rgba(180,190,200,0.9);
+        border-color: rgba(100,120,160,0.6);
+      }
+      #inventory-screen.inv-light #creative-browser {
+        background: rgba(195,205,215,0.9);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light .inv-slot .inv-count { color: #222; text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inv-slot .inv-num { color: rgba(0,0,0,0.4); text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inv-slot .inv-armor-name { color: rgba(40,40,40,0.6); text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inventory-hint { color: #666; }
+      #inventory-screen.inv-light h2 { color: #333; text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .craft-label,
+      #inventory-screen.inv-light .inv-armor-label,
+      #inventory-screen.inv-light .creative-label { color: #555; }
+      #inventory-screen.inv-light #crafting-output {
+        background: rgba(190,200,210,0.8);
+        border-color: rgba(140,140,150,0.5);
+      }
 
       /* Furnace screen */
       #furnace-screen {
@@ -1637,6 +1689,16 @@
         outline: none; border-color: #5af;
       }
       .create-section input[type="text"]::placeholder { color: rgba(150,150,170,0.5); }
+      .create-section input[type="number"] {
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: var(--bg-input); border: 1px solid var(--bg-input-border);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, monospace;
+        box-sizing: border-box; transition: border-color 0.15s;
+        -moz-appearance: textfield;
+      }
+      .create-section input[type="number"]::-webkit-inner-spin-button,
+      .create-section input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+      .create-section input[type="number"]:focus { outline: none; border-color: #5af; }
       .create-mode-btn {
         display: flex; align-items: center; gap: 10px;
         width: 100%; padding: 12px 14px; margin-bottom: 8px;
@@ -2746,12 +2808,12 @@
               <div class="create-section-title">GAME MODE</div>
               <div class="mode-select">
                 <div class="mode-option selected" id="sv-mode-survival">
-                  <div class="mo-icon">&#9829;</div>
+                  <div class="mo-icon">♥</div>
                   <div class="mo-label">SURVIVAL</div>
                   <div class="mo-desc">Health, hunger, mining</div>
                 </div>
                 <div class="mode-option" id="sv-mode-creative">
-                  <div class="mo-icon">&#10022;</div>
+                  <div class="mo-icon">✦</div>
                   <div class="mo-label">CREATIVE</div>
                   <div class="mo-desc">Unlimited blocks, fly</div>
                 </div>
@@ -2761,9 +2823,9 @@
           <div class="create-right" style="min-width:200px;">
             <div class="create-section">
               <div class="create-section-title">SERVER INFO</div>
-              <div style="font:12px monospace;color:#ccc;line-height:2;">
-                Players: <span id="sv-info-players" style="color:#fff;">10</span><br>
-                Mode: <span id="sv-info-mode" style="color:#fff;">Survival</span><br>
+              <div style="font:12px monospace;color:var(--text-secondary);line-height:2;">
+                Players: <span id="sv-info-players" style="color:var(--text-primary);">10</span><br>
+                Mode: <span id="sv-info-mode" style="color:var(--text-primary);">Survival</span><br>
                 Owner: <span id="sv-info-owner" style="color:#fa0;">—</span>
               </div>
             </div>
@@ -3003,7 +3065,7 @@
     </div>
 
     <div id="inventory-screen">
-      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button> <button id="btn-close-inv" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
+      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button> <button id="btn-inv-theme" class="menu-btn" style="font-size:11px;padding:4px 10px;" title="Toggle light/dark inventory theme">◐ THEME</button> <button id="btn-close-inv" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
       <div id="inv-layout">
         <div id="inv-left">
           <div id="creative-browser" style="display:none;">

@@ -5213,15 +5213,15 @@ function initMenu() {
   let fromU = false;
   try {
     fromU = sessionStorage.getItem('bf_from_u') === '1';
+    const fromPortal = new URLSearchParams(location.search).get('from') === 'portal';
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
     const urlUser = params.get('user');
-    // Only trust sessionStorage for fromU — from=game URL param alone is bypassable.
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
-    // Auto-login ONLY when visiting via /u/ redirect with saved credentials
+    // Auto-login when visiting via /u/ redirect OR from portal (portal already saved credentials)
     const savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
-    if (urlUser && savedPass && savedPass.length >= 3 && fromU) {
+    if (urlUser && savedPass && savedPass.length >= 3 && (fromU || fromPortal)) {
       loginPass.value = savedPass;
       autoLogin = true;
     }
@@ -6303,7 +6303,9 @@ function loop() {
     p.life -= dt;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      if (p.mesh.material) p.mesh.material.dispose();
+      if (Array.isArray(p.mesh.material)) { p.mesh.material.forEach(m => m.dispose()); }
+      else if (p.mesh.material) p.mesh.material.dispose();
+      if (p.mesh.geometry) p.mesh.geometry.dispose();
       _particles.splice(i, 1);
       continue;
     }
@@ -6805,6 +6807,19 @@ document.getElementById('btn-sort-inv')?.addEventListener('click', () => {
 document.getElementById('btn-close-inv')?.addEventListener('click', () => {
   ui.closeInventory(); syncUIMode(); lockPointer();
 });
+// --- Inventory theme toggle (dark/light) ---
+document.getElementById('btn-inv-theme')?.addEventListener('click', () => {
+  const el = document.getElementById('inventory-screen');
+  if (!el) return;
+  el.classList.toggle('inv-light');
+  localStorage.setItem('bf_inv_theme', el.classList.contains('inv-light') ? 'light' : 'dark');
+});
+// Restore saved inventory theme
+try {
+  if (localStorage.getItem('bf_inv_theme') === 'light') {
+    document.getElementById('inventory-screen')?.classList.add('inv-light');
+  }
+} catch (_) {}
 document.getElementById('btn-close-furnace')?.addEventListener('click', () => {
   ui.closeFurnace(); lockPointer();
 });
