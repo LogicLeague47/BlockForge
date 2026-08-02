@@ -18,12 +18,15 @@ const SFX_FILES = [
   'click_001', 'click_002', 'click_003',
 ];
 
+// Curated calm CC0 playlist. High-energy/percussive tracks are excluded to
+// keep the ambience calm; the calm-* tracks are CC0 by The Cynic Project.
 const MUSIC_TRACKS = [
-  'Music/dreams-stasis.mp3', 'Music/eternity-0.mp3', 'Music/eternity-1.mp3',
-  'Music/eternity-2.mp3', 'Music/eternity-3.mp3', 'Music/eternity-4.mp3',
+  'Music/dreams-stasis.mp3', 'Music/eternity-2.mp3', 'Music/eternity-4.mp3',
   'Music/happy-flutes.mp3', 'Music/visions-1.mp3', 'Music/visions-2.mp3',
-  'Music/visions-3.mp3', 'Music/visions-4.mp3', 'Music/visions-5.mp3',
-  'Music/water-owl.mp3', 'Music/winds-of-venus.mp3',
+  'Music/visions-4.mp3', 'Music/visions-5.mp3', 'Music/water-owl.mp3',
+  'Music/calm-synthwave-4k.mp3', 'Music/calm-synthwave-15k.mp3',
+  'Music/calm-piano-vaporware.mp3', 'Music/calm-lifewave-2k.mp3',
+  'Music/calm-lifewave.mp3',
 ];
 
 const STEP_SAMPLES = {
