@@ -9,29 +9,89 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
-    :root{--bg:#0a0a12;--card:rgba(30,30,55,0.85);--panel:rgba(20,20,35,0.85);--border:rgba(80,80,120,0.3);--accent:#8af;--accent2:#c084fc;--accent3:#f472b6;--text:#e0e0e0;--muted:#a0a0c0;--dim:#777;--gold:#ffdd33;--green:#4c4;--red:#f55;--orange:#fa0}
+    :root{
+      --bg:#07070f;--card:rgba(24,24,48,0.72);--panel:rgba(16,16,30,0.78);--border:rgba(90,90,140,0.28);
+      --accent:#8af;--accent2:#c084fc;--accent3:#f472b6;--gold:#ffdd33;--green:#4c4;--red:#f55;--orange:#fa0;
+      --text:#e6e6f0;--muted:#9a9ac0;--dim:#6a6a88;
+    }
+    body[data-theme="emerald"]{--accent:#5ef2a6;--accent2:#2dd4bf;--accent3:#a3e635}
+    body[data-theme="magma"]{--accent:#ff9f43;--accent2:#ff6b6b;--accent3:#f472b6}
+    body[data-theme="ocean"]{--accent:#4dd2ff;--accent2:#7c9cff;--accent3:#5eead4}
+    body[data-theme="gold"]{--accent:#ffd75e;--accent2:#ff9f43;--accent3:#ffd75e}
     body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
-    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0,rgba(70,80,180,.2) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(180,60,160,.12) 0,transparent 50%);pointer-events:none;z-index:0}
-    body::after{content:'';position:fixed;inset:0;background:linear-gradient(125deg,rgba(100,140,255,.04) 0%,transparent 40%,rgba(200,100,200,.03) 60%,transparent 100%);background-size:200% 200%;animation:bgShift 12s ease-in-out infinite alternate;pointer-events:none;z-index:0}
-    @keyframes bgShift{0%{background-position:0% 50%}100%{background-position:100% 50%}}
-    header{background:linear-gradient(135deg,#1a1a2e 0%,#2a1a3e 50%,#1a1a2e 100%);border-bottom:1px solid var(--border);padding:24px 32px;display:flex;align-items:center;justify-content:space-between;z-index:10;box-shadow:0 4px 20px rgba(0,0,0,.3);position:relative}
+    #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0,rgba(70,80,180,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(180,60,160,.12) 0,transparent 50%);pointer-events:none;z-index:0}
+    header{background:linear-gradient(135deg,#12121f 0%,#1c1230 50%,#12121f 100%);border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;gap:20px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,.4);position:sticky;top:0;backdrop-filter:blur(8px);flex-wrap:wrap}
     header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(120,160,255,.4),rgba(200,100,230,.4),transparent)}
-    header h1{font-size:32px;background:linear-gradient(135deg,#fff 0%,#8af 40%,#c084fc 70%,#f472b6 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:6px;font-weight:700;text-shadow:none}
-    header .sub{font-size:12px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;font-weight:600}
-    .header-glow{position:absolute;top:-40px;left:50%;transform:translateX(-50%);width:300px;height:80px;background:radial-gradient(ellipse,rgba(120,160,255,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none}
-    #user-badge{font-size:14px;color:#c8d8ff;background:linear-gradient(135deg,rgba(60,100,180,.3),rgba(140,80,200,.2));border:1px solid rgba(120,160,255,.35);border-radius:8px;padding:8px 16px;font-weight:600;backdrop-filter:blur(4px)}
-    .container{max-width:900px;margin:36px auto;padding:0 28px;flex:1;width:100%;position:relative;z-index:1}
-    .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
-    @media(max-width:768px){.card-grid{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:480px){.card-grid{grid-template-columns:1fr}}
-    .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px 20px;cursor:pointer;transition:.25s cubic-bezier(.175,.885,.32,1.275);position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;backdrop-filter:blur(2px)}
+    .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+    .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,var(--accent),var(--accent2),var(--accent3),var(--accent));display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(120,160,255,.35);animation:spin 12s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .brand h1{font-size:26px;background:linear-gradient(135deg,#fff 0%,var(--accent) 40%,var(--accent2) 70%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:5px;font-weight:700}
+    .brand .sub{font-size:10px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;font-weight:600}
+    nav{display:flex;gap:6px;flex-wrap:wrap}
+    nav .nav-tab{padding:8px 14px;border:1px solid transparent;border-radius:8px;cursor:pointer;font:13px 'Inter',monospace;color:var(--muted);background:transparent;transition:.2s;font-weight:500}
+    nav .nav-tab:hover{color:#fff;background:rgba(100,140,255,.08);border-color:rgba(130,160,255,.25)}
+    nav .nav-tab.active{color:#fff;background:linear-gradient(135deg,rgba(60,90,180,.25),rgba(140,80,200,.2));border-color:rgba(130,160,255,.45);box-shadow:0 0 14px rgba(100,140,255,.15)}
+    .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    #status-pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:rgba(20,20,40,.7);color:var(--muted);transition:.2s;cursor:default}
+    #status-pill .dot{width:10px;height:10px;border-radius:50%;background:#666;box-shadow:0 0 8px rgba(255,255,255,.2);animation:pulse 1.2s infinite}
+    #status-pill.on{color:#c8ffd8;border-color:rgba(68,204,68,.35)}
+    #status-pill.on .dot{background:var(--green);box-shadow:0 0 10px rgba(68,204,68,.6);animation:none}
+    #status-pill.off{color:#ffc8c8}
+    #status-pill.off .dot{background:var(--red);box-shadow:0 0 10px rgba(255,85,85,.6);animation:none}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .theme-picker{display:flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--border);border-radius:20px;background:rgba(20,20,40,.7)}
+    .theme-dot{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid rgba(255,255,255,.25);transition:.2s}
+    .theme-dot:hover{transform:scale(1.25);border-color:#fff}
+    .theme-dot.active{border-color:#fff;box-shadow:0 0 10px rgba(255,255,255,.5)}
+    #user-badge{font-size:13px;color:#c8d8ff;background:linear-gradient(135deg,rgba(60,100,180,.3),rgba(140,80,200,.2));border:1px solid rgba(120,160,255,.35);border-radius:8px;padding:8px 14px;font-weight:600;backdrop-filter:blur(4px)}
+    .container{max-width:980px;margin:28px auto;padding:0 24px;flex:1;width:100%;position:relative;z-index:1}
+    .login-wrap{max-width:420px;margin:24px auto}
+    #login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 0 50px rgba(60,100,180,.1);backdrop-filter:blur(12px)}
+    #login-box input{width:100%;padding:11px 14px;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(90,90,140,.4);border-radius:8px;font:14px 'Inter',monospace;outline:none;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
+    #login-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(120,160,255,.2)}
+    #login-box .btn{padding:11px 26px;background:linear-gradient(135deg,#2a4a7a,#3a4a8a,#4a3a8a,#5a2a7a);border:1px solid rgba(120,140,255,.3);border-radius:10px;color:#fff;font:14px 'Inter',monospace;cursor:pointer;font-weight:600;transition:.25s;display:inline-block;position:relative;overflow:hidden}
+    #login-box .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);transition:transform .5s}
+    #login-box .btn:hover::after{transform:translateX(100%)}
+    #login-box .btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(90,130,220,.35)}
+    #login-hint{font-size:12px;margin-top:10px;min-height:18px}
+    #logged-in{display:none}
+    #account-info{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:24px;font-size:14px;backdrop-filter:blur(8px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    #account-info .avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:700;font-size:20px;color:#0a0a12;box-shadow:0 0 16px rgba(120,160,255,.3)}
+    #account-info .label{color:#8d8;font-size:12px}
+    #account-info .name{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700;font-size:17px}
+    #account-info .btn{margin-left:auto}
+    #content{display:none}
+    .dev-only{display:none}
+    .page{display:none}
+    .page.active{display:block;animation:pageIn .3s ease}
+    @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Dashboard */
+    .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:26px}
+    @media(max-width:720px){.dash-grid{grid-template-columns:1fr}}
+    .dash-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;backdrop-filter:blur(10px);position:relative;overflow:hidden}
+    .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),transparent);opacity:.6}
+    .dash-card h3{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;font-weight:600}
+    .stat-row{display:flex;gap:18px;flex-wrap:wrap}
+    .stat{flex:1;min-width:90px}
+    .stat .v{font-size:24px;font-weight:700;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+    .stat .v small{font-size:12px;color:var(--dim);-webkit-text-fill-color:var(--dim);font-weight:500}
+    .prog-bar{height:6px;background:rgba(255,255,255,.07);border-radius:3px;margin-top:10px;overflow:hidden}
+    .prog-bar .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s ease;box-shadow:0 0 10px rgba(120,160,255,.4)}
+    .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
+    @media(max-width:768px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.feature-grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 20px;cursor:pointer;transition:.25s cubic-bezier(.175,.885,.32,1.275);position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;backdrop-filter:blur(4px);outline:none}
     .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);transform:scaleX(0);transition:transform .4s ease}
-    .card:hover::before{transform:scaleX(1)}
-    .card::after{content:'';position:absolute;inset:0;border-radius:12px;opacity:0;transition:opacity .4s;pointer-events:none;box-shadow:0 0 30px rgba(100,140,255,.08),inset 0 0 30px rgba(100,140,255,.03)}
-    .card:hover::after{opacity:1}
-    .card:hover{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 40px rgba(0,0,0,.5);border-color:rgba(130,160,255,.5);background:rgba(40,40,75,.92)}
+    .card:hover::before,.card:focus-visible::before{transform:scaleX(1)}
+    .card::after{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .4s;pointer-events:none;box-shadow:0 0 36px rgba(100,140,255,.12),inset 0 0 30px rgba(100,140,255,.04)}
+    .card:hover::after,.card:focus-visible::after{opacity:1}
+    .card:hover,.card:focus-visible{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 44px rgba(0,0,0,.5);border-color:rgba(130,160,255,.55);background:rgba(36,36,70,.92)}
     .card .icon{font-size:34px;margin-bottom:10px;transition:transform .3s cubic-bezier(.175,.885,.32,1.275);display:inline-block}
-    .card:hover .icon{transform:scale(1.2) rotate(-5deg)}
+    .card:hover .icon,.card:focus-visible .icon{transform:scale(1.2) rotate(-6deg)}
     .card .name{font-size:16px;font-weight:700;margin-bottom:6px;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
     .card .desc{font-size:12px;color:var(--muted);line-height:1.5}
     .card.coming{opacity:.55;cursor:not-allowed}
@@ -39,39 +99,24 @@
     .card.coming:hover::after{opacity:0}
     .card.coming .name{-webkit-text-fill-color:var(--dim);background:var(--dim)}
     .badge-coming{display:inline-block;font-size:10px;color:var(--gold);background:rgba(200,150,0,.2);border:1px solid rgba(200,150,0,.4);padding:2px 8px;border-radius:4px;margin-left:8px;letter-spacing:1.5px;font-weight:600}
-    .section-title{font-size:15px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:20px;font-weight:700}
-    #login-box{background:linear-gradient(135deg,rgba(30,30,55,.9),rgba(20,20,35,.9));border:1px solid var(--border);border-radius:14px;padding:28px;max-width:420px;margin:0 auto;box-shadow:0 0 40px rgba(60,100,180,.08);backdrop-filter:blur(8px)}
-    #login-box input{width:100%;padding:10px 14px;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(80,80,120,.4);border-radius:6px;font:14px 'Inter',monospace;outline:none;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
-    #login-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(100,140,255,.2)}
-    #login-box .btn{padding:10px 24px;background:linear-gradient(135deg,#3a6a9a,#2a5a8a,#2a4a7a,#2a3a6a);border:1px solid #2a4a7a;border-radius:8px;color:#fff;font:14px 'Inter',monospace;cursor:pointer;font-weight:600;transition:.25s;display:inline-block;position:relative;overflow:hidden}
-    #login-box .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.05),transparent);transform:translateX(-100%);transition:transform .5s}
-    #login-box .btn:hover::after{transform:translateX(100%)}
-    #login-box .btn:hover{background:linear-gradient(135deg,#4a7aaa,#3a6a9a,#3a5a8a,#3a4a7a);transform:translateY(-2px);box-shadow:0 8px 28px rgba(60,120,200,.35)}
-    #login-hint{font-size:12px;margin-top:10px;min-height:18px}
-    #logged-in{display:none}
-    #account-info{background:linear-gradient(135deg,rgba(30,30,55,.9),rgba(20,20,35,.9));border:1px solid var(--border);border-radius:14px;padding:28px;margin-bottom:28px;font-size:14px;backdrop-filter:blur(4px)}
-    #account-info .label{color:#8d8}
-    #account-info .name{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700}
-    #content{display:none}
-    .dev-only{display:none}
-    .page{display:none}
-    .page.active{display:block;animation:pageIn .3s ease}
-    @keyframes pageIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-    .page h2{font-size:18px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:2px solid var(--border);padding-bottom:10px;margin-bottom:18px;font-weight:700}
-    .page p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
-    .page ul{list-style:none;padding:0}
-    .page li{padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:13px;color:var(--muted);background:rgba(30,30,50,.55);transition:.2s}
-    .page li:hover{background:rgba(40,40,65,.7);border-color:rgba(100,140,200,.45)}
-    .page li a{color:var(--accent);text-decoration:none;font-weight:500}
-    .page li a:hover{color:#9af;text-decoration:underline}
-    .btn{padding:10px 24px;background:linear-gradient(135deg,rgba(40,40,70,.8),rgba(30,30,55,.8));border:1px solid var(--border);border-radius:8px;color:#b8c8ff;font:14px 'Inter',monospace;cursor:pointer;font-weight:500;transition:.25s;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(4px)}
-    .btn:hover{background:linear-gradient(135deg,rgba(60,60,100,.85),rgba(50,50,80,.85));border-color:rgba(130,160,255,.5);color:#fff;transform:translateY(-2px);box-shadow:0 8px 24px rgba(80,120,220,.25)}
+    .section-title{font-size:14px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:20px;font-weight:700}
+    .btn{padding:10px 22px;background:linear-gradient(135deg,rgba(40,40,70,.8),rgba(30,30,55,.8));border:1px solid var(--border);border-radius:10px;color:#b8c8ff;font:14px 'Inter',monospace;cursor:pointer;font-weight:500;transition:.25s;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(4px)}
+    .btn:hover{background:linear-gradient(135deg,rgba(60,60,100,.85),rgba(50,50,80,.85));border-color:rgba(130,160,255,.5);color:#fff;transform:translateY(-2px);box-shadow:0 8px 26px rgba(80,120,220,.25)}
+    .btn.primary{background:linear-gradient(135deg,#2a4a8a,#3a4a9a,#5a2a9a);border-color:rgba(120,140,255,.4);color:#fff}
+    .btn.primary:hover{box-shadow:0 10px 32px rgba(90,130,220,.35)}
     .mt-20{margin-top:20px}
     .mb-30{margin-bottom:30px}
     .tc{text-align:center}
     .external-link{color:var(--accent);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
     .external-link::after{content:' ↗';font-size:12px;transition:.2s;display:inline-block}
     .external-link:hover::after{transform:translate(2px,-2px)}
+    .page h2{font-size:18px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:18px;font-weight:700}
+    .page p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+    .page ul{list-style:none;padding:0}
+    .page li{padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:13px;color:var(--muted);background:rgba(30,30,50,.55);transition:.2s}
+    .page li:hover{background:rgba(40,40,65,.7);border-color:rgba(100,140,200,.45)}
+    .page li a{color:var(--accent);text-decoration:none;font-weight:500}
+    .page li a:hover{color:#9af;text-decoration:underline}
     .srv-header{display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
     .srv-status{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
     .srv-status .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
@@ -79,7 +124,6 @@
     .srv-status .dot.off{background:var(--red);box-shadow:0 0 8px rgba(255,85,85,.4)}
     .srv-status .dot.busy{background:var(--orange);box-shadow:0 0 8px rgba(255,170,0,.4)}
     .srv-status .dot.pending{background:#666;animation:pulse 1.2s infinite}
-    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
     .srv-stats{font-size:13px;color:var(--muted)}
     .srv-list{display:flex;flex-direction:column;gap:10px}
     .srv-card{background:linear-gradient(135deg,rgba(35,35,60,.88),rgba(25,25,45,.88));border:1px solid var(--border);border-radius:12px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;transition:.25s;flex-wrap:wrap;gap:12px;backdrop-filter:blur(4px)}
@@ -94,7 +138,8 @@
     .srv-empty{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px}
     .srv-error{text-align:center;padding:40px 20px;color:var(--red);font-size:14px}
     .srv-refresh{font-size:12px;padding:6px 14px;margin-left:auto}
-    footer{text-align:center;padding:24px;font-size:11px;color:#556;border-top:1px solid var(--border);background:linear-gradient(135deg,rgba(20,20,35,.7),rgba(15,15,25,.7));backdrop-filter:blur(4px)}
+    footer{text-align:center;padding:22px;font-size:11px;color:#555;border-top:1px solid var(--border);background:linear-gradient(135deg,rgba(20,20,35,.7),rgba(15,15,25,.7));backdrop-filter:blur(4px);position:relative;z-index:1}
+    footer a{color:var(--accent);text-decoration:none}
     ::-webkit-scrollbar{width:8px}
     ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
     ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(100,160,255,.3),rgba(160,120,255,.4));border-radius:4px}
@@ -106,11 +151,24 @@
     .upload-item .del:hover{text-decoration:underline}
     .file-input-hidden{display:none}
 
-    /* Welcome splash animation */
+    /* Search box */
+    .search-box{width:100%;padding:11px 14px;background:rgba(0,0,0,.45);color:#fff;border:1px solid var(--border);border-radius:8px;font:13px 'Inter',monospace;outline:none;margin-bottom:16px;transition:border-color .2s}
+    .search-box:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(120,160,255,.15)}
+
+    /* Toast notifications */
+    #toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:2000}
+    .toast{padding:13px 20px;border-radius:10px;font:13px 'Inter',monospace;color:#fff;border:1px solid var(--border);background:rgba(24,24,48,.92);box-shadow:0 12px 40px rgba(0,0,0,.5);animation:toastIn .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:10px;backdrop-filter:blur(8px);max-width:340px}
+    .toast.ok{border-color:rgba(68,204,68,.4)}
+    .toast.err{border-color:rgba(255,85,85,.4)}
+    .toast.info{border-color:rgba(120,160,255,.4)}
+    .toast.out{opacity:0;transform:translateX(20px);transition:.3s}
+    @keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+    /* Welcome splash */
     #welcome-splash{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);transition:opacity .6s ease,visibility .6s}
     #welcome-splash.show{display:flex}
     #welcome-splash.fade{opacity:0;visibility:hidden;pointer-events:none}
-    #welcome-splash .logo{font-size:48px;font-weight:700;background:linear-gradient(135deg,#fff 0%,#8af 40%,#c084fc 70%,#f472b6 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:6px;animation:logoIn .8s cubic-bezier(.16,1,.3,1) both}
+    #welcome-splash .logo{font-size:48px;font-weight:700;background:linear-gradient(135deg,#fff 0%,var(--accent) 40%,var(--accent2) 70%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:6px;animation:logoIn .8s cubic-bezier(.16,1,.3,1) both}
     #welcome-splash .sub-text{font-size:14px;color:var(--muted);letter-spacing:3px;margin-top:8px;animation:fadeUp .6s .4s cubic-bezier(.16,1,.3,1) both}
     #welcome-splash .user-text{font-size:18px;color:var(--accent);font-weight:600;margin-top:20px;animation:fadeUp .6s .6s cubic-bezier(.16,1,.3,1) both}
     #welcome-splash .bar{width:180px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:24px;overflow:hidden;animation:fadeUp .6s .3s cubic-bezier(.16,1,.3,1) both}
@@ -121,9 +179,24 @@
     @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
     @keyframes barFill{to{width:100%}}
     @keyframes particleUp{0%{opacity:0;transform:translateY(0) scale(1)}20%{opacity:.6}100%{opacity:0;transform:translateY(-200px) scale(0)}}
+
+    /* Download cards */
+    .dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+    .dl-card{display:flex;align-items:center;gap:14px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:.2s;text-decoration:none;color:inherit;position:relative;overflow:hidden}
+    .dl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),transparent);transform:scaleX(0);transition:transform .3s}
+    .dl-card:hover::before{transform:scaleX(1)}
+    .dl-card:hover{background:rgba(42,42,80,.9);border-color:rgba(130,160,255,.45);transform:translateY(-2px);box-shadow:0 8px 24px rgba(60,100,180,.15)}
+    .dl-icon{font-size:30px;flex-shrink:0;width:46px;text-align:center}
+    .dl-info{flex:1}
+    .dl-name{font:bold 14px 'Inter',monospace;color:#e6e8ff}
+    .dl-desc{font:11px 'Inter',monospace;color:var(--muted);margin-top:2px}
+    .dl-arrow{font:bold 18px monospace;color:rgba(100,140,255,.4);flex-shrink:0}
+    .dl-card:hover .dl-arrow{color:var(--accent);transform:translateX(2px)}
+    .dl-note{font-size:11px;color:var(--dim);margin-top:14px;line-height:1.6}
   </style>
 </head>
 <body>
+  <canvas id="bg-canvas"></canvas>
   <div id="welcome-splash">
     <div class="particles" id="splash-particles"></div>
     <div class="logo">BLOCKFORGE</div>
@@ -131,93 +204,166 @@
     <div class="bar"><div class="bar-fill"></div></div>
     <div class="user-text" id="splash-user"></div>
   </div>
+
   <header>
-    <div class="header-glow"></div>
-    <div>
-      <h1>BLOCKFORGE</h1>
-      <div class="sub">PORTAL</div>
+    <div class="brand">
+      <div class="brand-logo">🧊</div>
+      <div>
+        <h1>BLOCKFORGE</h1>
+        <div class="sub">PORTAL</div>
+      </div>
     </div>
-    <div id="user-badge">Not logged in</div>
+    <nav id="nav-tabs">
+      <button class="nav-tab active" data-nav="home">Dashboard</button>
+      <button class="nav-tab" data-nav="servers">Servers</button>
+      <button class="nav-tab" data-nav="updates">Updates</button>
+      <button class="nav-tab" data-nav="downloads">Downloads</button>
+      <button class="nav-tab" data-nav="community">Community</button>
+    </nav>
+    <div class="header-right">
+      <div class="theme-picker" id="theme-picker" title="Theme">
+        <div class="theme-dot active" data-theme-val="default" style="background:linear-gradient(135deg,#8af,#c084fc)"></div>
+        <div class="theme-dot" data-theme-val="emerald" style="background:linear-gradient(135deg,#5ef2a6,#2dd4bf)"></div>
+        <div class="theme-dot" data-theme-val="magma" style="background:linear-gradient(135deg,#ff9f43,#ff6b6b)"></div>
+        <div class="theme-dot" data-theme-val="ocean" style="background:linear-gradient(135deg,#4dd2ff,#7c9cff)"></div>
+        <div class="theme-dot" data-theme-val="gold" style="background:linear-gradient(135deg,#ffd75e,#ff9f43)"></div>
+      </div>
+      <div id="status-pill"><span class="dot"></span><span id="status-pill-text">Checking…</span></div>
+      <div id="user-badge">Not logged in</div>
+    </div>
   </header>
 
   <div class="container">
-    <div id="login-box">
-      <div style="font-weight:700;color:var(--gold);margin-bottom:14px;">Log in to access all features</div>
-      <input id="user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
-      <input id="pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
-      <button class="btn" id="login-btn">Log In</button>
-      <div id="login-hint"></div>
+    <div class="login-wrap">
+      <div id="login-box">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:14px;">Log in to access all features</div>
+        <input id="user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
+        <input id="pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
+        <button class="btn" id="login-btn">Log In</button>
+        <div id="login-hint"></div>
+      </div>
     </div>
 
     <div id="logged-in">
       <div id="account-info">
-        <span class="label">Logged in as</span> <span class="name" id="user-name">—</span>
-        <button class="btn" id="logout-btn" style="margin-top:14px;font-size:12px;padding:7px 14px;">Log Out</button>
+        <div class="avatar" id="avatar-letter">?</div>
+        <div>
+          <div class="label">Logged in as</div>
+          <div class="name" id="user-name">—</div>
+        </div>
+        <button class="btn" id="logout-btn">Log Out</button>
       </div>
     </div>
 
     <div id="content">
-      <div class="section-title">🌟 FEATURES</div>
-      <div class="card-grid">
-        <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
-          <div class="icon">🎮</div>
-          <div class="name">Play BlockForge</div>
-          <div class="desc">Launch the game in a new tab</div>
-        </a>
-        <div class="card" data-page="textures">
-          <div class="icon">🎨</div>
-          <div class="name">Texture Packs</div>
-          <div class="desc">Browse and install custom texture packs</div>
+      <!-- Dashboard -->
+      <div id="view-home">
+        <div class="section-title">📊 LIVE DASHBOARD</div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <h3>Server Network</h3>
+            <div class="stat-row">
+              <div class="stat"><div class="v" id="stat-players">—</div><div class="l">Players Online</div></div>
+              <div class="stat"><div class="v" id="stat-rooms">—</div><div class="l">Active Rooms</div></div>
+              <div class="stat"><div class="v" id="stat-uptime">—</div><div class="l">Uptime</div></div>
+            </div>
+            <div class="quick-row">
+              <button class="btn primary" id="quick-refresh">↻ Refresh</button>
+              <button class="btn" id="copy-invite">🔗 Copy Play Link</button>
+            </div>
+          </div>
+          <div class="dash-card">
+            <h3>Your Progress</h3>
+            <div class="stat-row">
+              <div class="stat"><div class="v" id="stat-level">0</div><div class="l">Level</div></div>
+              <div class="stat"><div class="v" id="stat-playtime">0h</div><div class="l">Play Time</div></div>
+              <div class="stat"><div class="v" id="stat-kills">0</div><div class="l">Mob Kills</div></div>
+            </div>
+            <div style="margin-top:12px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+                <span>Achievements</span><span id="stat-ach">0 / 44</span>
+              </div>
+              <div class="prog-bar"><div class="fill" id="ach-fill" style="width:0%"></div></div>
+            </div>
+          </div>
         </div>
-        <div class="card" data-page="updates">
-          <div class="icon">📰</div>
-          <div class="name">Updates</div>
-          <div class="desc">Latest changes, new features, and bug fixes</div>
+
+        <div class="section-title">⚡ QUICK ACTIONS</div>
+        <div class="feature-grid" style="grid-template-columns:repeat(3,1fr)">
+          <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
+            <div class="icon">🎮</div>
+            <div class="name">Play BlockForge</div>
+            <div class="desc">Launch the game in a new tab</div>
+          </a>
+          <div class="card" data-page="servers" tabindex="0">
+            <div class="icon">🌐</div>
+            <div class="name">Live Servers</div>
+            <div class="desc">Browse active multiplayer rooms</div>
+          </div>
+          <div class="card" data-page="downloads" tabindex="0">
+            <div class="icon">📦</div>
+            <div class="name">Downloads</div>
+            <div class="desc">Mac, Windows, Android & iPhone apps</div>
+          </div>
         </div>
-        <div class="card coming">
-          <div class="icon">🛍️</div>
-          <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
-          <div class="desc">Support BlockForge and unlock exclusive items</div>
+
+        <div class="section-title">🌟 FEATURES</div>
+        <div class="card-grid feature-grid">
+          <div class="card" data-page="textures" tabindex="0">
+            <div class="icon">🎨</div>
+            <div class="name">Texture Packs</div>
+            <div class="desc">Browse and install custom texture packs</div>
+          </div>
+          <div class="card" data-page="updates" tabindex="0">
+            <div class="icon">📰</div>
+            <div class="name">Updates</div>
+            <div class="desc">Latest changes, new features, and bug fixes</div>
+          </div>
+          <div class="card coming">
+            <div class="icon">🛍️</div>
+            <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
+            <div class="desc">Support BlockForge and unlock exclusive items</div>
+          </div>
+          <div class="card" data-page="feedback" tabindex="0">
+            <div class="icon">💬</div>
+            <div class="name">Feedback</div>
+            <div class="desc">Report bugs, suggest features</div>
+          </div>
+          <div class="card" data-page="skins" tabindex="0">
+            <div class="icon">👕</div>
+            <div class="name">Community Skins</div>
+            <div class="desc">Custom skins created by players</div>
+          </div>
+          <div class="card" data-page="mods" tabindex="0">
+            <div class="icon">🔧</div>
+            <div class="name">Mods & Addons</div>
+            <div class="desc">Download mods and addons for BlockForge</div>
+          </div>
         </div>
-        <div class="card" data-page="feedback">
-          <div class="icon">💬</div>
-          <div class="name">Feedback</div>
-          <div class="desc">Report bugs, suggest features</div>
+
+        <div class="section-title dev-only">🔧 DEVELOPER</div>
+        <div class="card-grid feature-grid dev-only">
+          <div class="card" data-page="suggestions" tabindex="0">
+            <div class="icon">💡</div>
+            <div class="name">Feature Suggestions</div>
+            <div class="desc">Propose and vote on new features</div>
+          </div>
+          <div class="card" data-page="bugs" tabindex="0">
+            <div class="icon">🐛</div>
+            <div class="name">Bugs</div>
+            <div class="desc">Track and manage bug reports</div>
+          </div>
         </div>
-        <div class="card" data-page="skins">
-          <div class="icon">👕</div>
-          <div class="name">Community Skins</div>
-          <div class="desc">Custom skins created by players</div>
-        </div>
-        <div class="card" data-page="mods">
-          <div class="icon">🔧</div>
-          <div class="name">Mods & Addons</div>
-          <div class="desc">Download mods and addons for BlockForge</div>
-        </div>
-        <div class="card" data-page="servers">
-          <div class="icon">🌐</div>
-          <div class="name">Servers</div>
-          <div class="desc">Browse active multiplayer servers</div>
-        </div>
+
+        <div class="section-title" id="recent-updates-title">🔥 RECENT UPDATES</div>
+        <div id="recent-updates"></div>
       </div>
 
-      <div class="section-title dev-only">🔧 DEVELOPER</div>
-      <div class="card-grid dev-only">
-        <div class="card" data-page="suggestions">
-          <div class="icon">💡</div>
-          <div class="name">Feature Suggestions</div>
-          <div class="desc">Propose and vote on new features</div>
-        </div>
-        <div class="card" data-page="bugs">
-          <div class="icon">🐛</div>
-          <div class="name">Bugs</div>
-          <div class="desc">Track and manage bug reports</div>
-        </div>
-      </div>
-
+      <!-- Pages -->
       <div id="page-updates" class="page">
         <h2>📰 Updates</h2>
         <p>Latest changes, bug fixes, and new features for BlockForge.</p>
+        <input type="text" class="search-box" id="updates-search" placeholder="Search updates…">
         <div id="portal-updates-list"></div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
@@ -286,6 +432,18 @@
         </ul>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
+
+      <div id="page-downloads" class="page">
+        <h2>📦 Downloads</h2>
+        <p>Official builds of BlockForge. Grab the one for your device.</p>
+        <div class="dl-grid" id="downloads-grid"></div>
+        <div class="dl-note">
+          <strong>iPhone:</strong> the .ipa is unsigned — install with <strong>SideStore</strong> or <strong>LiveContainer</strong>.<br>
+          <strong>Mac:</strong> two variants available (Apple Silicon & Intel). First launch may be flagged by Gatekeeper — right-click → Open.<br>
+          Everything also lives on <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">GitHub Releases</a>.
+        </div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
     </div>
 
     <div class="tc mb-30">
@@ -293,103 +451,181 @@
     </div>
   </div>
 
-  <footer>BlockForge Portal · Not affiliated with Mojang AB · Data stored locally</footer>
+  <footer>BlockForge Portal · <a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">GitHub</a> · Not affiliated with Mojang AB · Data stored locally</footer>
+
+  <div id="toasts"></div>
 
   <script>
+    // ── Toast system ───────────────────────────────────────────────────────
+    function toast(msg, type) {
+      var box = document.getElementById('toasts');
+      var el = document.createElement('div');
+      el.className = 'toast ' + (type || 'info');
+      var icon = type === 'ok' ? '✅' : type === 'err' ? '⚠️' : '🔔';
+      el.innerHTML = '<span>' + icon + '</span><span>' + msg + '</span>';
+      box.appendChild(el);
+      setTimeout(function() { el.classList.add('out'); setTimeout(function() { el.remove(); }, 320); }, 2800);
+    }
+
+    // ── Animated voxel background ─────────────────────────────────────────
+    (function() {
+      var canvas = document.getElementById('bg-canvas');
+      var ctx = canvas.getContext('2d');
+      var W, H, cubes = [], prts = [];
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      resize();
+      window.addEventListener('resize', resize);
+      var acc = getComputedStyle(document.body).getPropertyValue('--accent').trim() || '#8af';
+      var theme = localStorage.getItem('bf_portal_theme') || 'default';
+      function makeCube() {
+        return {
+          x: Math.random() * W, y: Math.random() * H,
+          size: 6 + Math.random() * 22,
+          vy: 0.2 + Math.random() * 0.6,
+          rot: Math.random() * Math.PI * 2, vr: (Math.random() - 0.5) * 0.02,
+          alpha: 0.05 + Math.random() * 0.15,
+          hue: Math.random()
+        };
+      }
+      for (var i = 0; i < 26; i++) cubes.push(makeCube());
+      for (var i = 0; i < 40; i++) prts.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2.2 + 0.6, vy: 0.3 + Math.random() * 0.8, a: Math.random() * 0.5 + 0.1, tw: Math.random() * 6.28 });
+      function pickColor(hue) {
+        var colors = ['var(--accent)', 'var(--accent2)', 'var(--accent3)'];
+        return colors[Math.floor(hue * 3) % 3];
+      }
+      function draw() {
+        ctx.clearRect(0, 0, W, H);
+        // cubes
+        for (var i = 0; i < cubes.length; i++) {
+          var c = cubes[i];
+          c.y -= c.vy; c.rot += c.vr;
+          if (c.y < -c.size) { c.y = H + c.size; c.x = Math.random() * W; }
+          ctx.save();
+          ctx.translate(c.x, c.y);
+          ctx.rotate(c.rot);
+          ctx.globalAlpha = c.alpha;
+          ctx.strokeStyle = pickColor(c.hue);
+          ctx.lineWidth = 1;
+          var s = c.size;
+          ctx.strokeRect(-s / 2, -s / 2, s, s);
+          ctx.fillStyle = pickColor(c.hue);
+          ctx.fillRect(-s / 2 + s * 0.3, -s / 2 + s * 0.3, s * 0.25, s * 0.25);
+          ctx.restore();
+        }
+        // rising particles
+        for (var i = 0; i < prts.length; i++) {
+          var p = prts[i];
+          p.y -= p.vy;
+          if (p.y < -4) { p.y = H + 4; p.x = Math.random() * W; }
+          p.tw += 0.05;
+          ctx.globalAlpha = p.a * (0.5 + 0.5 * Math.sin(p.tw));
+          ctx.fillStyle = pickColor(Math.random());
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.s, 0, 6.283);
+          ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(draw);
+      }
+      requestAnimationFrame(draw);
+      window.addEventListener('storage', function() {});
+    })();
+
     document.addEventListener('DOMContentLoaded', function() {
+      // ── Theme picker ───────────────────────────────────────────────────
+      var savedTheme = localStorage.getItem('bf_portal_theme') || 'default';
+      document.body.setAttribute('data-theme', savedTheme);
+      document.querySelectorAll('.theme-dot').forEach(function(d) {
+        if (d.dataset.themeVal === savedTheme) d.classList.add('active');
+        d.addEventListener('click', function() {
+          document.querySelectorAll('.theme-dot').forEach(function(x) { x.classList.remove('active'); });
+          d.classList.add('active');
+          localStorage.setItem('bf_portal_theme', d.dataset.themeVal);
+          document.body.setAttribute('data-theme', d.dataset.themeVal);
+        });
+      });
+
       const url = new URL(location.href);
       const userName = url.searchParams.get('user') || localStorage.getItem('bf_portal_user') || '';
       const userRole = url.searchParams.get('role') || localStorage.getItem('bf_portal_role') || '';
       const isDev = ['dev','gamedev','owner'].includes(userRole);
-      
+
       if (isDev) document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'block');
-      
+
       const loginBox = document.getElementById('login-box');
       const loggedIn = document.getElementById('logged-in');
       const content = document.getElementById('content');
-      
-      if (userName) {
-        localStorage.setItem('bf_portal_user', userName);
-        if (userRole) localStorage.setItem('bf_portal_role', userRole);
-        // Show welcome splash for returning users too
+
+      function showWelcome(name) {
         var splash = document.getElementById('welcome-splash');
         var splashUser = document.getElementById('splash-user');
         var particles = document.getElementById('splash-particles');
-        splashUser.textContent = 'Welcome back, ' + userName + '!';
-        for (var i = 0; i < 8; i++) {
+        splashUser.textContent = 'Welcome, ' + name + '!';
+        for (var i = 0; i < 10; i++) {
           var p = document.createElement('div');
           p.className = 'particle';
           p.style.left = (10 + Math.random() * 80) + '%';
           p.style.bottom = '20%';
           p.style.animationDelay = (Math.random() * 0.6) + 's';
-          p.style.background = ['#8af','#c084fc','#f472b6','#ffdd33'][Math.floor(Math.random()*4)];
+          p.style.background = ['var(--accent)','var(--accent2)','var(--accent3)','#ffdd33'][Math.floor(Math.random()*4)];
           particles.appendChild(p);
         }
         splash.classList.add('show');
         setTimeout(function() {
           splash.classList.add('fade');
-          setTimeout(function() {
-            splash.style.display = 'none';
-          }, 600);
-        }, 1400);
+          setTimeout(function() { splash.style.display = 'none'; }, 600);
+        }, 1300);
+      }
+
+      if (userName) {
+        localStorage.setItem('bf_portal_user', userName);
+        if (userRole) localStorage.setItem('bf_portal_role', userRole);
+        showWelcome('back, ' + userName + '!');
         loginBox.style.display = 'none';
         loggedIn.style.display = 'block';
         content.style.display = 'block';
         document.getElementById('user-badge').textContent = userName;
         document.getElementById('user-name').textContent = userName;
-        // Pass user params to Play BlockForge link
+        document.getElementById('avatar-letter').textContent = userName.charAt(0).toUpperCase();
         var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
         if (userRole) playUrl += '&role=' + encodeURIComponent(userRole);
         var playLink = document.getElementById('play-link');
         if (playLink) playLink.href = playUrl;
+        loadPlayerProgress();
+        refreshStats();
+        renderRecentUpdates();
+        renderDownloads();
+        refreshServerStatus();
       } else {
         loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
         content.style.display = 'none';
       }
-      
-      // Login button
+
+      // ── Login button ─────────────────────────────────────────────────────
       document.getElementById('login-btn').addEventListener('click', function() {
         const user = document.getElementById('user-input').value.trim().slice(0, 16);
         const pass = document.getElementById('pass-input').value;
         const hint = document.getElementById('login-hint');
         if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
         if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
-        // Save to both portal and game-compatible localStorage keys
         localStorage.setItem('bf_portal_user', user);
         localStorage.setItem('bf_player_name', user);
         localStorage.setItem('bf_login_user', user);
-        // XOR-encode password like the game does (symmetric XOR with 0x5A)
         var encoded = '';
         for (var c = 0; c < pass.length; c++) encoded += String.fromCharCode(pass.charCodeAt(c) ^ 0x5A);
         localStorage.setItem('bf_login_pass', encoded);
         const role = userRole ? userRole : '';
         if (role) localStorage.setItem('bf_portal_role', role);
-        // Show welcome splash animation
-        var splash = document.getElementById('welcome-splash');
-        var splashUser = document.getElementById('splash-user');
-        var particles = document.getElementById('splash-particles');
-        splashUser.textContent = 'Welcome, ' + user + '!';
-        // Spawn floating particles
-        for (var i = 0; i < 12; i++) {
-          var p = document.createElement('div');
-          p.className = 'particle';
-          p.style.left = (10 + Math.random() * 80) + '%';
-          p.style.bottom = '20%';
-          p.style.animationDelay = (Math.random() * 0.8) + 's';
-          p.style.background = ['#8af','#c084fc','#f472b6','#ffdd33'][Math.floor(Math.random()*4)];
-          particles.appendChild(p);
-        }
-        splash.classList.add('show');
-        setTimeout(function() {
-          splash.classList.add('fade');
+        showWelcome(user + '!');
         setTimeout(function() {
           location.href = '/?user=' + encodeURIComponent(user) + '&from=portal' + (role ? '&role=' + encodeURIComponent(role) : '');
-        }, 600);
-        }, 1800);
+        }, 1700);
       });
 
-      // Log out
       document.getElementById('logout-btn').addEventListener('click', function() {
         localStorage.removeItem('bf_portal_user');
         localStorage.removeItem('bf_portal_role');
@@ -399,81 +635,223 @@
         location.href = '/portal.html';
       });
 
-      // Close Portal (fall back to the game when opened as a normal tab)
       document.getElementById('close-btn').addEventListener('click', function() {
         window.close();
         var closeUrl = 'https://blockforge-1.onrender.com/';
         if (userName) closeUrl += '?user=' + encodeURIComponent(userName) + '&from=portal';
         setTimeout(function() { location.href = closeUrl; }, 250);
       });
-      
-      // Card navigation
-      document.querySelectorAll('.card[data-page]').forEach(function(card) {
-        card.addEventListener('click', function() {
-          var page = this.dataset.page;
-          if (!userName) { alert('Please log in first.'); return; }
-          document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-          document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = 'none'; });
-          document.querySelectorAll('.section-title').forEach(function(s) { 
-            if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
-          });
-          var el = document.getElementById('page-' + page);
-          if (el) el.classList.add('active');
+
+      // ── Card navigation + keyboard ─────────────────────────────────────
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.card[data-page]'));
+      function openPage(page, push) {
+        if (!userName) { toast('Please log in first.', 'err'); return; }
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('#view-home').forEach(function(g) { g.style.display = 'none'; });
+        document.querySelectorAll('#recent-updates-title').forEach(function(s) { s.style.display = 'none'; });
+        var el = document.getElementById('page-' + page);
+        if (el) el.classList.add('active');
+        setNav(page);
+        if (push !== false) {
           var u = new URL(location.href);
           u.searchParams.set('page', page);
           if (userName) u.searchParams.set('user', userName);
           if (userRole) u.searchParams.set('role', userRole);
           history.pushState({page: page}, '', u);
-          if (page === 'updates') renderUpdates();
-          if (page === 'servers') fetchServerList();
+        }
+        if (page === 'updates') renderUpdates();
+        if (page === 'servers') fetchServerList();
+        if (page === 'downloads') renderDownloads();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      cards.forEach(function(card) {
+        card.addEventListener('click', function() { openPage(this.dataset.page); });
+        card.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPage(this.dataset.page); }
         });
       });
-      
-      // Go home buttons
-      function goHome() {
+
+      // Arrow-key navigation across cards
+      document.addEventListener('keydown', function(e) {
+        if (['ArrowRight','ArrowLeft'].indexOf(e.key) === -1) return;
+        var visible = cards.filter(function(c) { return c.offsetParent !== null && !c.classList.contains('coming'); });
+        if (!visible.length) return;
+        var idx = visible.indexOf(document.activeElement);
+        var next;
+        if (e.key === 'ArrowRight') next = (idx + 1) % visible.length;
+        else next = (idx - 1 + visible.length) % visible.length;
+        visible[next].focus();
+        e.preventDefault();
+      });
+
+      function setNav(page) {
+        var map = { servers:'servers', updates:'updates', downloads:'downloads', textures:'community', skins:'community', mods:'community', feedback:'community', suggestions:'community', bugs:'community' };
+        var target = map[page];
+        document.querySelectorAll('.nav-tab').forEach(function(t) {
+          t.classList.toggle('active', t.dataset.nav === target || (target === 'home' && !page));
+        });
+      }
+
+      // ── Nav tabs ───────────────────────────────────────────────────────
+      function showHome() {
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
-        document.querySelectorAll('.card-grid').forEach(function(g) {
-          g.style.display = g.classList.contains('dev-only') ? (isDev ? 'block' : 'none') : '';
-        });
-        document.querySelectorAll('.section-title').forEach(function(s) {
-          s.style.display = s.classList.contains('dev-only') ? (isDev ? 'block' : 'none') : '';
-        });
+        document.querySelectorAll('#view-home').forEach(function(g) { g.style.display = 'block'; });
+        document.querySelectorAll('#recent-updates-title').forEach(function(s) { s.style.display = ''; });
+        document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.nav === 'home'); });
         var u = new URL(location.href);
         u.searchParams.delete('page');
         if (userName) u.searchParams.set('user', userName);
         if (userRole) u.searchParams.set('role', userRole);
         history.pushState({page: 'home'}, '', u);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
-      document.querySelectorAll('.go-home').forEach(function(btn) {
-        btn.addEventListener('click', goHome);
+      document.querySelectorAll('.nav-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          if (this.dataset.nav === 'home') { showHome(); return; }
+          if (this.dataset.nav === 'community') { openPage('skins'); return; }
+          openPage(this.dataset.nav);
+        });
       });
-      
-      // Handle page param on load
+
+      // Go home buttons
+      document.querySelectorAll('.go-home').forEach(function(btn) {
+        btn.addEventListener('click', showHome);
+      });
+
       var pageParam = url.searchParams.get('page');
-      if (pageParam && userName) {
-        var el = document.getElementById('page-' + pageParam);
-        if (el) {
-          goHome();
-          document.querySelector('.card[data-page="' + pageParam + '"]').click();
-        }
+      if (pageParam && userName && document.getElementById('page-' + pageParam)) {
+        showHome();
+        openPage(pageParam);
       }
-      
-      // Popstate
+
       window.addEventListener('popstate', function(e) {
         var p = new URLSearchParams(location.search).get('page');
         if (p && document.getElementById('page-' + p)) {
           document.querySelectorAll('.page').forEach(function(x) { x.classList.remove('active'); });
-          document.querySelectorAll('.card-grid').forEach(function(g) { g.style.display = 'none'; });
-          document.querySelectorAll('.section-title').forEach(function(s) { 
-            if (!s.classList.contains('dev-only')) s.style.display = 'none'; 
-          });
           document.getElementById('page-' + p).classList.add('active');
+          setNav(p);
           if (p === 'updates') renderUpdates();
           if (p === 'servers') fetchServerList();
         } else {
-          goHome();
+          showHome();
         }
       });
+
+      // ── Live dashboard stats ───────────────────────────────────────────
+      var SRV_WS = 'wss://blockforge-server.onrender.com';
+      function fmtUptime(sec) {
+        if (!sec && sec !== 0) return '—';
+        var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+        if (d > 0) return d + 'd ' + h + 'h';
+        if (h > 0) return h + 'h ' + m + 'm';
+        return m + 'm';
+      }
+      function refreshStats() {
+        if (!userName) return;
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) {
+            ws.close();
+            document.getElementById('stat-players').textContent = '—';
+            document.getElementById('stat-rooms').textContent = '—';
+            document.getElementById('stat-uptime').textContent = '—';
+          }
+        }, 6000);
+        ws.onopen = function() {
+          ws.send(JSON.stringify({ type: 'get_stats' }));
+          ws.send(JSON.stringify({ type: 'list_rooms' }));
+        };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'stats') {
+              responded = true;
+              clearTimeout(timeout);
+              document.getElementById('stat-players').textContent = msg.playersOnline || 0;
+              document.getElementById('stat-rooms').textContent = msg.roomsOnline || 0;
+              document.getElementById('stat-uptime').textContent = fmtUptime(msg.uptime);
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { responded = true; clearTimeout(timeout); };
+      }
+
+      function refreshServerStatus() {
+        if (!userName) return;
+        var pill = document.getElementById('status-pill');
+        var txt = document.getElementById('status-pill-text');
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) { ws.close(); pill.className = 'off'; txt.textContent = 'Offline'; }
+        }, 6000);
+        ws.onopen = function() { ws.send(JSON.stringify({ type: 'list_rooms' })); };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'room_list') {
+              responded = true;
+              clearTimeout(timeout);
+              var players = 0;
+              (msg.rooms || []).forEach(function(r) { players += (r.playerCount || 0); });
+              pill.className = 'on';
+              txt.textContent = players + ' online · ' + (msg.rooms || []).length + ' servers';
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { responded = true; clearTimeout(timeout); pill.className = 'off'; txt.textContent = 'Offline'; };
+      }
+
+      document.getElementById('quick-refresh').addEventListener('click', function() {
+        refreshStats();
+        refreshServerStatus();
+        toast('Refreshed live stats', 'ok');
+      });
+
+      document.getElementById('copy-invite').addEventListener('click', function() {
+        var link = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
+        if (userRole) link += '&role=' + encodeURIComponent(userRole);
+        var ta = document.createElement('textarea');
+        ta.value = link;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          toast('Play link copied to clipboard!', 'ok');
+        } catch (_) {
+          toast('Could not copy link: ' + link, 'err');
+        }
+        ta.remove();
+      });
+
+      // Auto-refresh live dashboard every 60s
+      setInterval(function() {
+        if (userName && !document.querySelector('.page.active')) { refreshStats(); refreshServerStatus(); }
+      }, 60000);
+
+      // ── Player progress (from game achievements) ───────────────────────
+      function loadPlayerProgress() {
+        try {
+          var raw = localStorage.getItem('mc-clone-achievements');
+          if (!raw) { return; }
+          var data = JSON.parse(raw);
+          var stats = data.stats || {};
+          var unlocked = (data.unlocked && data.unlocked.length) || 0;
+          var total = 44;
+          var lvl = stats.level || 0;
+          var playtime = stats.playTime || 0;
+          var kills = stats.mobKillsAny || 0;
+          var hours = Math.floor(playtime / 3600);
+          var mins = Math.floor((playtime % 3600) / 60);
+          document.getElementById('stat-level').textContent = lvl;
+          document.getElementById('stat-playtime').textContent = hours > 0 ? hours + 'h' : mins + 'm';
+          document.getElementById('stat-kills').textContent = kills;
+          document.getElementById('stat-ach').textContent = unlocked + ' / ' + total;
+          var pct = Math.round((unlocked / total) * 100);
+          document.getElementById('ach-fill').style.width = pct + '%';
+        } catch (_) {}
+      }
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
@@ -613,26 +991,41 @@
           features: ['F3 debug overlay'],
         },
       ];
-      function renderUpdates() {
+
+      function updateSectionHTML(s, i, open) {
+        return '<div class="update-section" style="margin-bottom:6px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">' +
+          '<div class="update-head" data-idx="' + i + '" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.06);font:13px/1.4 monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;gap:8px;">' +
+          '<div style="flex:1;min-width:0;">' +
+          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">' +
+          '<span style="font:bold 10px monospace;color:#666;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;">' + s.hash + '</span>' +
+          '<span style="font:bold 10px monospace;color:#888;">' + s.date + '</span></div>' +
+          '<span style="font-weight:bold;">' + s.heading + '</span>' +
+          '<div style="font:11px monospace;color:#999;margin-top:2px;line-height:1.3;">' + s.desc + '</div></div>' +
+          '<span class="update-arrow" style="font-size:10px;transition:.2s;flex-shrink:0;">' + (open ? '▲' : '▼') + '</span></div>' +
+          '<div class="update-body" style="padding:' + (open ? '8px 12px 10px' : '0 12px') + ';max-height:' + (open ? 'none' : '0') + ';overflow:hidden;transition:.25s;">' +
+          (s.bugs.length ? '<div style="font:bold 10px monospace;color:#f88;margin-bottom:3px;">BUGS FIXED</div>' + s.bugs.map(function(b) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">' + b + '</div>'; }).join('') : '') +
+          (s.updates.length ? '<div style="font:bold 10px monospace;color:#8cf;margin-top:' + (s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">UPDATES</div>' + s.updates.map(function(u) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">' + u + '</div>'; }).join('') : '') +
+          (s.features.length ? '<div style="font:bold 10px monospace;color:#8f8;margin-top:' + (s.updates.length || s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">NEW FEATURES</div>' + s.features.map(function(f) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">' + f + '</div>'; }).join('') : '') +
+          '</div></div>';
+      }
+
+      function renderUpdates(filter) {
         var list = document.getElementById('portal-updates-list');
-        if (!list || list.dataset.rendered) return;
-        list.innerHTML = UPDATE_SECTIONS.map(function(s, i) {
-          return '<div class="update-section" style="margin-bottom:6px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">' +
-            '<div class="update-head" data-idx="' + i + '" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.06);font:13px/1.4 monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;gap:8px;">' +
-            '<div style="flex:1;min-width:0;">' +
-            '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">' +
-            '<span style="font:bold 10px monospace;color:#666;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;">' + s.hash + '</span>' +
-            '<span style="font:bold 10px monospace;color:#888;">' + s.date + '</span></div>' +
-            '<span style="font-weight:bold;">' + s.heading + '</span>' +
-            '<div style="font:11px monospace;color:#999;margin-top:2px;line-height:1.3;">' + s.desc + '</div></div>' +
-            '<span class="update-arrow" style="font-size:10px;transition:.2s;flex-shrink:0;">' + (i === 0 ? '▲' : '▼') + '</span></div>' +
-            '<div class="update-body" style="padding:' + (i === 0 ? '8px 12px 10px' : '0 12px') + ';max-height:' + (i === 0 ? 'none' : '0') + ';overflow:hidden;transition:.25s;">' +
-            (s.bugs.length ? '<div style="font:bold 10px monospace;color:#f88;margin-bottom:3px;">BUGS FIXED</div>' + s.bugs.map(function(b) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">' + b + '</div>'; }).join('') : '') +
-            (s.updates.length ? '<div style="font:bold 10px monospace;color:#8cf;margin-top:' + (s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">UPDATES</div>' + s.updates.map(function(u) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">' + u + '</div>'; }).join('') : '') +
-            (s.features.length ? '<div style="font:bold 10px monospace;color:#8f8;margin-top:' + (s.updates.length || s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">NEW FEATURES</div>' + s.features.map(function(f) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">' + f + '</div>'; }).join('') : '') +
-            '</div></div>';
-        }).join('');
-        list.addEventListener('click', function(e) {
+        if (!list) return;
+        var q = (filter || '').toLowerCase().trim();
+        var sections = UPDATE_SECTIONS;
+        if (q) {
+          sections = UPDATE_SECTIONS.filter(function(s) {
+            var hay = (s.heading + ' ' + s.desc + ' ' + s.updates.join(' ') + ' ' + s.features.join(' ') + ' ' + s.bugs.join(' ')).toLowerCase();
+            return hay.indexOf(q) !== -1;
+          });
+        }
+        list.innerHTML = sections.length ? sections.map(function(s, i) {
+          return updateSectionHTML(s, i, !q && i === 0);
+        }).join('') : '<div class="srv-empty">No updates match your search.</div>';
+        list.dataset.rendered = '1';
+        list.dataset.filter = q || '';
+        list.onclick = function(e) {
           var head = e.target.closest('.update-head');
           if (!head) return;
           var sec = head.closest('.update-section');
@@ -642,13 +1035,62 @@
           body.style.maxHeight = isOpen ? '0' : 'none';
           body.style.padding = isOpen ? '0 12px' : '8px 12px 10px';
           arrow.textContent = isOpen ? '▼' : '▲';
-        });
-        list.dataset.rendered = '1';
+        };
+      }
+      document.getElementById('updates-search').addEventListener('input', function() {
+        renderUpdates(this.value);
+      });
+
+      // Recent updates preview on dashboard
+      function renderRecentUpdates() {
+        var wrap = document.getElementById('recent-updates');
+        if (!wrap) return;
+        wrap.innerHTML = UPDATE_SECTIONS.slice(0, 3).map(function(s, i) {
+          return updateSectionHTML(s, i, i === 0);
+        }).join('');
+        wrap.style.display = 'block';
+        wrap.onclick = function(e) {
+          var head = e.target.closest('.update-head');
+          if (!head) return;
+          var sec = head.closest('.update-section');
+          var body = sec.querySelector('.update-body');
+          var arrow = head.querySelector('.update-arrow');
+          var isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
+          body.style.maxHeight = isOpen ? '0' : 'none';
+          body.style.padding = isOpen ? '0 12px' : '8px 12px 10px';
+          arrow.textContent = isOpen ? '▼' : '▲';
+        };
+        var more = document.createElement('div');
+        more.className = 'mt-20';
+        more.innerHTML = '<button class="btn" id="recent-more">View all updates →</button>';
+        wrap.appendChild(more);
+        document.getElementById('recent-more').addEventListener('click', function() { openPage('updates'); });
+      }
+
+      // ── Downloads page ─────────────────────────────────────────────────
+      var DOWNLOADS = [
+        { icon: '🍏', name: 'Mac · Apple Silicon', desc: 'BlockForge-mac-arm64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-arm64.dmg' },
+        { icon: '🖥️', name: 'Mac · Intel', desc: 'BlockForge-mac-x64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-x64.dmg' },
+        { icon: '🪟', name: 'Windows', desc: 'BlockForge-windows.exe', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-windows.exe' },
+        { icon: '🤖', name: 'Android', desc: 'BlockForge-android.apk', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-android.apk' },
+        { icon: '📱', name: 'iPhone (SideStore)', desc: 'BlockForge-iphone-ipa.ipa', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-iphone-ipa.ipa' },
+        { icon: '🌐', name: 'Web (Play now)', desc: 'No install needed', url: 'https://blockforge-1.onrender.com/' },
+      ];
+      function renderDownloads() {
+        var grid = document.getElementById('downloads-grid');
+        if (!grid) return;
+        if (grid.dataset.rendered) return;
+        grid.innerHTML = DOWNLOADS.map(function(d) {
+          var extra = d.url.indexOf('releases') !== -1 ? ' target="_blank" rel="noopener"' : '';
+          return '<a class="dl-card" href="' + d.url + '"' + extra + '>' +
+            '<div class="dl-icon">' + d.icon + '</div>' +
+            '<div class="dl-info"><div class="dl-name">' + d.name + '</div><div class="dl-desc">' + d.desc + '</div></div>' +
+            '<div class="dl-arrow">⬇</div></a>';
+        }).join('');
+        grid.dataset.rendered = '1';
       }
 
       // ── Server browser ─────────────────────────────────────────────────
-      var SRV_WS = 'wss://blockforge-server.onrender.com';
-
       function esc(s) {
         if (!s) return '';
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -694,7 +1136,7 @@
 
               dotEl.className = 'dot on';
               labelEl.textContent = 'Online';
-              statsEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '') + ' \u00b7 ' + totalPlayers + ' player' + (totalPlayers !== 1 ? 's' : '') + ' online';
+              statsEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '') + ' · ' + totalPlayers + ' player' + (totalPlayers !== 1 ? 's' : '') + ' online';
 
               if (rooms.length === 0) {
                 listEl.innerHTML = '<div class="srv-empty">No active rooms right now. Be the first to start one!</div>';
@@ -711,8 +1153,8 @@
                     '<div class="left">' +
                       '<div class="name">' + esc(r.name) + '</div>' +
                       '<div class="meta">' +
-                        '<span>\ud83c\udfae ' + esc(mode) + '</span>' +
-                        (owner ? '<span>\ud83d\udc51 ' + esc(owner) + '</span>' : '') +
+                        '<span>🎮 ' + esc(mode) + '</span>' +
+                        (owner ? '<span>👑 ' + esc(owner) + '</span>' : '') +
                         '<span class="badge">SMP</span>' +
                       '</div>' +
                     '</div>' +
@@ -744,7 +1186,6 @@
         };
       }
 
-      // Refresh button
       document.getElementById('srv-refresh').addEventListener('click', fetchServerList);
 
       // ── Upload helpers ──────────────────────────────────────────────────
@@ -781,6 +1222,7 @@
             list.push({ name: file.name, data: ev.target.result, date: Date.now() });
             saveUploads(storageKey, list);
             renderUploads(gridId, storageKey, isImage);
+            toast('Uploaded ' + file.name, 'ok');
           };
           reader.readAsDataURL(file);
           e.target.value = '';

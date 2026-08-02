@@ -1476,11 +1476,16 @@ function handleDeleteRoom(ws, msg) {
 function handleGetStats(ws) {
   const today = new Date().toISOString().slice(0, 10);
   const month = today.slice(0, 7);
+  let playersOnline = 0;
+  for (const [, room] of rooms) playersOnline += room.players.size;
   safeSend(ws, JSON.stringify({
     type: 'stats',
     dailyUsers: serverStats.dailyUsers[today] || 0,
     monthlyUsers: Object.keys(serverStats.monthlyUsers).filter(k => k.startsWith(month)).length,
-    serversCreated: serverStats.serversCreated
+    serversCreated: serverStats.serversCreated,
+    roomsOnline: rooms.size,
+    playersOnline,
+    uptime: Math.floor(process.uptime())
   }));
 }
 
