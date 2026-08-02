@@ -11,7 +11,7 @@ import { BIOMES } from './constants.js';
 
 // ── Block color lookup for break particles ──────────────────────────────
 
-const BLOCK_COLORS = {
+export const BLOCK_COLORS = {
   [BLOCK.GRASS]:       [0.36, 0.55, 0.24],
   [BLOCK.DIRT]:        [0.52, 0.37, 0.24],
   [BLOCK.STONE]:       [0.5, 0.5, 0.52],

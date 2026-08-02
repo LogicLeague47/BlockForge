@@ -29,7 +29,7 @@ import { LitTntManager } from './tnt.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
 import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour } from './parkour.js';
-import { BreakParticles, AmbientParticles, CloudSystem } from './particles.js';
+import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
@@ -1609,7 +1609,8 @@ function placeBlock(slotOverride) {
   // Block place particles: small dust puff
   if (graphicsQuality !== 'low') {
     for (let i = 0; i < 4; i++) {
-      const col = BLOCK_COLORS[itemId] || 0x888888;
+      const c = BLOCK_COLORS[itemId];
+      const col = c ? ((c[0]*255|0)<<16 | (c[1]*255|0)<<8 | (c[2]*255|0)) : 0x888888;
       const mat = new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.5 });
       const m = new THREE.Mesh(_particleGeoSmall, mat);
       m.position.set(x + 0.5, y + 0.5, z + 0.5);
