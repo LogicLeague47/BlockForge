@@ -198,6 +198,105 @@ function cutFace(skinCanvas, sx, sy, sw, sh) {
 }
 // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
 
+// ── Armor (Minecraft-style plate overlays) ─────────────────────────────
+// Generates a 64x64 armor texture in the same layout as the skin, so the
+// existing part-slicing regions produce properly-mapped pixel-art armor.
+const ARMOR_PALETTES = {
+  LEATHER:  { base: '#8B5A2B', light: '#B07A44', dark: '#5A3A1C' },
+  CHAIN:    { base: '#C2C2C2', light: '#E6E6E6', dark: '#7A7A7A' },
+  IRON:     { base: '#D8D8D8', light: '#F6F6F6', dark: '#989898' },
+  GOLD:     { base: '#F0C838', light: '#FDE878', dark: '#B8921E' },
+  DIAMOND:  { base: '#33D1C9', light: '#8BF0EA', dark: '#1E857F' },
+  PRISMITE: { base: '#B060E0', light: '#D9A8F5', dark: '#6A2FA0' },
+};
+
+function createArmorCanvas(material) {
+  const c = document.createElement('canvas');
+  c.width = TILE; c.height = TILE;
+  const g = c.getContext('2d');
+  g.imageSmoothingEnabled = false;
+  const pal = ARMOR_PALETTES[material] || ARMOR_PALETTES.IRON;
+  const isChain = material === 'CHAIN';
+
+  const paint = (x, y, w, h) => {
+    if (isChain) {
+      // Checkerboard mesh — reads as chainmail
+      for (let yy = y; yy < y + h; yy++) {
+        for (let xx = x; xx < x + w; xx++) {
+          g.fillStyle = ((xx + yy) % 2) ? pal.dark : pal.base;
+          g.fillRect(xx, yy, 1, 1);
+        }
+      }
+      return;
+    }
+    // Plate: dark border, base body, top highlight, seams + rivets
+    g.fillStyle = pal.dark; g.fillRect(x, y, w, h);
+    g.fillStyle = pal.base; g.fillRect(x + 1, y + 1, w - 2, h - 2);
+    g.fillStyle = pal.light; g.fillRect(x + 1, y + 1, w - 2, 1);
+    g.fillStyle = pal.dark; g.fillRect(x + 1, y + h - 2, w - 2, 1);
+    if (w >= 6) { g.fillStyle = pal.dark; g.fillRect(x + Math.floor(w / 2), y + 1, 1, h - 2); }
+    for (let yy = y + 3; yy < y + h - 2; yy += 3) {
+      g.fillStyle = pal.dark; g.fillRect(x + 1, yy, w - 2, 1);
+      if (w >= 6) { g.fillStyle = pal.light; g.fillRect(x + Math.floor(w / 2), yy + 1, 1, 1); }
+    }
+  };
+
+  // HEAD (helmet) — all six faces
+  paint(0, 8, 8, 8); paint(16, 8, 8, 8); paint(8, 0, 8, 8);
+  paint(16, 0, 8, 8); paint(24, 8, 8, 8); paint(8, 8, 8, 8);
+  // BODY (chestplate)
+  paint(16, 20, 4, 12); paint(28, 20, 4, 12); paint(20, 16, 8, 4);
+  paint(28, 32, 8, 4); paint(20, 20, 8, 12); paint(32, 20, 8, 12);
+  // RIGHT ARM (shoulder pad)
+  paint(40, 20, 4, 4); paint(48, 20, 4, 4); paint(44, 16, 4, 4);
+  paint(48, 16, 4, 4); paint(44, 20, 4, 4); paint(52, 20, 4, 4);
+  // LEFT ARM (shoulder pad)
+  paint(32, 52, 4, 4); paint(40, 52, 4, 4); paint(36, 48, 4, 4);
+  paint(40, 48, 4, 4); paint(36, 52, 4, 4); paint(44, 52, 4, 4);
+  // RIGHT LEG (leggings)
+  paint(0, 20, 4, 12); paint(8, 20, 4, 12); paint(4, 16, 4, 4);
+  paint(8, 16, 4, 4); paint(4, 20, 4, 12); paint(12, 20, 4, 12);
+  // LEFT LEG (leggings)
+  paint(16, 52, 4, 12); paint(24, 52, 4, 12); paint(20, 48, 4, 4);
+  paint(24, 48, 4, 4); paint(20, 52, 4, 12); paint(28, 52, 4, 12);
+
+  // Boots: darker accent over the bottom 4 rows of each leg
+  g.fillStyle = 'rgba(0,0,0,0.28)';
+  g.fillRect(0, 28, 4, 4); g.fillRect(8, 28, 4, 4); g.fillRect(4, 28, 4, 4); g.fillRect(12, 28, 4, 4);
+  g.fillRect(16, 60, 4, 4); g.fillRect(24, 60, 4, 4); g.fillRect(20, 60, 4, 4); g.fillRect(28, 60, 4, 4);
+  g.fillStyle = pal.light;
+  g.fillRect(0, 28, 4, 1); g.fillRect(8, 28, 4, 1); g.fillRect(4, 28, 4, 1); g.fillRect(12, 28, 4, 1);
+  g.fillRect(16, 60, 4, 1); g.fillRect(24, 60, 4, 1); g.fillRect(20, 60, 4, 1); g.fillRect(28, 60, 4, 1);
+
+  return c;
+}
+
+// Slice a set of face regions out of the armor canvas into per-face materials
+function sliceFaces(canvas, faces) {
+  return faces.map(([sx, sy, sw, sh]) => cutFace(canvas, sx, sy, sw, sh).material);
+}
+
+// Per-material kit of face materials, cached so we don't rebuild textures constantly
+const _armorKitCache = new Map();
+function getArmorKit(material) {
+  if (_armorKitCache.has(material)) return _armorKitCache.get(material);
+  const canvas = createArmorCanvas(material);
+  const kit = {
+    helmet: sliceFaces(canvas, [[0,8,8,8],[16,8,8,8],[8,0,8,8],[16,0,8,8],[24,8,8,8],[8,8,8,8]]),
+    chest:  sliceFaces(canvas, [[16,20,4,12],[28,20,4,12],[20,16,8,4],[28,32,8,4],[20,20,8,12],[32,20,8,12]]),
+    waist:  sliceFaces(canvas, [[16,28,4,4],[28,28,4,4],[20,16,8,4],[28,32,8,4],[20,28,8,4],[32,28,8,4]]),
+    shoulderR: sliceFaces(canvas, [[40,20,4,4],[48,20,4,4],[44,16,4,4],[48,16,4,4],[44,20,4,4],[52,20,4,4]]),
+    shoulderL: sliceFaces(canvas, [[32,52,4,4],[40,52,4,4],[36,48,4,4],[40,48,4,4],[36,52,4,4],[44,52,4,4]]),
+    legR:   sliceFaces(canvas, [[0,20,4,12],[8,20,4,12],[4,16,4,4],[8,16,4,4],[4,20,4,12],[12,20,4,12]]),
+    legL:   sliceFaces(canvas, [[16,52,4,12],[24,52,4,12],[20,48,4,4],[24,48,4,4],[20,52,4,12],[28,52,4,12]]),
+    bootR:  sliceFaces(canvas, [[0,28,4,4],[8,28,4,4],[4,16,4,4],[8,16,4,4],[4,28,4,4],[12,28,4,4]]),
+    bootL:  sliceFaces(canvas, [[16,60,4,4],[24,60,4,4],[20,48,4,4],[24,48,4,4],[20,60,4,4],[28,60,4,4]]),
+  };
+  _armorKitCache.set(material, kit);
+  return kit;
+}
+
+
 function headParts(skin) {
   return [
     cutFace(skin, 0, 8, 8, 8),    // +X right
@@ -592,90 +691,66 @@ export class PlayerModel {
       for (const m of this._armorMeshes) {
         if (m.parent) m.parent.remove(m);
         m.geometry.dispose();
-        if (m.material.map) m.material.map.dispose();
-        m.material.dispose();
+        const mats = Array.isArray(m.material) ? m.material : [m.material];
+        for (const mat of mats) {
+          if (mat.map) mat.map.dispose();
+          mat.dispose();
+        }
       }
     }
     this._armorMeshes = [];
     if (!armorSlots || !ARMOR) return;
 
-    const ARMOR_COLORS = {
-      LEATHER: '#A0522D', CHAIN: '#C0C0C0', IRON: '#D0D0D0',
-      GOLD: '#FFD700', DIAMOND: '#00CED1', PRISMITE: '#B060E0',
+    // Armor may arrive as an array of item ids, or a comma-joined string (multiplayer)
+    let slots = armorSlots;
+    if (typeof armorSlots === 'string') {
+      slots = armorSlots.split(',').map((s) => (s === '' || s === 'null' ? null : Number(s)));
+    }
+
+    const _kit = (slot) => {
+      const id = slots[slot];
+      if (id == null || !ARMOR[id]) return null;
+      return getArmorKit(ARMOR[id].material);
     };
 
-    const _makeArmorMat = (color) => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 4; canvas.height = 4;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 4, 4);
-      ctx.fillStyle = 'rgba(0,0,0,0.15)';
-      ctx.fillRect(0, 0, 1, 4);
-      ctx.fillRect(3, 0, 1, 4);
-      ctx.fillRect(0, 0, 4, 1);
-      ctx.fillRect(0, 3, 4, 1);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      return new THREE.MeshLambertMaterial({ map: tex, transparent: true, opacity: 0.85 });
+    const _addMesh = (parent, mats, size, pos) => {
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(size.w), px(size.h), px(size.d)), mats);
+      mesh.userData.partName = 'armor';
+      if (pos) mesh.position.set(pos[0], pos[1], pos[2]);
+      parent.add(mesh);
+      this._armorMeshes.push(mesh);
+      return mesh;
     };
 
     // Helmet — child of head, follows head rotation
-    const helmetId = armorSlots[0];
-    if (helmetId != null && ARMOR[helmetId]) {
-      const color = ARMOR_COLORS[ARMOR[helmetId].material] || '#888';
-      const geo = new THREE.BoxGeometry(px(HEAD.w + 1), px(HEAD.h + 1), px(HEAD.d + 1));
-      const mesh = new THREE.Mesh(geo, _makeArmorMat(color));
-      mesh.userData.partName = 'armor';
-      this.head.add(mesh);
-      this._armorMeshes.push(mesh);
+    const helmKit = _kit(0);
+    if (helmKit) {
+      _addMesh(this.head, helmKit.helmet, { w: HEAD.w + 1, h: HEAD.h + 1, d: HEAD.d + 1 }, [0, 0, 0]);
     }
 
-    // Chestplate — child of body, follows body tilt
-    const chestId = armorSlots[1];
-    if (chestId != null && ARMOR[chestId]) {
-      const color = ARMOR_COLORS[ARMOR[chestId].material] || '#888';
-      const geo = new THREE.BoxGeometry(px(BODY.w + 1), px(BODY.h), px(BODY.d + 1));
-      const mesh = new THREE.Mesh(geo, _makeArmorMat(color));
-      mesh.userData.partName = 'armor';
-      this.body.add(mesh);
-      this._armorMeshes.push(mesh);
+    // Chestplate — body + shoulder pads on the arms
+    const chestKit = _kit(1);
+    if (chestKit) {
+      _addMesh(this.body, chestKit.chest, { w: BODY.w + 1, h: BODY.h, d: BODY.d + 1 }, [0, 0, 0]);
+      // Shoulder pads (top of each arm)
+      _addMesh(this.rightArmPivot, chestKit.shoulderR, { w: ARM.w + 1, h: 4, d: ARM.d + 1 }, [0, -px(2), 0]);
+      _addMesh(this.leftArmPivot, chestKit.shoulderL, { w: ARM.w + 1, h: 4, d: ARM.d + 1 }, [0, -px(2), 0]);
     }
 
-    // Leggings — children of leg pivots, follow leg swing
-    const leggingId = armorSlots[2];
-    if (leggingId != null && ARMOR[leggingId]) {
-      const color = ARMOR_COLORS[ARMOR[leggingId].material] || '#888';
-      const geo = new THREE.BoxGeometry(px(LEG.w + 1), px(LEG.h), px(LEG.d + 1));
-      const meshR = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
-      meshR.position.set(0, -px(LEG.h / 2), 0);
-      meshR.userData.partName = 'armor';
-      this.rightLegPivot.add(meshR);
-      this._armorMeshes.push(meshR);
-
-      const meshL = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
-      meshL.position.set(0, -px(LEG.h / 2), 0);
-      meshL.userData.partName = 'armor';
-      this.leftLegPivot.add(meshL);
-      this._armorMeshes.push(meshL);
+    // Leggings — waist on the body + legs
+    const legKit = _kit(2);
+    if (legKit) {
+      // Waist piece at the bottom of the torso
+      _addMesh(this.body, legKit.waist, { w: BODY.w + 1, h: 3, d: BODY.d + 1 }, [0, -px(BODY.h / 2 - 1.5), 0]);
+      _addMesh(this.rightLegPivot, legKit.legR, { w: LEG.w + 1, h: LEG.h, d: LEG.d + 1 }, [0, -px(LEG.h / 2), 0]);
+      _addMesh(this.leftLegPivot, legKit.legL, { w: LEG.w + 1, h: LEG.h, d: LEG.d + 1 }, [0, -px(LEG.h / 2), 0]);
     }
 
-    // Boots — children of leg pivots, follow leg swing
-    const bootId = armorSlots[3];
-    if (bootId != null && ARMOR[bootId]) {
-      const color = ARMOR_COLORS[ARMOR[bootId].material] || '#888';
-      const geo = new THREE.BoxGeometry(px(LEG.w + 1), px(4), px(LEG.d + 1));
-      const meshR = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
-      meshR.position.set(0, -px(LEG.h - 2), 0);
-      meshR.userData.partName = 'armor';
-      this.rightLegPivot.add(meshR);
-      this._armorMeshes.push(meshR);
-
-      const meshL = new THREE.Mesh(geo.clone(), _makeArmorMat(color));
-      meshL.position.set(0, -px(LEG.h - 2), 0);
-      meshL.userData.partName = 'armor';
-      this.leftLegPivot.add(meshL);
-      this._armorMeshes.push(meshL);
+    // Boots — bottom of each leg
+    const bootKit = _kit(3);
+    if (bootKit) {
+      _addMesh(this.rightLegPivot, bootKit.bootR, { w: LEG.w + 1, h: 4, d: LEG.d + 1 }, [0, -px(LEG.h - 2), 0]);
+      _addMesh(this.leftLegPivot, bootKit.bootL, { w: LEG.w + 1, h: 4, d: LEG.d + 1 }, [0, -px(LEG.h - 2), 0]);
     }
   }
 
