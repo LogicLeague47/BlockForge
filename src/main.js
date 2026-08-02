@@ -7198,11 +7198,30 @@ function initMenuPreview() {
   menuPreviewScene.add(dir);
   const previewGround = new THREE.Mesh(
     new THREE.PlaneGeometry(5, 5),
-    new THREE.ShadowMaterial({ opacity: 0.4 })
+    new THREE.ShadowMaterial({ opacity: 0.55 })
   );
   previewGround.rotation.x = -Math.PI / 2;
   previewGround.receiveShadow = true;
   menuPreviewScene.add(previewGround);
+  // Soft "pedestal" glow disc behind the shadow so the dark shadow reads
+  // against the near-black menu background.
+  const pedestalCanvas = document.createElement('canvas');
+  pedestalCanvas.width = pedestalCanvas.height = 128;
+  const pctx = pedestalCanvas.getContext('2d');
+  const grad = pctx.createRadialGradient(64, 64, 4, 64, 64, 62);
+  grad.addColorStop(0, 'rgba(120,160,255,0.30)');
+  grad.addColorStop(0.55, 'rgba(60,80,180,0.12)');
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  pctx.fillStyle = grad;
+  pctx.fillRect(0, 0, 128, 128);
+  const pedestalTex = new THREE.CanvasTexture(pedestalCanvas);
+  const pedestal = new THREE.Mesh(
+    new THREE.PlaneGeometry(2.6, 2.6),
+    new THREE.MeshBasicMaterial({ map: pedestalTex, transparent: true, depthWrite: false })
+  );
+  pedestal.rotation.x = -Math.PI / 2;
+  pedestal.position.y = 0.001;
+  menuPreviewScene.add(pedestal);
   menuPreviewSkin = getSelectedSkin();
   menuPreviewModel = new PlayerModel(menuPreviewScene, menuPreviewSkin, atlasCanvas);
   menuPreviewModel.setVisible(true);

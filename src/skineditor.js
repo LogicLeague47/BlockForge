@@ -443,6 +443,8 @@ export class SkinEditor {
     this.pRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     this.pRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.pRenderer.setSize(w, h);
+    this.pRenderer.shadowMap.enabled = true;
+    this.pRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.previewWrap.appendChild(this.pRenderer.domElement);
     this.pScene = new THREE.Scene();
     this.pCamera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
@@ -451,7 +453,23 @@ export class SkinEditor {
     this.pScene.add(new THREE.AmbientLight(0xffffff, 0.9));
     const dir = new THREE.DirectionalLight(0xffffff, 0.6);
     dir.position.set(1, 2, 1.5);
+    dir.castShadow = true;
+    dir.shadow.mapSize.width = 512;
+    dir.shadow.mapSize.height = 512;
+    dir.shadow.camera.near = 0.1;
+    dir.shadow.camera.far = 10;
+    dir.shadow.camera.left = -2;
+    dir.shadow.camera.right = 2;
+    dir.shadow.camera.top = 2;
+    dir.shadow.camera.bottom = -2;
     this.pScene.add(dir);
+    const pGround = new THREE.Mesh(
+      new THREE.PlaneGeometry(5, 5),
+      new THREE.ShadowMaterial({ opacity: 0.5 })
+    );
+    pGround.rotation.x = -Math.PI / 2;
+    pGround.receiveShadow = true;
+    this.pScene.add(pGround);
 
     this.model = new PlayerModel(this.pScene, { name: 'edit' });
     this.model.setVisible(true);
