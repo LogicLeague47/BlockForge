@@ -840,6 +840,7 @@ function isRateLimited(ws) {
         break;
       case 'player_damage': handlePlayerDamage(ws, msg); break;
       case 'chat': handleChat(ws, msg); break;
+      case 'dm': handleDm(ws, msg); break;
       case 'command': handleCommand(ws, msg); break;
       case 'delete_room': handleDeleteRoom(ws, msg); break;
       case 'get_stats': handleGetStats(ws); break;
@@ -1282,6 +1283,25 @@ function handleChat(ws, msg) {
   if (!text) return;
 
   broadcast(room, { type: 'chat', name: pd.name, role: pd.role, text });
+}
+
+function handleDm(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+
+  const target = filterProfanity((msg.to ?? '').trim());
+  const text = filterProfanity((msg.text ?? '').trim());
+  if (!target || !text) return;
+  if (target === pd.name) {
+    return safeSend(ws, JSON.stringify({ type: 'friend_msg', text: "You can't DM yourself.", ok: false }));
+  }
+
+  const targetWs = _wsForUser(target);
+  if (!targetWs) {
+    return safeSend(ws, JSON.stringify({ type: 'friend_msg', text: `${target} is offline.`, ok: false }));
+  }
+
+  safeSend(targetWs, JSON.stringify({ type: 'dm', from: pd.name, text }));
 }
 
 function handleCommand(ws, msg) {

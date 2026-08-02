@@ -1130,6 +1130,10 @@ function _dmSend() {
   _saveDMThread(_dmOpenFor, msgs);
   if (input) input.value = '';
   renderDMMessages();
+  // Send over the network so the other player receives it too.
+  if (network.connected) {
+    try { network.sendDm(_dmOpenFor, text); } catch (_) { console.warn("network sendDm failed"); }
+  }
 }
 function renderDMMessages() {
   const el = document.getElementById('dm-messages');
@@ -2642,6 +2646,19 @@ function setupNetworkHandlers() {
   network.onFriendMsg = (msg) => {
     const el = document.getElementById('friend-msg');
     if (el) { el.textContent = msg.text; el.style.color = msg.ok ? '#8c8' : '#f88'; }
+  };
+  network.onDm = (from, text) => {
+    if (!from || from === playerName) return;
+    // Save into the thread so it persists + renders if the panel is open.
+    const msgs = _loadDMThread(from);
+    msgs.push({ from, text, time: Date.now() });
+    _saveDMThread(from, msgs);
+    if (_dmOpenFor === from) {
+      renderDMMessages();
+    } else {
+      // Notify the recipient even if the DM panel is closed.
+      addChatLine(`DM from ${escHtml(from)}: ${escHtml(text)}`, '#d0f');
+    }
   };
   network.onJoined = (room, seed, gameMode, players, role, maxPlayers, ownerName) => {
     serverName = room;

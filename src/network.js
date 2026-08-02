@@ -28,6 +28,7 @@ export class Network {
     this.onBlockBatch = null;    // (edits[]) => {}
     this.onFriendState = null;   // ({friends, incoming, outgoing}) => {}
     this.onFriendMsg = null;     // ({text, ok}) => {}
+    this.onDm = null;            // (from, text) => {}
     this.onMobSpawn = null;      // (id, type, x, y, z) => {}
     this.onMobPosition = null;   // (id, x, y, z, yaw) => {}
     this.onMobDamage = null;     // (id, hp) => {}
@@ -204,6 +205,9 @@ export class Network {
       case 'chat':
         if (this.onChat) this.onChat(msg.name, msg.role, msg.text);
         break;
+      case 'dm':
+        if (this.onDm) this.onDm(msg.from, msg.text);
+        break;
       case 'room_list':
         if (this.onRoomList) this.onRoomList(msg.rooms);
         break;
@@ -308,6 +312,9 @@ export class Network {
   friendAccept(name) { this._send({ type: 'friend_accept', name }); }
   friendDecline(name) { this._send({ type: 'friend_decline', name }); }
   friendRemove(name) { this._send({ type: 'friend_remove', name }); }
+
+  // ── Direct messages ────────────────────────────────────────────────
+  sendDm(to, text) { this._send({ type: 'dm', to, text }); }
 
   registerRoom(name, seed, gameMode, maxPlayers, playerName, ownerSecret, password) {
     this._send({
