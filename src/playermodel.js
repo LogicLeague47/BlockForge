@@ -210,6 +210,31 @@ const ARMOR_PALETTES = {
   PRISMITE: { base: '#B060E0', light: '#D9A8F5', dark: '#6A2FA0' },
 };
 
+// Helmet front-face openings (0 = transparent, 1 = covered). Applied to the
+// -Z face so the player's skin shows through the visor like in Minecraft.
+// Classic helmets leave the whole face open (brim + chin), netherite-style
+// prismite leaves only a narrow eye slit.
+const HELMET_FACE_MASK = [
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+  1,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+];
+const PRISMITE_HELMET_FACE_MASK = [
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+  1,0,0,0,0,0,0,1,
+  1,0,0,0,0,0,0,1,
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+  1,1,1,1,1,1,1,1,
+];
+
 function createArmorCanvas(material) {
   const c = document.createElement('canvas');
   c.width = TILE; c.height = TILE;
@@ -244,6 +269,11 @@ function createArmorCanvas(material) {
   // HEAD (helmet) — all six faces
   paint(0, 8, 8, 8); paint(16, 8, 8, 8); paint(8, 0, 8, 8);
   paint(16, 0, 8, 8); paint(24, 8, 8, 8); paint(8, 8, 8, 8);
+  // Carve the visor opening out of the front face so the player's face shows
+  const mask = material === 'PRISMITE' ? PRISMITE_HELMET_FACE_MASK : HELMET_FACE_MASK;
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i]) g.clearRect(8 + (i % 8), 8 + Math.floor(i / 8), 1, 1);
+  }
   // BODY (chestplate)
   paint(16, 20, 4, 12); paint(28, 20, 4, 12); paint(20, 16, 8, 4);
   paint(28, 32, 8, 4); paint(20, 20, 8, 12); paint(32, 20, 8, 12);
@@ -292,6 +322,10 @@ function getArmorKit(material) {
     bootR:  sliceFaces(canvas, [[0,28,4,4],[8,28,4,4],[4,16,4,4],[8,16,4,4],[4,28,4,4],[12,28,4,4]]),
     bootL:  sliceFaces(canvas, [[16,60,4,4],[24,60,4,4],[20,48,4,4],[24,48,4,4],[20,60,4,4],[28,60,4,4]]),
   };
+  // Helmet front (-Z) face needs an alpha-tested material so the carved
+  // visor opening lets the player's face show through.
+  kit.helmet[5].transparent = true;
+  kit.helmet[5].alphaTest = 0.5;
   _armorKitCache.set(material, kit);
   return kit;
 }
