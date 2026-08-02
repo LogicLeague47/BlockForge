@@ -991,6 +991,7 @@ function hidePlayerList() {
 // ── Friends menu ───────────────────────────────────────────────────────
 let _friendState = { friends: [], incoming: [], outgoing: [] };
 let _backgroundAuth = false; // true when re-authing silently (not from login screen)
+let _autoRegisterFallback = false; // when true, retry auth with 'register' mode if account not found
 let _devPanelNeedsAccounts = false;
 let _pendingLinkProvider = ''; // used to track which OAuth provider is being linked
 let _linkedAccountCallback = null; // called when dev_account_detail arrives for linked accounts
@@ -2731,6 +2732,11 @@ function setupNetworkHandlers() {
       // not from a background re-auth (e.g. opening the Friends menu).
       if (_backgroundAuth) {
         _backgroundAuth = false;
+        if (_autoRegisterFallback) _autoRegisterFallback = false;
+        if (window._autoLoggingIn) {
+          window._autoLoggingIn = false;
+          showToast(msg.created ? 'Account created! Welcome, ' + playerName + '!' : 'Welcome back, ' + playerName + '!', '#5f5', 3);
+        }
         if (_devPanelNeedsAccounts) {
           _devPanelNeedsAccounts = false;
           network.devListAccounts();
@@ -2744,6 +2750,17 @@ function setupNetworkHandlers() {
         }, 600);
       }
     } else {
+      // Auto-register fallback: when a portal login uses a brand-new username,
+      // the server has no account yet — retry once with 'register' mode.
+      const reason = msg.reason || '';
+      if (_autoRegisterFallback && (reason.includes('Account not found') || reason.includes('account not found') || reason.includes('Account does not exist'))) {
+        _autoRegisterFallback = false;
+        const regUser = document.getElementById('login-username');
+        const regPass = document.getElementById('login-password');
+        network.sendAuth(regUser ? regUser.value : playerName, regPass ? regPass.value : '', 'register');
+        return;
+      }
+      _autoRegisterFallback = false;
       if (_backgroundAuth) {
         _backgroundAuth = false;
         if (_devPanelNeedsAccounts) {
@@ -2751,7 +2768,14 @@ function setupNetworkHandlers() {
           setDevAccountListMsg('Auth failed: ' + (msg.reason || 'unknown error'));
         }
       }
-      if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed.'; }
+      if (window._autoLoggingIn) {
+        // Auto-login from portal/redirect failed — bring up the login screen
+        // so the user can correct their credentials.
+        window._autoLoggingIn = false;
+        _autoRegisterFallback = false;
+        if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed. Please try again.'; }
+        ui.showMenu('login');
+      } else if (loginHint) { loginHint.style.color = '#f85'; loginHint.textContent = msg.reason || 'Login failed.'; }
     }
   };
 
@@ -5230,6 +5254,7 @@ function initMenu() {
     // Skip login screen entirely — go straight to main menu after auth
     window._autoLoggingIn = true;
     _backgroundAuth = true;
+    _autoRegisterFallback = true;
     ui.showMenu('main');
     setTimeout(() => doLogin('login'), 100);
   } else {
