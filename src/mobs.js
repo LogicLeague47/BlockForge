@@ -1565,9 +1565,38 @@ class Mob {
       ctx.fillStyle = '#f8f8f8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 12);
-      // Wing detail
-      ctx.fillStyle = 'rgba(220,210,200,0.3)';
-      ctx.fillRect(8, 12, 20, 28);
+      // Wing detail — layered feather strokes
+      ctx.fillStyle = 'rgba(224,214,200,0.45)';
+      ctx.beginPath();
+      ctx.ellipse(16, 26, 12, 18, 0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(250,246,240,0.5)';
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(8, 12 + i * 9, 20, 4);
+      }
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WHITE, 10);
+      // Chest feather patch
+      ctx.fillStyle = 'rgba(240,232,216,0.6)';
+      ctx.beginPath();
+      ctx.ellipse(32, 30, 16, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    const bodyTail = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, WHITE, 12);
+      // Tail feathers fanning up
+      ctx.fillStyle = 'rgba(224,214,200,0.5)';
+      for (let i = 0; i < 5; i++) {
+        const bx = 6 + i * 12;
+        ctx.beginPath();
+        ctx.ellipse(bx, 16, 6, 16, (i - 2) * 0.25, 0, Math.PI * 2);
+        ctx.fill();
+      }
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#f8f8f8';
@@ -1586,25 +1615,36 @@ class Mob {
       ctx.fillStyle = '#111';
       ctx.fillRect(12, 20, 6, 6);
       ctx.fillRect(46, 20, 6, 6);
-      // Beak
+      // Beak — pointed
       ctx.fillStyle = '#e8a020';
       ctx.fillRect(24, 32, 16, 8);
-      // Wattle
+      ctx.fillStyle = '#d09018';
+      ctx.fillRect(26, 34, 12, 4);
+      // Wattle (dewlap)
       ctx.fillStyle = '#cc2222';
-      ctx.fillRect(28, 40, 8, 10);
-      // Comb
+      ctx.beginPath();
+      ctx.ellipse(32, 46, 6, 9, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // Comb — three bumps
       ctx.fillStyle = '#cc2222';
-      ctx.fillRect(20, 4, 8, 12);
-      ctx.fillRect(32, 6, 8, 10);
+      ctx.beginPath();
+      ctx.arc(18, 10, 7, Math.PI, 0);
+      ctx.arc(32, 6, 8, Math.PI, 0);
+      ctx.arc(46, 10, 7, Math.PI, 0);
+      ctx.fill();
     });
     const head = [bodySide, bodySide, bodyTop, bodyBot, bodySide, headFront];
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyTail];
 
     const legTex = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#e8a020';
       ctx.fillRect(0, 0, s, s);
+      // Toe darkening
+      ctx.fillStyle = '#c08020';
+      ctx.fillRect(0, s - 8, s, 8);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body: [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide], head, leg };
+    return { body, head, leg };
   }
 
   _slimeTextures(def) {
@@ -1679,8 +1719,12 @@ class Mob {
       ctx.fillStyle = '#' + SKIN.toString(16).padStart(6,'0');
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SKIN, 10);
-      // Eyes
-      const eyeY = 22;
+      // Eyebrow furrows (villager's grumpy brow)
+      ctx.fillStyle = '#8a6a4a';
+      ctx.fillRect(8, 16, 22, 5);
+      ctx.fillRect(34, 16, 22, 5);
+      // Eyes — big white with brown pupil
+      const eyeY = 24;
       ctx.fillStyle = '#fff';
       ctx.fillRect(10, eyeY, 14, 12);
       ctx.fillRect(40, eyeY, 14, 12);
@@ -1690,9 +1734,11 @@ class Mob {
       ctx.fillStyle = '#fff';
       ctx.fillRect(16, eyeY + 3, 3, 3);
       ctx.fillRect(46, eyeY + 3, 3, 3);
-      // Nose
+      // Big nose (villager's signature)
       ctx.fillStyle = '#c0906a';
       ctx.fillRect(28, 32, 8, 6);
+      ctx.fillStyle = '#b08060';
+      ctx.fillRect(30, 38, 4, 4);
       // Mouth
       ctx.fillStyle = '#8b6340';
       ctx.fillRect(24, 40, 16, 4);
@@ -1715,6 +1761,23 @@ class Mob {
       ctx.fillRect(0, s - 8, s, 8);
     });
 
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, TUNIC, 15);
+      // Lighter apron panel down the front
+      ctx.fillStyle = 'rgba(240,238,230,0.35)';
+      ctx.fillRect(14, 14, 36, 36);
+      // Apron cross straps
+      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
+      ctx.fillRect(14, 14, 36, 6);
+      ctx.fillRect(14, 26, 6, 24);
+      ctx.fillRect(44, 26, 6, 24);
+      // Belt stripe
+      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
+      ctx.fillRect(0, s - 8, s, 8);
+    });
+
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
       ctx.fillRect(0, 0, s, s);
@@ -1727,7 +1790,7 @@ class Mob {
       this._noiseTex(ctx, s, s, BELT, 8);
     });
 
-    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide];
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodySide];
 
     const legTex = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#' + BOOTS.toString(16).padStart(6,'0');
@@ -1756,9 +1819,15 @@ class Mob {
       ctx.fillStyle = 'rgba(20,20,20,0.5)';
       ctx.fillRect(0, s * 0.45, s, 3);
       ctx.fillRect(0, s * 0.55, s, 3);
-      // Orange hazard band
+      // Hazard chevron stripe
+      ctx.save();
+      ctx.translate(s / 2, s * 0.5);
+      ctx.rotate(Math.PI / 4);
       ctx.fillStyle = '#d86820';
-      ctx.fillRect(0, s * 0.42, s, 2);
+      ctx.fillRect(-s * 0.2, -6, s * 0.4, 12);
+      ctx.fillRect(-s * 0.65, -6, s * 0.3, 12);
+      ctx.fillRect(s * 0.35, -6, s * 0.3, 12);
+      ctx.restore();
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#4a4a4a';
@@ -1773,11 +1842,19 @@ class Mob {
       ctx.fillStyle = '#4a4a4a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 12);
+      // Glowing TNT-core window
+      ctx.fillStyle = '#ff5a20';
+      ctx.fillRect(20, 16, 24, 22);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(24, 20, 16, 14);
+      // Core cracks
+      ctx.fillStyle = '#c84000';
+      ctx.fillRect(30, 20, 3, 14);
+      ctx.fillRect(24, 26, 16, 3);
       // Chest vent slots
       ctx.fillStyle = '#222';
-      ctx.fillRect(24, 20, 16, 3);
-      ctx.fillRect(24, 30, 16, 3);
-      ctx.fillRect(24, 40, 16, 3);
+      ctx.fillRect(24, 42, 16, 3);
+      ctx.fillRect(24, 50, 16, 3);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
@@ -2034,19 +2111,34 @@ class Mob {
     if (this.dead) {
       this.deathTimer += dt;
       if (this.mesh) {
-        // Fall sideways
-        const t = Math.min(this.deathTimer / 0.6, 1);
-        this.mesh.rotation.x = t * Math.PI / 2;
-        // Rise up slightly then sink
-        this.mesh.position.y = this.position.y + (t < 0.3 ? t * 0.3 : (1 - t) * 0.3);
-        // Fade out
-        const opacity = 1 - t;
+        // Minecraft-style death: fall over sideways (0.35s), then sink into
+        // the ground while flashing and fading out.
+        const FALL_T = 0.35;
+        const SINK_T = 0.55;
+        const total = FALL_T + SINK_T;
+        const t = Math.min(this.deathTimer / total, 1);
+        // Fall over
+        const fall = Math.min(this.deathTimer / FALL_T, 1);
+        const ease = 1 - Math.pow(1 - fall, 2);
+        this.mesh.rotation.x = ease * Math.PI / 2;
+        // Sink into ground
+        const sink = t > 1 ? 1 : Math.max((this.deathTimer - FALL_T) / SINK_T, 0);
+        this.mesh.position.y = this.position.y - Math.pow(sink, 1.6) * 1.2;
+        // Death flash (white→red) then fade
+        const opacity = Math.max(1 - (t > 1 ? 1 : Math.max((this.deathTimer - FALL_T) / SINK_T, 0)), 0);
         this.mesh.traverse((child) => {
           if (child.isMesh && child.material) {
             child.material.transparent = opacity < 1;
             child.material.opacity = opacity;
           }
         });
+        if (this._allMats && this._allMats.length) {
+          const flash = Math.min(this.deathTimer / 0.3, 1);
+          const red = 0.65 + flash * 0.35;
+          for (const m of this._allMats) {
+            if (m.color) m.color.setRGB(red, Math.max(0.35 - flash * 0.35, 0.05), Math.max(0.35 - flash * 0.35, 0.05));
+          }
+        }
       }
       return;
     }
@@ -2795,7 +2887,7 @@ export class MobManager {
     // Remove dead mobs (after death animation completes)
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
-      if (mob.dead && mob.deathTimer > 0.6) {
+      if (mob.dead && mob.deathTimer > 0.9) {
         // Death sound
         if (this.audio && !mob._deathSoundPlayed) {
           mob._deathSoundPlayed = true;

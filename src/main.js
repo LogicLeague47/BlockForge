@@ -2203,6 +2203,34 @@ function submitChat() {
       addChatLine(`Placed ${cmdPart} at (${ox}, ${oy}, ${oz}).`, '#5f5');
       return;
     }
+    // /structure command (dev world only) — place any structure by name
+    if (isDevWorld && cmdPart === 'structure') {
+      if (!world) return;
+      const name = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      if (!name) {
+        addChatLine(`Structures: ${DEV_STRUCTURES.join(', ')}`, '#5f5');
+        return;
+      }
+      const ox = Math.floor(player.position.x);
+      const oy = Math.floor(player.position.y);
+      const oz = Math.floor(player.position.z);
+      const bb = placeStructure(world, name, ox, oy, oz);
+      if (!bb) {
+        addChatLine(`Unknown structure '${name}'. Structures: ${DEV_STRUCTURES.join(', ')}`, '#f55');
+        return;
+      }
+      const cx1 = Math.floor((bb.minX - 1) / CHUNK_SIZE);
+      const cx2 = Math.floor((bb.maxX + 1) / CHUNK_SIZE);
+      const cz1 = Math.floor((bb.minZ - 1) / CHUNK_SIZE);
+      const cz2 = Math.floor((bb.maxZ + 1) / CHUNK_SIZE);
+      for (let cx = cx1; cx <= cx2; cx++) {
+        for (let cz = cz1; cz <= cz2; cz++) {
+          manager.refreshAround(cx, cz);
+        }
+      }
+      addChatLine(`Placed ${name} at (${ox}, ${oy}, ${oz}).`, '#5f5');
+      return;
+    }
     // Dev spawn animal commands (dev world only)
     const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman'];
     if (isDevWorld && cmdPart === 'spawn') {

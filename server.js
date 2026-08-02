@@ -1237,7 +1237,7 @@ function handlePosition(ws, msg) {
   if (!pd._nameBuf) pd._nameBuf = Buffer.from(pd.name, 'utf8');
   const nameBytes = pd._nameBuf;
   const maxSize = 1 + 1 + nameBytes.length + 16 + 1;
-  if (!pd._posBuf || pd._posBuf.length < maxSize) pd._posBuf = Buffer.alloc(64);
+  if (!pd._posBuf || pd._posBuf.length < maxSize) pd._posBuf = Buffer.alloc(maxSize);
   const binBuf = pd._posBuf;
   binBuf.writeUInt8(0x01, 0);
   binBuf.writeUInt8(nameBytes.length, 1);

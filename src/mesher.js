@@ -146,13 +146,13 @@ const BLOCK_TINT = {
 function isOpaque(blockId) {
   if (blockId === BLOCK.AIR) return false;
   const d = BLOCKS[blockId];
-  return d && !d.transparent;
+  return d && !d.transparent && !d.bed;
 }
 
 function isAirLike(blockId) {
   if (blockId === BLOCK.AIR) return true;
   const d = BLOCKS[blockId];
-  return d && (d.transparent || d.plant);
+  return d && (d.transparent || d.plant || d.bed);
 }
 
 // UVs per corner, matching the [BL, BR, TR, TL] corner order above.
@@ -205,6 +205,12 @@ export function buildChunkGeometry(chunk, world) {
 
         if (def.plant) {
           pushPlant(target, wx, y, wz, b);
+          continue;
+        }
+
+        // Beds: emit a real Minecraft-style bed model instead of a full cube.
+        if (b === BLOCK.BED || b === BLOCK.BED_FOOT) {
+          pushBed(opaque, wx, y, wz, b, sample);
           continue;
         }
 
@@ -350,4 +356,122 @@ function toGeometry(buf) {
     normal: new Float32Array(buf.nor),
     index: buf.idx.length ? new Uint32Array(buf.idx) : null,
   };
+}
+
+// ── Minecraft-style bed model ─────────────────────────────────────────
+// A bed is two blocks: a head (BED) and a foot (BED_FOOT). Instead of a full
+// cube we emit a proper bed: 4 wooden legs, a low mattress with blanket, a tall
+// headboard + pillow on the head block, and a low footboard on the foot block.
+//
+// Orientation is derived from the neighbouring half so no metadata is needed:
+// the headboard/pillow point AWAY from the other half of the bed.
+const BED_LEG = [0.05, 0, 0.05, 0.15, 0.44, 0.15]; // x0,y0,z0,x1,y1,z1
+const BED_MATTRESS = [0, 0.44, 0, 1, 0.75, 1];
+const BED_HEADBOARD = [0, 0.44, 0, 1, 1, 0.125];
+const BED_FOOTBOARD = [0, 0.44, 0, 1, 0.62, 0.125];
+
+// Rotate the top-face UVs so the pillow edge (v1) of bed_top faces `dir`.
+// rot: 0 => pillow at -Z, 1 => +X, 2 => +Z, 3 => -X
+function bedRotFromDir(dx, dz) {
+  if (dx === 0 && dz === -1) return 0;
+  if (dx === 1 && dz === 0) return 1;
+  if (dx === 0 && dz === 1) return 2;
+  return 3;
+}
+
+// Emit a single axis-aligned box with per-face tiles. `box` is
+// [x0,y0,z0,x1,y1,z1] in block-local coords; `faceTiles` is an array of 6
+// tile names in FACES order (null = skip that face). `uvRotate` rotates the
+// texture on the top face only (0-3). Faces that lie flush on a block boundary
+// are culled when the neighbouring block is opaque (avoids z-fighting).
+function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample) {
+  for (let f = 0; f < 6; f++) {
+    const tile = faceTiles[f];
+    if (!tile) continue;
+    const face = FACES[f];
+    const d = face.dir;
+    // Flush boundary check: face plane equals block min/max on its axis.
+    const atBoundary =
+      (d[0] !== 0 && box[d[0] === 1 ? 3 : 0] === (d[0] === 1 ? 1 : 0)) ||
+      (d[1] !== 0 && box[d[1] === 1 ? 4 : 1] === (d[1] === 1 ? 1 : 0)) ||
+      (d[2] !== 0 && box[d[2] === 1 ? 5 : 2] === (d[2] === 1 ? 1 : 0));
+    if (atBoundary && sample && isOpaque(sample(wx + d[0], y + d[1], wz + d[2]))) continue;
+
+    const uv = tileUVRect(tile);
+    const shade = face.name === 'top' ? FACE_SHADE.top
+                : face.name === 'bottom' ? FACE_SHADE.bottom
+                : (SIDE_SHADE_AXIS[f] || FACE_SHADE.side);
+    const start = target.pos.length / 3;
+    for (let c = 0; c < 4; c++) {
+      const co = face.corners[c];
+      target.pos.push(
+        wx + box[0] + co[0] * (box[3] - box[0]),
+        y + box[1] + co[1] * (box[4] - box[1]),
+        wz + box[2] + co[2] * (box[5] - box[2])
+      );
+      const uvr = UV_CORNERS[(c + uvRotate) % 4];
+      target.uv.push(uvr[0] ? uv.u1 : uv.u0, uvr[1] ? uv.v1 : uv.v0);
+      target.col.push(shade, shade, shade);
+      target.nor.push(face.dir[0], face.dir[1], face.dir[2]);
+    }
+    target.idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
+  }
+}
+
+function pushBed(target, wx, y, wz, blockId, sample) {
+  const isHead = blockId === BLOCK.BED;
+  const other = isHead ? BLOCK.BED_FOOT : BLOCK.BED;
+
+  // Direction toward the OTHER half of the bed.
+  let dx = 0, dz = 0;
+  if (sample(wx + 1, y, wz) === other) dx = 1;
+  else if (sample(wx - 1, y, wz) === other) dx = -1;
+  else if (sample(wx, y, wz + 1) === other) dz = 1;
+  else if (sample(wx, y, wz - 1) === other) dz = -1;
+  if (dx === 0 && dz === 0) dz = -1; // orphan half: fallback orientation
+
+  // Head end = away from the other half. Headboard/pillow sit there.
+  const hx = -dx, hz = -dz;
+  const rot = bedRotFromDir(hx, hz);
+
+  // 4 legs at the corners (planks). Skip bottom face (sits on the floor).
+  const legTiles = ['planks', 'planks', 'planks', null, 'planks', 'planks'];
+  for (const [lx, lz] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const leg = [lx === 0 ? BED_LEG[0] : 1 - BED_LEG[3], BED_LEG[1], lz === 0 ? BED_LEG[2] : 1 - BED_LEG[5],
+                 lx === 0 ? BED_LEG[3] : 1 - BED_LEG[0], BED_LEG[4], lz === 0 ? BED_LEG[5] : 1 - BED_LEG[2]];
+    pushBedBox(target, wx, y, wz, leg, legTiles, 0, sample);
+  }
+
+  // Mattress + blanket. Top shows pillow/blanket (rotated toward head end).
+  // Skip the side face that the headboard/footboard covers (coplanar → z-fight).
+  const topTile = isHead ? 'bed_top' : 'bed_foot_top';
+  const sideTile = isHead ? 'bed_side' : 'bed_foot_side';
+  const skipFace = hx === 1 ? 0 : hx === -1 ? 1 : hz === 1 ? 4 : 5;
+  const mattressTiles = [
+    skipFace === 0 ? null : sideTile,
+    skipFace === 1 ? null : sideTile,
+    topTile,
+    null,
+    skipFace === 4 ? null : sideTile,
+    skipFace === 5 ? null : sideTile,
+  ];
+  pushBedBox(target, wx, y, wz, BED_MATTRESS, mattressTiles, rot);
+
+  if (isHead) {
+    // Headboard: tall wooden panel at the head end (+ pillow drawn on bed_top).
+    let hb = BED_HEADBOARD.slice();
+    if (hx === -1) hb = [0, 0.44, 0, 0.125, 1, 1];
+    else if (hz === 1) hb = [0, 0.44, 1 - 0.125, 1, 1, 1];
+    else if (hz === -1) hb = [0, 0.44, 0, 1, 1, 0.125];
+    else hb = [1 - 0.125, 0.44, 0, 1, 1, 1];
+    pushBedBox(target, wx, y, wz, hb, ['planks', 'planks', 'planks', null, 'planks', 'planks']);
+  } else {
+    // Footboard: short wooden panel at the foot end.
+    let fb = BED_FOOTBOARD.slice();
+    if (hx === -1) fb = [0, 0.44, 0, 0.125, 0.62, 1];
+    else if (hz === 1) fb = [0, 0.44, 1 - 0.125, 1, 0.62, 1];
+    else if (hz === -1) fb = [0, 0.44, 0, 1, 0.62, 0.125];
+    else fb = [1 - 0.125, 0.44, 0, 1, 0.62, 1];
+    pushBedBox(target, wx, y, wz, fb, ['planks', 'planks', 'planks', null, 'planks', 'planks']);
+  }
 }

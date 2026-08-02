@@ -60,6 +60,9 @@ export class Network {
 
     try {
       this.ws = new WebSocket(url);
+      // Must be arraybuffer (default is 'blob') so binary position frames
+      // are recognized in onmessage — otherwise remote movement is dropped.
+      this.ws.binaryType = 'arraybuffer';
     } catch (e) {
       console.error('[Net] Failed to connect:', e);
       if (this.onError) this.onError('Failed to connect to server.');
