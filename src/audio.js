@@ -685,6 +685,43 @@ export class AudioManager {
     });
   }
 
+  portalOpen() {
+    if (!this.ctx || !this.enabled) return;
+    const t0 = this.ctx.currentTime;
+    // Airy whoosh down, then shimmer up — a "portal opening" feel.
+    const noise = this.ctx.createBufferSource();
+    const len = this.ctx.sampleRate * 0.35;
+    const buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+    noise.buffer = buf;
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.setValueAtTime(400, t0);
+    bp.frequency.exponentialRampToValueAtTime(2600, t0 + 0.3);
+    bp.Q.value = 1.4;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(0.22, t0 + 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.35);
+    noise.connect(bp).connect(g).connect(this.master);
+    noise.start(t0);
+    noise.stop(t0 + 0.4);
+    // Rising shimmer
+    [76, 80, 84].forEach((n, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+      const og = this.ctx.createGain();
+      og.gain.setValueAtTime(0, t0 + i * 0.05);
+      og.gain.linearRampToValueAtTime(0.08, t0 + i * 0.05 + 0.02);
+      og.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.05 + 0.3);
+      osc.connect(og).connect(this.master);
+      osc.start(t0 + i * 0.05);
+      osc.stop(t0 + i * 0.05 + 0.35);
+    });
+  }
+
   levelUp() {
     if (!this.ctx || !this.enabled) return;
     if (this._sample('powerUp2', 0.4, 0)) return;

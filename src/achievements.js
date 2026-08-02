@@ -178,6 +178,14 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.portalOrbsUsed >= 1,
   },
+  {
+    id: 'portal_linked',
+    name: 'Linked',
+    desc: 'Step through a linked pair of portal rings',
+    icon: ITEM.PORTAL_ORB,
+    category: 'challenge',
+    check: s => s.portalTraversals >= 1,
+  },
   // ── Building ──
   {
     id: 'light_up',
@@ -404,6 +412,7 @@ export function createStats() {
     mobKillsBlower: 0,
     mobKillsPortalman: 0,
     portalOrbsUsed: 0,
+    portalTraversals: 0,
     torchesPlaced: 0,
     storageBlocksCrafted: 0,
   };

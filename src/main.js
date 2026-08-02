@@ -596,6 +596,8 @@ let _lastLocalArmorKey = '';
 let _particles = [];
 const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
 let _portalOrbs = [];
+let _portalRings = [];      // up to 2 linked portal rings ({ entry, exit })
+let _portalRingCooldown = 0; // prevents instant re-teleport loops
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
 const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
 const _sprintParticleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
@@ -1316,9 +1318,10 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
-      // Portal Orb: throw like an ender pearl
+      // Portal Orb: throw like an ender pearl. Sneak = place a linked portal ring.
       if (!used && slot && slot.item === ITEM.PORTAL_ORB) {
-        throwPortalOrb();
+        const isSneaking = !!(player && player.crouching);
+        throwPortalOrb(isSneaking ? 'portal' : 'warp');
         if (player.isSurvival()) {
           slot.count--;
           if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
@@ -1601,12 +1604,15 @@ function igniteTNT(x, y, z) {
 const _portalOrbVel = new THREE.Vector3();
 
 class PortalOrb {
-  constructor(x, y, z, vx, vy, vz) {
+  constructor(x, y, z, vx, vy, vz, mode) {
     this.x = x; this.y = y; this.z = z;
     this.vx = vx; this.vy = vy; this.vz = vz;
     this.age = 0;
     this.done = false;
     this.landed = false;
+    // mode: 'warp' = instant teleport on landing (ender-pearl style),
+    //       'portal' = place a portal ring at the landing point.
+    this.mode = mode || 'warp';
 
     const geo = new THREE.SphereGeometry(0.18, 8, 8);
     const mat = new THREE.MeshBasicMaterial({ color: 0x50f0ff, transparent: true, opacity: 0.95 });
@@ -1658,13 +1664,13 @@ class PortalOrb {
   }
 }
 
-function throwPortalOrb() {
+function throwPortalOrb(mode) {
   if (!player || !world || !camera) return;
   camera.getWorldDirection(_portalOrbVel);
   _portalOrbVel.multiplyScalar(21);
   _portalOrbVel.y += 2.5;
   const o = camera.position;
-  const orb = new PortalOrb(o.x, o.y, o.z, _portalOrbVel.x, _portalOrbVel.y, _portalOrbVel.z);
+  const orb = new PortalOrb(o.x, o.y, o.z, _portalOrbVel.x, _portalOrbVel.y, _portalOrbVel.z, mode || 'warp');
   _portalOrbs.push(orb);
   achievements.incrementStat('portalOrbsUsed');
   if (audio && audio.throwProjectile) audio.throwProjectile();
@@ -1676,7 +1682,11 @@ function updatePortalOrbs(dt) {
     const orb = _portalOrbs[i];
     orb.update(dt);
     if (orb.done) {
-      if (orb.landed) teleportToPortalOrb(orb);
+      if (orb.landed) {
+        portalOrbImpact(orb);
+        if (orb.mode === 'portal') placePortalRing(orb);
+        else teleportToPortalOrb(orb);
+      }
       orb.dispose();
       _portalOrbs.splice(i, 1);
     }
@@ -1718,6 +1728,160 @@ function spawnPortalOrbParticles(pos) {
     m.position.set(pos.x, pos.y + 0.5, pos.z);
     scene.add(m);
     _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 0.5 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 0.6, maxLife: 0.6 });
+  }
+}
+
+// ── Portal rings (dual-portal linking) ───────────────────────────────────
+// Throw the orb in 'portal' mode (sneak+use) to place a ring. The first ring
+// is the entry (cyan); the second becomes the exit (orange). Stepping into
+// either ring teleports you to the other, preserving momentum.
+
+class PortalRing {
+  constructor(x, y, z, isEntry) {
+    this.x = x; this.y = y; this.z = z;
+    this.isEntry = isEntry;
+    this.age = 0;
+    this.done = false;
+    const color = isEntry ? 0x40e0ff : 0xff9a40;
+    this.group = new THREE.Group();
+    this.group.position.set(x, y + 0.55, z);
+    scene.add(this.group);
+
+    // Swirling ring: two offset torus strands for a "portal" look
+    const ringGeo = new THREE.TorusGeometry(0.5, 0.06, 8, 24);
+    this.ringA = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 }));
+    this.ringA.rotation.x = Math.PI / 2;
+    this.ringB = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45 }));
+    this.ringB.rotation.x = Math.PI / 2;
+    this.ringB.scale.setScalar(0.85);
+    this.group.add(this.ringA, this.ringB);
+
+    // Inner swirl disc (billboarded swirl using a texture-free shader-ish look)
+    const discGeo = new THREE.CircleGeometry(0.46, 24);
+    this.disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
+    this.disc.rotation.x = -Math.PI / 2;
+    this.group.add(this.disc);
+
+    // Sparkle particles orbiting the ring
+    this.sparks = [];
+    for (let i = 0; i < 6; i++) {
+      const s = new THREE.Mesh(_particleGeoTiny, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
+      this.group.add(s);
+      this.sparks.push({ mesh: s, angle: (i / 6) * Math.PI * 2, speed: 2 + Math.random() * 2 });
+    }
+  }
+
+  update(dt) {
+    this.age += dt;
+    // Bob + spin
+    this.group.position.y = this.y + 0.55 + Math.sin(this.age * 2.5) * 0.05;
+    this.ringA.rotation.z += dt * 1.5;
+    this.ringB.rotation.z -= dt * 2;
+    // Sparks orbit
+    for (const s of this.sparks) {
+      s.angle += dt * s.speed;
+      const r = 0.5;
+      s.mesh.position.set(Math.cos(s.angle) * r, Math.sin(s.angle * 1.7) * 0.15, Math.sin(s.angle) * r);
+      s.mesh.material.opacity = 0.5 + 0.5 * Math.sin(this.age * 6 + s.angle);
+    }
+  }
+
+  dispose() {
+    scene.remove(this.group);
+    this.ringA.geometry.dispose(); this.ringA.material.dispose();
+    this.ringB.geometry.dispose(); this.ringB.material.dispose();
+    this.disc.geometry.dispose(); this.disc.material.dispose();
+    for (const s of this.sparks) { s.mesh.geometry.dispose(); s.mesh.material.dispose(); }
+  }
+}
+
+// Place a ring. First → entry, second → exit, third → replaces the entry.
+function placePortalRing(orb) {
+  const target = _portalRings.length === 0 ? 'entry'
+               : _portalRings.length === 1 ? 'exit'
+               : 'entry'; // replace oldest
+  if (target === 'entry') {
+    // Remove existing entry ring
+    for (let i = _portalRings.length - 1; i >= 0; i--) {
+      if (_portalRings[i].isEntry) {
+        _portalRings[i].dispose();
+        _portalRings.splice(i, 1);
+      }
+    }
+    _portalRings.push(new PortalRing(orb.x, orb.y, orb.z, true));
+  } else {
+    _portalRings.push(new PortalRing(orb.x, orb.y, orb.z, false));
+  }
+  // Only ever keep 2 rings
+  if (_portalRings.length > 2) {
+    const old = _portalRings.shift();
+    old.dispose();
+  }
+  spawnPortalOrbParticles(orb);
+  if (audio && audio.portalOpen) audio.portalOpen();
+}
+
+function updatePortalRings(dt) {
+  if (_portalRingCooldown > 0) _portalRingCooldown -= dt;
+  if (!_portalRings.length) return;
+  for (let i = _portalRings.length - 1; i >= 0; i--) {
+    const ring = _portalRings[i];
+    ring.update(dt);
+    if (ring.age > 30) {
+      ring.dispose();
+      _portalRings.splice(i, 1);
+    }
+  }
+  // Linked traversal: if both rings exist, stepping into one sends you to the other.
+  if (_portalRings.length === 2 && _portalRingCooldown <= 0 && player) {
+    const entry = _portalRings.find(r => r.isEntry);
+    const exit = _portalRings.find(r => !r.isEntry);
+    if (entry && exit) {
+      const p = player.position;
+      const inEntry = _inRing(p, entry);
+      const inExit = _inRing(p, exit);
+      if (inEntry) {
+        portalTraverse(entry, exit, p);
+      } else if (inExit) {
+        portalTraverse(exit, entry, p);
+      }
+    }
+  }
+}
+
+function _inRing(pos, ring) {
+  const dx = pos.x - ring.x, dz = pos.z - ring.z;
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  return dist < 0.6 && pos.y >= ring.y && pos.y <= ring.y + 1.6;
+}
+
+function portalTraverse(fromRing, toRing, pos) {
+  _portalRingCooldown = 1.0;
+  spawnPortalOrbParticles(pos);
+  // Preserve momentum — like Portal, you keep your velocity through the link.
+  player.position.set(toRing.x, toRing.y + 0.1, toRing.z);
+  player.fallStartY = -1;
+  // Small vertical pop so you don't clip the ground, plus a touch of the link's velocity.
+  player.velocity.y = Math.max(player.velocity.y, 2);
+  spawnPortalOrbParticles(player.position);
+  if (audio && audio.teleport) audio.teleport();
+  achievements.incrementStat('portalTraversals');
+}
+
+// Shockwave on orb impact: knocks nearby mobs back and stuns them briefly.
+function portalOrbImpact(orb) {
+  spawnPortalOrbParticles(orb);
+  if (!mobManager || !mobManager.mobs) return;
+  for (const mob of mobManager.mobs) {
+    if (mob.dead) continue;
+    const dx = mob.position.x - orb.x, dz = mob.position.z - orb.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist < 4) {
+      const f = (1 - dist / 4) * 5;
+      mob.velocity.x += (dx / (dist || 1)) * f;
+      mob.velocity.z += (dz / (dist || 1)) * f;
+      mob.velocity.y = Math.max(mob.velocity.y, 1.5);
+    }
   }
 }
 
@@ -3395,7 +3559,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
-    if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
+  if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
+  if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
     if (weatherSystem) { weatherSystem.setState('clear'); }
     try {  } catch (_) { console.warn("operation failed"); }
   }
@@ -3518,7 +3683,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         let used = false;
         const slot = player.inventory.getSelected();
         if (slot && slot.item === ITEM.PORTAL_ORB) {
-          throwPortalOrb();
+          const isSneaking = !!(player && player.crouching);
+          throwPortalOrb(isSneaking ? 'portal' : 'warp');
           if (player.isSurvival()) {
             slot.count--;
             if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
@@ -6429,6 +6595,9 @@ function loop() {
 
   // Update thrown portal orbs (ender-pearl style teleport)
   updatePortalOrbs(dt);
+
+  // Update linked portal rings (stepping through links)
+  updatePortalRings(dt);
 
   // Update multiplayer remote players
   if (mpRenderer) {
