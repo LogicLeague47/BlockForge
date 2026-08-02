@@ -154,6 +154,30 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.mobKillsSkeleton >= 1,
   },
+  {
+    id: 'blast_wrangler',
+    name: 'Blast Wrangler',
+    desc: 'Defeat a Blower',
+    icon: ITEM.GUNPOWDER,
+    category: 'challenge',
+    check: s => s.mobKillsBlower >= 1,
+  },
+  {
+    id: 'portal_plunderer',
+    name: 'Portal Plunderer',
+    desc: 'Defeat a PortalMan',
+    icon: ITEM.PORTAL_ORB,
+    category: 'challenge',
+    check: s => s.mobKillsPortalman >= 1,
+  },
+  {
+    id: 'warped',
+    name: 'Warped',
+    desc: 'Teleport with a Portal Orb',
+    icon: ITEM.PORTAL_ORB,
+    category: 'challenge',
+    check: s => s.portalOrbsUsed >= 1,
+  },
   // ── Building ──
   {
     id: 'light_up',
@@ -377,6 +401,9 @@ export function createStats() {
     level: 0,
     mobKillsZombie: 0,
     mobKillsSkeleton: 0,
+    mobKillsBlower: 0,
+    mobKillsPortalman: 0,
+    portalOrbsUsed: 0,
     torchesPlaced: 0,
     storageBlocksCrafted: 0,
   };

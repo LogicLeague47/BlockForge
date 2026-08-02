@@ -92,6 +92,7 @@ export const ITEM = {
   ENDER_PEARL: 317,
   EYE_OF_ENDER: 318,
   END_STONE_ITEM: 319,
+  PORTAL_ORB: 320,
   // copper tools (564+)
   COPPER_PICKAXE: 564, COPPER_AXE: 565, COPPER_SHOVEL: 566, COPPER_SWORD: 567,
   // emerald tools (568+)
@@ -215,6 +216,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.ENDER_PEARL]: { name: 'Ender Pearl', stack: 16 },
   [ITEM.EYE_OF_ENDER]: { name: 'Eye of Ender', stack: 16 },
   [ITEM.END_STONE_ITEM]: { name: 'End Stone', stack: 64 },
+  [ITEM.PORTAL_ORB]: { name: 'Portal Orb', stack: 16 },
 };
 
 // --- armor definitions -------------------------------------------------------

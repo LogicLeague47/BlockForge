@@ -660,6 +660,31 @@ export class AudioManager {
     ]);
   }
 
+  throwProjectile() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.1, gain: 0.14, bp: 2200, bq: 1.2, atk: 0.002, rel: 0.2 },
+    ]);
+  }
+
+  teleport() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample('powerUp2', 0.3, 0)) return;
+    const t0 = this.ctx.currentTime;
+    [64, 70, 76].forEach((n, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0, t0 + i * 0.06);
+      g.gain.linearRampToValueAtTime(0.18, t0 + i * 0.06 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + i * 0.06 + 0.35);
+      osc.connect(g).connect(this.master);
+      osc.start(t0 + i * 0.06);
+      osc.stop(t0 + i * 0.06 + 0.4);
+    });
+  }
+
   levelUp() {
     if (!this.ctx || !this.enabled) return;
     if (this._sample('powerUp2', 0.4, 0)) return;

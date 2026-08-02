@@ -595,6 +595,7 @@ let world = null, manager = null, loader = null, player = null, mobManager = nul
 let _lastLocalArmorKey = '';
 let _particles = [];
 const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+let _portalOrbs = [];
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
 const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
 const _sprintParticleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
@@ -1311,6 +1312,17 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
+      // Portal Orb: throw like an ender pearl
+      if (!used && slot && slot.item === ITEM.PORTAL_ORB) {
+        throwPortalOrb();
+        if (player.isSurvival()) {
+          slot.count--;
+          if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+          syncUIMode();
+        }
+        used = true;
+      }
+
       // Main hand: eat food or place block
       if (!used && player.isSurvival() && slot && isFood(slot.item)) {
         if (player.eat(foodValue(slot.item))) {
@@ -1579,6 +1591,130 @@ function updateStepParticles(dt) {
 function igniteTNT(x, y, z) {
   // Spawns an animated lit-TNT entity that bounces and blinks, then explodes.
   if (tntManager) tntManager.ignite(x, y, z, 1.5);
+}
+
+// ── Portal Orb throwable (ender-pearl style teleport) ───────────────
+const _portalOrbVel = new THREE.Vector3();
+
+class PortalOrb {
+  constructor(x, y, z, vx, vy, vz) {
+    this.x = x; this.y = y; this.z = z;
+    this.vx = vx; this.vy = vy; this.vz = vz;
+    this.age = 0;
+    this.done = false;
+    this.landed = false;
+
+    const geo = new THREE.SphereGeometry(0.18, 8, 8);
+    const mat = new THREE.MeshBasicMaterial({ color: 0x50f0ff, transparent: true, opacity: 0.95 });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.position.set(x, y, z);
+    scene.add(this.mesh);
+
+    const glowGeo = new THREE.SphereGeometry(0.32, 8, 8);
+    const glowMat = new THREE.MeshBasicMaterial({ color: 0x30d0ff, transparent: true, opacity: 0.25 });
+    this.glow = new THREE.Mesh(glowGeo, glowMat);
+    this.mesh.add(this.glow);
+  }
+
+  update(dt) {
+    this.age += dt;
+    this.vy -= 14 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.z += this.vz * dt;
+    this.mesh.position.set(this.x, this.y, this.z);
+    this.mesh.rotation.y += dt * 6;
+    this.mesh.rotation.z += dt * 4;
+
+    // Trail particles
+    if (Math.random() < 0.6) {
+      const m = new THREE.Mesh(_particleGeoTiny, new THREE.MeshBasicMaterial({ color: 0x40e0ff, transparent: true, opacity: 0.7 }));
+      m.position.set(this.x, this.y, this.z);
+      scene.add(m);
+      _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 0.6, vy: (Math.random() - 0.5) * 0.6, vz: (Math.random() - 0.5) * 0.6, life: 0.4, maxLife: 0.4 });
+    }
+
+    // Landing check: colliding with solid blocks, or after max flight time
+    const bx = Math.floor(this.x), by = Math.floor(this.y), bz = Math.floor(this.z);
+    const blk = world.getBlock(bx, by, bz);
+    if (this.vy <= 0 && BLOCKS[blk] && BLOCKS[blk].solid && blk !== BLOCK.TALLGRASS) {
+      this.done = true;
+      this.landed = true;
+    } else if (this.age > 4) {
+      this.done = true;
+    }
+  }
+
+  dispose() {
+    scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
+    this.glow.geometry.dispose();
+    this.glow.material.dispose();
+  }
+}
+
+function throwPortalOrb() {
+  if (!player || !world || !camera) return;
+  camera.getWorldDirection(_portalOrbVel);
+  _portalOrbVel.multiplyScalar(21);
+  _portalOrbVel.y += 2.5;
+  const o = camera.position;
+  const orb = new PortalOrb(o.x, o.y, o.z, _portalOrbVel.x, _portalOrbVel.y, _portalOrbVel.z);
+  _portalOrbs.push(orb);
+  achievements.incrementStat('portalOrbsUsed');
+  if (audio && audio.throwProjectile) audio.throwProjectile();
+}
+
+function updatePortalOrbs(dt) {
+  if (!_portalOrbs.length) return;
+  for (let i = _portalOrbs.length - 1; i >= 0; i--) {
+    const orb = _portalOrbs[i];
+    orb.update(dt);
+    if (orb.done) {
+      if (orb.landed) teleportToPortalOrb(orb);
+      orb.dispose();
+      _portalOrbs.splice(i, 1);
+    }
+  }
+}
+
+function teleportToPortalOrb(orb) {
+  if (!player || !world) return;
+  const bx = Math.floor(orb.x), bz = Math.floor(orb.z);
+  // Find the topmost solid block below the orb's landing point
+  let gy = Math.floor(orb.y);
+  while (gy > 0) {
+    const blk = world.getBlock(bx, gy, bz);
+    if (BLOCKS[blk] && BLOCKS[blk].solid) break;
+    gy--;
+  }
+  const groundBlk = world.getBlock(bx, gy, bz);
+  if (!(BLOCKS[groundBlk] && BLOCKS[groundBlk].solid)) return; // no ground
+  // Don't teleport into solid blocks above the ground (e.g. inside a wall)
+  const headBlk = world.getBlock(bx, gy + 1, bz);
+  const feetBlk = world.getBlock(bx, gy + 2, bz);
+  if ((BLOCKS[headBlk] && BLOCKS[headBlk].solid) || (BLOCKS[feetBlk] && BLOCKS[feetBlk].solid)) return;
+  if (gy <= 0) return;
+
+  // Teleport particles at both ends
+  spawnPortalOrbParticles(player.position);
+  player.position.set(orb.x, gy + 0.001, orb.z);
+  player.velocity.set(0, 0, 0);
+  player.fallStartY = -1;
+  spawnPortalOrbParticles(player.position);
+  if (audio && audio.teleport) audio.teleport();
+}
+
+function spawnPortalOrbParticles(pos) {
+  if (!scene) return;
+  for (let i = 0; i < 10; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0x40e0ff, transparent: true, opacity: 0.8 });
+    const m = new THREE.Mesh(_particleGeoTiny, mat);
+    m.position.set(pos.x, pos.y + 0.5, pos.z);
+    scene.add(m);
+    _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 0.5 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 0.6, maxLife: 0.6 });
+  }
 }
 
 function placeBlock(slotOverride) {
@@ -2068,7 +2204,7 @@ function submitChat() {
       return;
     }
     // Dev spawn animal commands (dev world only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman'];
     if (isDevWorld && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
@@ -2209,7 +2345,7 @@ function submitChat() {
         '/kill — Die',
       ];
       if (isDevWorld) {
-        cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager>`);
+        cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager|blower|portalman>`);
         cmds.push(`/village|house|blacksmith|well|farm|lamp|tower|desert_temple|jungle_temple — Spawn structure`);
       }
       if (inMultiplayer) {
@@ -2922,6 +3058,7 @@ window._exitParkourToMinigames = () => {
   if (breakParticles) { breakParticles.clear(); breakParticles = null; }
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+  if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
   try {  } catch (_) { console.warn("operation failed"); }
   ui.showMenu('minigames');
 };
@@ -3213,6 +3350,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+    if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
     if (weatherSystem) { weatherSystem.setState('clear'); }
     try {  } catch (_) { console.warn("operation failed"); }
   }
@@ -3334,6 +3472,15 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       } else {
         let used = false;
         const slot = player.inventory.getSelected();
+        if (slot && slot.item === ITEM.PORTAL_ORB) {
+          throwPortalOrb();
+          if (player.isSurvival()) {
+            slot.count--;
+            if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+            syncUIMode();
+          }
+          used = true;
+        }
         if (player.isSurvival() && slot && isFood(slot.item)) {
           if (player.eat(foodValue(slot.item))) {
             slot.count--;
@@ -5753,7 +5900,7 @@ function loop() {
           viewmodel.swing();
           mobManager.playHurtSound(mobHit.type);
           // Provoke hostile mobs to attack when hit
-          if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton') mobHit.aggro = true;
+          if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton' || mobHit.type === 'blower' || mobHit.type === 'portalman') mobHit.aggro = true;
           if (mobHit.dead) {
             // Drop items
             if (player.isSurvival()) {
@@ -5762,7 +5909,7 @@ function loop() {
                 syncUIMode();
               }
               // XP for killing mobs
-              const mobXp = { cow: 3, pig: 3, sheep: 3, spider: 5, zombie: 5, skeleton: 5 };
+              const mobXp = { cow: 3, pig: 3, sheep: 3, spider: 5, zombie: 5, skeleton: 5, blower: 8, portalman: 10 };
               const mobXpGain = mobXp[mobHit.type] || 2;
               if (player.addXp(mobXpGain)) {
                 ui.showLevelUp(player.level);
@@ -5784,6 +5931,8 @@ function loop() {
             }
             if (mobHit.type === 'zombie') achievements.incrementStat('mobKillsZombie');
             if (mobHit.type === 'skeleton') achievements.incrementStat('mobKillsSkeleton');
+            if (mobHit.type === 'blower') achievements.incrementStat('mobKillsBlower');
+            if (mobHit.type === 'portalman') achievements.incrementStat('mobKillsPortalman');
             // Check distance for long-range kill
             const mobDist = camera.position.distanceTo(mobHit.position);
             if (mobDist >= 50) {
@@ -6232,6 +6381,9 @@ function loop() {
 
   // Update lit TNT entities (bounce/blink animation + fuse countdown)
   if (tntManager) tntManager.update(dt);
+
+  // Update thrown portal orbs (ender-pearl style teleport)
+  updatePortalOrbs(dt);
 
   // Update multiplayer remote players
   if (mpRenderer) {

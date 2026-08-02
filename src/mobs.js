@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
+import { ExplosionManager } from './explosions.js';
 // Blob shadows removed — real shadow map shadows used instead
 
 function hexToRgb(hex) {
@@ -181,6 +182,53 @@ export const MOB_TYPES = {
     splitCount: 2, // splits into 2 smaller slimes
     attackDamage: 4,
     drops: [{ item: 315, count: [0, 2] }], // slimeball
+    soundChance: 0.0004,
+  },
+
+  blower: {
+    name: 'Blower',
+    hp: 24,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.6, bodyH: 1.0, bodyD: 0.4,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.22, legH: 0.7, legD: 0.22,
+    headOffY: -0.5,
+    headOffZ: -0.2,
+    hasSnout: true,
+    snoutW: 0.42, snoutH: 0.42, snoutD: 0.75,
+    bodyColor: 0x4a3a2a,
+    headColor: 0x5a4a3a,
+    legColor: 0x2a2018,
+    attackDamage: 6,
+    isBlower: true,
+    throwRange: 18,
+    throwCooldown: 3.0,
+    drops: [{ item: 279, count: [0, 2] }], // gunpowder
+    soundChance: 0.0004,
+  },
+
+  portalman: {
+    name: 'PortalMan',
+    hp: 30,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.5, bodyH: 0.9, bodyD: 0.3,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.2, legH: 0.75, legD: 0.2,
+    headOffY: -0.4,
+    bodyColor: 0x2a1a4a,
+    headColor: 0x3a2a5a,
+    legColor: 0x1a0a2a,
+    hasHood: true,
+    hoodColor: 0x2a1a4a,
+    hasArms: true,
+    armW: 0.2, armH: 0.7, armD: 0.2,
+    armColor: 0x3a2a5a,
+    attackDamage: 5,
+    drops: [{ item: 320, count: [1, 2] }], // portal orb
     soundChance: 0.0004,
   },
 
@@ -521,9 +569,10 @@ class Mob {
     if (this.type === 'spider') return this._spiderTextures(def);
     if (this.type === 'zombie') return this._zombieTextures(def);
     if (this.type === 'skeleton') return this._skeletonTextures(def);
-    if (this.type === 'enderman') return this._endermanTextures(def);
     if (this.type === 'slime') return this._slimeTextures(def);
     if (this.type === 'villager') return this._villagerTextures(def);
+    if (this.type === 'blower') return this._blowerTextures(def);
+    if (this.type === 'portalman') return this._portalmanTextures(def);
     return this._genericTextures(def);
   }
 
@@ -1558,59 +1607,6 @@ class Mob {
     return { body: [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide], head, leg };
   }
 
-  _endermanTextures(def) {
-    const s = 64;
-    const DARK = 0x1a0a2a;
-    const DARKER = 0x0a0020;
-    const PURPLE = 0xcc44ff;
-
-    const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 15);
-      // Subtle purple particles
-      ctx.fillStyle = 'rgba(180,60,255,0.15)';
-      for (let i = 0; i < 8; i++) {
-        const px = (i * 11 + 3) % s, py = (i * 13 + 7) % s;
-        ctx.fillRect(px, py, 3, 3);
-      }
-    });
-    const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#0a0020';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 10);
-      // Glowing purple eyes
-      ctx.fillStyle = '#cc44ff';
-      ctx.fillRect(10, 22, 14, 8);
-      ctx.fillRect(40, 22, 14, 8);
-      // Eye glow
-      ctx.fillStyle = '#ee88ff';
-      ctx.fillRect(14, 24, 6, 4);
-      ctx.fillRect(44, 24, 6, 4);
-    });
-    const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const head = [bodySide, bodySide, bodyTop, bodyBot, headBack, headFront];
-
-    const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#0a0020';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARKER, 10);
-    });
-    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body: [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide], head, leg };
-  }
-
   _slimeTextures(def) {
     const s = 64;
     const GREEN = 0x40c040;
@@ -1742,6 +1738,209 @@ class Mob {
       ctx.fillRect(0, 0, s, 8);
     });
 
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
+  _blowerTextures(def) {
+    const s = 64;
+    // Industrial TNT-blower: charcoal metal body with orange hazard bands,
+    // and a cannon-barrel snout that lobs lit TNT at the player.
+    const IRON = 0x4a4a4a, IRON_DARK = 0x303030, ORANGE = 0xd86820;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 14);
+      // Metal panel rivets
+      ctx.fillStyle = 'rgba(20,20,20,0.5)';
+      ctx.fillRect(0, s * 0.45, s, 3);
+      ctx.fillRect(0, s * 0.55, s, 3);
+      // Orange hazard band
+      ctx.fillStyle = '#d86820';
+      ctx.fillRect(0, s * 0.42, s, 2);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 10);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#303030';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 12);
+      // Chest vent slots
+      ctx.fillStyle = '#222';
+      ctx.fillRect(24, 20, 16, 3);
+      ctx.fillRect(24, 30, 16, 3);
+      ctx.fillRect(24, 40, 16, 3);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 12);
+      // Ear bolts
+      ctx.fillStyle = '#333';
+      ctx.fillRect(6, 10, 8, 8);
+      ctx.fillRect(50, 10, 8, 8);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 10);
+    });
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a3a3a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 10);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a5a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 10);
+      // Dark goggles over the eyes
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(10, 22, 18, 14);
+      ctx.fillRect(36, 22, 18, 14);
+      // Glowing amber eye dots
+      ctx.fillStyle = '#ffa030';
+      ctx.fillRect(16, 26, 6, 6);
+      ctx.fillRect(42, 26, 6, 6);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    // Cannon barrel snout — dark with an orange muzzle
+    const snoutTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2e2e2e';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON_DARK, 10);
+      // Muzzle ring
+      ctx.fillStyle = '#d86820';
+      ctx.fillRect(0, 0, s, 14);
+      // Barrel bands
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, 30, s, 4);
+      ctx.fillRect(0, 46, s, 4);
+    });
+    const snout = [snoutTex, snoutTex, snoutTex, snoutTex, snoutTex, snoutTex];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#303030';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON_DARK, 10);
+      // Metal feet
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(0, s - 8, s, 8);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    // Arms use the same iron skin as the body (for the throw swing animation)
+    const armTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, IRON, 10);
+    });
+    const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
+    return { body, head, leg, snout, arm };
+  }
+
+  _portalmanTextures(def) {
+    const s = 64;
+    // Portal guardian: pale void robes with a swirling portal core and
+    // glowing cyan eyes. Drops Portal Orbs.
+    const VOID = 0x2a1a4a, VOID_DARK = 0x1a0a2a, CYAN = 0x40e0ff;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 14);
+      // Runic marks
+      ctx.fillStyle = 'rgba(64,224,255,0.25)';
+      ctx.fillRect(10, 20, 3, 18);
+      ctx.fillRect(50, 28, 3, 14);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 10);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 12);
+      // Swirling portal core on the chest
+      const g = ctx.createRadialGradient(32, 34, 2, 32, 34, 18);
+      g.addColorStop(0, '#80f0ff');
+      g.addColorStop(0.5, '#20a0d0');
+      g.addColorStop(1, 'rgba(30,80,120,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(32, 34, 18, 0, Math.PI * 2);
+      ctx.fill();
+      // Swirl streak
+      ctx.strokeStyle = 'rgba(200,255,255,0.6)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(32, 34, 10, 0, Math.PI * 1.3);
+      ctx.stroke();
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 12);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 10);
+    });
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#22133a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID, 10);
+      // Void face — dark, with glowing cyan eyes
+      ctx.fillStyle = '#0e0620';
+      ctx.fillRect(8, 18, 48, 34);
+      ctx.fillStyle = '#40e0ff';
+      ctx.fillRect(12, 26, 14, 10);
+      ctx.fillRect(38, 26, 14, 10);
+      ctx.fillStyle = '#a0f8ff';
+      ctx.fillRect(14, 28, 5, 5);
+      ctx.fillRect(40, 28, 5, 5);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, VOID_DARK, 10);
+      // Fading robe bottom
+      ctx.fillStyle = 'rgba(64,224,255,0.15)';
+      ctx.fillRect(0, s - 10, s, 10);
+    });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
   }
@@ -2021,7 +2220,10 @@ class Mob {
       const leg = this.legs[i];
       // Check if this is a villager arm (last 2 in array for villager)
       const isVillagerArm = this.type === 'villager' && i >= this.legs.length - 2;
-      if (isVillagerArm) {
+      // Blower and PortalMan also use the villager arm layout (legs then arms)
+      const isArmLikeMob = this.type === 'blower' || this.type === 'portalman';
+      const isArmPivot = isArmLikeMob && i >= this.legs.length - 2;
+      if (isVillagerArm || isArmPivot) {
         // Arms swing opposite to legs
         leg.rotation.x = -swing;
       } else if (MOB_TYPES[this.type]?.bipedalLegs) {
@@ -2054,54 +2256,6 @@ class Mob {
       const def = MOB_TYPES.chicken;
       if (Math.random() < (def.layEggChance || 0) * dt * 60) {
         this._eggDrop = true; // signal to MobManager to spawn egg item
-      }
-    }
-
-    // ── ENDERMAN: teleport when idle ──
-    if (this.type === 'enderman' && !this.dead && this.state === 'idle') {
-      const def = MOB_TYPES.enderman;
-      if (Math.random() < (def.teleportChance || 0) * dt) {
-        // Teleport to a random nearby position
-        const range = 8;
-        const nx = this.position.x + (Math.random() - 0.5) * range * 2;
-        const nz = this.position.z + (Math.random() - 0.5) * range * 2;
-        // Find ground at new position
-        const bx = Math.floor(nx), bz = Math.floor(nz);
-        let groundY = -1;
-        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-          const blk = world.getBlock(bx, y, bz);
-          if (blk !== BLOCK.AIR && blk !== BLOCK.WATER && BLOCKS[blk]?.solid) {
-            groundY = y + 1;
-            break;
-          }
-        }
-        if (groundY > 0 && groundY < WORLD_HEIGHT - 2) {
-          // Verify destination is not inside a solid block
-          const hw = def.bodyW / 2;
-          const hd = def.bodyD / 2;
-          const height = def.bodyH + def.headH;
-          let safe = true;
-          const minX = Math.floor(nx - hw);
-          const maxX = Math.floor(nx + hw);
-          const minZ = Math.floor(nz - hd);
-          const maxZ = Math.floor(nz + hd);
-          for (let y = Math.floor(groundY); y <= Math.floor(groundY + height) && safe; y++) {
-            for (let x = minX; x <= maxX && safe; x++) {
-              for (let z = minZ; z <= maxZ; z++) {
-                if (this._solid(world, x, y, z)) {
-                  safe = false;
-                  break;
-                }
-              }
-            }
-          }
-          if (safe) {
-            // Spawn purple particles at old position
-            this._teleportFrom = { x: this.position.x, y: this.position.y, z: this.position.z };
-            this.position.set(nx, groundY, nz);
-            this._teleportTo = { x: nx, y: groundY, z: nz };
-          }
-        }
       }
     }
 
@@ -2171,6 +2325,98 @@ class Mob {
   }
 }
 
+// ── Thrown TNT projectile (launched by Blower mobs) ──────────────────
+// A small lit-TNT cube that arcs through the air with gravity and blows up
+// on first solid contact or when its fuse runs out.
+class ThrownTnt {
+  constructor(scene, x, y, z, vx, vy, vz) {
+    this.scene = scene;
+    this.x = x; this.y = y; this.z = z;
+    this.vx = vx; this.vy = vy; this.vz = vz;
+    this.fuse = 2.2;           // seconds of flight before self-destruct
+    this.age = 0;
+    this.done = false;
+    this.exploded = false;
+
+    // Small TNT cube built from a hand-drawn canvas texture
+    const s = 16;
+    const c = document.createElement('canvas');
+    c.width = s; c.height = s;
+    const ctx = c.getContext('2d');
+    ctx.fillStyle = '#c8362a';
+    ctx.fillRect(0, 0, s, s);
+    ctx.fillStyle = '#8a2018';
+    ctx.fillRect(0, 11, s, 3);
+    ctx.fillRect(0, 4, s, 1);
+    ctx.fillStyle = '#f0d0c0';
+    ctx.fillRect(4, 2, 8, 1);
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(11, 6, 2, 2);
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+
+    const geo = new THREE.BoxGeometry(0.4, 0.4, 0.4);
+    const mat = new THREE.MeshLambertMaterial({ map: tex });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.position.set(x, y, z);
+    this.mesh.castShadow = true;
+    this.scene.add(this.mesh);
+
+    // Fuse spark (flickering glow)
+    const spark = new THREE.Mesh(
+      new THREE.BoxGeometry(0.1, 0.1, 0.1),
+      new THREE.MeshBasicMaterial({ color: 0xffd040, transparent: true, opacity: 1 })
+    );
+    spark.position.set(0, 0.25, 0);
+    this.mesh.add(spark);
+    this._spark = spark;
+  }
+
+  update(dt, world) {
+    if (this.done) return;
+    this.age += dt;
+
+    // Gravity + ballistic motion
+    this.vy -= 14 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.z += this.vz * dt;
+    this.mesh.position.set(this.x, this.y, this.z);
+
+    // Spin
+    this.mesh.rotation.x += dt * 10;
+    this.mesh.rotation.z += dt * 7;
+
+    // Fuse spark flicker
+    this._spark.material.opacity = Math.random() < 0.7 ? 1 : 0.2;
+    this._spark.scale.setScalar(1 + Math.sin(this.age * 40) * 0.4);
+
+    // Collide with solid blocks
+    const bx = Math.floor(this.x), by = Math.floor(this.y), bz = Math.floor(this.z);
+    const blk = world.getBlock(bx, by, bz);
+    if (blk !== BLOCK.AIR && blk !== BLOCK.WATER && BLOCKS[blk]?.solid) {
+      this.exploded = true;
+      this.done = true;
+      return;
+    }
+
+    if (this.age >= this.fuse) {
+      this.exploded = true;
+      this.done = true;
+    }
+  }
+
+  dispose() {
+    this.scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.map?.dispose();
+    this.mesh.material.dispose();
+    this._spark.geometry.dispose();
+    this._spark.material.dispose();
+  }
+}
+
 // ── MobManager ───────────────────────────────────────────────────────
 export class MobManager {
   constructor(scene, world, audio, explosionManager) {
@@ -2179,6 +2425,7 @@ export class MobManager {
     this.audio = audio;
     this.explosionManager = explosionManager;
     this.mobs = [];
+    this._thrownTnts = []; // Blower-launched TNT projectiles
     this._spawnedChunks = new Set();
     this._nightSpawnTimer = 0;
     this._nextEntityId = 1;
@@ -2246,7 +2493,7 @@ export class MobManager {
     const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
     const rng = mulberry32(seed);
     const attempts = 4;
-    const types = ['zombie', 'skeleton', 'spider'];
+    const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman'];
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -2285,7 +2532,32 @@ export class MobManager {
       mob.dispose();
     }
     this._remoteMobs.clear();
+    for (const t of this._thrownTnts) t.dispose();
+    this._thrownTnts.length = 0;
     this._spawnedChunks.clear();
+  }
+
+  // Launch a lit-TNT projectile from a Blower mob toward the player.
+  // Computes an arc that lands near the player's current position.
+  _launchTnt(mob, playerPos) {
+    const dx = playerPos.x - mob.position.x;
+    const dy = (playerPos.y + 1.0) - (mob.position.y + 1.2);
+    const dz = playerPos.z - mob.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz) || 1;
+
+    // Pick a flight time so faster shots are flatter, long shots arc more.
+    const t = 0.45 + dist * 0.06;
+    const vx = dx / t;
+    const vz = dz / t;
+    const vy = dy / t + 0.5 * 14 * t; // ballistic arc under gravity (g=14)
+
+    const proj = new ThrownTnt(
+      this.scene,
+      mob.position.x, mob.position.y + 1.2, mob.position.z,
+      vx, vy, vz
+    );
+    proj._source = mob;
+    this._thrownTnts.push(proj);
   }
 
   // Spawn a specific mob type at a world position (for dev commands).
@@ -2367,9 +2639,11 @@ export class MobManager {
         dominantBiome === BIOMES.TAIGA || dominantBiome === BIOMES.SWAMP) {
       spawnTypes.push('spider');
     }
-    // Hostile mobs (zombie, skeleton, spider) spawn at night everywhere
+    // Hostile mobs (zombie, skeleton, spider) spawn at night everywhere.
+    // Blower and PortalMan are rarer night spawns — added to the pool with
+    // reduced weight so they appear occasionally but stay uncommon.
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider');
+      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman');
     }
     const placed = [];
 
@@ -2434,13 +2708,39 @@ export class MobManager {
 
       const def = MOB_TYPES[mob.type];
 
-      // ── HOSTILE AI (zombie, skeleton, spider) ──
+      // ── HOSTILE AI (zombie, skeleton, spider, blower, portalman) ──
       if (def.hostileAtNight && playerPos) {
         const dx = playerPos.x - mob.position.x;
         const dz = playerPos.z - mob.position.z;
         const dist = Math.sqrt(dx * dx + dz * dz);
 
-        if ((isNight || mob.aggro) && dist < 16) {
+        // Blower: ranged attacker — keeps its distance and lobs TNT at the player.
+        if (def.isBlower) {
+          mob.throwCooldown = (mob.throwCooldown || 0) - dt;
+          if (isNight || mob.aggro) {
+            mob.state = 'walking';
+            mob.targetYaw = Math.atan2(-dx, -dz);
+            mob.stateTimer = 0.5;
+
+            const throwRange = def.throwRange || 18;
+            if (dist > throwRange) {
+              // Chase to get within range
+            } else if (dist < 6) {
+              // Too close — back away
+              mob.targetYaw = Math.atan2(dx, dz);
+              mob.state = 'fleeing';
+              mob.stateTimer = 0.5;
+            } else if (mob.throwCooldown <= 0 && dist >= 6) {
+              // In range — stop and launch a TNT
+              mob.throwCooldown = def.throwCooldown || 3.0;
+              mob.attackAnim = 1;
+              this._launchTnt(mob, playerPos);
+            }
+          } else if (!isNight && !mob.aggro && mob.state === 'walking' && dist < 20 && dist < 4) {
+            mob.targetYaw = Math.atan2(dx, dz);
+            mob.stateTimer = 2;
+          }
+        } else if ((isNight || mob.aggro) && dist < 16) {
           mob.state = 'walking';
           mob.targetYaw = Math.atan2(-dx, -dz);
           mob.stateTimer = 0.5;
@@ -2546,6 +2846,29 @@ export class MobManager {
         this._eggDrops = this._eggDrops || [];
         this._eggDrops.push({ x: mob.position.x, y: mob.position.y, z: mob.position.z });
       }
+    }
+
+    // Update Blower-launched TNT projectiles; explode on impact/fuse.
+    for (let i = this._thrownTnts.length - 1; i >= 0; i--) {
+      const proj = this._thrownTnts[i];
+      proj.update(dt, this.world);
+      if (!proj.done) continue;
+
+      this._thrownTnts.splice(i, 1);
+      if (proj.exploded) {
+        // Blow up blocks
+        if (this.explosionManager) {
+          this.explosionManager.explode(proj.x, proj.y, proj.z, 3);
+        }
+        // Damage the player if within blast radius
+        if (playerPos) {
+          const dmg = ExplosionManager.calcDamage(proj.x, proj.y, proj.z, playerPos, 3);
+          if (dmg > 0) {
+            attackEvents.push({ type: 'attack', damage: dmg, fromPos: { x: proj.x, y: proj.y, z: proj.z } });
+          }
+        }
+      }
+      proj.dispose();
     }
 
     // Return the strongest attack this tick (backward-compatible with single-event callers)

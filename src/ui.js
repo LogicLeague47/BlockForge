@@ -176,6 +176,7 @@ export function makeItemIconCanvas(itemId) {
     case 314: drawGreenstoneDust(x); break;
     case 315: drawSlimeBall(x); break;
     case 316: drawFlintSteel(x); break;
+    case 320: drawPortalOrb(x); break;
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
@@ -754,6 +755,25 @@ function drawEmerald(x) {
   // crown
   px(x, '#30b050', 6, 3, 4, 1);
   px(x, '#1a7a30', 7, 2, 2, 1);
+}
+
+function drawPortalOrb(x) {
+  // Glowing cyan portal orb — swirl core with energy ring
+  px(x, '#0a3050', 4, 4, 8, 8);    // dark core base
+  px(x, '#105880', 4, 4, 8, 2);    // top of core
+  px(x, '#20a0d0', 5, 5, 6, 5);    // orb body
+  px(x, '#40d0f0', 6, 5, 4, 3);    // lit face
+  px(x, '#a0f0ff', 6, 5, 2, 2);    // specular
+  px(x, '#e0ffff', 7, 5, 1, 1);    // hot center
+  px(x, '#40d0f0', 5, 4, 1, 1);    // top sparkle
+  px(x, '#40d0f0', 10, 6, 1, 1);   // side sparkle
+  px(x, '#20a0d0', 10, 9, 1, 1);   // lower sparkle
+  px(x, '#0a3050', 5, 11, 6, 1);   // shadow
+  // ring
+  px(x, '#00e0c0', 3, 7, 1, 2);
+  px(x, '#00e0c0', 12, 7, 1, 2);
+  px(x, '#00e0c0', 7, 3, 2, 1);
+  px(x, '#00e0c0', 7, 12, 2, 1);
 }
 
 function drawDye(x, col) {
