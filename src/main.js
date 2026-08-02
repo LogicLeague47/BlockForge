@@ -7175,6 +7175,8 @@ function initMenuPreview() {
   menuPreviewRenderer.setSize(120, 180);
   menuPreviewRenderer.setPixelRatio(1);
   menuPreviewRenderer.setClearColor(0x000000, 0);
+  menuPreviewRenderer.shadowMap.enabled = true;
+  menuPreviewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
   container.appendChild(menuPreviewRenderer.domElement);
   menuPreviewScene = new THREE.Scene();
   menuPreviewCamera = new THREE.PerspectiveCamera(35, 120 / 180, 0.1, 100);
@@ -7184,7 +7186,23 @@ function initMenuPreview() {
   menuPreviewScene.add(amb);
   const dir = new THREE.DirectionalLight(0xffffff, 0.6);
   dir.position.set(2, 4, 3);
+  dir.castShadow = true;
+  dir.shadow.mapSize.width = 512;
+  dir.shadow.mapSize.height = 512;
+  dir.shadow.camera.near = 0.1;
+  dir.shadow.camera.far = 10;
+  dir.shadow.camera.left = -2;
+  dir.shadow.camera.right = 2;
+  dir.shadow.camera.top = 2;
+  dir.shadow.camera.bottom = -2;
   menuPreviewScene.add(dir);
+  const previewGround = new THREE.Mesh(
+    new THREE.PlaneGeometry(5, 5),
+    new THREE.ShadowMaterial({ opacity: 0.4 })
+  );
+  previewGround.rotation.x = -Math.PI / 2;
+  previewGround.receiveShadow = true;
+  menuPreviewScene.add(previewGround);
   menuPreviewSkin = getSelectedSkin();
   menuPreviewModel = new PlayerModel(menuPreviewScene, menuPreviewSkin, atlasCanvas);
   menuPreviewModel.setVisible(true);
