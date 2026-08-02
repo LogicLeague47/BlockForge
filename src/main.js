@@ -1624,6 +1624,16 @@ class PortalOrb {
     const glowMat = new THREE.MeshBasicMaterial({ color: 0x30d0ff, transparent: true, opacity: 0.25 });
     this.glow = new THREE.Mesh(glowGeo, glowMat);
     this.mesh.add(this.glow);
+
+    // Point light so the orb lights up its surroundings as it flies
+    this.light = new THREE.PointLight(0x40e0ff, 0.9, 6, 1.8);
+    this.mesh.add(this.light);
+
+    // Two spinning halo rings around the core (one cyan, one white)
+    const haloGeo = new THREE.TorusGeometry(0.34, 0.015, 4, 12);
+    this.haloA = new THREE.Mesh(haloGeo, new THREE.MeshBasicMaterial({ color: 0x80e0ff, transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.haloB = new THREE.Mesh(haloGeo.clone(), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
+    this.mesh.add(this.haloA, this.haloB);
   }
 
   update(dt) {
@@ -1635,9 +1645,15 @@ class PortalOrb {
     this.mesh.position.set(this.x, this.y, this.z);
     this.mesh.rotation.y += dt * 6;
     this.mesh.rotation.z += dt * 4;
+    this.haloA.rotation.x += dt * 5;
+    this.haloB.rotation.y += dt * 7;
+
+    // Pulsing glow
+    this.glow.material.opacity = 0.2 + 0.15 * Math.sin(this.age * 12);
+    this.glow.scale.setScalar(1 + 0.15 * Math.sin(this.age * 9));
 
     // Trail particles
-    if (Math.random() < 0.6) {
+    if (Math.random() < 0.75) {
       const m = new THREE.Mesh(_particleGeoTiny, new THREE.MeshBasicMaterial({ color: 0x40e0ff, transparent: true, opacity: 0.7 }));
       m.position.set(this.x, this.y, this.z);
       scene.add(m);
@@ -1658,6 +1674,9 @@ class PortalOrb {
   dispose() {
     scene.remove(this.mesh);
     this.mesh.geometry.dispose();
+    this.light.dispose();
+    this.haloA.geometry.dispose(); this.haloA.material.dispose();
+    this.haloB.geometry.dispose(); this.haloB.material.dispose();
     this.mesh.material.dispose();
     this.glow.geometry.dispose();
     this.glow.material.dispose();
@@ -1734,69 +1753,148 @@ function spawnPortalOrbParticles(pos) {
 // ── Portal rings (dual-portal linking) ───────────────────────────────────
 // Throw the orb in 'portal' mode (sneak+use) to place a ring. The first ring
 // is the entry (cyan); the second becomes the exit (orange). Stepping into
-// either ring teleports you to the other, preserving momentum.
+// either ring teleports you to the other, preserving momentum. A single
+// unlinked ring recalls you to where you threw it.
+
+// Generates a swirling vortex texture for the portal face.
+function _portalVortexTexture(color) {
+  const s = 128;
+  const c = document.createElement('canvas');
+  c.width = s; c.height = s;
+  const ctx = c.getContext('2d');
+  const [r, g, b] = [(color >> 16) & 255, (color >> 8) & 255, color & 255];
+  const cx = s / 2, cy = s / 2;
+  const img = ctx.createImageData(s, s);
+  const d = img.data;
+  for (let y = 0; y < s; y++) {
+    for (let x = 0; x < s; x++) {
+      const dx = x - cx, dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy) / cx; // 0..~1.4
+      const ang = Math.atan2(dy, dx);
+      // Spiral bands + falloff toward the edge
+      const spiral = Math.sin(ang * 3 + dist * 9);
+      const alpha = Math.max(0, 1 - dist * 1.05);
+      const a = Math.floor(60 + (spiral * 0.5 + 0.5) * 140) * alpha;
+      const i = (y * s + x) * 4;
+      d[i] = r; d[i + 1] = g; d[i + 2] = b;
+      d[i + 3] = Math.max(0, Math.min(255, a));
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+  const t = new THREE.CanvasTexture(c);
+  t.magFilter = THREE.LinearFilter;
+  t.minFilter = THREE.LinearFilter;
+  return t;
+}
 
 class PortalRing {
-  constructor(x, y, z, isEntry) {
+  constructor(x, y, z, isEntry, yaw) {
     this.x = x; this.y = y; this.z = z;
     this.isEntry = isEntry;
     this.age = 0;
     this.done = false;
+    this.yaw = yaw || 0;
     const color = isEntry ? 0x40e0ff : 0xff9a40;
+    const rgb = isEntry ? '80,224,255' : '255,154,64';
     this.group = new THREE.Group();
-    this.group.position.set(x, y + 0.55, z);
+    this.group.position.set(x, y, z);
+    this.group.rotation.y = this.yaw;
     scene.add(this.group);
 
-    // Swirling ring: two offset torus strands for a "portal" look
-    const ringGeo = new THREE.TorusGeometry(0.5, 0.06, 8, 24);
-    this.ringA = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 }));
-    this.ringA.rotation.x = Math.PI / 2;
-    this.ringB = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.45 }));
-    this.ringB.rotation.x = Math.PI / 2;
-    this.ringB.scale.setScalar(0.85);
-    this.group.add(this.ringA, this.ringB);
+    // Vertical torus rim (stands upright — you walk through it)
+    const rimGeo = new THREE.TorusGeometry(0.55, 0.07, 10, 28);
+    this.rim = new THREE.Mesh(rimGeo, new THREE.MeshBasicMaterial({
+      color, transparent: true, opacity: 0.95,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
+    this.group.add(this.rim);
 
-    // Inner swirl disc (billboarded swirl using a texture-free shader-ish look)
-    const discGeo = new THREE.CircleGeometry(0.46, 24);
-    this.disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.22, side: THREE.DoubleSide }));
-    this.disc.rotation.x = -Math.PI / 2;
+    // Inner vortex disc facing +Z (the walk-through surface)
+    this.vortexTex = _portalVortexTexture(color);
+    const discGeo = new THREE.CircleGeometry(0.55, 28);
+    this.disc = new THREE.Mesh(discGeo, new THREE.MeshBasicMaterial({
+      map: this.vortexTex, transparent: true, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    }));
     this.group.add(this.disc);
 
-    // Sparkle particles orbiting the ring
+    // Back disc (mirrored swirl, dimmer)
+    this.discBack = new THREE.Mesh(discGeo.clone(), new THREE.MeshBasicMaterial({
+      map: this.vortexTex, transparent: true, side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending, depthWrite: false, opacity: 0.4,
+    }));
+    this.discBack.rotation.y = Math.PI;
+    this.group.add(this.discBack);
+
+    // Glow light
+    this.light = new THREE.PointLight(color, 0.7, 8, 1.6);
+    this.light.position.y = 1.0;
+    this.group.add(this.light);
+
+    // Sparkle particles swirling around the rim
     this.sparks = [];
-    for (let i = 0; i < 6; i++) {
+    for (let i = 0; i < 8; i++) {
       const s = new THREE.Mesh(_particleGeoTiny, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 }));
       this.group.add(s);
-      this.sparks.push({ mesh: s, angle: (i / 6) * Math.PI * 2, speed: 2 + Math.random() * 2 });
+      this.sparks.push({ mesh: s, angle: (i / 8) * Math.PI * 2, speed: 2.5 + Math.random() * 2 });
     }
+
+    // Funnel particles get sucked in each frame (only a few so perf stays fine)
+    this._funnelTimer = 0;
   }
 
   update(dt) {
     this.age += dt;
-    // Bob + spin
-    this.group.position.y = this.y + 0.55 + Math.sin(this.age * 2.5) * 0.05;
-    this.ringA.rotation.z += dt * 1.5;
-    this.ringB.rotation.z -= dt * 2;
-    // Sparks orbit
+    // Slow spin of the swirl + rim shimmer
+    this.disc.rotation.z += dt * 0.8;
+    this.discBack.rotation.z -= dt * 0.5;
+    this.rim.rotation.z += dt * 0.6;
+    // Sparks orbit the rim in 3D
     for (const s of this.sparks) {
       s.angle += dt * s.speed;
-      const r = 0.5;
-      s.mesh.position.set(Math.cos(s.angle) * r, Math.sin(s.angle * 1.7) * 0.15, Math.sin(s.angle) * r);
-      s.mesh.material.opacity = 0.5 + 0.5 * Math.sin(this.age * 6 + s.angle);
+      const r = 0.55;
+      s.mesh.position.set(Math.cos(s.angle) * r, Math.sin(s.angle * 1.7) * 0.12, Math.sin(s.angle) * r * 0.4);
+      s.mesh.material.opacity = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(this.age * 6 + s.angle * 3));
+    }
+    // Funnel sparks drawn into the portal mouth
+    this._funnelTimer -= dt;
+    if (this._funnelTimer <= 0 && Math.random() < 0.5) {
+      this._funnelTimer = 0.06;
+      const m = new THREE.Mesh(_particleGeoTiny, new THREE.MeshBasicMaterial({ color: this.isEntry ? 0x80e0ff : 0xffb060, transparent: true, opacity: 0.85 }));
+      m.position.set(this.x + (Math.random() - 0.5) * 1.4, this.y + 0.3 + Math.random() * 1.4, this.z + (Math.random() - 0.5) * 1.4);
+      scene.add(m);
+      _particles.push({
+        mesh: m, vx: 0, vy: 0, vz: 0, life: 0.5, maxLife: 0.5,
+        pull: { x: this.x, y: this.y + 0.9, z: this.z },
+      });
     }
   }
 
   dispose() {
     scene.remove(this.group);
-    this.ringA.geometry.dispose(); this.ringA.material.dispose();
-    this.ringB.geometry.dispose(); this.ringB.material.dispose();
-    this.disc.geometry.dispose(); this.disc.material.dispose();
+    this.rim.geometry.dispose(); this.rim.material.dispose();
+    this.disc.geometry.dispose(); this.disc.material.dispose(); this.vortexTex.dispose();
+    this.discBack.geometry.dispose(); this.discBack.material.dispose();
+    this.light.dispose();
     for (const s of this.sparks) { s.mesh.geometry.dispose(); s.mesh.material.dispose(); }
   }
 }
 
 // Place a ring. First → entry, second → exit, third → replaces the entry.
 function placePortalRing(orb) {
+  // Orient the ring to face the direction the player threw it.
+  const yaw = player ? player.yaw : 0;
+  // Remember where the thrower stood so a lone ring can recall them.
+  const origin = player ? { x: player.position.x, y: player.position.y, z: player.position.z } : null;
+  // Find the ground so the ring sits at foot level (not where the orb stopped mid-air).
+  let gy = Math.floor(orb.y);
+  const bx = Math.floor(orb.x), bz = Math.floor(orb.z);
+  while (gy > 0) {
+    const blk = world.getBlock(bx, gy, bz);
+    if (BLOCKS[blk] && BLOCKS[blk].solid) break;
+    gy--;
+  }
+  const groundY = gy + 1; // block above the solid ground
   const target = _portalRings.length === 0 ? 'entry'
                : _portalRings.length === 1 ? 'exit'
                : 'entry'; // replace oldest
@@ -1808,9 +1906,13 @@ function placePortalRing(orb) {
         _portalRings.splice(i, 1);
       }
     }
-    _portalRings.push(new PortalRing(orb.x, orb.y, orb.z, true));
+    const ring = new PortalRing(bx, groundY, bz, true, yaw);
+    ring.origin = origin;
+    _portalRings.push(ring);
   } else {
-    _portalRings.push(new PortalRing(orb.x, orb.y, orb.z, false));
+    const ring = new PortalRing(bx, groundY, bz, false, yaw);
+    ring.origin = origin;
+    _portalRings.push(ring);
   }
   // Only ever keep 2 rings
   if (_portalRings.length > 2) {
@@ -1832,40 +1934,99 @@ function updatePortalRings(dt) {
       _portalRings.splice(i, 1);
     }
   }
-  // Linked traversal: if both rings exist, stepping into one sends you to the other.
-  if (_portalRings.length === 2 && _portalRingCooldown <= 0 && player) {
+  if (!player) return;
+  // Two linked rings → stepping into either sends you to the other.
+  if (_portalRings.length === 2 && _portalRingCooldown <= 0) {
     const entry = _portalRings.find(r => r.isEntry);
     const exit = _portalRings.find(r => !r.isEntry);
     if (entry && exit) {
+      // Visual link beam between the pair (created once, moved to match).
+      _ensurePortalBeam(entry, exit);
       const p = player.position;
-      const inEntry = _inRing(p, entry);
-      const inExit = _inRing(p, exit);
-      if (inEntry) {
-        portalTraverse(entry, exit, p);
-      } else if (inExit) {
-        portalTraverse(exit, entry, p);
+      if (_inRing(p, entry)) portalTraverse(entry, exit, p);
+      else if (_inRing(p, exit)) portalTraverse(exit, entry, p);
+      // Mobs can ride the portal too!
+      if (mobManager && mobManager.mobs) {
+        for (const mob of mobManager.mobs) {
+          if (mob.dead) continue;
+          const mp = mob.position;
+          if (_inRing(mp, entry)) mobPortalTraverse(mob, exit);
+          else if (_inRing(mp, exit)) mobPortalTraverse(mob, entry);
+        }
+      }
+    } else {
+      _clearPortalBeam();
+    }
+  } else {
+    _clearPortalBeam();
+    // Lone ring → stepping in recalls you to where it was thrown from.
+    if (_portalRings.length === 1 && _portalRingCooldown <= 0) {
+      const ring = _portalRings[0];
+      if (ring.origin && _inRing(player.position, ring)) {
+        _portalRingCooldown = 1.0;
+        spawnPortalOrbParticles(player.position);
+        player.position.set(ring.origin.x, ring.origin.y + 0.1, ring.origin.z);
+        player.velocity.set(0, 0, 0);
+        player.fallStartY = -1;
+        spawnPortalOrbParticles(player.position);
+        if (audio && audio.teleport) audio.teleport();
+        achievements.incrementStat('portalTraversals');
       }
     }
   }
 }
 
 function _inRing(pos, ring) {
+  // Vertical ring: player must be near the ring center horizontally and within
+  // its height band — works from either side, like walking through a portal.
   const dx = pos.x - ring.x, dz = pos.z - ring.z;
   const dist = Math.sqrt(dx * dx + dz * dz);
-  return dist < 0.6 && pos.y >= ring.y && pos.y <= ring.y + 1.6;
+  return dist < 0.6 && pos.y >= ring.y && pos.y <= ring.y + 1.9;
 }
 
 function portalTraverse(fromRing, toRing, pos) {
   _portalRingCooldown = 1.0;
   spawnPortalOrbParticles(pos);
   // Preserve momentum — like Portal, you keep your velocity through the link.
-  player.position.set(toRing.x, toRing.y + 0.1, toRing.z);
+  // Exit facing the same direction you entered (Portal-style orientation).
+  const yaw = fromRing.yaw;
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  player.position.set(toRing.x + -sin * 0.4, toRing.y + 0.4, toRing.z + cos * 0.4);
   player.fallStartY = -1;
-  // Small vertical pop so you don't clip the ground, plus a touch of the link's velocity.
+  // Keep horizontal velocity relative to the exit's facing.
   player.velocity.y = Math.max(player.velocity.y, 2);
   spawnPortalOrbParticles(player.position);
   if (audio && audio.teleport) audio.teleport();
   achievements.incrementStat('portalTraversals');
+}
+
+// Teleport a mob through a linked portal (momentum preserved).
+function mobPortalTraverse(mob, toRing) {
+  spawnPortalOrbParticles(mob.position);
+  const yaw = toRing.yaw;
+  const cos = Math.cos(yaw), sin = Math.sin(yaw);
+  mob.position.set(toRing.x + -sin * 0.4, toRing.y + 0.4, toRing.z + cos * 0.4);
+  mob.velocity.set(0, 0, 0);
+  spawnPortalOrbParticles(mob.position);
+}
+
+// A faint energy beam connecting a linked pair of rings.
+let _portalBeam = null;
+function _ensurePortalBeam(a, b) {
+  if (!scene) return;
+  if (!_portalBeam) {
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+    const mat = new THREE.LineBasicMaterial({ color: 0x40d0ff, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending });
+    _portalBeam = new THREE.Line(geo, mat);
+    scene.add(_portalBeam);
+  }
+  _portalBeam.geometry.attributes.position.setXYZ(0, a.x, a.y + 0.9, a.z);
+  _portalBeam.geometry.attributes.position.setXYZ(1, b.x, b.y + 0.9, b.z);
+  _portalBeam.geometry.attributes.position.needsUpdate = true;
+  _portalBeam.visible = true;
+}
+function _clearPortalBeam() {
+  if (_portalBeam) _portalBeam.visible = false;
 }
 
 // Shockwave on orb impact: knocks nearby mobs back and stuns them briefly.
@@ -3268,6 +3429,8 @@ window._exitParkourToMinigames = () => {
   if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
   if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
   if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
+  if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
+  _clearPortalBeam();
   try {  } catch (_) { console.warn("operation failed"); }
   ui.showMenu('minigames');
 };
@@ -3561,6 +3724,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
   if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
   if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
+  _clearPortalBeam();
     if (weatherSystem) { weatherSystem.setState('clear'); }
     try {  } catch (_) { console.warn("operation failed"); }
   }
@@ -6704,6 +6868,17 @@ function loop() {
     p.mesh.position.x += p.vx * dt;
     p.mesh.position.y += p.vy * dt;
     p.mesh.position.z += p.vz * dt;
+    // Optional "pull" target: particle gets sucked toward it (portal funnels)
+    if (p.pull) {
+      const dx = p.pull.x - p.mesh.position.x;
+      const dy = p.pull.y - p.mesh.position.y;
+      const dz = p.pull.z - p.mesh.position.z;
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      const force = Math.min(14, 30 / (dist + 0.5));
+      p.mesh.position.x += (dx / dist) * force * dt;
+      p.mesh.position.y += (dy / dist) * force * dt;
+      p.mesh.position.z += (dz / dist) * force * dt;
+    }
     p.mesh.material.opacity = (p.life / p.maxLife) * 0.6;
   }
 
