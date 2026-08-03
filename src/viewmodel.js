@@ -178,11 +178,13 @@ export class ViewModel {
     tex.minFilter = THREE.NearestFilter;
     tex.generateMipmaps = false;
     tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({
+    const frontMat = new THREE.MeshBasicMaterial({
       map: tex, transparent, alphaTest: transparent ? 0.5 : 0,
       depthTest: true, depthWrite: !transparent, fog: false, side: THREE.DoubleSide,
     });
-    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 16), mat);
+    const sideMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, fog: false });
+    const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
+    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 16), materials);
   }
 
   // Tools / weapons (id >= 512): proper 3D shape with head + handle

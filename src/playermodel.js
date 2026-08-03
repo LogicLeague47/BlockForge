@@ -579,8 +579,10 @@ export class PlayerModel {
         // trident / other: flat sprite
         const canvas = this._getItemCanvas(itemId);
         const tex = this._canvasTex(canvas);
-        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mat);
+        const frontMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
+        const sideMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, fog: false });
+        const mats = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mats);
         wrap.add(mesh);
       }
 
@@ -589,8 +591,10 @@ export class PlayerModel {
       // Non-block, non-tool items: flat sprite like Minecraft
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mat);
+      const frontMat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
+      const sideMat = new THREE.MeshBasicMaterial({ color: 0x1a1a1a, fog: false });
+      const mats = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mats);
       mesh.rotation.set(-0.45, 0.35, 0.15);
       wrap.add(mesh);
     }
