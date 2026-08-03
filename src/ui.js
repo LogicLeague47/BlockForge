@@ -6,7 +6,7 @@
 
 import { HOTBAR_BLOCKS, BLOCKS } from './blocks.js';
 import { makeIcon } from './tiles.js';
-import { itemDef, isBlockItem, itemName, maxStack, ITEM } from './items.js';
+import { itemDef, isBlockItem, itemName, maxStack, ITEM, totalArmorDefense } from './items.js';
 import { HOTBAR_SLOTS, TOTAL } from './inventory.js';
 import { CraftingGrid } from './crafting.js';
 import { matchRecipe } from './recipes.js';
@@ -15,6 +15,9 @@ const HEART_COLS = '#b00', HEART_HALF_L = '#b00', HEART_HALF_R = '#633';
 const HEART_EMPTY = '#411';
 const DRUM_COLS = '#b87333', DRUM_HALF_L = '#b87333', DRUM_HALF_R = '#7a4a20';
 const DRUM_EMPTY = '#3a2210';
+// Minecraft armor bar — light-grey chestplate on a dark empty plate
+const ARMOR_COLS = '#e0e0e0', ARMOR_HALF_L = '#e0e0e0', ARMOR_HALF_R = '#4a4a4a';
+const ARMOR_EMPTY = '#2b2b2b';
 
 // Minecraft Bedrock hunger drumstick — meat chunk with bone
 const HEART_PIXELS = [
@@ -40,14 +43,29 @@ const DRUM_PIXELS = [
   [0,0,0,1,0,0,0,0,0],
 ];
 
+// Minecraft armor bar chestplate icon
+const ARMOR_PIXELS = [
+  [0,0,1,1,0,1,1,0,0],
+  [0,1,1,1,1,1,1,1,0],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,1,1,1,1,1,1],
+  [1,1,1,0,0,0,1,1,1],
+  [1,1,1,0,0,0,1,1,1],
+  [0,1,1,0,0,0,1,1,0],
+];
+
 // Seed for deterministic crack generation — prevents frame-to-frame jitter.
 const _crackSeed = 42;
 
 // Cache canvases and data URLs to avoid expensive toDataURL every frame
 const _heartCache = new Map();
 const _drumCache = new Map();
+const _armorCache = new Map();
 const _heartUrlCache = new Map();
 const _drumUrlCache = new Map();
+const _armorUrlCache = new Map();
 
 function drawPixelIcon(pixels, fullCol, halfL, halfR, emptyCol, full, half, cache) {
   const key = `${full ? 1 : 0}${half ? 1 : 0}`;
@@ -90,6 +108,15 @@ function drawDrumstickUrl(full, half) {
   if (_drumUrlCache.has(key)) return _drumUrlCache.get(key);
   const url = drawDrumstick(full, half).toDataURL();
   _drumUrlCache.set(key, url);
+  return url;
+}
+
+function drawArmorUrl(full, half) {
+  const key = `${full ? 1 : 0}${half ? 1 : 0}`;
+  if (_armorUrlCache.has(key)) return _armorUrlCache.get(key);
+  const canvas = drawPixelIcon(ARMOR_PIXELS, ARMOR_COLS, ARMOR_HALF_L, ARMOR_HALF_R, ARMOR_EMPTY, full, half, _armorCache);
+  const url = canvas.toDataURL();
+  _armorUrlCache.set(key, url);
   return url;
 }
 
@@ -1242,11 +1269,12 @@ export class UI {
     this.creative = true;
 
     this.barsEl = document.getElementById('status-bars');
-    this.armorBarEl = document.getElementById('armor-bar');
+    this.armorRowEl = document.getElementById('armor-row');
+    this._lastArmorPoints = -1;
     this._iconUrlCache = new Map();
 
     // Hide game UI elements immediately so they don't flash over menus
-    ['hotbar', 'crosshair', 'status-bars', 'xp-bar', 'armor-bar', 'offhand-slot', 'chat-hud', 'coords-hud'].forEach(id => {
+    ['hotbar', 'crosshair', 'status-bars', 'xp-bar', 'armor-row', 'offhand-slot', 'chat-hud', 'coords-hud'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -1482,6 +1510,30 @@ export class UI {
 
   // --- status bars ----------------------------------------------------------
   updateStatusBars(player) {
+    // Armor bar (MC style) — 10 chestplate icons above the hearts, 1 icon = 2 points
+    if (this.armorRowEl) {
+      const points = player.inventory ? totalArmorDefense(player.inventory.armor) : 0;
+      if (points > 0) {
+        const capped = Math.min(20, points);
+        if (capped !== this._lastArmorPoints) {
+          this._lastArmorPoints = capped;
+          let ah = '';
+          for (let i = 0; i < 10; i++) {
+            const val = capped - i * 2;
+            const full = val >= 2, half = val >= 1;
+            ah += `<img src="${drawArmorUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
+          }
+          this.armorRowEl.innerHTML = ah;
+        }
+        this.armorRowEl.style.display = '';
+      } else if (this._lastArmorPoints !== 0) {
+        // MC hides the armor bar entirely when you have no armor
+        this._lastArmorPoints = 0;
+        this.armorRowEl.innerHTML = '';
+        this.armorRowEl.style.display = 'none';
+      }
+    }
+
     // Health hearts (left side) — no background panel, just icons
     let hh = '';
     for (let i = 9; i >= 0; i--) {
@@ -1503,55 +1555,10 @@ export class UI {
     if (player.hunger <= 6) this.hungerBar.classList.add('hunger-warn');
     else this.hungerBar.classList.remove('hunger-warn');
 
-    // Armor slots — show equipped armor icons
-    const armorSlots = document.querySelectorAll('.armor-slot');
-    if (player.inventory && armorSlots.length) {
-      for (let i = 0; i < 4; i++) {
-        const slot = armorSlots[i];
-        const equipped = player.inventory.armor[i];
-        const label = slot.querySelector('.armor-slot-label');
-        let img = slot.querySelector('img');
-        if (!img) {
-          img = document.createElement('img');
-          img.style.cssText = 'width:22px;height:22px;image-rendering:pixelated;';
-          slot.appendChild(img);
-        }
-        if (equipped) {
-          img.src = this._getCachedIconUrl(equipped.item);
-          img.style.display = '';
-          if (label) label.style.display = 'none';
-        } else {
-          img.style.display = 'none';
-          if (label) label.style.display = '';
-        }
-      }
-    }
   }
 
-  // Armor slots + offhand — standalone update for creative mode
+  // Off-hand HUD — standalone update for creative mode
   updateArmorSlots(player) {
-    const armorSlots = document.querySelectorAll('.armor-slot');
-    if (player.inventory && armorSlots.length) {
-      for (let i = 0; i < 4; i++) {
-        const slot = armorSlots[i];
-        const equipped = player.inventory.armor[i];
-        const label = slot.querySelector('.armor-slot-label');
-        let img = slot.querySelector('img');
-        if (!img) {
-          img = document.createElement('img');
-          img.style.cssText = 'width:22px;height:22px;image-rendering:pixelated;';
-          slot.appendChild(img);
-        }
-        if (equipped) {
-          img.src = this._getCachedIconUrl(equipped.item);
-          img.style.display = '';
-          if (label) label.style.display = 'none';
-        } else {
-          img.style.display = 'none';
-          if (label) label.style.display = '';
-        }
-      }
-    }
     // Off-hand HUD
     const offhandEl = document.getElementById('offhand-slot');
     if (offhandEl && player.inventory) {
@@ -1597,7 +1604,7 @@ export class UI {
     const ac = document.getElementById('attack-cooldown'); if (ac) ac.style.display = v;
     const sb = document.getElementById('status-bars'); if (sb) sb.style.display = v;
     const xp = document.getElementById('xp-bar'); if (xp) xp.style.display = v;
-    const ab = document.getElementById('armor-bar'); if (ab) ab.style.display = v;
+    const ab = document.getElementById('armor-row'); if (ab) ab.style.display = v;
     const oh = document.getElementById('offhand-slot'); if (oh) oh.style.display = v;
     const mp = document.querySelector('.menu-player-preview'); if (mp) mp.style.display = visible ? 'none' : '';
     const bl = document.querySelector('.menu-bottom-left'); if (bl) bl.style.display = visible ? 'none' : '';

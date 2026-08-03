@@ -3652,7 +3652,7 @@ window._exitParkourToMinigames = () => {
   _parkourTimerEl = null;
   _parkourLevelEl = null;
   document.getElementById('status-bars').style.display = '';
-  document.getElementById('armor-bar').style.display = '';
+  { const _ar = document.getElementById('armor-row'); if (_ar) _ar.style.display = ''; }
   if (player) { saveCurrentWorld(); }
   manager?.clear?.();
   if (mobManager) { mobManager.clear(); mobManager = null; }
@@ -3942,7 +3942,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     isParkour = false;
     if (prevParkour) {
       document.getElementById('status-bars').style.display = '';
-      document.getElementById('armor-bar').style.display = '';
+      { const _ar = document.getElementById('armor-row'); if (_ar) _ar.style.display = ''; }
     }
     _isImportedParkour = false;
     _importedParkourData = null;
@@ -6948,21 +6948,6 @@ function loop() {
 
   loader.update(player.position.x, player.position.z);
   manager.update();
-
-  // Show/hide "Building world..." while chunks are still loading
-  const buildingEl = document.getElementById('building-status');
-  if (buildingEl) {
-    const allLoaded = loader.allVisibleLoaded && manager._dirtyList.length === 0;
-    if (allLoaded) {
-      if (buildingEl.style.display !== 'none') {
-        buildingEl.style.display = 'none';
-      }
-    } else {
-      if (buildingEl.style.display !== '') {
-        buildingEl.style.display = '';
-      }
-    }
-  }
 
   // Spawn mobs for newly generated chunks (throttled to once per second)
   if (mobManager) {
