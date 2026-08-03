@@ -49,7 +49,7 @@ export class DroppedItem {
       tex.magFilter = THREE.NearestFilter;
       tex.minFilter = THREE.NearestFilter;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, side: THREE.DoubleSide });
-      const geo = new THREE.PlaneGeometry(0.35, 0.35);
+      const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35 / 16);
       const front = new THREE.Mesh(geo, mat);
       this.group.add(front);
       const back = new THREE.Mesh(geo, mat);

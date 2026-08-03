@@ -182,7 +182,7 @@ export class ViewModel {
       map: tex, transparent, alphaTest: transparent ? 0.5 : 0,
       depthTest: true, depthWrite: !transparent, fog: false, side: THREE.DoubleSide,
     });
-    return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 16), mat);
   }
 
   // Tools / weapons (id >= 512): proper 3D shape with head + handle

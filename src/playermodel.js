@@ -580,7 +580,7 @@ export class PlayerModel {
         const canvas = this._getItemCanvas(itemId);
         const tex = this._canvasTex(canvas);
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
-        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mat);
         wrap.add(mesh);
       }
 
@@ -590,7 +590,7 @@ export class PlayerModel {
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide });
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
+      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mat);
       mesh.rotation.set(-0.45, 0.35, 0.15);
       wrap.add(mesh);
     }
