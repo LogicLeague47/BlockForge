@@ -2068,8 +2068,8 @@ function placeBlock(slotOverride) {
   let itemId = slot ? slot.item : null;
   if (itemId == null) return;
 
-  // BED item places BED block
-  if (itemId === ITEM.BED) itemId = BLOCK.BED;
+  // BED item places BED_FOOT at clicked block, BED (head) in facing direction
+  if (itemId === ITEM.BED) itemId = BLOCK.BED_FOOT;
 
   if (!isPlaceableBlockItem(itemId)) return;
   const def = BLOCKS[itemId];
@@ -2124,15 +2124,15 @@ function placeBlock(slotOverride) {
     greenstoneSystem.onBlockChange(x, y, z, itemId, world);
   }
 
-  // Beds are 2 blocks wide — place foot block perpendicular to player facing
-  if (itemId === BLOCK.BED) {
+  // Beds are 2 blocks wide — place head block in front of player
+  if (itemId === BLOCK.BED_FOOT) {
     const dirX = Math.round(-Math.sin(player.yaw));
     const dirZ = Math.round(-Math.cos(player.yaw));
-    const footX = x + dirX;
-    const footZ = z + dirZ;
-    if (world.getBlock(footX, y, footZ) === BLOCK.AIR) {
-      world.setBlock(footX, y, footZ, BLOCK.BED_FOOT);
-      if (network.isInRoom()) network.sendBlockUpdate(footX, y, footZ, BLOCK.BED_FOOT);
+    const headX = x + dirX;
+    const headZ = z + dirZ;
+    if (world.getBlock(headX, y, headZ) === BLOCK.AIR) {
+      world.setBlock(headX, y, headZ, BLOCK.BED);
+      if (network.isInRoom()) network.sendBlockUpdate(headX, y, headZ, BLOCK.BED);
     }
   }
   viewmodel.swing();
@@ -2322,6 +2322,21 @@ function doBreak(hit, b) {
   if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
+
+  // Beds: breaking one half also breaks the other
+  if (b === BLOCK.BED || b === BLOCK.BED_FOOT) {
+    const other = b === BLOCK.BED ? BLOCK.BED_FOOT : BLOCK.BED;
+    for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = hit.x + dx, nz = hit.z + dz;
+      if (world.getBlock(nx, hit.y, nz) === other) {
+        world.setBlock(nx, hit.y, nz, BLOCK.AIR);
+        if (network.isInRoom()) network.sendBlockUpdate(nx, hit.y, nz, 0);
+        if (breakParticles) breakParticles.emit(other, nx, hit.y, nz, 12);
+        break;
+      }
+    }
+  }
+
   // drop item
   if (player.isSurvival()) {
     const drop = blockDrop(b, toolHarvestLevel(toolId || 0));

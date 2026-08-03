@@ -43,6 +43,7 @@ export const BLOCK_COLORS = {
   [BLOCK.CRAFTING]:    [0.6, 0.48, 0.28],
   [BLOCK.CHEST]:       [0.6, 0.48, 0.25],
   [BLOCK.BED]:         [0.7, 0.25, 0.2],
+  [BLOCK.BED_FOOT]:    [0.7, 0.25, 0.2],
   [BLOCK.TERRACOTTA]:  [0.7, 0.45, 0.3],
   [BLOCK.RED_SAND]:    [0.75, 0.45, 0.2],
   [BLOCK.PODZOL]:      [0.4, 0.32, 0.2],
