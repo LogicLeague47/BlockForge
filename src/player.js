@@ -12,10 +12,10 @@
 
 import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
-import { WORLD_HEIGHT } from './world.js';
+import { WORLD_HEIGHT, SEA_LEVEL } from './world.js';
 import { Inventory } from './inventory.js';
 import { Noise } from './noise.js';
-import { calcHeight, getCont } from './worldgen.js';
+import { calcHeight, getClimate, spawnFitness } from './worldgen.js';
 import { totalArmorDefense } from './items.js';
 import { getKeybinds } from './keybinds.js';
 import { raycastVoxel } from './raycast.js';
@@ -150,33 +150,39 @@ export class Player {
   isSpectator() { return this.gamemode === 'spectator'; }
   isDead() { return this.health <= 0; }
 
+  // MC-style world spawn: spiral outward sampling the climate noise router and
+  // pick the position whose climate best matches the overworld spawn_target.
   spawn() {
     const noise = new Noise(this.seed);
-    // Track best candidate throughout search — never fall back to origin blindly.
-    let bestX = 0.5, bestZ = 0.5, bestScore = -999;
-    const score = (h, cont) => {
-      // Reward height above sea level and inland-ness
-      return (h - 32) + cont * 20;
-    };
-    for (let r = 0; r <= 200; r += 3) {
-      for (let a = 0; a < 16; a++) {
-        const angle = (a / 16) * Math.PI * 2;
-        const tx = Math.cos(angle) * r;
-        const tz = Math.sin(angle) * r;
-        const h = calcHeight(noise, Math.floor(tx), Math.floor(tz));
-        const cont = getCont(noise, Math.floor(tx), Math.floor(tz));
-        const s = score(h, cont);
-        if (s > bestScore) {
-          bestScore = s;
+    let bestX = 0.5, bestZ = 0.5, bestCost = Infinity;
+
+    for (let r = 0; r <= 400; r += 4) {
+      for (let a = 0; a < 24; a++) {
+        const angle = (a / 24) * Math.PI * 2;
+        const tx = Math.floor(Math.cos(angle) * r);
+        const tz = Math.floor(Math.sin(angle) * r);
+        const h = calcHeight(noise, tx, tz);
+        // Hard requirement: dry land clearly above sea level.
+        if (h <= SEA_LEVEL + 3) continue;
+
+        const climate = getClimate(noise, tx, tz);
+        // MC spawn_target fitness + small penalties for distance and flat/low ground.
+        const cost = spawnFitness(climate)
+          + (r / 400) * 0.05
+          + Math.max(0, 45 - h) * 0.01;
+
+        if (cost < bestCost) {
+          bestCost = cost;
           bestX = tx + 0.5;
           bestZ = tz + 0.5;
+          // Perfect match inside the target box — stop searching.
+          if (cost < 0.02) { r = 99999; break; }
         }
-        // Early exit if we find a clearly good spot (high + inland)
-        if (h > 42 && cont > 0.05) { bestX = tx + 0.5; bestZ = tz + 0.5; r = 999; break; }
       }
     }
+
     const bestH = calcHeight(noise, Math.floor(bestX), Math.floor(bestZ));
-    this.position.set(bestX, Math.max(bestH + 1.05, 38), bestZ);
+    this.position.set(bestX, Math.max(bestH + 1.05, SEA_LEVEL + 4), bestZ);
     this.velocity.set(0, 0, 0);
   }
 

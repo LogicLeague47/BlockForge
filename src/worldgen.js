@@ -17,36 +17,37 @@ const ORE_VEINS = [
 ];
 
 export function calcHeight(n, wx, wz, mode) {
-  const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
-  const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
-  const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.007, wz * 0.007, 4, 2, 0.5));
-  const detail = n.fbm2(n.detail, wx * 0.025, wz * 0.025, 4, 2, 0.5);
-  const depth = n.fbm2(n.depth, wx * 0.01, wz * 0.01, 4, 2, 0.5);
-  const oceanDetail = n.fbm2(n.height, wx * 0.018, wz * 0.018, 3, 2, 0.5);
+  // MC-style noise router: continentalness, erosion, peaks, detail
+  // Reduced frequencies for larger features (MC uses size_horizontal=1)
+  const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
+  const erosion = n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
+  const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.005, wz * 0.005, 4, 2, 0.5));
+  const detail = n.fbm2(n.detail, wx * 0.02, wz * 0.02, 4, 2, 0.5);
+  const depth = n.fbm2(n.depth, wx * 0.008, wz * 0.008, 4, 2, 0.5);
+  const oceanDetail = n.fbm2(n.height, wx * 0.012, wz * 0.012, 3, 2, 0.5);
 
   let h;
   
-  // Ocean: continentalness < 0 → terrain below sea level
-  if (cont < -0.2) {
-    // Deep ocean with varied floor
+  // MC ocean: continentalness < -0.3 → terrain below sea level
+  if (cont < -0.3) {
     h = SEA_LEVEL - 6 + cont * 12 + depth * 6 + oceanDetail * 4;
-  } else if (cont < 0.0) {
-    // Shallow ocean → beach transition with hilly floor
-    const t = (cont + 0.2) / 0.2;
+  } else if (cont < -0.1) {
+    // Shallow ocean → beach transition
+    const t = (cont + 0.3) / 0.2;
     h = SEA_LEVEL - 4 + t * 8 + depth * 5 + oceanDetail * 3;
   } else {
-    // Land: use erosion to control terrain height
-    const baseHeight = SEA_LEVEL + 2 + cont * 16;
+    // Land: MC-style erosion-based terrain
+    const baseHeight = SEA_LEVEL + 2 + cont * 20;
     const erosionFactor = 1 - erosion * 0.6;
     
     h = baseHeight + detail * 6 * erosionFactor;
     
-    // Mountains
+    // MC mountains: high continentalness + low erosion + ridge peaks
     if (cont > 0.3 && erosion < 0.2 && ridge > 0.6) {
       h += ridge * ridge * (cont - 0.3) * 80;
     }
     
-    // Hills
+    // MC hills: ridge-based undulation
     h += ridge * 4 * erosionFactor;
   }
 
@@ -80,16 +81,52 @@ export function calcHeight(n, wx, wz, mode) {
 
 // Returns continentalness value for a world position (used for spawn checks).
 export function getCont(n, wx, wz) {
-  return n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
+  return n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
+}
+
+// MC spawn_target: full climate sample at a world position.
+// Mirrors the noise_router parameters MC uses to pick a world spawn.
+export function getClimate(n, wx, wz) {
+  return {
+    temperature:     n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5),
+    humidity:        n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5),
+    continentalness: n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5),
+    erosion:         n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5),
+    weirdness:       n.fbm2(n.weirdness, wx * 0.004, wz * 0.004, 4, 2, 0.5),
+  };
+}
+
+// MC spawn_target: the climate window the game aims for when placing world spawn.
+// Overworld targets temperate, moderately humid, firmly inland, low-erosion land.
+const SPAWN_TARGET = {
+  temperature:     [-0.15, 0.45],
+  humidity:        [-0.35, 0.60],
+  continentalness: [0.15, 1.00],
+  erosion:         [-1.00, 0.55],
+  weirdness:       [-1.00, 1.00],
+};
+
+// Squared distance from a climate sample to the spawn target window.
+// 0 means fully inside the target box; larger means further outside.
+export function spawnFitness(climate) {
+  let dist = 0;
+  for (const key in SPAWN_TARGET) {
+    const [lo, hi] = SPAWN_TARGET[key];
+    const v = climate[key];
+    const d = v < lo ? lo - v : (v > hi ? v - hi : 0);
+    dist += d * d;
+  }
+  return dist;
 }
 
 export function calcBiome(n, wx, wz, h) {
+  // MC-style climate parameters: temperature, humidity, continentalness, erosion
   const t = n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const hu = n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
-  const erosion = n.fbm2(n.erosion, wx * 0.003, wz * 0.003, 4, 2, 0.5);
+  const erosion = n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
 
-  // River: narrow water channels on land
+  // MC river: narrow water channels on land
   if (cont > 0.05 && h <= SEA_LEVEL && h >= SEA_LEVEL - 3) {
     const riverRaw = n.river(wx * 0.012, wz * 0.012);
     const riverVal = (riverRaw + n.river(wx * 0.025, wz * 0.025) * 0.5) / 1.5;
@@ -97,41 +134,42 @@ export function calcBiome(n, wx, wz, h) {
     if (riverStrength > 0.65) return BIOMES.RIVER;
   }
 
-  // Ocean biomes (excluded from land % — ~30% of world)
-  if (cont < -0.2) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
+  // MC ocean biomes (cont < -0.3 = ocean, -0.3 to -0.1 = shallow)
+  if (cont < -0.3) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
+  if (cont < -0.1) return BIOMES.OCEAN;
   
-  // Beach: near sea level on coast
+  // MC beach: near sea level on coast
   if (h >= SEA_LEVEL - 1 && h <= SEA_LEVEL + 3 && cont < 0.1) return BIOMES.BEACH;
   
-  // Stony Peaks (~10% of land): high continentalness + low erosion
+  // MC Stony Peaks: high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
   
-  // Snowy Forest (~10% of land): cold temperatures
+  // MC cold biomes: low temperature
   if (t < -0.4) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
   
-  // Forest (~20% of land): cool to mild with humidity
+  // MC forest biomes: cool to mild with humidity
   if (t < 0.15 && hu > 0.1) {
     if (hu > 0.4) return BIOMES.DARK_FOREST;
     if (hu > 0.2) return BIOMES.FOREST;
     if (hu > 0.1) return BIOMES.BIRCH_FOREST;
   }
   
-  // Plains (~40% of land): moderate temperatures, default
-  if (t < 0.5) {
-    return BIOMES.PLAINS;
+  // MC warm biomes: high temperature
+  if (t >= 0.15 && t < 0.5) {
+    if (hu < -0.1) return BIOMES.DESERT;
+    if (hu > 0.3) return BIOMES.JUNGLE;
+    if (hu > 0.05) return BIOMES.SAVANNA;
   }
   
-  // Other (~24% of land): hot climates (desert, jungle, savanna)
-  if (hu < -0.1) return BIOMES.DESERT;
-  if (hu > 0.3) return BIOMES.JUNGLE;
-  if (hu > 0.05) return BIOMES.SAVANNA;
+  // MC plains: moderate temperatures, default (~40% of land)
   return BIOMES.PLAINS;
 }
 
+// MC surface_rule: top block for a column.
 export function surfBlock(biome, h) {
-  // Minecraft rule: underwater terrain uses sand/gravel, not grass
+  // MC rule: underwater terrain uses sand/gravel, not grass
   if (h < SEA_LEVEL) return BLOCK.SAND;
-  
+
   switch (biome) {
     case BIOMES.BEACH:       return BLOCK.SAND;
     case BIOMES.OCEAN:       return BLOCK.SAND;
@@ -139,10 +177,22 @@ export function surfBlock(biome, h) {
     case BIOMES.DESERT:      return BLOCK.SAND;
     case BIOMES.RIVER:       return BLOCK.SAND;
     case BIOMES.SNOWY:       return BLOCK.SNOW_BLOCK;
+    // MC stony peaks: bare stone above 25, dirt transition, grass below
     case BIOMES.MOUNTAINS:   return h > SEA_LEVEL + 25 ? BLOCK.STONE : (h > SEA_LEVEL + 18 ? BLOCK.DIRT : BLOCK.GRASS);
     case BIOMES.TAIGA:       return BLOCK.GRASS;
     case BIOMES.JUNGLE:      return BLOCK.GRASS;
     default:                 return BLOCK.GRASS;
+  }
+}
+
+// MC surface_rule: depth of the sub-surface layer (dirt/sand band under the top block).
+export function surfDepth(biome, h) {
+  if (h < SEA_LEVEL) return 3;
+  switch (biome) {
+    case BIOMES.DESERT:    return 5;   // MC: deep sand over sandstone
+    case BIOMES.BEACH:     return 4;
+    case BIOMES.MOUNTAINS: return h > SEA_LEVEL + 25 ? 0 : 2;  // bare stone peaks
+    default:               return 3;   // MC standard: 3 dirt under grass
   }
 }
 
@@ -161,18 +211,31 @@ export function fillBlock(biome, h) {
   }
 }
 
+// MC surface_rule: block beneath the sub-surface band (sandstone under desert sand, etc.)
+export function deepBlock(biome, h) {
+  switch (biome) {
+    case BIOMES.DESERT: return BLOCK.SANDSTONE;  // MC: sandstone under desert sand
+    case BIOMES.BEACH:  return BLOCK.SANDSTONE;
+    default:            return BLOCK.STONE;
+  }
+}
+
 export function generateColumn(n, chunk, x, z, wx, wz, mode) {
   const h = calcHeight(n, wx, wz, mode);
   const biome = calcBiome(n, wx, wz, h);
   const surf = surfBlock(biome, h);
   const sub = fillBlock(biome, h);
+  // MC surface_rule: variable-depth sub-surface band + transition layer
+  const depth = surfDepth(biome, h);
+  const deep = deepBlock(biome, h);
 
   let topSolid = -1;
   for (let y = 0; y <= h; y++) {
     let b;
     if (y === 0) b = BLOCK.BEDROCK;
     else if (y === h) b = surf;
-    else if (y > h - 4) b = sub;
+    else if (y > h - depth) b = sub;
+    else if (y > h - depth - 3) b = deep;   // MC transition band (sandstone/stone)
     else b = BLOCK.STONE;
 
     if (y > 2 && y < h - 3) {
