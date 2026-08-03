@@ -1475,13 +1475,23 @@
           var msg;
           try { msg = JSON.parse(e.data); } catch(_) { return; }
           if (msg.type === 'community_chat') {
-            addChatMsg(msg.name, msg.role, msg.text, msg.time);
+            if (msg.role === 'system') {
+              addSystemMsg(msg.text);
+            } else {
+              addChatMsg(msg.name, msg.role, msg.text, msg.time);
+            }
           } else if (msg.type === 'community_chat_history') {
             var msgs = msg.messages || [];
             if (msgs.length > 0) {
               addSystemMsg('— Chat History (' + msgs.length + ' messages) —');
-              msgs.forEach(function(m) { addChatMsg(m.name, m.role, m.text, m.time); });
+              msgs.forEach(function(m) {
+                if (m.role === 'system') addSystemMsg(m.text);
+                else addChatMsg(m.name, m.role, m.text, m.time);
+              });
             }
+          } else if (msg.type === 'community_online') {
+            var onlineEl = chatStatusEl ? chatStatusEl.querySelector('span:last-child') : null;
+            if (onlineEl && chatConnected) onlineEl.textContent = 'Online — ' + (msg.count || 0) + ' in chat';
           }
         };
         chatWs.onclose = function() {

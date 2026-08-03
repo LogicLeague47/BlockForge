@@ -897,6 +897,8 @@ function isRateLimited(ws) {
       console.log(`[Guest] Deleted guest account "${leavingName}"`);
     }
     handleLeave(ws);
+    // Portal chat leave
+    if (ws._portalChat && leavingName) _communityChatLeave(leavingName);
     // Let this user's friends know they went offline.
     if (leavingName && friends[leavingName]) {
       for (const fn of _friendRec(leavingName).friends) notifyFriendState(fn);
@@ -928,6 +930,11 @@ async function handleAuth(ws, msg) {
     const isGuest = identityType === 'guest';
     if (isGuest && !acc.isGuest) { acc.isGuest = true; saveAccounts(); }
     ws._playerData = { name: resolvedUsername, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest };
+    // Portal chat tracking
+    if (mode === 'portal_chat') {
+      ws._portalChat = true;
+      _communityChatJoin(resolvedUsername);
+    }
     // Let friends know we're online, and send our friend state.
     if (friends[resolvedUsername]) {
       for (const fn of _friendRec(resolvedUsername).friends) notifyFriendState(fn);
@@ -1310,6 +1317,16 @@ function handleDm(ws, msg) {
 // ── Community Chat (global, portal-wide) ───────────────────────────────
 const _communityChatHistory = [];
 const COMMUNITY_CHAT_MAX = 100;
+const _communityChatUsers = new Set();
+
+function _broadcastCommunityChat(msg) {
+  const data = JSON.stringify(msg);
+  if (wss && wss.clients) {
+    for (const client of wss.clients) {
+      if (client.readyState === 1) safeSend(client, data);
+    }
+  }
+}
 
 function handleCommunityChat(ws, msg) {
   const pd = ws._playerData;
@@ -1320,17 +1337,26 @@ function handleCommunityChat(ws, msg) {
   const entry = { name, role, text, time: Date.now() };
   _communityChatHistory.push(entry);
   if (_communityChatHistory.length > COMMUNITY_CHAT_MAX) _communityChatHistory.shift();
-  // Broadcast to ALL connected clients
-  const data = JSON.stringify({ type: 'community_chat', ...entry });
-  if (wss && wss.clients) {
-    for (const client of wss.clients) {
-      if (client.readyState === 1) safeSend(client, data);
-    }
-  }
+  _broadcastCommunityChat({ type: 'community_chat', ...entry });
 }
 
 function handleCommunityChatHistory(ws) {
   safeSend(ws, JSON.stringify({ type: 'community_chat_history', messages: _communityChatHistory }));
+  safeSend(ws, JSON.stringify({ type: 'community_online', count: _communityChatUsers.size }));
+}
+
+function _communityChatJoin(name) {
+  if (_communityChatUsers.has(name)) return;
+  _communityChatUsers.add(name);
+  _broadcastCommunityChat({ type: 'community_online', count: _communityChatUsers.size });
+  _broadcastCommunityChat({ type: 'community_chat', name: 'System', role: 'system', text: name + ' joined the chat', time: Date.now() });
+}
+
+function _communityChatLeave(name) {
+  if (!_communityChatUsers.has(name)) return;
+  _communityChatUsers.delete(name);
+  _broadcastCommunityChat({ type: 'community_online', count: _communityChatUsers.size });
+  _broadcastCommunityChat({ type: 'community_chat', name: 'System', role: 'system', text: name + ' left the chat', time: Date.now() });
 }
 
 function handleCommand(ws, msg) {
