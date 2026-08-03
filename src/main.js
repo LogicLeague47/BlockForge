@@ -172,7 +172,7 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 app.appendChild(renderer.domElement);
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
 
 const skyColor = new THREE.Color(0x9ad0ff);
 scene.background = skyColor.clone();
@@ -628,7 +628,7 @@ let gameRunning = false;
 let voiceChat = null;
 let renderDist = 7;
 let graphicsQuality = 'medium'; // 'low' | 'medium' | 'high'
-let baseFov = 75; // FOV setting; sprint FOV zooms from this
+let baseFov = 70; // FOV setting; sprint FOV zooms from this
 let _dwState = { mode: 'creative', diff: 'normal', terrain: 'flat', mp: 'solo', maxPlayers: 10 };
 let _pendingDevWorldOpts = null;
 let gameDifficulty = 'normal'; // 'normal' | 'hard'
@@ -4010,7 +4010,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   scene.fog.near = 16 * 5;
 
   // Apply FOV and volume at world load
-  baseFov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  baseFov = parseInt(document.getElementById('set-fov')?.value) || 70;
   camera.fov = baseFov;
   camera.updateProjectionMatrix();
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
@@ -4791,7 +4791,7 @@ function initMenu() {
   // Load FPS setting into a module-level flag
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
   // Apply FOV from loaded setting
-  baseFov = parseInt(document.getElementById('set-fov')?.value) || 75;
+  baseFov = parseInt(document.getElementById('set-fov')?.value) || 70;
   camera.fov = baseFov;
   camera.updateProjectionMatrix();
 

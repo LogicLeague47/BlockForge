@@ -27,11 +27,11 @@ const PLAYER_HEIGHT = 1.8;
 const GRAVITY = 28;        // blocks/s^2
 const WALK_SPEED = 4.317;  // ~minecraft
 const SPRINT_SPEED = 5.6;
-const CROUCH_SPEED = 1.5;
+const CROUCH_SPEED = 1.297;
 const FLY_SPEED = 11;
 const JUMP_VELOCITY = 8.4;
-const SWIM_GRAVITY = 6;
-const SWIM_SPEED = 3.5;
+const SWIM_GRAVITY = 4;
+const SWIM_SPEED = 2.858;
 const EAT_SPEED = 1.3;
 const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
 
@@ -507,12 +507,12 @@ export class Player {
     // head bob
     const moving = this.onGround && (this.velocity.x !== 0 || this.velocity.z !== 0);
     if (moving) {
-      this._bobPhase += dt * (this.sprinting ? 11 : 8);
+      this._bobPhase += dt * (this.sprinting ? 3.74 : 2.88);
     } else {
       this._bobPhase *= 0.85;
     }
-    const bobV = moving ? Math.sin(this._bobPhase) * 0.04 : 0;
-    const bobH = moving ? Math.sin(this._bobPhase * 0.5) * 0.02 : 0;
+    const bobV = moving ? Math.sin(this._bobPhase) * 0.0625 : 0;
+    const bobH = moving ? Math.cos(this._bobPhase) * 0.0625 : 0;
     if (this.cameraMode === 0) {
       // First person: camera at eye level
       this.camera.position.copy(this.position);
@@ -595,7 +595,33 @@ export class Player {
     const step = delta / steps;
     for (let s = 0; s < steps; s++) {
       this.position[axis] += step;
-      if (this._collideAxis(axis, step)) return;
+      if (this._collideAxis(axis, step)) {
+        // Step-up: on horizontal collision, try raising player up to 0.6 blocks
+        if ((axis === 'x' || axis === 'z') && this.onGround && !this.crouching) {
+          const STEP_HEIGHT = 0.6;
+          const saved = this.position[axis];
+          this.position[axis] -= step; // undo the move that caused collision
+          let stepped = false;
+          for (let sy = 1; sy <= Math.ceil(STEP_HEIGHT); sy++) {
+            const tryUp = Math.min(sy, STEP_HEIGHT);
+            this.position.y += tryUp;
+            this.position[axis] += step;
+            if (!this._collideAxis(axis, step)) {
+              stepped = true;
+              break;
+            }
+            this.position[axis] -= step;
+            this.position.y -= tryUp;
+          }
+          if (!stepped) {
+            this.position[axis] = saved; // restore to collision point
+            this._collideAxis(axis, step);
+          }
+          return;
+        }
+        this._collideAxis(axis, step);
+        return;
+      }
     }
 
     if (axis === 'y' && delta < 0) {

@@ -1246,7 +1246,7 @@ export class UI {
     this._iconUrlCache = new Map();
 
     // Hide game UI elements immediately so they don't flash over menus
-    ['hotbar', 'crosshair', 'crosshair-dot', 'status-bars', 'xp-bar', 'armor-bar', 'offhand-slot', 'chat-hud', 'coords-hud'].forEach(id => {
+    ['hotbar', 'crosshair', 'status-bars', 'xp-bar', 'armor-bar', 'offhand-slot', 'chat-hud', 'coords-hud'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.style.display = 'none';
     });
@@ -1487,7 +1487,7 @@ export class UI {
     for (let i = 9; i >= 0; i--) {
       const val = player.health - i * 2;
       const full = val >= 2, half = val >= 1;
-      hh += `<img src="${drawHeartUrl(full, half && !full)}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
+      hh += `<img src="${drawHeartUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.healthBar.innerHTML = hh;
 
@@ -1496,7 +1496,7 @@ export class UI {
     for (let i = 0; i < 10; i++) {
       const val = player.hunger - i * 2;
       const full = val >= 2, half = val >= 1;
-      fh += `<img src="${drawDrumstickUrl(full, half && !full)}" style="width:12px;height:12px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
+      fh += `<img src="${drawDrumstickUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.hungerBar.innerHTML = fh;
     // Hunger warning pulse when below 3 drumsticks (6 hunger)
@@ -1593,8 +1593,7 @@ export class UI {
     const v = visible ? '' : 'none';
     if (this.hotbarEl) this.hotbarEl.style.display = visible ? 'flex' : 'none';
     if (this.hudEl) this.hudEl.style.display = v;
-    const xb = document.getElementById('crosshair'); if (xb) xb.style.display = v;
-    const xd = document.getElementById('crosshair-dot'); if (xd) xd.style.display = v;
+    const xh = document.getElementById('crosshair'); if (xh) xh.style.display = v;
     const ac = document.getElementById('attack-cooldown'); if (ac) ac.style.display = v;
     const sb = document.getElementById('status-bars'); if (sb) sb.style.display = v;
     const xp = document.getElementById('xp-bar'); if (xp) xp.style.display = v;

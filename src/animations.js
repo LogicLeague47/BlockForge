@@ -208,7 +208,7 @@ export class ViewAnimData {
     // Walk bob
     const bobTarget = this.moving ? 1 : 0;
     this._lastMove = lerp(this._lastMove || 0, bobTarget, Math.min(1, dt * 10));
-    this.bobPhase += dt * (this.inWater ? 4 : this.sprinting ? 13 : this.moving ? 10 : 4);
+    this.bobPhase += dt * (this.inWater ? 4 : this.sprinting ? 3.74 : this.moving ? 2.88 : 4);
 
     // Eat phase
     if (this.eating) {

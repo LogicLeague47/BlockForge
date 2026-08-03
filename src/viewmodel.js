@@ -45,12 +45,12 @@ export class ViewModel {
     this.animData = new ViewAnimData();
 
     // Main hand resting pose (right of centre)
-    this._restPos = new THREE.Vector3(0.55, -0.42, -1.0);
-    this._restRot = new THREE.Euler(-0.05, -0.35, 0.05);
+    this._restPos = new THREE.Vector3(0.6, -0.3, -0.7);
+    this._restRot = new THREE.Euler(-0.1, -0.3, 0.0);
 
     // Offhand resting pose (left of centre, mirrored + slightly lower)
-    this._ohRestPos = new THREE.Vector3(-0.55, -0.38, -1.0);
-    this._ohRestRot = new THREE.Euler(-0.05, 0.35, -0.05);
+    this._ohRestPos = new THREE.Vector3(-0.6, -0.26, -0.7);
+    this._ohRestRot = new THREE.Euler(-0.1, 0.3, 0.0);
 
     this._onResize = () => this._resize();
     window.addEventListener('resize', this._onResize);

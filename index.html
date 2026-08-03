@@ -177,15 +177,6 @@
       }
       #crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
       #crosshair::after  { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
-      #crosshair-dot {
-        position: fixed; left: 50%; top: 50%;
-        transform: translate(-50%, -50%);
-        width: 2px; height: 2px;
-        background: rgba(255,255,255,0.6);
-        pointer-events: none; z-index: 10;
-        mix-blend-mode: difference;
-        border-radius: 50%;
-      }
       #attack-cooldown {
         position: fixed; left: 50%; top: 50%;
         transform: translate(-50%, -50%);
@@ -214,12 +205,12 @@
 
       /* Hotbar — Bedrock style */
       #hotbar {
-        position: fixed; left: 50%; bottom: 12px;
+        position: fixed; left: 50%; bottom: 4px;
         transform: translateX(-50%);
         display: none; gap: 0px;
-        padding: 3px 4px; z-index: 30;
+        padding: 2px 3px; z-index: 30;
         background: rgba(0,0,0,0.55);
-        border: 3px solid rgba(50,50,50,0.85);
+        border: 2px solid rgba(50,50,50,0.85);
         border-top-color: rgba(80,80,80,0.9);
         border-left-color: rgba(70,70,70,0.85);
         border-radius: 2px;
@@ -227,7 +218,7 @@
         image-rendering: pixelated;
       }
       .slot {
-        width: 48px; height: 48px;
+        width: 36px; height: 36px;
         background: rgba(60,60,60,0.45);
         border: 2px solid rgba(20,20,20,0.8);
         border-top-color: rgba(60,60,60,0.6);
@@ -242,7 +233,7 @@
         border-top-color: #fff;
         box-shadow: 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 8px rgba(255,255,255,0.1);
       }
-      .slot canvas { width: 34px; height: 34px; image-rendering: pixelated;
+      .slot canvas { width: 26px; height: 26px; image-rendering: pixelated;
         filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
       }
       .slot .num {
@@ -271,9 +262,9 @@
 
       /* XP Bar */
       #xp-bar {
-        position: fixed; left: 50%; bottom: 72px;
+        position: fixed; left: 50%; bottom: 48px;
         transform: translateX(-50%);
-        width: 462px; height: 7px;
+        width: 350px; height: 5px;
         background: #1a1a1a;
         border: 2px solid #0a0a0a;
         border-top-color: #0a0a0a;
@@ -305,9 +296,9 @@
 
       /* Status bars container — sits above XP bar, hearts left, hunger right */
       #status-bars {
-        position: fixed; bottom: 78px; left: 50%;
+        position: fixed; bottom: 56px; left: 50%;
         transform: translateX(-50%);
-        width: 462px; z-index: 10;
+        width: 350px; z-index: 10;
         pointer-events: none;
         display: flex; justify-content: space-between;
         align-items: flex-end;
@@ -318,9 +309,9 @@
       }
       .hunger-warn { animation: hungerPulse 0.7s ease-in-out infinite; filter: drop-shadow(0 0 2px #f55); }
       #armor-bar {
-        position: fixed; bottom: 78px; left: 50%;
+        position: fixed; bottom: 56px; left: 50%;
         transform: translateX(-50%);
-        width: 462px;
+        width: 350px;
         display: flex; justify-content: space-between;
         z-index: 10;
         pointer-events: none;
@@ -330,8 +321,8 @@
         pointer-events: none;
       }
       #offhand-slot {
-        position: fixed; right: calc(50% - 270px); bottom: 14px;
-        width: 38px; height: 38px;
+        position: fixed; right: calc(50% - 210px); bottom: 6px;
+        width: 30px; height: 30px;
         background: rgba(0,0,0,0.45);
         border: 2px solid rgba(20,20,20,0.7);
         border-top-color: rgba(50,50,50,0.6);
@@ -342,7 +333,7 @@
         pointer-events: none;
       }
       #offhand-slot img {
-        width: 30px; height: 30px;
+        width: 22px; height: 22px;
         image-rendering: pixelated;
       }
       #offhand-slot .offhand-label {
@@ -2279,7 +2270,6 @@
   <body>
     <div id="app"></div>
     <div id="crosshair"></div>
-    <div id="crosshair-dot"></div>
     <div id="attack-cooldown"></div>
     <div id="item-name"></div>
     <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
@@ -2725,8 +2715,8 @@
             <label>FOV</label>
             <select id="set-fov">
               <option value="60">60</option>
-              <option value="70">70</option>
-              <option value="75" selected>75</option>
+              <option value="70" selected>70</option>
+              <option value="75">75</option>
               <option value="90">90</option>
               <option value="110">110</option>
             </select>
