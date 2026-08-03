@@ -369,123 +369,300 @@ function buildTower(set, ox, y, oz) {
 }
 
 function buildDesertTemple(set, ox, y, oz) {
-  // Desert temple: 19×19 sandstone structure with central chamber, treasure room below
-  const w = 19, d = 19;
-  // Flatten + foundation
+  // Desert temple: grand 21×25 sandstone structure with twin towers, pillared hall, underground treasure vault
+  const w = 21, d = 25;
+  const mid = w >> 1;
+
+  // ── Foundation ──
   for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
     foundation(set, ox + x, y, oz + z, BLOCK.SANDSTONE);
   }
-  // Floor
+
+  // ── Floor: sandstone with terracotta band inlay ──
   for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
-    set(ox + x, y, oz + z, BLOCK.SANDSTONE);
+    const borderX = x <= 1 || x >= w - 2;
+    const borderZ = z <= 1 || z >= d - 2;
+    set(ox + x, y, oz + z, (borderX || borderZ) ? BLOCK.TERRACOTTA : BLOCK.SANDSTONE);
   }
-  // Walls (6 high)
-  for (let h = 1; h <= 6; h++) {
+
+  // ── Walls (8 high): chiseled sandstone + terracotta band ──
+  for (let h = 1; h <= 8; h++) {
     for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
       const edge = x === 0 || x === w - 1 || z === 0 || z === d - 1;
       if (!edge) { set(ox + x, y + h, oz + z, BLOCK.AIR); continue; }
-      // Chiseled sandstone pattern on walls
-      const pattern = (x + z + h) % 3 === 0 ? BLOCK.TERRACOTTA : BLOCK.SANDSTONE;
+      const band = h === 1 || h === 5 || h === 8;
+      const pattern = band ? BLOCK.TERRACOTTA : ((x + z + h) % 4 === 0 ? BLOCK.RED_SAND : BLOCK.SANDSTONE);
       set(ox + x, y + h, oz + z, pattern);
     }
   }
-  // Door openings (all 4 sides, 2 wide) — clear the perimeter wall, not the interior
-  const mid = w >> 1;
-  for (const [dx, dz] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-    for (let d = 0; d < 2; d++) {
-      const bx = dx !== 0 ? (ox + (dx < 0 ? 0 : w - 1)) : (ox + mid + d);
-      const bz = dz !== 0 ? (oz + (dz < 0 ? 0 : w - 1)) : (oz + mid + d);
-      set(bx, y + 1, bz, BLOCK.AIR);
-      set(bx, y + 2, bz, BLOCK.AIR);
+
+  // ── Front entrance: grand archway (3 wide, 3 tall) ──
+  for (let dx = -1; dx <= 1; dx++) for (let h = 1; h <= 3; h++) {
+    set(ox + mid + dx, y + h, oz, BLOCK.AIR);
+  }
+  // Entrance pillars (chiseled sandstone)
+  for (let h = 1; h <= 3; h++) {
+    set(ox + mid - 2, y + h, oz, BLOCK.TERRACOTTA);
+    set(ox + mid + 2, y + h, oz, BLOCK.TERRACOTTA);
+  }
+
+  // ── Side doors (2 wide) ──
+  for (const side of [-1, 1]) {
+    const sx = side === -1 ? 0 : w - 1;
+    for (let dz = -1; dz <= 0; dz++) {
+      set(ox + sx, y + 1, oz + (d >> 1) + dz, BLOCK.AIR);
+      set(ox + sx, y + 2, oz + (d >> 1) + dz, BLOCK.AIR);
     }
   }
-  // Tiered roof
-  const ry = y + 7;
-  for (let x = -2; x <= w + 1; x++) for (let z = -2; z <= d + 1; z++) {
-    const inset = Math.max(Math.abs(x - (w - 1) / 2), Math.abs(z - (d - 1) / 2));
-    const roofH = inset > 8 ? 0 : inset > 6 ? 1 : inset > 4 ? 2 : 3;
-    if (roofH > 0) set(ox + x, ry + roofH, oz + z, BLOCK.SANDSTONE);
+
+  // ── Back door ──
+  for (let dx = -1; dx <= 0; dx++) {
+    set(ox + mid + dx, y + 1, oz + d - 1, BLOCK.AIR);
+    set(ox + mid + dx, y + 2, oz + d - 1, BLOCK.AIR);
   }
-  // Central pillar (chiseled sandstone)
+
+  // ── Interior: four pillars along the hall ──
+  const pillarPositions = [[3, 5], [w - 4, 5], [3, d - 6], [w - 4, d - 6]];
+  for (const [px, pz] of pillarPositions) {
+    for (let h = 1; h <= 7; h++) {
+      set(ox + px, y + h, oz + pz, h % 2 === 0 ? BLOCK.TERRACOTTA : BLOCK.SANDSTONE);
+    }
+    set(ox + px, y + 7, oz + pz, BLOCK.SANDSTONE); // pillar cap
+  }
+
+  // ── Central nave ceiling: vaulted arches ──
+  for (let z = 3; z <= d - 4; z++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      set(ox + mid + dx, y + 8, oz + z, BLOCK.SANDSTONE);
+    }
+  }
+
+  // ── Tiered tower roofs on front corners ──
+  for (const towerX of [0, w - 1]) {
+    const tz = -2;
+    for (let step = 0; step < 4; step++) {
+      const ry = y + 9 + step;
+      const inset = step;
+      for (let dx = -1 - inset; dx <= 1 + inset; dx++) {
+        for (let dz = -1 - inset; dz <= 1 + inset; dz++) {
+          const edge = Math.abs(dx) === 1 + inset || Math.abs(dz) === 1 + inset;
+          if (edge) set(ox + towerX + dx, ry, oz + tz + dz, BLOCK.SANDSTONE);
+        }
+      }
+    }
+  }
+
+  // ── Tiered main roof ──
+  for (let step = 0; step < 3; step++) {
+    const ry = y + 9 + step;
+    const inset = step * 2;
+    for (let x = inset; x < w - inset; x++) for (let z = inset; z < d - inset; z++) {
+      const edge = x === inset || x === w - 1 - inset || z === inset || z === d - 1 - inset;
+      if (edge) set(ox + x, ry, oz + z, step % 2 === 0 ? BLOCK.TERRACOTTA : BLOCK.SANDSTONE);
+    }
+  }
+
+  // ── Torches: wall-mounted along hall ──
+  for (const tz of [3, 8, 13, 18]) {
+    set(ox + 1, y + 4, oz + tz, BLOCK.TORCH);
+    set(ox + w - 2, y + 4, oz + tz, BLOCK.TORCH);
+  }
+
+  // ── Interior furnishings: furnaces + crafting along back wall ──
+  set(ox + 2, y + 1, oz + d - 3, BLOCK.FURNACE);
+  set(ox + 3, y + 1, oz + d - 3, BLOCK.FURNACE);
+  set(ox + w - 3, y + 1, oz + d - 3, BLOCK.CRAFTING);
+  set(ox + 2, y + 2, oz + d - 3, BLOCK.TORCH);
+
+  // ── Stairway to treasure vault (center of hall) ──
   const cx = ox + mid, cz = oz + mid;
-  for (let h = 1; h <= 6; h++) set(cx, y + h, cz, BLOCK.SANDSTONE);
-  // Torches on pillars
-  for (const [dx, dz] of [[3, 3], [-4, 3], [3, -4], [-4, -4]]) {
-    set(ox + mid + dx, y + 4, oz + mid + dz, BLOCK.TORCH);
+  for (let i = 0; i < 4; i++) {
+    set(cx, y - 1 - i, cz + i, BLOCK.AIR);
+    set(cx, y - 2 - i, cz + i, BLOCK.SANDSTONE);
   }
-  // Treasure chamber below (dig down, place pressure plate + loot)
-  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
-    set(cx + dx, y - 1, cz + dz, BLOCK.SANDSTONE);
-    set(cx + dx, y - 2, cz + dz, BLOCK.AIR);
-    set(cx + dx, y - 3, cz + dz, BLOCK.SANDSTONE);
+  // Open vault entrance
+  set(cx, y - 1, cz, BLOCK.AIR);
+
+  // ── Treasure vault below (7×7) ──
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    set(cx + dx, y - 5, cz + dz, BLOCK.SANDSTONE); // floor
+    set(cx + dx, y - 6, cz + dz, BLOCK.TERRACOTTA); // decorative base
+    for (let h = -4; h <= -1; h++) {
+      const vEdge = Math.abs(dx) === 3 || Math.abs(dz) === 3;
+      set(cx + dx, y + h, cz + dz, vEdge ? BLOCK.SANDSTONE : BLOCK.AIR);
+    }
   }
-  set(cx, y - 2, cz, BLOCK.STONE_PRESSURE_PLATE); // trigger
-  // Four chests in treasure room
-  set(cx - 2, y - 2, cz - 2, BLOCK.CHEST);
-  set(cx + 2, y - 2, cz - 2, BLOCK.CHEST);
-  set(cx - 2, y - 2, cz + 2, BLOCK.CHEST);
-  set(cx + 2, y - 2, cz + 2, BLOCK.CHEST);
-  // Lava beneath pressure plate (the trap)
-  set(cx, y - 3, cz, BLOCK.LAVA);
+
+  // ── Pressure plate trap in vault center ──
+  set(cx, y - 4, cz, BLOCK.STONE_PRESSURE_PLATE);
+  set(cx, y - 6, cz, BLOCK.LAVA); // lava beneath trap
+
+  // ── Loot chests in vault corners + sides ──
+  set(cx - 2, y - 4, cz - 3, BLOCK.CHEST);
+  set(cx + 2, y - 4, cz - 3, BLOCK.CHEST);
+  set(cx - 2, y - 4, cz + 3, BLOCK.CHEST);
+  set(cx + 2, y - 4, cz + 3, BLOCK.CHEST);
+  set(cx - 3, y - 4, cz, BLOCK.CHEST);
+  set(cx + 3, y - 4, cz, BLOCK.CHEST);
+
+  // ── Vault torches ──
+  set(cx - 3, y - 3, cz - 3, BLOCK.TORCH);
+  set(cx + 3, y - 3, cz - 3, BLOCK.TORCH);
+  set(cx - 3, y - 3, cz + 3, BLOCK.TORCH);
+  set(cx + 3, y - 3, cz + 3, BLOCK.TORCH);
 }
 
 function buildJungleTemple(set, ox, y, oz, world) {
-  // Jungle temple: mossy cobblestone + vines, 15×15 with hidden treasure
-  const w = 15, d = 15;
+  // Jungle temple: mossy cobblestone + stone bricks, 17×19 with two levels, hidden treasure room
+  const w = 17, d = 19;
+  const mid = w >> 1;
+
+  // ── Foundation ──
   for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
     foundation(set, ox + x, y, oz + z, BLOCK.COBBLESTONE);
   }
-  // Floor: mix of cobblestone and mossy cobblestone
+
+  // ── Ground floor: cobblestone/mossy mix with stone brick accents ──
   for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
-    set(ox + x, y, oz + z, (x + z) % 3 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE);
+    const checker = (x + z) % 2 === 0;
+    const border = x <= 1 || x >= w - 2 || z <= 1 || z >= d - 2;
+    set(ox + x, y, oz + z, border ? BLOCK.STONE_BRICKS : (checker ? BLOCK.COBBLESTONE : BLOCK.MOSSY_COBBLESTONE));
   }
-  // Walls (5 high)
-  for (let h = 1; h <= 5; h++) {
+
+  // ── Walls (7 high): mossy cobblestone base, stone brick upper ──
+  for (let h = 1; h <= 7; h++) {
     for (let x = 0; x < w; x++) for (let z = 0; z < d; z++) {
       const edge = x === 0 || x === w - 1 || z === 0 || z === d - 1;
       if (!edge) { set(ox + x, y + h, oz + z, BLOCK.AIR); continue; }
-      const mat = h === 1 ? BLOCK.COBBLESTONE :
-        ((x + z + h) % 4 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE);
+      const mat = h <= 3
+        ? ((x + z + h) % 3 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE)
+        : ((x + z + h) % 3 === 0 ? BLOCK.STONE_BRICKS : BLOCK.COBBLESTONE);
       set(ox + x, y + h, oz + z, mat);
     }
   }
-  // Door opening
-  const mid = w >> 1;
-  set(ox + mid, y + 1, oz, BLOCK.AIR);
-  set(ox + mid, y + 2, oz, BLOCK.AIR);
-  // Windows: iron bars
-  for (let x = 3; x < w - 3; x += 4) {
-    set(ox + x, y + 3, oz, BLOCK.IRON_BARS);
-    set(ox + x, y + 3, oz + d - 1, BLOCK.IRON_BARS);
+
+  // ── Front entrance: 3-wide arch ──
+  for (let dx = -1; dx <= 1; dx++) {
+    for (let h = 1; h <= 3; h++) set(ox + mid + dx, y + h, oz, BLOCK.AIR);
   }
-  // Triangular roof using stairs-like stepping
-  for (let step = 0; step < 3; step++) {
-    const ry = y + 6 + step;
-    const inset = step;
-    for (let x = -1 + inset; x < w - inset; x++) for (let z = -1 + inset; z < d - inset; z++) {
-      const isEdge = x === -1 + inset || x === w - 1 - inset || z === -1 + inset || z === d - 1 - inset;
-      if (isEdge) set(ox + x, ry, oz + z, BLOCK.MOSSY_COBBLESTONE);
+  // Arch header
+  set(ox + mid - 2, y + 3, oz, BLOCK.STONE_BRICKS);
+  set(ox + mid + 2, y + 3, oz, BLOCK.STONE_BRICKS);
+  set(ox + mid - 2, y + 4, oz, BLOCK.STONE_BRICKS);
+  set(ox + mid + 2, y + 4, oz, BLOCK.STONE_BRICKS);
+
+  // ── Side entrances ──
+  for (const side of [-1, 1]) {
+    const sx = side === -1 ? 0 : w - 1;
+    for (let h = 1; h <= 2; h++) set(ox + sx, y + h, oz + mid, BLOCK.AIR);
+    set(ox + sx, y + 3, oz + mid, BLOCK.AIR);
+  }
+
+  // ── Back entrance ──
+  for (let dx = -1; dx <= 0; dx++) {
+    set(ox + mid + dx, y + 1, oz + d - 1, BLOCK.AIR);
+    set(ox + mid + dx, y + 2, oz + d - 1, BLOCK.AIR);
+  }
+
+  // ── Windows: iron bars on all sides ──
+  for (const wz of [4, 8, 12]) {
+    set(ox + 1, y + 4, oz + wz, BLOCK.IRON_BARS);
+    set(ox + w - 2, y + 4, oz + wz, BLOCK.IRON_BARS);
+  }
+  for (const wx of [4, 8, 12]) {
+    set(ox + wx, y + 4, oz + 1, BLOCK.IRON_BARS);
+    set(ox + wx, y + 4, oz + d - 2, BLOCK.IRON_BARS);
+  }
+
+  // ── Ground floor pillars (mossy cobblestone) ──
+  const pillarPos = [[3, 4], [w - 4, 4], [3, d - 5], [w - 4, d - 5]];
+  for (const [px, pz] of pillarPos) {
+    for (let h = 1; h <= 6; h++) {
+      set(ox + px, y + h, oz + pz, h < 3 ? BLOCK.COBBLESTONE : BLOCK.MOSSY_COBBLESTONE);
+    }
+    set(ox + px, y + 7, oz + pz, BLOCK.STONE_BRICKS);
+  }
+
+  // ── Upper floor/ceiling (stone brick platform over back half) ──
+  for (let x = 2; x < w - 2; x++) for (let z = mid + 1; z < d - 2; z++) {
+    set(ox + x, y + 4, oz + z, BLOCK.STONE_BRICKS);
+  }
+
+  // ── Stairway to upper level ──
+  for (let i = 0; i < 3; i++) {
+    set(ox + w - 3, y + 5 + i, oz + mid + 1 + i, BLOCK.STONE_BRICKS);
+    set(ox + w - 4, y + 5 + i, oz + mid + 1 + i, BLOCK.STONE_BRICKS);
+  }
+
+  // ── Upper level: more chests + greenstone torches ──
+  set(ox + 3, y + 5, oz + d - 4, BLOCK.CHEST);
+  set(ox + 4, y + 5, oz + d - 4, BLOCK.CHEST);
+  set(ox + 3, y + 5, oz + d - 3, BLOCK.GREENSTONE_TORCH);
+  set(ox + w - 4, y + 5, oz + d - 4, BLOCK.LEVER);
+
+  // ── Triangular mossy roof ──
+  for (let step = 0; step < 4; step++) {
+    const ry = y + 8 + step;
+    for (let x = step; x < w - step; x++) for (let z = step; z < d - step; z++) {
+      const edge = x === step || x === w - 1 - step || z === step || z === d - 1 - step;
+      if (edge) set(ox + x, ry, oz + z, step % 2 === 0 ? BLOCK.MOSSY_COBBLESTONE : BLOCK.STONE_BRICKS);
     }
   }
-  // Interior: torches + hidden treasure room below
-  set(ox + 1, y + 3, oz + 1, BLOCK.TORCH);
-  set(ox + w - 2, y + 3, oz + d - 2, BLOCK.TORCH);
-  // Lever to open treasure room
-  set(ox + 2, y + 2, oz + 2, BLOCK.LEVER);
-  // Treasure room below
-  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
-    set(ox + mid + dx, y - 1, oz + mid + dz, BLOCK.COBBLESTONE);
-    set(ox + mid + dx, y - 2, oz + mid + dz, BLOCK.AIR);
-    set(ox + mid + dx, y - 3, oz + mid + dz, BLOCK.COBBLESTONE);
+
+  // ── Ground floor furnishings ──
+  // Left side: furnaces + crafting
+  set(ox + 2, y + 1, oz + 2, BLOCK.FURNACE);
+  set(ox + 3, y + 1, oz + 2, BLOCK.FURNACE);
+  set(ox + 2, y + 1, oz + 3, BLOCK.CRAFTING);
+  set(ox + 2, y + 2, oz + 2, BLOCK.TORCH);
+
+  // Right side: chests
+  set(ox + w - 3, y + 1, oz + 2, BLOCK.CHEST);
+  set(ox + w - 3, y + 1, oz + 3, BLOCK.CHEST);
+
+  // ── Ground floor torches ──
+  set(ox + 1, y + 4, oz + 3, BLOCK.GREENSTONE_TORCH);
+  set(ox + w - 2, y + 4, oz + 3, BLOCK.GREENSTONE_TORCH);
+  set(ox + 1, y + 4, oz + d - 4, BLOCK.GREENSTONE_TORCH);
+  set(ox + w - 2, y + 4, oz + d - 4, BLOCK.GREENSTONE_TORCH);
+
+  // ── Hidden treasure room below (accessible via stairway) ──
+  const cz = oz + mid;
+  // Stairway down from center of ground floor
+  for (let i = 0; i < 4; i++) {
+    set(ox + mid, y - 1 - i, cz - 2 + i, BLOCK.AIR);
+    set(ox + mid, y - 2 - i, cz - 2 + i, BLOCK.COBBLESTONE);
   }
-  // Stairway down
-  for (let i = 0; i < 3; i++) {
-    set(ox + mid, y - 1 - i, oz + mid - 1, BLOCK.AIR);
-    set(ox + mid, y - 2 - i, oz + mid - 1, BLOCK.COBBLESTONE);
+
+  // ── Treasure room (5×5) ──
+  for (let dx = -2; dx <= 2; dx++) for (let dz = -2; dz <= 2; dz++) {
+    set(ox + mid + dx, y - 5, cz + dz, BLOCK.MOSSY_COBBLESTONE); // floor
+    for (let h = -4; h <= -1; h++) {
+      const vEdge = Math.abs(dx) === 2 || Math.abs(dz) === 2;
+      set(ox + mid + dx, y + h, cz + dz, vEdge ? BLOCK.COBBLESTONE : BLOCK.AIR);
+    }
   }
-  // Loot chest
-  set(ox + mid - 1, y - 2, oz + mid - 1, BLOCK.CHEST);
-  set(ox + mid + 1, y - 2, oz + mid - 1, BLOCK.CHEST);
+
+  // ── Treasure chests (6 total) ──
+  set(ox + mid - 1, y - 4, cz - 2, BLOCK.CHEST);
+  set(ox + mid + 1, y - 4, cz - 2, BLOCK.CHEST);
+  set(ox + mid - 1, y - 4, cz + 2, BLOCK.CHEST);
+  set(ox + mid + 1, y - 4, cz + 2, BLOCK.CHEST);
+  set(ox + mid - 2, y - 4, cz, BLOCK.CHEST);
+  set(ox + mid + 2, y - 4, cz, BLOCK.CHEST);
+
+  // ── Treasure room torches ──
+  set(ox + mid - 2, y - 3, cz - 2, BLOCK.GREENSTONE_TORCH);
+  set(ox + mid + 2, y - 3, cz - 2, BLOCK.GREENSTONE_TORCH);
+  set(ox + mid - 2, y - 3, cz + 2, BLOCK.GREENSTONE_TORCH);
+  set(ox + mid + 2, y - 3, cz + 2, BLOCK.GREENSTONE_TORCH);
+
+  // ── Vine decorations on exterior walls ──
+  for (const vz of [3, 7, 11, 15]) {
+    for (let h = 2; h <= 5; h++) {
+      set(ox - 1, y + h, oz + vz, BLOCK.AIR); // clear air for vines
+    }
+  }
 }
 
 function getDesertTemple(rx, rz, noise, seed) {
@@ -515,7 +692,7 @@ function placeDesertTemple(t, chunk, baseX, baseZ, world) {
     if (wy < 0 || wy >= WORLD_HEIGHT) return;
     chunk.set(wx - baseX, wy, wz - baseZ, b);
   };
-  buildDesertTemple(set, t.cx - 9, t.baseY, t.cz - 9);
+  buildDesertTemple(set, t.cx - 10, t.baseY, t.cz - 12);
 }
 
 function placeJungleTemple(t, chunk, baseX, baseZ, world) {
@@ -525,7 +702,7 @@ function placeJungleTemple(t, chunk, baseX, baseZ, world) {
     if (wy < 0 || wy >= WORLD_HEIGHT) return;
     chunk.set(wx - baseX, wy, wz - baseZ, b);
   };
-  buildJungleTemple(set, t.cx - 7, t.baseY, t.cz - 7, world);
+  buildJungleTemple(set, t.cx - 8, t.baseY, t.cz - 9, world);
 }
 
 // Place a single structure at a world position (used by the dev tools).
