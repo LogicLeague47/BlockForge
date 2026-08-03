@@ -79,10 +79,10 @@ export function calcHeight(n, wx, wz, mode) {
 }
 
 export function calcBiome(n, wx, wz, h) {
-  const t = n.fbm2(n.temp, wx * 0.004, wz * 0.004, 4, 2, 0.5);
-  const hu = n.fbm2(n.humid, wx * 0.004, wz * 0.004, 4, 2, 0.5);
-  const cont = n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
-  const erosion = n.fbm2(n.erosion, wx * 0.006, wz * 0.006, 4, 2, 0.5);
+  const t = n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
+  const hu = n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
+  const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
+  const erosion = n.fbm2(n.erosion, wx * 0.003, wz * 0.003, 4, 2, 0.5);
 
   // River: narrow water channels on land
   if (cont > 0.05 && h <= SEA_LEVEL && h >= SEA_LEVEL - 3) {
@@ -104,17 +104,15 @@ export function calcBiome(n, wx, wz, h) {
   // Snowy Forest (~10% of land): cold temperatures
   if (t < -0.4) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
   
-  // Forest (~25% of land): cool to mild with humidity
-  if (t < 0.3 && hu > -0.1) {
+  // Forest (~20% of land): cool to mild with humidity
+  if (t < 0.15 && hu > 0.1) {
     if (hu > 0.4) return BIOMES.DARK_FOREST;
-    if (hu > 0.15) return BIOMES.FOREST;
-    if (hu > 0.05) return BIOMES.BIRCH_FOREST;
-    return BIOMES.FOREST;
+    if (hu > 0.2) return BIOMES.FOREST;
+    if (hu > 0.1) return BIOMES.BIRCH_FOREST;
   }
   
-  // Plains (~31% of land): moderate temperatures, default
+  // Plains (~40% of land): moderate temperatures, default
   if (t < 0.5) {
-    if (hu > 0.3 && hu < 0.5) return BIOMES.FOREST;
     return BIOMES.PLAINS;
   }
   

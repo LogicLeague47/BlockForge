@@ -152,18 +152,18 @@ export class Player {
 
   spawn() {
     const noise = new Noise(this.seed);
-    // Search outward from origin for land (not ocean)
+    // Search outward from origin for good land (well above sea level, not coast)
     let bestX = 0.5, bestZ = 0.5, bestH = calcHeight(noise, 0, 0);
-    for (let r = 0; r <= 80; r += 4) {
-      for (let a = 0; a < 8; a++) {
-        const angle = (a / 8) * Math.PI * 2;
+    for (let r = 0; r <= 120; r += 3) {
+      for (let a = 0; a < 12; a++) {
+        const angle = (a / 12) * Math.PI * 2;
         const tx = Math.cos(angle) * r;
         const tz = Math.sin(angle) * r;
         const h = calcHeight(noise, Math.floor(tx), Math.floor(tz));
-        if (h > 33) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
+        if (h > 38) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
       }
     }
-    this.position.set(bestX, Math.max(bestH + 1.05, 33), bestZ);
+    this.position.set(bestX, Math.max(bestH + 1.05, 38), bestZ);
     this.velocity.set(0, 0, 0);
   }
 
