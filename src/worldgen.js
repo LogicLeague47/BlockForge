@@ -78,6 +78,11 @@ export function calcHeight(n, wx, wz, mode) {
   return Math.max(2, Math.min(WORLD_HEIGHT - 6, Math.floor(h)));
 }
 
+// Returns continentalness value for a world position (used for spawn checks).
+export function getCont(n, wx, wz) {
+  return n.fbm2(n.continentalness, wx * 0.005, wz * 0.005, 6, 2, 0.5);
+}
+
 export function calcBiome(n, wx, wz, h) {
   const t = n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const hu = n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);

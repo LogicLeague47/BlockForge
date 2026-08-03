@@ -15,7 +15,7 @@ import { BLOCK, BLOCKS } from './blocks.js';
 import { WORLD_HEIGHT } from './world.js';
 import { Inventory } from './inventory.js';
 import { Noise } from './noise.js';
-import { calcHeight } from './worldgen.js';
+import { calcHeight, getCont } from './worldgen.js';
 import { totalArmorDefense } from './items.js';
 import { getKeybinds } from './keybinds.js';
 import { raycastVoxel } from './raycast.js';
@@ -152,15 +152,17 @@ export class Player {
 
   spawn() {
     const noise = new Noise(this.seed);
-    // Search outward from origin for good land (well above sea level, not coast)
+    // Search outward from origin for good land (well above sea level, not coast/ocean)
     let bestX = 0.5, bestZ = 0.5, bestH = calcHeight(noise, 0, 0);
-    for (let r = 0; r <= 120; r += 3) {
-      for (let a = 0; a < 12; a++) {
-        const angle = (a / 12) * Math.PI * 2;
+    for (let r = 0; r <= 180; r += 3) {
+      for (let a = 0; a < 16; a++) {
+        const angle = (a / 16) * Math.PI * 2;
         const tx = Math.cos(angle) * r;
         const tz = Math.sin(angle) * r;
         const h = calcHeight(noise, Math.floor(tx), Math.floor(tz));
-        if (h > 38) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
+        const cont = getCont(noise, Math.floor(tx), Math.floor(tz));
+        // Require good height AND firmly inland (continentalness > 0.1, ocean starts < 0)
+        if (h > 38 && cont > 0.1) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
       }
     }
     this.position.set(bestX, Math.max(bestH + 1.05, 38), bestZ);
