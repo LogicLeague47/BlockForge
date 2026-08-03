@@ -178,14 +178,11 @@ export class ViewModel {
     tex.minFilter = THREE.NearestFilter;
     tex.generateMipmaps = false;
     tex.colorSpace = THREE.SRGBColorSpace;
-    const frontMat = new THREE.MeshBasicMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map: tex, transparent, alphaTest: transparent ? 0.5 : 0,
       depthTest: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
     });
-    const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
-    // BoxGeometry(w, h, d): texture on +Z/-Z faces (w×h), dark on thin edge (d)
-    const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
-    return new THREE.Mesh(new THREE.BoxGeometry(size, size, 1 / 16), materials);
+    return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   }
 
   // Tools / weapons (id >= 512): proper 3D shape with head + handle
@@ -295,10 +292,8 @@ export class ViewModel {
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
     const mesh = this._planeFromCanvas(canvas, 0.4, true);
-    // +Z has texture, but hand faces -Z toward camera. Flip and tilt.
-    mesh.rotation.y = Math.PI;
-    mesh.rotation.x = -0.35;
-    mesh.rotation.z = 0.08;
+    // Angle like Minecraft held item — tilted back, slightly right
+    mesh.rotation.set(-0.4, 0.3, 0.1);
     const wrap = new THREE.Group();
     wrap.add(mesh);
     wrap.position.set(0.02, 0.08, -0.02);

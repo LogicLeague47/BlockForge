@@ -148,8 +148,11 @@ export class DroppedItem {
       this.group.traverse(c => {
         if (c.geometry) c.geometry.dispose();
         if (c.material) {
-          if (c.material.map && typeof c.material.map.dispose === 'function') c.material.map.dispose();
-          c.material.dispose();
+          const mats = Array.isArray(c.material) ? c.material : [c.material];
+          for (const mat of mats) {
+            if (mat.map && typeof mat.map.dispose === 'function') mat.map.dispose();
+            mat.dispose();
+          }
         }
       });
     }
