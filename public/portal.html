@@ -173,6 +173,11 @@
     .update-body .u-item.bug{color:#f8c8c8;border-color:var(--red);background:rgba(255,85,85,.07)}
     .update-body .u-item.upd{border-color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.05)}
     .update-body .u-item.feat{border-color:var(--green);background:rgba(68,204,68,.06)}
+    .updates-pagination{display:flex;justify-content:center;align-items:center;gap:6px;margin:16px 0;flex-wrap:wrap}
+    .updates-pagination button{min-width:36px;height:36px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.06);color:var(--text);font:bold 13px 'Inter',monospace;cursor:pointer;transition:all .15s}
+    .updates-pagination button:hover{background:rgba(255,255,255,.12);border-color:var(--accent)}
+    .updates-pagination button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .updates-pagination button:disabled{opacity:.35;cursor:default}
 
     /* Toast notifications */
     #toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:2000}
@@ -384,6 +389,7 @@
         <p>Latest changes, bug fixes, and new features for BlockForge.</p>
         <input type="text" class="search-box" id="updates-search" placeholder="Search updates…">
         <div id="portal-updates-list"></div>
+        <div id="updates-pagination" class="updates-pagination"></div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
@@ -1092,10 +1098,16 @@
           '</div></div>';
       }
 
-      function renderUpdates(filter) {
+      var UPDATES_PER_PAGE = 5;
+      var updatesPage = 0;
+
+      function renderUpdates(filter, page) {
         var list = document.getElementById('portal-updates-list');
+        var pag = document.getElementById('updates-pagination');
         if (!list) return;
         var q = (filter || '').toLowerCase().trim();
+        if (page !== undefined) updatesPage = page;
+        else if (q) updatesPage = 0;
         var sections = UPDATE_SECTIONS;
         if (q) {
           sections = UPDATE_SECTIONS.filter(function(s) {
@@ -1103,8 +1115,14 @@
             return hay.indexOf(q) !== -1;
           });
         }
-        list.innerHTML = sections.length ? sections.map(function(s, i) {
-          return updateSectionHTML(s, i, !q && i === 0);
+        var totalPages = Math.ceil(sections.length / UPDATES_PER_PAGE);
+        if (updatesPage >= totalPages) updatesPage = totalPages - 1;
+        if (updatesPage < 0) updatesPage = 0;
+        var start = updatesPage * UPDATES_PER_PAGE;
+        var pageSections = sections.slice(start, start + UPDATES_PER_PAGE);
+
+        list.innerHTML = pageSections.length ? pageSections.map(function(s, i) {
+          return updateSectionHTML(s, start + i, !q && i === 0);
         }).join('') : '<div class="srv-empty">No updates match your search.</div>';
         list.dataset.rendered = '1';
         list.dataset.filter = q || '';
@@ -1119,6 +1137,25 @@
             arrow.textContent = isOpen ? '▼' : '▲';
           };
         });
+
+        // Render pagination
+        if (pag && totalPages > 1 && !q) {
+          var html = '<button id="pg-prev" ' + (updatesPage === 0 ? 'disabled' : '') + '>◀</button>';
+          for (var p = 0; p < totalPages; p++) {
+            html += '<button class="pg-btn' + (p === updatesPage ? ' active' : '') + '" data-pg="' + p + '">' + (p + 1) + '</button>';
+          }
+          html += '<button id="pg-next" ' + (updatesPage >= totalPages - 1 ? 'disabled' : '') + '>▶</button>';
+          pag.innerHTML = html;
+          pag.querySelectorAll('.pg-btn').forEach(function(btn) {
+            btn.onclick = function() { renderUpdates(q, parseInt(this.dataset.pg)); };
+          });
+          var prevBtn = document.getElementById('pg-prev');
+          var nextBtn = document.getElementById('pg-next');
+          if (prevBtn) prevBtn.onclick = function() { renderUpdates(q, updatesPage - 1); };
+          if (nextBtn) nextBtn.onclick = function() { renderUpdates(q, updatesPage + 1); };
+        } else if (pag) {
+          pag.innerHTML = '';
+        }
       }
       document.getElementById('updates-search').addEventListener('input', function() {
         renderUpdates(this.value);
