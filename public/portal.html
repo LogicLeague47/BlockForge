@@ -621,7 +621,12 @@
       } else {
         loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
-        content.style.display = 'none';
+        // Portal is browsable without an account: show the dashboard content,
+        // just without live per-player stats/play-data when logged out.
+        content.style.display = 'block';
+        renderRecentUpdates();
+        renderDownloads();
+        refreshServerStatus();
       }
 
       // ── Login button ─────────────────────────────────────────────────────
@@ -664,7 +669,7 @@
       // ── Card navigation + keyboard ─────────────────────────────────────
       var cards = Array.prototype.slice.call(document.querySelectorAll('.card[data-page]'));
       function openPage(page, push) {
-        if (!userName) { toast('Please log in first.', 'err'); return; }
+        // Portal pages are browsable without logging in — no login gate.
         document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
         document.querySelectorAll('#view-home').forEach(function(g) { g.style.display = 'none'; });
         document.querySelectorAll('#recent-updates-title').forEach(function(s) { s.style.display = 'none'; });
