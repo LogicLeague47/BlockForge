@@ -346,16 +346,18 @@ export class CloudSystem {
   }
 
   update(dt, dayTime, playerX, playerZ, sinA) {
-    // Move clouds
+    // Drift clouds independently within the layer
     for (const c of this.clouds) {
       c.group.position.x += c.speed * dt;
-      // Wrap around when too far
-      if (c.group.position.x > playerX + 120) {
-        c.group.position.x = playerX - 120;
+      // Wrap when too far from center of the cloud layer
+      if (c.group.position.x > 120) {
+        c.group.position.x -= 240;
+      } else if (c.group.position.x < -120) {
+        c.group.position.x += 240;
       }
     }
 
-    // Position cloud layer above player
+    // Cloud layer follows player so clouds are always in the sky
     this.group.position.x = playerX;
     this.group.position.z = playerZ;
 
