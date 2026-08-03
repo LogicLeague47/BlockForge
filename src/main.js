@@ -2819,7 +2819,7 @@ function submitChat() {
       bossActive = true;
       bossEntity = boss;
       bossAttackTimer = 2;
-      addChatLine('The Ender Dragon has appeared!', '#ff3');
+      addChatLine('The Prismite Dragon has appeared!', '#ff3');
       return;
     }
     // /weather command — singleplayer only
@@ -2842,7 +2842,7 @@ function submitChat() {
         '/weather <clear|rain|thunder>',
         '/heal — Restore health',
         '/kill — Die',
-        '/boss — Spawn the Ender Dragon',
+        '/boss — Spawn the Prismite Dragon',
       ];
       if (isDevWorld) {
         cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager|blower|portalman>`);
@@ -6997,7 +6997,7 @@ function loop() {
       for (const drop of bossEntity.getDrops()) {
         droppedItemManager?.drop(drop.item, drop.count, bossEntity.position.x + (Math.random() - 0.5) * 2, bossEntity.position.y + 1, bossEntity.position.z + (Math.random() - 0.5) * 2);
       }
-      addChatLine('The Ender Dragon has been defeated! You received the Dragon Blade!', '#ff5');
+      addChatLine('The Prismite Dragon has been defeated! You received the Dragon Blade!', '#ff5');
       // Remove from scene
       scene.remove(bossEntity.mesh);
       bossEntity.dispose();

@@ -233,7 +233,7 @@ export const MOB_TYPES = {
   },
 
   dragon: {
-    name: 'Ender Dragon',
+    name: 'Prismite Dragon',
     hp: 200,
     hostile: true,
     bodyW: 2.0, bodyH: 1.2, bodyD: 3.5,
