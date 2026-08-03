@@ -1656,49 +1656,6 @@
       .dev-stat-value { font: bold 20px monospace; }
       .dev-stat-value.green { color: #5f5; }
       .dev-stat-value.orange { color: #fa0; }
-      .dev-cmd-grid {
-        display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-      }
-      .dev-cmd-btn {
-        padding: 8px 4px; font: bold 10px monospace;
-        background: rgba(40,50,80,0.5);
-        border: 1px solid rgba(100,140,255,0.12);
-        border-radius: 5px; color: #bcd;
-        cursor: pointer; text-align: center;
-        transition: all 0.15s;
-        backdrop-filter: blur(4px);
-      }
-      .dev-cmd-btn:hover {
-        background: rgba(60,80,140,0.5);
-        border-color: rgba(100,160,255,0.3);
-        color: #fff;
-        transform: translateY(-1px);
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-      }
-      .dev-cmd-btn:active { transform: translateY(0); }
-      .dev-cmd-btn .cmd-icon { font-size: 16px; display: block; margin-bottom: 3px; }
-      .dev-cmd-btn .cmd-label { font-size: 9px; color: #89a; }
-      .dev-cmd-btn.danger { border-color: rgba(255,60,60,0.15); color: #e88; }
-      .dev-cmd-btn.danger:hover { background: rgba(120,30,30,0.5); border-color: rgba(255,60,60,0.3); color: #faa; }
-      .dev-chat-row {
-        display: flex; gap: 6px; margin-top: 8px;
-      }
-      .dev-chat-row input {
-        flex: 1; padding: 7px 10px;
-        background: rgba(0,0,0,0.4); color: #fff;
-        border: 1px solid rgba(100,140,255,0.12);
-        border-radius: 4px; font: 12px monospace; outline: none;
-        transition: border-color 0.2s;
-      }
-      .dev-chat-row input:focus { border-color: rgba(100,160,255,0.3); }
-      .dev-chat-row button {
-        padding: 7px 14px; font: bold 11px monospace;
-        background: rgba(60,100,180,0.3);
-        border: 1px solid rgba(100,160,255,0.2);
-        border-radius: 4px; color: #8cf; cursor: pointer;
-        transition: all 0.15s;
-      }
-      .dev-chat-row button:hover { background: rgba(60,100,180,0.5); border-color: rgba(100,160,255,0.4); color: #fff; }
       .dev-search-input {
         width: 100%; padding: 8px 12px;
         background: rgba(0,0,0,0.4); color: #fff;
@@ -3123,28 +3080,6 @@
                 <div class="dev-stat-label">Servers</div>
                 <div id="dev-servers" class="dev-stat-value orange">0</div>
               </div>
-            </div>
-          </div>
-          <!-- Quick Commands -->
-          <div class="dev-section">
-            <div class="dev-section-title">Quick Commands</div>
-            <div class="dev-cmd-grid">
-              <button class="dev-cmd-btn" data-dev-cmd="/time day"><span class="cmd-icon">☀</span><span class="cmd-label">Day</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/time night"><span class="cmd-icon">🌙</span><span class="cmd-label">Night</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/time noon"><span class="cmd-icon">🌤</span><span class="cmd-label">Noon</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/time midnight"><span class="cmd-icon">🌑</span><span class="cmd-label">Midnight</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/weather clear"><span class="cmd-icon">☀</span><span class="cmd-label">Clear</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/weather rain"><span class="cmd-icon">🌧</span><span class="cmd-label">Rain</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/weather thunder"><span class="cmd-icon">⛈</span><span class="cmd-label">Storm</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/difficulty peaceful"><span class="cmd-icon">😇</span><span class="cmd-label">Peaceful</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/difficulty easy"><span class="cmd-icon">😊</span><span class="cmd-label">Easy</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/difficulty normal"><span class="cmd-icon">😐</span><span class="cmd-label">Normal</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/difficulty hard"><span class="cmd-icon">💀</span><span class="cmd-label">Hard</span></button>
-              <button class="dev-cmd-btn" data-dev-cmd="/heal"><span class="cmd-icon">❤</span><span class="cmd-label">Heal</span></button>
-            </div>
-            <div class="dev-chat-row">
-              <input id="dev-chat-input" type="text" placeholder="Type command or message..." maxlength="200" spellcheck="false" autocomplete="off" />
-              <button id="dev-chat-send">Send</button>
             </div>
           </div>
           <!-- Accounts -->

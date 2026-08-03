@@ -5466,63 +5466,6 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
-  // Dev command buttons
-  document.querySelectorAll('[data-dev-cmd]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const cmd = btn.dataset.devCmd;
-      if (cmd && typeof sendDevCommand === 'function') sendDevCommand(cmd);
-    });
-  });
-
-  // Dev chat send
-  const devChatSend = document.getElementById('dev-chat-send');
-  const devChatInput = document.getElementById('dev-chat-input');
-  if (devChatSend && devChatInput) {
-    const doDevSend = () => {
-      const text = devChatInput.value.trim();
-      if (!text) return;
-      if (text.startsWith('/')) {
-        if (typeof sendDevCommand === 'function') sendDevCommand(text);
-      } else if (network && network.connected) {
-        network.sendChat(text);
-      }
-      devChatInput.value = '';
-    };
-    devChatSend.addEventListener('click', doDevSend);
-    devChatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doDevSend(); });
-  }
-
-  function sendDevCommand(cmd) {
-    if (cmd.startsWith('/time ')) {
-      const val = cmd.slice(6).trim();
-      if (val === 'day' || val === '0') dayTime = 0.01;
-      else if (val === 'night' || val === '13000') dayTime = 0.625;
-      else if (val === 'noon') dayTime = 0.5;
-      else if (val === 'midnight') dayTime = 0;
-      addChatLine(`Time set to ${val}.`, '#5f5');
-    } else if (cmd.startsWith('/difficulty ')) {
-      const val = cmd.slice(12).trim();
-      difficulty = val;
-      addChatLine(`Difficulty set to ${val}.`, '#5f5');
-    } else if (cmd.startsWith('/weather ')) {
-      const val = cmd.slice(9).trim();
-      if (weatherSystem) {
-        if (val === 'clear') weatherSystem.setState('clear');
-        else if (val === 'rain' || val === 'rainy') weatherSystem.setState('rain');
-        else if (val === 'thunder' || val === 'storm') weatherSystem.setState('thunder');
-      }
-      addChatLine(`Weather set to ${val}.`, '#5f5');
-    } else if (cmd === '/heal') {
-      if (typeof health !== 'undefined') health = 20;
-      if (typeof food !== 'undefined') food = 20;
-      addChatLine('Health restored.', '#5f5');
-    } else if (network && network.connected) {
-      network.sendChat(cmd);
-    } else {
-      addChatLine('No server connected.', '#f55');
-    }
-  }
-
   function setDevAccountListMsg(text) {
     const list = document.getElementById('dev-account-list');
     if (list) list.innerHTML = `<div class="dev-empty">${escHtml(text)}</div>`;
