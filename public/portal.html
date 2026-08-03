@@ -602,7 +602,7 @@
       if (userName) {
         localStorage.setItem('bf_portal_user', userName);
         if (userRole) localStorage.setItem('bf_portal_role', userRole);
-        showWelcome('back, ' + userName + '!');
+        try { showWelcome('back, ' + userName + '!'); } catch (_) {}
         loginBox.style.display = 'none';
         loggedIn.style.display = 'block';
         content.style.display = 'block';
@@ -613,20 +613,12 @@
         if (userRole) playUrl += '&role=' + encodeURIComponent(userRole);
         var playLink = document.getElementById('play-link');
         if (playLink) playLink.href = playUrl;
-        loadPlayerProgress();
-        refreshStats();
-        renderRecentUpdates();
-        renderDownloads();
-        refreshServerStatus();
       } else {
         loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
         // Portal is browsable without an account: show the dashboard content,
         // just without live per-player stats/play-data when logged out.
         content.style.display = 'block';
-        renderRecentUpdates();
-        renderDownloads();
-        refreshServerStatus();
       }
 
       // ── Login button ─────────────────────────────────────────────────────
@@ -1279,6 +1271,15 @@
       if (userName) {
         renderUploads('skin-grid', 'bf_uploads_skins', true);
         renderUploads('tex-grid', 'bf_uploads_textures', false);
+      }
+
+      // ── Initial data load (must run AFTER all event handlers are bound) ──
+      renderRecentUpdates();
+      renderDownloads();
+      refreshServerStatus();
+      if (userName) {
+        loadPlayerProgress();
+        refreshStats();
       }
     });
   </script>
