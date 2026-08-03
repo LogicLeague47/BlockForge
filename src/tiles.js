@@ -1298,7 +1298,8 @@ const PAINTERS = {
 
   // --- New block painters (BlockForge expansion) ---
   torch(ctx, x0, y0, rng) {
-    ctx.clearRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = '#1a1008';
+    ctx.fillRect(x0, y0, TILE, TILE);
     // Wooden post.
     ctx.fillStyle = 'rgb(120,86,46)';
     ctx.fillRect(x0 + 14, y0 + 12, 4, 18);
@@ -1765,7 +1766,8 @@ const PAINTERS = {
   // ── GREENSTONE TORCH & WIRE ─────────────────────────────────────
   greenstone_torch(ctx, x0, y0, rng) {
     const S = TILE;
-    ctx.clearRect(x0, y0, S, S);
+    ctx.fillStyle = '#081a0c';
+    ctx.fillRect(x0, y0, S, S);
     // Thin wooden stick.
     ctx.fillStyle = 'rgb(110,82,48)';
     ctx.fillRect(x0 + 7, y0 + 8, 2, 8);
@@ -2081,7 +2083,8 @@ function ore(ctx, x0, y0, rng, color) {
 
 // Dandelion: round fluffy yellow head on a thin green stem.
 function dandelion(ctx, x0, y0, rng) {
-  ctx.clearRect(x0, y0, TILE, TILE);
+  ctx.fillStyle = '#1a3a12';
+  ctx.fillRect(x0, y0, TILE, TILE);
   const cx = x0 + 16, cy = y0 + 16;
   // Stem: thin green line from bottom to about 2/3 up
   ctx.fillStyle = '#3a7d2c';
@@ -2129,7 +2132,8 @@ function dandelion(ctx, x0, y0, rng) {
 
 // Poppy: red petals with dark centre on a green stem.
 function poppy(ctx, x0, y0, rng) {
-  ctx.clearRect(x0, y0, TILE, TILE);
+  ctx.fillStyle = '#1a3a12';
+  ctx.fillRect(x0, y0, TILE, TILE);
   const cx = x0 + 16, cy = y0 + 16;
   // Stem
   ctx.fillStyle = '#3a7d2c';

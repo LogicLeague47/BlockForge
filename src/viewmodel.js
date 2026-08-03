@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { TILES, tileNameFor } from './blocks.js';
+import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 import { isBlockItem, isTool, itemDef } from './items.js';
 import { makeItemIconCanvas, TOOL_PALETTES } from './ui.js';
 import { ViewAnimData, lerp, Easing } from './animations.js';
@@ -128,7 +128,12 @@ export class ViewModel {
     if (itemId == null) return;
 
     if (isBlockItem(itemId)) {
-      this.heldMesh = this._buildBlockMesh(itemId);
+      const def = BLOCKS[itemId];
+      if (def && def.plant) {
+        this.heldMesh = this._buildPlantMesh(itemId);
+      } else {
+        this.heldMesh = this._buildBlockMesh(itemId);
+      }
     } else if (isTool(itemId)) {
       this.heldMesh = this._buildToolMesh(itemId);
     } else {
@@ -148,7 +153,12 @@ export class ViewModel {
     if (itemId == null) return;
 
     if (isBlockItem(itemId)) {
-      this.offhandMesh = this._buildBlockMesh(itemId);
+      const def = BLOCKS[itemId];
+      if (def && def.plant) {
+        this.offhandMesh = this._buildPlantMesh(itemId);
+      } else {
+        this.offhandMesh = this._buildBlockMesh(itemId);
+      }
     } else if (isTool(itemId)) {
       this.offhandMesh = this._buildToolMesh(itemId);
     } else {
@@ -315,6 +325,22 @@ export class ViewModel {
     mesh.rotation.set(-0.18, -0.55, 0.05);
     mesh.position.set(0, 0, 0);
     return mesh;
+  }
+
+  _buildPlantMesh(blockId) {
+    const sideName = tileNameFor(blockId, 'side');
+    const tex = this._atlasTileTexture(sideName);
+    const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
+    const wrap = new THREE.Group();
+    const size = 0.5;
+    const plane1 = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+    plane1.rotation.y = Math.PI / 4;
+    wrap.add(plane1);
+    const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
+    plane2.rotation.y = -Math.PI / 4;
+    wrap.add(plane2);
+    wrap.rotation.set(-0.18, -0.55, 0.05);
+    return wrap;
   }
 
   _atlasTileTexture(name) {

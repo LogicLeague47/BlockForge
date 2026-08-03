@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { isBlockItem, isTool, itemDef } from './items.js';
 import { TOOL_PALETTES, makeItemIconCanvas } from './ui.js';
-import { TILES, tileNameFor } from './blocks.js';
+import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 import { PlayerAnimData, calculatePose } from './animations.js';
 // Blob shadows removed — real shadow map shadows used instead
 
@@ -520,21 +520,34 @@ export class PlayerModel {
     const wrap = new THREE.Group();
 
     if (isBlockItem(itemId)) {
-      const sideCanvas = this._getBlockCanvas(itemId, 'side');
-      const topCanvas = this._getBlockCanvas(itemId, 'top');
-      const sideTex = this._canvasTex(sideCanvas);
-      const topTex = this._canvasTex(topCanvas);
-      const botTex = this._canvasTex(sideCanvas);
-      const mats = [
-        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
-        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
-        new THREE.MeshLambertMaterial({ map: topTex, fog: false }),
-        new THREE.MeshLambertMaterial({ map: botTex, fog: false }),
-        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
-        new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
-      ];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), mats);
-      wrap.add(mesh);
+      const def = BLOCKS[itemId];
+      if (def && def.plant) {
+        const sideCanvas = this._getBlockCanvas(itemId, 'side');
+        const sideTex = this._canvasTex(sideCanvas);
+        const mat = new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const plane1 = new THREE.Mesh(new THREE.PlaneGeometry(px(5), px(5)), mat);
+        plane1.rotation.y = Math.PI / 4;
+        wrap.add(plane1);
+        const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(px(5), px(5)), mat);
+        plane2.rotation.y = -Math.PI / 4;
+        wrap.add(plane2);
+      } else {
+        const sideCanvas = this._getBlockCanvas(itemId, 'side');
+        const topCanvas = this._getBlockCanvas(itemId, 'top');
+        const sideTex = this._canvasTex(sideCanvas);
+        const topTex = this._canvasTex(topCanvas);
+        const botTex = this._canvasTex(sideCanvas);
+        const mats = [
+          new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+          new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+          new THREE.MeshLambertMaterial({ map: topTex, fog: false }),
+          new THREE.MeshLambertMaterial({ map: botTex, fog: false }),
+          new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+          new THREE.MeshLambertMaterial({ map: sideTex, fog: false }),
+        ];
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), mats);
+        wrap.add(mesh);
+      }
     } else if (isTool(itemId)) {
       const def = itemDef(itemId);
       const p = TOOL_PALETTES[def?.tool?.material] || TOOL_PALETTES.IRON;

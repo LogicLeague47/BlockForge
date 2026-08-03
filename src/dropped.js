@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
-import { TILES, tileNameFor } from './blocks.js';
+import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
 import { CHUNK_SIZE } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
@@ -35,14 +35,25 @@ export class DroppedItem {
     this.group.position.set(this.x, this.y, this.z);
 
     if (isBlockItem(itemId)) {
-      // Render as miniature 3D cube with atlas textures
-      const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
-      const topTex = this._atlasTex(tileNameFor(itemId, 'top'));
-      const botTex = this._atlasTex(tileNameFor(itemId, 'bottom'));
-      const mkMat = (t) => new THREE.MeshBasicMaterial({ map: t, fog: false });
-      const materials = [mkMat(sideTex), mkMat(sideTex), mkMat(topTex), mkMat(botTex), mkMat(sideTex), mkMat(sideTex)];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), materials);
-      this.group.add(mesh);
+      const def = BLOCKS[itemId];
+      if (def && def.plant) {
+        const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
+        const mat = new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const plane1 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat);
+        plane1.rotation.y = Math.PI / 4;
+        this.group.add(plane1);
+        const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat);
+        plane2.rotation.y = -Math.PI / 4;
+        this.group.add(plane2);
+      } else {
+        const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
+        const topTex = this._atlasTex(tileNameFor(itemId, 'top'));
+        const botTex = this._atlasTex(tileNameFor(itemId, 'bottom'));
+        const mkMat = (t) => new THREE.MeshBasicMaterial({ map: t, fog: false });
+        const materials = [mkMat(sideTex), mkMat(sideTex), mkMat(topTex), mkMat(botTex), mkMat(sideTex), mkMat(sideTex)];
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), materials);
+        this.group.add(mesh);
+      }
     } else {
       // Non-block items: two crossed flat boxes (Minecraft-style, visible from all angles while spinning)
       const canvas = makeItemIconCanvas(itemId);
