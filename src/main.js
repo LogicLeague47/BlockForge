@@ -580,6 +580,13 @@ ui.onSmelt = (inputItem, count) => {
   achievements.incrementMapStat('smelted', inputItem, count);
 };
 
+// Overflowing items (crafting/inventory close with a full inventory) drop on the ground.
+ui.onItemOverflow = (stacks) => {
+  if (!gameRunning || !player || !droppedItemManager) return;
+  const px = player.position.x, py = player.position.y + 1, pz = player.position.z;
+  for (const s of stacks) droppedItemManager.drop(s.item, s.count, px, py, pz);
+};
+
 // --- sleep overlay ---
 const sleepOverlay = document.getElementById('sleep-overlay');
 const sleepMessage = document.getElementById('sleep-message');
@@ -7227,7 +7234,9 @@ function initMenuPreview() {
     new THREE.MeshBasicMaterial({ map: pedestalTex, transparent: true, depthWrite: false })
   );
   pedestal.rotation.x = -Math.PI / 2;
-  pedestal.position.y = 0.001;
+  // Slightly BELOW the shadow plane so the dropped shadow renders on top of the
+  // glow and shows up against the near-black background (was on top, hiding it).
+  pedestal.position.y = -0.01;
   menuPreviewScene.add(pedestal);
   menuPreviewSkin = getSelectedSkin();
   menuPreviewModel = new PlayerModel(menuPreviewScene, menuPreviewSkin, atlasCanvas);

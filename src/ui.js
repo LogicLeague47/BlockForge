@@ -1856,13 +1856,17 @@ export class UI {
 
   closeInventory() {
     if (this.audio) this.audio.inventoryClose();
+    const overflow = [];
     if (this._inventoryRef && this.craftingGrid) {
-      this.craftingGrid.returnAll(this._inventoryRef);
+      overflow.push(...this.craftingGrid.returnAll(this._inventoryRef));
     }
     if (this.cursorItem) {
-      if (this._inventoryRef) this._inventoryRef.add(this.cursorItem.item, this.cursorItem.count);
+      const left = this._inventoryRef ? this._inventoryRef.add(this.cursorItem.item, this.cursorItem.count) : this.cursorItem.count;
+      if (left > 0) overflow.push({ item: this.cursorItem.item, count: left });
       this.cursorItem = null;
     }
+    // Items that couldn't fit get dropped instead of being destroyed
+    if (overflow.length && this.onItemOverflow) this.onItemOverflow(overflow);
     this.cursorItemEl.style.display = 'none';
     this.inventoryOpen = false;
     this.inventoryScreen.classList.remove('open');
@@ -2239,13 +2243,20 @@ export class UI {
     this._updateCursorVisual();
   }
 
+  // Fresh stack from an id/count, initialising durability for tools/armour.
+  _freshStack(itemId, count = 1) {
+    const def = itemDef(itemId);
+    const maxD = def && (def.tool ? def.tool.maxDurability : def.armor ? def.armor.maxDurability : null);
+    return { item: itemId, count, ...(maxD != null && maxD > 0 ? { durability: maxD } : {}) };
+  }
+
   _onCraftOutputClick() {
     const grid = this.craftingGrid;
     const out = grid.output;
     if (!out) return;
     if (this.cursorItem && (this.cursorItem.item !== out.id || this.cursorItem.count + out.count > maxStack(out.id))) return;
     if (!this.cursorItem) {
-      this.cursorItem = { item: out.id, count: out.count };
+      this.cursorItem = this._freshStack(out.id, out.count);
     } else {
       this.cursorItem.count += out.count;
     }

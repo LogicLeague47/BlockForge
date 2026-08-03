@@ -5,7 +5,7 @@
 // their own slot. The selected hotbar index tracks which slot the player is
 // "holding" for break/place actions.
 
-import { maxStack } from './items.js';
+import { maxStack, itemDef } from './items.js';
 
 export const HOTBAR_SLOTS = 9;
 export const MAIN_SLOTS = 27;
@@ -54,11 +54,20 @@ export class Inventory {
     for (let i = 0; i < TOTAL && count > 0; i++) {
       if (!this.slots[i]) {
         const add = Math.min(cap, count);
-        this.slots[i] = { item: itemId, count: add };
+        this.slots[i] = this._newItemStack(itemId, add);
         count -= add;
       }
     }
     return count; // leftover
+  }
+
+  // Build a fresh stack, initialising durability for tools/armour (so they can wear).
+  _newItemStack(itemId, count = 1) {
+    const def = itemDef(itemId);
+    const stack = { item: itemId, count };
+    const maxD = def && (def.tool ? def.tool.maxDurability : def.armor ? def.armor.maxDurability : null);
+    if (maxD != null && maxD > 0) stack.durability = maxD;
+    return stack;
   }
 
   // Sanitize the whole inventory: fix corrupted counts, remove invalid slots

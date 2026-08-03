@@ -3,6 +3,11 @@
 
 const STATES = { OFF: 0, ON_MUTED: 1, ON_UNMUTED: 2 };
 
+function _esc(s) {
+  return String(s ?? '').replace(/[&<>"']/g, c =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 export class VoiceChat {
   constructor(network, username) {
     this.network = network;
@@ -459,10 +464,11 @@ export class VoiceChat {
     const info = this._panel?.querySelector('#vp-group-info');
     if (!info) return;
     if (this._groupCode) {
+      const scode = _esc(this._groupCode);
       const members = this._groupMembers.length > 0
-        ? `<div style="margin-top:6px;color:#aaa;">Members: ${this._groupMembers.join(', ')}</div>`
+        ? `<div style="margin-top:6px;color:#aaa;">Members: ${this._groupMembers.map(_esc).join(', ')}</div>`
         : '';
-      info.innerHTML = `<span style="color:#5af;">Group: ${this._groupCode}</span>${members}`;
+      info.innerHTML = `<span style="color:#5af;">Group: ${scode}</span>${members}`;
     } else {
       info.innerHTML = '<span style="color:#666;">Not in a group</span>';
     }
@@ -480,7 +486,7 @@ export class VoiceChat {
       const isMuted = name === this.username && this.muted;
       const isOff = name === this.username && this.state === STATES.OFF;
       const opacity = (isMuted || isOff) ? '0.4' : '1';
-      return `<div style="position:relative;width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font:700 14px sans-serif;color:#fff;opacity:${opacity};border:2px solid ${color};box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="${name}">
+      return `<div style="position:relative;width:36px;height:36px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;font:700 14px sans-serif;color:#fff;opacity:${opacity};border:2px solid ${color};box-shadow:0 2px 6px rgba(0,0,0,0.4);" title="${_esc(name)}">
         ${initial}
         ${isMuted ? '<div style="position:absolute;bottom:-2px;right:-2px;width:14px;height:14px;border-radius:50%;background:#e8a030;display:flex;align-items:center;justify-content:center;font:9px;color:#fff;border:1.5px solid #2b2b2b;">M</div>' : ''}
       </div>`;

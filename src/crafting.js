@@ -54,19 +54,25 @@ export class CraftingGrid {
   }
 
   // When closing the crafting screen, return all grid items to an inventory.
+  // Returns the list of { item, count } stacks that did NOT fit (so the caller
+  // can drop them instead of silently destroying them).
   returnAll(inventory) {
+    const leftovers = [];
     for (let i = 0; i < this.grid.length; i++) {
       const s = this.grid[i];
       if (s) {
         const left = inventory.add(s.item, s.count);
         this.grid[i] = null;
+        if (left > 0) leftovers.push({ item: s.item, count: left });
       }
     }
     if (this.cursor) {
-      inventory.add(this.cursor.item, this.cursor.count);
+      const left = inventory.add(this.cursor.item, this.cursor.count);
+      if (left > 0) leftovers.push({ item: this.cursor.item, count: left });
       this.cursor = null;
     }
     this.refreshOutput();
+    return leftovers;
   }
 
   clear() {

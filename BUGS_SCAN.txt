@@ -3,6 +3,14 @@
 Issues marked with [FIXED] have been resolved since the previous scan and are removed.
 Issues below are STILL PRESENT in the current codebase.
 
+## Recently fixed (August 2026)
+- server.js — Critical: `cgUsername === GAMEDEV_ACCOUNT` (client-supplied) skipped password auth AND granted ROLE_GAMEDEV, which `isDev()` treats as full access. Removed the auth bypass (always require password on public host) and made `resolveRole` never grant a privileged role from client input.
+- inventory.js — tools/armor stacks never got a `durability` field, so tools never degraded/broke. `add()` now initializes durability via `_newItemStack()`.
+- ui.js — crafted tools still lacked durability; crafting output now uses `_freshStack()`.
+- explosions.js — every exploded block was written to the persistent edit log (`recordEdit` defaulted true), ballooning saves. Now passes `recordEdit=false`.
+- crafting.js + ui.js — closing a crafting screen with a full inventory silently destroyed leftover items. `returnAll()` now returns leftovers and ui.js drops them via `ui.onItemOverflow`.
+- voice.js — group code / peer names injected into `innerHTML` unescaped (stored-XSS). Added `_esc()` and applied it to group info + avatar titles.
+
 ## File: server.js
 - **Line 19**: `__dirname` referenced before its declaration at line 87; hoisting works but fragile | Severity: low
 - **Line 1024**: Typo in comment: "degrade" should be "degrade" (intentional but misspelled) | Severity: low

@@ -40,7 +40,9 @@ export class ExplosionManager {
           // Destroy if within power, with distance-based resistance
           const resistance = (def.hardness || 0) * 0.3;
           if (dist <= power - resistance) {
-            this.world.setBlock(bx, by, bz, BLOCK.AIR);
+            // Static/transient destruction: don't record each block in the
+            // persistent edit log, or repeated explosions would balloon the save.
+            this.world.setBlock(bx, by, bz, BLOCK.AIR, false);
             destroyed.push({ x: bx, y: by, z: bz, block });
           }
         }

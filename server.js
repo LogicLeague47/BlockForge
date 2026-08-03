@@ -187,7 +187,6 @@ function ensureOfficialServer() {
 // ── Role system ───────────────────────────────────────────────────────
 const ROLE_GAMEDEV = 'gamedev', ROLE_OWNER = 'owner', ROLE_ADMIN = 'admin', ROLE_STAFF = 'staff', ROLE_PLAYER = 'player', ROLE_DEV = 'dev';
 const ROLE_LEVEL = { [ROLE_DEV]: 6, [ROLE_GAMEDEV]: 5, [ROLE_OWNER]: 4, [ROLE_ADMIN]: 3, [ROLE_STAFF]: 2, [ROLE_PLAYER]: 1 };
-const GAMEDEV_ACCOUNT = 'LogicLeague';
 const OWNER_USERNAME = 'LogicLeague'; // username that always carries the Owner tag
 
 function generateSecret() {
@@ -195,8 +194,10 @@ function generateSecret() {
 }
 
 function resolveRole(cgUsername, playerName) {
+  // NOTE: never grant a privileged role from the client-supplied `cgUsername`.
+  // Only real (password-authenticated) accounts and hardcoded devs get powers.
   if (playerName && DEV_USERNAMES.has(playerName.toLowerCase())) return ROLE_DEV;
-  if (cgUsername === GAMEDEV_ACCOUNT) return ROLE_GAMEDEV;
+  if (playerName && OWNER_USERNAME && playerName === OWNER_USERNAME && accounts[playerName]) return ROLE_DEV;
   // Check stored account role
   if (playerName && accounts[playerName] && accounts[playerName].role) return accounts[playerName].role;
   return null;
@@ -950,8 +951,8 @@ async function handleCreateRoom(ws, msg) {
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
   if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
-  // Authenticate account (skip for CrazyGames GameDev or LAN mode)
-  if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
+  // Authenticate account (LAN mode skips auth since it's a local/dev server)
+  if (!IS_LAN) {
     const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
@@ -1026,8 +1027,8 @@ async function handleJoin(ws, msg) {
   if (!roomName || !playerName) return sendError(ws, 'Missing room name or player name.');
   if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
-  // Authenticate account (skip for CrazyGames GameDev or LAN mode)
-  if (!IS_LAN && cgUsername !== GAMEDEV_ACCOUNT) {
+  // Authenticate account (LAN mode skips auth since it's a local/dev server)
+  if (!IS_LAN) {
     const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
