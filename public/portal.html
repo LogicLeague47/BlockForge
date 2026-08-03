@@ -155,6 +155,25 @@
     .search-box{width:100%;padding:11px 14px;background:rgba(0,0,0,.45);color:#fff;border:1px solid var(--border);border-radius:8px;font:13px 'Inter',monospace;outline:none;margin-bottom:16px;transition:border-color .2s}
     .search-box:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(120,160,255,.15)}
 
+    /* Updates accordion — themed to match the portal glass/gradient style */
+    .update-section{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;backdrop-filter:blur(4px);transition:border-color .25s,border-radius .25s;position:relative}
+    .update-section .update-head{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;padding:14px 16px;user-select:none;transition:background .2s;text-align:left;width:100%}
+    .update-section .update-head:hover .update-title{filter:brightness(1.15)}
+    .update-section .update-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+    .update-section .update-hash{font:bold 10px monospace;color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.12);padding:1px 6px;border-radius:5px;border:1px solid rgba(var(--accent-rgb,120,160,255),.25)}
+    .update-section .update-date{font:bold 10px monospace;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+    .update-section .update-title{font-weight:700;font-size:14px;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;transition:filter .2s}
+    .update-section .update-desc{font:11px/1.45 'Inter',monospace;color:var(--muted);margin-top:3px}
+    .update-section .update-arrow{font-size:11px;color:var(--accent);flex-shrink:0;transition:transform .25s;border:1px solid var(--border);border-radius:6px;width:22px;height:22px;display:grid;place-items:center}
+    .update-section.open .update-arrow{transform:rotate(180deg)}
+    .update-section.open{border-color:rgba(var(--accent-rgb,120,160,255),.4);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .update-body{padding:0 16px;max-height:0;overflow:hidden;transition:max-height .28s ease,padding .28s ease,opacity .28s}
+    .update-body .u-group{font:bold 10px monospace;letter-spacing:1.5px;margin:10px 0 6px}
+    .update-body .u-item{font:11px/1.5 'Inter',monospace;color:var(--text);padding:6px 8px 6px 10px;margin-bottom:4px;border-left:2px solid;border-radius:4px;background:rgba(120,160,255,.05)}
+    .update-body .u-item.bug{color:#f8c8c8;border-color:var(--red);background:rgba(255,85,85,.07)}
+    .update-body .u-item.upd{border-color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.05)}
+    .update-body .u-item.feat{border-color:var(--green);background:rgba(68,204,68,.06)}
+
     /* Toast notifications */
     #toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:2000}
     .toast{padding:13px 20px;border-radius:10px;font:13px 'Inter',monospace;color:#fff;border:1px solid var(--border);background:rgba(24,24,48,.92);box-shadow:0 12px 40px rgba(0,0,0,.5);animation:toastIn .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:10px;backdrop-filter:blur(8px);max-width:340px}
@@ -856,6 +875,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '87d9935',
+          heading: 'Security Fixes + Tool Durability & Crafting Overhaul',
+          desc: 'Closed a critical multiplayer privilege-escalation hole, and fixed several long-standing gameplay bugs: tools now actually wear down and break, explosions stop bloating save files, and lost crafting items now drop instead of vanishing.',
+          date: 'Aug 3',
+          bugs: ['Removed a server auth bypass that let anyone claim the GameDev role and act as an admin', 'Tools (pickaxes/axes/swords) never lost durability — they could never break', 'Explosions permanently wrote every destroyed block into the save', 'Closing a crafting screen with a full inventory silently deleted leftover items', 'Voice-chat group codes / names were injected unescaped (stored-XSS)'],
+          updates: ['Server: client-supplied usernames can no longer escalate to privileged roles', 'Tools now degrade and break over use, with working durability bars', 'Explosion edits no longer accumulate in the persistent save', 'Overflowing crafted items drop at your feet instead of disappearing'],
+          features: [],
+        },
+        {
           hash: 'be520ca',
           heading: 'Randomized Music',
           desc: 'The ambient music now randomly picks from six different chord progressions, scales, and tempos, switching every 16–32 bars so the soundtrack stays fresh.',
@@ -993,19 +1021,23 @@
       ];
 
       function updateSectionHTML(s, i, open) {
-        return '<div class="update-section" style="margin-bottom:6px;border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden;">' +
-          '<div class="update-head" data-idx="' + i + '" style="cursor:pointer;padding:10px 12px;background:rgba(255,170,0,0.06);font:13px/1.4 monospace;color:#fa0;display:flex;justify-content:space-between;align-items:center;user-select:none;gap:8px;">' +
+        var group = function(label, cls, list) {
+          return '<div class="u-group" style="color:' + (cls === 'bug' ? 'var(--red)' : cls === 'feat' ? 'var(--green)' : 'var(--accent)') + ';">' + label + '</div>' +
+            list.map(function(x) { return '<div class="u-item ' + cls + '">' + x + '</div>'; }).join('');
+        };
+        return '<div class="update-section' + (open ? ' open' : '') + '" data-idx="' + i + '">' +
+          '<div class="update-head">' +
           '<div style="flex:1;min-width:0;">' +
-          '<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">' +
-          '<span style="font:bold 10px monospace;color:#666;background:rgba(255,255,255,0.05);padding:1px 5px;border-radius:3px;">' + s.hash + '</span>' +
-          '<span style="font:bold 10px monospace;color:#888;">' + s.date + '</span></div>' +
-          '<span style="font-weight:bold;">' + s.heading + '</span>' +
-          '<div style="font:11px monospace;color:#999;margin-top:2px;line-height:1.3;">' + s.desc + '</div></div>' +
-          '<span class="update-arrow" style="font-size:10px;transition:.2s;flex-shrink:0;">' + (open ? '▲' : '▼') + '</span></div>' +
-          '<div class="update-body" style="padding:' + (open ? '8px 12px 10px' : '0 12px') + ';max-height:' + (open ? 'none' : '0') + ';overflow:hidden;transition:.25s;">' +
-          (s.bugs.length ? '<div style="font:bold 10px monospace;color:#f88;margin-bottom:3px;">BUGS FIXED</div>' + s.bugs.map(function(b) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #f55;background:rgba(255,80,80,0.05);border-radius:2px;">' + b + '</div>'; }).join('') : '') +
-          (s.updates.length ? '<div style="font:bold 10px monospace;color:#8cf;margin-top:' + (s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">UPDATES</div>' + s.updates.map(function(u) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5af;background:rgba(80,160,255,0.05);border-radius:2px;">' + u + '</div>'; }).join('') : '') +
-          (s.features.length ? '<div style="font:bold 10px monospace;color:#8f8;margin-top:' + (s.updates.length || s.bugs.length ? '8' : '0') + 'px;margin-bottom:3px;">NEW FEATURES</div>' + s.features.map(function(f) { return '<div style="font:10px monospace;color:#ccc;padding:2px 8px;margin-bottom:1px;border-left:2px solid #5c5;background:rgba(80,255,80,0.05);border-radius:2px;">' + f + '</div>'; }).join('') : '') +
+          '<div class="update-meta">' +
+          '<span class="update-hash">' + s.hash + '</span>' +
+          '<span class="update-date">' + s.date + '</span></div>' +
+          '<div class="update-title">' + s.heading + '</div>' +
+          '<div class="update-desc">' + s.desc + '</div></div>' +
+          '<span class="update-arrow">▼</span></div>' +
+          '<div class="update-body">' +
+          (s.bugs.length ? group('BUGS FIXED', 'bug', s.bugs) : '') +
+          (s.updates.length ? group('UPDATES', 'upd', s.updates) : '') +
+          (s.features.length ? group('NEW FEATURES', 'feat', s.features) : '') +
           '</div></div>';
       }
 
@@ -1025,17 +1057,17 @@
         }).join('') : '<div class="srv-empty">No updates match your search.</div>';
         list.dataset.rendered = '1';
         list.dataset.filter = q || '';
-        list.onclick = function(e) {
-          var head = e.target.closest('.update-head');
-          if (!head) return;
-          var sec = head.closest('.update-section');
-          var body = sec.querySelector('.update-body');
-          var arrow = head.querySelector('.update-arrow');
-          var isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
-          body.style.maxHeight = isOpen ? '0' : 'none';
-          body.style.padding = isOpen ? '0 12px' : '8px 12px 10px';
-          arrow.textContent = isOpen ? '▼' : '▲';
-        };
+        list.querySelectorAll('.update-section').forEach(function(sec) {
+          sec.onclick = function(e) {
+            var body = sec.querySelector('.update-body');
+            var isOpen = sec.classList.contains('open');
+            sec.classList.toggle('open');
+            body.style.maxHeight = isOpen ? '0' : (body.scrollHeight + 400) + 'px';
+            body.style.padding = isOpen ? '0 16px' : '0 16px 12px';
+            var arrow = sec.querySelector('.update-arrow');
+            arrow.textContent = isOpen ? '▼' : '▲';
+          };
+        });
       }
       document.getElementById('updates-search').addEventListener('input', function() {
         renderUpdates(this.value);
