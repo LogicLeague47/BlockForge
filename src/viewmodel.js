@@ -178,12 +178,14 @@ export class ViewModel {
     tex.minFilter = THREE.NearestFilter;
     tex.generateMipmaps = false;
     tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({
+    const frontMat = new THREE.MeshBasicMaterial({
       map: tex, transparent, alphaTest: transparent ? 0.5 : 0,
       depthTest: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
     });
-    // 2-pixel thick box (like Minecraft item sprites)
-    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 8), mat);
+    const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
+    // 2-pixel thick box: texture on front/back, dark on thin sides
+    const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
+    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 8), materials);
   }
 
   // Tools / weapons (id >= 512): proper 3D shape with head + handle
