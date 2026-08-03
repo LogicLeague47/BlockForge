@@ -43,14 +43,15 @@ export class DroppedItem {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), materials);
       this.group.add(mesh);
     } else {
-      // Non-block items: two crossed flat planes (Minecraft-style, visible from all angles while spinning)
+      // Non-block items: two crossed flat boxes (Minecraft-style, visible from all angles while spinning)
       const canvas = makeItemIconCanvas(itemId);
       const tex = new THREE.CanvasTexture(canvas);
       tex.magFilter = THREE.NearestFilter;
       tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const geo = new THREE.PlaneGeometry(0.35, 0.35);
+      // 2-pixel thick boxes (like Minecraft item sprites)
+      const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35 / 8);
       const front = new THREE.Mesh(geo, mat);
       this.group.add(front);
       const back = new THREE.Mesh(geo, mat);
