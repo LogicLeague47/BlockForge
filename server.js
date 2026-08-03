@@ -921,6 +921,15 @@ async function handleAuth(ws, msg) {
   const identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
   const auth = await authAccount(playerName, password, mode, identity);
   const resolvedUsername = auth.username || playerName;
+  // Portal chat tracking — always allow, even if auth fails (portal handles login)
+  if (mode === 'portal_chat') {
+    ws._portalChat = true;
+    if (!ws._playerData) {
+      const chatRole = resolveRole(null, resolvedUsername) || (accounts[resolvedUsername] || {}).role || ROLE_PLAYER;
+      ws._playerData = { name: resolvedUsername, role: chatRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+    }
+    _communityChatJoin(resolvedUsername);
+  }
   // On successful auth, attach a lightweight identity to the socket (no room)
   // so friend management works from the menu without joining a world.
   if (auth.ok && !ws._roomName) {
@@ -930,11 +939,6 @@ async function handleAuth(ws, msg) {
     const isGuest = identityType === 'guest';
     if (isGuest && !acc.isGuest) { acc.isGuest = true; saveAccounts(); }
     ws._playerData = { name: resolvedUsername, role: resolvedRole, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest };
-    // Portal chat tracking
-    if (mode === 'portal_chat') {
-      ws._portalChat = true;
-      _communityChatJoin(resolvedUsername);
-    }
     // Let friends know we're online, and send our friend state.
     if (friends[resolvedUsername]) {
       for (const fn of _friendRec(resolvedUsername).friends) notifyFriendState(fn);

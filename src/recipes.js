@@ -207,6 +207,9 @@ export const RECIPES = [
   shaped({ out: { id: I.PRISMITE_LEGS, count: 1 }, pattern: ['PPP', 'P P', 'P P'], key: { P: I.PRISMITE } }),
   shaped({ out: { id: I.PRISMITE_BOOTS, count: 1 }, pattern: ['P P', 'P P'], key: { P: I.PRISMITE } }),
 
+  // ---- Dragon Blade ----
+  shaped({ out: { id: I.DRAGON_BLADE, count: 1 }, pattern: ['D', 'D', 'S'], key: { D: I.DRAGON_SCALES, S: I.STICK } }),
+
   // ---- New BlockForge blocks ----
   shaped({ out: { id: B.SANDSTONE, count: 1 }, pattern: ['SS', 'SS'], key: { S: B.SAND } }),
   shaped({ out: { id: B.MOSSY_COBBLESTONE, count: 1 }, pattern: ['C', 'V'], key: { C: B.COBBLESTONE, V: B.LEAVES } }),

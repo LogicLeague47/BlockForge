@@ -93,10 +93,14 @@ export const ITEM = {
   EYE_OF_ENDER: 318,
   END_STONE_ITEM: 319,
   PORTAL_ORB: 320,
+  DRAGON_SCALES: 321,
+  DRAGON_HEART: 322,
   // copper tools (564+)
   COPPER_PICKAXE: 564, COPPER_AXE: 565, COPPER_SHOVEL: 566, COPPER_SWORD: 567,
   // emerald tools (568+)
   EMERALD_PICKAXE: 568, EMERALD_AXE: 569, EMERALD_SHOVEL: 570, EMERALD_SWORD: 571,
+  // mythic weapons (580+)
+  DRAGON_BLADE: 580,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -137,6 +141,7 @@ const TOOL_MATERIALS = {
   COPPER: { harvest: 3, durability: 200, speedMult: 1.3,  swordDmg: 4 },
   EMERALD:{ harvest: 4, durability: 1561,speedMult: 1.46, swordDmg: 5 },
   PRISMITE:{ harvest: 4, durability: 2000, speedMult: 2.0, swordDmg: 25 },
+  DRAGON:  { harvest: 5, durability: 4000, speedMult: 2.5, swordDmg: 18 },
 };
 
 // Map tool id -> { type: 'pickaxe'|'axe'|'shovel'|'sword', material }
@@ -152,6 +157,8 @@ const TOOLS = {};
   }
   // trident (special, no material tier)
   TOOLS[ITEM.TRIDENT] = { type: 'trident', material: 'PRISMITE' };
+  // Dragon Blade (mythic)
+  TOOLS[ITEM.DRAGON_BLADE] = { type: 'sword', material: 'DRAGON' };
 })();
 
 // --- master ITEMS table -----------------------------------------------------
@@ -217,6 +224,9 @@ const NONBLOCK_ITEMS = {
   [ITEM.EYE_OF_ENDER]: { name: 'Eye of Ender', stack: 16 },
   [ITEM.END_STONE_ITEM]: { name: 'End Stone', stack: 64 },
   [ITEM.PORTAL_ORB]: { name: 'Portal Orb', stack: 16 },
+  [ITEM.DRAGON_SCALES]: { name: 'Dragon Scales', stack: 64 },
+  [ITEM.DRAGON_HEART]: { name: 'Dragon Heart', stack: 1 },
+  [ITEM.DRAGON_BLADE]: { name: 'Dragon Blade', stack: 1, tool: true },
 };
 
 // --- armor definitions -------------------------------------------------------
@@ -363,4 +373,48 @@ export function totalArmorDefense(armorArray) {
   // Full prismite set = invincible
   if (prismiteCount >= 4) return 999;
   return total;
+}
+
+// --- Rarity System --------------------------------------------------------
+export const RARITY = {
+  COMMON:    { name: 'Common',    color: '#aaa',    glow: 0x000000, particle: null },
+  UNCOMMON:  { name: 'Uncommon',  color: '#5f5',    glow: 0x00ff00, particle: null },
+  RARE:      { name: 'Rare',      color: '#55f',    glow: 0x4444ff, particle: null },
+  EPIC:      { name: 'Epic',      color: '#a5f',    glow: 0xaa55ff, particle: 0xaa55ff },
+  LEGENDARY: { name: 'Legendary', color: '#fa0',    glow: 0xffaa00, particle: 0xffaa00 },
+  MYTHIC:    { name: 'Mythic',    color: '#f55',    glow: 0xff3333, particle: 0xff3333 },
+};
+
+const RARITY_ORDER = ['COMMON', 'UNCOMMON', 'RARE', 'EPIC', 'LEGENDARY', 'MYTHIC'];
+
+// Item rarity assignments
+const ITEM_RARITY = {
+  [ITEM.DIAMOND]: 'RARE',
+  [ITEM.EMERALD]: 'EPIC',
+  [ITEM.GOLDEN_APPLE]: 'EPIC',
+  [ITEM.GOLDEN_CARROT]: 'UNCOMMON',
+  [ITEM.DIAMOND_SWORD]: 'RARE',
+  [ITEM.DIAMOND_PICKAXE]: 'RARE',
+  [ITEM.DIAMOND_AXE]: 'RARE',
+  [ITEM.EMERALD_SWORD]: 'EPIC',
+  [ITEM.EMERALD_PICKAXE]: 'EPIC',
+  [ITEM.PRISMITE_SWORD]: 'LEGENDARY',
+  [ITEM.PRISMITE_PICKAXE]: 'LEGENDARY',
+  [ITEM.PRISMITE_CHEST]: 'LEGENDARY',
+  [ITEM.PRISMITE_HELMET]: 'LEGENDARY',
+  [ITEM.PRISMITE_LEGS]: 'LEGENDARY',
+  [ITEM.PRISMITE_BOOTS]: 'LEGENDARY',
+  [ITEM.DRAGON_BLADE]: 'MYTHIC',
+  [ITEM.DRAGON_SCALES]: 'EPIC',
+  [ITEM.DRAGON_HEART]: 'LEGENDARY',
+  [ITEM.PORTAL_ORB]: 'EPIC',
+  [ITEM.EYE_OF_ENDER]: 'RARE',
+  [ITEM.ENDER_PEARL]: 'RARE',
+};
+
+export function getItemRarity(itemId) {
+  return RARITY[ITEM_RARITY[itemId]] || RARITY.COMMON;
+}
+export function getItemRarityKey(itemId) {
+  return ITEM_RARITY[itemId] || 'COMMON';
 }

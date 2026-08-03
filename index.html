@@ -3143,6 +3143,15 @@
       </div>
     </div>
 
+    <!-- Boss Health Bar -->
+    <div id="boss-health-bar" style="display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;width:360px;text-align:center;pointer-events:none;">
+      <div style="font:700 13px monospace;color:#ff3300;text-shadow:0 0 8px rgba(255,51,0,0.7),0 0 16px rgba(255,51,0,0.4);margin-bottom:4px;letter-spacing:2px;">ENDER DRAGON</div>
+      <div style="background:rgba(0,0,0,0.7);border:2px solid rgba(255,51,0,0.5);border-radius:4px;height:14px;overflow:hidden;box-shadow:0 0 12px rgba(255,51,0,0.3);">
+        <div id="boss-health-fill" style="height:100%;width:100%;background:linear-gradient(180deg,#ff5533,#cc2200);transition:width 0.3s;box-shadow:inset 0 -2px 4px rgba(0,0,0,0.4),0 0 8px rgba(255,51,0,0.5);"></div>
+      </div>
+      <div id="boss-health-text" style="font:11px monospace;color:#ffaa88;margin-top:2px;">200 / 200</div>
+    </div>
+
     <!-- Achievement Toast Notification -->
     <div id="achievement-toast">
       <canvas class="ach-icon" width="16" height="16"></canvas>

@@ -10,7 +10,7 @@ import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, TILES, tileNameFor } from './blocks.js';
-import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR } from './items.js';
+import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { updateShaderUniforms } from './shaders.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
@@ -603,6 +603,9 @@ let _lastLocalArmorKey = '';
 let _particles = [];
 const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
 let _portalOrbs = [];
+
+// Boss state
+let bossActive = false, bossEntity = null, bossSpawnTimer = 0, bossAttackTimer = 0;
 let _portalRings = [];      // up to 2 linked portal rings ({ entry, exit })
 let _portalRingCooldown = 0; // prevents instant re-teleport loops
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
@@ -1471,6 +1474,17 @@ function isCriticalHit() {
   }
 }
 
+function spawnDragonBladeParticles(pos) {
+  if (!scene) return;
+  for (let i = 0; i < 12; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.9 });
+    const m = new THREE.Mesh(_particleGeoTiny, mat);
+    m.position.set(pos.x + (Math.random() - 0.5) * 1.5, pos.y + Math.random() * 2, pos.z + (Math.random() - 0.5) * 1.5);
+    scene.add(m);
+    _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 4, vy: 1 + Math.random() * 4, vz: (Math.random() - 0.5) * 4, life: 0.8, maxLife: 0.8 });
+  }
+}
+
 // Show held item name briefly when switching slots
 let _itemNameTimer = 0;
 function showHeldItemName() {
@@ -1480,6 +1494,15 @@ function showHeldItemName() {
   const name = def ? def.name : BLOCKS[slot.item]?.name || 'Unknown';
   ui.itemNameEl.textContent = name;
   ui.itemNameEl.classList.add('visible');
+  // Rarity glow color
+  const rarity = getItemRarity(slot.item);
+  if (rarity && rarity.color !== '#aaa') {
+    ui.itemNameEl.style.color = rarity.color;
+    ui.itemNameEl.style.textShadow = `0 0 8px ${rarity.color}, 0 0 16px ${rarity.color}`;
+  } else {
+    ui.itemNameEl.style.color = '';
+    ui.itemNameEl.style.textShadow = '';
+  }
   _itemNameTimer = 1.5;
 }
 
@@ -2783,6 +2806,22 @@ function submitChat() {
       }
       return;
     }
+    // /boss command — spawn the Ender Dragon
+    if (cmdPart === 'boss' && !inMultiplayer) {
+      if (bossActive) { addChatLine('A boss is already active!', '#f55'); return; }
+      if (!player || !mobManager || !scene) return;
+      const bx = Math.round(player.position.x);
+      const by = Math.round(player.position.y + 20);
+      const bz = Math.round(player.position.z);
+      const boss = mobManager.spawnAt('dragon', bx, by, bz);
+      if (!boss) { addChatLine('Failed to spawn boss.', '#f55'); return; }
+      boss.maxHp = boss.hp;
+      bossActive = true;
+      bossEntity = boss;
+      bossAttackTimer = 2;
+      addChatLine('The Ender Dragon has appeared!', '#ff3');
+      return;
+    }
     // /weather command — singleplayer only
     if (cmdPart === 'weather' && !inMultiplayer) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
@@ -2803,6 +2842,7 @@ function submitChat() {
         '/weather <clear|rain|thunder>',
         '/heal — Restore health',
         '/kill — Die',
+        '/boss — Spawn the Ender Dragon',
       ];
       if (isDevWorld) {
         cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager|blower|portalman>`);
@@ -4020,6 +4060,29 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const crit = isCriticalHit();
       const finalDmg = crit ? Math.ceil(attackDamage * 1.5) : attackDamage;
       mobHit.takeDamage(finalDmg, camera.position);
+
+      // Dragon Blade: area damage to nearby mobs
+      if (atkSlot && atkSlot.item === ITEM.DRAGON_BLADE) {
+        for (const otherMob of mobManager.mobs) {
+          if (otherMob === mobHit || otherMob.dead) continue;
+          const dx = otherMob.position.x - mobHit.position.x;
+          const dy = otherMob.position.y - mobHit.position.y;
+          const dz = otherMob.position.z - mobHit.position.z;
+          const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+          if (dist < 4) {
+            const splashDmg = Math.ceil(finalDmg * 0.6);
+            otherMob.takeDamage(splashDmg, camera.position);
+            mobManager.playHurtSound(otherMob.type);
+            if (otherMob.dead && player.isSurvival()) {
+              for (const drop of otherMob.getDrops()) player.inventory.add(drop.item, drop.count);
+              scene.remove(otherMob.mesh); otherMob.dispose();
+              const idx = mobManager.mobs.indexOf(otherMob); if (idx >= 0) mobManager.mobs.splice(idx, 1);
+            }
+          }
+        }
+        // Dragon Blade fire particle effect
+        spawnDragonBladeParticles(mobHit.position);
+      }
 
       if (crit) spawnCritParticles(mobHit.position);
       viewmodel.swing();
@@ -6888,6 +6951,61 @@ function loop() {
       mobManager._eggDrops.length = 0;
     }
 
+    // Boss update
+    if (bossActive && bossEntity && !bossEntity.dead) {
+      // Update health bar UI
+      const fill = document.getElementById('boss-health-fill');
+      const text = document.getElementById('boss-health-text');
+      const bar = document.getElementById('boss-health-bar');
+      if (bar) bar.style.display = 'block';
+      if (fill) fill.style.width = Math.max(0, (bossEntity.hp / bossEntity.maxHp) * 100) + '%';
+      if (text) text.textContent = bossEntity.hp + ' / ' + bossEntity.maxHp;
+      // Boss attack
+      bossAttackTimer -= dt;
+      if (bossAttackTimer <= 0 && player) {
+        const dx = player.position.x - bossEntity.position.x;
+        const dy = player.position.y - bossEntity.position.y;
+        const dz = player.position.z - bossEntity.position.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        if (dist < 5) {
+          const dmgMult = gameDifficulty === 'hard' ? 1.5 : 1.0;
+          player.takeDamage(Math.round(12 * dmgMult), 'boss');
+          if (playerModel) playerModel.triggerHurt();
+          bossAttackTimer = 1.5;
+        } else {
+          bossAttackTimer = 0.3;
+        }
+      }
+      // Boss fire particles
+      if (Math.random() < 0.1) {
+        const px = bossEntity.position.x + (Math.random() - 0.5) * 3;
+        const py = bossEntity.position.y + Math.random() * 2;
+        const pz = bossEntity.position.z + (Math.random() - 0.5) * 3;
+        const mat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.8 });
+        const m = new THREE.Mesh(_particleGeoTiny, mat);
+        m.position.set(px, py, pz);
+        scene.add(m);
+        _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 1, maxLife: 1 });
+      }
+    }
+    // Boss died — drop loot
+    if (bossActive && bossEntity && bossEntity.dead) {
+      const bar = document.getElementById('boss-health-bar');
+      if (bar) bar.style.display = 'none';
+      // Drop dragon blade + scales + heart
+      droppedItemManager?.drop(ITEM.DRAGON_BLADE, 1, bossEntity.position.x, bossEntity.position.y + 1, bossEntity.position.z);
+      for (const drop of bossEntity.getDrops()) {
+        droppedItemManager?.drop(drop.item, drop.count, bossEntity.position.x + (Math.random() - 0.5) * 2, bossEntity.position.y + 1, bossEntity.position.z + (Math.random() - 0.5) * 2);
+      }
+      addChatLine('The Ender Dragon has been defeated! You received the Dragon Blade!', '#ff5');
+      // Remove from scene
+      scene.remove(bossEntity.mesh);
+      bossEntity.dispose();
+      const idx = mobManager.mobs.indexOf(bossEntity);
+      if (idx >= 0) mobManager.mobs.splice(idx, 1);
+      bossActive = false;
+      bossEntity = null;
+    }
   }
 
   // Update explosion particles
@@ -6909,6 +7027,28 @@ function loop() {
       m.position.set(px, py, pz);
       scene.add(m);
       _particles.push({ mesh: m, vx: 0, vy: 1.5, vz: 0, life: 0.4, maxLife: 0.4 });
+    }
+  }
+
+  // ── RARITY GLOW PARTICLES ──
+  if (player && graphicsQuality !== 'low') {
+    const selSlot = player.inventory.getSelected();
+    if (selSlot) {
+      const rarity = getItemRarity(selSlot.item);
+      if (rarity && rarity.particle) {
+        _rarityGlowTimer = (_rarityGlowTimer || 0) - dt;
+        if (_rarityGlowTimer <= 0) {
+          _rarityGlowTimer = 0.12;
+          const px = player.position.x + (Math.random() - 0.5) * 0.6;
+          const py = player.position.y + 0.8 + Math.random() * 0.6;
+          const pz = player.position.z + (Math.random() - 0.5) * 0.6;
+          const mat = new THREE.MeshBasicMaterial({ color: rarity.particle, transparent: true, opacity: 0.8 });
+          const m = new THREE.Mesh(_particleGeoTiny, mat);
+          m.position.set(px, py, pz);
+          scene.add(m);
+          _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 1, vy: 0.5 + Math.random() * 1.5, vz: (Math.random() - 0.5) * 1, life: 0.6, maxLife: 0.6 });
+        }
+      }
     }
   }
 

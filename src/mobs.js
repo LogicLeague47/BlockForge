@@ -232,6 +232,41 @@ export const MOB_TYPES = {
     soundChance: 0.0004,
   },
 
+  dragon: {
+    name: 'Ender Dragon',
+    hp: 200,
+    hostile: true,
+    bodyW: 2.0, bodyH: 1.2, bodyD: 3.5,
+    headW: 1.0, headH: 1.0, headD: 1.2,
+    headOffZ: -2.0,
+    headOffY: 0.0,
+    legW: 0, legH: 0, legD: 0,
+    bodyColor: 0x1a0a2a,
+    headColor: 0x2a1a4a,
+    hasWings: true,
+    wingSpan: 5.0,
+    wingColor: 0x3a1a5a,
+    hasCrest: true,
+    crestColor: 0xff3300,
+    hasTail: true,
+    tailSegments: 6,
+    tailColor: 0x2a1a4a,
+    attackDamage: 12,
+    speed: 18,
+    attackRange: 3,
+    aggroRange: 40,
+    knockbackResist: 0.8,
+    isFlying: true,
+    flyHeight: 12,
+    flyCircleRadius: 20,
+    flySpeed: 8,
+    drops: [
+      { item: 321, count: [2, 5] }, // dragon scales
+      { item: 322, count: [1, 1] }, // dragon heart (guaranteed 1)
+    ],
+    soundChance: 0.001,
+  },
+
 };
 
 const MOB_SPAWN_BIOMES = new Set([
@@ -557,6 +592,57 @@ class Mob {
       group.add(beard);
     }
 
+    // ── Dragon wings ──
+    if (def.hasWings) {
+      this.wings = [];
+      for (const side of [-1, 1]) {
+        const wingGroup = new THREE.Group();
+        // Wing membrane (flat box)
+        const wingGeo = new THREE.BoxGeometry(def.wingSpan * 0.5, 0.05, 2.0);
+        const wingMat = new THREE.MeshLambertMaterial({ color: def.wingColor, side: THREE.DoubleSide });
+        const wing = new THREE.Mesh(wingGeo, wingMat);
+        wing.position.set(side * def.wingSpan * 0.25, 0, 0);
+        wingGroup.add(wing);
+        // Wing bone
+        const boneGeo = new THREE.BoxGeometry(0.08, 0.08, 2.0);
+        const boneMat = new THREE.MeshLambertMaterial({ color: def.headColor });
+        const bone = new THREE.Mesh(boneGeo, boneMat);
+        bone.position.set(0, 0.03, 0);
+        wingGroup.add(bone);
+        wingGroup.position.set(side * (def.bodyW / 2), def.legH + def.bodyH * 0.8, 0);
+        wingGroup.name = 'wing';
+        group.add(wingGroup);
+        this.wings.push(wingGroup);
+      }
+    }
+
+    // ── Dragon crest (spikes on head) ──
+    if (def.hasCrest) {
+      const crestMat = new THREE.MeshLambertMaterial({ color: def.crestColor });
+      for (let i = 0; i < 3; i++) {
+        const spikeGeo = new THREE.BoxGeometry(0.1, 0.2 + i * 0.05, 0.1);
+        const spike = new THREE.Mesh(spikeGeo, crestMat);
+        spike.position.set(0, headY + def.headH / 2 + 0.1 + i * 0.02, headZ + def.headD * 0.2 - i * 0.15);
+        spike.name = 'crest';
+        group.add(spike);
+      }
+    }
+
+    // ── Dragon tail (segmented) ──
+    if (def.hasTail && def.tailSegments) {
+      this.tailSegments = [];
+      for (let i = 0; i < def.tailSegments; i++) {
+        const segSize = 0.12 - i * 0.012;
+        const segGeo = new THREE.BoxGeometry(segSize, segSize, 0.3);
+        const segMat = new THREE.MeshLambertMaterial({ color: def.tailColor });
+        const seg = new THREE.Mesh(segGeo, segMat);
+        seg.position.set(0, def.legH + def.bodyH * 0.5, def.bodyD / 2 + 0.15 + i * 0.28);
+        seg.name = 'tailSeg';
+        group.add(seg);
+        this.tailSegments.push(seg);
+      }
+    }
+
     return group;
   }
 
@@ -573,6 +659,7 @@ class Mob {
     if (this.type === 'villager') return this._villagerTextures(def);
     if (this.type === 'blower') return this._blowerTextures(def);
     if (this.type === 'portalman') return this._portalmanTextures(def);
+    if (this.type === 'dragon') return this._dragonTextures(def);
     return this._genericTextures(def);
   }
 
@@ -2022,6 +2109,88 @@ class Mob {
     return { body, head, leg };
   }
 
+  _dragonTextures(def) {
+    const s = 64;
+    const DARK = 0x1a0a2a, PURPLE = 0x2a1a4a, RED = 0xff3300, ORANGE = 0xff6600;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 16);
+      // Scale pattern
+      ctx.fillStyle = 'rgba(60,20,80,0.4)';
+      for (let y = 4; y < s; y += 8) {
+        for (let x = (y % 16 === 4 ? 0 : 4); x < s; x += 8) {
+          ctx.fillRect(x, y, 6, 6);
+          ctx.fillStyle = 'rgba(40,10,60,0.3)';
+          ctx.fillRect(x + 1, y + 1, 4, 4);
+        }
+      }
+      // Belly stripe
+      ctx.fillStyle = 'rgba(80,30,100,0.5)';
+      ctx.fillRect(0, s * 0.3, s, s * 0.4);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 12);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1040';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#1a0a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 14);
+      // Chest glow
+      const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 24);
+      g.addColorStop(0, 'rgba(255,51,0,0.5)');
+      g.addColorStop(1, 'rgba(100,20,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, s, s);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PURPLE, 12);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a1a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PURPLE, 10);
+      // Eyes
+      ctx.fillStyle = '#ff3300';
+      ctx.fillRect(8, 22, 16, 12);
+      ctx.fillRect(40, 22, 16, 12);
+      ctx.fillStyle = '#ffaa00';
+      ctx.fillRect(12, 24, 8, 6);
+      ctx.fillRect(44, 24, 8, 6);
+      // Pupils
+      ctx.fillStyle = '#000';
+      ctx.fillRect(14, 26, 3, 4);
+      ctx.fillRect(48, 26, 3, 4);
+      // Nostrils
+      ctx.fillStyle = '#ff2200';
+      ctx.fillRect(22, 42, 8, 6);
+      ctx.fillRect(34, 42, 8, 6);
+      // Fire glow
+      const g = ctx.createRadialGradient(32, 50, 2, 32, 50, 14);
+      g.addColorStop(0, 'rgba(255,100,0,0.6)');
+      g.addColorStop(1, 'rgba(255,50,0,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(18, 36, 28, 20);
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#2a1040'; ctx.fillRect(0, 0, s, s); });
+    const head = [headSide, headSide, headTop || headSide, headBot, headSide, headFront];
+
+    const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, 8, 8); });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
   _genericTextures(def) {
     const s = 8;
     const t = this._tex(s, s, (ctx) => { this._fillTex(ctx, s, s, def.bodyColor); });
@@ -2198,7 +2367,57 @@ class Mob {
     }
 
     // Movement
-    if (this.state === 'walking' || this.state === 'fleeing') {
+    const isFlying = def.isFlying;
+    if (isFlying) {
+      // Dragon flying AI: circle player, swoop to attack
+      if (playerPos) {
+        const pdx = playerPos.x - this.position.x;
+        const pdz = playerPos.z - this.position.z;
+        const playerDist = Math.sqrt(pdx * pdx + pdz * pdz);
+        if (playerDist < def.aggroRange) {
+          // Circle the player
+          const circleAngle = Math.atan2(pdx, pdz) + Math.PI * 0.5;
+          this.targetYaw = circleAngle;
+          let dy = this.targetYaw - this.yaw;
+          while (dy > Math.PI) dy -= Math.PI * 2;
+          while (dy < -Math.PI) dy += Math.PI * 2;
+          this.yaw += dy * dt * 2;
+          this.velocity.x = -Math.sin(this.yaw) * def.flySpeed;
+          this.velocity.z = -Math.cos(this.yaw) * def.flySpeed;
+          // Swoop down when close
+          if (playerDist < def.attackRange * 2) {
+            this.velocity.y = -4;
+          } else {
+            const targetY = playerPos.y + def.flyHeight;
+            this.velocity.y += (targetY - this.position.y) * dt * 2;
+          }
+        } else {
+          // Wander
+          this.velocity.x = -Math.sin(this.yaw) * def.flySpeed * 0.5;
+          this.velocity.z = -Math.cos(this.yaw) * def.flySpeed * 0.5;
+          const targetY = this.spawnPos.y + def.flyHeight;
+          this.velocity.y += (targetY - this.position.y) * dt;
+        }
+      }
+      this.position.x += this.velocity.x * dt;
+      this.position.z += this.velocity.z * dt;
+      this.position.y += this.velocity.y * dt;
+      // Keep above ground
+      if (this.position.y < 5) this.position.y = 5;
+      // Wing animation
+      if (this.wings) {
+        this.walkPhase += dt * 4;
+        const wingFlap = Math.sin(this.walkPhase) * 0.4;
+        this.wings[0].rotation.z = wingFlap;
+        this.wings[1].rotation.z = -wingFlap;
+      }
+      // Tail sway
+      if (this.tailSegments) {
+        for (let i = 0; i < this.tailSegments.length; i++) {
+          this.tailSegments[i].rotation.x = Math.sin(this.walkPhase * 0.5 + i * 0.3) * 0.2;
+        }
+      }
+    } else if (this.state === 'walking' || this.state === 'fleeing') {
       // Smooth turn
       let dy = this.targetYaw - this.yaw;
       while (dy > Math.PI) dy -= Math.PI * 2;
@@ -2218,28 +2437,30 @@ class Mob {
       }
     }
 
-    // Apply velocity with horizontal + ground collision
-    this._moveHoriz(world, this.velocity.x * dt, this.velocity.z * dt);
+    if (!isFlying) {
+      // Apply velocity with horizontal + ground collision
+      this._moveHoriz(world, this.velocity.x * dt, this.velocity.z * dt);
 
-    // Ground snap
-    const bx = Math.floor(this.position.x);
-    const bz = Math.floor(this.position.z);
-    let groundY = -1;
-    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-      const block = world.getBlock(bx, y, bz);
-      if (block !== BLOCK.AIR && block !== BLOCK.WATER && BLOCKS[block]?.solid) {
-        groundY = y + 1;
-        break;
+      // Ground snap
+      const bx = Math.floor(this.position.x);
+      const bz = Math.floor(this.position.z);
+      let groundY = -1;
+      for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+        const block = world.getBlock(bx, y, bz);
+        if (block !== BLOCK.AIR && block !== BLOCK.WATER && BLOCKS[block]?.solid) {
+          groundY = y + 1;
+          break;
+        }
       }
-    }
-    if (groundY < 0) groundY = SEA_LEVEL;
+      if (groundY < 0) groundY = SEA_LEVEL;
 
-    // Simple gravity
-    if (this.position.y > groundY) {
-      this.position.y -= 15 * dt;
-      if (this.position.y < groundY) this.position.y = groundY;
-    } else if (this.position.y < groundY) {
-      this.position.y = groundY;
+      // Simple gravity
+      if (this.position.y > groundY) {
+        this.position.y -= 15 * dt;
+        if (this.position.y < groundY) this.position.y = groundY;
+      } else if (this.position.y < groundY) {
+        this.position.y = groundY;
+      }
     }
 
     // Update mesh transform
@@ -2876,6 +3097,7 @@ export class MobManager {
     if (playerPos) {
       for (let i = this.mobs.length - 1; i >= 0; i--) {
         const mob = this.mobs[i];
+        if (mob.type === 'dragon') continue; // don't cull boss
         if (mob.distanceTo(playerPos.x, playerPos.z) > CULL_DIST) {
           this.scene.remove(mob.mesh);
           mob.dispose();

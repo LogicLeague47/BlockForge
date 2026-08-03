@@ -557,9 +557,56 @@ export function placeStructure(world, type, ox, oy, oz) {
       bb = { minX: ox - 24, maxX: ox + 24, minZ: oz - 24, maxZ: oz + 24 };
       break;
     }
+    case 'boss_arena': {
+      buildBossArena(set, ox, oy, oz);
+      bb = { minX: ox - 20, maxX: ox + 20, minZ: oz - 20, maxZ: oz + 20 };
+      break;
+    }
     default: return null;
   }
   return bb;
 }
 
-export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple'];
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena'];
+
+function buildBossArena(set, ox, y, oz) {
+  // Massive obsidian boss arena: 32x32 floor, 20-high walls, obsidian pillars
+  const R = 15;
+  // Floor: obsidian
+  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    if (dist <= R) set(ox + dx, y, oz + dz, BLOCK.OBSIDIAN);
+  }
+  // Walls: 20 high ring
+  for (let dy = 1; dy <= 20; dy++) {
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist > R - 1 && dist <= R + 0.5) {
+        set(ox + dx, y + dy, oz + dz, BLOCK.OBSIDIAN);
+      } else {
+        set(ox + dx, y + dy, oz + dz, BLOCK.AIR);
+      }
+    }
+  }
+  // Corner pillars (taller)
+  for (const [sx, sz] of [[-R, -R], [R, -R], [-R, R], [R, R]]) {
+    for (let dy = 1; dy <= 25; dy++) {
+      set(ox + sx, y + dy, oz + sz, BLOCK.OBSIDIAN);
+      set(ox + sx + 1, y + dy, oz + sz, BLOCK.OBSIDIAN);
+      set(ox + sx, y + dy, oz + sz + 1, BLOCK.OBSIDIAN);
+      set(ox + sx + 1, y + dy, oz + sz + 1, BLOCK.OBSIDIAN);
+    }
+  }
+  // Lava moat in center
+  for (let dx = -3; dx <= 3; dx++) for (let dz = -3; dz <= 3; dz++) {
+    if (Math.abs(dx) === 3 || Math.abs(dz) === 3) {
+      set(ox + dx, y, oz + dz, BLOCK.LAVA);
+    }
+  }
+  // Entrance arch
+  for (let dy = 1; dy <= 6; dy++) {
+    set(ox, y + dy, oz - R, BLOCK.AIR);
+    set(ox + 1, y + dy, oz - R, BLOCK.AIR);
+    set(ox - 1, y + dy, oz - R, BLOCK.AIR);
+  }
+}
