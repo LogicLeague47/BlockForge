@@ -296,8 +296,10 @@ export class ViewModel {
     mesh.material.depthWrite = false;
     const wrap = new THREE.Group();
     wrap.add(mesh);
-    wrap.rotation.set(-0.45, 0.35, 0.15);
-    wrap.position.set(0, -0.05, 0);
+    // Angle like Minecraft: lean back, slight tilt right
+    mesh.rotation.x = -Math.PI * 0.4;
+    mesh.rotation.y = Math.PI * 0.1;
+    wrap.position.set(0.05, -0.08, 0);
     return wrap;
   }
 

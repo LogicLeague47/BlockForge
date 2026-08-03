@@ -591,7 +591,8 @@ export class PlayerModel {
       const tex = this._canvasTex(canvas);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mat);
-      mesh.rotation.set(-0.45, 0.35, 0.15);
+      mesh.rotation.x = -Math.PI * 0.4;
+      mesh.rotation.y = Math.PI * 0.1;
       wrap.add(mesh);
     }
 
