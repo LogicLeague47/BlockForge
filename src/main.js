@@ -1104,6 +1104,11 @@ function _saveDMThread(name, msgs) {
   if (!me || !name) return;
   try { localStorage.setItem(_dmKey(me, name), JSON.stringify(msgs)); } catch (_) {}
 }
+// Deduplicate: check if a message already exists (prevents multi-tab doubling)
+function _dmExists(name, from, text, time) {
+  const msgs = _loadDMThread(name);
+  return msgs.some(m => m.from === from && m.text === text && Math.abs(m.time - time) < 2000);
+}
 let _dmOpenFor = '';
 function openDM(friendName) {
   _dmOpenFor = friendName;
@@ -1159,7 +1164,7 @@ function renderDMMessages() {
     const mine = m.from === playerName;
     let rendered = escHtml(m.text);
     rendered = rendered.replace(/(https?:\/\/[^\s<]+)/g, url => {
-      if (/\.(gif|png|jpe?g|webp|svg)/i.test(url)) {
+      if (/\.(gif|png|jpe?g|webp|svg)/i.test(url) || /giphy\.com|imgur\.com|i\.redd\.it/i.test(url)) {
         return '<img src="' + url + '" style="max-width:180px;max-height:130px;border-radius:4px;margin-top:3px;" loading="lazy">';
       }
       return '<a href="' + url + '" target="_blank" rel="noopener" style="color:#8af;text-decoration:underline;">' + url + '</a>';
@@ -2528,15 +2533,47 @@ function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-// ── In-game emoji picker ──────────────────────────────────────────────
+// ── In-game emoji + GIF picker ─────────────────────────────────────
 const _emojiList = ['😀','😂','🤣','😊','😍','😎','🤩','🥳','😢','😭','😡','🤔','👍','👎','❤️','🔥','💯','🎉','🎮','⛏️','🗡️','🛡️','💎','🧱','💀','🏆','👀','💪','✌️','🫡','👻','☀️','🌙','⚡'];
 let _emojiPanel = null;
 function _initEmojiPicker() {
   const btn = document.getElementById('chat-emoji-btn');
   const inp = document.getElementById('chat-input');
   if (!btn || !inp || _emojiPanel) return;
+  const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
   const panel = document.createElement('div');
-  panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.85);border:1px solid rgba(100,100,100,0.5);border-radius:6px;padding:8px;z-index:20;width:220px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:20;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  // GIF search
+  const search = document.createElement('input');
+  search.placeholder = 'Search GIFs...';
+  search.style.cssText = 'width:100%;padding:6px 10px;background:rgba(0,0,0,0.4);border:1px solid rgba(100,100,100,0.4);border-radius:5px;color:#ddd;font:12px monospace;outline:none;margin-bottom:6px;box-sizing:border-box;';
+  const gifGrid = document.createElement('div');
+  gifGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:120px;overflow-y:auto;margin-bottom:8px;';
+  gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>';
+  let gifTimer = null;
+  search.addEventListener('input', () => {
+    clearTimeout(gifTimer);
+    const q = search.value.trim();
+    if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>'; return; }
+    gifTimer = setTimeout(() => {
+      fetch(GIF_URL + encodeURIComponent(q)).then(r => r.json()).then(data => {
+        gifGrid.innerHTML = '';
+        (data.data || []).forEach(gif => {
+          const img = document.createElement('img');
+          img.src = gif.images.fixed_height.url;
+          img.style.cssText = 'width:100%;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:.15s;';
+          img.onmouseenter = () => img.style.borderColor = '#5af';
+          img.onmouseleave = () => img.style.borderColor = 'transparent';
+          img.addEventListener('click', () => { inp.value += gif.images.original.url; inp.focus(); panel.style.display = 'none'; });
+          gifGrid.appendChild(img);
+        });
+        if (!data.data || !data.data.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
+      }).catch(() => { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Failed to load</div>'; });
+    }, 400);
+  });
+  panel.appendChild(search);
+  panel.appendChild(gifGrid);
+  // Emoji grid
   const grid = document.createElement('div');
   grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;';
   _emojiList.forEach(em => {
@@ -2560,13 +2597,45 @@ function _initEmojiPicker() {
   });
 }
 _initEmojiPicker();
-// DM emoji picker
+// DM emoji + GIF + image picker
 (function() {
   const btn = document.getElementById('dm-emoji-btn');
   const inp = document.getElementById('dm-input');
   if (!btn || !inp) return;
+  const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
   const panel = document.createElement('div');
-  panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.85);border:1px solid rgba(100,100,100,0.5);border-radius:6px;padding:8px;z-index:25;width:220px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:25;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  // GIF search
+  const search = document.createElement('input');
+  search.placeholder = 'Search GIFs...';
+  search.style.cssText = 'width:100%;padding:6px 10px;background:rgba(0,0,0,0.4);border:1px solid rgba(100,100,100,0.4);border-radius:5px;color:#ddd;font:12px monospace;outline:none;margin-bottom:6px;box-sizing:border-box;';
+  const gifGrid = document.createElement('div');
+  gifGrid.style.cssText = 'display:grid;grid-template-columns:repeat(3,1fr);gap:4px;max-height:120px;overflow-y:auto;margin-bottom:8px;';
+  gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>';
+  let gifTimer = null;
+  search.addEventListener('input', () => {
+    clearTimeout(gifTimer);
+    const q = search.value.trim();
+    if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>'; return; }
+    gifTimer = setTimeout(() => {
+      fetch(GIF_URL + encodeURIComponent(q)).then(r => r.json()).then(data => {
+        gifGrid.innerHTML = '';
+        (data.data || []).forEach(gif => {
+          const img = document.createElement('img');
+          img.src = gif.images.fixed_height.url;
+          img.style.cssText = 'width:100%;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:.15s;';
+          img.onmouseenter = () => img.style.borderColor = '#5af';
+          img.onmouseleave = () => img.style.borderColor = 'transparent';
+          img.addEventListener('click', () => { inp.value += gif.images.original.url; inp.focus(); panel.style.display = 'none'; });
+          gifGrid.appendChild(img);
+        });
+        if (!data.data || !data.data.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
+      }).catch(() => { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Failed to load</div>'; });
+    }, 400);
+  });
+  panel.appendChild(search);
+  panel.appendChild(gifGrid);
+  // Emoji grid
   const grid = document.createElement('div');
   grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;';
   _emojiList.forEach(em => {
@@ -2579,6 +2648,28 @@ _initEmojiPicker();
     grid.appendChild(eb);
   });
   panel.appendChild(grid);
+  // Image upload button
+  const uploadRow = document.createElement('div');
+  uploadRow.style.cssText = 'margin-top:6px;display:flex;gap:6px;';
+  const uploadBtn = document.createElement('button');
+  uploadBtn.textContent = '📷 Image';
+  uploadBtn.style.cssText = 'flex:1;padding:5px;background:rgba(60,90,180,0.3);border:1px solid rgba(100,100,100,0.4);border-radius:5px;color:#aaa;font:11px monospace;cursor:pointer;';
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.accept = 'image/*';
+  fileInput.style.display = 'none';
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { inp.value += reader.result; inp.focus(); panel.style.display = 'none'; };
+    reader.readAsDataURL(file);
+    fileInput.value = '';
+  });
+  uploadRow.appendChild(uploadBtn);
+  uploadRow.appendChild(fileInput);
+  panel.appendChild(uploadRow);
   document.body.appendChild(panel);
   btn.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -3117,10 +3208,13 @@ function setupNetworkHandlers() {
   };
   network.onDm = (from, text) => {
     if (!from || from === playerName) return;
-    // Save into the thread so it persists + renders if the panel is open.
-    const msgs = _loadDMThread(from);
-    msgs.push({ from, text, time: Date.now() });
-    _saveDMThread(from, msgs);
+    // Deduplicate: skip if another tab already saved this message
+    const now = Date.now();
+    if (!_dmExists(from, from, text, now)) {
+      const msgs = _loadDMThread(from);
+      msgs.push({ from, text, time: now });
+      _saveDMThread(from, msgs);
+    }
     if (_dmOpenFor === from) {
       renderDMMessages();
     } else {
