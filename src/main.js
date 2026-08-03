@@ -1341,7 +1341,7 @@ document.addEventListener('mousedown', (e) => {
           if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
           used = true;
         }
-      } else if (slot && isBlockItem(slot.item)) {
+      } else if (slot && isPlaceableBlockItem(slot.item)) {
         placeBlock();
         used = true;
       }
@@ -1369,7 +1369,7 @@ document.addEventListener('mousedown', (e) => {
             achievements.incrementStat('foodEaten');
             if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
           }
-        } else if (isBlockItem(oh.item)) {
+        } else if (isPlaceableBlockItem(oh.item)) {
           placeBlock(oh);
         }
       }
@@ -2046,6 +2046,13 @@ function portalOrbImpact(orb) {
   }
 }
 
+// Items that can be placed as blocks. Most block items are ids < 256, but the
+// bed is an "item" (285) that maps to a multi-block BLOCK.BED — treat it as a
+// block item so every placement gate lets it through.
+function isPlaceableBlockItem(id) {
+  return isBlockItem(id) || id === ITEM.BED;
+}
+
 function placeBlock(slotOverride) {
   if (player && player.isAdventure()) return;
   const hit = currentTarget();
@@ -2057,7 +2064,7 @@ function placeBlock(slotOverride) {
   // BED item places BED block
   if (itemId === ITEM.BED) itemId = BLOCK.BED;
 
-  if (!isBlockItem(itemId)) return;
+  if (!isPlaceableBlockItem(itemId)) return;
   const def = BLOCKS[itemId];
   if (!def || def.liquid) return;
 
@@ -3866,7 +3873,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             try {  } catch (_) { console.warn("operation failed"); }
             used = true;
           }
-        } else if (slot && isBlockItem(slot.item)) {
+        } else if (slot && isPlaceableBlockItem(slot.item)) {
           placeBlock();
           used = true;
         }
@@ -3881,7 +3888,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
               if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
               try {  } catch (_) { console.warn("operation failed"); }
             }
-          } else if (isBlockItem(oh.item)) {
+          } else if (isPlaceableBlockItem(oh.item)) {
             placeBlock(oh);
           }
         }
@@ -6918,7 +6925,7 @@ function loop() {
     const hit = currentTarget();
     const slot = player.inventory.getSelected();
     const itemId = slot ? slot.item : null;
-    if (hit && itemId != null && isBlockItem(itemId) && !(player && player.isAdventure())) {
+    if (hit && itemId != null && isPlaceableBlockItem(itemId) && !(player && player.isAdventure())) {
       const placePos = hit.place;
       const existing = world.getBlock(placePos.x, placePos.y, placePos.z);
       ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.5, placePos.z + 0.5);
