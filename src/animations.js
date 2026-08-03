@@ -379,13 +379,13 @@ function calcArmPose(state, side) {
 
   let armRx = 0, armRy = 0, armRz = 0;
 
-  // ── Swim: breast stroke — arms sweep out and pull back together ──
+  // ── Swim: arms alternate forward crawl ──
   if (swim > 0) {
-    const bp = ls * 0.5;
-    const sweep = Math.cos(bp) * swim;
-    armRx = rad(50) * sweep - rad(20) * swim;
-    armRy = (isRight ? 1 : -1) * (rad(30) - Math.sin(bp) * rad(20)) * swim;
-    armRz = Math.sin(bp) * rad(10) * swim;
+    const bp = ls * 0.6;
+    const phase = isRight ? bp : bp + Math.PI;
+    armRx = rad(60) * Math.sin(phase) * swim - rad(25) * swim;
+    armRy = (isRight ? 1 : -1) * rad(5) * swim;
+    armRz = (isRight ? 1 : -1) * rad(5) * Math.sin(phase) * swim;
   }
 
   // ── Ground: walk vs run arm swing (mutually exclusive) ──
@@ -488,12 +488,10 @@ function calcLegPose(state, side) {
 
   let legRx = 0;
 
-  // ── Swim: frog kick with flutter component ──
+  // ── Swim: flutter kick ──
   if (swim > 0) {
-    const bp = ls * 0.5;
-    const frogKick = Math.sin(bp) * rad(35) * swim;
-    const flutterKick = Math.sin(ls * 1.5) * rad(12) * swim;
-    legRx = frogKick + flutterKick * (isRight ? 1 : -1);
+    const bp = ls * 1.2;
+    legRx = Math.sin(bp + (isRight ? 0 : Math.PI)) * rad(30) * swim;
   }
 
   // ── Ground: walk vs run leg swing (mutually exclusive) ──
@@ -505,8 +503,8 @@ function calcLegPose(state, side) {
     if (!isRight) swing = -swing;
     legRx += swing * (1 + lsSpeed * 0.12);
 
-    // ── Crouch: legs spread ──
-    legRx += rad(20) * sneak * (isRight ? 1 : -1);
+    // ── Crouch: legs bend forward together ──
+    legRx += rad(25) * sneak;
   }
 
   // ── Climb: legs alternate ──

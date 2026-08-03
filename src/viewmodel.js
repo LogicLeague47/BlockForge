@@ -383,7 +383,8 @@ export class ViewModel {
     // Update animation timers
     this.animData.update(dt);
 
-    const crouchDrop = (crouching ? 0.28 : 0) + this.animData.landT * 0.08;
+    const crouchDrop = (crouching ? 0.18 : 0) + this.animData.landT * 0.08;
+    const crouchForward = crouching ? 0.06 : 0;
     const swimPose = this.animData.swim;
     const flyPose = this.animData.fly;
     const lookTilt = this.animData.pitch * 0.25;
@@ -392,7 +393,7 @@ export class ViewModel {
     
     // Main hand
     let py = this._restPos.y - crouchDrop + idle + lookTilt * 0.15;
-    let px = this._restPos.x;
+    let px = this._restPos.x - crouchForward;
     let rx = this._restRot.x;
     let ry = this._restRot.y;
 
@@ -426,13 +427,13 @@ export class ViewModel {
       py += m; rx -= m * 0.4;
     }
 
-    // Swim pose: breast stroke — arms sweep out and pull back
+    // Swim pose: forward crawl — arms extend forward alternately
     if (swimPose > 0) {
-      const bp = this.animData.bobPhase * 0.5;
-      py += swimPose * 0.12 + Math.abs(Math.cos(bp)) * swimPose * 0.04;
-      px += swimPose * 0.1 + Math.sin(bp) * swimPose * 0.12;
-      rx -= swimPose * 0.5 + Math.cos(bp) * swimPose * 0.45;
-      ry += Math.sin(bp) * swimPose * 0.35;
+      const bp = this.animData.bobPhase * 0.6;
+      py += swimPose * 0.08;
+      px += swimPose * 0.08 + Math.sin(bp) * swimPose * 0.04;
+      rx -= swimPose * 0.6 + Math.cos(bp) * swimPose * 0.25;
+      ry += Math.sin(bp) * swimPose * 0.15;
     }
     // Fly pose: arms relax back slightly
     if (flyPose > 0) {

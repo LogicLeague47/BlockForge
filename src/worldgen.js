@@ -72,9 +72,7 @@ export function calcHeight(n, wx, wz, mode) {
     const deviation = h - SEA_LEVEL;
     h = SEA_LEVEL + deviation * 2.5;
   } else if (mode === 'normal') {
-    // Gentle terrain — dampen mountains and extreme features
-    const deviation = h - SEA_LEVEL;
-    h = SEA_LEVEL + deviation * 0.6;
+    // Normal terrain — no dampening, use full height variation
   }
   
   return Math.max(2, Math.min(WORLD_HEIGHT - 6, Math.floor(h)));
@@ -471,34 +469,33 @@ export function generateUnderground(chunk, baseX, baseZ, n) {
 function placeFeature(chunk, x, h, z, biome, roll, local, top) {
   switch (biome) {
     case BIOMES.DARK_FOREST:
-      if (roll < 0.12 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
-      else if (roll < 0.18 && top === BLOCK.GRASS)
+      if (roll < 0.03 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
+      else if (roll < 0.032 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
     case BIOMES.FOREST:
-      if (roll < 0.04 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
-      else if (roll < 0.09 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
-      else if (roll < 0.13 && top === BLOCK.GRASS)
+      if (roll < 0.015 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
+      else if (roll < 0.025 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
+      else if (roll < 0.026 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
     case BIOMES.BIRCH_FOREST:
-      if (roll < 0.10 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'birch');
+      if (roll < 0.025 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'birch');
       break;
     case BIOMES.TAIGA:
-      if (roll < 0.06 && top === BLOCK.GRASS)
+      if (roll < 0.02 && top === BLOCK.GRASS)
         plantTree(chunk, x, h + 1, z, local, 'taiga');
       break;
     case BIOMES.JUNGLE:
-      if (roll < 0.07 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'jungle');
-      else if (roll < 0.14 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
+      if (roll < 0.03 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'jungle');
       break;
     case BIOMES.SAVANNA:
-      if (roll < 0.015 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
-      else if (roll < 0.030 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'savanna');
-      else if (roll < 0.040 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'dead');
+      if (roll < 0.005 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'large_oak');
+      else if (roll < 0.010 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'savanna');
+      else if (roll < 0.015 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'dead');
       break;
     case BIOMES.PLAINS:
-      if (roll < 0.04 && top === BLOCK.GRASS)
+      if (roll < 0.001 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
     case BIOMES.DESERT:
@@ -510,13 +507,13 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
       }
       break;
     case BIOMES.SNOWY:
-      if (roll < 0.015 && top === BLOCK.SNOW_BLOCK)
+      if (roll < 0.01 && top === BLOCK.SNOW_BLOCK)
         plantTree(chunk, x, h + 1, z, local, 'taiga');
       break;
     case BIOMES.SWAMP:
-      if (roll < 0.04 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'swamp');
-      else if (roll < 0.08 && top === BLOCK.GRASS) plantBush(chunk, x, h + 1, z, local);
-      else if (roll < 0.12 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
+      if (roll < 0.02 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'swamp');
+      else if (roll < 0.025 && top === BLOCK.GRASS) plantBush(chunk, x, h + 1, z, local);
+      else if (roll < 0.026 && top === BLOCK.GRASS) chunk.set(x, h + 1, z, BLOCK.FLOWER_RED);
       break;
   }
 }

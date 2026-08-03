@@ -503,7 +503,7 @@ export class Player {
     this.tickSurvival(dt);
 
     // sync camera
-    const crouchEyeOffset = this._crouchSmooth * -0.35;
+    const crouchEyeOffset = this._crouchSmooth * -0.15;
     // head bob
     const moving = this.onGround && (this.velocity.x !== 0 || this.velocity.z !== 0);
     if (moving) {
