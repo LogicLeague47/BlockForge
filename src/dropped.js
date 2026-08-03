@@ -50,13 +50,10 @@ export class DroppedItem {
       tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
-      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-      // 2-pixel thick boxes (like Minecraft item sprites)
-      const geo = new THREE.BoxGeometry(0.35, 0.35, 0.35 / 8);
-      const front = new THREE.Mesh(geo, mats);
+      const geo = new THREE.PlaneGeometry(0.35, 0.35);
+      const front = new THREE.Mesh(geo, mat);
       this.group.add(front);
-      const back = new THREE.Mesh(geo, mats);
+      const back = new THREE.Mesh(geo, mat);
       back.rotation.y = Math.PI / 2;
       this.group.add(back);
     }

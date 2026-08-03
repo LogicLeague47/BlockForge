@@ -178,14 +178,11 @@ export class ViewModel {
     tex.minFilter = THREE.NearestFilter;
     tex.generateMipmaps = false;
     tex.colorSpace = THREE.SRGBColorSpace;
-    const frontMat = new THREE.MeshBasicMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map: tex, transparent, alphaTest: transparent ? 0.5 : 0,
       depthTest: true, depthWrite: false, fog: false, side: THREE.DoubleSide,
     });
-    const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
-    // 2-pixel thick box: texture on front/back, dark on thin sides
-    const materials = [sideMat, sideMat, sideMat, sideMat, frontMat, frontMat];
-    return new THREE.Mesh(new THREE.BoxGeometry(size, size, size / 8), materials);
+    return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   }
 
   // Tools / weapons (id >= 512): proper 3D shape with head + handle
@@ -295,13 +292,9 @@ export class ViewModel {
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
     const mesh = this._planeFromCanvas(canvas, 0.35, true);
-    mesh.material[4].depthWrite = false;
     const wrap = new THREE.Group();
     wrap.add(mesh);
-    // Tilt the group, not the mesh — keeps texture face toward camera
-    wrap.rotation.x = -0.4;
-    wrap.rotation.y = 0.1;
-    wrap.position.set(0.05, -0.08, 0);
+    wrap.position.set(0, -0.05, 0);
     return wrap;
   }
 

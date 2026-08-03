@@ -580,9 +580,7 @@ export class PlayerModel {
         const canvas = this._getItemCanvas(itemId);
         const tex = this._canvasTex(canvas);
         const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-        const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
-        const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mats);
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
         wrap.add(mesh);
       }
 
@@ -592,9 +590,7 @@ export class PlayerModel {
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
-      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mats);
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(px(8), px(8)), mat);
       wrap.add(mesh);
     }
 
