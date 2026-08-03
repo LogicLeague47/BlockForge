@@ -27,6 +27,7 @@ export class DroppedItem {
     this.z = z;
     this.age = 0;
     this.collected = false;
+    this._canCollect = false; // grace period before auto-collect
     this._atlasCanvas = atlasCanvas;
 
     // Create 3D representation
@@ -50,10 +51,12 @@ export class DroppedItem {
       tex.minFilter = THREE.NearestFilter;
       tex.generateMipmaps = false;
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const geo = new THREE.PlaneGeometry(0.35, 0.35);
-      const front = new THREE.Mesh(geo, mat);
+      const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
+      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
+      const geo = new THREE.BoxGeometry(0.35, 0.35, 1 / 16);
+      const front = new THREE.Mesh(geo, mats);
       this.group.add(front);
-      const back = new THREE.Mesh(geo, mat);
+      const back = new THREE.Mesh(geo, mats);
       back.rotation.y = Math.PI / 2;
       this.group.add(back);
     }
@@ -89,6 +92,8 @@ export class DroppedItem {
       this.collected = true;
       return;
     }
+    // Grace period: can't collect for first 0.5s
+    if (!this._canCollect && this.age > 0.5) this._canCollect = true;
 
     // Gravity with fall speed cap to prevent tunneling through unloaded chunks
     this.vy -= 9.8 * dt;
@@ -125,7 +130,7 @@ export class DroppedItem {
   }
 
   checkCollect(px, py, pz) {
-    if (this.collected) return false;
+    if (this.collected || !this._canCollect) return false;
     const dx = this.x - px;
     const dy = this.y - py;
     const dz = this.z - pz;
