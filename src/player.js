@@ -152,19 +152,30 @@ export class Player {
 
   spawn() {
     const noise = new Noise(this.seed);
-    // Search outward from origin for good land (well above sea level, not coast/ocean)
-    let bestX = 0.5, bestZ = 0.5, bestH = calcHeight(noise, 0, 0);
-    for (let r = 0; r <= 180; r += 3) {
+    // Track best candidate throughout search — never fall back to origin blindly.
+    let bestX = 0.5, bestZ = 0.5, bestScore = -999;
+    const score = (h, cont) => {
+      // Reward height above sea level and inland-ness
+      return (h - 32) + cont * 20;
+    };
+    for (let r = 0; r <= 200; r += 3) {
       for (let a = 0; a < 16; a++) {
         const angle = (a / 16) * Math.PI * 2;
         const tx = Math.cos(angle) * r;
         const tz = Math.sin(angle) * r;
         const h = calcHeight(noise, Math.floor(tx), Math.floor(tz));
         const cont = getCont(noise, Math.floor(tx), Math.floor(tz));
-        // Require good height AND firmly inland (continentalness > 0.1, ocean starts < 0)
-        if (h > 38 && cont > 0.1) { bestX = tx + 0.5; bestZ = tz + 0.5; bestH = h; r = 999; break; }
+        const s = score(h, cont);
+        if (s > bestScore) {
+          bestScore = s;
+          bestX = tx + 0.5;
+          bestZ = tz + 0.5;
+        }
+        // Early exit if we find a clearly good spot (high + inland)
+        if (h > 42 && cont > 0.05) { bestX = tx + 0.5; bestZ = tz + 0.5; r = 999; break; }
       }
     }
+    const bestH = calcHeight(noise, Math.floor(bestX), Math.floor(bestZ));
     this.position.set(bestX, Math.max(bestH + 1.05, 38), bestZ);
     this.velocity.set(0, 0, 0);
   }
