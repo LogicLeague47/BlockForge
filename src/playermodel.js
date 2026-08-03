@@ -654,11 +654,10 @@ export class PlayerModel {
     });
   }
 
-  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating, crouching = false, flying = false, onLadder = false, headYaw = 0) {
+  update(dt, playerPos, playerYaw, velocity, onGround, sprinting, breaking, placing, swimming, eating, crouching = false, flying = false, onLadder = false, headPitch = 0) {
     if (!this.group.visible) return;
 
     this.group.position.set(playerPos.x, playerPos.y, playerPos.z);
-    this.group.rotation.y = playerYaw;
 
     // Update animation state
     const speed = Math.sqrt(velocity.x ** 2 + velocity.z ** 2);
@@ -673,7 +672,31 @@ export class PlayerModel {
     this.animData.flying = flying;
     this.animData.onLadder = onLadder;
     this.animData.velocityY = velocity.y;
-    this.animData.headYaw = headYaw;
+    this.animData.pitch = headPitch;
+
+    // ── Minecraft head/body yaw split ────────────────────────────────
+    // The head follows your look direction immediately. The body lags behind,
+    // snapping around while you move and only being dragged along once the
+    // head has twisted more than ~50 degrees off-centre while standing still.
+    const HEAD_YAW_LIMIT = Math.PI * 50 / 180;
+    const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    if (this._bodyYaw === undefined) this._bodyYaw = playerYaw;
+
+    if (this.animData.moving || flying || swimming) {
+      // Moving — body turns to face travel direction
+      this._bodyYaw += wrap(playerYaw - this._bodyYaw) * Math.min(1, dt * 12);
+    } else {
+      // Standing — body only rotates when the head hits the twist limit,
+      // then drifts slowly back in line.
+      const d = wrap(playerYaw - this._bodyYaw);
+      if (d > HEAD_YAW_LIMIT) this._bodyYaw += d - HEAD_YAW_LIMIT;
+      else if (d < -HEAD_YAW_LIMIT) this._bodyYaw += d + HEAD_YAW_LIMIT;
+      this._bodyYaw += wrap(playerYaw - this._bodyYaw) * Math.min(1, dt * 1.2);
+    }
+    this._bodyYaw = wrap(this._bodyYaw);
+    const headYawOffset = Math.max(-HEAD_YAW_LIMIT,
+      Math.min(HEAD_YAW_LIMIT, wrap(playerYaw - this._bodyYaw)));
+    this.group.rotation.y = this._bodyYaw;
 
     // Update animation timers
     this.animData.update(dt);
@@ -692,7 +715,7 @@ export class PlayerModel {
     this.body.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
 
     this.head.rotation.x = pose.headRotX;
-    this.head.rotation.y = pose.headRotY;
+    this.head.rotation.y = pose.headRotY + headYawOffset;
     this.head.rotation.z = pose.headRotZ;
 
     this.leftArmPivot.rotation.x = pose.leftArmRotX;

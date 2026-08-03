@@ -85,6 +85,7 @@ export class PlayerAnimData {
     this._lastOnGround = true;
     this._minePhase = 0;
     this.swimFactor = 0;
+    this.swimStroke = 0;
   }
 
   update(dt) {
@@ -94,15 +95,25 @@ export class PlayerAnimData {
     const swimTarget = this.inWater ? 1 : 0;
     this.swimFactor = lerp(this.swimFactor, swimTarget, Math.min(1, dt * 6));
 
-    // Limb swing accumulation — FA+ style
-    if (this.moving) {
-      const targetSpeed = this.inWater ? 8 : this.sprinting ? 14 : 8;
+    // Limb swing accumulation — FA+ style.
+    // MC: swim strokes cycle faster than a walk; treading water is slow sculling.
+    if (this.moving || this.inWater) {
+      const targetSpeed = this.inWater
+        ? (this.moving ? 11 : 3)
+        : this.sprinting ? 14 : 8;
       this._limbSwing += dt * targetSpeed;
     }
 
     // Limb speed (smoothed) — used for amplitude weighting
-    const rawSpeed = this.moving ? (this.sprinting ? 14 : 8) : 0;
+    const rawSpeed = this.inWater
+      ? (this.moving ? 11 : 3)
+      : this.moving ? (this.sprinting ? 14 : 8) : 0;
     this._limbSpeed = lerp(this._limbSpeed, rawSpeed, Math.min(1, dt * 12));
+
+    // Swim stroke factor — 1 while actively swimming, low while treading water.
+    // MC only goes fully prone when you're moving through the water.
+    const strokeTarget = (this.inWater && this.moving) ? 1 : 0;
+    this.swimStroke = lerp(this.swimStroke || 0, strokeTarget, Math.min(1, dt * 5));
 
     // Mine phase — runs while breaking
     if (this.breaking) {
@@ -265,38 +276,56 @@ function calcBodyPose(state) {
   let bodyRx = 0, bodyRy = 0, bodyRz = 0;
   let bodyTx = 0, bodyTy = 0, bodyTz = 0;
 
-  // ── Swim: forward lean + gentle undulation (smooth blend) ──
+  // ── Swim ──
+  // MC: actively swimming pitches the body prone (horizontal); treading water
+  // keeps you nearly upright with a slow bob.
   if (swim > 0) {
-    bodyRx += rad(20) * swim + Math.sin(ls * 0.5) * rad(4) * swim;
-    bodyTy += Math.sin(ls * 0.5) * 0.06 * swim;
-    bodyTz += -0.12 * swim;
-    bodyRz += Math.sin(ls * 0.5) * rad(4) * swim;
+    const stroke = state.swimStroke !== undefined ? state.swimStroke : (state.moving ? 1 : 0);
+    const tread = swim * (1 - stroke);
+
+    // Prone pitch, plus a body roll that alternates with the crawl stroke.
+    bodyRx += rad(72) * swim * stroke;
+    bodyRz += Math.sin(ls * 0.5) * rad(11) * swim * stroke;
+    bodyRy += Math.sin(ls * 0.5) * rad(6) * swim * stroke;
+    // Glide undulation along the spine
+    bodyRx += Math.sin(ls) * rad(5) * swim * stroke;
+    bodyTz += -0.22 * swim * stroke;
+    bodyTy += Math.sin(ls) * 0.04 * swim * stroke;
+
+    // Treading water — slow vertical bob, very slight lean
+    bodyRx += rad(6) * tread;
+    bodyTy += Math.sin(ls * 0.5) * 0.05 * tread;
+    bodyRz += Math.sin(ls * 0.35) * rad(3) * tread;
   }
 
   // ── Ground walk/run (suppressed while swimming) ──
   if (ground > 0) {
-    // Forward lean — run leans further and harder
-    const sprintLean = rad(18) * run * ground;
+    // Forward lean — MC sprint pitches the whole body noticeably forward
+    const sprintLean = rad(26) * run * ground;
     const walkTilt = rad(8) * walk * (1 - sneak) * ground;
     bodyRx += (sprintLean + walkTilt) * (1 - inAir);
 
-    // ── Body rotation Y (yaw sway) ──
-    const bodySway = Math.sin(ls) * rad(8) * walk * (1 - 0.3 * run) * ground;
+    // ── Body rotation Y (yaw sway) ── sprint drives shoulder counter-rotation
+    const bodySway = Math.sin(ls) * rad(8) * walk * ground;
     bodyRy += bodySway * lsSpeed * 0.5;
+    bodyRy += Math.sin(ls) * rad(6) * run * ground;
 
     // ── Body rotation Z (roll) ──
     const walkRoll = Math.sin(ls) * rad(-3) * walk * (1 - 0.5 * run) * ground;
     bodyRz += walkRoll * lsSpeed * 0.5;
+    bodyRz += Math.cos(ls) * rad(4) * run * ground;
 
-    // ── Body translation Y (bob) ──
+    // ── Body translation Y (bob) ── sprint bounces higher
     const walkBob = Math.sin(ls * 2) * 0.12 * walk * (1 - sneak) * (1 - inAir) * ground;
-    const sprintBob = Math.sin(ls * 2) * 0.2 * run * (1 - inAir) * ground;
+    const sprintBob = Math.sin(ls * 2) * 0.28 * run * (1 - inAir) * ground;
     bodyTy += (walkBob + sprintBob) * lsSpeed * 0.5;
 
     // ── Body translation X/Z (sway) ──
     const walkSway = Math.cos(ls) * 0.05 * walk * (1 - sneak) * ground;
     bodyTx += walkSway * lsSpeed * 0.3;
     bodyTz += Math.sin(ls) * 0.03 * walk * ground;
+    // Sprint drives the torso forward into the stride
+    bodyTz += -0.06 * run * ground;
   }
 
   // Landing compression — squash down briefly
@@ -336,9 +365,9 @@ function calcHeadPose(state) {
   let headRx = 0, headRy = 0, headRz = 0;
 
   // ── Head tracks camera pitch ──
-  // FA+: torad(60*sin(head_pitch)) * clamp(1-sneak/4*walk, 0, 1)
-  const pitchTrack = rad(60 * Math.sin(state.pitch)) * clamp(1 - sneak / 4 * walk, 0, 1 - inAir);
-  headRx += pitchTrack;
+  // MC: the head matches your look pitch 1:1, clamped to +/-90 degrees, and
+  // keeps tracking while airborne (unlike the old FA+ curve, which zeroed it).
+  headRx += clamp(state.pitch, rad(-90), rad(90));
 
   // Head recoil when looking down while walking
   headRx += rad(5) * walk * (1 - sneak);
@@ -351,9 +380,20 @@ function calcHeadPose(state) {
   // Subtle vertical bob
   headRx += Math.sin(ls * 2) * rad(2) * walk * (1 - sneak);
 
-  // ── Swim: head lift for breath (breast stroke rhythm) ──
-  headRx += Math.sin(ls * 0.5) * rad(-12) * swim;
-  headRy += Math.sin(ls * 0.25) * rad(4) * swim;
+  // ── Swim ──
+  // MC: while prone the head counter-rotates so you still face your swim
+  // direction, and turns side-to-side to breathe in time with the crawl.
+  {
+    const stroke = state.swimStroke !== undefined ? state.swimStroke : (state.moving ? 1 : 0);
+    const tread = swim * (1 - stroke);
+    // Cancel most of the body's prone pitch so the head stays level
+    headRx += rad(-58) * swim * stroke;
+    // Breathing turn — head rolls to one side on alternate strokes
+    headRy += Math.sin(ls * 0.5) * rad(22) * swim * stroke;
+    headRz += Math.sin(ls * 0.5) * rad(-10) * swim * stroke;
+    // Treading water — gentle bob
+    headRx += Math.sin(ls * 0.5) * rad(-6) * tread;
+  }
 
   // Climb: look up
   if (climb) {
@@ -379,26 +419,39 @@ function calcArmPose(state, side) {
 
   let armRx = 0, armRy = 0, armRz = 0;
 
-  // ── Swim: arms alternate forward crawl ──
+  // ── Swim ──
+  // MC front crawl: each arm sweeps a full overhead circle, half a cycle apart.
+  // Treading water is a slow outward scull instead.
   if (swim > 0) {
-    const bp = ls * 0.6;
-    const phase = isRight ? bp : bp + Math.PI;
-    armRx = rad(60) * Math.sin(phase) * swim - rad(25) * swim;
-    armRy = (isRight ? 1 : -1) * rad(5) * swim;
-    armRz = (isRight ? 1 : -1) * rad(5) * Math.sin(phase) * swim;
+    const stroke = state.swimStroke !== undefined ? state.swimStroke : (state.moving ? 1 : 0);
+    const tread = swim * (1 - stroke);
+    const phase = ls * 0.85 + (isRight ? 0 : Math.PI);
+    const sp = swim * stroke;
+
+    // Extended past the head, then a wide sweep down past the hip and back over.
+    armRx += (rad(-105) + Math.sin(phase) * rad(78)) * sp;
+    // Arms splay outward at the catch and tuck in on the recovery
+    armRz += (isRight ? 1 : -1) * (rad(14) + Math.cos(phase) * rad(18)) * sp;
+    armRy += (isRight ? 1 : -1) * rad(8) * sp;
+
+    // Treading water — slow sculling out to the sides
+    armRx += (rad(-18) + Math.sin(ls * 0.5 + (isRight ? 0 : Math.PI)) * rad(14)) * tread;
+    armRz += (isRight ? 1 : -1) * rad(42) * tread;
   }
 
   // ── Ground: walk vs run arm swing (mutually exclusive) ──
   if (ground > 0) {
-    // Oscillation swings the arm; scaled only gently by limb speed. Running
-    // pumps the arms with a raised, tucked base instead of a faster walk.
-    let swing = Math.cos(ls * 0.6662) * (run ? rad(18) : rad(33)) * walk * (1 - sneak) * ground;
+    // MC sprint pumps the arms through a wider arc with the elbows tucked in,
+    // rather than parking them at a permanently raised angle.
+    let swing = Math.cos(ls * 0.6662) * (run ? rad(46) : rad(33)) * walk * (1 - sneak) * ground;
     swing *= 1 + lsSpeed * 0.12;
 
     if (run) {
-      swing += rad(40) * ground;
-      armRy += (isRight ? 1 : -1) * rad(10) * ground;
-      armRz += (isRight ? 1 : -1) * rad(-12) * ground;
+      // Modest forward bias so the arms drive ahead of the torso
+      swing += rad(12) * ground;
+      armRy += (isRight ? 1 : -1) * rad(6) * ground;
+      // Elbows tucked toward the ribs, rocking with the stride
+      armRz += (isRight ? 1 : -1) * (rad(-14) + Math.sin(ls) * rad(5)) * ground;
     }
 
     // Opposite arm to leg direction
@@ -488,17 +541,27 @@ function calcLegPose(state, side) {
 
   let legRx = 0;
 
-  // ── Swim: flutter kick ──
+  // ── Swim ──
+  // MC: prone flutter kick — fast, shallow, legs trailing behind the body.
+  // Treading water is a slow, wide eggbeater instead.
   if (swim > 0) {
-    const bp = ls * 1.2;
-    legRx = Math.sin(bp + (isRight ? 0 : Math.PI)) * rad(30) * swim;
+    const stroke = state.swimStroke !== undefined ? state.swimStroke : (state.moving ? 1 : 0);
+    const tread = swim * (1 - stroke);
+    const sp = swim * stroke;
+
+    // Trail back behind the prone torso, then flutter at ~2x the arm cadence
+    legRx += rad(-16) * sp;
+    legRx += Math.sin(ls * 2.1 + (isRight ? 0 : Math.PI)) * rad(19) * sp;
+
+    // Treading water — slow alternating cycle
+    legRx += Math.sin(ls * 0.7 + (isRight ? 0 : Math.PI)) * rad(26) * tread;
   }
 
   // ── Ground: walk vs run leg swing (mutually exclusive) ──
   if (ground > 0) {
     // Running takes a bigger stride; the faster limbSwing advance (14 vs 8)
     // already makes the run cycle quicker than walking.
-    const swingAmp = run ? rad(52) : rad(42);
+    const swingAmp = run ? rad(58) : rad(42);
     let swing = Math.sin(ls) * swingAmp * walk * (1 - sneak) * ground;
     if (!isRight) swing = -swing;
     legRx += swing * (1 + lsSpeed * 0.12);
