@@ -2367,6 +2367,7 @@ class Mob {
     }
 
     // Movement
+    const def = MOB_TYPES[this.type];
     const isFlying = def.isFlying;
     if (isFlying) {
       // Dragon flying AI: circle player, swoop to attack
