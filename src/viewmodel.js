@@ -295,12 +295,12 @@ export class ViewModel {
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
     const mesh = this._planeFromCanvas(canvas, 0.35, true);
-    mesh.material.depthWrite = false;
+    mesh.material[4].depthWrite = false;
     const wrap = new THREE.Group();
     wrap.add(mesh);
-    // Angle like Minecraft: lean back, slight tilt right
-    mesh.rotation.x = -Math.PI * 0.4;
-    mesh.rotation.y = Math.PI * 0.1;
+    // Tilt the group, not the mesh — keeps texture face toward camera
+    wrap.rotation.x = -0.4;
+    wrap.rotation.y = 0.1;
     wrap.position.set(0.05, -0.08, 0);
     return wrap;
   }

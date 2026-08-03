@@ -595,8 +595,6 @@ export class PlayerModel {
       const sideMat = new THREE.MeshBasicMaterial({ color: 0x222222, fog: false });
       const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), px(1)), mats);
-      mesh.rotation.x = -Math.PI * 0.4;
-      mesh.rotation.y = Math.PI * 0.1;
       wrap.add(mesh);
     }
 
