@@ -5466,9 +5466,66 @@ function initMenu() {
     devBackBtn.addEventListener('click', () => ui.showMenu('main'));
   }
 
+  // Dev command buttons
+  document.querySelectorAll('[data-dev-cmd]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cmd = btn.dataset.devCmd;
+      if (cmd && typeof sendDevCommand === 'function') sendDevCommand(cmd);
+    });
+  });
+
+  // Dev chat send
+  const devChatSend = document.getElementById('dev-chat-send');
+  const devChatInput = document.getElementById('dev-chat-input');
+  if (devChatSend && devChatInput) {
+    const doDevSend = () => {
+      const text = devChatInput.value.trim();
+      if (!text) return;
+      if (text.startsWith('/')) {
+        if (typeof sendDevCommand === 'function') sendDevCommand(text);
+      } else if (network && network.connected) {
+        network.sendChat(text);
+      }
+      devChatInput.value = '';
+    };
+    devChatSend.addEventListener('click', doDevSend);
+    devChatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') doDevSend(); });
+  }
+
+  function sendDevCommand(cmd) {
+    if (cmd.startsWith('/time ')) {
+      const val = cmd.slice(6).trim();
+      if (val === 'day' || val === '0') dayTime = 0.01;
+      else if (val === 'night' || val === '13000') dayTime = 0.625;
+      else if (val === 'noon') dayTime = 0.5;
+      else if (val === 'midnight') dayTime = 0;
+      addChatLine(`Time set to ${val}.`, '#5f5');
+    } else if (cmd.startsWith('/difficulty ')) {
+      const val = cmd.slice(12).trim();
+      difficulty = val;
+      addChatLine(`Difficulty set to ${val}.`, '#5f5');
+    } else if (cmd.startsWith('/weather ')) {
+      const val = cmd.slice(9).trim();
+      if (weatherSystem) {
+        if (val === 'clear') weatherSystem.setState('clear');
+        else if (val === 'rain' || val === 'rainy') weatherSystem.setState('rain');
+        else if (val === 'thunder' || val === 'storm') weatherSystem.setState('thunder');
+      }
+      addChatLine(`Weather set to ${val}.`, '#5f5');
+    } else if (cmd === '/heal') {
+      if (typeof health !== 'undefined') health = 20;
+      if (typeof food !== 'undefined') food = 20;
+      addChatLine('Health restored.', '#5f5');
+    } else if (network && network.connected) {
+      network.sendChat(cmd);
+    } else {
+      addChatLine('No server connected.', '#f55');
+    }
+  }
+
   function setDevAccountListMsg(text) {
     const list = document.getElementById('dev-account-list');
-    if (list) list.innerHTML = `<div style="font:12px monospace;color:#888;text-align:center;padding:10px;">${text}</div>`;
+    if (list) list.innerHTML = `<div class="dev-empty">${escHtml(text)}</div>`;
   }
 
   function renderDevAccountList() {
@@ -5477,31 +5534,29 @@ function initMenu() {
     const search = (document.getElementById('dev-account-search')?.value || '').toLowerCase();
     const filtered = devAccountsCache.filter(a => a.username.toLowerCase().includes(search));
     if (filtered.length === 0) {
-      list.innerHTML = '<div style="font:12px monospace;color:#888;text-align:center;padding:10px;">No accounts found</div>';
+      list.innerHTML = '<div class="dev-empty">No accounts found</div>';
       return;
     }
     list.innerHTML = filtered.map(a => {
       const isDev = a.role === 'dev' || a.role === 'gamedev' || a.role === 'owner';
       const roleColor = a.role === 'gamedev' ? '#0ff' : a.role === 'owner' ? '#fa0' : a.role === 'dev' ? '#5af' : '#888';
+      const roleBg = a.role === 'gamedev' ? 'rgba(0,200,200,0.15)' : a.role === 'owner' ? 'rgba(255,170,0,0.15)' : a.role === 'dev' ? 'rgba(80,150,255,0.15)' : 'rgba(100,100,120,0.15)';
       const tagDisplay = a.tag ? `<span style="color:#5f5;font-size:10px;"> [${escHtml(a.tag)}]</span>` : '';
-      const sel = devSelectedAccount === a.username ? 'background:rgba(80,150,255,0.2);' : '';
-      return `<div data-username="${escHtml(a.username)}" style="cursor:pointer;padding:5px 8px;border-radius:4px;${sel}font:12px monospace;color:#ddd;display:flex;align-items:center;gap:6px;">
+      const sel = devSelectedAccount === a.username ? ' selected' : '';
+      return `<div data-username="${escHtml(a.username)}" class="dev-account-item${sel}">
         <span style="color:${roleColor};font-weight:bold;">${isDev ? '★' : '·'}</span>
         <span>${escHtml(a.username)}${tagDisplay}</span>
-        <span style="margin-left:auto;font-size:10px;color:${roleColor};">${a.role.toUpperCase()}</span>
+        <span class="role-badge" style="margin-left:auto;color:${roleColor};background:${roleBg};">${a.role.toUpperCase()}</span>
       </div>`;
     }).join('');
-    // Click to select account
     list.querySelectorAll('[data-username]').forEach(el => {
       el.addEventListener('click', () => {
         const username = el.dataset.username;
         devSelectedAccount = username;
-        // Highlight selected
-        list.querySelectorAll('[data-username]').forEach(e => e.style.background = '');
-        el.style.background = 'rgba(80,150,255,0.2)';
-        // Show loading
+        list.querySelectorAll('[data-username]').forEach(e => e.classList.remove('selected'));
+        el.classList.add('selected');
         const detail = document.getElementById('dev-account-detail');
-        if (detail) { detail.style.display = 'block'; detail.innerHTML = '<div style="font:12px monospace;color:#888;text-align:center;">Loading...</div>'; }
+        if (detail) { detail.style.display = 'block'; detail.innerHTML = '<div class="dev-empty">Loading...</div>'; }
         network.devGetAccount(username);
       });
     });
@@ -5511,7 +5566,7 @@ function initMenu() {
     const detail = document.getElementById('dev-account-detail');
     if (!detail) return;
     if (data.error) {
-      detail.innerHTML = `<div style="font:12px monospace;color:#f55;text-align:center;">${escHtml(data.error)}</div>`;
+      detail.innerHTML = `<div class="dev-empty" style="color:#f55;">${escHtml(data.error)}</div>`;
       return;
     }
     const isDevRole = data.role === 'dev' || data.role === 'gamedev' || data.role === 'owner';
@@ -5523,53 +5578,50 @@ function initMenu() {
     const mobKills = stats.mobKillsAny || 0;
 
     detail.innerHTML = `
-      <div style="font:bold 14px monospace;color:#fff;margin-bottom:8px;">${escHtml(data.username)}</div>
-      <div class="settings-row" style="margin:0 0 4px;">
+      <div class="dev-detail-header">
+        <span style="color:${roleColor};">●</span>
+        ${escHtml(data.username)}
+      </div>
+      <div class="dev-detail-row">
         <label>Role</label>
         <div style="display:flex;gap:6px;align-items:center;">
-          <span id="dev-detail-role" style="font:12px monospace;color:${roleColor};font-weight:bold;">${data.role.toUpperCase()}</span>
+          <span class="value" style="color:${roleColor};font-weight:bold;">${data.role.toUpperCase()}</span>
           ${data.role !== 'owner' && data.role !== 'gamedev' ? `
-            <button id="dev-role-promote" style="padding:2px 8px;font:10px monospace;border-radius:3px;border:1px solid #5af;background:rgba(80,150,255,0.15);color:#5af;cursor:pointer;">${isDevRole ? 'DEMOTE' : 'PROMOTE'}</button>
+            <button id="dev-role-promote" class="dev-detail-btn primary">${isDevRole ? 'DEMOTE' : 'PROMOTE'}</button>
           ` : ''}
         </div>
       </div>
-      <div class="settings-row" style="margin:0 0 4px;">
+      <div class="dev-detail-row">
         <label>Tag</label>
         <div style="display:flex;gap:4px;align-items:center;flex:1;">
-          <span id="dev-detail-tag" style="font:12px monospace;color:${data.tag ? '#5f5' : '#666'};">${data.tag ? escHtml(data.tag) : '(none)'}</span>
-          <input id="dev-tag-input" type="text" placeholder="Set tag..." maxlength="20" value="${escHtml(data.tag || '')}" style="flex:1;min-width:0;padding:3px 6px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid rgba(100,100,100,0.3);border-radius:3px;font:11px monospace;outline:none;" />
-          <button id="dev-tag-save" style="padding:3px 8px;font:10px monospace;border-radius:3px;border:1px solid #5f5;background:rgba(80,255,80,0.1);color:#5f5;cursor:pointer;">SAVE</button>
+          <input id="dev-tag-input" class="dev-detail-input" type="text" placeholder="Set tag..." maxlength="20" value="${escHtml(data.tag || '')}" style="flex:1;" />
+          <button id="dev-tag-save" class="dev-detail-btn green">SAVE</button>
         </div>
       </div>
-      <div style="font:bold 10px monospace;color:#5af;margin:8px 0 4px;">STATS</div>
-      <div style="display:flex;flex-wrap:wrap;gap:4px;">
-        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
-          <span style="color:#888;">Playtime </span><span style="color:#fff;">${playTime}</span>
-        </div>
-        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
-          <span style="color:#888;">Blocks </span><span style="color:#fff;">${blocksBroken}</span>
-        </div>
-        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
-          <span style="color:#888;">Kills </span><span style="color:#fff;">${mobKills}</span>
-        </div>
-        <div style="background:rgba(0,0,0,0.25);border-radius:4px;padding:3px 8px;font:10px monospace;">
-          <span style="color:#888;">Deaths </span><span style="color:#f55;">${deaths}</span>
+      <div style="margin-top:8px;">
+        <div style="font:bold 10px monospace;color:#5af;margin-bottom:6px;">STATS</div>
+        <div class="dev-stats-pill">
+          <span><span class="sl">Play </span><span class="sv">${playTime}</span></span>
+          <span><span class="sl">Blocks </span><span class="sv">${blocksBroken}</span></span>
+          <span><span class="sl">Kills </span><span class="sv">${mobKills}</span></span>
+          <span><span class="sl">Deaths </span><span class="sv red">${deaths}</span></span>
         </div>
       </div>
-      <div style="font:bold 10px monospace;color:#5af;margin:6px 0 2px;">ACHIEVEMENTS</div>
-      <div style="font:10px monospace;color:#aaa;max-height:80px;overflow-y:auto;">
-        ${Object.entries(stats).filter(([k]) => k !== 'playTime' && k !== 'totalBlocksBroken' && k !== 'deaths' && k !== 'mobKillsAny').map(([k, v]) => {
-          if (typeof v === 'number' && v > 0) return `<div>${k}: ${v}</div>`;
-          return '';
-        }).filter(Boolean).join('') || '<span style="color:#666;">No data</span>'}
+      <div style="margin-top:8px;">
+        <div style="font:bold 10px monospace;color:#5af;margin-bottom:4px;">ACHIEVEMENTS</div>
+        <div class="dev-achievements">
+          ${Object.entries(stats).filter(([k]) => k !== 'playTime' && k !== 'totalBlocksBroken' && k !== 'deaths' && k !== 'mobKillsAny').map(([k, v]) => {
+            if (typeof v === 'number' && v > 0) return `<div>${k}: ${v}</div>`;
+            return '';
+          }).filter(Boolean).join('') || '<span style="color:#556;">No data</span>'}
+        </div>
       </div>
       ${data.username !== 'LogicLeague' && data.role !== 'gamedev' ? `
-      <div style="margin-top:8px;border-top:1px solid rgba(255,80,80,0.3);padding-top:6px;">
-        <button id="dev-delete-account" style="padding:4px 12px;font:10px monospace;border-radius:3px;border:1px solid #f55;background:rgba(255,60,60,0.15);color:#f55;cursor:pointer;">DELETE ACCOUNT</button>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,60,60,0.15);">
+        <button id="dev-delete-account" class="dev-detail-btn red" style="font-size:10px;">DELETE ACCOUNT</button>
       </div>` : ''}
     `;
 
-    // Wire tag save
     const tagSave = detail.querySelector('#dev-tag-save');
     if (tagSave) {
       tagSave.addEventListener('click', () => {
@@ -5579,7 +5631,6 @@ function initMenu() {
       });
     }
 
-    // Wire role promote/demote
     const roleBtn = detail.querySelector('#dev-role-promote');
     if (roleBtn) {
       roleBtn.addEventListener('click', () => {
@@ -5588,7 +5639,6 @@ function initMenu() {
       });
     }
 
-    // Wire delete account
     const deleteBtn = detail.querySelector('#dev-delete-account');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', () => {

@@ -1617,6 +1617,161 @@
         background: #7af; border: 2px solid #5af; cursor: pointer;
       }
 
+      /* ── Dev Panel ──────────────────────────────────────────────────── */
+      .dev-panel { width: 480px; max-height: 80vh; display: flex; flex-direction: column; gap: 0; }
+      .dev-panel .menu-panel { max-height: none; width: 100%; flex: 1; overflow-y: auto; }
+      .dev-section {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(100,140,255,0.08);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        backdrop-filter: blur(6px);
+        transition: border-color 0.2s;
+      }
+      .dev-section:hover { border-color: rgba(100,140,255,0.15); }
+      .dev-section-title {
+        font: bold 11px monospace; color: #5af;
+        letter-spacing: 1.5px; text-transform: uppercase;
+        margin-bottom: 10px;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .dev-section-title::before {
+        content: ''; width: 3px; height: 12px;
+        background: linear-gradient(180deg, #5af, #36d);
+        border-radius: 2px;
+      }
+      .dev-stats-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      }
+      .dev-stat-card {
+        text-align: center; padding: 10px 6px;
+        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(100,140,255,0.06);
+        border-radius: 6px;
+        transition: border-color 0.2s, transform 0.15s;
+      }
+      .dev-stat-card:hover { border-color: rgba(100,140,255,0.15); transform: translateY(-1px); }
+      .dev-stat-label { font: 10px monospace; color: #667; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .dev-stat-value { font: bold 20px monospace; }
+      .dev-stat-value.green { color: #5f5; }
+      .dev-stat-value.orange { color: #fa0; }
+      .dev-cmd-grid {
+        display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+      }
+      .dev-cmd-btn {
+        padding: 8px 4px; font: bold 10px monospace;
+        background: rgba(40,50,80,0.5);
+        border: 1px solid rgba(100,140,255,0.12);
+        border-radius: 5px; color: #bcd;
+        cursor: pointer; text-align: center;
+        transition: all 0.15s;
+        backdrop-filter: blur(4px);
+      }
+      .dev-cmd-btn:hover {
+        background: rgba(60,80,140,0.5);
+        border-color: rgba(100,160,255,0.3);
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      .dev-cmd-btn:active { transform: translateY(0); }
+      .dev-cmd-btn .cmd-icon { font-size: 16px; display: block; margin-bottom: 3px; }
+      .dev-cmd-btn .cmd-label { font-size: 9px; color: #89a; }
+      .dev-cmd-btn.danger { border-color: rgba(255,60,60,0.15); color: #e88; }
+      .dev-cmd-btn.danger:hover { background: rgba(120,30,30,0.5); border-color: rgba(255,60,60,0.3); color: #faa; }
+      .dev-chat-row {
+        display: flex; gap: 6px; margin-top: 8px;
+      }
+      .dev-chat-row input {
+        flex: 1; padding: 7px 10px;
+        background: rgba(0,0,0,0.4); color: #fff;
+        border: 1px solid rgba(100,140,255,0.12);
+        border-radius: 4px; font: 12px monospace; outline: none;
+        transition: border-color 0.2s;
+      }
+      .dev-chat-row input:focus { border-color: rgba(100,160,255,0.3); }
+      .dev-chat-row button {
+        padding: 7px 14px; font: bold 11px monospace;
+        background: rgba(60,100,180,0.3);
+        border: 1px solid rgba(100,160,255,0.2);
+        border-radius: 4px; color: #8cf; cursor: pointer;
+        transition: all 0.15s;
+      }
+      .dev-chat-row button:hover { background: rgba(60,100,180,0.5); border-color: rgba(100,160,255,0.4); color: #fff; }
+      .dev-search-input {
+        width: 100%; padding: 8px 12px;
+        background: rgba(0,0,0,0.4); color: #fff;
+        border: 1px solid rgba(100,140,255,0.1);
+        border-radius: 5px; font: 12px monospace; outline: none;
+        transition: border-color 0.2s;
+        margin-bottom: 8px; box-sizing: border-box;
+      }
+      .dev-search-input:focus { border-color: rgba(100,160,255,0.25); }
+      .dev-search-input::placeholder { color: #556; }
+      .dev-account-list { max-height: 200px; overflow-y: auto; }
+      .dev-account-item {
+        cursor: pointer; padding: 6px 10px; border-radius: 5px;
+        font: 12px monospace; color: #ccd;
+        display: flex; align-items: center; gap: 8px;
+        transition: background 0.1s, border-color 0.1s;
+        border: 1px solid transparent;
+      }
+      .dev-account-item:hover { background: rgba(80,120,200,0.1); border-color: rgba(100,140,255,0.1); }
+      .dev-account-item.selected { background: rgba(80,150,255,0.15); border-color: rgba(100,160,255,0.2); }
+      .dev-account-item .role-badge {
+        font-size: 9px; font-weight: bold;
+        padding: 1px 6px; border-radius: 3px;
+        letter-spacing: 0.5px;
+      }
+      .dev-detail {
+        background: rgba(0,0,0,0.3); border-radius: 8px;
+        padding: 14px; margin-top: 8px;
+        border: 1px solid rgba(100,140,255,0.08);
+      }
+      .dev-detail-header {
+        font: bold 14px monospace; color: #fff; margin-bottom: 10px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .dev-detail-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 6px 0; border-bottom: 1px solid rgba(60,60,80,0.2);
+      }
+      .dev-detail-row:last-child { border-bottom: none; }
+      .dev-detail-row label { font: 11px monospace; color: #89a; }
+      .dev-detail-row .value { font: 12px monospace; color: #dde; }
+      .dev-detail-input {
+        padding: 4px 8px; background: rgba(0,0,0,0.4); color: #fff;
+        border: 1px solid rgba(100,140,255,0.12); border-radius: 4px;
+        font: 11px monospace; outline: none; width: 120px;
+      }
+      .dev-detail-input:focus { border-color: rgba(100,160,255,0.3); }
+      .dev-detail-btn {
+        padding: 4px 10px; font: bold 10px monospace;
+        border-radius: 4px; cursor: pointer;
+        transition: all 0.15s;
+      }
+      .dev-detail-btn.primary { background: rgba(60,120,200,0.2); border: 1px solid rgba(100,160,255,0.2); color: #8cf; }
+      .dev-detail-btn.primary:hover { background: rgba(60,120,200,0.4); color: #fff; }
+      .dev-detail-btn.green { background: rgba(60,160,80,0.15); border: 1px solid rgba(80,200,100,0.2); color: #5f5; }
+      .dev-detail-btn.green:hover { background: rgba(60,160,80,0.3); color: #8f8; }
+      .dev-detail-btn.red { background: rgba(180,40,40,0.15); border: 1px solid rgba(255,60,60,0.2); color: #f55; }
+      .dev-detail-btn.red:hover { background: rgba(180,40,40,0.3); color: #f88; }
+      .dev-stats-pill {
+        display: inline-flex; gap: 6px; flex-wrap: wrap;
+      }
+      .dev-stats-pill span {
+        background: rgba(0,0,0,0.25); border-radius: 4px;
+        padding: 3px 8px; font: 10px monospace;
+      }
+      .dev-stats-pill span .sl { color: #667; }
+      .dev-stats-pill span .sv { color: #dde; }
+      .dev-stats-pill span .sv.red { color: #f55; }
+      .dev-empty { font: 12px monospace; color: #556; text-align: center; padding: 16px; }
+      .dev-achievements { font: 10px monospace; color: #89a; max-height: 80px; overflow-y: auto; line-height: 1.6; }
+      .dev-achievements::-webkit-scrollbar { width: 4px; }
+      .dev-achievements::-webkit-scrollbar-thumb { background: rgba(100,140,200,0.3); border-radius: 2px; }
+
       /* Key bindings / controls screen */
       .control-row {
         display: flex; align-items: center; justify-content: space-between;
@@ -2951,29 +3106,56 @@
       <!-- Screen: Developer Panel (GameDev/Dev account) -->
       <div id="menu-dev-panel" class="menu-screen">
         <div class="menu-title" style="font-size:28px;">DEVELOPER PANEL</div>
-        <div class="menu-panel" style="max-height:none;width:460px;">
-          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin-bottom:8px;">SERVER STATS</div>
-          <div style="display:flex;gap:12px;margin-bottom:8px;">
-            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
-              <div style="font:10px monospace;color:#888;">Today</div>
-              <div id="dev-dau" style="font:bold 16px monospace;color:#5f5;">0</div>
-            </div>
-            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
-              <div style="font:10px monospace;color:#888;">Month</div>
-              <div id="dev-mau" style="font:bold 16px monospace;color:#5f5;">0</div>
-            </div>
-            <div style="flex:1;text-align:center;background:rgba(0,0,0,0.3);border-radius:6px;padding:6px;">
-              <div style="font:10px monospace;color:#888;">Servers</div>
-              <div id="dev-servers" style="font:bold 16px monospace;color:#fa0;">0</div>
+        <div class="dev-panel menu-panel" style="max-height:none;width:480px;">
+          <!-- Server Stats -->
+          <div class="dev-section">
+            <div class="dev-section-title">Server Stats</div>
+            <div class="dev-stats-grid">
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Today</div>
+                <div id="dev-dau" class="dev-stat-value green">0</div>
+              </div>
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Month</div>
+                <div id="dev-mau" class="dev-stat-value green">0</div>
+              </div>
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Servers</div>
+                <div id="dev-servers" class="dev-stat-value orange">0</div>
+              </div>
             </div>
           </div>
-          <div class="menu-divider"></div>
-          <div style="font:bold 11px monospace;color:#5af;letter-spacing:1px;margin:6px 0 8px;">ACCOUNTS</div>
-          <input id="dev-account-search" type="text" placeholder="Search accounts..." maxlength="30" spellcheck="false" autocomplete="off" style="width:100%;padding:6px 10px;background:rgba(0,0,0,0.5);color:#fff;border:1px solid rgba(100,100,100,0.4);border-radius:4px;font:12px monospace;outline:none;margin-bottom:6px;box-sizing:border-box;" />
-          <div id="dev-account-list" style="max-height:240px;overflow-y:auto;margin-bottom:8px;"></div>
-          <div id="dev-account-detail" style="display:none;background:rgba(0,0,0,0.3);border-radius:6px;padding:10px;margin-bottom:8px;"></div>
+          <!-- Quick Commands -->
+          <div class="dev-section">
+            <div class="dev-section-title">Quick Commands</div>
+            <div class="dev-cmd-grid">
+              <button class="dev-cmd-btn" data-dev-cmd="/time day"><span class="cmd-icon">☀</span><span class="cmd-label">Day</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/time night"><span class="cmd-icon">🌙</span><span class="cmd-label">Night</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/time noon"><span class="cmd-icon">🌤</span><span class="cmd-label">Noon</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/time midnight"><span class="cmd-icon">🌑</span><span class="cmd-label">Midnight</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/weather clear"><span class="cmd-icon">☀</span><span class="cmd-label">Clear</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/weather rain"><span class="cmd-icon">🌧</span><span class="cmd-label">Rain</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/weather thunder"><span class="cmd-icon">⛈</span><span class="cmd-label">Storm</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/difficulty peaceful"><span class="cmd-icon">😇</span><span class="cmd-label">Peaceful</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/difficulty easy"><span class="cmd-icon">😊</span><span class="cmd-label">Easy</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/difficulty normal"><span class="cmd-icon">😐</span><span class="cmd-label">Normal</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/difficulty hard"><span class="cmd-icon">💀</span><span class="cmd-label">Hard</span></button>
+              <button class="dev-cmd-btn" data-dev-cmd="/heal"><span class="cmd-icon">❤</span><span class="cmd-label">Heal</span></button>
+            </div>
+            <div class="dev-chat-row">
+              <input id="dev-chat-input" type="text" placeholder="Type command or message..." maxlength="200" spellcheck="false" autocomplete="off" />
+              <button id="dev-chat-send">Send</button>
+            </div>
+          </div>
+          <!-- Accounts -->
+          <div class="dev-section">
+            <div class="dev-section-title">Accounts</div>
+            <input id="dev-account-search" class="dev-search-input" type="text" placeholder="Search accounts..." maxlength="30" spellcheck="false" autocomplete="off" />
+            <div id="dev-account-list" class="dev-account-list"></div>
+            <div id="dev-account-detail" class="dev-detail" style="display:none;"></div>
+          </div>
         </div>
-        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:460px;">BACK</button>
+        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:480px;">BACK</button>
       </div>
     </div>
 
