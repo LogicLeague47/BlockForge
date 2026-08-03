@@ -1154,10 +1154,17 @@ function renderDMMessages() {
   }
   el.innerHTML = msgs.map(m => {
     const mine = m.from === playerName;
+    let rendered = escHtml(m.text);
+    rendered = rendered.replace(/(https?:\/\/[^\s<]+)/g, url => {
+      if (/\.(gif|png|jpe?g|webp|svg)/i.test(url)) {
+        return '<img src="' + url + '" style="max-width:180px;max-height:130px;border-radius:4px;margin-top:3px;" loading="lazy">';
+      }
+      return '<a href="' + url + '" target="_blank" rel="noopener" style="color:#8af;text-decoration:underline;">' + url + '</a>';
+    });
     return `<div style="display:flex;${mine ? 'justify-content:flex-end' : 'justify-content:flex-start'};">
       <div style="max-width:75%;padding:7px 10px;border-radius:8px;font:12px monospace;color:#eee;background:${mine ? 'rgba(60,100,160,0.6)' : 'rgba(50,50,60,0.6)'};border:1px solid ${mine ? 'rgba(80,120,180,0.4)' : 'rgba(80,80,100,0.3)'};">
         ${mine ? '' : `<div style="font-size:10px;color:#8bd;margin-bottom:2px;">${escHtml(m.from)}</div>`}
-        <div>${escHtml(m.text)}</div>
+        <div>${rendered}</div>
       </div>
     </div>`;
   }).join('');
@@ -2482,7 +2489,13 @@ function renderChatMessages() {
   if (!el) return;
   const start = Math.max(0, chatHistory.length - 50);
   el.innerHTML = chatHistory.slice(start).map(m => {
-    const content = m.raw ? m.text : escHtml(m.text);
+    let content = m.raw ? m.text : escHtml(m.text);
+    content = content.replace(/(https?:\/\/[^\s<]+)/g, url => {
+      if (/\.(gif|png|jpe?g|webp|svg)/i.test(url)) {
+        return '<img src="' + url + '" style="max-width:200px;max-height:140px;border-radius:4px;vertical-align:middle;" loading="lazy">';
+      }
+      return '<a href="' + url + '" target="_blank" rel="noopener" style="color:#8af;text-decoration:underline;">' + url + '</a>';
+    });
     return `<div style="color:${m.color};text-shadow:1px 1px 0 #000;word-wrap:break-word;white-space:pre-wrap;">${content}</div>`;
   }).join('');
   el.scrollTop = el.scrollHeight;
@@ -2491,6 +2504,67 @@ function renderChatMessages() {
 function escHtml(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
+
+// ── In-game emoji picker ──────────────────────────────────────────────
+const _emojiList = ['😀','😂','🤣','😊','😍','😎','🤩','🥳','😢','😭','😡','🤔','👍','👎','❤️','🔥','💯','🎉','🎮','⛏️','🗡️','🛡️','💎','🧱','💀','🏆','👀','💪','✌️','🫡','👻','☀️','🌙','⚡'];
+let _emojiPanel = null;
+function _initEmojiPicker() {
+  const btn = document.getElementById('chat-emoji-btn');
+  const inp = document.getElementById('chat-input');
+  if (!btn || !inp || _emojiPanel) return;
+  const panel = document.createElement('div');
+  panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.85);border:1px solid rgba(100,100,100,0.5);border-radius:6px;padding:8px;z-index:20;width:220px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;';
+  _emojiList.forEach(em => {
+    const eb = document.createElement('button');
+    eb.textContent = em;
+    eb.style.cssText = 'background:none;border:none;font-size:16px;padding:3px;cursor:pointer;border-radius:3px;line-height:1;';
+    eb.onmouseenter = () => eb.style.background = 'rgba(100,140,255,0.2)';
+    eb.onmouseleave = () => eb.style.background = 'none';
+    eb.addEventListener('click', () => { inp.value += em; inp.focus(); });
+    grid.appendChild(eb);
+  });
+  panel.appendChild(grid);
+  document.body.appendChild(panel);
+  _emojiPanel = panel;
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) panel.style.display = 'none';
+  });
+}
+_initEmojiPicker();
+// DM emoji picker
+(function() {
+  const btn = document.getElementById('dm-emoji-btn');
+  const inp = document.getElementById('dm-input');
+  if (!btn || !inp) return;
+  const panel = document.createElement('div');
+  panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.85);border:1px solid rgba(100,100,100,0.5);border-radius:6px;padding:8px;z-index:25;width:220px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  const grid = document.createElement('div');
+  grid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;';
+  _emojiList.forEach(em => {
+    const eb = document.createElement('button');
+    eb.textContent = em;
+    eb.style.cssText = 'background:none;border:none;font-size:16px;padding:3px;cursor:pointer;border-radius:3px;line-height:1;';
+    eb.onmouseenter = () => eb.style.background = 'rgba(100,140,255,0.2)';
+    eb.onmouseleave = () => eb.style.background = 'none';
+    eb.addEventListener('click', () => { inp.value += em; inp.focus(); });
+    grid.appendChild(eb);
+  });
+  panel.appendChild(grid);
+  document.body.appendChild(panel);
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+  });
+  document.addEventListener('click', (e) => {
+    if (!panel.contains(e.target) && e.target !== btn) panel.style.display = 'none';
+  });
+})();
 
 function openChat(prefix) {
   chatOpen = true;

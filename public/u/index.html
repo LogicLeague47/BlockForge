@@ -203,6 +203,8 @@
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
     renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x78b9e8);
@@ -214,6 +216,17 @@
 
     const sun = new THREE.DirectionalLight(0xfff8e7, 1.6);
     sun.position.set(40, 80, 30);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
+    sun.shadow.bias = -0.001;
+    sun.shadow.camera.updateProjectionMatrix();
     scene.add(sun);
     scene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
     scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
@@ -352,6 +365,7 @@
         mesh.setMatrixAt(idx++, dummy.matrix);
       }
       mesh.instanceMatrix.needsUpdate = true;
+      mesh.receiveShadow = true;
       scene.add(mesh);
     }
 

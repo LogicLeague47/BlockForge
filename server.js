@@ -878,6 +878,8 @@ function isRateLimited(ws) {
       case 'mob_position': handleMobPosition(ws, msg); break;
       case 'mob_damage': handleMobDamage(ws, msg); break;
       case 'mob_death': handleMobDeath(ws, msg); break;
+      case 'community_chat': handleCommunityChat(ws, msg); break;
+      case 'community_chat_history': handleCommunityChatHistory(ws); break;
       // Identity linking
       case 'link_identity': handleLinkIdentity(ws, msg); break;
       case 'start_oauth_link': handleStartOAuthLink(ws, msg); break;
@@ -1303,6 +1305,32 @@ function handleDm(ws, msg) {
   }
 
   safeSend(targetWs, JSON.stringify({ type: 'dm', from: pd.name, text }));
+}
+
+// ── Community Chat (global, portal-wide) ───────────────────────────────
+const _communityChatHistory = [];
+const COMMUNITY_CHAT_MAX = 100;
+
+function handleCommunityChat(ws, msg) {
+  const pd = ws._playerData;
+  const name = pd ? pd.name : 'Anonymous';
+  const role = pd ? (pd.role || 'player') : 'player';
+  const text = filterProfanity((msg.text ?? '').trim());
+  if (!text) return;
+  const entry = { name, role, text, time: Date.now() };
+  _communityChatHistory.push(entry);
+  if (_communityChatHistory.length > COMMUNITY_CHAT_MAX) _communityChatHistory.shift();
+  // Broadcast to ALL connected clients
+  const data = JSON.stringify({ type: 'community_chat', ...entry });
+  if (wss && wss.clients) {
+    for (const client of wss.clients) {
+      if (client.readyState === 1) safeSend(client, data);
+    }
+  }
+}
+
+function handleCommunityChatHistory(ws) {
+  safeSend(ws, JSON.stringify({ type: 'community_chat_history', messages: _communityChatHistory }));
 }
 
 function handleCommand(ws, msg) {

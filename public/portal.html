@@ -217,6 +217,40 @@
     .dl-arrow{font:bold 18px monospace;color:rgba(100,140,255,.4);flex-shrink:0}
     .dl-card:hover .dl-arrow{color:var(--accent);transform:translateX(2px)}
     .dl-note{font-size:11px;color:var(--dim);margin-top:14px;line-height:1.6}
+    /* ── Community Chat ─────────────────────────────────────────────── */
+    .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:400px;max-height:700px;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .chat-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:rgba(10,10,24,.6)}
+    .chat-header h3{margin:0;font:600 14px 'Inter',monospace;color:var(--accent);flex:1}
+    .chat-status{font:11px 'Inter',monospace;color:var(--dim);display:flex;align-items:center;gap:5px}
+    .chat-status .dot{width:7px;height:7px;border-radius:50%;background:#666}
+    .chat-status.on .dot{background:var(--green);box-shadow:0 0 6px rgba(68,204,68,.5)}
+    .chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth}
+    .chat-messages::-webkit-scrollbar{width:5px}
+    .chat-messages::-webkit-scrollbar-thumb{background:rgba(100,140,200,.25);border-radius:3px}
+    .chat-msg{display:flex;gap:8px;align-items:baseline;animation:chatIn .2s ease}
+    @keyframes chatIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    .chat-msg .cm-name{font:600 12px 'Inter',monospace;white-space:nowrap}
+    .chat-msg .cm-name.owner{color:#fa0}
+    .chat-msg .cm-name.dev{color:#5af}
+    .chat-msg .cm-name.gamedev{color:#0ff}
+    .chat-msg .cm-name.player{color:var(--accent)}
+    .chat-msg .cm-text{font:12px 'Inter',monospace;color:var(--text);word-break:break-word}
+    .chat-msg .cm-time{font:10px 'Inter',monospace;color:var(--dim);white-space:nowrap;margin-left:auto}
+    .chat-msg.system{justify-content:center}
+    .chat-msg.system .cm-text{font-style:italic;color:var(--dim);font-size:11px}
+    .chat-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:rgba(10,10,24,.4)}
+    .chat-input-row input{flex:1;padding:10px 14px;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;color:var(--text);font:13px 'Inter',monospace;outline:none;transition:border-color .2s}
+    .chat-input-row input:focus{border-color:rgba(130,160,255,.45)}
+    .chat-input-row input::placeholder{color:var(--dim)}
+    .chat-input-row button{padding:10px 20px;background:linear-gradient(135deg,rgba(60,90,180,.35),rgba(140,80,200,.25));border:1px solid rgba(130,160,255,.35);border-radius:8px;color:#fff;font:600 12px 'Inter',monospace;cursor:pointer;transition:.2s;white-space:nowrap}
+    .chat-input-row button:hover{background:linear-gradient(135deg,rgba(60,90,180,.55),rgba(140,80,200,.4));border-color:rgba(130,160,255,.55);box-shadow:0 0 14px rgba(100,140,255,.2)}
+    .chat-input-row button:disabled{opacity:.4;cursor:not-allowed}
+    .comm-sub-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+    .comm-sub-tab{padding:7px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font:12px 'Inter',monospace;color:var(--muted);background:transparent;transition:.2s}
+    .comm-sub-tab:hover{color:#fff;background:rgba(100,140,255,.08);border-color:rgba(130,160,255,.25)}
+    .comm-sub-tab.active{color:#fff;background:linear-gradient(135deg,rgba(60,90,180,.25),rgba(140,80,200,.2));border-color:rgba(130,160,255,.45)}
+    .comm-sub-page{display:none}
+    .comm-sub-page.active{display:block}
   </style>
 </head>
 <body>
@@ -393,42 +427,63 @@
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
-      <div id="page-textures" class="page">
-        <h2>Texture Packs</h2>
-        <p>Custom texture packs created by the community.</p>
-        <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
-        <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
-        <div class="upload-grid" id="tex-grid"></div>
-        <div class="mt-20"><button class="btn go-home">Back to Portal</button></div>
-      </div>
+      <div id="page-community" class="page">
+        <h2>Community</h2>
+        <div class="comm-sub-tabs">
+          <button class="comm-sub-tab active" data-comm="chat">Chat</button>
+          <button class="comm-sub-tab" data-comm="skins">Skins</button>
+          <button class="comm-sub-tab" data-comm="textures">Textures</button>
+          <button class="comm-sub-tab" data-comm="mods">Mods</button>
+          <button class="comm-sub-tab" data-comm="feedback">Feedback</button>
+        </div>
 
-      <div id="page-skins" class="page">
-        <h2>Community Skins</h2>
-        <p>Player-created skins for BlockForge.</p>
-        <p><button class="btn upload-btn" id="skin-upload-btn">Upload Skin</button></p>
-        <input type="file" accept="image/png" class="file-input-hidden" id="skin-file-input">
-        <div class="upload-grid" id="skin-grid"></div>
-        <div class="mt-20"><button class="btn go-home">Back to Portal</button></div>
-      </div>
+        <!-- Chat sub-page -->
+        <div class="comm-sub-page active" id="comm-chat">
+          <div class="chat-wrap">
+            <div class="chat-header">
+              <h3>Community Chat</h3>
+              <div class="chat-status" id="chat-status"><span class="dot"></span><span>Connecting...</span></div>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-row">
+              <input id="chat-input" type="text" placeholder="Type a message..." maxlength="300" autocomplete="off" spellcheck="false" />
+              <button id="chat-send">Send</button>
+            </div>
+          </div>
+        </div>
 
-      <div id="page-feedback" class="page">
-        <h2>Feedback</h2>
-        <p>Help shape BlockForge by reporting bugs or suggesting features.</p>
-        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues</a></p>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
-      </div>
+        <!-- Skins sub-page -->
+        <div class="comm-sub-page" id="comm-skins">
+          <h3>Community Skins</h3>
+          <p>Player-created skins for BlockForge.</p>
+          <p><button class="btn upload-btn" id="skin-upload-btn">Upload Skin</button></p>
+          <input type="file" accept="image/png" class="file-input-hidden" id="skin-file-input">
+          <div class="upload-grid" id="skin-grid"></div>
+        </div>
 
-      <div id="page-suggestions" class="page">
-        <h2>Feature Suggestions</h2>
-        <p>Propose and vote on new features.</p>
-        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Afeature" target="_blank" rel="noopener">View Feature Requests</a></p>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
-      </div>
+        <!-- Textures sub-page -->
+        <div class="comm-sub-page" id="comm-textures">
+          <h3>Texture Packs</h3>
+          <p>Custom texture packs created by the community.</p>
+          <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
+          <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
+          <div class="upload-grid" id="tex-grid"></div>
+        </div>
 
-      <div id="page-bugs" class="page">
-        <h2>Bugs</h2>
-        <p>Track and manage bug reports.</p>
-        <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues?q=label%3Abug" target="_blank" rel="noopener">View Bug Reports</a></p>
+        <!-- Mods sub-page -->
+        <div class="comm-sub-page" id="comm-mods">
+          <h3>Mods & Addons</h3>
+          <p>Community-made modifications and addons.</p>
+          <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">Browse Releases</a></p>
+        </div>
+
+        <!-- Feedback sub-page -->
+        <div class="comm-sub-page" id="comm-feedback">
+          <h3>Feedback</h3>
+          <p>Help shape BlockForge by reporting bugs or suggesting features.</p>
+          <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues</a></p>
+        </div>
+
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
@@ -446,15 +501,6 @@
         <div class="srv-list" id="srv-list">
           <div class="srv-empty">Connecting to server...</div>
         </div>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
-      </div>
-
-      <div id="page-mods" class="page">
-        <h2>Mods & Addons</h2>
-        <p>Grab the latest release or report an issue on GitHub.</p>
-        <ul>
-          <li><a href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">All releases and downloads</a></li>
-        </ul>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
@@ -707,7 +753,7 @@
       });
 
       function setNav(page) {
-        var map = { servers:'servers', updates:'updates', downloads:'downloads', textures:'community', skins:'community', mods:'community', feedback:'community', suggestions:'community', bugs:'community' };
+        var map = { servers:'servers', updates:'updates', downloads:'downloads', community:'community' };
         var target = map[page];
         document.querySelectorAll('.nav-tab').forEach(function(t) {
           t.classList.toggle('active', t.dataset.nav === target || (target === 'home' && !page));
@@ -730,7 +776,7 @@
       document.querySelectorAll('.nav-tab').forEach(function(tab) {
         tab.addEventListener('click', function() {
           if (this.dataset.nav === 'home') { showHome(); return; }
-          if (this.dataset.nav === 'community') { openPage('skins'); return; }
+          if (this.dataset.nav === 'community') { openPage('community'); return; }
           openPage(this.dataset.nav);
         });
       });
@@ -1363,6 +1409,218 @@
         renderUploads('skin-grid', 'bf_uploads_skins', true);
         renderUploads('tex-grid', 'bf_uploads_textures', false);
       }
+
+      // ── Community sub-tabs ───────────────────────────────────────────
+      document.querySelectorAll('.comm-sub-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          document.querySelectorAll('.comm-sub-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.comm-sub-page').forEach(function(p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          var target = document.getElementById('comm-' + tab.dataset.comm);
+          if (target) target.classList.add('active');
+        });
+      });
+
+      // ── Community Chat ───────────────────────────────────────────────
+      var chatWs = null;
+      var chatConnected = false;
+      var chatMsgs = document.getElementById('chat-messages');
+      var chatInput = document.getElementById('chat-input');
+      var chatSendBtn = document.getElementById('chat-send');
+      var chatStatusEl = document.getElementById('chat-status');
+
+      function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+      function chatStatus(on) {
+        chatConnected = on;
+        if (chatStatusEl) {
+          chatStatusEl.className = on ? 'chat-status on' : 'chat-status';
+          chatStatusEl.querySelector('span:last-child').textContent = on ? 'Online' : 'Connecting...';
+        }
+        if (chatSendBtn) chatSendBtn.disabled = !on;
+      }
+
+      function addChatMsg(name, role, text, time) {
+        if (!chatMsgs) return;
+        var roleClass = (role === 'owner' || role === 'dev' || role === 'gamedev') ? role : 'player';
+        var rolePrefix = role === 'owner' ? '[Owner] ' : role === 'dev' ? '[Dev] ' : role === 'gamedev' ? '[GameDev] ' : '';
+        var t = time ? new Date(time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+        var rendered = renderChatText(text);
+        var div = document.createElement('div');
+        div.className = 'chat-msg';
+        div.innerHTML = '<span class="cm-name ' + roleClass + '">' + esc(rolePrefix) + esc(name) + '</span><span class="cm-text">' + rendered + '</span>' + (t ? '<span class="cm-time">' + t + '</span>' : '');
+        chatMsgs.appendChild(div);
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
+      }
+
+      function addSystemMsg(text) {
+        if (!chatMsgs) return;
+        var div = document.createElement('div');
+        div.className = 'chat-msg system';
+        div.innerHTML = '<span class="cm-text">' + esc(text) + '</span>';
+        chatMsgs.appendChild(div);
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
+      }
+
+      function connectChat() {
+        if (chatWs) { try { chatWs.close(); } catch(_){} }
+        chatWs = new WebSocket(SRV_WS);
+        chatStatus(false);
+        chatWs.onopen = function() {
+          chatStatus(true);
+          chatWs.send(JSON.stringify({ type: 'auth', playerName: userName || 'Guest', password: '', mode: 'portal_chat' }));
+          chatWs.send(JSON.stringify({ type: 'community_chat_history' }));
+        };
+        chatWs.onmessage = function(e) {
+          var msg;
+          try { msg = JSON.parse(e.data); } catch(_) { return; }
+          if (msg.type === 'community_chat') {
+            addChatMsg(msg.name, msg.role, msg.text, msg.time);
+          } else if (msg.type === 'community_chat_history') {
+            var msgs = msg.messages || [];
+            if (msgs.length > 0) {
+              addSystemMsg('— Chat History (' + msgs.length + ' messages) —');
+              msgs.forEach(function(m) { addChatMsg(m.name, m.role, m.text, m.time); });
+            }
+          }
+        };
+        chatWs.onclose = function() {
+          chatStatus(false);
+          setTimeout(connectChat, 5000);
+        };
+        chatWs.onerror = function() { chatStatus(false); };
+      }
+
+      function sendChatMsg() {
+        if (!chatInput || !chatWs || chatWs.readyState !== 1) return;
+        var text = chatInput.value.trim();
+        if (!text) return;
+        chatInput.value = '';
+        chatWs.send(JSON.stringify({ type: 'community_chat', text: text }));
+      }
+
+      if (chatSendBtn) chatSendBtn.addEventListener('click', sendChatMsg);
+      if (chatInput) chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendChatMsg(); });
+      connectChat();
+
+      // ── Emoji & GIF support ──────────────────────────────────────────
+      var EMOJI_LIST = [
+        '😀','😂','🤣','😊','😍','🥰','😎','🤩','🥳','😢','😭','😡','🤔','🤫','🤭','😱',
+        '👍','👎','❤️','🔥','⭐','💯','🎉','🎮','⛏️','🗡️','🛡️','💎','🧱','🌲','💀','🏆',
+        '👀','🙌','💪','🤝','✌️','🫡','🤡','👻','🎃','🌈','☀️','🌙','⚡','❄️','🍕','🍔'
+      ];
+      var GIF_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=8&q=';
+
+      function buildEmojiPicker(targetInput) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;display:inline-block;';
+        var btn = document.createElement('button');
+        btn.textContent = '😀';
+        btn.title = 'Emoji';
+        btn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:18px;cursor:pointer;transition:.2s;line-height:1;';
+        btn.onmouseenter = function() { btn.style.borderColor = 'rgba(130,160,255,.45)'; };
+        btn.onmouseleave = function() { btn.style.borderColor = 'var(--border)'; };
+        var panel = document.createElement('div');
+        panel.style.cssText = 'display:none;position:absolute;bottom:calc(100% + 6px);left:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;z-index:100;width:260px;box-shadow:0 8px 32px rgba(0,0,0,.5);backdrop-filter:blur(12px);';
+        var search = document.createElement('input');
+        search.placeholder = 'Search GIFs...';
+        search.style.cssText = 'width:100%;padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font:12px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;';
+        var emojiGrid = document.createElement('div');
+        emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-bottom:8px;';
+        EMOJI_LIST.forEach(function(em) {
+          var eb = document.createElement('button');
+          eb.textContent = em;
+          eb.style.cssText = 'background:none;border:none;font-size:18px;padding:4px;cursor:pointer;border-radius:4px;transition:.1s;line-height:1;';
+          eb.onmouseenter = function() { eb.style.background = 'rgba(100,140,255,.15)'; };
+          eb.onmouseleave = function() { eb.style.background = 'none'; };
+          eb.addEventListener('click', function() {
+            targetInput.value += em;
+            targetInput.focus();
+          });
+          emojiGrid.appendChild(eb);
+        });
+        var gifLabel = document.createElement('div');
+        gifLabel.style.cssText = 'font:600 10px monospace;color:var(--dim);letter-spacing:1px;margin-bottom:4px;';
+        gifLabel.textContent = 'GIPHY';
+        var gifGrid = document.createElement('div');
+        gifGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:4px;max-height:160px;overflow-y:auto;';
+        gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Type to search GIFs</div>';
+        var gifTimer = null;
+        search.addEventListener('input', function() {
+          clearTimeout(gifTimer);
+          var q = search.value.trim();
+          if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Type to search GIFs</div>'; return; }
+          gifTimer = setTimeout(function() {
+            fetch(GIF_SEARCH_URL + encodeURIComponent(q))
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                gifGrid.innerHTML = '';
+                (data.data || []).forEach(function(gif) {
+                  var img = document.createElement('img');
+                  img.src = gif.images.fixed_height.url;
+                  img.alt = gif.title || 'GIF';
+                  img.style.cssText = 'width:100%;border-radius:6px;cursor:pointer;transition:.15s;border:1px solid transparent;';
+                  img.onmouseenter = function() { img.style.borderColor = 'var(--accent)'; };
+                  img.onmouseleave = function() { img.style.borderColor = 'transparent'; };
+                  img.addEventListener('click', function() {
+                    targetInput.value += gif.images.original.url;
+                    targetInput.focus();
+                    panel.style.display = 'none';
+                  });
+                  gifGrid.appendChild(img);
+                });
+                if (!data.data || data.data.length === 0) {
+                  gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">No GIFs found</div>';
+                }
+              })
+              .catch(function() {
+                gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Failed to load GIFs</div>';
+              });
+          }, 400);
+        });
+        panel.appendChild(search);
+        panel.appendChild(emojiGrid);
+        panel.appendChild(gifLabel);
+        panel.appendChild(gifGrid);
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', function(e) {
+          if (!wrap.contains(e.target)) panel.style.display = 'none';
+        });
+        wrap.appendChild(btn);
+        wrap.appendChild(panel);
+        return wrap;
+      }
+
+      function renderChatText(text) {
+        var s = esc(text);
+        // Render URLs as clickable links / image previews
+        s = s.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+          if (/\.(gif|png|jpe?g|webp|svg)/i.test(url)) {
+            return '<br><img src="' + url + '" style="max-width:220px;max-height:160px;border-radius:6px;margin-top:4px;cursor:pointer;" onclick="window.open(this.src)" loading="lazy">';
+          }
+          return '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + url + '</a>';
+        });
+        return s;
+      }
+
+      // Inject emoji pickers into chat and DM inputs
+      function injectEmojiPicker(inputEl, containerSel) {
+        if (!inputEl) return;
+        var container = inputEl.closest(containerSel);
+        if (!container) return;
+        var picker = buildEmojiPicker(inputEl);
+        inputEl.parentElement.insertBefore(picker, inputEl);
+      }
+      injectEmojiPicker(document.getElementById('chat-input'), '.chat-input-row');
+
+      // Also inject into DM input if it exists
+      setTimeout(function() {
+        var dmInput = document.querySelector('#dm-input, .dm-input input, [placeholder*="message"]');
+        if (dmInput) injectEmojiPicker(dmInput, '.dm-input-row, .chat-input-row, .dm-panel');
+      }, 1000);
 
       // ── Initial data load (must run AFTER all event handlers are bound) ──
       renderRecentUpdates();
