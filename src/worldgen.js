@@ -17,8 +17,10 @@ const ORE_VEINS = [
 ];
 
 export function calcHeight(n, wx, wz, mode) {
-  // MC-style noise router: continentalness, erosion, peaks, detail
-  // Reduced frequencies for larger features (MC uses size_horizontal=1)
+  // MC-style noise router: continentalness, erosion, peaks, detail.
+  // IMPORTANT: `continentalness` here has sd≈0.26 over the range ~[-0.75, 0.75]
+  // (fbm with 6 octaves flattens toward the mean). Every threshold below is
+  // calibrated to THAT distribution, not to [-1, 1].
   const cont = n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
   const erosion = n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
   const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.005, wz * 0.005, 4, 2, 0.5));
@@ -28,27 +30,45 @@ export function calcHeight(n, wx, wz, mode) {
 
   let h;
   
-  // MC ocean: continentalness < -0.3 → terrain below sea level
-  if (cont < -0.3) {
-    h = SEA_LEVEL - 6 + cont * 12 + depth * 6 + oceanDetail * 4;
-  } else if (cont < -0.1) {
-    // Shallow ocean → beach transition
-    const t = (cont + 0.3) / 0.2;
-    h = SEA_LEVEL - 4 + t * 8 + depth * 5 + oceanDetail * 3;
+  // Continentalness bands calibrated to the MEASURED distribution of the fbm
+  // output (sd≈0.26, ~50% of values in [-0.2, 0.19]):
+  //   cont < -0.50  (~2%)   →  deep ocean
+  //   -0.50 .. -0.30 (~13%) →  shallow ocean / shelf (mostly submerged)
+  //   -0.30 ..  0.00 (~20%) →  coast: rises sea+3 .. sea+9
+  //    0.00 ..  0.30 (~35%) →  open land: sea+12 .. sea+20
+  //   cont >  0.30 (~15%)   →  hills + mountains
+  if (cont < -0.50) {
+    // Deep ocean floor, sea-8 to sea-14
+    h = SEA_LEVEL - 8 + (cont + 0.50) * 22 + depth * 5 + oceanDetail * 3;
+  } else if (cont < -0.30) {
+    // Shallow shelf: sea-4 rising to just above sea level at the coast edge
+    const t = (cont + 0.50) / 0.20;
+    h = SEA_LEVEL - 4 + t * 5 + depth * 4 + oceanDetail * 2;
+  } else if (cont < 0.00) {
+    // Coast: land clear of the tide, rising steadily inland. Clamped so the
+    // detail noise can never pull it back under water — coasts stay coast.
+    const t = (cont + 0.30) / 0.30;
+    h = SEA_LEVEL + 3 + t * 6 + depth * 4 + oceanDetail * 2;
+    if (h < SEA_LEVEL + 2) h = SEA_LEVEL + 2;
+  } else if (cont < 0.30) {
+    // Open land: strong elevation base — the bulk of the map sits 12-20
+    // blocks above sea level, not hugging the shoreline.
+    const t = cont / 0.30;
+    h = SEA_LEVEL + 12 + t * 8 + detail * 5 * (1 - erosion * 0.5);
   } else {
-    // Land: MC-style erosion-based terrain
-    const baseHeight = SEA_LEVEL + 2 + cont * 20;
+    // Hills and mountains
+    const baseHeight = SEA_LEVEL + 20 + (cont - 0.30) * 30;
     const erosionFactor = 1 - erosion * 0.6;
-    
-    h = baseHeight + detail * 6 * erosionFactor;
-    
+
+    h = baseHeight + detail * 5 * erosionFactor;
+
     // MC mountains: high continentalness + low erosion + ridge peaks
-    if (cont > 0.3 && erosion < 0.2 && ridge > 0.6) {
-      h += ridge * ridge * (cont - 0.3) * 80;
+    if (cont > 0.35 && erosion < 0.2 && ridge > 0.6) {
+      h += ridge * ridge * (cont - 0.35) * 90;
     }
-    
+
     // MC hills: ridge-based undulation
-    h += ridge * 4 * erosionFactor;
+    h += ridge * 5 * erosionFactor;
   }
 
   // River carving: only on land, near sea level
@@ -134,9 +154,12 @@ export function calcBiome(n, wx, wz, h) {
     if (riverStrength > 0.65) return BIOMES.RIVER;
   }
 
-  // MC ocean biomes (cont < -0.3 = ocean, -0.3 to -0.1 = shallow)
-  if (cont < -0.3) return h < SEA_LEVEL - 4 ? BIOMES.DEEP_OCEAN : BIOMES.OCEAN;
-  if (cont < -0.1) return BIOMES.OCEAN;
+  // MC ocean biomes — matches calcHeight's continentalness thresholds:
+  //   cont < -0.50  → deep ocean
+  //   -0.50 .. -0.30 → shallow ocean
+  //   -0.30 .. 0.00 → coast (beach band near sea level)
+  if (cont < -0.50) return BIOMES.DEEP_OCEAN;
+  if (cont < -0.30) return BIOMES.OCEAN;
   
   // MC beach: near sea level on coast
   if (h >= SEA_LEVEL - 1 && h <= SEA_LEVEL + 3 && cont < 0.1) return BIOMES.BEACH;

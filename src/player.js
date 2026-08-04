@@ -152,35 +152,68 @@ export class Player {
 
   // MC-style world spawn: spiral outward sampling the climate noise router and
   // pick the position whose climate best matches the overworld spawn_target.
+  // Candidates must also sit on open, flat, inland ground — no coastlines,
+  // no clifftops, no narrow ledges.
   spawn() {
     const noise = new Noise(this.seed);
-    let bestX = 0.5, bestZ = 0.5, bestCost = Infinity;
 
-    for (let r = 0; r <= 400; r += 4) {
+    // Survey the terrain around a candidate: how close the nearest water is and
+    // how rough the ground is. Used to reject beaches and cliff edges.
+    const survey = (cx, cz, h) => {
+      let minWaterDist = Infinity;
+      let maxDrop = 0;
+      // Sample rings at 8/16/24/32 blocks out, 12 directions each
+      for (const rad of [8, 16, 24, 32]) {
+        for (let a = 0; a < 12; a++) {
+          const ang = (a / 12) * Math.PI * 2;
+          const sx = cx + Math.round(Math.cos(ang) * rad);
+          const sz = cz + Math.round(Math.sin(ang) * rad);
+          const sh = calcHeight(noise, sx, sz);
+          if (sh <= SEA_LEVEL && rad < minWaterDist) minWaterDist = rad;
+          const drop = Math.abs(sh - h);
+          if (rad <= 16 && drop > maxDrop) maxDrop = drop;
+        }
+      }
+      return { minWaterDist, maxDrop };
+    };
+
+    let bestX = null, bestZ = null, bestCost = Infinity;
+    let fallbackX = 0.5, fallbackZ = 0.5, fallbackCost = Infinity;
+
+    for (let r = 24; r <= 600; r += 8) {
       for (let a = 0; a < 24; a++) {
         const angle = (a / 24) * Math.PI * 2;
         const tx = Math.floor(Math.cos(angle) * r);
         const tz = Math.floor(Math.sin(angle) * r);
         const h = calcHeight(noise, tx, tz);
+
         // Hard requirement: dry land clearly above sea level.
-        if (h <= SEA_LEVEL + 3) continue;
+        if (h <= SEA_LEVEL + 4) continue;
 
         const climate = getClimate(noise, tx, tz);
-        // MC spawn_target fitness + small penalties for distance and flat/low ground.
-        const cost = spawnFitness(climate)
-          + (r / 400) * 0.05
-          + Math.max(0, 45 - h) * 0.01;
+        const fit = spawnFitness(climate);
+        const { minWaterDist, maxDrop } = survey(tx, tz, h);
 
+        // Track a loose fallback in case nothing passes the strict test.
+        const loose = fit + maxDrop * 0.02;
+        if (loose < fallbackCost) {
+          fallbackCost = loose; fallbackX = tx + 0.5; fallbackZ = tz + 0.5;
+        }
+
+        // Strict: no water within 32 blocks, ground rises/falls < 6 blocks
+        // across the surrounding 16-block radius (rules out cliff edges).
+        if (minWaterDist !== Infinity) continue;
+        if (maxDrop > 6) continue;
+
+        const cost = fit + maxDrop * 0.03 + (r / 600) * 0.02;
         if (cost < bestCost) {
-          bestCost = cost;
-          bestX = tx + 0.5;
-          bestZ = tz + 0.5;
-          // Perfect match inside the target box — stop searching.
-          if (cost < 0.02) { r = 99999; break; }
+          bestCost = cost; bestX = tx + 0.5; bestZ = tz + 0.5;
+          if (cost < 0.01) { r = 99999; break; }
         }
       }
     }
 
+    if (bestX === null) { bestX = fallbackX; bestZ = fallbackZ; }
     const bestH = calcHeight(noise, Math.floor(bestX), Math.floor(bestZ));
     this.position.set(bestX, Math.max(bestH + 1.05, SEA_LEVEL + 4), bestZ);
     this.velocity.set(0, 0, 0);

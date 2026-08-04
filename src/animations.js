@@ -86,6 +86,7 @@ export class PlayerAnimData {
     this._minePhase = 0;
     this.swimFactor = 0;
     this.swimStroke = 0;
+    this.crouchFactor = 0;
   }
 
   update(dt) {
@@ -114,6 +115,9 @@ export class PlayerAnimData {
     // MC only goes fully prone when you're moving through the water.
     const strokeTarget = (this.inWater && this.moving) ? 1 : 0;
     this.swimStroke = lerp(this.swimStroke || 0, strokeTarget, Math.min(1, dt * 5));
+
+    // Smoothed crouch factor — MC eases into the sneak pose rather than snapping
+    this.crouchFactor = lerp(this.crouchFactor || 0, this.crouching ? 1 : 0, Math.min(1, dt * 12));
 
     // Mine phase — runs while breaking
     if (this.breaking) {
@@ -266,7 +270,7 @@ function calcBodyPose(state) {
   const lsSpeed = Math.sqrt(state.limbSpeed);
   const walk = state.moving ? 1 : 0;
   const run = (state.moving && state.sprinting) ? 1 : 0;
-  const sneak = state.crouching ? 1 : 0;
+  const sneak = state.crouchFactor !== undefined ? state.crouchFactor : (state.crouching ? 1 : 0);
   const inAir = state.onGround ? 0 : 1;
   const idle = state.onGround && !state.moving ? 1 : 0;
   const swim = state.swimFactor !== undefined ? state.swimFactor : (state.inWater ? 1 : 0);
@@ -334,8 +338,12 @@ function calcBodyPose(state) {
   }
   bodyTy -= state.landTimer * 0.15;
 
-  // Crouch lowers body
-  bodyTy -= sneak * 0.15;
+  // ── Crouch ──
+  // MC sneak: the torso pitches forward and sinks, but the legs stay planted,
+  // so the drop is applied to the torso only (see bodyCrouchY) rather than to
+  // the whole model, which would push the feet through the floor.
+  bodyRx += rad(28) * sneak;
+  bodyTz += 0.06 * sneak;
 
   // Flying: body tilts forward, slight sway
   if (state.flying) {
@@ -356,7 +364,7 @@ function calcBodyPose(state) {
 function calcHeadPose(state) {
   const ls = state.limbSwing;
   const walk = state.moving ? 1 : 0;
-  const sneak = state.crouching ? 1 : 0;
+  const sneak = state.crouchFactor !== undefined ? state.crouchFactor : (state.crouching ? 1 : 0);
   const inAir = state.onGround ? 0 : 1;
   const idle = state.onGround && !state.moving ? 1 : 0;
   const climb = state.onLadder ? 1 : 0;
@@ -367,7 +375,8 @@ function calcHeadPose(state) {
   // ── Head tracks camera pitch ──
   // MC: the head matches your look pitch 1:1, clamped to +/-90 degrees, and
   // keeps tracking while airborne (unlike the old FA+ curve, which zeroed it).
-  headRx += clamp(state.pitch, rad(-90), rad(90));
+  // Negated: the model's head pivot rotates opposite to the camera pitch.
+  headRx += clamp(-state.pitch, rad(-90), rad(90));
 
   // Head recoil when looking down while walking
   headRx += rad(5) * walk * (1 - sneak);
@@ -409,7 +418,7 @@ function calcArmPose(state, side) {
   const lsSpeed = Math.sqrt(state.limbSpeed);
   const walk = state.moving ? 1 : 0;
   const run = (state.moving && state.sprinting) ? 1 : 0;
-  const sneak = state.crouching ? 1 : 0;
+  const sneak = state.crouchFactor !== undefined ? state.crouchFactor : (state.crouching ? 1 : 0);
   const inAir = state.onGround ? 0 : 1;
   const idle = state.onGround && !state.moving ? 1 : 0;
   const swim = state.swimFactor !== undefined ? state.swimFactor : (state.inWater ? 1 : 0);
@@ -443,7 +452,8 @@ function calcArmPose(state, side) {
   if (ground > 0) {
     // MC sprint pumps the arms through a wider arc with the elbows tucked in,
     // rather than parking them at a permanently raised angle.
-    let swing = Math.cos(ls * 0.6662) * (run ? rad(46) : rad(33)) * walk * (1 - sneak) * ground;
+    // Arms keep swinging while sneaking (damped), matching the leg stride.
+    let swing = Math.cos(ls * 0.6662) * (run ? rad(46) : rad(33)) * walk * (1 - 0.45 * sneak) * ground;
     swing *= 1 + lsSpeed * 0.12;
 
     if (run) {
@@ -532,7 +542,7 @@ function calcLegPose(state, side) {
   const lsSpeed = Math.sqrt(state.limbSpeed);
   const walk = state.moving ? 1 : 0;
   const run = (state.moving && state.sprinting) ? 1 : 0;
-  const sneak = state.crouching ? 1 : 0;
+  const sneak = state.crouchFactor !== undefined ? state.crouchFactor : (state.crouching ? 1 : 0);
   const inAir = state.onGround ? 0 : 1;
   const swim = state.swimFactor !== undefined ? state.swimFactor : (state.inWater ? 1 : 0);
   const ground = 1 - swim;
@@ -561,13 +571,15 @@ function calcLegPose(state, side) {
   if (ground > 0) {
     // Running takes a bigger stride; the faster limbSwing advance (14 vs 8)
     // already makes the run cycle quicker than walking.
+    // MC keeps the legs striding while sneaking, just with a shorter step,
+    // so the swing is damped by crouch rather than cancelled by it.
     const swingAmp = run ? rad(58) : rad(42);
-    let swing = Math.sin(ls) * swingAmp * walk * (1 - sneak) * ground;
+    let swing = Math.sin(ls) * swingAmp * walk * (1 - 0.45 * sneak) * ground;
     if (!isRight) swing = -swing;
     legRx += swing * (1 + lsSpeed * 0.12);
 
-    // ── Crouch: legs bend forward together ──
-    legRx += rad(25) * sneak;
+    // ── Crouch: slight knee bend, legs stay under the body ──
+    legRx += rad(8) * sneak;
   }
 
   // ── Climb: legs alternate ──
@@ -631,6 +643,11 @@ export function calculatePose(state) {
   pose.bodyTransX += body.bodyTx;
   pose.bodyTransY += body.bodyTy;
   pose.bodyTransZ += body.bodyTz;
+
+  // Torso-only vertical offset. Applied to the body node instead of the model
+  // root so crouching sinks the upper body while the legs keep their footing.
+  const crouchAmt = state.crouchFactor !== undefined ? state.crouchFactor : (state.crouching ? 1 : 0);
+  pose.bodyCrouchY = -0.18 * crouchAmt;
 
   // Apply head
   pose.headRotX += head.headRx;

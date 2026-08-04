@@ -432,6 +432,7 @@ export class PlayerModel {
     );
     this.body.userData.partName = 'body';
     this.body.position.y = px(LEG.h + BODY.h / 2);
+    this._bodyBaseY = this.body.position.y;
 
     this._rightArmParts = rightArmParts(s);
     this.rightArm = new THREE.Mesh(new THREE.BoxGeometry(px(ARM.w), px(ARM.h), px(ARM.d)), this._rightArmParts.map(p => p.material));
@@ -712,6 +713,9 @@ export class PlayerModel {
     this.body.rotation.z = pose.bodyRotZ;
     this.body.position.x = pose.bodyTransX;
     this.body.position.z = pose.bodyTransZ;
+    // Torso-only crouch drop — legs are siblings of the body, so lowering the
+    // body node sinks the upper half while the feet stay planted on the ground.
+    this.body.position.y = this._bodyBaseY + (pose.bodyCrouchY || 0);
     this.body.scale.set(pose.bodyScaleX, pose.bodyScaleY, pose.bodyScaleZ);
 
     this.head.rotation.x = pose.headRotX;
