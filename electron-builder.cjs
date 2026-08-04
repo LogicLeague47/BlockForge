@@ -31,7 +31,11 @@ module.exports = {
     icon: "build/icon.png",
     target: ["dmg", "zip"],
     artifactName: "BlockForge-mac-${arch}.dmg",
-    hardenedRuntime: true,
+    // hardenedRuntime MUST be off when there's no real Developer ID cert.
+    // A hardened-runtime claim with only a linker signature makes Gatekeeper on
+    // macOS 15+ show the "cannot verify whether this app contains malware"
+    // screen. Plain ad-hoc apps run fine with right-click → Open.
+    hardenedRuntime: false,
     gatekeeperAssess: false,
     identity: macIdentity,
     entitlements: "build/entitlements.mac.plist",
