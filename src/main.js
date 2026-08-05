@@ -3502,10 +3502,14 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
-        try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) { console.warn("operation failed"); }
-        setTimeout(() => {
-          window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
-        }, 600);
+        if (navigator.userAgent.includes('Electron')) {
+          ui.showMenu('main');
+        } else {
+          try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) { console.warn("operation failed"); }
+          setTimeout(() => {
+            window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
+          }, 600);
+        }
       }
     } else {
       // Auto-register fallback: when a portal login uses a brand-new username,

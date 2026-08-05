@@ -1967,6 +1967,7 @@ export class UI {
         }
       }
       slotEl.addEventListener('click', () => this._onCraftSlotClick(i));
+      slotEl.addEventListener('contextmenu', (e) => { e.preventDefault(); this._onCraftSlotRightClick(i); });
       this._addSlotTooltipListeners(slotEl, s);
       this.craftingInput.appendChild(slotEl);
     }
@@ -2241,27 +2242,63 @@ export class UI {
     if (this.cursorItem) {
       const cur = grid.grid[i];
       if (cur && cur.item === this.cursorItem.item) {
-        // same item: add 1 to the slot
+        // same item: fill up slot
+        const cap = maxStack(cur.item);
+        const add = Math.min(cap - cur.count, this.cursorItem.count);
+        cur.count += add;
+        this.cursorItem.count -= add;
+        if (this.cursorItem.count <= 0) this.cursorItem = null;
+      } else if (!cur) {
+        // empty slot: place entire stack from cursor
+        grid.grid[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = null;
+      } else {
+        // different item: swap entire stacks
+        const tmp = { item: cur.item, count: cur.count, ...(cur.durability != null ? { durability: cur.durability } : {}) };
+        grid.grid[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
+      }
+    } else {
+      const s = grid.takeCell(i);
+      if (s) this.cursorItem = { item: s.item, count: s.count, durability: s.durability };
+    }
+    grid.refreshOutput();
+    this.renderCraftingGrid();
+    this._updateCursorVisual();
+  }
+
+  // Right-click: place 1 item from cursor into crafting slot (like MC)
+  _onCraftSlotRightClick(i) {
+    const grid = this.craftingGrid;
+    if (!this.cursorItem) {
+      // Empty cursor: pick up half from slot
+      const s = grid.grid[i];
+      if (!s) return;
+      const half = Math.ceil(s.count / 2);
+      this.cursorItem = { item: s.item, count: half, ...(s.durability != null ? { durability: s.durability } : {}) };
+      s.count -= half;
+      if (s.count <= 0) grid.grid[i] = null;
+    } else {
+      const cur = grid.grid[i];
+      if (!cur) {
+        // Empty slot: place 1 from cursor
+        grid.grid[i] = { item: this.cursorItem.item, count: 1, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem.count--;
+        if (this.cursorItem.count <= 0) this.cursorItem = null;
+      } else if (cur.item === this.cursorItem.item) {
+        // Same item: add 1 if room
         const cap = maxStack(cur.item);
         if (cur.count < cap) {
           cur.count++;
           this.cursorItem.count--;
           if (this.cursorItem.count <= 0) this.cursorItem = null;
         }
-      } else if (!cur) {
-        // empty slot: place 1
-        grid.grid[i] = { item: this.cursorItem.item, count: 1 };
-        this.cursorItem.count--;
-        if (this.cursorItem.count <= 0) this.cursorItem = null;
       } else {
-        // different item: swap entire stacks
-        const tmp = grid.grid[i];
-        grid.grid[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
-        this.cursorItem = { item: tmp.item, count: tmp.count };
+        // Different item: swap entire stacks
+        const tmp = { item: cur.item, count: cur.count, ...(cur.durability != null ? { durability: cur.durability } : {}) };
+        grid.grid[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
       }
-    } else {
-      const s = grid.takeCell(i);
-      if (s) this.cursorItem = { item: s.item, count: s.count };
     }
     grid.refreshOutput();
     this.renderCraftingGrid();
