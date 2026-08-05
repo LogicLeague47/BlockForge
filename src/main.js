@@ -540,13 +540,13 @@ function updateBreaking(progress, hit) {
   );
   // Orient the crack plane to match the block face, then billboard toward camera
   if (Math.abs(ny) > 0.5) {
-    // Top/bottom face: rotate to be horizontal
+    // Top/bottom face: rotate around X to be horizontal
     crackPlane.rotation.set(ny > 0 ? -Math.PI / 2 : Math.PI / 2, 0, 0);
   } else if (Math.abs(nx) > 0.5) {
-    // Left/right face
-    crackPlane.rotation.set(0, 0, nx > 0 ? Math.PI / 2 : -Math.PI / 2);
+    // Left/right face: rotate around Y to face sideways
+    crackPlane.rotation.set(0, nx > 0 ? Math.PI / 2 : -Math.PI / 2, 0);
   } else {
-    // Front/back face
+    // Front/back face: rotate around Y to face forward/back
     crackPlane.rotation.set(0, nz > 0 ? 0 : Math.PI, 0);
   }
 }
