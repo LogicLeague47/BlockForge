@@ -1296,11 +1296,6 @@ export class UI {
     this.cursorItemEl = document.getElementById('cursor-item');
     this.inventoryOpen = false;
 
-    // MC behavior: click outside inventory slots to drop cursor item
-    this.inventoryScreen.addEventListener('click', (e) => {
-      if (!e.target.closest('.inv-slot')) this.dropCursorItem();
-    });
-
     // Creative browser
     this.creativeBrowser = document.getElementById('creative-browser');
     this.creativeSearch = document.getElementById('creative-search');

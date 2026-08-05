@@ -112,6 +112,26 @@ const BREAK_SAMPLES = {
   liquid:     variants('impactSoft_medium', 5),
 };
 
+// ── Per-material mining tick samples ──
+// Light, short sounds for the ongoing "chipping away" texture during mining.
+// These repeat every ~0.3s so they need to be subtle and non-fatiguing.
+const MINE_SAMPLES = {
+  stone:      variants('impactMining', 4),
+  dirt:       variants('impactSoft_medium', 5),
+  grass:      variants('impactSoft_medium', 5),
+  leaves:     ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wood:       ['chop', ...variants('impactWood_light', 5)],
+  sand:       variants('impactSoft_medium', 5),
+  snow:       variants('impactSoft_medium', 5),
+  gravel:     variants('impactSoft_medium', 5),
+  glass:      variants('impactGlass_light', 5),
+  metal:      variants('impactMetal_light', 5),
+  brimstone:  variants('impactMining', 4),
+  plant:      ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wool:       variants('impactSoft_medium', 5),
+  liquid:     variants('impactSoft_medium', 5),
+};
+
 // ── Per-material place samples ──
 // Placing is a lighter, shorter version of the same material's break sound.
 const PLACE_SAMPLES = {
@@ -596,48 +616,36 @@ export class AudioManager {
   blockMine(blockId) {
     if (!this.ctx || !this.enabled) return;
     const mat = this._material(blockId);
-    // Play the material's CC0 break sample for character, PLUS the procedural
-    // mining texture (scratch + thud) so there's a continuous "chipping away"
-    // feel throughout the hold — not just one hit per tick.
-    this._sample(BREAK_SAMPLES[mat], 0.22, 0.1, 1.25);
+    // CC0 mining sample is the PRIMARY sound — loud and prominent. Procedural
+    // layers add subtle texture underneath but don't overpower the real audio.
+    this._sample(MINE_SAMPLES[mat], 0.45, 0.12, 1.1);
     const t0 = this.ctx.currentTime;
-    // One low crumble thud (material-agnostic, subtle enough to repeat).
-    if (mat === 'stone' || mat === 'brimstone') this._playLayers([
-      { noise: 'brown', dur: 0.1, gain: 0.22, lp: 500, atk: 0.003, rel: 0.09 },
-    ]);
-    else if (mat === 'metal') this._playLayers([
-      { noise: 'white', dur: 0.06, gain: 0.16, bp: 3200, bq: 6, atk: 0.002, rel: 0.05 },
-      { wave: 'square', freq: 420, dur: 0.05, gain: 0.08, atk: 0.002, rel: 0.04 },
-    ]);
-    else if (mat === 'wood') this._playLayers([
-      { noise: 'brown', dur: 0.09, gain: 0.24, lp: 700, atk: 0.003, rel: 0.08 },
+    // Subtle low thud — just enough to give weight without masking the sample.
+    if (mat === 'metal') this._playLayers([
+      { noise: 'white', dur: 0.04, gain: 0.08, bp: 3200, bq: 6, atk: 0.002, rel: 0.03 },
     ]);
     else this._playLayers([
-      { noise: 'brown', dur: 0.09, gain: 0.26, lp: 800, atk: 0.002, rel: 0.08 },
+      { noise: 'brown', dur: 0.06, gain: 0.1, lp: 600, atk: 0.003, rel: 0.05 },
     ]);
 
-    // Two-offset scratch ticks give the "chipping away" feel.
+    // One scratch tick — quieter, adds "chipping" texture.
     const scratch = mat === 'glass' || mat === 'metal'
-      ? { noise: 'white', bp: 4600, bq: 4, gain: 0.1 }
-      : { noise: 'white', bp: 2200, bq: 5, gain: 0.14 };
-    const n = this._noise(Math.floor(this.ctx.sampleRate * 0.05), this.ctx.sampleRate);
-    for (const off of [0.02, 0.11]) {
-      const start = t0 + off;
-      const src = this._src(n);
-      const f = this._filter('bandpass', scratch.bp + (Math.random() - 0.5) * 900, scratch.bq);
-      const g = this._gain(0);
-      const peak = scratch.gain * (0.7 + Math.random() * 0.4);
-      // Envelope scheduled from the tick's own start time so the burst isn't
-      // faded out before the source even begins.
-      g.gain.setValueAtTime(0, start);
-      g.gain.linearRampToValueAtTime(peak, start + 0.004);
-      g.gain.setValueAtTime(peak, start + 0.035);
-      g.gain.linearRampToValueAtTime(0, start + 0.06);
-      src.connect(f); f.connect(g); g.connect(this.master);
-      src.start(start);
-      src.stop(start + 0.06);
-      src.onended = () => { try { f.disconnect(); g.disconnect(); src.disconnect(); } catch (_) {} };
-    }
+      ? { noise: 'white', bp: 4600, bq: 4, gain: 0.06 }
+      : { noise: 'white', bp: 2200, bq: 5, gain: 0.08 };
+    const n = this._noise(Math.floor(this.ctx.sampleRate * 0.04), this.ctx.sampleRate);
+    const start = t0 + 0.03;
+    const src = this._src(n);
+    const f = this._filter('bandpass', scratch.bp + (Math.random() - 0.5) * 600, scratch.bq);
+    const g = this._gain(0);
+    const peak = scratch.gain * (0.7 + Math.random() * 0.4);
+    g.gain.setValueAtTime(0, start);
+    g.gain.linearRampToValueAtTime(peak, start + 0.003);
+    g.gain.setValueAtTime(peak, start + 0.02);
+    g.gain.linearRampToValueAtTime(0, start + 0.04);
+    src.connect(f); f.connect(g); g.connect(this.master);
+    src.start(start);
+    src.stop(start + 0.05);
+    src.onended = () => { try { f.disconnect(); g.disconnect(); src.disconnect(); } catch (_) {} };
   }
 
   blockBreak(blockId) {
