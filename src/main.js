@@ -894,13 +894,18 @@ document.addEventListener('mousemove', (e) => {
     // Show item name briefly
     showHeldItemName();
   }
-  // Q = drop item
+  // Q = drop item (thrown in the direction you're looking)
   if (e.code === kb.drop) {
     const slot = player.inventory.getSelected();
     if (slot) {
       // Spawn visible dropped entity
       if (droppedItemManager) {
-        droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z);
+        // Throw the item forward along the player's look so it lands a short
+        // way off instead of spawning at your feet and getting swept back up.
+        const throwSpeed = 3.5;
+        const tvx = -Math.sin(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
+        const tvz = -Math.cos(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
+        droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z, tvx, tvz);
       }
       slot.count--;
       if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
@@ -3988,6 +3993,14 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     sendMobPosition: (id, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
     sendMobDeath: (id) => network.sendMobDeath(id),
   };
+  // All mob deaths funnel through MobManager, so this is the single loot-drop
+  // point — visible world items the player auto-collects on approach.
+  mobManager.onMobDeath = (mob) => {
+    if (!droppedItemManager || !mob) return;
+    for (const drop of mob.getDrops()) {
+      droppedItemManager.drop(drop.item, drop.count, mob.position.x, mob.position.y + 0.5, mob.position.z);
+    }
+  };
   droppedItemManager = new DroppedItemManager(scene, atlasCanvas, world);
   tntManager = new LitTntManager(scene, atlasCanvas, world, explosionManager);
   tntManager.onExplode = (x, y, z) => {
@@ -4167,11 +4180,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             const splashDmg = Math.ceil(finalDmg * 0.6);
             otherMob.takeDamage(splashDmg, camera.position);
             mobManager.playHurtSound(otherMob.type);
-            if (otherMob.dead && player.isSurvival()) {
-              for (const drop of otherMob.getDrops()) player.inventory.add(drop.item, drop.count);
-              scene.remove(otherMob.mesh); otherMob.dispose();
-              const idx = mobManager.mobs.indexOf(otherMob); if (idx >= 0) mobManager.mobs.splice(idx, 1);
-            }
+            // Loot + removal handled centrally by MobManager.onMobDeath
           }
         }
         // Dragon Blade fire particle effect
@@ -4183,9 +4192,12 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       mobManager.playHurtSound(mobHit.type);
       if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton') mobHit.aggro = true;
       if (mobHit.dead) {
-        if (player.isSurvival()) { for (const drop of mobHit.getDrops()) { player.inventory.add(drop.item, drop.count); syncUIMode(); } }
-        scene.remove(mobHit.mesh); mobHit.dispose();
-        const idx = mobManager.mobs.indexOf(mobHit); if (idx >= 0) mobManager.mobs.splice(idx, 1);
+        // Loot + removal handled centrally by MobManager.onMobDeath
+        if (player.isSurvival()) {
+          const mobXp = { cow: 3, pig: 3, sheep: 3, spider: 5, zombie: 5, skeleton: 5, blower: 8, portalman: 10 };
+          const mobXpGain = mobXp[mobHit.type] || 2;
+          if (player.addXp(mobXpGain)) ui.showLevelUp(player.level);
+        }
       }
       return true;
     },
@@ -4209,7 +4221,10 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const slot = player.inventory.getSelected();
       if (slot) {
         if (droppedItemManager) {
-          droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z);
+          const throwSpeed = 3.5;
+          const tvx = -Math.sin(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
+          const tvz = -Math.cos(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
+          droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z, tvx, tvz);
         }
         slot.count--;
         if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
@@ -6530,12 +6545,11 @@ function loop() {
           // Provoke hostile mobs to attack when hit
           if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton' || mobHit.type === 'blower' || mobHit.type === 'portalman') mobHit.aggro = true;
           if (mobHit.dead) {
-            // Drop items
+            // Loot + removal are handled centrally by MobManager.onMobDeath
+            // (world-item drops) once the death animation finishes, so the
+            // mob isn't yanked out of the world instantly here. We still award
+            // XP and achievements at the killing blow.
             if (player.isSurvival()) {
-              for (const drop of mobHit.getDrops()) {
-                player.inventory.add(drop.item, drop.count);
-                syncUIMode();
-              }
               // XP for killing mobs
               const mobXp = { cow: 3, pig: 3, sheep: 3, spider: 5, zombie: 5, skeleton: 5, blower: 8, portalman: 10 };
               const mobXpGain = mobXp[mobHit.type] || 2;
@@ -6543,11 +6557,6 @@ function loop() {
                 ui.showLevelUp(player.level);
               }
             }
-            scene.remove(mobHit.mesh);
-            mobHit.dispose();
-            // Remove from mob manager
-            const idx = mobManager.mobs.indexOf(mobHit);
-            if (idx >= 0) mobManager.mobs.splice(idx, 1);
             player.addExhaustion(0.1);
             // Achievement stats: mob killed
             achievements.incrementStat('mobKillsAny');
@@ -6633,8 +6642,10 @@ function loop() {
             } else {
               const elapsed = (now - lastBreakSound) / 1000;
               if (elapsed > 0.3) {
-
+                // Mining crackle — plays for the whole break, not just the
+                // final tick. Scheduled every ~0.3s while the block is held.
                 lastBreakSound = now;
+                if (audio) audio.blockMine(b);
               }
               breakingElapsed += dt;
               const slot = player.inventory.getSelected();

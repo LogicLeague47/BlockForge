@@ -3018,7 +3018,13 @@ export class MobManager {
     // Update all mobs
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
-      if (mob.dead) continue;
+
+      // Dead mobs: keep animating the death (fall over, sink, fade) until the
+      // removal loop below cleans them up.
+      if (mob.dead) {
+        mob.update(dt, this.world, this.world.noise, playerPos);
+        continue;
+      }
 
       const def = MOB_TYPES[mob.type];
 
@@ -3078,13 +3084,21 @@ export class MobManager {
 
       mob.update(dt, this.world, this.world.noise, playerPos);
 
-      // Idle sounds (passive + hostile)
-      if (this.audio && mob.state === 'idle' && !mob.dead) {
-        if (Math.random() < (MOB_TYPES[mob.type].soundChance || 0.003) * dt * 60) {
-          const now = performance.now();
-          if (!this._lastSoundTime || now - this._lastSoundTime > 3000) {
-            this._lastSoundTime = now;
-            this._playMobSound(mob.type);
+      // Idle sounds (passive + hostile) — only audible within ~11-15 blocks
+      if (this.audio && mob.state === 'idle' && playerPos) {
+        const dx = mob.position.x - playerPos.x;
+        const dz = mob.position.z - playerPos.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        // Each mob rolls its own hearing radius in [11,15] so the soundscape
+        // fades in gradually instead of popping at a hard cutoff.
+        const hearRange = mob._hearRange || (mob._hearRange = 11 + Math.random() * 4);
+        if (dist <= hearRange) {
+          if (Math.random() < (MOB_TYPES[mob.type].soundChance || 0.003) * dt * 60) {
+            const now = performance.now();
+            if (!this._lastSoundTime || now - this._lastSoundTime > 3000) {
+              this._lastSoundTime = now;
+              this._playMobSound(mob.type);
+            }
           }
         }
       }
@@ -3110,14 +3124,22 @@ export class MobManager {
     // Remove dead mobs (after death animation completes)
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
-      if (mob.dead && mob.deathTimer > 0.9) {
-        // Death sound
-        if (this.audio && !mob._deathSoundPlayed) {
-          mob._deathSoundPlayed = true;
-          this.audio.mobDeath();
-        }
-        // Slime split: spawn 2 smaller slimes on death
-        if (mob.type === 'slime' && mob._slimeSize !== 'small') {
+      if (!mob.dead) continue;
+
+      // Death sound — play the moment the mob dies, not when it's removed.
+      if (this.audio && !mob._deathSoundPlayed) {
+        mob._deathSoundPlayed = true;
+        this.audio.mobDeath(mob.type);
+      }
+
+      // The dragon boss has its own death sequence in main.js (it drops the
+      // Dragon Blade + scales there). We only play its death sound here.
+      if (mob.type === 'dragon') continue;
+
+      if (mob.deathTimer <= 0.9) continue;
+
+      // Slime split: spawn 2 smaller slimes on death
+      if (mob.type === 'slime' && mob._slimeSize !== 'small') {
           for (let j = 0; j < 2; j++) {
             const ox = (Math.random() - 0.5) * 1.5;
             const oz = (Math.random() - 0.5) * 1.5;
@@ -3135,10 +3157,18 @@ export class MobManager {
         if (mob.entityId && this.networkSend?.sendMobDeath) {
           this.networkSend.sendMobDeath(mob.entityId);
         }
+        // Loot — drop the mob's items as visible world entities that the
+        // player auto-collects. Applies to every death cause (melee, fall,
+        // TNT, etc.) since this is the single place all dead mobs are cleaned
+        // up. `onMobDeath` is wired up by main.js to spawn droppedItemManager
+        // items at the corpse.
+        if (!mob._lootDropped) {
+          mob._lootDropped = true;
+          if (this.onMobDeath) this.onMobDeath(mob);
+        }
         this.scene.remove(mob.mesh);
         mob.dispose();
         this.mobs.splice(i, 1);
-      }
     }
 
     // Broadcast local mob positions periodically (~10Hz)
@@ -3191,10 +3221,12 @@ export class MobManager {
     return { attack: attackEvents.reduce((a, b) => (b.damage > a.damage ? b : a)) };
   }
 
-  _playMobSound(type) {}
+  _playMobSound(type) {
+    if (this.audio) this.audio.mobIdle(type);
+  }
 
   playHurtSound(type) {
-    if (this.audio) this.audio.mobHurt();
+    if (this.audio) this.audio.mobHurt(type);
   }
 
   // Try to hit a mob using ray-AABB intersection. Returns the hit mob or null.

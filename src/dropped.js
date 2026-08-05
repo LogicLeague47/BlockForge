@@ -10,7 +10,8 @@ import { CHUNK_SIZE } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
 
 const COLLECT_RANGE = 1.5;
-const MAGNET_RANGE = 4.0; // start lerping toward player at this distance
+const MAGNET_RANGE = 3.0; // start drifting toward player at this distance
+const MAGNET_SPEED = 0.5; // blocks/second — slow, deliberate drift toward player
 const FLOAT_HEIGHT = 0.3;
 const SPIN_SPEED = 2.0;
 const BOB_SPEED = 2.5;
@@ -18,13 +19,15 @@ const BOB_AMP = 0.08;
 const DESPAWN_TIME = 60; // seconds
 
 export class DroppedItem {
-  constructor(scene, atlasCanvas, itemId, x, y, z, count) {
+  constructor(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0) {
     this.scene = scene;
     this.itemId = itemId;
     this.count = count || 1;
     this.x = x;
     this.y = y + FLOAT_HEIGHT;
     this.z = z;
+    this.vx = vx;
+    this.vz = vz;
     this.age = 0;
     this.collected = false;
     this._canCollect = false; // grace period before auto-collect
@@ -115,23 +118,40 @@ export class DroppedItem {
       this.vy = 0;
     }
 
+    // Horizontal throw velocity (Q drop / overflow) — flies out, slows with
+    // friction, and comes to rest so the item lands a short way off instead of
+    // sitting at the player's feet and getting immediately sucked back up.
+    if (this.vx !== 0 || this.vz !== 0) {
+      this.x += this.vx * dt;
+      this.z += this.vz * dt;
+      const friction = Math.max(0, 1 - 1.8 * dt);
+      this.vx *= friction;
+      this.vz *= friction;
+      if (Math.abs(this.vx) < 0.05 && Math.abs(this.vz) < 0.05) { this.vx = 0; this.vz = 0; }
+    }
+    this.group.position.x = this.x;
+    this.group.position.z = this.z;
+
     // Spin
     this.group.rotation.y += SPIN_SPEED * dt;
     // Bob
     this.group.position.y = this.y + Math.sin(this.age * BOB_SPEED) * BOB_AMP;
 
-    // Magnet: lerp toward player when within MAGNET_RANGE
-    if (playerPos && !this.collected) {
+    // Magnet: lerp toward player when within MAGNET_RANGE. A freshly-thrown
+    // item ignores magnetism until its throw has settled, so a Q-drop visibly
+    // flies out and lands instead of being yo-yo'd straight back.
+    if (playerPos && !this.collected && this.vx === 0 && this.vz === 0) {
       const dx = playerPos.x - this.x;
       const dy = (playerPos.y + 0.5) - this.y;
       const dz = playerPos.z - this.z;
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist < MAGNET_RANGE && dist > 0.1) {
-        const speed = Math.max(6, 20 - dist * 3); // faster as closer
-        const t = Math.min(1, dt * speed);
-        this.x += dx * t;
-        this.y += dy * t;
-        this.z += dz * t;
+        // Constant slow drift (0.5 blocks/sec) along the unit vector to the
+        // player, instead of an exponential lerp that gets faster up close.
+        const k = MAGNET_SPEED * dt;
+        this.x += (dx / dist) * k;
+        this.y += (dy / dist) * k;
+        this.z += (dz / dist) * k;
         this.group.position.set(this.x, this.y + Math.sin(this.age * BOB_SPEED) * BOB_AMP, this.z);
         // Scale up slightly as it approaches (suck-in feel)
         const scale = 1 + (1 - dist / MAGNET_RANGE) * 0.2;
@@ -179,12 +199,12 @@ export class DroppedItemManager {
     this.items = [];
   }
 
-  drop(itemId, count, x, y, z) {
+  drop(itemId, count, x, y, z, vx = 0, vz = 0) {
     // Add small random spread
     const spread = 0.3;
     const dx = (Math.random() - 0.5) * spread;
     const dz = (Math.random() - 0.5) * spread;
-    const entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count);
+    const entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
     this.items.push(entity);
     return entity;
   }

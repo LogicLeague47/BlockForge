@@ -27,7 +27,7 @@ module.exports = {
     artifactName: "BlockForge-windows.exe",
   },
   mac: {
-    category: "public.app-category.games",
+    category: "public.app-category.utilities",
     icon: "build/icon.png",
     target: ["dmg", "zip"],
     artifactName: "BlockForge-mac-${arch}.dmg",

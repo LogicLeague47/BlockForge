@@ -2,42 +2,151 @@
 // top of fully procedural Web Audio synthesis as a fallback when samples are
 // still loading or unavailable.
 
+// Expand a base name into the numbered variants Kenney ships (e.g. 000..004).
+const variants = (base, n, pad = 3) =>
+  Array.from({ length: n }, (_, i) => `${base}_${String(i).padStart(pad, '0')}`);
+
 const SFX_FILES = [
-  'footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002',
-  'footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002',
-  'footstep_wood_000', 'footstep_wood_001', 'footstep_wood_002',
-  'footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002',
-  'impactMining_000', 'impactMining_001', 'impactMining_002', 'impactMining_003',
-  'impactGeneric_light_000', 'impactGeneric_light_001', 'impactGeneric_light_002',
-  'impactBell_heavy_000', 'impactBell_heavy_001',
-  'impactPunch_heavy_000', 'impactPunch_heavy_001', 'impactPunch_heavy_002',
-  'impactPunch_medium_000', 'impactPunch_medium_001', 'impactPunch_medium_002',
-  'impactSoft_heavy_000', 'impactSoft_heavy_001', 'impactSoft_heavy_002',
-  'impactSoft_medium_000', 'impactSoft_medium_001', 'impactSoft_medium_002',
-  'powerUp2',
-  'click_001', 'click_002', 'click_003',
+  // ── Footsteps: one surface set per material ──
+  // Real per-material CC0 recordings (Fantozzi + field-recorded step sets) so
+  // sand, gravel, snow, dirt and wood each have their own true footstep timbre.
+  'Fantozzi-StoneL1', 'Fantozzi-StoneL2', 'Fantozzi-StoneL3',
+  'Fantozzi-StoneR1', 'Fantozzi-StoneR2', 'Fantozzi-StoneR3',
+  'Fantozzi-SandL1', 'Fantozzi-SandL2', 'Fantozzi-SandL3',
+  'Fantozzi-SandR1', 'Fantozzi-SandR2', 'Fantozzi-SandR3',
+  'stone_step1', 'stone_step2', 'stone_step3',
+  'dirt_step1', 'dirt_step2', 'dirt_step3',
+  'sand_step1', 'gravel_step1', 'gravel_step2',
+  'snow_step1', 'snow_step2', 'snow_step3',
+  'wood_step1', 'wood_step2', 'wood_step3',
+  ...variants('footstep_concrete', 5),
+  ...variants('footstep_grass', 5),
+  ...variants('footstep_wood', 5),
+  ...variants('footstep_snow', 5),
+  ...variants('footstep_carpet', 5),
+  // ── Impacts: full per-material coverage for break/place ──
+  ...variants('impactMining', 4),
+  ...variants('impactGeneric_light', 5),
+  ...variants('impactGlass_light', 5),
+  ...variants('impactGlass_medium', 5),
+  ...variants('impactGlass_heavy', 5),
+  ...variants('impactWood_light', 5),
+  ...variants('impactWood_medium', 5),
+  ...variants('impactWood_heavy', 5),
+  ...variants('impactPlank_medium', 5),
+  ...variants('impactMetal_light', 5),
+  ...variants('impactMetal_medium', 5),
+  ...variants('impactMetal_heavy', 5),
+  ...variants('impactPlate_light', 5),
+  ...variants('impactPlate_medium', 5),
+  ...variants('impactTin_medium', 5),
+  ...variants('impactSoft_heavy', 5),
+  ...variants('impactSoft_medium', 5),
+  ...variants('impactPunch_heavy', 5),
+  ...variants('impactPunch_medium', 5),
+  ...variants('impactBell_heavy', 5),
+  // ── RPG pack: organic material sounds ──
+  'chop', 'creak1', 'creak2', 'creak3',
+  'cloth1', 'cloth2', 'cloth3', 'cloth4',
+  'metalPot1', 'metalPot2', 'metalPot3', 'metalClick', 'metalLatch',
+  ...variants('footstep', 10, 2),
+  // ── Animals / mobs ──
+  'animal_cow_1', 'animal_cow_2', 'animal_pig_1', 'animal_sheep_1',
+  'animal_chicken_1', 'animal_chicken_2', 'animal_bat_1',
+  'mob_snarl_1', 'mob_snarl_attack',
+  // ── UI ──
+  'powerUp2', 'click_001', 'click_002', 'click_003',
 ];
 
-// Curated calm CC0 playlist. High-energy/percussive tracks are excluded to
-// keep the ambience calm; the calm-* tracks are CC0 by The Cynic Project.
+// CC0 playlist chosen to match Minecraft's ambience: sparse solo piano and
+// slow contemplative pads rather than beat-driven synth. See Music/CREDITS.txt.
 const MUSIC_TRACKS = [
-  'Music/dreams-stasis.mp3', 'Music/eternity-2.mp3', 'Music/eternity-4.mp3',
-  'Music/happy-flutes.mp3', 'Music/visions-1.mp3', 'Music/visions-2.mp3',
-  'Music/visions-4.mp3', 'Music/visions-5.mp3', 'Music/water-owl.mp3',
-  'Music/calm-synthwave-4k.mp3', 'Music/calm-synthwave-15k.mp3',
-  'Music/calm-piano-vaporware.mp3', 'Music/calm-lifewave-2k.mp3',
-  'Music/calm-lifewave.mp3',
+  'Music/mystical-piano.mp3',
+  'Music/slow-piano-intermission.ogg',
+  'Music/november-snow.mp3',
+  'Music/esther.ogg',
+  'Music/another-august.mp3',
+  'Music/contemplation.mp3',
+  'Music/exploration-theme.ogg',
+  'Music/cave-explorer.mp3',
+  'Music/emerald-tower.ogg',
+  'Music/calm-relaxing.mp3',
 ];
 
+// ── Per-material footstep samples ──
+// Real CC0 recordings where they exist (stone/dirt/sand/gravel/snow/wood), with
+// the Kenney surface sets as a varied supplement.
 const STEP_SAMPLES = {
-  stone: ['footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002'],
-  dirt: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
-  leaves: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
-  wood: ['footstep_wood_000', 'footstep_wood_001', 'footstep_wood_002'],
-  sand: ['footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002'],
-  snow: ['footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002'],
-  gravel: ['footstep_concrete_000', 'footstep_concrete_001', 'footstep_concrete_002'],
-  plant: ['footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
+  stone:      ['Fantozzi-StoneL1', 'Fantozzi-StoneL2', 'Fantozzi-StoneL3', 'Fantozzi-StoneR1', 'Fantozzi-StoneR2', 'Fantozzi-StoneR3', 'stone_step1', 'stone_step2', 'stone_step3'],
+  dirt:       ['dirt_step1', 'dirt_step2', 'dirt_step3', 'footstep_grass_000', 'footstep_grass_001', 'footstep_grass_002'],
+  grass:      variants('footstep_grass', 5),
+  leaves:     ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wood:       ['wood_step1', 'wood_step2', 'wood_step3', 'footstep_wood_000', 'footstep_wood_001', 'footstep_wood_002'],
+  sand:       ['Fantozzi-SandL1', 'Fantozzi-SandL2', 'Fantozzi-SandL3', 'Fantozzi-SandR1', 'Fantozzi-SandR2', 'Fantozzi-SandR3', 'sand_step1'],
+  snow:       ['snow_step1', 'snow_step2', 'snow_step3', 'footstep_snow_000', 'footstep_snow_001', 'footstep_snow_002'],
+  gravel:     ['gravel_step1', 'gravel_step2'],
+  glass:      ['Fantozzi-StoneL1', 'Fantozzi-StoneL2', 'Fantozzi-StoneR1', 'Fantozzi-StoneR2'],
+  metal:      ['metalClick', 'metalLatch', 'metalPot1', 'metalPot2', 'impactMetal_light_000'],
+  brimstone:  ['Fantozzi-StoneL1', 'Fantozzi-StoneL2', 'Fantozzi-StoneL3', 'Fantozzi-StoneR1', 'Fantozzi-StoneR2', 'Fantozzi-StoneR3'],
+  plant:      ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wool:       variants('footstep_carpet', 5),
+  liquid:     variants('footstep_carpet', 5),
+};
+
+// ── Per-material break samples ──
+// Each material gets its own timbre so mining sandstone doesn't sound like glass.
+const BREAK_SAMPLES = {
+  stone:      variants('impactMining', 4),
+  dirt:       variants('impactSoft_medium', 5),
+  grass:      variants('impactSoft_medium', 5),
+  leaves:     ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wood:       ['chop', ...variants('impactWood_medium', 5)],
+  sand:       variants('impactSoft_heavy', 5),
+  snow:       variants('impactSoft_medium', 5),
+  gravel:     variants('impactSoft_heavy', 5),
+  glass:      variants('impactGlass_medium', 5),
+  metal:      variants('impactMetal_medium', 5),
+  brimstone:  variants('impactMining', 4),
+  plant:      ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wool:       variants('impactSoft_medium', 5),
+  liquid:     variants('impactSoft_medium', 5),
+};
+
+// ── Per-material place samples ──
+// Placing is a lighter, shorter version of the same material's break sound.
+const PLACE_SAMPLES = {
+  stone:      variants('impactPlate_medium', 5),
+  dirt:       variants('impactSoft_medium', 5),
+  grass:      variants('impactSoft_medium', 5),
+  leaves:     ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wood:       variants('impactWood_light', 5),
+  sand:       variants('impactSoft_medium', 5),
+  snow:       variants('impactSoft_medium', 5),
+  gravel:     variants('impactSoft_heavy', 5),
+  glass:      variants('impactGlass_light', 5),
+  metal:      variants('impactMetal_light', 5),
+  brimstone:  variants('impactPlate_medium', 5),
+  plant:      ['cloth1', 'cloth2', 'cloth3', 'cloth4'],
+  wool:       variants('footstep_carpet', 5),
+  liquid:     variants('impactSoft_medium', 5),
+};
+
+// ── Per-animal / per-mob voices ──
+// idle = ambient call, hurt = pain, death = final cry. Pitch shifts give each
+// species a distinct register from a small CC0 sample pool.
+const MOB_VOICES = {
+  cow:       { idle: ['animal_cow_1', 'animal_cow_2'], rate: 0.85 },
+  pig:       { idle: ['animal_pig_1'],                 rate: 1.15 },
+  sheep:     { idle: ['animal_sheep_1'],               rate: 1.0 },
+  chicken:   { idle: ['animal_chicken_1', 'animal_chicken_2'], rate: 1.35 },
+  villager:  { idle: ['animal_pig_1'],                 rate: 0.7 },
+  zombie:    { idle: ['mob_snarl_1'],                  rate: 0.75 },
+  skeleton:  { idle: ['metalClick', 'metalLatch'],     rate: 1.0 },
+  spider:    { idle: ['animal_bat_1'],                 rate: 1.2 },
+  slime:     { idle: variants('impactSoft_medium', 5), rate: 0.9 },
+  blower:    { idle: ['animal_bat_1'],                 rate: 0.8 },
+  portalman: { idle: ['mob_snarl_1'],                  rate: 1.4 },
+  dragon:    { idle: ['mob_snarl_attack'],             rate: 0.6 },
 };
 
 export class AudioManager {
@@ -89,7 +198,7 @@ export class AudioManager {
 
   // Play a decoded CC0 sample. Returns false (→ caller keeps the procedural
   // fallback) when the sample is missing or still loading.
-  _sample(names, vol = 0.5, pitchVar = 0.06) {
+  _sample(names, vol = 0.5, pitchVar = 0.06, baseRate = 1) {
     if (!this.ctx || !this.enabled) return false;
     if (Array.isArray(names)) {
       if (!names.length) return false;
@@ -99,7 +208,8 @@ export class AudioManager {
     if (!buf) return false;
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
-    if (pitchVar) src.playbackRate.value = 1 + (Math.random() * 2 - 1) * pitchVar;
+    // baseRate sets the species/material register; pitchVar adds per-hit jitter.
+    src.playbackRate.value = baseRate * (1 + (Math.random() * 2 - 1) * pitchVar);
     const g = this._gain(vol);
     src.connect(g);
     g.connect(this.master);
@@ -479,10 +589,63 @@ export class AudioManager {
     }
   }
 
+  // Scratchy "digging" crackle heard for the whole duration of mining a block,
+  // not just on the final break. A running low thud plus loosely-spaced
+  // band-filtered noise ticks that ramp in speed as the block is about to give.
+  // Played periodically (every ~0.3s) from the breaking loop in main.js.
+  blockMine(blockId) {
+    if (!this.ctx || !this.enabled) return;
+    const mat = this._material(blockId);
+    // Hit the block's real CC0 break sample on every mining tick (raised in
+    // pitch, thinned out) so the material's actual sound is heard throughout
+    // the whole dig, not just on the final break.
+    if (this._sample(BREAK_SAMPLES[mat], 0.22, 0.1, 1.25)) return;
+    const t0 = this.ctx.currentTime;
+    // One low crumble thud (material-agnostic, subtle enough to repeat).
+    if (mat === 'stone' || mat === 'brimstone') this._playLayers([
+      { noise: 'brown', dur: 0.1, gain: 0.22, lp: 500, atk: 0.003, rel: 0.09 },
+    ]);
+    else if (mat === 'metal') this._playLayers([
+      { noise: 'white', dur: 0.06, gain: 0.16, bp: 3200, bq: 6, atk: 0.002, rel: 0.05 },
+      { wave: 'square', freq: 420, dur: 0.05, gain: 0.08, atk: 0.002, rel: 0.04 },
+    ]);
+    else if (mat === 'wood') this._playLayers([
+      { noise: 'brown', dur: 0.09, gain: 0.24, lp: 700, atk: 0.003, rel: 0.08 },
+    ]);
+    else this._playLayers([
+      { noise: 'brown', dur: 0.09, gain: 0.26, lp: 800, atk: 0.002, rel: 0.08 },
+    ]);
+
+    // Two-offset scratch ticks give the "chipping away" feel.
+    const scratch = mat === 'glass' || mat === 'metal'
+      ? { noise: 'white', bp: 4600, bq: 4, gain: 0.1 }
+      : { noise: 'white', bp: 2200, bq: 5, gain: 0.14 };
+    const n = this._noise(Math.floor(this.ctx.sampleRate * 0.05), this.ctx.sampleRate);
+    for (const off of [0.02, 0.11]) {
+      const start = t0 + off;
+      const src = this._src(n);
+      const f = this._filter('bandpass', scratch.bp + (Math.random() - 0.5) * 900, scratch.bq);
+      const g = this._gain(0);
+      const peak = scratch.gain * (0.7 + Math.random() * 0.4);
+      // Envelope scheduled from the tick's own start time so the burst isn't
+      // faded out before the source even begins.
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(peak, start + 0.004);
+      g.gain.setValueAtTime(peak, start + 0.035);
+      g.gain.linearRampToValueAtTime(0, start + 0.06);
+      src.connect(f); f.connect(g); g.connect(this.master);
+      src.start(start);
+      src.stop(start + 0.06);
+      src.onended = () => { try { f.disconnect(); g.disconnect(); src.disconnect(); } catch (_) {} };
+    }
+  }
+
   blockBreak(blockId) {
     if (!this.ctx || !this.enabled) return;
-    if (this._sample(['impactMining_000', 'impactMining_001', 'impactMining_002', 'impactMining_003'], 0.5, 0.05)) return;
-    switch (this._material(blockId)) {
+    const mat = this._material(blockId);
+    // Per-material sample first; procedural synthesis is the fallback.
+    if (this._sample(BREAK_SAMPLES[mat], 0.5, 0.07)) return;
+    switch (mat) {
       case 'stone': return this._stone_break();
       case 'dirt': return this._dirt_break();
       case 'wood': return this._wood_break();
@@ -496,8 +659,9 @@ export class AudioManager {
 
   blockPlace(blockId) {
     if (!this.ctx || !this.enabled) return;
-    if (this._sample(['impactGeneric_light_000', 'impactGeneric_light_001', 'impactGeneric_light_002'], 0.45, 0.06)) return;
-    switch (this._material(blockId)) {
+    const mat = this._material(blockId);
+    if (this._sample(PLACE_SAMPLES[mat], 0.45, 0.07)) return;
+    switch (mat) {
       case 'stone': return this._stone_place();
       case 'dirt': return this._dirt_place();
       case 'wood': return this._wood_place();
@@ -507,6 +671,23 @@ export class AudioManager {
       case 'metal': return this._metal_place();
       default: return this._stone_place();
     }
+  }
+
+  // ── Per-animal mob voices ────────────────────────────────────────────
+  // `kind` is a MOB_TYPES key (cow, pig, sheep, chicken, zombie, ...).
+  // Each species has its own sample set and base pitch, so a chicken and a
+  // dragon never share a voice.
+  _mobVoice(kind, mode, vol) {
+    const v = MOB_VOICES[kind];
+    if (!v) return false;
+    // hurt is pitched up and clipped short; death is pitched down and slower.
+    const rate = v.rate * (mode === 'hurt' ? 1.25 : mode === 'death' ? 0.7 : 1);
+    return this._sample(v.idle, vol, 0.08, rate);
+  }
+
+  mobIdle(kind) {
+    if (!this.ctx || !this.enabled) return;
+    this._mobVoice(kind, 'idle', 0.35);
   }
 
   inventoryOpen() {
@@ -610,18 +791,22 @@ export class AudioManager {
     });
   }
 
-  mobHurt() {
+  // `kind` is optional — when given, the species' own voice is used so a cow
+  // and a skeleton sound different when hit.
+  mobHurt(kind) {
     if (!this.ctx || !this.enabled) return;
-    if (this._sample(['impactPunch_medium_000', 'impactPunch_medium_001', 'impactPunch_medium_002'], 0.45, 0.06)) return;
+    if (kind && this._mobVoice(kind, 'hurt', 0.45)) return;
+    if (this._sample(variants('impactPunch_medium', 5), 0.45, 0.06)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.12, gain: 0.32, lp: 500, atk: 0.003, rel: 0.3 },
       { wave: 'sine', freq: 160, dur: 0.1, gain: 0.14, atk: 0.005, rel: 0.25 },
     ]);
   }
 
-  mobDeath() {
+  mobDeath(kind) {
     if (!this.ctx || !this.enabled) return;
-    if (this._sample(['impactSoft_heavy_000', 'impactSoft_heavy_001', 'impactSoft_heavy_002'], 0.5, 0.05)) return;
+    if (kind && this._mobVoice(kind, 'death', 0.5)) return;
+    if (this._sample(variants('impactSoft_heavy', 5), 0.5, 0.05)) return;
     this._playLayers([
       { noise: 'brown', dur: 0.25, gain: 0.35, lp: 300, atk: 0.005, rel: 0.4 },
       { wave: 'sine', freq: 90, dur: 0.3, gain: 0.2, atk: 0.005, rel: 0.5 },

@@ -375,8 +375,9 @@ function calcHeadPose(state) {
   // ── Head tracks camera pitch ──
   // MC: the head matches your look pitch 1:1, clamped to +/-90 degrees, and
   // keeps tracking while airborne (unlike the old FA+ curve, which zeroed it).
-  // Negated: the model's head pivot rotates opposite to the camera pitch.
-  headRx += clamp(-state.pitch, rad(-90), rad(90));
+  // The head's face is at -Z, so a positive camera pitch (look up) must rotate
+  // the head's X axis positive too — sign is NOT negated.
+  headRx += clamp(state.pitch, rad(-90), rad(90));
 
   // Head recoil when looking down while walking
   headRx += rad(5) * walk * (1 - sneak);
