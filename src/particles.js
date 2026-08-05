@@ -349,17 +349,17 @@ export class CloudSystem {
     // Drift clouds independently within the layer
     for (const c of this.clouds) {
       c.group.position.x += c.speed * dt;
-      // Wrap when too far from center of the cloud layer
-      if (c.group.position.x > 120) {
-        c.group.position.x -= 240;
-      } else if (c.group.position.x < -120) {
-        c.group.position.x += 240;
-      }
     }
 
-    // Cloud layer follows player so clouds are always in the sky
-    this.group.position.x = playerX;
-    this.group.position.z = playerZ;
+    // Wrap clouds to stay within ~120 blocks of the player (world-space, no follow)
+    for (const c of this.clouds) {
+      const dx = c.group.position.x - playerX;
+      if (dx > 120) c.group.position.x -= 240;
+      else if (dx < -120) c.group.position.x += 240;
+      const dz = c.group.position.z - playerZ;
+      if (dz > 120) c.group.position.z -= 240;
+      else if (dz < -120) c.group.position.z += 240;
+    }
 
     // Cloud brightness follows day/night
     const sA = sinA !== undefined ? sinA : (dayTime !== undefined ? Math.sin(dayTime * Math.PI * 2 - Math.PI * 0.5) : 1);
