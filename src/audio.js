@@ -63,13 +63,6 @@ const SFX_FILES = [
 const MUSIC_TRACKS = [
   'Music/mystical-piano.mp3',
   'Music/slow-piano-intermission.ogg',
-  'Music/november-snow.mp3',
-  'Music/esther.ogg',
-  'Music/another-august.mp3',
-  'Music/contemplation.mp3',
-  'Music/exploration-theme.ogg',
-  'Music/cave-explorer.mp3',
-  'Music/emerald-tower.ogg',
   'Music/calm-relaxing.mp3',
 ];
 

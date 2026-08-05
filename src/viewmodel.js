@@ -217,17 +217,17 @@ export class ViewModel {
       const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.02), [litMat, midMat, headMat, headMat, litMat, midMat]);
       blade.position.y = 0.36;
       wrap.add(blade);
-      // Crossguard: wide flat box
+      // Crossguard: wide flat box (top meets blade bottom at y=0.08)
       const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.05), mkMat('#8a6a3c'));
-      guard.position.y = 0.05;
+      guard.position.y = 0.065;
       wrap.add(guard);
-      // Handle
+      // Handle (top meets guard bottom at y=0.05)
       const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.04;
+      handle.position.y = -0.015;
       wrap.add(handle);
-      // Pommel
+      // Pommel (top meets handle bottom at y=-0.08)
       const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.05), darkMat);
-      pommel.position.y = -0.12;
+      pommel.position.y = -0.095;
       wrap.add(pommel);
       wrap.rotation.set(-0.18, -0.55, 0.05);
 

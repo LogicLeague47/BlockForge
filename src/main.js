@@ -601,6 +601,7 @@ const starsOverlay = document.getElementById('stars');
 let world = null, manager = null, loader = null, player = null, mobManager = null, explosionManager = null, playerModel = null;
 let _lastLocalArmorKey = '';
 let _particles = [];
+let _rarityGlowTimer = 0;
 const _particleGeoSmall = new THREE.BoxGeometry(0.05, 0.05, 0.05);
 let _portalOrbs = [];
 
@@ -4782,6 +4783,12 @@ function initMenu() {
   loadSetting('set-autojump', 'bf_autojump');
   loadSetting('set-fps', 'bf_fps');
   loadSetting('set-quality', 'bf_quality');
+  loadSetting('set-shadows', 'bf_shadows');
+  // Apply shadows setting on startup
+  try {
+    const sh = localStorage.getItem('bf_shadows');
+    if (sh === '0') renderer.shadowMap.enabled = false;
+  } catch (_) { console.warn("operation failed"); }
 
   // Load mouse sensitivity setting (also applies it live)
   try {
@@ -4901,6 +4908,12 @@ function initMenu() {
     graphicsQuality = e.target.value || 'medium';
     applyGraphicsQuality();
     try { localStorage.setItem('bf_quality', graphicsQuality); } catch (_) { console.warn("localStorage write failed"); }
+  });
+  document.getElementById('set-shadows')?.addEventListener('change', (e) => {
+    const enabled = e.target.value !== '0';
+    renderer.shadowMap.enabled = enabled;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    try { localStorage.setItem('bf_shadows', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
 
   // --- Main menu ---
