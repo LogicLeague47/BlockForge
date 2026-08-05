@@ -1296,6 +1296,11 @@ export class UI {
     this.cursorItemEl = document.getElementById('cursor-item');
     this.inventoryOpen = false;
 
+    // MC behavior: click outside inventory slots to drop cursor item
+    this.inventoryScreen.addEventListener('click', (e) => {
+      if (!e.target.closest('.inv-slot')) this.dropCursorItem();
+    });
+
     // Creative browser
     this.creativeBrowser = document.getElementById('creative-browser');
     this.creativeSearch = document.getElementById('creative-search');
@@ -1878,6 +1883,15 @@ export class UI {
     this.inventoryScreen.classList.remove('open');
     this._inventoryRef = null;
     if (this._onSync) this._onSync();
+  }
+
+  // MC behavior: clicking outside any inventory slot drops the cursor item
+  dropCursorItem() {
+    if (!this.cursorItem) return;
+    const stacks = [{ item: this.cursorItem.item, count: this.cursorItem.count }];
+    this.cursorItem = null;
+    this._updateCursorVisual();
+    if (this.onItemOverflow) this.onItemOverflow(stacks);
   }
 
   renderInventoryGrid(inventory) {

@@ -221,12 +221,6 @@ export class DroppedItemManager {
         this.items.splice(i, 1);
         continue;
       }
-      // Auto-collect when player walks near
-      if (playerPos && item.checkCollect(playerPos.x, playerPos.y, playerPos.z)) {
-        item.dispose();
-        this.items.splice(i, 1);
-        // Return the item info so caller can add to inventory
-      }
     }
   }
 

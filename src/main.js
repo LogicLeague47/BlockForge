@@ -888,11 +888,21 @@ document.addEventListener('mousemove', (e) => {
   // Hotbar keys 1-9
   if (e.code >= 'Digit1' && e.code <= 'Digit9') {
     const idx = parseInt(e.code.slice(5)) - 1;
-    ui.setActive(idx);
-    player.inventory.setSelected(idx);
-    syncUIMode();
-    // Show item name briefly
-    showHeldItemName();
+    // MC behavior: number keys swap cursor item with hotbar slot when inventory is open
+    if (ui.inventoryOpen && ui.cursorItem) {
+      const inv = player.inventory;
+      const tmp = inv.slots[idx];
+      inv.slots[idx] = ui.cursorItem;
+      ui.cursorItem = tmp;
+      ui.renderInventoryGrid(inv);
+      ui.renderArmorSlots();
+      ui._updateCursorVisual();
+    } else {
+      ui.setActive(idx);
+      player.inventory.setSelected(idx);
+      syncUIMode();
+      showHeldItemName();
+    }
   }
   // Q = drop item (thrown in the direction you're looking)
   if (e.code === kb.drop) {
@@ -6863,7 +6873,10 @@ function loop() {
   // Hide the block wireframe when aiming at a mob — the voxel raycast passes
   // straight through mobs, so without this the black outline appears behind
   // the mob body, creating a "box around it" look.
-  const mobInWay = mobManager?.hitTest(camera.position, _rayDir, REACH);
+  // Use fresh camera direction (not cached _rayDir) to avoid stale direction
+  // from the per-frame currentTarget() cache.
+  const _mobDir = camera.getWorldDirection(_mobDirVec);
+  const mobInWay = mobManager?.hitTest(camera.position, _mobDir, REACH);
   if (target && !mobInWay) {
     highlight.visible = true;
     highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
