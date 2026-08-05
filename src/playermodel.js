@@ -551,7 +551,7 @@ export class PlayerModel {
       }
     } else if (isTool(itemId)) {
       const def = itemDef(itemId);
-      const p = TOOL_PALETTES[def?.tool?.material] || TOOL_PALETTES.IRON;
+      const p = TOOL_PALETTES[def?.tool?.woodType || def?.tool?.material] || TOOL_PALETTES.IRON;
       const type = def?.tool?.type || 'sword';
 
       if (type === 'sword') {

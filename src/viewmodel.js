@@ -199,7 +199,7 @@ export class ViewModel {
   _buildToolMesh(itemId) {
     const def = itemDef(itemId);
     if (!def?.tool) return this._buildItemMesh(itemId);
-    const p = TOOL_PALETTES[def.tool.material] || TOOL_PALETTES.IRON;
+    const p = TOOL_PALETTES[def.tool.woodType || def.tool.material] || TOOL_PALETTES.IRON;
     const wrap = new THREE.Group();
 
     const mkMat = (color) => new THREE.MeshLambertMaterial({ color, fog: false });

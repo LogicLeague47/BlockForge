@@ -137,7 +137,8 @@ export function makeItemIconCanvas(itemId) {
 
   // Tools first — they have a material + shape.
   if (def.tool) {
-    drawToolIcon(x, def.tool.type, def.tool.material);
+    const palette = def.tool.woodType || def.tool.material;
+    drawToolIcon(x, def.tool.type, palette);
     return _compose3D(c);
   }
 
@@ -150,6 +151,12 @@ export function makeItemIconCanvas(itemId) {
   // Dispatch every non-tool item by id.
   switch (itemId) {
     case 256: drawStick(x); break;
+    case 400: drawStick(x, '#6e5230', '#8a6a3c', '#4a3618'); break;   // Oak
+    case 401: drawStick(x, '#8a5020', '#a86830', '#603810'); break;   // Jungle
+    case 402: drawStick(x, '#c8b080', '#e0c898', '#a09060'); break;  // Birch
+    case 403: drawStick(x, '#5a3a1a', '#785030', '#3a2410'); break;   // Spruce
+    case 404: drawStick(x, '#3a2510', '#583820', '#281808'); break;   // Dark Oak
+    case 405: drawStick(x, '#a05020', '#c06830', '#783810'); break;   // Acacia
     case 257: drawCoal(x, false); break;
     case 258: drawCoal(x, true); break;
     case 259: drawIngot(x, '#e6e6e6', '#c8c8c8', '#9a9a9a'); break;
@@ -325,15 +332,18 @@ function pxa(x, col, gx, gy, w, h) { // alpha helper
 const hl = (c) => ({ c, a: 0.3 });   // top-edge specular tint
 
 // ---- materials --------------------------------------------------------------
-function drawStick(x) {
+function drawStick(x, body, lit, shadow) {
+  body = body || '#6e5230';
+  lit = lit || '#8a6a3c';
+  shadow = shadow || '#4a3618';
   // A crooked twig with a lighter lit edge and a small branch.
-  px(x, '#6e5230', 7, 2, 2, 13);   // body
-  px(x, '#8a6a3c', 7, 2, 1, 13);   // lit left edge
-  px(x, '#4a3618', 8, 2, 1, 13);   // shadow right edge
-  px(x, '#6e5230', 5, 5, 2, 2);    // branch nub
-  px(x, '#4a3618', 6, 6, 1, 1);
-  px(x, '#7a5c34', 9, 9, 3, 2);    // branch nub
-  px(x, '#4a3618', 11, 10, 1, 1);
+  px(x, body, 7, 2, 2, 13);   // body
+  px(x, lit, 7, 2, 1, 13);    // lit left edge
+  px(x, shadow, 8, 2, 1, 13); // shadow right edge
+  px(x, body, 5, 5, 2, 2);    // branch nub
+  px(x, shadow, 6, 6, 1, 1);
+  px(x, lit, 9, 9, 3, 2);     // branch nub
+  px(x, shadow, 11, 10, 1, 1);
 }
 
 function drawCoal(x, charcoal) {
@@ -1052,6 +1062,12 @@ function drawArmorIcon(x, armorInfo, itemId) {
 // Shared handle drawing; the per-material palette drives colour and shading.
 export const TOOL_PALETTES = {
   WOOD:    { head: '#9c6b3a', mid: '#7a4f24', dark: '#523018', lit: '#b88a52' },
+  OAK:     { head: '#9c6b3a', mid: '#7a4f24', dark: '#523018', lit: '#b88a52' },
+  JUNGLE:  { head: '#a06028', mid: '#804818', dark: '#583010', lit: '#c07838' },
+  BIRCH:   { head: '#d4b878', mid: '#b89858', dark: '#8a7040', lit: '#e8d098' },
+  SPRUCE:  { head: '#6a4828', mid: '#503818', dark: '#382810', lit: '#886838' },
+  DARK_OAK:{ head: '#4a3018', mid: '#3a2410', dark: '#281808', lit: '#6a4828' },
+  ACACIA:  { head: '#b86030', mid: '#984820', dark: '#683010', lit: '#d87840' },
   STONE:   { head: '#9a9a9a', mid: '#7c7c7c', dark: '#545454', lit: '#b6b6b6' },
   IRON:    { head: '#e2e2e2', mid: '#b8b8b8', dark: '#828282', lit: '#f4f4f4' },
   DIAMOND: { head: '#5fe3c0', mid: '#3fb89a', dark: '#247a64', lit: '#8ff0d8' },
