@@ -24,6 +24,13 @@ export const ITEM = {
   SEEDS: 263,
   BREAD: 264,
   APPLE: 265,
+  // wood-type sticks
+  OAK_STICK: 400,
+  JUNGLE_STICK: 401,
+  BIRCH_STICK: 402,
+  SPRUCE_STICK: 403,
+  DARK_OAK_STICK: 404,
+  ACACIA_STICK: 405,
   // food
   PORKCHOP_RAW: 266,
   PORKCHOP_COOKED: 267,
@@ -101,6 +108,13 @@ export const ITEM = {
   EMERALD_PICKAXE: 568, EMERALD_AXE: 569, EMERALD_SHOVEL: 570, EMERALD_SWORD: 571,
   // mythic weapons (580+)
   DRAGON_BLADE: 580,
+  // Wood-type tools (600+)
+  OAK_PICKAXE: 600, OAK_AXE: 601, OAK_SHOVEL: 602, OAK_SWORD: 603,
+  JUNGLE_PICKAXE: 604, JUNGLE_AXE: 605, JUNGLE_SHOVEL: 606, JUNGLE_SWORD: 607,
+  BIRCH_PICKAXE: 608, BIRCH_AXE: 609, BIRCH_SHOVEL: 610, BIRCH_SWORD: 611,
+  SPRUCE_PICKAXE: 612, SPRUCE_AXE: 613, SPRUCE_SHOVEL: 614, SPRUCE_SWORD: 615,
+  DARK_OAK_PICKAXE: 616, DARK_OAK_AXE: 617, DARK_OAK_SHOVEL: 618, DARK_OAK_SWORD: 619,
+  ACACIA_PICKAXE: 620, ACACIA_AXE: 621, ACACIA_SHOVEL: 622, ACACIA_SWORD: 623,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -127,6 +141,13 @@ const FOOD = {
 const FUEL = {
   [ITEM.COAL]: 80, [ITEM.CHARCOAL]: 80,
   5: 100, 10: 80, [ITEM.STICK]: 5,
+  // Wood-type planks (same as oak planks)
+  [96]: 80, [97]: 80, [98]: 80, [99]: 80, [100]: 80,
+  // Wood-type sticks (same as stick)
+  [ITEM.OAK_STICK]: 5, [ITEM.JUNGLE_STICK]: 5, [ITEM.BIRCH_STICK]: 5,
+  [ITEM.SPRUCE_STICK]: 5, [ITEM.DARK_OAK_STICK]: 5, [ITEM.ACACIA_STICK]: 5,
+  // Wood-type logs (same as oak log)
+  [101]: 100, [102]: 100, [103]: 100, [104]: 100,
 };
 
 // --- tool definitions -------------------------------------------------------
@@ -155,6 +176,14 @@ const TOOLS = {};
       if (id != null) TOOLS[id] = { type: t.toLowerCase(), material: m };
     }
   }
+  // Wood-type tools (each with its own material tier = WOOD stats)
+  const woodTypes = ['OAK', 'JUNGLE', 'BIRCH', 'SPRUCE', 'DARK_OAK', 'ACACIA'];
+  for (const w of woodTypes) {
+    for (const t of types) {
+      const id = ITEM[`${w}_${t}`];
+      if (id != null) TOOLS[id] = { type: t.toLowerCase(), material: 'WOOD', woodType: w };
+    }
+  }
   // trident (special, no material tier)
   TOOLS[ITEM.TRIDENT] = { type: 'trident', material: 'PRISMITE' };
   // Dragon Blade (mythic)
@@ -166,6 +195,12 @@ const TOOLS = {};
 // For blocks we lazily look up BLOCKS; this table holds the non-blocks.
 const NONBLOCK_ITEMS = {
   [ITEM.STICK]:      { name: 'Stick', stack: 64, fuel: 5 },
+  [ITEM.OAK_STICK]:      { name: 'Oak Stick', stack: 64, fuel: 5 },
+  [ITEM.JUNGLE_STICK]:   { name: 'Jungle Stick', stack: 64, fuel: 5 },
+  [ITEM.BIRCH_STICK]:    { name: 'Birch Stick', stack: 64, fuel: 5 },
+  [ITEM.SPRUCE_STICK]:   { name: 'Spruce Stick', stack: 64, fuel: 5 },
+  [ITEM.DARK_OAK_STICK]: { name: 'Dark Oak Stick', stack: 64, fuel: 5 },
+  [ITEM.ACACIA_STICK]:   { name: 'Acacia Stick', stack: 64, fuel: 5 },
   [ITEM.COAL]:       { name: 'Coal', stack: 64, fuel: 80 },
   [ITEM.CHARCOAL]:   { name: 'Charcoal', stack: 64, fuel: 80 },
   [ITEM.IRON_INGOT]: { name: 'Iron Ingot', stack: 64 },
@@ -279,11 +314,20 @@ export function itemDef(id) {
     return b ? { name: b.name, stack: 64, block: true } : null;
   }
   if (TOOLS[id]) {
-    const mat = TOOL_MATERIALS[TOOLS[id].material];
+    const t = TOOLS[id];
+    const mat = TOOL_MATERIALS[t.material];
+    const typeLabel = t.type.charAt(0).toUpperCase() + t.type.slice(1);
+    let matLabel;
+    if (t.woodType) {
+      // Wood-type tools: "Oak Pickaxe", "Jungle Sword", etc.
+      matLabel = t.woodType === 'DARK_OAK' ? 'Dark Oak' : t.woodType.charAt(0) + t.woodType.slice(1).toLowerCase();
+    } else {
+      matLabel = t.material.charAt(0) + t.material.slice(1).toLowerCase();
+    }
     return {
-      name: `${TOOLS[id].material.charAt(0) + TOOLS[id].material.slice(1).toLowerCase()} ${TOOLS[id].type}`,
+      name: `${matLabel} ${typeLabel}`,
       stack: 1,
-      tool: { type: TOOLS[id].type, material: TOOLS[id].material, durability: mat.durability, maxDurability: mat.durability },
+      tool: { type: t.type, material: t.material, woodType: t.woodType, durability: mat.durability, maxDurability: mat.durability },
     };
   }
   if (ARMOR[id]) {

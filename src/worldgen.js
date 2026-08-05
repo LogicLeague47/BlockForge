@@ -558,7 +558,7 @@ export function generateUnderground(chunk, baseX, baseZ, n) {
 function placeFeature(chunk, x, h, z, biome, roll, local, top) {
   switch (biome) {
     case BIOMES.DARK_FOREST:
-      if (roll < 0.03 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'oak');
+      if (roll < 0.03 && top === BLOCK.GRASS) plantTree(chunk, x, h + 1, z, local, 'dark_oak');
       else if (roll < 0.032 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
       break;
@@ -614,13 +614,13 @@ export function plantTree(chunk, x, y, z, rng, type) {
       trunkBlock = BLOCK.JUNGLE_WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 4 + ((rng() * 4) | 0); leafRadius = 2; break;
     case 'taiga':
-      trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.DARK_OAK_LEAVES;
+      trunkBlock = BLOCK.SPRUCE_WOOD; leafBlock = BLOCK.SPRUCE_LEAVES;
       trunkH = 4 + ((rng() * 3) | 0); leafRadius = 1; break;
     case 'birch':
-      trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
+      trunkBlock = BLOCK.BIRCH_WOOD; leafBlock = BLOCK.BIRCH_LEAVES;
       trunkH = 5 + ((rng() * 3) | 0); leafRadius = 2; break;
     case 'savanna':
-      trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
+      trunkBlock = BLOCK.ACACIA_WOOD; leafBlock = BLOCK.ACACIA_LEAVES;
       trunkH = 3 + ((rng() * 2) | 0); leafRadius = 2; break;
     case 'swamp':
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
@@ -631,6 +631,9 @@ export function plantTree(chunk, x, y, z, rng, type) {
     case 'dead':
       trunkBlock = BLOCK.WOOD; leafBlock = null;
       trunkH = 3 + ((rng() * 4) | 0); leafRadius = 0; break;
+    case 'dark_oak':
+      trunkBlock = BLOCK.DARK_OAK_WOOD; leafBlock = BLOCK.DARK_OAK_LEAVES;
+      trunkH = 5 + ((rng() * 3) | 0); leafRadius = 3; break;
     default:
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 4 + ((rng() * 3) | 0); leafRadius = 2;

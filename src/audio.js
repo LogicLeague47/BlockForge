@@ -558,8 +558,9 @@ export class AudioManager {
       case 1: case 2: case 19: case 33: case 34: case 66: case 69: case 75:
         return 'dirt';
       case 5: case 10: case 17: case 20: case 21: case 24: case 26: case 27: case 35: case 38: case 40: case 55: case 56: case 57: case 58: case 61: case 67: case 76: case 78: case 79:
+      case 96: case 97: case 98: case 99: case 100: case 101: case 102: case 103: case 104:
         return 'wood';
-      case 6: case 22: case 23: case 36:
+      case 6: case 22: case 23: case 36: case 105: case 106: case 107:
         return 'leaves';
       case 7: case 29: case 85:
         return 'sand';

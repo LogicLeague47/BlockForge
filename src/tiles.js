@@ -2028,6 +2028,287 @@ const PAINTERS = {
     }
     speckle(ctx, x0, y0, rng, 8, ['rgb(40,160,170)', 'rgb(25,110,120)']);
   },
+
+  // ── Wood-type variant planks ──
+  jungle_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [140, 100, 55], 0.05, rng);
+    ctx.fillStyle = 'rgba(90,60,28,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(118,84,48,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(120,86,48,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(80,55,28)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(140,110,70)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  birch_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [196, 175, 130], 0.04, rng);
+    ctx.fillStyle = 'rgba(145,128,88,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.15) { ctx.fillStyle = 'rgba(170,152,110,0.3)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(175,155,115,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 3 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(135,118,78)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(200,185,145)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  spruce_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 82, 48], 0.05, rng);
+    ctx.fillStyle = 'rgba(72,50,25,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.2) { ctx.fillStyle = 'rgba(90,65,38,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(95,70,42,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(65,45,22)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(120,92,55)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  dark_oak_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [85, 60, 32], 0.05, rng);
+    ctx.fillStyle = 'rgba(52,35,16,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(70,50,28,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(72,52,30,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(45,30,14)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(95,70,42)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  acacia_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [168, 90, 42], 0.06, rng);
+    ctx.fillStyle = 'rgba(120,58,24,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(145,75,35,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(150,78,38,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(110,52,20)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(180,100,50)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  // ── Wood-type variant log tops ──
+  birch_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [190, 170, 130], 0.04, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(140,120,80)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(160,140,100,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(170,150,110)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  spruce_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 72, 40], 0.05, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(65,45,22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(80,58,32,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(70,50,28)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  dark_oak_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [75, 52, 28], 0.05, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(45,30,14)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(60,42,22,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(50,35,18)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  acacia_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 80, 35], 0.06, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(100,50,20)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(130,68,30,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(120,62,28)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  // ── Wood-type variant log sides ──
+  birch_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [200, 185, 150], 0.04, rng);
+    // Birch: white bark with horizontal dark lines (lenticels).
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.3) {
+        ctx.fillStyle = 'rgba(80,65,40,0.4)';
+        const w = 4 + (rng() * 10 | 0);
+        const x = (rng() * (TILE - w)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, w, 1);
+      }
+    }
+    // Darker vertical grain.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.15) {
+        ctx.fillStyle = 'rgba(160,140,105,0.35)';
+        const h = 6 + (rng() * 14 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  spruce_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [82, 58, 32], 0.06, rng);
+    // Spruce: rough dark bark with strong vertical grain.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.4) {
+        ctx.fillStyle = 'rgba(55,38,18,0.5)';
+        const h = 10 + (rng() * 18 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.2) {
+        ctx.fillStyle = 'rgba(100,75,45,0.3)';
+        const h = 5 + (rng() * 10 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  dark_oak_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [60, 42, 22], 0.06, rng);
+    // Dark oak: very dark bark with deep vertical furrows.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.45) {
+        ctx.fillStyle = 'rgba(35,24,10,0.55)';
+        const h = 12 + (rng() * 16 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.18) {
+        ctx.fillStyle = 'rgba(80,58,32,0.3)';
+        const h = 4 + (rng() * 8 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  acacia_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [120, 72, 35], 0.07, rng);
+    // Acacia: grey-brown bark with horizontal banding (like jungle but different color).
+    ctx.fillStyle = 'rgba(85,50,22,0.45)';
+    for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
+    // Vertical specks.
+    ctx.fillStyle = 'rgba(140,90,45,0.35)';
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * TILE | 0), y = (rng() * TILE | 0);
+      ctx.fillRect(x0 + x, y0 + y, 1, 2);
+    }
+  },
+
+  // ── Wood-type variant leaves ──
+  birch_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [75, 130, 50];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 10 - 5) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgba(95,155,65,0.5)', 'rgba(55,105,35,0.5)']);
+  },
+
+  spruce_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [35, 72, 30];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 8 - 4) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgba(50,95,42,0.5)', 'rgba(25,55,22,0.5)']);
+  },
+
+  acacia_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [60, 110, 35];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 10 - 5) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      ctx.fillStyle = 'rgba(0,0,0,0)';
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgba(80,135,50,0.5)', 'rgba(45,85,28,0.5)']);
+  },
 };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.

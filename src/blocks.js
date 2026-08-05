@@ -102,6 +102,21 @@ export const BLOCK = {
   BLACKSTONE_BRICKS: 93,
   NETHER_WART: 94,
   WARPED_WART: 95,
+  // Wood type variants — planks
+  JUNGLE_PLANKS: 96,
+  BIRCH_PLANKS: 97,
+  SPRUCE_PLANKS: 98,
+  DARK_OAK_PLANKS: 99,
+  ACACIA_PLANKS: 100,
+  // Wood type variants — logs
+  BIRCH_WOOD: 101,
+  SPRUCE_WOOD: 102,
+  DARK_OAK_WOOD: 103,
+  ACACIA_WOOD: 104,
+  // Wood type variants — leaves
+  BIRCH_LEAVES: 105,
+  SPRUCE_LEAVES: 106,
+  ACACIA_LEAVES: 107,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -216,6 +231,25 @@ export const TILES = {
   blackstone_bricks:  [0, 7],
   nether_wart:        [1, 7],
   warped_wart:        [2, 7],
+  // Wood type variants — planks
+  jungle_planks:      [3, 7],
+  birch_planks:       [4, 7],
+  spruce_planks:      [5, 7],
+  dark_oak_planks:    [6, 7],
+  acacia_planks:      [7, 7],
+  // Wood type variants — logs
+  birch_wood_top:     [8, 7],
+  birch_wood_side:    [9, 7],
+  spruce_wood_top:    [10, 7],
+  spruce_wood_side:   [11, 7],
+  dark_oak_wood_top:  [12, 7],
+  dark_oak_wood_side: [13, 7],
+  acacia_wood_top:    [14, 7],
+  acacia_wood_side:   [15, 7],
+  // Wood type variants — leaves
+  birch_leaves:       [0, 8],
+  spruce_leaves:      [1, 8],
+  acacia_leaves:      [2, 8],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -325,6 +359,21 @@ export const BLOCKS = {
   [BLOCK.BLACKSTONE_BRICKS]: { name: 'Blackstone Bricks', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'blackstone_bricks' },
   [BLOCK.NETHER_WART]: { name: 'Nether Wart Block', solid: true, hardness: 1.0, faces: 'nether_wart' },
   [BLOCK.WARPED_WART]: { name: 'Warped Wart Block', solid: true, hardness: 1.0, faces: 'warped_wart' },
+  // Wood type variant planks
+  [BLOCK.JUNGLE_PLANKS]:  { name: 'Jungle Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'jungle_planks' },
+  [BLOCK.BIRCH_PLANKS]:   { name: 'Birch Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'birch_planks' },
+  [BLOCK.SPRUCE_PLANKS]:  { name: 'Spruce Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'spruce_planks' },
+  [BLOCK.DARK_OAK_PLANKS]:{ name: 'Dark Oak Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'dark_oak_planks' },
+  [BLOCK.ACACIA_PLANKS]:  { name: 'Acacia Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'acacia_planks' },
+  // Wood type variant logs
+  [BLOCK.BIRCH_WOOD]:     { name: 'Birch Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'birch_wood_top', bottom: 'birch_wood_top', side: 'birch_wood_side' } },
+  [BLOCK.SPRUCE_WOOD]:    { name: 'Spruce Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'spruce_wood_top', bottom: 'spruce_wood_top', side: 'spruce_wood_side' } },
+  [BLOCK.DARK_OAK_WOOD]:  { name: 'Dark Oak Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'dark_oak_wood_top', bottom: 'dark_oak_wood_top', side: 'dark_oak_wood_side' } },
+  [BLOCK.ACACIA_WOOD]:    { name: 'Acacia Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'acacia_wood_top', bottom: 'acacia_wood_top', side: 'acacia_wood_side' } },
+  // Wood type variant leaves
+  [BLOCK.BIRCH_LEAVES]:   { name: 'Birch Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'birch_leaves' },
+  [BLOCK.SPRUCE_LEAVES]:  { name: 'Spruce Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'spruce_leaves' },
+  [BLOCK.ACACIA_LEAVES]:  { name: 'Acacia Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'acacia_leaves' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
@@ -389,6 +438,11 @@ export const HOTBAR_BLOCKS = [
   BLOCK.COBBLESTONE,
   BLOCK.WOOD,
   BLOCK.PLANKS,
+  BLOCK.JUNGLE_PLANKS,
+  BLOCK.BIRCH_PLANKS,
+  BLOCK.SPRUCE_PLANKS,
+  BLOCK.DARK_OAK_PLANKS,
+  BLOCK.ACACIA_PLANKS,
   BLOCK.LEAVES,
   BLOCK.GLASS,
   BLOCK.SAND,

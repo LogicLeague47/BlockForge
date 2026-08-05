@@ -1993,6 +1993,13 @@ let _hbInterval;
     });
   }, 30000);
 
+  // Self-ping every 5 minutes to prevent Render free-tier from sleeping.
+  // When no clients are connected the server has no traffic; this keeps it alive.
+  setInterval(() => {
+    const url = `http://127.0.0.1:${PORT}/health`;
+    import('http').then(({ get }) => get(url, () => {}).on('error', () => {}));
+  }, 5 * 60 * 1000);
+
   process.on('exit', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); });
   process.on('SIGTERM', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); process.exit(0); });
   process.on('SIGINT', () => { clearInterval(_hbInterval); clearInterval(_armorInterval); process.exit(0); });
