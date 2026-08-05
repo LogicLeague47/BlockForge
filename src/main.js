@@ -4670,19 +4670,6 @@ function renderStatsScreen() {
 function initMenu() {
   const verEl = document.getElementById('menu-version');
   if (verEl) verEl.textContent = 'v2026-07-26';
-  // Clean up stale local server data — only OfficialSMP is a valid server,
-  // so remove any other locally-saved servers (e.g. old MyWorld1) and purge
-  // them from the recently-played list.
-  try {
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const k = localStorage.key(i);
-      if (k && k.startsWith('bf_server_') && k !== 'bf_server_OfficialSMP') {
-        localStorage.removeItem(k);
-      }
-    }
-    const rec = getRecentServers().filter(s => s === 'OfficialSMP');
-    localStorage.setItem('bf_recent_servers', JSON.stringify(rec));
-  } catch (_) { console.warn("operation failed"); }
 
   // Migrate old save + purge leaked dev worlds
   migrateLegacy();
@@ -4712,8 +4699,9 @@ function initMenu() {
   } catch (_) { console.warn("operation failed"); }
 
   // Client-side keepalive: ping server every 5 min while tab is open
+  const _healthUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/health';
   setInterval(() => {
-    fetch(MP_SERVER_URL + '/health').catch(() => {});
+    fetch(_healthUrl).catch(() => {});
   }, 300000);
 
   // Check if joining via CrazyGames invite link (instant multiplayer)

@@ -890,12 +890,6 @@ function isRateLimited(ws) {
   ws.on('close', () => {
     console.log(`[Conn] Client disconnected`);
     const leavingName = ws._playerData && ws._playerData.name;
-    // Auto-delete guest accounts on disconnect
-    if (ws._playerData && ws._playerData.isGuest && leavingName && accounts[leavingName]) {
-      delete accounts[leavingName];
-      saveAccounts();
-      console.log(`[Guest] Deleted guest account "${leavingName}"`);
-    }
     handleLeave(ws);
     // Portal chat leave
     if (ws._portalChat && leavingName) _communityChatLeave(leavingName);

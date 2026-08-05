@@ -1,10 +1,10 @@
 const { app, BrowserWindow, dialog } = require('electron');
 const path = require('path');
 
-// Load the live game from the web so the desktop app shares the exact same
-// origin (and therefore localStorage / saved username) as the browser.
-// Falls back to the bundled dist/index.html if the web build is unreachable.
-const GAME_URL = 'https://blockforge-1.onrender.com/';
+// Load from bundled local files so localStorage (worlds, accounts, settings)
+// is stored in the Electron user-data directory and persists across DMG rebuilds.
+// The bundled build connects to the same multiplayer server as the web version.
+const LOCAL_FILE = path.join(__dirname, '..', 'dist', 'index.html');
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -17,26 +17,10 @@ function createWindow() {
       nodeIntegration: false,
     },
   });
-  win.loadURL(GAME_URL).catch(() => {
-    win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
-  });
+  win.loadFile(LOCAL_FILE);
   win.maximize();
 
-  // The game itself lives on the web, so every Render deploy is picked up
-  // automatically. Reload when the window regains focus after being idle so a
-  // long-running desktop session doesn't sit on a stale build.
-  let blurredAt = 0;
-  win.on('blur', () => { blurredAt = Date.now(); });
-  win.on('focus', () => {
-    // Only refresh if the app sat in the background for over 10 minutes,
-    // so we never interrupt an active play session.
-    if (blurredAt && Date.now() - blurredAt > 10 * 60 * 1000) {
-      blurredAt = 0;
-      win.webContents.reloadIgnoringCache();
-    }
-  });
-
-  // Cmd+R / Cmd+Shift+R to force-refresh to the newest deploy on demand.
+  // Cmd+R to force-refresh the bundled build.
   win.webContents.on('before-input-event', (event, input) => {
     if (input.meta && input.key.toLowerCase() === 'r') {
       win.webContents.reloadIgnoringCache();
