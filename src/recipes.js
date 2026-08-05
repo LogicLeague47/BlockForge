@@ -25,7 +25,7 @@ export const RECIPES = [
     key: { W: B.WOOD },
   }),
   shaped({
-    out: { id: I.OAK_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.PLANKS },
   }),
@@ -36,7 +36,7 @@ export const RECIPES = [
     key: { W: B.JUNGLE_WOOD },
   }),
   shaped({
-    out: { id: I.JUNGLE_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.JUNGLE_PLANKS },
   }),
@@ -47,7 +47,7 @@ export const RECIPES = [
     key: { W: B.BIRCH_WOOD },
   }),
   shaped({
-    out: { id: I.BIRCH_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.BIRCH_PLANKS },
   }),
@@ -58,7 +58,7 @@ export const RECIPES = [
     key: { W: B.SPRUCE_WOOD },
   }),
   shaped({
-    out: { id: I.SPRUCE_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.SPRUCE_PLANKS },
   }),
@@ -69,7 +69,7 @@ export const RECIPES = [
     key: { W: B.DARK_OAK_WOOD },
   }),
   shaped({
-    out: { id: I.DARK_OAK_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.DARK_OAK_PLANKS },
   }),
@@ -80,7 +80,7 @@ export const RECIPES = [
     key: { W: B.ACACIA_WOOD },
   }),
   shaped({
-    out: { id: I.ACACIA_STICK, count: 4 },
+    out: { id: I.STICK, count: 4 },
     pattern: ['P', 'P'],
     key: { P: B.ACACIA_PLANKS },
   }),
@@ -124,127 +124,127 @@ export const RECIPES = [
   shaped({
     out: { id: I.OAK_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.PLANKS, S: I.OAK_STICK },
+    key: { P: B.PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.OAK_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.PLANKS, S: I.OAK_STICK },
+    key: { P: B.PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.OAK_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.PLANKS, S: I.OAK_STICK },
+    key: { P: B.PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.OAK_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.PLANKS, S: I.OAK_STICK },
+    key: { P: B.PLANKS, S: I.STICK },
   }),
   // Jungle tools
   shaped({
     out: { id: I.JUNGLE_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.JUNGLE_PLANKS, S: I.JUNGLE_STICK },
+    key: { P: B.JUNGLE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.JUNGLE_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.JUNGLE_PLANKS, S: I.JUNGLE_STICK },
+    key: { P: B.JUNGLE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.JUNGLE_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.JUNGLE_PLANKS, S: I.JUNGLE_STICK },
+    key: { P: B.JUNGLE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.JUNGLE_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.JUNGLE_PLANKS, S: I.JUNGLE_STICK },
+    key: { P: B.JUNGLE_PLANKS, S: I.STICK },
   }),
   // Birch tools
   shaped({
     out: { id: I.BIRCH_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.BIRCH_PLANKS, S: I.BIRCH_STICK },
+    key: { P: B.BIRCH_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.BIRCH_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.BIRCH_PLANKS, S: I.BIRCH_STICK },
+    key: { P: B.BIRCH_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.BIRCH_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.BIRCH_PLANKS, S: I.BIRCH_STICK },
+    key: { P: B.BIRCH_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.BIRCH_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.BIRCH_PLANKS, S: I.BIRCH_STICK },
+    key: { P: B.BIRCH_PLANKS, S: I.STICK },
   }),
   // Spruce tools
   shaped({
     out: { id: I.SPRUCE_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.SPRUCE_PLANKS, S: I.SPRUCE_STICK },
+    key: { P: B.SPRUCE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.SPRUCE_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.SPRUCE_PLANKS, S: I.SPRUCE_STICK },
+    key: { P: B.SPRUCE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.SPRUCE_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.SPRUCE_PLANKS, S: I.SPRUCE_STICK },
+    key: { P: B.SPRUCE_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.SPRUCE_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.SPRUCE_PLANKS, S: I.SPRUCE_STICK },
+    key: { P: B.SPRUCE_PLANKS, S: I.STICK },
   }),
   // Dark Oak tools
   shaped({
     out: { id: I.DARK_OAK_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.DARK_OAK_PLANKS, S: I.DARK_OAK_STICK },
+    key: { P: B.DARK_OAK_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.DARK_OAK_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.DARK_OAK_PLANKS, S: I.DARK_OAK_STICK },
+    key: { P: B.DARK_OAK_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.DARK_OAK_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.DARK_OAK_PLANKS, S: I.DARK_OAK_STICK },
+    key: { P: B.DARK_OAK_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.DARK_OAK_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.DARK_OAK_PLANKS, S: I.DARK_OAK_STICK },
+    key: { P: B.DARK_OAK_PLANKS, S: I.STICK },
   }),
   // Acacia tools
   shaped({
     out: { id: I.ACACIA_PICKAXE, count: 1, durability: true },
     pattern: ['PPP', ' S ', ' S '],
-    key: { P: B.ACACIA_PLANKS, S: I.ACACIA_STICK },
+    key: { P: B.ACACIA_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.ACACIA_AXE, count: 1, durability: true },
     pattern: ['PP', 'PS', ' S'],
-    key: { P: B.ACACIA_PLANKS, S: I.ACACIA_STICK },
+    key: { P: B.ACACIA_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.ACACIA_SHOVEL, count: 1, durability: true },
     pattern: ['P', 'S', 'S'],
-    key: { P: B.ACACIA_PLANKS, S: I.ACACIA_STICK },
+    key: { P: B.ACACIA_PLANKS, S: I.STICK },
   }),
   shaped({
     out: { id: I.ACACIA_SWORD, count: 1, durability: true },
     pattern: ['P', 'P', 'S'],
-    key: { P: B.ACACIA_PLANKS, S: I.ACACIA_STICK },
+    key: { P: B.ACACIA_PLANKS, S: I.STICK },
   }),
   // Stone tools
   shaped({
@@ -303,16 +303,6 @@ export const RECIPES = [
     out: { id: I.DIAMOND_SHOVEL, count: 1, durability: true },
     pattern: ['D', 'S', 'S'],
     key: { D: I.DIAMOND, S: I.STICK },
-  }),
-  shaped({
-    out: { id: I.DIAMOND_SWORD, count: 1, durability: true },
-    pattern: ['D', 'D', 'S'],
-    key: { D: I.DIAMOND, S: I.STICK },
-  }),
-  shaped({
-    out: { id: I.IRON_SWORD, count: 1, durability: true },
-    pattern: ['I', 'I', 'S'],
-    key: { I: I.IRON_INGOT, S: I.STICK },
   }),
   shaped({
     out: { id: I.DIAMOND_SWORD, count: 1, durability: true },

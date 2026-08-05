@@ -27,9 +27,9 @@ export const ACHIEVEMENTS = [
     id: 'time_to_mine',
     name: 'Time to Mine!',
     desc: 'Craft your first wooden pickaxe',
-    icon: ITEM.WOOD_PICKAXE,
+    icon: ITEM.OAK_PICKAXE,
     category: 'story',
-    check: s => s.crafted[`${ITEM.WOOD_PICKAXE}`] >= 1,
+    check: s => s.crafted[`${ITEM.OAK_PICKAXE}`] >= 1,
   },
   {
     id: 'stone_age',
@@ -297,9 +297,9 @@ export const ACHIEVEMENTS = [
     id: 'craft_wood_pickaxe',
     name: 'Getting an Upgrade',
     desc: 'Craft a wooden pickaxe',
-    icon: ITEM.WOOD_PICKAXE,
+    icon: ITEM.OAK_PICKAXE,
     category: 'story',
-    check: s => s.crafted[`${ITEM.WOOD_PICKAXE}`] >= 1,
+    check: s => s.crafted[`${ITEM.OAK_PICKAXE}`] >= 1,
   },
   {
     id: 'hot_topic',

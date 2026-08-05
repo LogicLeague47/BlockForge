@@ -151,12 +151,6 @@ export function makeItemIconCanvas(itemId) {
   // Dispatch every non-tool item by id.
   switch (itemId) {
     case 256: drawStick(x); break;
-    case 400: drawStick(x, '#6e5230', '#8a6a3c', '#4a3618'); break;   // Oak
-    case 401: drawStick(x, '#8a5020', '#a86830', '#603810'); break;   // Jungle
-    case 402: drawStick(x, '#c8b080', '#e0c898', '#a09060'); break;  // Birch
-    case 403: drawStick(x, '#5a3a1a', '#785030', '#3a2410'); break;   // Spruce
-    case 404: drawStick(x, '#3a2510', '#583820', '#281808'); break;   // Dark Oak
-    case 405: drawStick(x, '#a05020', '#c06830', '#783810'); break;   // Acacia
     case 257: drawCoal(x, false); break;
     case 258: drawCoal(x, true); break;
     case 259: drawIngot(x, '#e6e6e6', '#c8c8c8', '#9a9a9a'); break;
@@ -2356,17 +2350,28 @@ export class UI {
   }
 
   closeFurnace() {
-    // Return furnace items to inventory
     const inv = this._inventoryRef;
+    const overflow = [];
     if (inv) {
-      if (this.furnaceSlots.input) { inv.add(this.furnaceSlots.input.item, this.furnaceSlots.input.count); this.furnaceSlots.input = null; }
-      if (this.furnaceSlots.fuel) { inv.add(this.furnaceSlots.fuel.item, this.furnaceSlots.fuel.count); this.furnaceSlots.fuel = null; }
-      if (this.furnaceSlots.output) { inv.add(this.furnaceSlots.output.item, this.furnaceSlots.output.count); this.furnaceSlots.output = null; }
+      for (const key of ['input', 'fuel', 'output']) {
+        const slot = this.furnaceSlots[key];
+        if (slot) {
+          const left = inv.add(slot.item, slot.count);
+          if (left > 0) overflow.push({ item: slot.item, count: left });
+          this.furnaceSlots[key] = null;
+        }
+      }
     }
     if (this.cursorItem) {
-      if (inv) inv.add(this.cursorItem.item, this.cursorItem.count);
+      if (inv) {
+        const left = inv.add(this.cursorItem.item, this.cursorItem.count);
+        if (left > 0) overflow.push({ item: this.cursorItem.item, count: left });
+      } else {
+        overflow.push({ item: this.cursorItem.item, count: this.cursorItem.count });
+      }
       this.cursorItem = null;
     }
+    if (overflow.length && this.onItemOverflow) this.onItemOverflow(overflow);
     this.cursorItemEl.style.display = 'none';
     this.furnaceOpen = false;
     this.furnaceScreen.classList.remove('open');
@@ -2386,10 +2391,17 @@ export class UI {
   }
 
   closeChest() {
+    const overflow = [];
     if (this.cursorItem) {
-      if (this._inventoryRef) this._inventoryRef.add(this.cursorItem.item, this.cursorItem.count);
+      if (this._inventoryRef) {
+        const left = this._inventoryRef.add(this.cursorItem.item, this.cursorItem.count);
+        if (left > 0) overflow.push({ item: this.cursorItem.item, count: left });
+      } else {
+        overflow.push({ item: this.cursorItem.item, count: this.cursorItem.count });
+      }
       this.cursorItem = null;
     }
+    if (overflow.length && this.onItemOverflow) this.onItemOverflow(overflow);
     this.cursorItemEl.style.display = 'none';
     this.chestOpen = false;
     this.chestScreen.classList.remove('open');

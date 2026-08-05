@@ -24,13 +24,6 @@ export const ITEM = {
   SEEDS: 263,
   BREAD: 264,
   APPLE: 265,
-  // wood-type sticks
-  OAK_STICK: 400,
-  JUNGLE_STICK: 401,
-  BIRCH_STICK: 402,
-  SPRUCE_STICK: 403,
-  DARK_OAK_STICK: 404,
-  ACACIA_STICK: 405,
   // food
   PORKCHOP_RAW: 266,
   PORKCHOP_COOKED: 267,
@@ -143,9 +136,6 @@ const FUEL = {
   5: 100, 10: 80, [ITEM.STICK]: 5,
   // Wood-type planks (same as oak planks)
   [96]: 80, [97]: 80, [98]: 80, [99]: 80, [100]: 80,
-  // Wood-type sticks (same as stick)
-  [ITEM.OAK_STICK]: 5, [ITEM.JUNGLE_STICK]: 5, [ITEM.BIRCH_STICK]: 5,
-  [ITEM.SPRUCE_STICK]: 5, [ITEM.DARK_OAK_STICK]: 5, [ITEM.ACACIA_STICK]: 5,
   // Wood-type logs (same as oak log)
   [101]: 100, [102]: 100, [103]: 100, [104]: 100,
 };
@@ -195,12 +185,6 @@ const TOOLS = {};
 // For blocks we lazily look up BLOCKS; this table holds the non-blocks.
 const NONBLOCK_ITEMS = {
   [ITEM.STICK]:      { name: 'Stick', stack: 64, fuel: 5 },
-  [ITEM.OAK_STICK]:      { name: 'Oak Stick', stack: 64, fuel: 5 },
-  [ITEM.JUNGLE_STICK]:   { name: 'Jungle Stick', stack: 64, fuel: 5 },
-  [ITEM.BIRCH_STICK]:    { name: 'Birch Stick', stack: 64, fuel: 5 },
-  [ITEM.SPRUCE_STICK]:   { name: 'Spruce Stick', stack: 64, fuel: 5 },
-  [ITEM.DARK_OAK_STICK]: { name: 'Dark Oak Stick', stack: 64, fuel: 5 },
-  [ITEM.ACACIA_STICK]:   { name: 'Acacia Stick', stack: 64, fuel: 5 },
   [ITEM.COAL]:       { name: 'Coal', stack: 64, fuel: 80 },
   [ITEM.CHARCOAL]:   { name: 'Charcoal', stack: 64, fuel: 80 },
   [ITEM.IRON_INGOT]: { name: 'Iron Ingot', stack: 64 },
