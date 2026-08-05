@@ -1971,7 +1971,7 @@ export class UI {
       }
       this._addSlotTooltipListeners(this.craftingOutput, { item: out.id, count: out.count });
     }
-    this.craftingOutput.onclick = () => this._onCraftOutputClick();
+    this.craftingOutput.onclick = (e) => this._onCraftOutputClick(e.shiftKey);
   }
 
   // --- armor slots in inventory screen ---
@@ -2256,10 +2256,23 @@ export class UI {
     return { item: itemId, count, ...(maxD != null && maxD > 0 ? { durability: maxD } : {}) };
   }
 
-  _onCraftOutputClick() {
+  _onCraftOutputClick(shiftKey) {
     const grid = this.craftingGrid;
     const out = grid.output;
     if (!out) return;
+    // Shift+click: craft directly into inventory (like MC)
+    if (shiftKey && this._inventoryRef) {
+      const left = this._inventoryRef.add(out.id, out.count);
+      if (left > 0) return; // inventory full, don't consume ingredients
+      grid.consumeIngredients();
+      grid.refreshOutput();
+      this.renderCraftingGrid();
+      this.renderInventoryGrid(this._inventoryRef);
+      this.renderArmorSlots();
+      this._updateCursorVisual();
+      if (this.onCraft) this.onCraft(out.id, out.count);
+      return;
+    }
     if (this.cursorItem && (this.cursorItem.item !== out.id || this.cursorItem.count + out.count > maxStack(out.id))) return;
     if (!this.cursorItem) {
       this.cursorItem = this._freshStack(out.id, out.count);
@@ -2373,13 +2386,27 @@ export class UI {
       }
       const idx = i;
       this._addSlotTooltipListeners(slotEl, s);
-      slotEl.addEventListener('click', () => this._onChestSlotClick(idx));
+      slotEl.addEventListener('click', (e) => this._onChestSlotClick(idx, e.shiftKey));
       this.chestGrid.appendChild(slotEl);
     }
   }
 
-  _onChestSlotClick(i) {
+  _onChestSlotClick(i, shiftKey) {
     const slot = this.chestSlots[i];
+    const inv = this._inventoryRef;
+    // Shift+click: quick move between chest and player inventory
+    if (shiftKey && slot && inv) {
+      const left = inv.add(slot.item, slot.count);
+      if (left === 0) {
+        this.chestSlots[i] = null;
+      } else {
+        slot.count = left;
+      }
+      this._renderChestGrid();
+      if (inv) this._renderChestInventory(inv);
+      this._updateCursorVisual();
+      return;
+    }
     if (this.cursorItem) {
       if (!slot) {
         this.chestSlots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
@@ -2419,7 +2446,7 @@ export class UI {
         if (s.count > 1) { const cnt = document.createElement('div'); cnt.className = 'inv-count'; cnt.textContent = s.count; slotEl.appendChild(cnt); }
       }
       const idx = i;
-      slotEl.addEventListener('click', () => this._onChestInvSlotClick(idx));
+      slotEl.addEventListener('click', (e) => this._onChestInvSlotClick(idx, e.shiftKey));
       this._addSlotTooltipListeners(slotEl, s);
       this.chestInvGrid.appendChild(slotEl);
     }
@@ -2438,16 +2465,46 @@ export class UI {
         if (s.count > 1) { const cnt = document.createElement('div'); cnt.className = 'inv-count'; cnt.textContent = s.count; slotEl.appendChild(cnt); }
       }
       const idx = i;
-      slotEl.addEventListener('click', () => this._onChestInvSlotClick(idx));
+      slotEl.addEventListener('click', (e) => this._onChestInvSlotClick(idx, e.shiftKey));
       this._addSlotTooltipListeners(slotEl, s);
       this.chestHotbarGrid.appendChild(slotEl);
     }
   }
 
-  _onChestInvSlotClick(i) {
+  _onChestInvSlotClick(i, shiftKey) {
     const inv = this._inventoryRef;
     if (!inv) return;
     const slot = inv.slots[i];
+    // Shift+click: quick move from player inventory to chest
+    if (shiftKey && slot) {
+      // Find first empty or matching chest slot
+      let target = -1;
+      for (let j = 0; j < this.chestSlots.length; j++) {
+        const cs = this.chestSlots[j];
+        if (cs && cs.item === slot.item && cs.count < maxStack(slot.item)) { target = j; break; }
+      }
+      if (target === -1) {
+        for (let j = 0; j < this.chestSlots.length; j++) {
+          if (!this.chestSlots[j]) { target = j; break; }
+        }
+      }
+      if (target === -1) return; // chest full
+      const dest = this.chestSlots[target];
+      if (dest && dest.item === slot.item) {
+        const cap = maxStack(slot.item);
+        const add = Math.min(cap - dest.count, slot.count);
+        dest.count += add;
+        slot.count -= add;
+        if (slot.count <= 0) inv.slots[i] = null;
+      } else if (!dest) {
+        this.chestSlots[target] = { item: slot.item, count: slot.count };
+        inv.slots[i] = null;
+      }
+      this._renderChestGrid();
+      this._renderChestInventory(inv);
+      this._updateCursorVisual();
+      return;
+    }
     if (this.cursorItem) {
       if (!slot) {
         inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
@@ -2483,9 +2540,9 @@ export class UI {
     render(this.furnaceInputEl, this.furnaceSlots.input);
     render(this.furnaceFuelEl, this.furnaceSlots.fuel);
     render(this.furnaceOutputEl, this.furnaceSlots.output);
-    this.furnaceInputEl.onclick = () => this._onFurnaceSlotClick('input');
-    this.furnaceFuelEl.onclick = () => this._onFurnaceSlotClick('fuel');
-    this.furnaceOutputEl.onclick = () => this._onFurnaceSlotClick('output');
+    this.furnaceInputEl.onclick = (e) => this._onFurnaceSlotClick('input', e.shiftKey);
+    this.furnaceFuelEl.onclick = (e) => this._onFurnaceSlotClick('fuel', e.shiftKey);
+    this.furnaceOutputEl.onclick = (e) => this._onFurnaceSlotClick('output', e.shiftKey);
   }
 
   _renderFurnaceInventory(inventory) {
@@ -2521,16 +2578,37 @@ export class UI {
           slotEl.appendChild(cnt);
         }
       }
-      slotEl.addEventListener('click', () => this._onFurnaceInvSlotClick(i));
+      slotEl.addEventListener('click', (e) => this._onFurnaceInvSlotClick(i, e.shiftKey));
       this._addSlotTooltipListeners(slotEl, s);
       this.furnaceInvGrid.appendChild(slotEl);
     }
   }
 
-  _onFurnaceInvSlotClick(i) {
+  _onFurnaceInvSlotClick(i, shiftKey) {
     const inv = this._inventoryRef;
     if (!inv) return;
     const slot = inv.slots[i];
+    // Shift+click: move item from inventory to furnace input or fuel
+    if (shiftKey && slot) {
+      const def = itemDef(slot.item);
+      const isFuel = def && def.burnTime;
+      const target = isFuel ? 'fuel' : 'input';
+      const dest = this.furnaceSlots[target];
+      if (dest && dest.item === slot.item) {
+        const cap = maxStack(slot.item);
+        const add = Math.min(cap - dest.count, slot.count);
+        dest.count += add;
+        slot.count -= add;
+        if (slot.count <= 0) inv.slots[i] = null;
+      } else if (!dest) {
+        this.furnaceSlots[target] = { item: slot.item, count: slot.count };
+        inv.slots[i] = null;
+      }
+      this.renderFurnaceSlots();
+      this._renderFurnaceInventory(inv);
+      this._updateCursorVisual();
+      return;
+    }
     if (this.cursorItem) {
       if (!slot) {
         inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
@@ -2553,8 +2631,24 @@ export class UI {
     this._updateCursorVisual();
   }
 
-  _onFurnaceSlotClick(which) {
+  _onFurnaceSlotClick(which, shiftKey) {
     const slot = this.furnaceSlots[which];
+    const inv = this._inventoryRef;
+    // Shift+click: output goes to inventory, input/fuel goes from inventory
+    if (shiftKey && slot && inv) {
+      if (which === 'output') {
+        const left = inv.add(slot.item, slot.count);
+        if (left === 0) {
+          this.furnaceSlots[which] = null;
+        } else {
+          slot.count = left;
+        }
+      }
+      this.renderFurnaceSlots();
+      if (inv) this._renderFurnaceInventory(inv);
+      this._updateCursorVisual();
+      return;
+    }
     if (this.cursorItem) {
       if (!slot) {
         this.furnaceSlots[which] = { item: this.cursorItem.item, count: this.cursorItem.count };

@@ -6860,7 +6860,11 @@ function loop() {
 
   // selection highlight
   const target = currentTarget();
-  if (target) {
+  // Hide the block wireframe when aiming at a mob — the voxel raycast passes
+  // straight through mobs, so without this the black outline appears behind
+  // the mob body, creating a "box around it" look.
+  const mobInWay = mobManager?.hitTest(camera.position, _rayDir, REACH);
+  if (target && !mobInWay) {
     highlight.visible = true;
     highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
   } else {
@@ -6997,9 +7001,10 @@ function loop() {
     droppedItemManager.update(dt, player.position);
     const collected = droppedItemManager.collectNearby(player.position);
     for (const c of collected) {
-      if (player.inventory.add(c.itemId, c.count)) {
-        // Item added to inventory
-      }
+      player.inventory.add(c.itemId, c.count);
+    }
+    if (collected.length) {
+      ui.buildHotbarFromInventory(player.inventory);
     }
   }
 

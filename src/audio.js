@@ -596,10 +596,10 @@ export class AudioManager {
   blockMine(blockId) {
     if (!this.ctx || !this.enabled) return;
     const mat = this._material(blockId);
-    // Hit the block's real CC0 break sample on every mining tick (raised in
-    // pitch, thinned out) so the material's actual sound is heard throughout
-    // the whole dig, not just on the final break.
-    if (this._sample(BREAK_SAMPLES[mat], 0.22, 0.1, 1.25)) return;
+    // Play the material's CC0 break sample for character, PLUS the procedural
+    // mining texture (scratch + thud) so there's a continuous "chipping away"
+    // feel throughout the hold — not just one hit per tick.
+    this._sample(BREAK_SAMPLES[mat], 0.22, 0.1, 1.25);
     const t0 = this.ctx.currentTime;
     // One low crumble thud (material-agnostic, subtle enough to repeat).
     if (mat === 'stone' || mat === 'brimstone') this._playLayers([
