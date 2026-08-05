@@ -62,11 +62,23 @@ function downloadFile(url, dest) {
   });
 }
 
+// Compare semver-like strings: returns true if a > b
+function isNewer(a, b) {
+  const pa = a.split('.').map(Number);
+  const pb = b.split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const na = pa[i] || 0, nb = pb[i] || 0;
+    if (na > nb) return true;
+    if (na < nb) return false;
+  }
+  return false;
+}
+
 ipcMain.handle('check-for-update', async () => {
   try {
     const release = await fetchJSON('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest');
     const remoteVersion = (release.tag_name || '').replace(/^v/i, '');
-    if (!remoteVersion || remoteVersion === CURRENT_VERSION) {
+    if (!remoteVersion || !isNewer(remoteVersion, CURRENT_VERSION)) {
       return { updateAvailable: false };
     }
     const asset = (release.assets || []).find((a) => a.name && a.name.includes('mac') && a.name.endsWith('.dmg'));
