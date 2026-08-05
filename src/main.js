@@ -7796,4 +7796,22 @@ document.getElementById('btn-account-info')?.addEventListener('click', () => {
   window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
 
+// --- Electron in-app update ------------------------------------------------
+if (window.electronAPI) {
+  const updateBtn = document.getElementById('electron-update-btn');
+  window.electronAPI.checkForUpdate().then((res) => {
+    if (res && res.updateAvailable && updateBtn) {
+      updateBtn.style.display = 'block';
+      updateBtn.title = 'Update to v' + res.version;
+      updateBtn.addEventListener('click', () => {
+        updateBtn.textContent = 'DOWNLOADING...';
+        updateBtn.style.pointerEvents = 'none';
+        updateBtn.style.borderColor = '#aa0';
+        updateBtn.style.color = '#ff0';
+        window.electronAPI.doUpdate(res.downloadUrl);
+      });
+    }
+  });
+}
+
 requestAnimationFrame(loop);
