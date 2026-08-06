@@ -152,7 +152,7 @@ function _applyRoomsData(data) {
 
 async function loadRooms() {
   if (USE_REDIS) {
-    const data = await redisCmd(['GET', 'server-data']);
+    const data = await redisCmd(['GET', 'bf:server-data']);
     if (data) { try { _applyRoomsData(JSON.parse(data)); } catch (e) { console.error('[Data] Redis parse fail', e.message); } }
     return;
   }
@@ -219,7 +219,7 @@ async function loadAccounts() {
 
   if (USE_REDIS) {
     let redisAccounts = {};
-    const data = await redisCmd(['GET', 'accounts']);
+    const data = await redisCmd(['GET', 'bf:accounts']);
     if (data) { try { redisAccounts = JSON.parse(data) || {}; } catch { console.warn('[Data] Failed to parse Redis accounts JSON'); } }
     // Source accounts override Redis so they always come from the committed file.
     accounts = { ...redisAccounts, ...fileAccounts };
@@ -326,7 +326,7 @@ let friends = {};
 
 async function loadFriends() {
   if (USE_REDIS) {
-    const data = await redisCmd(['GET', 'friends']);
+    const data = await redisCmd(['GET', 'bf:friends']);
     if (data) { try { friends = JSON.parse(data) || {}; } catch { friends = {}; } }
     return;
   }
