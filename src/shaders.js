@@ -61,6 +61,7 @@ const fragHelpers = /* glsl */ `
   uniform float fogFar;
   uniform sampler2D shadowMap;
   uniform vec2 shadowMapSize;
+  uniform float shadowsEnabled;
 
   varying vec2 vUv;
   varying vec3 vColor;
@@ -74,6 +75,7 @@ const fragHelpers = /* glsl */ `
   }
 
   float getShadow(vec3 normal, vec3 lightDir) {
+    if (shadowsEnabled < 0.5) return 1.0;
     vec3 sc = vShadowCoord.xyz / vShadowCoord.w;
     if (sc.z > 1.0 || sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0) return 1.0;
     float shadow = 0.0;
@@ -239,6 +241,7 @@ export function createOpaqueMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      shadowsEnabled: { value: 1.0 },
       time: { value: 0.0 },
       windStrength: { value: 0.0 },
     },
@@ -261,6 +264,7 @@ export function createCutoutMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      shadowsEnabled: { value: 1.0 },
       time: { value: 0.0 },
       windStrength: { value: 0.0 },
     },
@@ -285,6 +289,7 @@ export function createTransparentMaterial(atlasTexture) {
       shadowMatrix: { value: new THREE.Matrix4() },
       shadowMap: { value: null },
       shadowMapSize: { value: new THREE.Vector2(4096, 4096) },
+      shadowsEnabled: { value: 1.0 },
       time: { value: 0.0 },
       windStrength: { value: 0.0 },
     },
@@ -359,6 +364,7 @@ export function updateShaderUniforms({ opaqueMat, cutoutMat, transMat, waterMat,
     m.uniforms.shadowMatrix.value.copy(shadowMat);
     if (shadowTex) m.uniforms.shadowMap.value = shadowTex;
     m.uniforms.shadowMapSize.value.copy(sun.shadow.mapSize);
+    m.uniforms.shadowsEnabled.value = window.__shadowsEnabled !== false ? 1.0 : 0.0;
     m.uniforms.time.value = time;
     m.uniforms.windStrength.value = 0.02;
   }

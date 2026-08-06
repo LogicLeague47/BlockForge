@@ -4787,6 +4787,7 @@ function initMenu() {
   // Apply shadows setting on startup
   try {
     const sh = localStorage.getItem('bf_shadows');
+    window.__shadowsEnabled = (sh !== '0');
     if (sh === '0') renderer.shadowMap.enabled = false;
   } catch (_) { console.warn("operation failed"); }
 
@@ -4911,6 +4912,7 @@ function initMenu() {
   });
   document.getElementById('set-shadows')?.addEventListener('change', (e) => {
     const enabled = e.target.value !== '0';
+    window.__shadowsEnabled = enabled;
     renderer.shadowMap.enabled = enabled;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     try { localStorage.setItem('bf_shadows', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
