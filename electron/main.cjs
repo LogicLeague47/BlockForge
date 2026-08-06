@@ -66,6 +66,7 @@ function downloadFile(url, dest) {
 function isNewer(a, b) {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
+  if (pa.some(isNaN)) return true;
   for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
     const na = pa[i] || 0, nb = pb[i] || 0;
     if (na > nb) return true;
