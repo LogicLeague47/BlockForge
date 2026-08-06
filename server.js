@@ -1257,10 +1257,12 @@ function handlePosition(ws, msg) {
   binBuf.writeFloatBE(pd.z, off); off += 4;
   binBuf.writeFloatBE(pd.yaw, off); off += 4;
   binBuf.writeUInt8(pd.crouching ? 1 : 0, off); off += 1;
-  for (const [targetWs, tp] of room.players) {
+  // Broadcast to every other player in the room. No proximity cull:
+  // players spawn far apart (saved positions, deterministic seeds) and the
+  // client already hides models beyond its render distance. Culling here
+  // left remote models marooned at the hardcoded origin spawn point.
+  for (const [targetWs] of room.players) {
     if (targetWs === ws) continue;
-    const dx = pd.x - tp.x, dz = pd.z - tp.z;
-    if (dx * dx + dz * dz > 4096) continue; // >64 blocks
     safeSend(targetWs, binBuf);
   }
 }
