@@ -648,27 +648,45 @@ export class Player {
     for (let s = 0; s < steps; s++) {
       this.position[axis] += step;
       if (this._collideAxis(axis, step)) {
-        // Step-up: on horizontal collision, try raising player up to 0.6 blocks
+        // Step-up: on horizontal collision, only raise the player when a real
+        // climbable ledge exists ahead (solid at foot+1, open at foot and above).
+        // A partial raise would wobble the player up and snap them back down.
         if ((axis === 'x' || axis === 'z') && this.onGround && !this.crouching) {
-          const STEP_HEIGHT = 0.6;
-          const saved = this.position[axis];
-          this.position[axis] -= step; // undo the move that caused collision
-          let stepped = false;
-          for (let sy = 1; sy <= Math.ceil(STEP_HEIGHT); sy++) {
-            const tryUp = Math.min(sy, STEP_HEIGHT);
-            this.position.y += tryUp;
-            this.position[axis] += step;
-            if (!this._collideAxis(axis, step)) {
-              stepped = true;
-              break;
+          const sign = Math.sign(step);
+          const aheadX = axis === 'x'
+            ? Math.floor(this.position.x + sign * (PLAYER_HALF_WIDTH + 0.05))
+            : Math.floor(this.position.x);
+          const aheadZ = axis === 'z'
+            ? Math.floor(this.position.z + sign * (PLAYER_HALF_WIDTH + 0.05))
+            : Math.floor(this.position.z);
+          const footY = Math.floor(this.position.y);
+          const openHere = !this._solid(aheadX, footY, aheadZ) && !this._solid(aheadX, footY + 2, aheadZ);
+          const ledgeThere = this._solid(aheadX, footY + 1, aheadZ) && !this._solid(aheadX, footY, aheadZ);
+          if (openHere && ledgeThere) {
+            const STEP_HEIGHT = 1.0;
+            const saved = this.position[axis];
+            this.position[axis] -= step; // undo the move that caused collision
+            let stepped = false;
+            for (let sy = 1; sy <= Math.ceil(STEP_HEIGHT); sy++) {
+              const tryUp = Math.min(sy, STEP_HEIGHT);
+              this.position.y += tryUp;
+              this.position[axis] += step;
+              if (!this._collideAxis(axis, step)) {
+                stepped = true;
+                break;
+              }
+              this.position[axis] -= step;
+              this.position.y -= tryUp;
             }
-            this.position[axis] -= step;
-            this.position.y -= tryUp;
+            if (!stepped) {
+              this.position[axis] = saved; // restore to collision point
+              this._collideAxis(axis, step);
+            }
+            return;
           }
-          if (!stepped) {
-            this.position[axis] = saved; // restore to collision point
-            this._collideAxis(axis, step);
-          }
+          // Otherwise stop cleanly against the wall: no bob, no half-attempt.
+          this.position[axis] -= step;
+          this._collideAxis(axis, step);
           return;
         }
         this._collideAxis(axis, step);

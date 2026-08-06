@@ -2476,7 +2476,7 @@ export function tileUVRect(name) {
 export function makeIcon(blockId, atlasCanvas) {
   const key = blockId + '_' + (atlasCanvas ? '1' : '0');
   const cached = _makeIconCache.get(key);
-  if (cached) return cached;
+  if (cached) return cached.cloneNode(true);
   const c = document.createElement('canvas');
   c.width = TILE; c.height = TILE;
   const ctx = c.getContext('2d');
@@ -2491,5 +2491,5 @@ export function makeIcon(blockId, atlasCanvas) {
     if (firstKey !== undefined) _makeIconCache.delete(firstKey);
   }
   _makeIconCache.set(key, c);
-  return c;
+  return c.cloneNode(true);
 }

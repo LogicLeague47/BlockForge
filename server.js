@@ -1256,7 +1256,7 @@ function handlePosition(ws, msg) {
   binBuf.writeFloatBE(pd.y, off); off += 4;
   binBuf.writeFloatBE(pd.z, off); off += 4;
   binBuf.writeFloatBE(pd.yaw, off); off += 4;
-  binBuf.writeUInt8(pd.crouching ? 1 : 0); off += 1;
+  binBuf.writeUInt8(pd.crouching ? 1 : 0, off); off += 1;
   for (const [targetWs, tp] of room.players) {
     if (targetWs === ws) continue;
     const dx = pd.x - tp.x, dz = pd.z - tp.z;
