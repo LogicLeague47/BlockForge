@@ -170,11 +170,19 @@ export class RemotePlayer {
       return;
     }
 
-    // Find the two snapshots that bracket renderTime
-    // buf is sorted oldest → newest
+    // Clamp the interpolation time into the buffer's range. This prevents
+    // runaway extrapolation when the network stalls or snapshots arrive in
+    // bursts (closely-timed snapshots made the old velocity math explode).
+    let rt = renderTime;
+    const oldest = buf[0].time;
+    const newest = buf[buf.length - 1].time;
+    if (rt < oldest) rt = oldest;
+    if (rt > newest) rt = newest;
+
+    // Find the two snapshots that bracket rt. buf is sorted oldest → newest.
     let i0 = 0;
     for (let i = 0; i < buf.length - 1; i++) {
-      if (buf[i].time <= renderTime && buf[i + 1].time > renderTime) {
+      if (buf[i].time <= rt && buf[i + 1].time > rt) {
         i0 = i;
         break;
       }
@@ -185,7 +193,7 @@ export class RemotePlayer {
 
     // Interpolation factor between the two snapshots
     const span = s1.time - s0.time;
-    const t = span > 0 ? Math.max(0, Math.min(1, (renderTime - s0.time) / span)) : 0;
+    const t = span > 0 ? Math.max(0, Math.min(1, (rt - s0.time) / span)) : 0;
 
     // Interpolate position
     this.x = s0.x + (s1.x - s0.x) * t;
@@ -197,17 +205,6 @@ export class RemotePlayer {
     while (yawDiff > Math.PI) yawDiff -= Math.PI * 2;
     while (yawDiff < -Math.PI) yawDiff += Math.PI * 2;
     this.yaw = s0.yaw + yawDiff * t;
-
-    // Extrapolate slightly if renderTime is past the latest snapshot
-    if (renderTime > s1.time && buf.length >= 2) {
-      const age = (renderTime - s1.time) / 1000; // seconds past latest
-      // Use velocity from last two snapshots for extrapolation
-      const vel = (s1.time - s0.time) > 0 ? 1000 / (s1.time - s0.time) : 30;
-      const ex = (s1.x - s0.x) * vel * age * 0.3; // dampened extrapolation
-      const ez = (s1.z - s0.z) * vel * age * 0.3;
-      this.x += ex;
-      this.z += ez;
-    }
 
     const crouching = s0.crouching + (s1.crouching - s0.crouching) * t > 0.5;
     this._updateModel(dt, crouching);
