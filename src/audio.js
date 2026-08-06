@@ -728,9 +728,40 @@ export class AudioManager {
     this._musicPlaying = false;
   }
 
+  _teardownCurrent() {
+    if (this._musicCurrentSrc) {
+      try { this._musicCurrentSrc.pause(); } catch (_) {}
+      this._musicCurrentSrc = null;
+    }
+    this._musicPlaying = false;
+  }
+
+  getCurrentTrack() {
+    const list = this._musicPlaylist || [];
+    return {
+      index: this._musicIdx,
+      title: this._musicIdx > 0 ? this._musicPlaylist[this._musicIdx - 1] : '',
+      total: list.length,
+      playing: !!this._musicPlaying,
+    };
+  }
+
+  skipTrack(dir = 1) {
+    if (!this._musicWanted || !this.ctx) return;
+    this._teardownCurrent();
+    this._musicIdx += dir;
+    if (this._musicIdx < 0) {
+      this._musicIdx = (this._musicPlaylist || []).length - 1;
+    }
+    if (this._musicIdx >= (this._musicPlaylist || []).length) {
+      this._musicIdx = 0;
+    }
+    this._playNextTrack();
+  }
+
   _playNextTrack() {
     if (!this._musicWanted || !this.ctx) return;
-    if (this._musicIdx >= this._musicPlaylist.length) {
+    if (!this._musicPlaylist || this._musicIdx >= this._musicPlaylist.length) {
       this._musicPlaylist = this._shuffleArray([...MUSIC_TRACKS]);
       this._musicIdx = 0;
     }
@@ -746,6 +777,7 @@ export class AudioManager {
     audio.addEventListener('ended', () => {
       try { source.disconnect(); g.disconnect(); } catch (_) {}
       this._musicCurrentSrc = null;
+      this._musicPlaying = false;
       this._playNextTrack();
     });
     audio.play().catch(() => {});

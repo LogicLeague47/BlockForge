@@ -1636,6 +1636,7 @@ export class UI {
     this.overlayEl.querySelectorAll('.menu-screen').forEach(s => s.classList.remove('active'));
     const screen = document.getElementById('menu-' + name);
     if (screen) screen.classList.add('active');
+    if (this._onMenuShown) this._onMenuShown(name);
     if (name === 'main') this._cycleSplash();
     const mp = document.querySelector('.menu-player-preview');
     if (mp) mp.style.display = (name === 'login') ? 'none' : '';

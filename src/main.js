@@ -6497,6 +6497,93 @@ function renderParkourWorldList() {
   }
 }
 
+// --- Main-menu music player widget -----------------------------------------
+const musicPlayerEl = document.getElementById('music-player');
+const musicTrackEl = document.getElementById('music-track-name');
+const musicToggleBtn = document.getElementById('music-toggle');
+let musicPollTimer = null;
+const TRACK_DISPLAY_NAMES = {
+  'Music/mystical-piano.mp3': 'Mystical Piano',
+  'Music/slow-piano-intermission.ogg': 'Slow Piano Intermission',
+  'Music/calm-relaxing.mp3': 'Calm & Relaxing',
+};
+
+function trackDisplayName(url) {
+  return (url && TRACK_DISPLAY_NAMES[url]) || (url ? url.split('/').pop().replace(/\.[^.]+$/, '').replace(/-/g, ' ') : '—');
+}
+
+function updateMusicWidget() {
+  if (!musicPlayerEl || !musicTrackEl) return;
+  try {
+    const cur = audio ? audio.getCurrentTrack() : null;
+    if (cur && cur.title) {
+      musicTrackEl.textContent = trackDisplayName(cur.title);
+    } else {
+      musicTrackEl.textContent = 'Music starting…';
+    }
+  } catch (_) { musicTrackEl.textContent = '—'; }
+  const playing = !!(audio && audio._musicCurrentSrc && audio._musicPlaying);
+  if (musicToggleBtn) musicToggleBtn.textContent = playing ? '⏸' : '▶';
+}
+
+function refreshMusicWidget() {
+  updateMusicWidget();
+}
+
+function showMusicPlayer(show) {
+  if (!musicPlayerEl) { if (musicPollTimer) { clearInterval(musicPollTimer); musicPollTimer = null; } return; }
+  musicPlayerEl.style.display = show ? 'block' : 'none';
+  if (show) {
+    updateMusicWidget();
+    if (!musicPollTimer) {
+      musicPollTimer = setInterval(() => {
+        // Only refresh the track name on change to avoid pointless DOM churn.
+        try {
+          const cur = audio ? audio.getCurrentTrack() : null;
+          const t = (cur && cur.title) ? trackDisplayName(cur.title) : '';
+          if (musicTrackEl.textContent !== t) musicTrackEl.textContent = t || 'Music starting…';
+          const playing = !!(audio && audio._musicCurrentSrc && audio._musicPlaying);
+          if (musicToggleBtn && ((playing && musicToggleBtn.textContent !== '⏸') || (!playing && musicToggleBtn.textContent !== '▶'))) {
+            musicToggleBtn.textContent = playing ? '⏸' : '▶';
+          }
+        } catch (_) {}
+      }, 500);
+    }
+  } else {
+    if (musicPollTimer) { clearInterval(musicPollTimer); musicPollTimer = null; }
+  }
+}
+
+// Show/hide based on the screen shown (main menu only)
+ui._onMenuShown = function (name) {
+  showMusicPlayer(name === 'main');
+};
+
+// Wire up the nav buttons
+document.getElementById('music-next')?.addEventListener('click', () => {
+  if (audio) audio.skipTrack(1);
+  updateMusicWidget();
+});
+document.getElementById('music-prev')?.addEventListener('click', () => {
+  if (audio) audio.skipTrack(-1);
+  updateMusicWidget();
+});
+document.getElementById('music-toggle')?.addEventListener('click', () => {
+  if (!audio) return;
+  if (audio._musicPlaying && audio._musicCurrentSrc) {
+    audio._musicCurrentSrc.pause();
+    audio._musicPlaying = false;
+  } else if (!audio._musicPlaying) {
+    if (audio._musicCurrentSrc) {
+      audio._musicCurrentSrc.play().catch(() => {});
+    } else {
+      audio.startMusic();
+    }
+    audio._musicPlaying = true;
+  }
+  updateMusicWidget();
+});
+
 initMenu();
 
 // --- render loop ---

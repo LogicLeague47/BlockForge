@@ -2456,6 +2456,14 @@
       </div>
       <div id="menu-version" style="position:fixed;bottom:6px;left:56px;font:10px monospace;color:#555;pointer-events:none;z-index:100;">v2026-07-24</div>
       <div id="electron-update-btn" style="display:none;position:fixed;bottom:4px;right:12px;z-index:100;cursor:pointer;padding:6px 14px;font:bold 12px/1 monospace;background:linear-gradient(180deg,#2a6a2a,#1a4a1a);border:1px solid #4a4;border-radius:5px;color:#5f5;box-shadow:0 0 8px rgba(80,255,80,0.15);transition:all 0.2s;" onmouseover="this.style.boxShadow='0 0 14px rgba(80,255,80,0.35)';this.style.borderColor='#6f6'" onmouseout="this.style.boxShadow='0 0 8px rgba(80,255,80,0.15)';this.style.borderColor='#4a4'">⬆ UPDATE</div>
+      <div id="music-player" style="display:none;position:fixed;bottom:40px;right:12px;z-index:100;background:rgba(0,0,0,0.65);border:1px solid rgba(120,120,150,0.4);border-radius:8px;padding:8px 12px;font:10px monospace;color:#ccc;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);user-select:none;">
+        <div id="music-track-name" style="font:bold 11px monospace;color:#e8e8e8;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;"></div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+          <div class="music-nav-btn" id="music-prev" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'" style="cursor:pointer;color:#aaa;font-size:16px;line-height:1;">⏮</div>
+          <div class="music-nav-btn" id="music-toggle" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#5f5'" style="cursor:pointer;color:#5f5;font-size:18px;line-height:1;" title="Play/Pause">⏸</div>
+          <div class="music-nav-btn" id="music-next" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'" style="cursor:pointer;color:#aaa;font-size:16px;line-height:1;">⏭</div>
+        </div>
+      </div>
       <div class="menu-bottom-right">
         <div class="menu-icon-btn" id="btn-account-info" title="Account Info">
           <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
