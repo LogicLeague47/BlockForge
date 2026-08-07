@@ -630,9 +630,9 @@ export class Player {
     for (let s = 0; s < steps; s++) {
       this.position[axis] += step;
       if (this._collideAxis(axis, step)) {
-        // Stop cleanly against the wall: no auto step-up, no bob, no wobble.
-        this.position[axis] -= step;
-        this._collideAxis(axis, step);
+        // _collideAxis already snapped us to the contact face — stop here.
+        // Do NOT move back and re-collide: that leaves us short and re-triggers
+        // a collision next frame, causing visible vibration against the wall.
         return;
       }
     }
