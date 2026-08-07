@@ -150,6 +150,7 @@ export const MOB_TYPES = {
     bodyW: 0.4, bodyH: 0.6, bodyD: 0.5,
     headW: 0.35, headH: 0.35, headD: 0.35,
     legW: 0.08, legH: 0.3, legD: 0.08,
+    legPositions: [[-0.06, 0.08], [0.06, 0.08]],
     headOffZ: -0.35,
     headOffY: -0.2,
     hasBeak: true,
@@ -536,7 +537,7 @@ class Mob {
       if (def.legPositions) {
         legPositions = def.legPositions;
       } else if (def.bipedalLegs) {
-        const lx = def.bodyW * 0.32;
+        const lx = def.bodyW * 0.45;
         legPositions = [[-lx, 0], [lx, 0]];
       } else if (def.has8Legs) {
         const lx = def.bodyW * 0.32;
@@ -573,7 +574,7 @@ class Mob {
       const armMats = this._boxMats(tex.arm);
       for (const side of [-1, 1]) {
         const pivot = new THREE.Group();
-        pivot.position.set(side * (def.bodyW / 2 + armW / 2), def.legH + def.bodyH - 0.04, 0);
+        pivot.position.set(side * (def.bodyW / 2 + armW / 2 + 0.02), def.legH + def.bodyH - 0.04, -0.04);
         const arm = new THREE.Mesh(armGeo, armMats);
         arm.position.y = -armH / 2;
         arm.name = 'arm';
@@ -589,7 +590,7 @@ class Mob {
       const armMat = new THREE.MeshLambertMaterial({ color: def.armColor || def.bodyColor });
       for (const side of [-1, 1]) {
         const pivot = new THREE.Group();
-        pivot.position.set(side * (def.bodyW / 2 + def.armW / 2), def.legH + def.bodyH - 0.05, 0);
+        pivot.position.set(side * (def.bodyW / 2 + def.armW / 2 + 0.02), def.legH + def.bodyH - 0.05, -0.04);
         const arm = new THREE.Mesh(armGeo, armMat);
         arm.position.y = -def.armH / 2;
         arm.name = 'arm';
