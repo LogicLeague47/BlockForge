@@ -738,6 +738,7 @@ let mobileAimPoint = null; // {x, y} client coords of the active mobile touch, f
 let breakingElapsed = 0;
 let lastBreakSound = 0;
 let placeAnimTimer = 0;
+let _portalTeleportCooldown = 0;
 
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
@@ -1366,6 +1367,20 @@ document.addEventListener('mousedown', (e) => {
           syncUIMode();
         }
         used = true;
+      }
+
+      // Paradox Core: ignite a 4x5 Compressed-Voidstone portal frame (dimension only)
+      if (!used && slot && slot.item === ITEM.PARADOX_CORE) {
+        const hit = currentTarget();
+        if (hit && tryIgniteVoidPortal(hit)) {
+          if (player.isSurvival()) {
+            slot.count--;
+            if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+            syncUIMode();
+          }
+          if (audio) audio.portalOpen?.();
+          used = true;
+        }
       }
 
       // Main hand: eat food or place block
@@ -2111,6 +2126,54 @@ function isPlaceableBlockItem(id) {
   return isBlockItem(id) || id === ITEM.BED;
 }
 
+// Ignite a Void portal: right-clicking a Compressed-Voidstone frame block with
+// a Paradox Core activates the 4-wide x 5-tall frame (dimension only for now).
+// Detects a valid frame anywhere on the clicked cell and fills its 2x3 interior
+// with VOID_PORTAL blocks.
+function tryIgniteVoidPortal(hit) {
+  if (!world || !world.dimension) return false;
+  const HEAD = BLOCK.COMPRESSED_VOIDSTONE;
+  const P = BLOCK.VOID_PORTAL;
+
+  // Scan a bounded region around the clicked cell for a frame origin whose
+  // border is all Compressed Voidstone and whose interior is empty air.
+  for (const horizontal of [true, false]) {
+    const wx = horizontal ? 1 : 0;
+    const wz = horizontal ? 0 : 1;
+    for (let dx = -6; dx <= 6; dx++) {
+      for (let dy = -6; dy <= 4; dy++) {
+        const sx = hit.x + (horizontal ? dx : 0);
+        const sz = hit.z + (horizontal ? 0 : dx);
+        const y0 = hit.y + dy;
+        if (validateAndLight(sx, sz, y0, wx, wz)) return true;
+      }
+    }
+  }
+  return false;
+
+  function validateAndLight(sx, sz, y0, wx, wz) {
+    // 4 wide (x/wx) x 5 tall (y0..y0+4) hollow frame of HEAD.
+    for (let i = 0; i < 4; i++) {
+      if (world.getBlock(sx + wx * i, y0, sz + wz * i) !== HEAD) return false;     // bottom
+      if (world.getBlock(sx + wx * i, y0 + 4, sz + wz * i) !== HEAD) return false; // top
+    }
+    for (let yy = y0 + 1; yy <= y0 + 3; yy++) {
+      if (world.getBlock(sx, yy, sz) !== HEAD) return false;                       // left
+      if (world.getBlock(sx + wx * 3, yy, sz + wz * 3) !== HEAD) return false;     // right
+      for (let i = 1; i < 3; i++) {
+        if (world.getBlock(sx + wx * i, yy, sz + wz * i) !== BLOCK.AIR) return false; // interior empty
+      }
+    }
+    for (let yy = y0 + 1; yy <= y0 + 3; yy++) {
+      for (let i = 1; i < 3; i++) {
+        world.setBlock(sx + wx * i, yy, sz + wz * i, P);
+      }
+    }
+    manager.refreshAround(Math.floor(sx / CHUNK_SIZE), Math.floor(sz / CHUNK_SIZE));
+    return true;
+  }
+}
+
 function placeBlock(slotOverride) {
   if (player && player.isAdventure()) return;
   const hit = currentTarget();
@@ -2373,6 +2436,10 @@ function doBreak(hit, b) {
   if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
+
+  // Shattered Echo: breaking a block provokes nearby Glitched Wanderers that
+  // stare at that spot (they attack only if you break what they look at).
+  if (world.dimension && mobManager) mobManager.provokeNearby(hit.x, hit.y, hit.z);
 
   // Beds: breaking one half also breaks the other
   if (b === BLOCK.BED || b === BLOCK.BED_FOOT) {
@@ -4003,6 +4070,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   loader = new ChunkLoader(world, manager, renderDist);
   explosionManager = new ExplosionManager(scene, world, audio);
   mobManager = new MobManager(scene, world, audio, explosionManager);
+  mobManager._refreshFn = (bx, by, bz) => {
+    if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
+  };
   mobManager.networkSend = {
     sendMobSpawn: (id, type, x, y, z) => network.sendMobSpawn(id, type, x, y, z),
     sendMobPosition: (id, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
@@ -7381,6 +7451,26 @@ function loop() {
     }
   } else {
     ghostMesh.visible = false;
+  }
+
+  // ── VOID PORTAL: standing in a lit portal sends you home ──
+  if (world && world.dimension && player && player.position) {
+    const pp = player.position;
+    const feet = Math.floor(pp.y);
+    const b1 = world.getBlock(Math.floor(pp.x), feet, Math.floor(pp.z));
+    const b2 = world.getBlock(Math.floor(pp.x), feet + 1, Math.floor(pp.z));
+    if (b1 === BLOCK.VOID_PORTAL || b2 === BLOCK.VOID_PORTAL) {
+      _portalTeleportCooldown = (_portalTeleportCooldown || 0) - dt;
+      if (_portalTeleportCooldown <= 0) {
+        _portalTeleportCooldown = 2.0;
+        // Return to this dimension's spawn (Recall Anchor behaviour)
+        if (player.spawnPoint) {
+          player.position.set(player.spawnPoint.x, player.spawnPoint.y + 1, player.spawnPoint.z);
+          player.velocity.set(0, 0, 0);
+        }
+        if (audio) audio.portalOpen?.();
+      }
+    }
   }
 
   // Sprint FOV effect (smooth zoom out when sprinting, respects the FOV setting)

@@ -117,6 +117,8 @@ export const BLOCK = {
   BIRCH_LEAVES: 105,
   SPRUCE_LEAVES: 106,
   ACACIA_LEAVES: 107,
+  VOID_PORTAL: 108,       // lit portal interior — teleports on contact
+  COMPRESSED_VOIDSTONE: 109, // portal frame / crafting augment
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -250,6 +252,9 @@ export const TILES = {
   birch_leaves:       [0, 8],
   spruce_leaves:      [1, 8],
   acacia_leaves:      [2, 8],
+  // Shattered Echo Dimension tiles
+  void_portal:        [3, 8],
+  compressed_voidstone:[4, 8],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -374,6 +379,9 @@ export const BLOCKS = {
   [BLOCK.BIRCH_LEAVES]:   { name: 'Birch Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'birch_leaves' },
   [BLOCK.SPRUCE_LEAVES]:  { name: 'Spruce Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'spruce_leaves' },
   [BLOCK.ACACIA_LEAVES]:  { name: 'Acacia Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'acacia_leaves' },
+  // Shattered Echo Dimension
+  [BLOCK.VOID_PORTAL]: { name: 'Void Portal', solid: false, transparent: true, cutout: true, hardness: 0, unbreakable: true, drop: 0, faces: 'void_portal', portal: true },
+  [BLOCK.COMPRESSED_VOIDSTONE]: { name: 'Compressed Voidstone', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'compressed_voidstone' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
@@ -464,4 +472,7 @@ export const HOTBAR_BLOCKS = [
   BLOCK.VOIDSTONE,
   BLOCK.VOID_GLASS,
   BLOCK.QUICKSAND,
+  BLOCK.BLOCKSCRAP,
+  BLOCK.COMPRESSED_VOIDSTONE,
+  BLOCK.VOID_PORTAL,
 ];

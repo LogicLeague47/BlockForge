@@ -1900,6 +1900,43 @@ const PAINTERS = {
     ctx.fillRect(x0 + 4, y0 + 4, 6, 1);
     ctx.fillRect(x0 + 4, y0 + 5, 4, 1);
   },
+  void_portal(ctx, x0, y0, rng) {
+    // Swirling indigo void — a lit portal face
+    ctx.clearRect(x0, y0, TILE, TILE);
+    noisy(ctx, x0, y0, [30, 15, 70], 0.35, rng);
+    for (let i = 0; i < 5; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const r = 6 + (rng() * 10 | 0);
+      ctx.fillStyle = `rgba(80,40,160,${0.25 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Electric rim + streak
+    ctx.fillStyle = 'rgba(180,120,255,0.9)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + TILE - 3, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, TILE - 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(x0 + 5, y0 + 6, 5, 1);
+    ctx.fillRect(x0 + 12, y0 + 16, 7, 1);
+  },
+  compressed_voidstone(ctx, x0, y0, rng) {
+    // Dense slate-purple brick, faint glowing cracks
+    noisy(ctx, x0, y0, [70, 55, 105], 0.07, rng);
+    ctx.fillStyle = 'rgba(45,35,75,0.9)';
+    for (let by = 0; by < TILE; by += 8) ctx.fillRect(x0, y0 + by, TILE, 1);
+    for (let bx = 0; bx < TILE; bx += 8) {
+      const off = (Math.floor(bx / 8) % 2) * 4;
+      ctx.fillRect(x0 + bx, y0 + off, 1, 8);
+    }
+    for (let i = 0; i < 3; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(200,160,255,0.5)';
+      ctx.fillRect(x0 + sx, y0 + sy, 2, 1);
+    }
+  },
   quicksand(ctx, x0, y0, rng) {
     // Warm golden-brown granular sand
     noisy(ctx, x0, y0, [192, 168, 96], 0.08, rng);

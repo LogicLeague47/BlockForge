@@ -108,6 +108,11 @@ export const ITEM = {
   SPRUCE_PICKAXE: 612, SPRUCE_AXE: 613, SPRUCE_SHOVEL: 614, SPRUCE_SWORD: 615,
   DARK_OAK_PICKAXE: 616, DARK_OAK_AXE: 617, DARK_OAK_SHOVEL: 618, DARK_OAK_SWORD: 619,
   ACACIA_PICKAXE: 620, ACACIA_AXE: 621, ACACIA_SHOVEL: 622, ACACIA_SWORD: 623,
+  // The Shattered Echo Dimension (700+)
+  NULL_SHARD: 700,
+  MEMORY_SHARD: 701,
+  PARADOX_CORE: 702,
+  COMPRESSED_VOIDSTONE: 703,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -246,6 +251,11 @@ const NONBLOCK_ITEMS = {
   [ITEM.DRAGON_SCALES]: { name: 'Dragon Scales', stack: 64 },
   [ITEM.DRAGON_HEART]: { name: 'Dragon Heart', stack: 1 },
   [ITEM.DRAGON_BLADE]: { name: 'Dragon Blade', stack: 1, tool: true },
+  // Shattered Echo Dimension materials
+  [ITEM.NULL_SHARD]: { name: 'Null Shard', stack: 64 },
+  [ITEM.MEMORY_SHARD]: { name: 'Memory Shard', stack: 64 },
+  [ITEM.PARADOX_CORE]: { name: 'Paradox Core', stack: 16 },
+  [ITEM.COMPRESSED_VOIDSTONE]: { name: 'Compressed Voidstone', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------

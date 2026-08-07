@@ -267,6 +267,50 @@ export const MOB_TYPES = {
     soundChance: 0.001,
   },
 
+  wanderer: {
+    name: 'Glitched Wanderer',
+    hp: 34,
+    hostile: true,
+    dimensionOnly: true,
+    bipedalLegs: true,
+    bodyW: 0.5, bodyH: 1.6, bodyD: 0.3,
+    headW: 0.5, headH: 0.4, headD: 0.4, // stretched, eyeless silhouette
+    legW: 0.2, legH: 0.9, legD: 0.2,
+    headOffY: -0.55,
+    bodyColor: 0x2b2b5c,
+    headColor: 0x3a3a6e,
+    legColor: 0x18183a,
+    hasEyes: true,
+    eyeColor: 0xff4488,
+    attackDamage: 8,
+    provokeOnBreak: true,   // only attacks if you break blocks it stares at
+    drops: [{ item: 701, count: [0, 2] }], // memory shards
+    soundChance: 0.0005,
+  },
+
+  pixie: {
+    name: 'Matrix Pixie',
+    hp: 12,
+    hostile: true,
+    dimensionOnly: true,
+    isFlying: true,
+    bodyW: 0.5, bodyH: 0.5, bodyD: 0.5,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0, legH: 0, legD: 0,
+    headOffY: 0,
+    bodyColor: 0x50e0c0,
+    headColor: 0x50e0c0,
+    legColor: 0x50e0c0,
+    hasEyes: true,
+    eyeColor: 0x000000,
+    attackDamage: 3,
+    flyHeight: 2,
+    flySpeed: 5,
+    swapsBlocks: true,     // teleports a nearby block randomly
+    drops: [{ item: 700, count: [0, 2] }], // null shards
+    soundChance: 0.0006,
+  },
+
 };
 
 const MOB_SPAWN_BIOMES = new Set([
@@ -2752,6 +2796,45 @@ export class MobManager {
     return this._nextEntityId++;
   }
 
+  // Matrix Pixie special ability: teleport a random nearby solid block to a
+  // random nearby air cell (a glitchy block-swap). No-op in void areas.
+  _pixieSwap(mob) {
+    if (!this.world) return;
+    const bx = Math.floor(mob.position.x) + (Math.random() * 7 - 3 | 0);
+    const by = Math.floor(mob.position.y) + (Math.random() * 5 - 2 | 0);
+    const bz = Math.floor(mob.position.z) + (Math.random() * 7 - 3 | 0);
+    if (by < 1 || by >= WORLD_HEIGHT - 1) return;
+    const src = this.world.getBlock(bx, by, bz);
+    if (src === BLOCK.AIR || src === BLOCK.BEDROCK || src === BLOCK.WATER) return;
+    for (let i = 0; i < 12; i++) {
+      const tx = bx + (Math.random() * 9 - 4 | 0);
+      const ty = by + (Math.random() * 6 - 3 | 0);
+      const tz = bz + (Math.random() * 9 - 4 | 0);
+      if (ty < 1 || ty >= WORLD_HEIGHT) continue;
+      if (this.world.getBlock(tx, ty, tz) === BLOCK.AIR) {
+        this.world.setBlock(tx, ty, tz, src);
+        this.world.setBlock(bx, by, bz, BLOCK.AIR);
+        if (this._refreshFn) this._refreshFn(bx, by, bz);
+        if (this._refreshFn) this._refreshFn(tx, ty, tz);
+        return;
+      }
+    }
+  }
+
+  // Provoke dimension mobs near a block-break: any wanderer staring at the
+  // broken cell becomes hostile (per the README "attacks only if you break
+  // the blocks it stares at").
+  provokeNearby(px, py, pz, radius = 12) {
+    for (const mob of this.mobs) {
+      const def = MOB_TYPES[mob.type];
+      if (!def?.provokeOnBreak) continue;
+      const dx = mob.position.x - (px + 0.5);
+      const dz = mob.position.z - (pz + 0.5);
+      const dist = Math.sqrt(dx * dx + dz * dz);
+      if (dist <= radius) mob.aggro = true;
+    }
+  }
+
   // Remote mob management (received from network)
   remoteSpawn(entityId, type, x, y, z) {
     if (this._remoteMobs.has(entityId)) return;
@@ -2887,11 +2970,56 @@ export class MobManager {
     return mob;
   }
 
+  // Spawn the Shattered Echo mobs on a chunk's floating islands. Islands are
+  // sparse, so we scan columns for any atop solid island surface.
+  _spawnDimensionForChunk(cx, cz) {
+    const baseX = cx * CHUNK_SIZE;
+    const baseZ = cz * CHUNK_SIZE;
+    const candidates = [];
+    for (let x = 2; x < CHUNK_SIZE - 2; x += 3) {
+      for (let z = 2; z < CHUNK_SIZE - 2; z += 3) {
+        const wx = baseX + x, wz = baseZ + z;
+        // Topmost solid block in this column = island top or void
+        let top = -1;
+        for (let y = WORLD_HEIGHT - 1; y > 0; y--) {
+          const b = this.world.getBlock(wx, y, wz);
+          if (BLOCKS[b]?.solid && b !== BLOCK.WATER) { top = y; break; }
+        }
+        if (top < 30 || top >= WORLD_HEIGHT - 2) continue; // only floating island tops
+        // Ensure an open air cell above to actually stand on
+        if (this.world.getBlock(wx, top + 1, wz) !== BLOCK.AIR) continue;
+        candidates.push({ x: wx + 0.5, z: wz + 0.5, y: top + 1 });
+      }
+    }
+    if (!candidates.length) return;
+
+    const rng = mulberry32(((cx * 73856093) ^ (cz * 19349663)) >>> 0);
+    const maxSpawn = Math.min(3, candidates.length);
+    for (let i = 0; i < maxSpawn; i++) {
+      const pos = candidates[Math.floor(rng() * candidates.length)];
+      const type = rng() < 0.55 ? 'wanderer' : 'pixie';
+      const mob = new Mob(type, pos.x, pos.y, pos.z, this.scene);
+      mob.entityId = this._allocEntityId();
+      this.mobs.push(mob);
+      this.scene.add(mob.mesh);
+      if (this.networkSend?.sendMobSpawn) {
+        this.networkSend.sendMobSpawn(mob.entityId, mob.type, mob.position.x, mob.position.y, mob.position.z);
+      }
+    }
+  }
+
   // Called when a chunk is first generated/loaded
   spawnForChunk(cx, cz, isNight = false) {
     const key = cx + ',' + cz;
     if (this._spawnedChunks.has(key)) return;
     this._spawnedChunks.add(key);
+
+    // Shattered Echo dimension: spawn its two mobs on island tops instead of
+    // the overworld grass/dirt surface scan.
+    if (this.world.dimension) {
+      this._spawnDimensionForChunk(cx, cz);
+      return;
+    }
 
     const baseX = cx * CHUNK_SIZE;
     const baseZ = cz * CHUNK_SIZE;
@@ -3027,6 +3155,49 @@ export class MobManager {
       }
 
       const def = MOB_TYPES[mob.type];
+
+      // ── SHATTERED ECHO hostile AI (wanderer, pixie) — always active ──
+      if (def.dimensionOnly && def.hostile && playerPos) {
+        const dx = playerPos.x - mob.position.x;
+        const dz = playerPos.z - mob.position.z;
+        const dist = Math.sqrt(dx * dx + dz * dz);
+
+        // Wanderer: only hostile once provoked (a block it stares at is broken).
+        const isPixie = !!def.swapsBlocks;
+        const canAct = isPixie ? true : mob.aggro;
+        const aggroDist = isPixie ? 14 : 10;
+        if (canAct && dist < aggroDist) {
+          if (def.isFlying) {
+            mob.state = 'walking';
+            mob.targetYaw = Math.atan2(-dx, -dz);
+            mob.stateTimer = 0.5;
+            // stay at flyHeight above player; bob gently
+            const targetY = playerPos.y + def.flyHeight;
+            mob.velocity.y += (targetY - mob.position.y) * dt * 2;
+            mob.velocity.x = -Math.sin(mob.targetYaw) * def.flySpeed;
+            mob.velocity.z = -Math.cos(mob.targetYaw) * def.flySpeed;
+          } else {
+            mob.state = 'walking';
+            mob.targetYaw = Math.atan2(-dx, -dz);
+            mob.stateTimer = 0.5;
+          }
+          if (dist < 1.8) {
+            mob.attackCooldown = (mob.attackCooldown || 0) - dt;
+            if (mob.attackCooldown <= 0) {
+              mob.attackCooldown = 1.0;
+              mob.attackAnim = 1;
+              attackEvents.push({ type: 'attack', damage: def.attackDamage || 4, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } });
+            }
+          }
+          // Pixie: occasionally "swap" a random nearby block with a higher one
+          if (isPixie && Math.random() < dt * 0.5) {
+            this._pixieSwap(mob);
+          }
+        } else {
+          mob.velocity.x = 0;
+          mob.velocity.z = 0;
+        }
+      }
 
       // ── HOSTILE AI (zombie, skeleton, spider, blower, portalman) ──
       if (def.hostileAtNight && playerPos) {
