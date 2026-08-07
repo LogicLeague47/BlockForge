@@ -7470,15 +7470,45 @@ function loop() {
           player.velocity.set(0, 0, 0);
           _portalHomePos = null;
         } else {
-          // First use — save current position as home, teleport to world origin hub
+          // First use — save current position, then teleport to the other zone
           _portalHomePos = player.position.clone();
-          // Find solid ground near origin (0, z)
-          let hubY = 64;
-          for (let y = 120; y >= 0; y--) {
-            if (world.getBlock(0, y, 0) !== BLOCK.AIR && BLOCKS[world.getBlock(0, y, 0)]?.solid) { hubY = y + 1; break; }
+          const inHub = Math.abs(pp.x) <= 12 && Math.abs(pp.z) <= 12;
+          if (inHub) {
+            // On the hub → find nearest floating island (search outward from hub edge)
+            let found = false;
+            for (let r = 14; r <= 60 && !found; r += 2) {
+              for (let a = 0; a < 16 && !found; a++) {
+                const angle = (a / 16) * Math.PI * 2;
+                const tx = Math.round(Math.cos(angle) * r);
+                const tz = Math.round(Math.sin(angle) * r);
+                for (let y = 80; y >= 10; y--) {
+                  if (world.getBlock(tx, y, tz) !== BLOCK.AIR && BLOCKS[world.getBlock(tx, y, tz)]?.solid) {
+                    player.position.set(tx + 0.5, y + 1.05, tz + 0.5);
+                    player.velocity.set(0, 0, 0);
+                    found = true;
+                    break;
+                  }
+                }
+              }
+            }
+            if (!found) {
+              // Fallback: place a small platform
+              world.setBlock(20, 55, 20, BLOCK.VOIDSTONE);
+              world.setBlock(21, 55, 20, BLOCK.VOIDSTONE);
+              world.setBlock(20, 55, 21, BLOCK.VOIDSTONE);
+              world.setBlock(21, 55, 21, BLOCK.VOIDSTONE);
+              player.position.set(20.5, 56.05, 20.5);
+              player.velocity.set(0, 0, 0);
+            }
+          } else {
+            // On an island → teleport back to hub center
+            let hubY = 55;
+            for (let y = 80; y >= 0; y--) {
+              if (world.getBlock(0, y, 0) !== BLOCK.AIR && BLOCKS[world.getBlock(0, y, 0)]?.solid) { hubY = y + 1; break; }
+            }
+            player.position.set(0.5, hubY + 0.05, 0.5);
+            player.velocity.set(0, 0, 0);
           }
-          player.position.set(0.5, hubY + 0.05, 0.5);
-          player.velocity.set(0, 0, 0);
         }
         if (audio) audio.portalOpen?.();
       }

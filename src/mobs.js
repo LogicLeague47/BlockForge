@@ -2785,8 +2785,8 @@ class Mob {
       const leg = this.legs[i];
       // Check if this is a villager arm (last 2 in array for villager)
       const isVillagerArm = this.type === 'villager' && i >= this.legs.length - 2;
-      // Blower and PortalMan also use the villager arm layout (legs then arms)
-      const isArmLikeMob = this.type === 'blower' || this.type === 'portalman';
+      // Zombie, skeleton, blower, portalman arms also swing opposite to legs
+      const isArmLikeMob = this.type === 'blower' || this.type === 'portalman' || this.type === 'zombie' || this.type === 'skeleton';
       const isArmPivot = isArmLikeMob && i >= this.legs.length - 2;
       if (isVillagerArm || isArmPivot) {
         // Arms swing opposite to legs
@@ -3371,7 +3371,7 @@ export class MobManager {
 
         // Wanderer: only hostile once provoked (a block it stares at is broken).
         const isPixie = !!def.swapsBlocks;
-        const canAct = isPixie ? true : mob.aggro;
+        const canAct = mob.aggro;
         const aggroDist = isPixie ? 14 : 10;
         if (canAct && dist < aggroDist) {
           if (def.isFlying) {

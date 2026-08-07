@@ -220,54 +220,13 @@ export class Player {
   // continuous floor, so survey by scanning world blocks for the nearest
   // island top instead of the overworld heightmap/climate logic.
   spawnDimension() {
-    let bestX = null, bestZ = null, bestY = null, bestCost = Infinity;
-    let fallbackX = 0.5, fallbackZ = 0.5, fallbackY = null;
-
-    for (let r = 0; r <= 120; r += 4) {
-      for (let a = 0; a < 24; a++) {
-        const angle = (a / 24) * Math.PI * 2;
-        const tx = Math.floor(Math.cos(angle) * r);
-        const tz = Math.floor(Math.sin(angle) * r);
-
-        // Find the topmost solid block in this column.
-        let top = -1;
-        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-          const b = this.world.getBlock(tx, y, tz);
-          if (BLOCKS[b] && BLOCKS[b].solid && b !== BLOCK.WATER && b !== BLOCK.LAVA) { top = y; break; }
-        }
-        if (top < 0) continue; // column is pure void
-
-        // Prefer a broad island top (nearby columns also solid) to avoid
-        // spawning on a lone spire. Scan a tight 3x3 ring.
-        let neighbors = 0;
-        for (let dx = -1; dx <= 1; dx++) {
-          for (let dz = -1; dz <= 1; dz++) {
-            for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
-              const b = this.world.getBlock(tx + dx, y, tz + dz);
-              if (BLOCKS[b] && BLOCKS[b].solid) { neighbors++; break; }
-            }
-          }
-        }
-
-        const cost = (r / 120) + (9 - neighbors) * 0.4;
-        if (cost < bestCost) {
-          bestCost = cost; bestX = tx + 0.5; bestZ = tz + 0.5; bestY = top + 1.05;
-          if (neighbors >= 8 && r > 0 && cost < 0.6) { r = 99999; break; }
-        }
-        if (fallbackY === null && top >= 0) { fallbackY = top + 1.05; }
-      }
+    // Spawn at the hub platform near origin (y=55, radius 10)
+    let hubY = 55;
+    for (let y = 80; y >= 0; y--) {
+      const b = this.world.getBlock(0, y, 0);
+      if (BLOCKS[b] && BLOCKS[b].solid) { hubY = y + 1; break; }
     }
-
-    if (bestX === null) {
-      // Extremely unlikely — no island within range. Drop a platform.
-      this.world.setBlock(Math.floor(fallbackX), 60, Math.floor(fallbackZ), BLOCK.END_STONE);
-      this.world.setBlock(Math.floor(fallbackX), 61, Math.floor(fallbackZ), BLOCK.END_STONE);
-      this.world.setBlock(Math.floor(fallbackX), 62, Math.floor(fallbackZ), BLOCK.END_STONE);
-      this.world.setBlock(Math.floor(fallbackX), 63, Math.floor(fallbackZ), BLOCK.END_STONE);
-      this.position.set(fallbackX, 64.05, fallbackZ);
-    } else {
-      this.position.set(bestX, bestY, bestZ);
-    }
+    this.position.set(0.5, hubY + 0.05, 0.5);
     this.spawnPoint.copy(this.position);
     this.velocity.set(0, 0, 0);
   }
