@@ -88,7 +88,7 @@ export const MOB_TYPES = {
     bipedalLegs: true,
     bodyW: 0.6, bodyH: 1.1, bodyD: 0.35,
     headW: 0.5, headH: 0.5, headD: 0.5,
-    legW: 0.22, legH: 0.7, legD: 0.22,
+    legW: 0.16, legH: 0.7, legD: 0.16,
     headOffY: -0.5,
     bodyColor: 0x3a5a8a,
     headColor: 0x5a9a7a,
@@ -105,7 +105,7 @@ export const MOB_TYPES = {
     bipedalLegs: true,
     bodyW: 0.5, bodyH: 1.0, bodyD: 0.3,
     headW: 0.45, headH: 0.45, headD: 0.45,
-    legW: 0.18, legH: 0.7, legD: 0.18,
+    legW: 0.13, legH: 0.7, legD: 0.13,
     headOffY: -0.5,
     bodyColor: 0xe8e4d8,
     headColor: 0xe8e4d8,
@@ -123,14 +123,14 @@ export const MOB_TYPES = {
     bipedalLegs: true,
     bodyW: 0.5, bodyH: 0.75, bodyD: 0.25,
     headW: 0.5, headH: 0.5, headD: 0.5,
-    legW: 0.25, legH: 0.75, legD: 0.25,
+    legW: 0.15, legH: 0.75, legD: 0.15,
     headOffY: -0.25,
     bodyColor: 0x7C6A4B,
     headColor: 0xD9A57A,
     legColor: 0x5A4632,
     hasArms: true,
-    armW: 0.25, armH: 0.75, armD: 0.25,
-    armColor: 0x7C6A4B,
+    armW: 0.15, armH: 0.75, armD: 0.15,
+    armColor: 0x6B5A3B,
     hasHood: true,
     hoodColor: 0x5D503D,
     hasSatchel: true,
@@ -538,7 +538,8 @@ class Mob {
         legPositions = def.legPositions;
       } else if (def.bipedalLegs) {
         const lx = def.bodyW * 0.45;
-        legPositions = [[-lx, 0], [lx, 0]];
+        const lz = def.bodyD * 0.15;
+        legPositions = [[-lx, -lz], [lx, -lz]];
       } else if (def.has8Legs) {
         const lx = def.bodyW * 0.32;
         const lz = def.bodyD * 0.3;
