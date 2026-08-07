@@ -7472,11 +7472,11 @@ function loop() {
         } else {
           // First use — save current position, then teleport to the other zone
           _portalHomePos = player.position.clone();
-          const inHub = Math.abs(pp.x) <= 12 && Math.abs(pp.z) <= 12;
+          const inHub = Math.abs(pp.x) <= 52 && Math.abs(pp.z) <= 52;
           if (inHub) {
-            // On the hub → find nearest floating island (search outward from hub edge)
+            // In overworld → find nearest floating island (search outward from build zone edge)
             let found = false;
-            for (let r = 14; r <= 60 && !found; r += 2) {
+            for (let r = 52; r <= 80 && !found; r += 2) {
               for (let a = 0; a < 16 && !found; a++) {
                 const angle = (a / 16) * Math.PI * 2;
                 const tx = Math.round(Math.cos(angle) * r);

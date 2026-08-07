@@ -295,21 +295,20 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
 // =====================================================================
 
 export function generateDimensionColumn(n, chunk, x, z, wx, wz) {
-  // ── Safe hub platform near origin (20×20 flat area at y=55) ──
-  if (Math.abs(wx) <= 10 && Math.abs(wz) <= 10) {
-    const hubY = 55;
-    for (let y = 0; y <= hubY; y++) {
+  // ── Flat overworld near origin (spawn area + build zone) ──
+  if (Math.abs(wx) < 50 && Math.abs(wz) < 50) {
+    const groundY = 60;
+    for (let y = 0; y <= groundY; y++) {
       let b = BLOCK.AIR;
-      if (y === hubY) b = BLOCK.VOIDSTONE;
-      else if (y >= hubY - 3) b = BLOCK.END_STONE;
-      else if (y >= hubY - 6) b = BLOCK.VOIDSTONE;
-      else b = BLOCK.VOIDSTONE;
+      if (y === groundY) b = BLOCK.GRASS;
+      else if (y >= groundY - 3) b = BLOCK.DIRT;
+      else b = BLOCK.STONE;
       chunk.set(x, y, z, b);
     }
-    return { h: hubY, biome: BIOMES.PLAINS, topSolid: hubY };
+    return { h: groundY, biome: BIOMES.PLAINS, topSolid: groundY };
   }
 
-  // ── Floating islands outside the hub ──
+  // ── Floating islands outside the build zone ──
   // Low-frequency field decides whether this column carries an island and
   // how tall it is. ~[-1,1]; pull to ~[-0.35,0.35] so islands are sparse and
   // there are open voids between them.

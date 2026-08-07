@@ -220,13 +220,13 @@ export class Player {
   // continuous floor, so survey by scanning world blocks for the nearest
   // island top instead of the overworld heightmap/climate logic.
   spawnDimension() {
-    // Spawn at the hub platform near origin (y=55, radius 10)
-    let hubY = 55;
+    // Spawn on the flat overworld near origin
+    let groundY = 60;
     for (let y = 80; y >= 0; y--) {
       const b = this.world.getBlock(0, y, 0);
-      if (BLOCKS[b] && BLOCKS[b].solid) { hubY = y + 1; break; }
+      if (BLOCKS[b] && BLOCKS[b].solid) { groundY = y + 1; break; }
     }
-    this.position.set(0.5, hubY + 0.05, 0.5);
+    this.position.set(0.5, groundY + 0.05, 0.5);
     this.spawnPoint.copy(this.position);
     this.velocity.set(0, 0, 0);
   }
