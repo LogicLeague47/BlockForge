@@ -287,6 +287,75 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
   return { h, biome, topSolid };
 }
 
+// =====================================================================
+// The Shattered Echo Dimension: fragmented floating islands adrift in a
+// starless void. Unlike the overworld there is no continuous sea floor /
+// bedrock — solid islands hang at scattered heights with empty air between
+// and below. Only the player's constructed world (nobody) generates this.
+// =====================================================================
+
+export function generateDimensionColumn(n, chunk, x, z, wx, wz) {
+  // Low-frequency field decides whether this column carries an island and
+  // how tall it is. ~[-1,1]; pull to ~[-0.35,0.35] so islands are sparse and
+  // there are open voids between them.
+  const f = n.fbm2(n.weirdness, wx * 0.012, wz * 0.012, 4, 2, 0.5);
+  const detail = n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5);
+
+  // Island thickness tapers toward zero at the field's low end, so edges
+  // shrink to spires and empty columns (f <= 0.15) generate pure void.
+  const fw = Math.max(0, f - 0.15);
+  const thick = Math.floor(16 + detail * 10) * Math.min(1, fw * 8);
+
+  // Heigeld of the island floats in the sky; empty below it.
+  const topH = 58 + Math.floor(f * 28);
+
+  let topSolid = -1;
+  const base = topH - thick;
+  if (thick > 0) {
+    for (let y = Math.max(0, base); y <= topH && y < WORLD_HEIGHT; y++) {
+      const t = (base >= 0) ? (y - base) / (thick + 0.001) : 1; // 0..1 through island
+      const wobble = n.cave(wx * 0.03, y * 0.05, wz * 0.03) * 0.5;
+
+      // Rounded dome profile: solid core thickens mid-height, thins at rims
+      let dens = 1 - Math.abs(0.55 - t) * 1.9 + wobble;
+      let b = BLOCK.AIR;
+      if (dens > 0) {
+        if (t > 0.82) b = BLOCK.END_STONE;                       // pale surface cap
+        else if (t < 0.15) b = BLOCK.EMBEROCK;               // glowing underside
+        else b = (n.cave(wx * 1.3, y * 1.3, wz * 1.3) > 0.6) ? BLOCK.VOID_GLASS : BLOCK.VOIDSTONE;
+        if (t > 0.84 && dens < 0.5) b = BLOCK.BLOCKSCRAP;     // broken scraps on crust
+      }
+      chunk.set(x, y, z, b);
+      if (b !== BLOCK.AIR) topSolid = y;
+    }
+  }
+
+  // This dimension has no bedrock floor; expose the void below the islands.
+  return { h: topSolid, biome: BIOMES.PLAINS, topSolid };
+}
+
+export function generateDimensionFeatures(chunk, baseX, baseZ, n) {
+  // Scattered hanging void-glass shards on island undersides + glint crystals
+  for (let x = 1; x < CHUNK_SIZE - 1; x++) {
+    for (let z = 1; z < CHUNK_SIZE - 1; z++) {
+      const wx = baseX + x, wz = baseZ + z;
+      const h = chunk.surfaceMap[z * CHUNK_SIZE + x];
+      if (h < 0 || h >= WORLD_HEIGHT - 2) continue;
+      const rndLocal = mulberryLocal(((wx * 73856093) ^ (wz * 19349663)) >>> 0);
+      if (rndLocal() < 0.05 && chunk.get(x, h - 1, z) !== BLOCK.AIR) {
+        // underside spire
+        const under = Math.max(1, h - 4);
+        for (let yy = h - 1; yy >= under; yy--) {
+          if (chunk.get(x, yy, z) === BLOCK.AIR) chunk.set(x, yy, z, BLOCK.VOID_GLASS);
+        }
+      }
+      if (rndLocal() < 0.03 && chunk.get(x, h, z) !== BLOCK.AIR) {
+        chunk.set(x, h + 1, z, BLOCK.VOID_GLASS);
+      }
+    }
+  }
+}
+
 export function generateFeatures(chunk, baseX, baseZ, n) {
   for (let x = 2; x < CHUNK_SIZE - 2; x++) {
     for (let z = 2; z < CHUNK_SIZE - 2; z++) {

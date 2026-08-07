@@ -3287,7 +3287,7 @@ function setupNetworkHandlers() {
     const serverSeed = typeof seed === 'number' ? seed : 42;
     const dwOpts = _pendingDevWorldOpts || {};
     _pendingDevWorldOpts = null;
-    startGame('multiplayer_' + room, serverSeed, gameMode, dwOpts.diff || 'normal', { flat: !!dwOpts.flat, dev: !!dwOpts.dev });
+    startGame('multiplayer_' + room, serverSeed, gameMode, dwOpts.diff || 'normal', { flat: !!dwOpts.flat, void: !!dwOpts.void, dimension: !!dwOpts.dimension, dev: !!dwOpts.dev });
 
     // Spawn existing remote players from the player list
     setTimeout(() => {
@@ -3996,7 +3996,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
-  world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird });
+  world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird, dimension: !!opts.dimension });
   const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
   manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
@@ -4332,9 +4332,13 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   // Dev world is always creative and spawns on the flat surface.
   if (isDevWorld) {
     player.setGamemode('creative');
-    player.position.set(0.5, 6, 0.5);
-    player.velocity.set(0, 0, 0);
-    player.spawnPoint.set(0.5, 6, 0.5);
+    if (world.dimension) {
+      player.spawnDimension();
+    } else {
+      player.position.set(0.5, 6, 0.5);
+      player.velocity.set(0, 0, 0);
+      player.spawnPoint.set(0.5, 6, 0.5);
+    }
   }
 
   // ── Parkour mode ───
@@ -5935,8 +5939,9 @@ function initMenu() {
     } else {
       // Single-player dev world
       const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-      createWorld(name, seed, _dwState.mode, _dwState.diff, { flat: _dwState.terrain === 'flat', dev: true });
-      startGame(id, seed, _dwState.mode, _dwState.diff, { flat: _dwState.terrain === 'flat', void: _dwState.terrain === 'void', dev: true });
+      const dwOpts = { flat: _dwState.terrain === 'flat', void: _dwState.terrain === 'void', dimension: _dwState.terrain === 'dimension', dev: true };
+      createWorld(name, seed, _dwState.mode, _dwState.diff, dwOpts);
+      startGame(id, seed, _dwState.mode, _dwState.diff, dwOpts);
     }
   });
 
@@ -5978,11 +5983,12 @@ function initMenu() {
   function createDevWorldMultiplayer(roomName, seed, mode, diff, terrain, maxPlayers) {
     const isFlat = terrain === 'flat';
     const isVoid = terrain === 'void';
+    const isDimension = terrain === 'dimension';
     createWorld(roomName, seed, mode, diff, { flat: isFlat, dev: true });
     createServer(roomName, maxPlayers, mode, seed, true); // private by default
     // The createServer flow connects → joins → onJoined fires → startGame is called from there
     // We need to pass dev world options through, so set a flag
-    _pendingDevWorldOpts = { flat: isFlat, void: isVoid, dev: true, diff };
+    _pendingDevWorldOpts = { flat: isFlat, void: isVoid, dimension: isDimension, dev: true, diff };
   }
 
   // --- Login screen (account required before main menu) ---
@@ -6450,7 +6456,7 @@ function renderDevWorldList() {
       renderDevWorldList();
     });
     card.addEventListener('click', () => {
-      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, dev: true });
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, void: !!w.void, dimension: !!w.dimension, dev: true });
     });
     list.appendChild(card);
   }
@@ -7322,7 +7328,14 @@ function loop() {
 
   // underwater tint
   const eye = player.eyeBlock();
-  if (eye === BLOCK.WATER) {
+  if (world.dimension) {
+    // Shattered Echo sky — starless indigo, nearest fade for a soft void
+    scene.fog.color.setHex(0x2b2b57);
+    scene.background.setHex(0x1c1c3e);
+    scene.fog.near = 16 * 3;
+    scene.fog.far = 16 * (renderDist + 3) * 0.85;
+    if (underwaterOverlay) underwaterOverlay.style.display = 'none';
+  } else if (eye === BLOCK.WATER) {
     scene.fog.color.setHex(0x2266aa);
     scene.background.setHex(0x2266aa);
     scene.fog.near = 1; scene.fog.far = 22;

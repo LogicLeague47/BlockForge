@@ -4,7 +4,7 @@
 import { Noise } from './noise.js';
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
-import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight } from './worldgen.js';
+import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight, generateDimensionColumn, generateDimensionFeatures } from './worldgen.js';
 import { generateVillages } from './structures.js';
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
@@ -34,6 +34,7 @@ export class World {
     this.parkour = !!opts.parkour;
     this.amplified = !!opts.amplified;
     this.weird = !!opts.weird;
+    this.dimension = !!opts.dimension;
   }
 
   getChest(x, y, z) {
@@ -150,17 +151,28 @@ export class World {
       for (let x = 0; x < CHUNK_SIZE; x++) {
         for (let z = 0; z < CHUNK_SIZE; z++) {
           const wx = baseX + x, wz = baseZ + z;
-          const result = generateColumn(n, chunk, x, z, wx, wz, terrainMode);
+          let result;
+          if (this.dimension) {
+            result = generateDimensionColumn(n, chunk, x, z, wx, wz);
+          } else {
+            result = generateColumn(n, chunk, x, z, wx, wz, terrainMode);
+          }
           chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
           chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
         }
       }
 
-      generateUnderground(chunk, baseX, baseZ, n);
-      generateFeatures(chunk, baseX, baseZ, n);
+      if (this.dimension) {
+        generateDimensionFeatures(chunk, baseX, baseZ, n);
+      } else {
+        generateUnderground(chunk, baseX, baseZ, n);
+        generateFeatures(chunk, baseX, baseZ, n);
+      }
 
       // Structures (villages) — placed after terrain/features, before player edits.
-      try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
+      if (!this.dimension) {
+        try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
+      }
     }
 
     // Apply player edits for this chunk — O(1) lookup via _chunkEdits index
