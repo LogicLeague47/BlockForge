@@ -739,6 +739,7 @@ let breakingElapsed = 0;
 let lastBreakSound = 0;
 let placeAnimTimer = 0;
 let _portalTeleportCooldown = 0;
+let _portalHomePos = null; // stored position before first portal teleport (for return trip)
 
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
@@ -2131,7 +2132,7 @@ function isPlaceableBlockItem(id) {
 // Detects a valid frame anywhere on the clicked cell and fills its 2x3 interior
 // with VOID_PORTAL blocks.
 function tryIgniteVoidPortal(hit) {
-  if (!world || !world.dimension) return false;
+  if (!world) return false;
   const HEAD = BLOCK.COMPRESSED_VOIDSTONE;
   const P = BLOCK.VOID_PORTAL;
 
@@ -7453,8 +7454,8 @@ function loop() {
     ghostMesh.visible = false;
   }
 
-  // ── VOID PORTAL: standing in a lit portal sends you home ──
-  if (world && world.dimension && player && player.position) {
+  // ── VOID PORTAL: standing in a lit portal teleports you home and back ──
+  if (world && player && player.position) {
     const pp = player.position;
     const feet = Math.floor(pp.y);
     const b1 = world.getBlock(Math.floor(pp.x), feet, Math.floor(pp.z));
@@ -7463,9 +7464,20 @@ function loop() {
       _portalTeleportCooldown = (_portalTeleportCooldown || 0) - dt;
       if (_portalTeleportCooldown <= 0) {
         _portalTeleportCooldown = 2.0;
-        // Return to this dimension's spawn (Recall Anchor behaviour)
-        if (player.spawnPoint) {
-          player.position.set(player.spawnPoint.x, player.spawnPoint.y + 1, player.spawnPoint.z);
+        if (_portalHomePos) {
+          // Have a stored home — teleport back to it
+          player.position.set(_portalHomePos.x, _portalHomePos.y, _portalHomePos.z);
+          player.velocity.set(0, 0, 0);
+          _portalHomePos = null;
+        } else {
+          // First use — save current position as home, teleport to world origin hub
+          _portalHomePos = player.position.clone();
+          // Find solid ground near origin (0, z)
+          let hubY = 64;
+          for (let y = 120; y >= 0; y--) {
+            if (world.getBlock(0, y, 0) !== BLOCK.AIR && BLOCKS[world.getBlock(0, y, 0)]?.solid) { hubY = y + 1; break; }
+          }
+          player.position.set(0.5, hubY + 0.05, 0.5);
           player.velocity.set(0, 0, 0);
         }
         if (audio) audio.portalOpen?.();
