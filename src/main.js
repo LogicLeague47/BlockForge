@@ -6499,7 +6499,13 @@ let musicPollTimer = null;
 const TRACK_DISPLAY_NAMES = {
   'Music/mystical-piano.mp3': 'Mystical Piano',
   'Music/slow-piano-intermission.ogg': 'Slow Piano Intermission',
-  'Music/calm-relaxing.mp3': 'Calm & Relaxing',
+  'Music/cave-explorer.mp3': 'Cave Explorer',
+  'Music/contemplation.mp3': 'Contemplation',
+  'Music/emerald-tower.ogg': 'Emerald Tower',
+  'Music/esther.ogg': 'Esther',
+  'Music/exploration-theme.ogg': 'Exploration Theme',
+  'Music/november-snow.mp3': 'November Snow',
+  'Music/another-august.mp3': 'Another August',
 };
 
 function trackDisplayName(url) {

@@ -63,7 +63,13 @@ const SFX_FILES = [
 const MUSIC_TRACKS = [
   'Music/mystical-piano.mp3',
   'Music/slow-piano-intermission.ogg',
-  'Music/calm-relaxing.mp3',
+  'Music/cave-explorer.mp3',
+  'Music/contemplation.mp3',
+  'Music/emerald-tower.ogg',
+  'Music/esther.ogg',
+  'Music/exploration-theme.ogg',
+  'Music/november-snow.mp3',
+  'Music/another-august.mp3',
 ];
 
 // ── Per-material footstep samples ──
