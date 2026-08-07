@@ -22,7 +22,7 @@ const _makeIconCache = new Map();
 const _MAKE_ICON_CACHE_MAX = 200;
 
 export const TILE = 32;
-export const _TILES_VER = 3;       // pixels per tile
+export const _TILES_VER = 4;       // pixels per tile
 const COLS = 16;              // tiles per row
 const ROWS = 16;
 const ATLAS = TILE * COLS;    // 512

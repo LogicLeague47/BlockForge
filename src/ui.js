@@ -205,6 +205,11 @@ export function makeItemIconCanvas(itemId) {
     case 315: drawSlimeBall(x); break;
     case 316: drawFlintSteel(x); break;
     case 320: drawPortalOrb(x); break;
+    // Shattered Echo Dimension items (700+)
+    case 700: drawNullShard(x); break;
+    case 701: drawMemoryShard(x); break;
+    case 702: drawParadoxCore(x); break;
+    case 703: drawCompressedVoidstoneItem(x); break;
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
@@ -805,6 +810,61 @@ function drawPortalOrb(x) {
   px(x, '#00e0c0', 12, 7, 1, 2);
   px(x, '#00e0c0', 7, 3, 2, 1);
   px(x, '#00e0c0', 7, 12, 2, 1);
+}
+
+function drawNullShard(x) {
+  // Dark jagged shard — void energy crystal
+  px(x, '#1a0a2e', 7, 2, 2, 10);   // main shard body
+  px(x, '#2a1040', 6, 3, 1, 8);    // left edge
+  px(x, '#2a1040', 9, 3, 1, 8);    // right edge
+  px(x, '#3a1850', 7, 3, 2, 6);    // mid body
+  px(x, '#5020a0', 7, 4, 2, 3);    // glow core
+  px(x, '#8040e0', 7, 5, 1, 1);    // bright center
+  px(x, '#4a1880', 5, 6, 1, 2);    // left spike
+  px(x, '#4a1880', 10, 5, 1, 3);   // right spike
+  px(x, '#6030c0', 8, 4, 1, 1);    // sparkle
+  px(x, '#0a0018', 7, 12, 2, 1);   // base shadow
+}
+
+function drawMemoryShard(x) {
+  // Glowing memory fragment — cyan-blue crystalline shard
+  px(x, '#0a2a40', 7, 2, 2, 10);   // main body
+  px(x, '#104060', 6, 3, 1, 8);    // left edge
+  px(x, '#104060', 9, 3, 1, 8);    // right edge
+  px(x, '#2080b0', 7, 3, 2, 6);    // mid glow
+  px(x, '#40c0f0', 7, 4, 2, 3);    // bright core
+  px(x, '#80e0ff', 7, 5, 1, 1);    // specular
+  px(x, '#30a0d0', 5, 6, 1, 2);    // left wisp
+  px(x, '#30a0d0', 10, 5, 1, 3);   // right wisp
+  px(x, '#60d8ff', 8, 4, 1, 1);    // sparkle
+  px(x, '#040a10', 7, 12, 2, 1);   // base shadow
+}
+
+function drawParadoxCore(x) {
+  // Swirling paradox core — magenta/purple orb with rift energy
+  px(x, '#2a0040', 4, 4, 8, 8);    // dark base
+  px(x, '#5010a0', 5, 5, 6, 5);    // orb body
+  px(x, '#8020e0', 6, 5, 4, 4);    // inner glow
+  px(x, '#c040ff', 7, 6, 2, 2);    // bright core
+  px(x, '#e0a0ff', 7, 6, 1, 1);    // hot center
+  px(x, '#a030e0', 5, 4, 1, 1);    // top flare
+  px(x, '#a030e0', 10, 7, 1, 1);   // side flare
+  px(x, '#6020b0', 6, 10, 4, 1);   // bottom glow
+  px(x, '#200030', 5, 11, 6, 1);   // shadow
+  // Rift cracks
+  px(x, '#ff40c0', 6, 7, 1, 1);
+  px(x, '#ff40c0', 9, 5, 1, 1);
+}
+
+function drawCompressedVoidstoneItem(x) {
+  // Dense slate-purple block icon for the item form
+  px(x, '#463a6a', 4, 3, 8, 9);    // block body
+  px(x, '#3a3060', 4, 3, 8, 1);    // top edge
+  px(x, '#5a4a80', 5, 4, 6, 7);    // front face
+  px(x, '#6a5a90', 5, 4, 3, 3);    // highlight
+  px(x, '#c8a0ff', 6, 5, 1, 1);    // glow crack
+  px(x, '#c8a0ff', 8, 7, 1, 1);    // glow crack 2
+  px(x, '#2a2050', 4, 12, 8, 1);   // shadow
 }
 
 function drawDye(x, col) {
