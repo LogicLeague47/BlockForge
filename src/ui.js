@@ -1310,6 +1310,30 @@ function drawToolIcon(x, type, material) {
       // fuller line down the centre
       pxa(x, hl('#ffffff'), 7, 2, 1, 6);
     }
+  } else if (type === 'trident') {
+    // Trident: shaft + three prongs at top
+    drawHandle(x, 7, 8, 8);
+    // Three prongs
+    px(x, p.head, 5, 1, 1, 7);
+    px(x, p.head, 7, 0, 2, 8);
+    px(x, p.head, 10, 1, 1, 7);
+    px(x, p.lit, 5, 1, 1, 1);
+    px(x, p.lit, 7, 0, 2, 1);
+    px(x, p.lit, 10, 1, 1, 1);
+    px(x, p.dark, 5, 7, 1, 1);
+    px(x, p.dark, 7, 7, 2, 1);
+    px(x, p.dark, 10, 7, 1, 1);
+    // barb
+    px(x, p.mid, 4, 4, 1, 1);
+    px(x, p.mid, 11, 4, 1, 1);
+  } else {
+    // Generic fallback: diamond-shaped head on a stick
+    drawHandle(x, 7, 9, 7);
+    px(x, p.head, 4, 1, 8, 5);
+    px(x, p.lit, 4, 1, 8, 1);
+    px(x, p.dark, 4, 5, 8, 1);
+    px(x, p.dark, 4, 2, 1, 3);
+    px(x, p.mid, 11, 2, 1, 3);
   }
 }
 
