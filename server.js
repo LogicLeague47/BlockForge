@@ -785,13 +785,16 @@ const server = http.createServer((req, res) => {
 // ── WebSocket server ──────────────────────────────────────────────────
 const wss = new WebSocketServer({ server, maxPayload: 256 * 1024 }); // 256KB max message
 
-// Rate limiter: max 30 messages per second per connection
+// Rate limiter: max 60 messages per second per connection. Position updates
+// stream at 30Hz (12-22 bytes each) plus occasional chat/armor/block messages,
+// so a tight cap like 30/s silently dropped position frames and made remote
+// players move choppily.
 function isRateLimited(ws) {
   const now = Date.now();
   if (!ws._rateLimit) ws._rateLimit = { count: 0, window: now };
   if (now - ws._rateLimit.window > 1000) { ws._rateLimit.count = 0; ws._rateLimit.window = now; }
   ws._rateLimit.count++;
-  return ws._rateLimit.count > 30;
+  return ws._rateLimit.count > 60;
 }
 
   wss.on('connection', (ws) => {
@@ -1237,9 +1240,10 @@ function handlePosition(ws, msg) {
   pd.crouching = !!msg.crouching;
   pd.armor = msg.armor ?? null;
 
-  // Rate-limit broadcast: max 20Hz per player (server side)
+  // Rate-limit broadcast: max 30Hz per player (server side) to match the
+  // client's 30Hz position send, giving remote players smooth interpolation.
   const now = Date.now();
-  if (pd._lastBroadcast && now - pd._lastBroadcast < 50) return;
+  if (pd._lastBroadcast && now - pd._lastBroadcast < 33) return;
   pd._lastBroadcast = now;
 
   // Broadcast position as binary — proximity culled (skip players >64 blocks away)
