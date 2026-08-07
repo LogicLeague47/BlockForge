@@ -2791,11 +2791,11 @@ class Mob {
       const isArmLikeMob = this.type === 'blower' || this.type === 'portalman' || this.type === 'zombie' || this.type === 'skeleton';
       const isArmPivot = isArmLikeMob && i >= this.legs.length - 2;
       if (isVillagerArm || isArmPivot) {
-        // Arms swing opposite to legs
-        leg.rotation.x = -swing;
+        // Arms swing opposite to their corresponding leg
+        leg.rotation.x = (i % 2 === 0) ? -swing : swing;
       } else if (MOB_TYPES[this.type]?.bipedalLegs) {
-        // Bipedal: both legs swing together
-        leg.rotation.x = swing;
+        // Bipedal: left leg (0) and right leg (1) alternate
+        leg.rotation.x = (i % 2 === 0) ? swing : -swing;
       } else {
         // Quadruped: Front-left (0) & back-right (3) swing together
         const phase = (i === 0 || i === 3) ? swing : -swing;

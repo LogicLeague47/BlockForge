@@ -7483,6 +7483,11 @@ function loop() {
                 const tz = Math.round(Math.sin(angle) * r);
                 for (let y = 80; y >= 10; y--) {
                   if (world.getBlock(tx, y, tz) !== BLOCK.AIR && BLOCKS[world.getBlock(tx, y, tz)]?.solid) {
+                    // Place a small return portal at the destination
+                    world.setBlock(tx, y + 1, tz, BLOCK.VOID_PORTAL);
+                    world.setBlock(tx, y + 2, tz, BLOCK.VOID_PORTAL);
+                    world.setBlock(tx + 1, y + 1, tz, BLOCK.VOID_PORTAL);
+                    world.setBlock(tx + 1, y + 2, tz, BLOCK.VOID_PORTAL);
                     player.position.set(tx + 0.5, y + 1.05, tz + 0.5);
                     player.velocity.set(0, 0, 0);
                     found = true;
@@ -7492,11 +7497,15 @@ function loop() {
               }
             }
             if (!found) {
-              // Fallback: place a small platform
+              // Fallback: place a small platform with portal
               world.setBlock(20, 55, 20, BLOCK.VOIDSTONE);
               world.setBlock(21, 55, 20, BLOCK.VOIDSTONE);
               world.setBlock(20, 55, 21, BLOCK.VOIDSTONE);
               world.setBlock(21, 55, 21, BLOCK.VOIDSTONE);
+              world.setBlock(20, 56, 20, BLOCK.VOID_PORTAL);
+              world.setBlock(20, 57, 20, BLOCK.VOID_PORTAL);
+              world.setBlock(21, 56, 20, BLOCK.VOID_PORTAL);
+              world.setBlock(21, 57, 20, BLOCK.VOID_PORTAL);
               player.position.set(20.5, 56.05, 20.5);
               player.velocity.set(0, 0, 0);
             }
