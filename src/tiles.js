@@ -2513,7 +2513,13 @@ export function tileUVRect(name) {
 export function makeIcon(blockId, atlasCanvas) {
   const key = blockId + '_' + (atlasCanvas ? '1' : '0');
   const cached = _makeIconCache.get(key);
-  if (cached) return cached.cloneNode(true);
+  if (cached) {
+    // Safari cloneNode on canvas doesn't copy pixel data — use drawImage instead
+    const c2 = document.createElement('canvas');
+    c2.width = TILE; c2.height = TILE;
+    c2.getContext('2d').drawImage(cached, 0, 0);
+    return c2;
+  }
   const c = document.createElement('canvas');
   c.width = TILE; c.height = TILE;
   const ctx = c.getContext('2d');
@@ -2528,5 +2534,8 @@ export function makeIcon(blockId, atlasCanvas) {
     if (firstKey !== undefined) _makeIconCache.delete(firstKey);
   }
   _makeIconCache.set(key, c);
-  return c.cloneNode(true);
+  const c2 = document.createElement('canvas');
+  c2.width = TILE; c2.height = TILE;
+  c2.getContext('2d').drawImage(c, 0, 0);
+  return c2;
 }
