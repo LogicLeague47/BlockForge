@@ -4047,7 +4047,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 
   player = new Player(camera, world, world.seed);
   if (player) {
-    player.autoJump = (document.getElementById('set-autojump')?.value || '1') !== '0';
     player.difficulty = gameDifficulty;
     player.onHurt = () => { if (audio) audio.playerHurt(); };
     player.onDeath = () => { if (audio) audio.playerDie(); };
@@ -4780,7 +4779,6 @@ function initMenu() {
   }
   loadSetting('set-render-distance', 'bf_render_dist');
   loadSetting('set-fov', 'bf_fov');
-  loadSetting('set-autojump', 'bf_autojump');
   loadSetting('set-fps', 'bf_fps');
   loadSetting('set-quality', 'bf_quality');
   loadSetting('set-shadows', 'bf_shadows');
@@ -4886,10 +4884,6 @@ function initMenu() {
     camera.fov = baseFov;
     camera.updateProjectionMatrix();
     try { localStorage.setItem('bf_fov', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
-  });
-  document.getElementById('set-autojump')?.addEventListener('change', (e) => {
-    if (player) player.autoJump = e.target.value !== '0';
-    try { localStorage.setItem('bf_autojump', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
   document.getElementById('set-volume')?.addEventListener('input', (e) => {
     const vol = Math.max(0, Math.min(100, parseInt(e.target.value) || 50)) / 100;

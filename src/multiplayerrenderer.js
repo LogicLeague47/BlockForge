@@ -180,7 +180,10 @@ export class RemotePlayer {
     if (rt > newest) rt = newest;
 
     // Find the two snapshots that bracket rt. buf is sorted oldest → newest.
-    let i0 = 0;
+    // Default to the last pair: when rt clamps to newest (network stall or
+    // burst arrival), no snapshot sits after it, so we hold the newest position
+    // instead of snapping back to the oldest buffer entry.
+    let i0 = buf.length - 2;
     for (let i = 0; i < buf.length - 1; i++) {
       if (buf[i].time <= rt && buf[i + 1].time > rt) {
         i0 = i;
