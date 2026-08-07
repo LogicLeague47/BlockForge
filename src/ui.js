@@ -205,6 +205,12 @@ export function makeItemIconCanvas(itemId) {
     case 315: drawSlimeBall(x); break;
     case 316: drawFlintSteel(x); break;
     case 320: drawPortalOrb(x); break;
+    case 289: drawLavaBucket(x); break;
+    case 317: drawEnderPearl(x); break;
+    case 318: drawEyeOfEnder(x); break;
+    case 319: drawEndStoneItem(x); break;
+    case 321: drawDragonScales(x); break;
+    case 322: drawDragonHeart(x); break;
     // Shattered Echo Dimension items (700+)
     case 700: drawNullShard(x); break;
     case 701: drawMemoryShard(x); break;
@@ -865,6 +871,75 @@ function drawCompressedVoidstoneItem(x) {
   px(x, '#c8a0ff', 6, 5, 1, 1);    // glow crack
   px(x, '#c8a0ff', 8, 7, 1, 1);    // glow crack 2
   px(x, '#2a2050', 4, 12, 8, 1);   // shadow
+}
+
+function drawLavaBucket(x) {
+  // Bucket shape with lava glow inside
+  px(x, '#707070', 3, 3, 10, 2);   // rim
+  px(x, '#8a8a8a', 3, 3, 10, 1);   // rim highlight
+  px(x, '#606060', 3, 5, 1, 8);    // left wall
+  px(x, '#606060', 12, 5, 1, 8);   // right wall
+  px(x, '#505050', 4, 12, 8, 1);   // bottom
+  px(x, '#ff7a20', 5, 6, 6, 5);    // lava
+  px(x, '#ffb040', 6, 6, 4, 2);    // lava glow
+  px(x, '#ffe080', 7, 6, 2, 1);    // hot top
+  px(x, '#ff7a20', 9, 9, 1, 2);    // drip
+}
+
+function drawEnderPearl(x) {
+  // Dark teal orb with green swirl
+  px(x, '#0a3520', 4, 4, 8, 8);    // base
+  px(x, '#11663a', 5, 5, 6, 6);    // body
+  px(x, '#22c070', 6, 5, 4, 4);    // inner glow
+  px(x, '#40e090', 7, 6, 2, 2);    // bright center
+  px(x, '#30a058', 5, 4, 1, 1);    // top glint
+  px(x, '#30a058', 10, 7, 1, 1);   // side glint
+  px(x, '#083020', 5, 11, 6, 1);   // shadow
+}
+
+function drawEyeOfEnder(x) {
+  // Purple pearl with vertical eye
+  px(x, '#3a1050', 4, 3, 8, 10);   // base orb
+  px(x, '#602070', 5, 4, 6, 8);    // body
+  px(x, '#9020a0', 6, 4, 4, 8);    // inner
+  px(x, '#d040e0', 7, 4, 2, 8);    // vertical eye
+  px(x, '#e080f0', 7, 5, 1, 6);    // eye highlight
+  px(x, '#401060', 5, 12, 6, 1);   // shadow
+}
+
+function drawEndStoneItem(x) {
+  // Pale block with speckle pattern
+  px(x, '#d8c888', 4, 3, 8, 9);    // body
+  px(x, '#e8dc98', 4, 3, 8, 1);    // top edge
+  px(x, '#c8b878', 5, 4, 6, 7);    // front
+  px(x, '#e8d8a0', 5, 4, 1, 1);    // speckle
+  px(x, '#f0e4b0', 7, 6, 1, 1);    // speckle
+  px(x, '#c0a868', 9, 8, 1, 1);    // speckle
+  px(x, '#a89058', 4, 12, 8, 1);   // shadow
+}
+
+function drawDragonScales(x) {
+  // Stack of overlapping dark emerald scales
+  px(x, '#0a3a2a', 4, 4, 8, 8);    // base
+  px(x, '#14523a', 5, 5, 6, 6);    // mid
+  px(x, '#1e6a48', 4, 5, 4, 2);    // scale top
+  px(x, '#1e6a48', 8, 6, 4, 2);    // scale mid
+  px(x, '#1e6a48', 5, 8, 4, 2);    // scale low
+  px(x, '#2a8a60', 5, 5, 2, 1);    // highlight
+  px(x, '#3ab078', 5, 6, 1, 1);    // sparkle
+  px(x, '#06281c', 5, 11, 6, 1);   // shadow
+}
+
+function drawDragonHeart(x) {
+  // Beating dragon heart — dark red orb with pulse
+  px(x, '#401020', 4, 4, 8, 8);    // base
+  px(x, '#a02848', 5, 5, 6, 6);    // heart body
+  px(x, '#d04868', 6, 5, 4, 4);    // inner
+  px(x, '#ff7090', 7, 6, 2, 2);    // pulse center
+  px(x, '#ffa0b8', 7, 6, 1, 1);    // hot dot
+  px(x, '#d04868', 7, 4, 1, 1);    // top pulse
+  px(x, '#d04868', 10, 8, 1, 1);   // side pulse
+  px(x, '#300c18', 5, 11, 6, 1);   // shadow
 }
 
 function drawDye(x, col) {
