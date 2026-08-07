@@ -112,7 +112,6 @@ export const ITEM = {
   NULL_SHARD: 700,
   MEMORY_SHARD: 701,
   PARADOX_CORE: 702,
-  COMPRESSED_VOIDSTONE: 703,
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -255,7 +254,6 @@ const NONBLOCK_ITEMS = {
   [ITEM.NULL_SHARD]: { name: 'Null Shard', stack: 64 },
   [ITEM.MEMORY_SHARD]: { name: 'Memory Shard', stack: 64 },
   [ITEM.PARADOX_CORE]: { name: 'Paradox Core', stack: 16 },
-  [ITEM.COMPRESSED_VOIDSTONE]: { name: 'Compressed Voidstone', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------

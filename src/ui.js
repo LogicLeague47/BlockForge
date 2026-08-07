@@ -215,7 +215,6 @@ export function makeItemIconCanvas(itemId) {
     case 700: drawNullShard(x); break;
     case 701: drawMemoryShard(x); break;
     case 702: drawParadoxCore(x); break;
-    case 703: drawCompressedVoidstoneItem(x); break;
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
@@ -860,17 +859,6 @@ function drawParadoxCore(x) {
   // Rift cracks
   px(x, '#ff40c0', 6, 7, 1, 1);
   px(x, '#ff40c0', 9, 5, 1, 1);
-}
-
-function drawCompressedVoidstoneItem(x) {
-  // Dense slate-purple block icon for the item form
-  px(x, '#463a6a', 4, 3, 8, 9);    // block body
-  px(x, '#3a3060', 4, 3, 8, 1);    // top edge
-  px(x, '#5a4a80', 5, 4, 6, 7);    // front face
-  px(x, '#6a5a90', 5, 4, 3, 3);    // highlight
-  px(x, '#c8a0ff', 6, 5, 1, 1);    // glow crack
-  px(x, '#c8a0ff', 8, 7, 1, 1);    // glow crack 2
-  px(x, '#2a2050', 4, 12, 8, 1);   // shadow
 }
 
 function drawLavaBucket(x) {

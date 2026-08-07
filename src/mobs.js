@@ -301,6 +301,9 @@ export const MOB_TYPES = {
     bodyColor: 0x50e0c0,
     headColor: 0x50e0c0,
     legColor: 0x50e0c0,
+    hasWings: true,
+    wingSpan: 1.2,
+    wingColor: 0x80e8d0,
     hasEyes: true,
     eyeColor: 0x000000,
     attackDamage: 3,
@@ -704,6 +707,8 @@ class Mob {
     if (this.type === 'blower') return this._blowerTextures(def);
     if (this.type === 'portalman') return this._portalmanTextures(def);
     if (this.type === 'dragon') return this._dragonTextures(def);
+    if (this.type === 'wanderer') return this._wandererTextures(def);
+    if (this.type === 'pixie') return this._pixieTextures(def);
     return this._genericTextures(def);
   }
 
@@ -2233,6 +2238,208 @@ class Mob {
     const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, 8, 8); });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
+  }
+
+  _wandererTextures(def) {
+    const s = 32;
+    const BASE = 0x2b2b5c, DARK = 0x181838, EDGE = 0x5050a0,
+          GLITCH = 0x22d3ee, EYE = 0xff4488;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(28,26,58)';
+      ctx.fillRect(0, 0, s, s);
+      // Vertical wireframe columns (sodium static of the Shattered Echo)
+      ctx.strokeStyle = 'rgba(112,112,190,0.55)';
+      ctx.lineWidth = 1;
+      for (let x = 2; x < s; x += 4) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke();
+      }
+      // Horizontal scanlines
+      ctx.fillStyle = 'rgba(90,90,170,0.12)';
+      for (let y = 0; y < s; y += 2) ctx.fillRect(0, y, s, 1);
+      // Glitch streaks (random horizontal slices of bright cyan)
+      for (let i = 0; i < 4; i++) {
+        const gy = Math.floor(Math.random() * s);
+        ctx.fillStyle = i % 2 ? 'rgba(34,211,238,0.7)' : 'rgba(200,120,255,0.55)';
+        ctx.fillRect(Math.floor(Math.random() * 8), gy, 6 + Math.random() * 18, 1);
+      }
+      // Wandering dark cracks
+      ctx.strokeStyle = 'rgba(10,8,24,0.9)';
+      let cx = 4, cy = 0;
+      ctx.beginPath(); ctx.moveTo(cx, cy);
+      while (cy < s) { cy += 2 + Math.random() * 3; cx += (Math.random() - 0.5) * 6; ctx.lineTo(cx, cy); }
+      ctx.stroke();
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(48,44,92)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(120,120,200,0.6)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      for (let y = 2; y < s; y += 4) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(34,211,238,0.5)';
+      ctx.fillRect(12, 12, 3, 1);
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(16,15,38)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(70,70,140,0.4)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(44,42,96)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(120,120,200,0.6)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      // Glitch band
+      ctx.fillStyle = 'rgba(255,68,136,0.5)';
+      ctx.fillRect(4, Math.floor(Math.random() * 24), 10, 1);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(52,50,108)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(140,140,220,0.6)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      for (let y = 2; y < s; y += 4) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s, y); ctx.stroke(); }
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(24,22,60)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(70,70,140,0.4)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(32,30,74)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(90,90,160,0.5)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(200,120,255,0.45)';
+      ctx.fillRect(14, 6, 4, 1);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(48,46,104)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(120,120,200,0.6)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      // Cracked "screen" glitch eyes (dimension's glitched gaze)
+      ctx.fillStyle = 'rgba(255,68,136,0.9)';
+      ctx.fillRect(4, 8, 3, 6);
+      ctx.fillRect(25, 8, 3, 6);
+      ctx.fillStyle = 'rgba(255,150,200,0.95)';
+      ctx.fillRect(4, 8, 1, 6);
+      ctx.fillRect(25, 8, 1, 6);
+      // Scanline tear across the face
+      ctx.fillStyle = 'rgba(34,211,238,0.55)';
+      ctx.fillRect(0, 16, s, 1);
+    });
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(20,19,46)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(70,70,140,0.45)';
+      for (let x = 2; x < s; x += 4) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, s); ctx.stroke(); }
+      ctx.fillStyle = 'rgba(34,211,238,0.3)';
+      ctx.fillRect(0, 10, s, 1);
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide];
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    return { body, head, leg: [legTex, legTex, legTex, legTex, legTex, legTex] };
+  }
+
+  _pixieTextures(def) {
+    const s = 32;
+    const BASE = 0x50e0c0, DARK = 0x20a080, EDGE = 0x9ff0dc, GLOW = 0xb8fff0;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(30,110,92)';
+      ctx.fillRect(0, 0, s, s);
+      // Hexagon-matrix wireframe
+      ctx.strokeStyle = 'rgba(120,240,210,0.5)';
+      ctx.lineWidth = 1;
+      for (let y = 2; y < s; y += 6) {
+        for (let x = 2; x < s; x += 6) {
+          ctx.strokeRect(x, y, 4, 4);
+        }
+      }
+      // Glow pulses (matrix pixie energy)
+      ctx.fillStyle = 'rgba(180,255,240,0.4)';
+      ctx.beginPath(); ctx.arc(8 + Math.random() * 16, 6 + Math.random() * 16, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(140,255,230,0.25)';
+      ctx.beginPath(); ctx.arc(4 + Math.random() * 24, 4 + Math.random() * 24, 3, 0, Math.PI * 2); ctx.fill();
+    });
+
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(52,150,130)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(160,255,235,0.55)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+      ctx.fillStyle = 'rgba(230,255,250,0.9)';
+      ctx.fillRect(15, 15, 2, 2);
+    });
+
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(18,74,62)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(80,200,175,0.35)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+    });
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(56,128,112)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(170,255,240,0.5)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+      ctx.fillStyle = 'rgba(120,255,235,0.35)';
+      ctx.fillRect(4, Math.floor(Math.random() * 24), 6, 1);
+    });
+
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(70,160,140)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(200,255,245,0.6)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+    });
+
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(26,84,72)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(90,200,180,0.35)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+    });
+
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(40,104,90)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(110,230,205,0.4)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+    });
+
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = 'rgb(66,142,126)';
+      ctx.fillRect(0, 0, s, s);
+      ctx.strokeStyle = 'rgba(200,255,245,0.6)';
+      for (let y = 2; y < s; y += 6) for (let x = 2; x < s; x += 6) ctx.strokeRect(x, y, 4, 4);
+      // Deep black pixel eyes with cyan glint (matrix motif)
+      ctx.fillStyle = '#001a14';
+      ctx.fillRect(7, 12, 3, 6);
+      ctx.fillRect(22, 12, 3, 6);
+      ctx.fillStyle = 'rgba(120,255,235,0.9)';
+      ctx.fillRect(7, 13, 1, 4);
+      ctx.fillRect(22, 13, 1, 4);
+      ctx.fillStyle = 'rgba(180,255,245,0.7)';
+      ctx.fillRect(15, 8, 2, 1);   // tiny glint between eyes
+    });
+
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide];
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+    return { body, head, leg: [bodySide, bodySide, bodySide, bodySide, bodySide, bodySide] };
   }
 
   _genericTextures(def) {

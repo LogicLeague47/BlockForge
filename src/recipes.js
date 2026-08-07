@@ -481,7 +481,7 @@ export const RECIPES = [
     pattern: ['E', 'P'], key: { E: I.ENDER_PEARL, P: I.GREENSTONE_DUST } }),
 
   // ---- Shattered Echo Dimension ----
-  shapeless({ out: { id: I.COMPRESSED_VOIDSTONE, count: 1 }, ingredients: [B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, I.NULL_SHARD] }),
+  shapeless({ out: { id: B.COMPRESSED_VOIDSTONE, count: 1 }, ingredients: [B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, I.NULL_SHARD] }),
   shapeless({ out: { id: I.PARADOX_CORE, count: 1 }, ingredients: [I.MEMORY_SHARD, I.NULL_SHARD, I.ENDER_PEARL, B.EMBEROCK] }),
 ];
 
