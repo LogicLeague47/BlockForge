@@ -538,8 +538,7 @@ class Mob {
         legPositions = def.legPositions;
       } else if (def.bipedalLegs) {
         const lx = def.bodyW * 0.45;
-        const lz = def.bodyD * 0.15;
-        legPositions = [[-lx, -lz], [lx, -lz]];
+        legPositions = [[-lx, 0], [lx, 0]];
       } else if (def.has8Legs) {
         const lx = def.bodyW * 0.32;
         const lz = def.bodyD * 0.3;

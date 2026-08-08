@@ -295,23 +295,9 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
 // =====================================================================
 
 export function generateDimensionColumn(n, chunk, x, z, wx, wz) {
-  // ── Flat overworld near origin (spawn area + build zone) ──
-  if (Math.abs(wx) < 50 && Math.abs(wz) < 50) {
-    const groundY = 60;
-    for (let y = 0; y <= groundY; y++) {
-      let b = BLOCK.AIR;
-      if (y === groundY) b = BLOCK.GRASS;
-      else if (y >= groundY - 3) b = BLOCK.DIRT;
-      else b = BLOCK.STONE;
-      chunk.set(x, y, z, b);
-    }
-    return { h: groundY, biome: BIOMES.PLAINS, topSolid: groundY };
-  }
-
-  // ── Floating islands outside the build zone ──
-  // Low-frequency field decides whether this column carries an island and
-  // how tall it is. ~[-1,1]; pull to ~[-0.35,0.35] so islands are sparse and
-  // there are open voids between them.
+  // Floating islands — Low-frequency field decides whether this column carries
+  // an island and how tall it is. ~[-1,1]; pull to ~[-0.35,0.35] so islands
+  // are sparse and there are open voids between them.
   const f = n.fbm2(n.weirdness, wx * 0.012, wz * 0.012, 4, 2, 0.5);
   const detail = n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5);
 

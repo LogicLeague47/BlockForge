@@ -3,6 +3,7 @@
 export const CHUNK_SIZE = 16;
 export const WORLD_HEIGHT = 256;
 export const SEA_LEVEL = 32;
+export const DIMENSION_FLAT_RADIUS = 256;
 
 export const BIOMES = {
   OCEAN:       0,

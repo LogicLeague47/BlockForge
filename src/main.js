@@ -740,6 +740,14 @@ let lastBreakSound = 0;
 let placeAnimTimer = 0;
 let _portalTeleportCooldown = 0;
 let _portalHomePos = null; // stored position before first portal teleport (for return trip)
+let _portalHomeVelocity = null; // saved velocity for return trip
+let _portalTriggered = false; // signal for dimension switch in game loop
+let _dimensionOverworld = null; // overworld World instance (when in dimension mode)
+let _dimensionTarget = null;   // dimension World instance (when in dimension mode)
+let _isDimensionMode = false;  // whether this world has dual dimensions
+let _activeDimension = 'overworld'; // 'overworld' or 'dimension'
+let _overworldSpawnPos = null; // saved player position before dimension switch
+let _dimensionSpawnPos = null; // saved player position before overworld switch
 
 function lockPointer() {
   if (mobile && mobile.isMobile) return; // no pointer lock on mobile
@@ -4067,6 +4075,24 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   world = new World(seed, { flat: !!opts.flat, void: !!opts.void, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird, dimension: !!opts.dimension });
   const saved = (!isParkour) ? loadWorld(worldId) : null;
   if (saved) world.loadEdits(saved);
+
+  // Dimension mode: create a separate overworld + dimension world (Minecraft-style)
+  _isDimensionMode = !!opts.dimension;
+  _activeDimension = 'overworld';
+  _dimensionOverworld = null;
+  _dimensionTarget = null;
+  if (_isDimensionMode) {
+    // world is the dimension; create a plain overworld
+    _dimensionOverworld = new World(seed, {});
+    _dimensionTarget = world; // the dimension world
+    // Load saved edits for both worlds
+    if (saved) {
+      if (saved.overworldEdits) _dimensionOverworld.loadEdits({ seed, edits: saved.overworldEdits, chests: saved.overworldChests });
+      if (saved.dimensionEdits) _dimensionTarget.loadEdits({ seed, edits: saved.dimensionEdits, chests: saved.dimensionChests });
+    }
+    // Start in the overworld
+    world = _dimensionOverworld;
+  }
   manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
   loader = new ChunkLoader(world, manager, renderDist);
   explosionManager = new ExplosionManager(scene, world, audio);
@@ -4578,12 +4604,30 @@ function saveCurrentWorld() {
     level: player.level,
     totalDays: totalDays,
   };
+
+  // In dimension mode, save edits from BOTH worlds
+  let saveData;
+  if (_isDimensionMode && _dimensionOverworld && _dimensionTarget) {
+    const owEdits = _dimensionOverworld.serializeEdits();
+    const dimEdits = _dimensionTarget.serializeEdits();
+    saveData = {
+      seed: world.seed,
+      overworldEdits: owEdits.edits,
+      overworldChests: owEdits.chests,
+      dimensionEdits: dimEdits.edits,
+      dimensionChests: dimEdits.chests,
+      player: playerData,
+    };
+  } else {
+    saveData = { ...world.serializeEdits(), player: playerData };
+  }
+
   if (isMultiplayer && playerName) {
     saveMultiplayerInventory(currentWorldId, playerName, playerData.inventory);
     const perPlayer = { ...playerData, inventory: undefined };
-    saveWorld(currentWorldId, { ...world.serializeEdits(), player: perPlayer });
+    saveWorld(currentWorldId, { ...saveData, player: perPlayer });
   } else {
-    saveWorld(currentWorldId, { ...world.serializeEdits(), player: playerData });
+    saveWorld(currentWorldId, saveData);
   }
 }
 
@@ -7399,7 +7443,8 @@ function loop() {
 
   // underwater tint
   const eye = player.eyeBlock();
-  if (world.dimension) {
+  const inDimensionZone = _isDimensionMode && _activeDimension === 'dimension';
+  if (inDimensionZone) {
     // Shattered Echo sky — starless indigo, nearest fade for a soft void
     scene.fog.color.setHex(0x2b2b57);
     scene.background.setHex(0x1c1c3e);
@@ -7454,7 +7499,80 @@ function loop() {
     ghostMesh.visible = false;
   }
 
-  // ── VOID PORTAL: standing in a lit portal teleports you home and back ──
+  // ── DIMENSION SWITCH: swap between overworld and dimension worlds ──
+  if (_isDimensionMode && _portalTriggered) {
+    _portalTriggered = false;
+    const targetWorld = (_activeDimension === 'overworld') ? _dimensionTarget : _dimensionOverworld;
+    if (targetWorld) {
+      // Save current player position for return trip
+      const savedPos = player.position.clone();
+      const savedVel = player.velocity.clone();
+      if (_activeDimension === 'overworld') {
+        _overworldSpawnPos = savedPos;
+      } else {
+        _dimensionSpawnPos = savedPos;
+      }
+
+      // Clear chunk meshes
+      manager?.clear?.();
+      mobManager?.clear?.();
+
+      // Swap world
+      world = targetWorld;
+      _activeDimension = (_activeDimension === 'overworld') ? 'dimension' : 'overworld';
+
+      // Recreate world-dependent managers
+      manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
+      loader = new ChunkLoader(world, manager, renderDist);
+      explosionManager = new ExplosionManager(scene, world, audio);
+      mobManager = new MobManager(scene, world, audio, explosionManager);
+      mobManager._refreshFn = (bx, by, bz) => {
+        if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
+      };
+      mobManager.networkSend = {
+        sendMobSpawn: (id, type, x, y, z) => network.sendMobSpawn(id, type, x, y, z),
+        sendMobPosition: (id, type, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
+        sendMobDeath: (id) => network.sendMobDeath(id),
+      };
+      mobManager.onMobDeath = (mob) => {
+        if (!droppedItemManager || !mob) return;
+        for (const drop of mob.getDrops()) {
+          droppedItemManager.drop(drop.item, drop.count, mob.position.x, mob.position.y + 0.5, mob.position.z);
+        }
+      };
+      droppedItemManager = new DroppedItemManager(scene, atlasCanvas, world);
+      tntManager = new LitTntManager(scene, atlasCanvas, world, explosionManager);
+      tntManager.onExplode = (x, y, z) => {
+        if (player) {
+          const dmg = ExplosionManager.calcDamage(x + 0.5, y + 0.5, z + 0.5, player.position, 4);
+          if (dmg > 0) player.takeDamage(dmg, { x: x + 0.5, y: y + 0.5, z: z + 0.5 });
+          if (playerModel) playerModel.triggerHurt();
+        }
+      };
+
+      // Update player's world reference
+      player.world = world;
+
+      // Restore player position (from saved position in target dimension, or find spawn)
+      const returnPos = (_activeDimension === 'overworld') ? _overworldSpawnPos : _dimensionSpawnPos;
+      if (returnPos) {
+        player.position.copy(returnPos);
+      } else {
+        // First visit: find ground in the new world
+        let groundY = 60;
+        for (let y = 120; y >= 0; y--) {
+          if (world.getBlock(0, y, 0) !== 0 && BLOCKS[world.getBlock(0, y, 0)]?.solid) {
+            groundY = y + 1; break;
+          }
+        }
+        player.position.set(0.5, groundY + 0.05, 0.5);
+      }
+      player.velocity.set(0, 0, 0);
+      player.spawnPoint.copy(player.position);
+    }
+  }
+
+  // ── VOID PORTAL: standing in a lit portal teleports you between worlds ──
   if (world && player && player.position) {
     const pp = player.position;
     const feet = Math.floor(pp.y);
@@ -7464,62 +7582,33 @@ function loop() {
       _portalTeleportCooldown = (_portalTeleportCooldown || 0) - dt;
       if (_portalTeleportCooldown <= 0) {
         _portalTeleportCooldown = 2.0;
-        if (_portalHomePos) {
-          // Have a stored home — teleport back to it
-          player.position.set(_portalHomePos.x, _portalHomePos.y, _portalHomePos.z);
-          player.velocity.set(0, 0, 0);
-          _portalHomePos = null;
+        if (_isDimensionMode) {
+          // Minecraft-style: swap to the other world entirely
+          _portalTriggered = true;
+          if (audio) audio.portalOpen?.();
         } else {
-          // First use — save current position, then teleport to the other zone
-          _portalHomePos = player.position.clone();
-          const inHub = Math.abs(pp.x) <= 52 && Math.abs(pp.z) <= 52;
-          if (inHub) {
-            // In overworld → find nearest floating island (search outward from build zone edge)
-            let found = false;
-            for (let r = 52; r <= 80 && !found; r += 2) {
-              for (let a = 0; a < 16 && !found; a++) {
-                const angle = (a / 16) * Math.PI * 2;
-                const tx = Math.round(Math.cos(angle) * r);
-                const tz = Math.round(Math.sin(angle) * r);
-                for (let y = 80; y >= 10; y--) {
-                  if (world.getBlock(tx, y, tz) !== BLOCK.AIR && BLOCKS[world.getBlock(tx, y, tz)]?.solid) {
-                    // Place a small return portal at the destination
-                    world.setBlock(tx, y + 1, tz, BLOCK.VOID_PORTAL);
-                    world.setBlock(tx, y + 2, tz, BLOCK.VOID_PORTAL);
-                    world.setBlock(tx + 1, y + 1, tz, BLOCK.VOID_PORTAL);
-                    world.setBlock(tx + 1, y + 2, tz, BLOCK.VOID_PORTAL);
-                    player.position.set(tx + 0.5, y + 1.05, tz + 0.5);
-                    player.velocity.set(0, 0, 0);
-                    found = true;
-                    break;
-                  }
-                }
+          // Non-dimension world: legacy single-world teleport (unchanged)
+          if (_portalHomePos) {
+            player.position.set(_portalHomePos.x, _portalHomePos.y, _portalHomePos.z);
+            player.velocity.set(0, 0, 0);
+            _portalHomePos = null;
+          } else {
+            _portalHomePos = player.position.clone();
+            // Teleport to a random nearby location as a fallback
+            const angle = Math.random() * Math.PI * 2;
+            const r = 20 + Math.random() * 30;
+            const tx = Math.round(Math.cos(angle) * r);
+            const tz = Math.round(Math.sin(angle) * r);
+            for (let y = 80; y >= 10; y--) {
+              if (world.getBlock(tx, y, tz) !== BLOCK.AIR && BLOCKS[world.getBlock(tx, y, tz)]?.solid) {
+                player.position.set(tx + 0.5, y + 1.05, tz + 0.5);
+                player.velocity.set(0, 0, 0);
+                break;
               }
             }
-            if (!found) {
-              // Fallback: place a small platform with portal
-              world.setBlock(20, 55, 20, BLOCK.VOIDSTONE);
-              world.setBlock(21, 55, 20, BLOCK.VOIDSTONE);
-              world.setBlock(20, 55, 21, BLOCK.VOIDSTONE);
-              world.setBlock(21, 55, 21, BLOCK.VOIDSTONE);
-              world.setBlock(20, 56, 20, BLOCK.VOID_PORTAL);
-              world.setBlock(20, 57, 20, BLOCK.VOID_PORTAL);
-              world.setBlock(21, 56, 20, BLOCK.VOID_PORTAL);
-              world.setBlock(21, 57, 20, BLOCK.VOID_PORTAL);
-              player.position.set(20.5, 56.05, 20.5);
-              player.velocity.set(0, 0, 0);
-            }
-          } else {
-            // On an island → teleport back to hub center
-            let hubY = 55;
-            for (let y = 80; y >= 0; y--) {
-              if (world.getBlock(0, y, 0) !== BLOCK.AIR && BLOCKS[world.getBlock(0, y, 0)]?.solid) { hubY = y + 1; break; }
-            }
-            player.position.set(0.5, hubY + 0.05, 0.5);
-            player.velocity.set(0, 0, 0);
           }
+          if (audio) audio.portalOpen?.();
         }
-        if (audio) audio.portalOpen?.();
       }
     }
   }
