@@ -1,6 +1,7 @@
 // Entry point: wires up renderer, world, player, input, and the render loop.
 
 import * as THREE from 'three';
+import { BACKEND_URL } from './config.js';
 import { World, CHUNK_SIZE, BIOMES } from './world.js';
 import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
