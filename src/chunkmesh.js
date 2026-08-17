@@ -136,6 +136,9 @@ export class ChunkMeshManager {
     opaqueMesh.receiveShadow = true;
 
     const group = new THREE.Group();
+    group.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
+    group.matrixAutoUpdate = false;
+    group.updateMatrix();
     group.add(opaqueMesh);
 
     let cutoutMesh = null;
@@ -147,6 +150,9 @@ export class ChunkMeshManager {
       cg.setAttribute('normal', new THREE.BufferAttribute(cutout.normal, 3));
       if (cutout.index) cg.setIndex(new THREE.BufferAttribute(cutout.index, 1));
       cutoutMesh = new THREE.Mesh(cg, this.cutoutMaterial);
+      cutoutMesh.frustumCulled = true;
+      cutoutMesh.matrixAutoUpdate = false;
+      cutoutMesh.updateMatrix();
       cutoutMesh.castShadow = true;
       cutoutMesh.receiveShadow = true;
       group.add(cutoutMesh);
@@ -161,6 +167,9 @@ export class ChunkMeshManager {
       tg.setAttribute('normal', new THREE.BufferAttribute(trans.normal, 3));
       if (trans.index) tg.setIndex(new THREE.BufferAttribute(trans.index, 1));
       transMesh = new THREE.Mesh(tg, this.transMaterial);
+      transMesh.frustumCulled = true;
+      transMesh.matrixAutoUpdate = false;
+      transMesh.updateMatrix();
       transMesh.renderOrder = 1;
       transMesh.castShadow = true;
       transMesh.receiveShadow = true;
@@ -181,6 +190,9 @@ export class ChunkMeshManager {
       wg.setAttribute('normal', new THREE.BufferAttribute(water.normal, 3));
       if (water.index) wg.setIndex(new THREE.BufferAttribute(water.index, 1));
       waterMesh = new THREE.Mesh(wg, wMat);
+      waterMesh.frustumCulled = true;
+      waterMesh.matrixAutoUpdate = false;
+      waterMesh.updateMatrix();
       waterMesh.userData.matKey = key;
       waterMesh.renderOrder = 2;
       group.add(waterMesh);
