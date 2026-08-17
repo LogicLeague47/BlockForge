@@ -36,6 +36,7 @@ import { buildNightsMap, startNights, tickNights, clearNights, setNightsExit, N_
 import { buildGunAffairMap, startGunAffair, tickGunAffair, gunFire, clearGunAffair, setGunAffairExit, GA_Y } from './gunaffair.js';
 import { buildSkyblockMap, clearSkyblock, SB_SPAWN, SB_VOID_BELOW, SB_STARTER_KIT } from './skyblock.js';
 import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged } from './liquid.js';
+import { GreenstoneSystem } from './greenstone.js';
 import { initMods, bindModsMenu, modsTick, setAtlasTexture } from './mods.js';
 import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
 import { ExplosionManager } from './explosions.js';
