@@ -1,5 +1,5 @@
-// Sodium-Inspired Fast Renderer & Occlusion Culling Optimization Module
-// Implements advanced batching, vertex reuse, multi-draw culling, and render pipeline optimizations.
+// Sodium-Inspired Fast Renderer & Occlusion Culling Optimization Module (Maximized Edition)
+// Implements advanced batching, vertex reuse, multi-draw culling, GPU instancing, and render pipeline optimizations.
 
 import * as THREE from 'three';
 
@@ -9,16 +9,19 @@ export class SodiumRendererOptimizer {
     this.camera = camera;
     this.occlusionPool = new Map();
     this.batchBuffers = new Map();
+    this.instancedMeshes = new Map();
     this.stats = {
       drawCallsSaved: 0,
       verticesCulled: 0,
-      batchesOptimized: 0
+      batchesOptimized: 0,
+      instancedBlocksCount: 0
     };
     this.frustum = new THREE.Frustum();
     this.projScreenMatrix = new THREE.Matrix4();
+    this.lodDistance = 64; // Max render distance before LOD downscaling
   }
 
-  // Update frustum culling for chunk groups
+  // Update frustum culling and hierarchical LOD for chunk groups
   updateCulling(chunkMeshes) {
     if (!this.camera) return;
     this.projScreenMatrix.multiplyMatrices(
@@ -29,13 +32,24 @@ export class SodiumRendererOptimizer {
 
     let culledCount = 0;
     let visibleCount = 0;
+    const camPos = this.camera.position;
 
     for (const [key, entry] of chunkMeshes) {
       if (!entry || !entry.group) continue;
       const group = entry.group;
       
-      // Bounding box check using chunk world position
       const pos = group.position;
+      const dx = pos.x + 8 - camPos.x;
+      const dz = pos.z + 8 - camPos.z;
+      const distSq = dx * dx + dz * dz;
+
+      // Distance-based LOD culling (Sodium style)
+      if (distSq > (this.lodDistance * 16) * (this.lodDistance * 16)) {
+        group.visible = false;
+        culledCount++;
+        continue;
+      }
+
       const chunkBox = new THREE.Box3(
         new THREE.Vector3(pos.x, 0, pos.z),
         new THREE.Vector3(pos.x + 16, 256, pos.z + 16)
@@ -46,56 +60,53 @@ export class SodiumRendererOptimizer {
       
       if (isVisible) {
         visibleCount++;
+        // Dynamic shadow culling for distant chunks to maximize GPU fillrate
+        if (entry.opaque) {
+          entry.opaque.castShadow = distSq < 32 * 32 * 16 * 16;
+        }
       } else {
         culledCount++;
       }
     }
 
-    this.stats.verticesCulled = culledCount * 16384; // Estimated vertices saved per culled chunk
+    this.stats.verticesCulled = culledCount * 16384;
     return { visibleCount, culledCount };
   }
 
-  // Optimize geometry attributes (Sodium vertex format packing)
+  // Optimize geometry attributes with static draw usage and buffer alignment
   optimizeGeometry(geometry) {
     if (!geometry) return;
     geometry.computeBoundingBox();
     geometry.computeBoundingSphere();
     
-    // Ensure attributes are non-dynamic for GPU memory optimization
     for (const name in geometry.attributes) {
       const attr = geometry.attributes[name];
       if (attr && attr.array) {
         attr.usage = THREE.StaticDrawUsage;
+        attr.needsUpdate = false;
       }
     }
     this.stats.batchesOptimized++;
   }
 
-  // Batch nearby static chunks to reduce state switches
-  batchStaticMeshes(meshesMap) {
-    const batches = new Map();
-    for (const [key, entry] of meshesMap) {
-      if (!entry || !entry.opaque) continue;
-      const [cx, cz] = key.split(',').map(Number);
-      const regionKey = `${Math.floor(cx / 4)},${Math.floor(cz / 4)}`;
-      
-      let batch = batches.get(regionKey);
-      if (!batch) {
-        batch = [];
-        batches.set(regionKey, batch);
-      }
-      batch.push(entry);
-    }
-    this.stats.drawCallsSaved += batches.size;
-    return batches;
+  // GPU Instanced rendering for repetitive vegetation/blocks (Sodium instancing)
+  createInstancedBatch(geometry, material, maxInstances = 1024) {
+    const instancedMesh = new THREE.InstancedMesh(geometry, material, maxInstances);
+    instancedMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    instancedMesh.frustumCulled = true;
+    this.scene.add(instancedMesh);
+    return instancedMesh;
   }
 
-  // Fast GPU state optimization
-  applyFastState(renderer) {
+  // Apply maximum performance renderer settings
+  applyMaxPerformanceState(renderer) {
     if (!renderer) return;
     renderer.sortObjects = false;
     renderer.autoClear = false;
     renderer.info.autoReset = true;
+    renderer.powerPreference = 'high-performance';
+    renderer.shadowMap.autoUpdate = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   }
 
   getMetrics() {
@@ -103,6 +114,6 @@ export class SodiumRendererOptimizer {
   }
 }
 
-export function createSodiumRenderer(scene, camera) {
+export function createMaxSodiumRenderer(scene, camera) {
   return new SodiumRendererOptimizer(scene, camera);
 }
