@@ -313,24 +313,24 @@ async function loadRooms() {
   }
 }
 
-// Create the official server (no owner, undeletable) if it doesn't exist
+// Create the official server (no owner, undeletable) if it doesn't exist and clear stale rooms
 function ensureOfficialServer() {
-  if (!rooms.has('OfficialSMP')) {
-    rooms.set('OfficialSMP', {
-      seed: 12345,
-      gameMode: 'survival',
-      maxPlayers: 50,
-      ownerName: null,
-      ownerSecret: null,
-      protected: true,
-      players: new Map(),
-      banned: new Set(),
-      edits: new Map(),
-      created: Date.now()
-    });
-    saveRooms();
-    console.log('[Room] Created official server "OfficialSMP"');
-  }
+  const official = rooms.get('OfficialSMP') || {
+    seed: 12345,
+    gameMode: 'survival',
+    maxPlayers: 50,
+    ownerName: null,
+    ownerSecret: null,
+    protected: true,
+    players: new Map(),
+    banned: new Set(),
+    edits: new Map(),
+    created: Date.now()
+  };
+  rooms.clear();
+  rooms.set('OfficialSMP', official);
+  saveRooms();
+  console.log('[Room] Cleared stale servers and ensured official server "OfficialSMP"');
 }
 
 // ── Role system ───────────────────────────────────────────────────────
