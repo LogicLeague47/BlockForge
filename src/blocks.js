@@ -560,6 +560,18 @@ _bindBlockMeta({
   tool: blockTool,
 });
 
+// FerriteCore-inspired block state cache & property deduplication
+const _blockStateCache = new Map();
+export function getOptimizedBlockState(blockId, meta = 0) {
+  const key = (blockId << 4) | (meta & 0xf);
+  let cached = _blockStateCache.get(key);
+  if (!cached) {
+    cached = { id: blockId, meta, def: BLOCKS[blockId] || null };
+    _blockStateCache.set(key, cached);
+  }
+  return cached;
+}
+
 // Hotbar contents (creative-style: infinite blocks).
 export const HOTBAR_BLOCKS = [
   BLOCK.GRASS,
