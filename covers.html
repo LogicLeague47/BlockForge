@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body { margin: 0; background: #111; font-family: monospace; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 40px; padding: 40px; }
+h2 { color: #aaa; }
+.cover { position: relative; overflow: hidden; image-rendering: pixelated; }
+canvas { display: block; border: 2px solid #333; }
+</style>
+</head>
+<body>
+<h2>Landscape 1920x1080 — Right-click canvas → Save Image As</h2>
+<canvas id="landscape" width="1920" height="1080"></canvas>
+<h2>Portrait 800x1200 — Right-click canvas → Save Image As</h2>
+<canvas id="portrait" width="800" height="1200"></canvas>
+<h2>Square 800x800 — Right-click canvas → Save Image As</h2>
+<canvas id="square" width="800" height="800"></canvas>
+
+<script>
+function drawBlock(ctx, x, y, size, topColor, frontColor, sideColor) {
+  const h = size * 0.5;
+  // top face
+  ctx.fillStyle = topColor;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + size/2, y - h/2);
+  ctx.lineTo(x + size, y);
+  ctx.lineTo(x + size/2, y + h/2);
+  ctx.closePath();
+  ctx.fill();
+  // front face
+  ctx.fillStyle = frontColor;
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + size/2, y + h/2);
+  ctx.lineTo(x + size/2, y + h/2 + size*0.6);
+  ctx.lineTo(x, y + size*0.6);
+  ctx.closePath();
+  ctx.fill();
+  // right face
+  ctx.fillStyle = sideColor;
+  ctx.beginPath();
+  ctx.moveTo(x + size, y);
+  ctx.lineTo(x + size/2, y + h/2);
+  ctx.lineTo(x + size/2, y + h/2 + size*0.6);
+  ctx.lineTo(x + size, y + size*0.6);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawScene(ctx, w, h) {
+  // Sky gradient
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+  skyGrad.addColorStop(0, '#1a0a3e');
+  skyGrad.addColorStop(0.5, '#4a2c8a');
+  skyGrad.addColorStop(0.8, '#e8832a');
+  skyGrad.addColorStop(1, '#f5c842');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, w, h);
+
+  // Stars
+  for (let i = 0; i < 120; i++) {
+    const sx = Math.random() * w;
+    const sy = Math.random() * h * 0.4;
+    const sr = Math.random() * 2 + 0.5;
+    ctx.fillStyle = `rgba(255,255,255,${Math.random() * 0.8 + 0.2})`;
+    ctx.beginPath();
+    ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Sun/moon glow
+  const sunX = w * 0.75, sunY = h * 0.28;
+  const sunGrad = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, 120);
+  sunGrad.addColorStop(0, 'rgba(255,200,50,0.9)');
+  sunGrad.addColorStop(0.3, 'rgba(255,150,30,0.4)');
+  sunGrad.addColorStop(1, 'rgba(255,100,20,0)');
+  ctx.fillStyle = sunGrad;
+  ctx.fillRect(sunX - 120, sunY - 120, 240, 240);
+
+  // Ground blocks
+  const blockSize = Math.max(30, w / 40);
+  const startY = h * 0.5;
+  const rows = 14;
+  const cols = Math.ceil(w / blockSize) + 2;
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = -1; col < cols; col++) {
+      const bx = col * blockSize * 0.5 - (row % 2) * blockSize * 0.25;
+      const by = startY + row * blockSize * 0.75;
+      let top, front, side;
+      if (row === 0) {
+        // Grass
+        top = '#5B8C2A'; front = '#6B4B2B'; side = '#5a3d1f';
+      } else if (row < 3) {
+        // Dirt
+        top = '#8B6B3B'; front = '#7a5c2f'; side = '#6a4d22';
+      } else {
+        // Stone
+        top = '#888'; front = '#777'; side = '#666';
+      }
+      drawBlock(ctx, bx, by, blockSize, top, front, side);
+    }
+  }
+
+  // Grass top highlights
+  for (let col = -1; col < cols; col++) {
+    const bx = col * blockSize * 0.5;
+    const by = startY;
+    ctx.fillStyle = '#6B9E30';
+    ctx.beginPath();
+    ctx.moveTo(bx, by);
+    ctx.lineTo(bx + blockSize/2, by - blockSize * 0.25);
+    ctx.lineTo(bx + blockSize, by);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Trees
+  function drawTree(tx, ty, s) {
+    // Trunk
+    ctx.fillStyle = '#5a3d1f';
+    ctx.fillRect(tx + s*0.35, ty - s*1.5, s*0.3, s*1.5);
+    // Leaves
+    const leafColors = ['#2d6b1a', '#3a8a24', '#4a9e30'];
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = leafColors[i];
+      const ls = s * (2.2 - i * 0.4);
+      const ly = ty - s * 1.5 - i * s * 0.6;
+      ctx.fillRect(tx + s*0.5 - ls/2, ly - ls*0.4, ls, ls*0.5);
+    }
+  }
+  drawTree(w * 0.15, h * 0.52, blockSize);
+  drawTree(w * 0.35, h * 0.50, blockSize * 1.3);
+  drawTree(w * 0.85, h * 0.53, blockSize * 0.9);
+
+  // Water reflection area
+  const waterY = h * 0.72;
+  const waterGrad = ctx.createLinearGradient(0, waterY, 0, waterY + h * 0.28);
+  waterGrad.addColorStop(0, 'rgba(30,80,180,0.7)');
+  waterGrad.addColorStop(1, 'rgba(10,30,80,0.9)');
+  ctx.fillStyle = waterGrad;
+  ctx.fillRect(w * 0.55, waterY, w * 0.45, h * 0.28);
+
+  // Water highlights
+  ctx.strokeStyle = 'rgba(100,160,255,0.3)';
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 6; i++) {
+    const wy = waterY + 15 + i * 25;
+    const wx = w * 0.6 + Math.random() * w * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(wx, wy);
+    ctx.lineTo(wx + 40 + Math.random() * 60, wy);
+    ctx.stroke();
+  }
+
+  // Title
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.8)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetX = 4;
+  ctx.shadowOffsetY = 4;
+
+  const titleSize = Math.max(60, w / 10);
+  ctx.font = `bold ${titleSize}px "Courier New", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+
+  // Title outline
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = titleSize * 0.08;
+  ctx.strokeText('BLOCKFORGE', w/2, h * 0.38);
+
+  // Title fill
+  const titleGrad = ctx.createLinearGradient(w/2 - 300, h*0.38 - titleSize/2, w/2 + 300, h*0.38 + titleSize/2);
+  titleGrad.addColorStop(0, '#ffffff');
+  titleGrad.addColorStop(0.5, '#d0d0d0');
+  titleGrad.addColorStop(1, '#ffffff');
+  ctx.fillStyle = titleGrad;
+  ctx.fillText('BLOCKFORGE', w/2, h * 0.38);
+
+  // Subtitle
+  const subSize = Math.max(18, w / 50);
+  ctx.font = `${subSize}px "Courier New", monospace`;
+  ctx.fillStyle = '#ccc';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = subSize * 0.06;
+  ctx.strokeText('Build  ·  Mine  ·  Survive  ·  Play Together', w/2, h * 0.38 + titleSize * 0.8);
+
+  ctx.restore();
+}
+
+// Draw all three covers
+drawScene(document.getElementById('landscape').getContext('2d'), 1920, 1080);
+drawScene(document.getElementById('portrait').getContext('2d'), 800, 1200);
+drawScene(document.getElementById('square').getContext('2d'), 800, 800);
+</script>
+</body>
+</html>

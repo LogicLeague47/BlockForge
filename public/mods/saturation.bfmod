@@ -1,0 +1,90 @@
+// ─── BlockForge Mod: Saturation Viewer (AppleSkin style) ─────────────────
+// Shows your hunger AND the hidden saturation reserve directly on the HUD.
+//
+// Like the AppleSkin mod for Minecraft, saturation is drawn as a translucent
+// white overlay ON TOP of the hunger bar: while your saturation reserve is
+// full the bar looks whitish, and as it drains (sprinting, jumping, mining)
+// the white overlay retreats from the right. The green hunger bar underneath
+// only shrinks once saturation is empty.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-saturation-viewer',
+  name: 'Saturation Viewer',
+  version: '1.1',
+  description: 'AppleSkin-style: hidden saturation shown as a translucent overlay on the hunger bar.',
+  author: 'BlockForge Dev',
+  icon: '🍗',
+};
+
+let el = null;
+let _timer = 0;
+let _hungerEl = null;
+let _satEl = null;
+let _numsEl = null;
+
+function ensureEl(api) {
+  if (el) return;
+  el = api.hud.upsert(
+    'sat',
+    // 10 MC-style shanks on a dark tray; saturation is a translucent white
+    // overlay anchored left, clipped to the hunger level.
+    '<div style="position:relative;width:160px;height:14px;">' +
+      '<div class="bfsat-bg" style="position:absolute;inset:0;display:flex;gap:1px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.35);border-radius:3px;padding:1px;">' +
+        '<div class="bfsat-shank" style="flex:1;background:rgba(0,0,0,0.6);border-radius:1px;"></div>'.repeat(10) +
+      '</div>' +
+      '<div class="bfsat-hunger" style="position:absolute;inset:0;display:flex;gap:1px;padding:1px;">' +
+        '<div class="bfsat-shank" style="flex:1;background:linear-gradient(180deg,#9cff8f,#4fb84a);border-radius:1px;"></div>'.repeat(10) +
+      '</div>' +
+      '<div class="bfsat-sat" style="position:absolute;left:1px;top:1px;bottom:1px;background:linear-gradient(180deg,rgba(255,255,255,0.55),rgba(255,255,255,0.25));border-radius:2px;width:0%;pointer-events:none;"></div>' +
+    '</div>' +
+    '<div style="font:9px monospace;color:rgba(255,255,255,0.55);text-align:center;margin-top:3px;text-shadow:1px 1px 0 #000;"><span class="bfsat-nums"></span></div>',
+    { left: '50%', bottom: '86px', transform: 'translateX(-50%)' }
+  );
+  _hungerEl = el.querySelector('.bfsat-hunger');
+  _satEl = el.querySelector('.bfsat-sat');
+  _numsEl = el.querySelector('.bfsat-nums');
+}
+
+export function onUnload(api) {
+  if (el) el.remove();
+  el = _hungerEl = _satEl = _numsEl = null;
+}
+
+export function onTick(dt, api) {
+  ensureEl(api);
+  if (!api.inGame()) { if (el) el.style.display = 'none'; return; }
+  const p = api.getPlayer();
+  if (!p) return;
+  el.style.display = '';
+
+  _timer += dt;
+  if (_timer < 0.1) return;
+  _timer = 0;
+
+  const max = p.maxHunger || 20;
+  const hunger = Math.max(0, Math.min(max, p.hunger || 0));
+  const sat = Math.max(0, Math.min(hunger, p.saturation || 0));
+
+  if (_hungerEl) {
+    // Light each shank (2 hunger points each): full, half, or dark.
+    let h = '';
+    for (let i = 0; i < 10; i++) {
+      const start = i * 2;
+      const full = hunger >= start + 2;
+      const half = !full && hunger >= start + 1;
+      h += '<div class="bfsat-shank" style="flex:1;background:' +
+        (full ? 'linear-gradient(180deg,#9cff8f,#4fb84a)' : half ? 'linear-gradient(180deg,#9cff8f,#4fb84a);opacity:0.45' : 'transparent') +
+        ';border-radius:1px;"></div>';
+    }
+    _hungerEl.innerHTML = h;
+  }
+  // Saturation overlay: white translucent band on top of the hunger bar,
+  // clipped so it never exceeds the current hunger level.
+  if (_satEl) _satEl.style.width = Math.round((sat / max) * 100) + '%';
+  if (_numsEl) {
+    _numsEl.innerHTML = 'Saturation <b style="color:#e8c46a;">' + sat.toFixed(1) + '</b> / ' + max;
+  }
+}

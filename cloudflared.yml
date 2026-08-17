@@ -1,0 +1,6 @@
+tunnel: eb610e3c-6a23-4efb-b8a2-6272f2bf658e
+credentials-file: /Users/wiggillton/.cloudflared/eb610e3c-6a23-4efb-b8a2-6272f2bf658e.json
+ingress:
+  - hostname: eb610e3c-6a23-4efb-b8a2-6272f2bf658e.cfargotunnel.com
+    service: http://localhost:4000
+  - service: http_status:404

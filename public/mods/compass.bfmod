@@ -1,0 +1,107 @@
+// ─── BlockForge Mod: Compass Bar ──────────────────────────────────────────
+// An old-school compass strip along the top of the screen showing your
+// heading (N/S/E/W with tick marks). Toggle with X.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-compass',
+  name: 'Compass Bar',
+  version: '1.0',
+  description: 'Top-of-screen compass showing your heading. Toggle with X.',
+  author: 'BlockForge Dev',
+  icon: '🧭',
+};
+
+let enabled = true;
+let _el = null;
+let _needle = null;
+let _onToggle = null;
+
+function ensureEl(api) {
+  if (_el) return;
+  _el = api.hud.upsert(
+    'compass',
+    '<div style="position:relative;width:260px;height:26px;border-radius:8px;background:rgba(0,0,0,0.45);overflow:hidden;"></div>',
+    { top: '120px', left: '50%', marginLeft: '-130px', zIndex: '85' }
+  );
+  for (let i = 0; i < 11; i++) {
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;top:' + (i % 2 ? '6px' : '4px') + ';width:1px;height:' + (i % 2 ? '8px' : '12px') + ';background:rgba(255,255,255,0.6);';
+    _el.appendChild(d);
+  }
+  for (const [off, label] of [[0, 'W'], [90, 'N'], [180, 'E'], [270, 'S']]) {
+    const s = document.createElement('span');
+    s.style.cssText = 'position:absolute;top:4px;font:bold 9px monospace;color:#fff;text-shadow:1px 1px 0 #000;';
+    s.textContent = label;
+    s.__bfDeg = off;
+    _el.appendChild(s);
+  }
+  _needle = document.createElement('div');
+  _needle.style.cssText = 'position:absolute;top:0;bottom:0;left:50%;width:2px;background:#ff6;transform:translateX(-1px);box-shadow:0 0 4px #ff6;';
+  _el.appendChild(_needle);
+}
+
+export function onLoad(api) {
+  ensureEl(api);
+  _onToggle = (e) => {
+    if (e.key !== 'x' && e.key !== 'X') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    if (_el) _el.style.display = enabled ? '' : 'none';
+    api.hud.upsert('badge', 'COMPASS <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '120px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => {
+      api.hud.remove('badge');
+      if (_el) {
+        _el.style.top = '120px';
+        _el.style.left = '50%';
+        _el.style.marginLeft = '-130px';
+      }
+    }, 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+}
+
+function remaining(deg) {
+  return ((deg % 360) + 360) % 360;
+}
+
+export function onTick(dt, api) {
+  const p = api.getPlayer();
+  if (!_el || !_needle) return;
+  if (!enabled || !p) { _el.style.display = 'none'; return; }
+  _el.style.display = '';
+
+  // MC convention: yaw 0 faces -Z (north). Canvas offset so viewer-facing abscissa.
+  const yawDeg = ((p.yaw * 180) / Math.PI + 360) % 360;
+  // Offset the strip so the world rotates opposite to your turn.
+  const worldOffset = yawDeg;
+  for (let i = 0; i < _el.children.length; i++) {
+    const c = _el.children[i];
+    if (c === _needle) continue;
+    if (c.tagName === 'DIV') {
+      const deg = (i * 36); // 11 ticks over 360
+      let world = remaining(deg - worldOffset + 180); // convert to strip position
+      let pos = 130 - ((world - 180) / 360) * 260;
+      pos = Math.round(((pos % 260) + 260) % 260);
+      c.style.left = pos + 'px';
+      c.style.top = (i % 2 ? '6px' : '4px');
+    } else if (c.tagName === 'SPAN') {
+      const deg = c.__bfDeg != null ? c.__bfDeg : 0;
+      let world = remaining(deg - worldOffset + 180);
+      let pos = 130 - ((world - 180) / 360) * 260;
+      pos = Math.round(((pos % 260) + 260) % 260);
+      c.style.left = pos + 'px';
+    }
+  }
+  _needle.style.left = '130px';
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('compass');
+  _el = _needle = null;
+}

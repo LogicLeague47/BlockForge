@@ -1,0 +1,21 @@
+node_modules/
+dist/
+release/
+build/
+.vite/
+*.log
+.DS_Store
+__MACOSX/
+friends.json
+accounts.json
+player-data.json
+.idea/
+noip.conf
+.launch.err
+.launch.log
+blockforge-cg.zip
+downloads/
+
+# Oracle deployment secrets (never commit private keys)
+scripts/oracle/id_ed25519
+scripts/oracle/.ssh-config

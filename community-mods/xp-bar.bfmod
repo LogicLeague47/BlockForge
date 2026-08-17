@@ -1,0 +1,59 @@
+// ─── BlockForge Community Mod: Simple XP Bar ───────────────────────────────
+// A seed community mod showing how third-party .bfmod files are hosted on the
+// BlockForge community mods page. Displays a small animated XP bar HUD.
+//
+// How to install: download the .bfmod, then in-game → Mods & Addons → Import.
+
+export const manifest = {
+  id: 'bf-xp-bar',
+  name: 'Simple XP Bar',
+  version: '1.0',
+  description: 'Shows a placeholder XP bar with animated shimmer. A sample community mod.',
+  author: 'Community',
+  icon: '📊',
+};
+
+let el = null;
+let _onToggle = null;
+let enabled = true;
+
+function ensureEl(api) {
+  if (el) return;
+  el = api.hud.upsert(
+    'xp',
+    '<div style="width:120px;height:5px;background:rgba(255,255,255,0.15);border-radius:3px;overflow:hidden;">' +
+    '<div style="width:0%;height:100%;background:linear-gradient(90deg,#2f5,#2d9);border-radius:3px;"></div>' +
+    '</div>',
+    { bottom: '84px', left: '50%', marginLeft: '-60px', zIndex: '87' }
+  );
+}
+
+export function onLoad(api) {
+  ensureEl(api);
+  _onToggle = (e) => {
+    if (e.key !== 'b' && e.key !== 'B') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    if (el) el.style.display = enabled ? '' : 'none';
+  };
+  document.addEventListener('keydown', _onToggle);
+}
+
+export function onTick(dt, api) {
+  if (!el || !api.inGame()) return;
+  el.style.display = enabled ? '' : 'none';
+  const bar = el.querySelector('div > div');
+  if (!bar) return;
+  const p = api.getPlayer();
+  const frac = Math.max(0, Math.min(1, (p ? p.hp : 1) / (p ? p.maxHp : 1)));
+  const shimmer = (Math.sin(performance.now() / 500) + 1) / 2;
+  bar.style.width = String(Math.round(frac * 100)) + '%';
+  bar.style.opacity = String(0.7 + shimmer * 0.3);
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('xp');
+  el = null;
+}

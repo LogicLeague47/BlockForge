@@ -1,0 +1,73 @@
+// ─── BlockForge Mod: Damage FX ────────────────────────────────────────────
+// Adds a red damage vignette flash when you take damage, plus a subtle
+// heartbeat pulse when your health is low. Toggle with U.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-damage-fx',
+  name: 'Damage FX',
+  version: '1.0',
+  description: 'Red screen flash on damage + low-health heartbeat pulse. Toggle with U.',
+  author: 'BlockForge Dev',
+  icon: '❤️',
+};
+
+let enabled = true;
+let _flash = null;
+let _lastHp = -1;
+let _flashTimer = 0;
+let _onToggle = null;
+
+function ensureFlash(api) {
+  if (_flash) return;
+  _flash = api.hud.upsert(
+    'fx',
+    '<div style="position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity .12s ease-out;background:radial-gradient(ellipse at center, rgba(0,0,0,0) 45%, rgba(200,20,20,0.5) 100%);"></div>',
+    { top: '0', left: '0', zIndex: '92' }
+  );
+  _flash._bfDam = _flash.querySelector('div');
+}
+
+export function onLoad(api) {
+  ensureFlash(api);
+  _onToggle = (e) => {
+    if (e.key !== 'u' && e.key !== 'U') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    api.hud.upsert('badge', 'DAMAGE FX <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '108px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+}
+
+export function onTick(dt, api) {
+  if (!enabled) { if (_flash && _flash._bfDam) { _flash._bfDam.style.opacity = '0'; } return; }
+  if (!_flash || !_flash._bfDam) return;
+  _flashTimer = Math.max(0, _flashTimer - dt);
+
+  const p = api.getPlayer();
+  if (p && p.hp !== _lastHp && _lastHp >= 0 && p.hp < _lastHp) {
+    _flashTimer = 0.25;
+  }
+  if (p) _lastHp = p.hp;
+
+  let opacity = 0;
+  if (_flashTimer > 0) {
+    opacity = Math.min(1, _flashTimer / 0.25);
+  } else if (p && p.hp > 0 && p.hp < p.maxHp * 0.3) {
+    const beat = (Math.sin(performance.now() / 380) + 1) / 2; // 0..1 pulse
+    opacity = 0.12 + beat * 0.15;
+  }
+  _flash._bfDam.style.opacity = String(opacity);
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('fx');
+  _flash = null;
+  _lastHp = -1;
+}

@@ -1,0 +1,2838 @@
+// Procedural pixel-art texture atlas.
+//
+// Generates a single 512x512 canvas (16x16 grid of 32x32 tiles) so the whole
+// world can render with one material + one texture. Every tile is drawn with a
+// small mulberry32 PRNG so textures are deterministic for a given seed and
+// chunky/pixelated rather than blurry.
+//
+// Tiles are painted at native 32px resolution (4x the detail of the old 16px
+// set), using layered passes: a per-pixel base fill, mottling patches, edge
+// bevels/shadows, specular highlights and small decorative strokes — so each
+// block reads as 3D and hand-textured instead of a flat colour.
+//
+// Public API:
+//   buildAtlas(seed)            -> canvas (512x512)
+//   makeIcon(blockId)           -> small canvas for hotbar icons
+//   tileUVRect(name)            -> {u0,v0,u1,v1}
+//   TILE                        -> pixels per tile (exported for atlas consumers)
+
+import { TILES, tileNameFor } from './blocks.js';
+
+const _makeIconCache = new Map();
+const _MAKE_ICON_CACHE_MAX = 200;
+
+export const TILE = 32;
+export const _TILES_VER = 4;       // pixels per tile
+const COLS = 16;              // tiles per row
+const ROWS = 16;
+const ATLAS = TILE * COLS;    // 512
+
+// --- small deterministic PRNG -------------------------------------------------
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function hexToRgb(h) {
+  const n = parseInt(h.slice(1), 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+function mix(a, b, t) {
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+}
+function shade(c, f) { return [c[0] * f, c[1] * f, c[2] * f]; }
+function clamp(v) { return Math.max(0, Math.min(255, Math.round(v))); }
+
+// Per-pixel "noise" so flat colors look textured (mimics Minecraft's per-texel variance).
+function noisy(ctx, x0, y0, base, variance, rng, darkness = 1) {
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const n = (rng() - 0.5) * 2 * variance;
+      const f = darkness * (1 + n);
+      ctx.fillStyle = `rgb(${clamp(base[0] * f)},${clamp(base[1] * f)},${clamp(base[2] * f)})`;
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  }
+}
+
+// Scatter `count` specks of the given pixel size, choosing colours randomly
+// from `colors`. Used for pebbles, clumps, sparks, etc.
+// Shared cobblestone body — used by cobblestone, mossy_cobblestone, and cobblestone_wall painters.
+function _drawCobblestoneBody(ctx, x0, y0, rng) {
+  noisy(ctx, x0, y0, [110, 110, 110], 0.06, rng);
+  const stoneCount = 10 + (rng() * 5 | 0);
+  for (let i = 0; i < stoneCount; i++) {
+    const sx = (rng() * (TILE - 4)) | 0;
+    const sy = (rng() * (TILE - 4)) | 0;
+    const sw = 3 + (rng() * 5 | 0);
+    const sh = 3 + (rng() * 4 | 0);
+    const base = 130 + (rng() * 30 | 0);
+    for (let py = 0; py < sh; py++) {
+      for (let px = 0; px < sw; px++) {
+        if (sx + px >= TILE || sy + py >= TILE) continue;
+        const n = (rng() - 0.5) * 0.14;
+        const edgeX = px === 0 ? 0.08 : px === sw - 1 ? -0.08 : 0;
+        const edgeY = py === 0 ? 0.08 : py === sh - 1 ? -0.08 : 0;
+        const s = 1 + n + edgeX + edgeY;
+        const c = clamp(base * s);
+        ctx.fillStyle = `rgb(${c},${c},${c})`;
+        ctx.fillRect(x0 + sx + px, y0 + sy + py, 1, 1);
+      }
+    }
+    ctx.fillStyle = 'rgba(70,70,70,0.5)';
+    for (let px = 0; px < sw; px++) {
+      if (sy + sh < TILE) ctx.fillRect(x0 + sx + px, y0 + sy + sh, 1, 1);
+    }
+    for (let py = 0; py < sh; py++) {
+      if (sx + sw < TILE) ctx.fillRect(x0 + sx + sw, y0 + sy + py, 1, 1);
+    }
+  }
+  for (let i = 0; i < 10; i++) {
+    ctx.fillStyle = 'rgb(155,155,155)';
+    ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+  }
+}
+
+function speckle(ctx, x0, y0, rng, count, colors, w = 1, h = 1) {
+  for (let i = 0; i < count; i++) {
+    const x = (rng() * (TILE - w + 1)) | 0;
+    const y = (rng() * (TILE - h + 1)) | 0;
+    ctx.fillStyle = colors[(rng() * colors.length) | 0];
+    ctx.fillRect(x0 + x, y0 + y, w, h);
+  }
+}
+
+// --- individual tile painters ------------------------------------------------
+function _leafClump(ctx, x0, y0, cx, cy, size, greens, rng) {
+  for (let dy = -size; dy <= size; dy++) {
+    for (let dx = -size; dx <= size; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > size + 0.5) continue;
+      if (dist > size - 0.5 && rng() > 0.4) continue;
+      const px = ((cx + dx) % TILE + TILE) % TILE;
+      const py = ((cy + dy) % TILE + TILE) % TILE;
+      if (ctx.getImageData(x0 + px, y0 + py, 1, 1).data[3] > 0) continue;
+      const shade = greens[(rng() * greens.length) | 0];
+      const v = (rng() * 14 - 7) | 0;
+      ctx.fillStyle = `rgb(${shade[0] + v},${shade[1] + v},${shade[2] + v})`;
+      ctx.fillRect(x0 + px, y0 + py, 1, 1);
+    }
+  }
+}
+
+function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist > radius) continue;
+      if (dist > radius - 1.2 && rng() > 0.45) continue;
+      const px = ((cx + dx) % TILE + TILE) % TILE;
+      const py = ((cy + dy) % TILE + TILE) % TILE;
+      const v = (rng() * 10 - 5) | 0;
+      ctx.fillStyle = `rgb(${clamp(color[0] + v)},${clamp(color[1] + v)},${clamp(color[2] + v)})`;
+      ctx.fillRect(x0 + px, y0 + py, 1, 1);
+    }
+  }
+}
+
+const PAINTERS = {
+  grass_top(ctx, x0, y0, rng) {
+    // Meadow-green base with natural variation (Minecraft uses ~95,159,53).
+    noisy(ctx, x0, y0, [95, 159, 53], 0.08, rng);
+    // Larger darker-green mottling patches (tufts of thicker grass).
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = 'rgba(70,120,38,0.45)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Short grass blades (vertical strokes).
+    for (let i = 0; i < 44; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      const tall = 1 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(72,135,44)' : 'rgb(120,185,70)';
+      ctx.fillRect(x0 + x, y0 + y, 1, tall);
+    }
+    // Bright sun-lit tips.
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgb(150,205,90)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  },
+
+  grass_side(ctx, x0, y0, rng) {
+    // Dirt body (Minecraft dirt: 134,96,67).
+    noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
+    // Dirt pebbles below the grass line.
+    for (let i = 0; i < 16; i++) {
+      const x = (rng() * TILE) | 0, y = 8 + (rng() * (TILE - 8)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(104,72,48)' : 'rgb(150,110,78)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+    // Grassy overhang on top ~8px with a jagged, dripping blade edge.
+    for (let x = 0; x < TILE; x++) {
+      const h = 7 + ((rng() * 5) | 0); // 7..11
+      for (let y = 0; y < h; y++) {
+        const n = (rng() - 0.5) * 0.18;
+        const g = (y < 3 ? 1.02 : 0.93) * (1 + n);
+        ctx.fillStyle = `rgb(${clamp(95 * g)},${clamp(159 * g)},${clamp(53 * g)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+      // Occasional longer dripping blade.
+      if (rng() < 0.3) {
+        const d = 1 + (rng() * 3 | 0);
+        ctx.fillStyle = 'rgb(72,130,42)';
+        ctx.fillRect(x0 + x, y0 + h, 1, d);
+      }
+    }
+    // Bright grass highlight along the very top edge.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.5) { ctx.fillStyle = 'rgb(132,196,82)'; ctx.fillRect(x0 + x, y0, 1, 1); }
+    }
+  },
+
+  snow_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
+    for (let i = 0; i < 12; i++) {
+      const x = (rng() * TILE) | 0, y = 9 + (rng() * (TILE - 9)) | 0;
+      ctx.fillStyle = 'rgb(110,78,52)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+    // Smooth snow cap with a gentle wavy edge.
+    for (let x = 0; x < TILE; x++) {
+      const h = 8 + ((rng() * 4) | 0);
+      for (let y = 0; y < h; y++) {
+        const n = (rng() - 0.5) * 0.05;
+        const f = 1 + n;
+        ctx.fillStyle = `rgb(${clamp(248 * f)},${clamp(250 * f)},${clamp(255 * f)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    // Sparkle highlights on the snow surface.
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * 8) | 0;
+      ctx.fillStyle = 'rgb(255,255,255)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  },
+
+  dirt(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [134, 96, 67], 0.09, rng);
+    // Darker clods of varying size.
+    for (let i = 0; i < 16; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(108,76,50)' : 'rgb(122,86,58)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+    // Small pale stones.
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * (TILE - 2)) | 0, y = (rng() * (TILE - 2)) | 0;
+      ctx.fillStyle = 'rgb(120,118,112)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(152,150,144)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Light dry specks.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgb(158,118,84)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  },
+
+  stone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    // Soft mottling patches (lighter + darker).
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * (TILE - 7)) | 0, y = (rng() * (TILE - 7)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 5 + (rng() * 4 | 0), 5 + (rng() * 4 | 0));
+    }
+    // Fine dark/light speckle.
+    for (let i = 0; i < 24; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = rng() < 0.6 ? 'rgb(105,105,105)' : 'rgb(152,152,152)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Wandering crack lines.
+    for (let i = 0; i < 3; i++) {
+      let x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = 'rgb(85,85,85)';
+      const len = 5 + (rng() * 6 | 0);
+      for (let j = 0; j < len; j++) {
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+        x += (rng() < 0.5 ? 1 : 0);
+        y += (rng() < 0.6 ? 1 : (rng() < 0.5 ? -1 : 0));
+        if (x > TILE - 1 || y < 0 || y > TILE - 1) break;
+      }
+    }
+  },
+
+  cobblestone(ctx, x0, y0, rng) {
+    _drawCobblestoneBody(ctx, x0, y0, rng);
+    // Dark specks in mortar gaps.
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = 'rgb(85,85,85)';
+      ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    }
+  },
+
+  wood_top(ctx, x0, y0, rng) {
+    // Minecraft oak log top: concentric growth rings.
+    noisy(ctx, x0, y0, [156, 120, 72], 0.05, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    // Outer bark ring (dark).
+    ctx.strokeStyle = 'rgb(95,72,42)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 1.5, 0, Math.PI * 2); ctx.stroke();
+    // Inner rings.
+    for (let r = TILE / 2 - 4; r > 1; r -= 3) {
+      ctx.strokeStyle = `rgba(125,92,52,${0.5 + rng() * 0.2})`;
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    // Pith (centre).
+    ctx.fillStyle = 'rgb(120,90,55)';
+    ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+    ctx.fillStyle = 'rgb(95,70,40)';
+    ctx.fillRect(x0 + cx, y0 + cy, 1, 1);
+  },
+
+  wood_side(ctx, x0, y0, rng) {
+    // Minecraft oak bark: dark brown with strong vertical grain.
+    noisy(ctx, x0, y0, [109, 84, 52], 0.05, rng);
+    // Darker grain grooves running vertically.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.35) {
+        ctx.fillStyle = 'rgba(82,60,36,0.55)';
+        const h = 8 + (rng() * 18 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    // Lighter raised bark ridges.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.25) {
+        ctx.fillStyle = 'rgba(140,108,66,0.5)';
+        const h = 6 + (rng() * 12 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    // Horizontal bark ridge lines.
+    for (let i = 0; i < 3; i++) {
+      const y = 4 + (rng() * (TILE - 8)) | 0;
+      ctx.fillStyle = 'rgba(76,56,33,0.4)';
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+    // Occasional knot.
+    if (rng() < 0.6) {
+      const kx = 6 + (rng() * (TILE - 12)) | 0, ky = 6 + (rng() * (TILE - 12)) | 0;
+      ctx.fillStyle = 'rgb(70,52,30)';
+      ctx.beginPath(); ctx.arc(x0 + kx, y0 + ky, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgb(95,72,42)';
+      ctx.beginPath(); ctx.arc(x0 + kx, y0 + ky, 1.5, 0, Math.PI * 2); ctx.fill();
+    }
+  },
+
+  leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+
+    // Minecraft oak leaves: ~#6ca84a base with small scattered transparent
+    // holes (~10-15%) and subtle darker/lighter organic patches.
+    const base = [100, 168, 60];
+    const dark = [68, 128, 40];
+    const light = [135, 196, 85];
+
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 8 - 4) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+
+    // Organic dark clusters (drawn via _leafCluster for natural circular patches)
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    // Light clusters
+    for (let i = 0; i < 8; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    // Scattered transparent holes — ~3.5% of tile (35 out of 1024)
+    for (let i = 0; i < 35; i++) {
+      ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
+    }
+  },
+
+  sand(ctx, x0, y0, rng) {
+    // Minecraft sand: 219,211,160.
+    noisy(ctx, x0, y0, [219, 211, 160], 0.05, rng);
+    // Faint ripple bands.
+    for (let y = 3; y < TILE; y += 6) {
+      ctx.fillStyle = 'rgba(205,197,148,0.4)';
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+    speckle(ctx, x0, y0, rng, 18, ['rgb(232,224,174)', 'rgb(202,194,145)']);
+    // A few pebbles / shell fragments.
+    for (let i = 0; i < 4; i++) {
+      const x = (rng() * (TILE - 2)) | 0, y = (rng() * (TILE - 2)) | 0;
+      ctx.fillStyle = 'rgb(180,170,140)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 1);
+      ctx.fillStyle = 'rgb(212,202,170)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  },
+
+  red_sand(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [191, 110, 64], 0.07, rng);
+    for (let y = 4; y < TILE; y += 6) {
+      ctx.fillStyle = 'rgba(170,96,54,0.4)';
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+    speckle(ctx, x0, y0, rng, 16, ['rgb(206,122,72)', 'rgb(172,98,56)']);
+  },
+
+  water(ctx, x0, y0, rng) {
+    // Minecraft water blue: 47,98,188 with wave highlights.
+    noisy(ctx, x0, y0, [47, 98, 188], 0.05, rng);
+    // Paired wave lines for a soft ripple feel.
+    for (let y = 3; y < TILE; y += 5) {
+      ctx.fillStyle = 'rgba(110,160,235,0.3)';
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+      ctx.fillStyle = 'rgba(90,140,220,0.3)';
+      ctx.fillRect(x0, y0 + y + 1, TILE, 1);
+    }
+    // Scattered ripple streaks.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 6)) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(122,172,242,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 4 | 0), 1);
+    }
+    // Foam sparkles.
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(222,238,255,0.6)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+  },
+
+  bedrock(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [85, 85, 85], 0.2, rng);
+    // Black chunks.
+    for (let i = 0; i < 12; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgb(38,38,38)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+    // Lighter grey chunks (mineral veins).
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 2)) | 0, y = (rng() * (TILE - 2)) | 0;
+      ctx.fillStyle = 'rgb(130,130,130)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+    speckle(ctx, x0, y0, rng, 4, ['rgb(166,166,166)']);
+  },
+
+  planks(ctx, x0, y0, rng) {
+    planksBody(ctx, x0, y0, rng);
+    // Staggered nails at the seam of each plank.
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0;
+      const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(86,68,40)';
+      ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(152,142,122)';
+      ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  coal_ore(ctx, x0, y0, rng) { ore(ctx, x0, y0, rng, [35, 35, 35]); },
+  iron_ore(ctx, x0, y0, rng) { ore(ctx, x0, y0, rng, [196, 168, 132]); },
+  gold_ore(ctx, x0, y0, rng) { ore(ctx, x0, y0, rng, [232, 201, 60]); },
+  diamond_ore(ctx, x0, y0, rng) { ore(ctx, x0, y0, rng, [99, 220, 206]); },
+
+  snow(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [244, 246, 250], 0.04, rng);
+    // Bright sparkles.
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgb(255,255,255)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Faint shadow drifts.
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgba(220,228,240,0.5)';
+      ctx.fillRect(x0 + x, y0 + y, 3, 2);
+    }
+  },
+
+  glass(ctx, x0, y0, rng) {
+    // Clear centre with a visible bordered pane (Minecraft style).
+    ctx.clearRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = 'rgba(180,210,225,0.10)';
+    ctx.fillRect(x0, y0, TILE, TILE);
+    // 2px border.
+    ctx.fillStyle = 'rgba(200,220,230,0.85)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    // Inner bevel highlight (top-left).
+    ctx.fillStyle = 'rgba(236,248,255,0.7)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    // Diagonal shine streak.
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillRect(x0 + 4, y0 + 4, 8, 1);
+    ctx.fillRect(x0 + 4, y0 + 5, 6, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillRect(x0 + 5, y0 + 6, 4, 1);
+  },
+
+  brick(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 60, 48], 0.04, rng);
+    // Mortar grid.
+    ctx.fillStyle = 'rgba(210,208,200,0.92)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = ((y / 8) % 2) ? 16 : 0;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    // Per-brick top highlight + bottom shadow for a beveled look.
+    for (let y = 0; y < TILE; y += 8) {
+      ctx.fillStyle = 'rgba(182,82,64,0.5)';
+      ctx.fillRect(x0, y0 + y + 1, TILE, 1);
+      ctx.fillStyle = 'rgba(110,42,34,0.4)';
+      ctx.fillRect(x0, y0 + y + 7, TILE, 1);
+    }
+    speckle(ctx, x0, y0, rng, 12, ['rgb(172,74,58)', 'rgb(130,50,40)']);
+  },
+
+  brick_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 60, 48], 0.04, rng);
+    speckle(ctx, x0, y0, rng, 14, ['rgb(172,74,58)', 'rgb(130,50,40)']);
+  },
+
+  gravel(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [128, 120, 116], 0.16, rng);
+    // Pebbles of varied tone.
+    for (let i = 0; i < 26; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      const s = 2 + (rng() * 2 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(110,102,98)' : 'rgb(150,142,138)';
+      ctx.fillRect(x0 + x, y0 + y, s, s);
+      ctx.fillStyle = 'rgba(180,174,170,0.6)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(85,80,76)']);
+  },
+
+  clay(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [160, 166, 176], 0.03, rng);
+    // Faint drying cracks.
+    for (let i = 0; i < 3; i++) {
+      let x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(140,146,158,0.5)';
+      for (let j = 0; j < 6; j++) {
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+        x += (rng() < 0.5 ? 1 : 0);
+        y += (rng() < 0.5 ? 1 : -1);
+        if (x > TILE - 1 || y < 0 || y > TILE - 1) break;
+      }
+    }
+  },
+
+  pumpkin_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [200, 122, 40], 0.05, rng);
+    // Ridges radiating from the stem.
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgba(160,95,30,0.6)';
+    ctx.lineWidth = 1;
+    for (let a = 0; a < 8; a++) {
+      const ang = (a / 8) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(x0 + cx, y0 + cy);
+      ctx.lineTo(x0 + cx + Math.cos(ang) * (TILE / 2 - 2), y0 + cy + Math.sin(ang) * (TILE / 2 - 2));
+      ctx.stroke();
+    }
+    // Stem.
+    ctx.fillStyle = 'rgb(90,60,28)';
+    ctx.fillRect(x0 + cx - 3, y0 + cy - 3, 6, 6);
+    ctx.fillStyle = 'rgb(112,78,38)';
+    ctx.fillRect(x0 + cx - 2, y0 + cy - 2, 4, 4);
+  },
+
+  pumpkin_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [206, 130, 44], 0.05, rng);
+    // Vertical ridges with shadow + highlight.
+    for (let x = 2; x < TILE; x += 5) {
+      ctx.fillStyle = 'rgba(160,95,30,0.6)';
+      ctx.fillRect(x0 + x, y0, 2, TILE);
+      ctx.fillStyle = 'rgba(226,156,72,0.4)';
+      ctx.fillRect(x0 + x + 2, y0, 1, TILE);
+    }
+  },
+
+  pumpkin_front(ctx, x0, y0, rng) {
+    // Jack-o-lantern: ridged body + glowing carved face.
+    noisy(ctx, x0, y0, [206, 130, 44], 0.05, rng);
+    for (let x = 2; x < TILE; x += 5) {
+      ctx.fillStyle = 'rgba(160,95,30,0.5)';
+      ctx.fillRect(x0 + x, y0, 2, TILE);
+    }
+    ctx.fillStyle = 'rgb(255,180,30)';
+    // Triangle eyes.
+    ctx.fillRect(x0 + 5, y0 + 8, 6, 1);
+    ctx.fillRect(x0 + 6, y0 + 9, 4, 1);
+    ctx.fillRect(x0 + 7, y0 + 10, 2, 1);
+    ctx.fillRect(x0 + 21, y0 + 8, 6, 1);
+    ctx.fillRect(x0 + 22, y0 + 9, 4, 1);
+    ctx.fillRect(x0 + 23, y0 + 10, 2, 1);
+    // Jagged mouth.
+    ctx.fillRect(x0 + 6, y0 + 20, 20, 1);
+    ctx.fillRect(x0 + 6, y0 + 21, 3, 2);
+    ctx.fillRect(x0 + 12, y0 + 21, 3, 2);
+    ctx.fillRect(x0 + 18, y0 + 21, 3, 2);
+    ctx.fillRect(x0 + 24, y0 + 21, 2, 2);
+    // Inner brighter glow flecks.
+    ctx.fillStyle = 'rgb(255,232,120)';
+    ctx.fillRect(x0 + 7, y0 + 9, 1, 1);
+    ctx.fillRect(x0 + 23, y0 + 9, 1, 1);
+  },
+
+  cactus_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [70, 130, 60], 0.06, rng);
+    // Dark outer rim.
+    ctx.fillStyle = 'rgb(60,112,52)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    // Pale inner flesh.
+    ctx.fillStyle = 'rgba(96,166,82,0.6)';
+    ctx.fillRect(x0 + 8, y0 + 8, TILE - 16, TILE - 16);
+    // Pith.
+    ctx.fillStyle = 'rgb(60,112,52)';
+    ctx.fillRect(x0 + TILE / 2 - 2, y0 + TILE / 2 - 2, 4, 4);
+  },
+
+  cactus_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [74, 138, 64], 0.06, rng);
+    // Dark edge ribs.
+    ctx.fillStyle = 'rgba(50,90,40,0.75)';
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    // Vertical highlight ribs.
+    for (let x = 6; x < TILE - 6; x += 6) {
+      ctx.fillStyle = 'rgba(100,168,82,0.4)';
+      ctx.fillRect(x0 + x, y0, 1, TILE);
+    }
+    // Areoles (white spine dots) up each edge.
+    for (let y = 4; y < TILE; y += 6) {
+      ctx.fillStyle = 'rgb(230,230,210)';
+      ctx.fillRect(x0 + 2, y0 + y, 1, 1);
+      ctx.fillRect(x0 + TILE - 3, y0 + y, 1, 1);
+    }
+  },
+
+  flower_red(ctx, x0, y0, rng) { poppy(ctx, x0, y0, rng); },
+  flower_yellow(ctx, x0, y0, rng) { dandelion(ctx, x0, y0, rng); },
+
+  sapling_oak(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#6a4a2a', '#3f9a3f'); },
+  sapling_jungle(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#7a5230', '#2f8f2f'); },
+  sapling_birch(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#9a8a74', '#5fae4a'); },
+  sapling_spruce(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#5a4020', '#2f7f3a'); },
+  sapling_dark_oak(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#3a2a18', '#2f6f2f'); },
+  sapling_acacia(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#8a6a40', '#6fbf3a'); },
+
+  bookshelf_top(ctx, x0, y0, rng) { planksBody(ctx, x0, y0, rng); },
+
+  bookshelf_side(ctx, x0, y0, rng) {
+    // Plank back.
+    planksBody(ctx, x0, y0, rng);
+    // Top / middle / bottom shelf boards.
+    ctx.fillStyle = 'rgb(90,68,40)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE / 2 - 1, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    // Coloured books standing on the lower board of each compartment.
+    const palette = ['#7a2a2a', '#2a4a7a', '#2a7a3a', '#7a7a2a', '#5a2a7a', '#7a4a2a', '#2a6a7a', '#6a2a5a'];
+    function drawShelf(boardBottomY, topY) {
+      let x = 2;
+      while (x < TILE - 3) {
+        const w = 2 + (rng() * 2 | 0);
+        const maxH = boardBottomY - topY;
+        const h = Math.min(maxH, 9 + (rng() * 3 | 0));
+        ctx.fillStyle = palette[(rng() * palette.length) | 0];
+        ctx.fillRect(x0 + x, y0 + boardBottomY - h, w, h);
+        // Top page edge.
+        ctx.fillStyle = 'rgba(240,235,220,0.85)';
+        ctx.fillRect(x0 + x, y0 + boardBottomY - h, w, 1);
+        // Spine highlight.
+        ctx.fillStyle = 'rgba(255,255,255,0.15)';
+        ctx.fillRect(x0 + x, y0 + boardBottomY - h + 1, 1, h - 1);
+        x += w + 1;
+      }
+    }
+    drawShelf(15, 2);
+    drawShelf(30, 17);
+  },
+
+  obsidian(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [30, 24, 44], 0.14, rng);
+    // Glossy purple sheen streaks.
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgba(120,90,180,0.45)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 1);
+    }
+    // Bright specular flecks.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(172,142,222,0.6)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Cracks.
+    for (let i = 0; i < 2; i++) {
+      let x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = 'rgba(15,10,24,0.8)';
+      for (let j = 0; j < 6; j++) {
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+        x += (rng() < 0.5 ? 1 : 0);
+        y += (rng() < 0.5 ? 1 : -1);
+        if (x > TILE - 1 || y < 0 || y > TILE - 1) break;
+      }
+    }
+  },
+
+  tnt_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [180, 40, 40], 0.05, rng);
+    // Fuse disk in the centre.
+    ctx.fillStyle = 'rgb(60,60,60)';
+    ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgb(92,92,92)';
+    ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, 4, 0, Math.PI * 2); ctx.fill();
+    // TNT label.
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 7px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TNT', x0 + TILE / 2, y0 + TILE / 2 + 1);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  },
+
+  tnt_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [190, 44, 44], 0.05, rng);
+    // White label band.
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(x0, y0 + 6, TILE, 10);
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 7px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('TNT', x0 + TILE / 2, y0 + 11);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+    // Bottom shadow seam.
+    ctx.fillStyle = 'rgba(140,28,28,0.6)';
+    ctx.fillRect(x0, y0 + 16, TILE, 1);
+  },
+
+  tnt_bottom(ctx, x0, y0, rng) { noisy(ctx, x0, y0, [90, 28, 28], 0.05, rng); },
+
+  crafting_top(ctx, x0, y0, rng) {
+    planksBody(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  crafting_side(ctx, x0, y0, rng) {
+    planksBody(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  netherrack(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 40, 40], 0.16, rng);
+    // Dark porous pits.
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgb(74,20,20)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+    // Glowing embers.
+    speckle(ctx, x0, y0, rng, 5, ['rgb(192,72,50)']);
+  },
+
+  terracotta(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 90, 70], 0.04, rng);
+    // Concentric diamond pattern.
+    ctx.strokeStyle = 'rgba(120,60,40,0.6)';
+    ctx.lineWidth = 1;
+    for (let i = 2; i <= TILE / 2; i += 4) {
+      ctx.beginPath();
+      ctx.moveTo(x0 + TILE / 2, y0 + TILE / 2 - i);
+      ctx.lineTo(x0 + TILE / 2 + i, y0 + TILE / 2);
+      ctx.lineTo(x0 + TILE / 2, y0 + TILE / 2 + i);
+      ctx.lineTo(x0 + TILE / 2 - i, y0 + TILE / 2);
+      ctx.closePath();
+      ctx.stroke();
+    }
+  },
+
+  furnace_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
+    // Stone rim.
+    ctx.fillStyle = 'rgb(80,80,80)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
+    ctx.fillStyle = 'rgb(122,122,122)';
+    ctx.fillRect(x0 + 3, y0 + 3, TILE - 6, TILE - 6);
+    // Inner bowl.
+    ctx.fillStyle = 'rgb(70,70,70)';
+    ctx.fillRect(x0 + 6, y0 + 6, TILE - 12, TILE - 12);
+  },
+
+  furnace_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
+    // Beveled stone frame.
+    ctx.fillStyle = 'rgb(80,80,80)';
+    ctx.fillRect(x0 + 1, y0 + 1, TILE - 2, TILE - 2);
+    ctx.fillStyle = 'rgb(126,126,126)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
+    // Top-left highlight.
+    ctx.fillStyle = 'rgb(142,142,142)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    // Bottom-right shadow.
+    ctx.fillStyle = 'rgb(95,95,95)';
+    ctx.fillRect(x0 + 2, y0 + TILE - 3, TILE - 4, 1);
+    ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, TILE - 4);
+  },
+
+  furnace_front(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
+    // Frame.
+    ctx.fillStyle = 'rgb(80,80,80)';
+    ctx.fillRect(x0 + 1, y0 + 1, TILE - 2, TILE - 2);
+    ctx.fillStyle = 'rgb(126,126,126)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
+    // Dark furnace opening.
+    ctx.fillStyle = 'rgb(40,40,40)';
+    ctx.fillRect(x0 + 6, y0 + 8, TILE - 12, 12);
+    // Fire glow at the bottom of the opening.
+    ctx.fillStyle = 'rgb(255,140,30)';
+    ctx.fillRect(x0 + 7, y0 + 17, TILE - 14, 2);
+    ctx.fillStyle = 'rgb(255,202,82)';
+    ctx.fillRect(x0 + 9, y0 + 18, TILE - 18, 1);
+    // Frame top highlight.
+    ctx.fillStyle = 'rgb(146,146,146)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+  },
+
+  podzol_top(ctx, x0, y0, rng) {
+    // Dead-leaf / needle layer.
+    noisy(ctx, x0, y0, [120, 88, 40], 0.1, rng);
+    // Dark pine-needle clumps.
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgb(60,90,40)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 1);
+    }
+    // Twig bits.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 2)) | 0, y = (rng() * (TILE - 2)) | 0;
+      ctx.fillStyle = 'rgb(90,64,30)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 1);
+    }
+  },
+
+  podzol_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [120, 88, 40], 0.08, rng);
+    // Top needle layer.
+    ctx.fillStyle = 'rgb(70,100,46)';
+    ctx.fillRect(x0, y0, TILE, 5);
+    ctx.fillStyle = 'rgb(60,90,40)';
+    for (let i = 0; i < 8; i++) ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * 4 | 0), 2, 1);
+    // Dirt body specks.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * TILE | 0), y = 8 + (rng() * (TILE - 10) | 0);
+      ctx.fillStyle = 'rgb(96,68,36)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+  },
+
+  mycelium_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [130, 110, 130], 0.08, rng);
+    // Pale mushroom-soil speckle.
+    ctx.fillStyle = 'rgb(178,156,178)';
+    for (let i = 0; i < 14; i++) ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    ctx.fillStyle = 'rgb(144,128,160)';
+    for (let i = 0; i < 10; i++) ctx.fillRect(x0 + (rng() * (TILE - 2) | 0), y0 + (rng() * (TILE - 2) | 0), 2, 2);
+    // White mycelium threads.
+    ctx.fillStyle = 'rgb(240,235,245)';
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * (TILE - 1) | 0), y = (rng() * TILE | 0);
+      ctx.fillRect(x0 + x, y0 + y, 2, 1);
+    }
+    // A tiny red mushroom cap.
+    if (rng() < 0.7) {
+      const mx = 6 + (rng() * (TILE - 12) | 0), my = 6 + (rng() * (TILE - 12) | 0);
+      ctx.fillStyle = 'rgb(190,60,50)';
+      ctx.fillRect(x0 + mx, y0 + my, 4, 2);
+      ctx.fillRect(x0 + mx + 1, y0 + my - 1, 2, 1);
+      ctx.fillStyle = 'rgb(240,235,225)';
+      ctx.fillRect(x0 + mx + 1, y0 + my, 1, 1);
+      ctx.fillRect(x0 + mx + 3, y0 + my + 1, 1, 1);
+    }
+  },
+
+  mycelium_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [134, 96, 67], 0.07, rng);
+    // Mycelium top layer.
+    ctx.fillStyle = 'rgb(178,156,178)';
+    ctx.fillRect(x0, y0, TILE, 5);
+    ctx.fillStyle = 'rgb(144,128,160)';
+    for (let i = 0; i < 6; i++) ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * 4 | 0), 2, 1);
+    // White threads dripping down.
+    ctx.fillStyle = 'rgb(240,235,245)';
+    for (let i = 0; i < 5; i++) ctx.fillRect(x0 + (rng() * TILE | 0), y0 + 5 + (rng() * 4 | 0), 1, 1);
+  },
+
+  jungle_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 75, 40], 0.06, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(70,52,26)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(85,62,32,0.5)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(70,52,26)';
+    ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  jungle_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [95, 70, 35], 0.08, rng);
+    // Jungle bark is strongly horizontally banded.
+    ctx.fillStyle = 'rgba(70,52,26,0.5)';
+    for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
+    // Vertical specks.
+    ctx.fillStyle = 'rgba(120,92,50,0.4)';
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * TILE | 0), y = (rng() * TILE | 0);
+      ctx.fillRect(x0 + x, y0 + y, 1, 2);
+    }
+  },
+
+  dark_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+
+    const base = [48, 96, 30];
+    const dark = [32, 68, 20];
+    const light = [68, 128, 46];
+
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 8 - 4) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+
+    for (let i = 0; i < 16; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(dark[0] + v)},${clamp(dark[1] + v)},${clamp(dark[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    for (let i = 0; i < 6; i++) {
+      const cx = (rng() * TILE) | 0;
+      const cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > radius || (dist > radius - 1.2 && rng() > 0.45)) continue;
+          const px = ((cx + dx) % TILE + TILE) % TILE;
+          const py = ((cy + dy) % TILE + TILE) % TILE;
+          const v = (rng() * 10 - 5) | 0;
+          ctx.fillStyle = `rgb(${clamp(light[0] + v)},${clamp(light[1] + v)},${clamp(light[2] + v)})`;
+          ctx.fillRect(x0 + px, y0 + py, 1, 1);
+        }
+      }
+    }
+
+    for (let i = 0; i < 25; i++) {
+      ctx.clearRect(x0 + ((rng() * TILE) | 0), y0 + ((rng() * TILE) | 0), 1, 1);
+    }
+  },
+
+  snow_block(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [240, 245, 255], 0.03, rng);
+    for (let i = 0; i < 12; i++) {
+      ctx.fillStyle = 'rgb(228,236,250)';
+      ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    }
+    // Sparkle.
+    speckle(ctx, x0, y0, rng, 8, ['rgb(255,255,255)']);
+  },
+
+  // ── BED textures ──────────────────────────────────────────────────
+  // Red bedspread, white pillow, oak wood frame — Minecraft style.
+  // The top texture shows the full bed from above (pillow at top, blanket below).
+  // Both blocks use the same textures but orientation makes them look correct.
+
+  bed_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Oak wood frame border (1px)
+    const m = 1;
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
+    // Red bedspread fill
+    noisy(ctx, x0 + m, y0 + m, [180, 40, 30], 0.06, rng);
+    // Quilting lines on blanket
+    for (let i = 0; i < 4; i++) {
+      const ly = y0 + m + 10 + i * 3;
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0 + m, ly, S - m * 2, 1);
+    }
+    // Subtle highlights on blanket
+    for (let i = 0; i < 4; i++) {
+      ctx.fillStyle = 'rgba(220,70,60,0.3)';
+      ctx.fillRect(x0 + m + 2 + (rng() * (S - m * 2 - 6) | 0), y0 + m + 12 + (rng() * (S - m * 2 - 12) | 0), 2, 2);
+    }
+    // White pillow area (top 5px)
+    const ph = 5;
+    ctx.fillStyle = 'rgb(245,245,250)';
+    ctx.fillRect(x0 + m + 1, y0 + m, S - m * 2 - 2, ph);
+    // Pillow shading — indent
+    ctx.fillStyle = 'rgba(210,210,220,0.5)';
+    ctx.fillRect(x0 + m + 3, y0 + m + 1, S - m * 2 - 6, ph - 2);
+    // Pillow border
+    ctx.fillStyle = 'rgb(200,200,210)';
+    ctx.fillRect(x0 + m + 1, y0 + m + ph, S - m * 2 - 2, 1);
+  },
+
+  bed_side(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Bottom half: oak wood frame (legs)
+    const woodH = Math.floor(S * 0.5);
+    const woodY = S - woodH;
+    noisy(ctx, x0, y0 + woodY, [139, 90, 43], 0.06, rng);
+    // Wood grain
+    for (let i = 0; i < 3; i++) {
+      const gy = y0 + woodY + 2 + (rng() * (woodH - 4) | 0);
+      ctx.fillStyle = 'rgba(110,70,30,0.35)';
+      ctx.fillRect(x0, gy, S, 1);
+    }
+    // Wood plank divisions
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
+    ctx.fillRect(x0 + (S / 3 | 0), y0 + woodY, 1, woodH);
+    ctx.fillRect(x0 + (S * 2 / 3 | 0), y0 + woodY, 1, woodH);
+    // Top half: red blanket draping over
+    const blanketH = S - woodH;
+    noisy(ctx, x0, y0, [180, 40, 30], 0.06, rng);
+    // Blanket fold lines
+    for (let i = 0; i < 3; i++) {
+      const fy = y0 + 1 + (rng() * (blanketH - 2) | 0);
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0, fy, S, 1);
+    }
+    // Frame edge highlight
+    ctx.fillStyle = 'rgba(170,115,55,0.4)';
+    ctx.fillRect(x0, y0 + woodY, S, 1);
+  },
+
+  bed_foot(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Oak wood footboard — solid wood face
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
+    // Wood grain
+    for (let i = 0; i < 4; i++) {
+      const gy = y0 + 2 + (rng() * (S - 4) | 0);
+      ctx.fillStyle = 'rgba(110,70,30,0.3)';
+      ctx.fillRect(x0, gy, S, 1);
+    }
+    // Plank divisions
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
+    ctx.fillRect(x0 + (S / 3 | 0), y0, 1, S);
+    ctx.fillRect(x0 + (S * 2 / 3 | 0), y0, 1, S);
+    // Top edge
+    ctx.fillStyle = 'rgba(170,115,55,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+  },
+
+  bed_foot_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Foot block top: blanket only (no pillow) — red blanket with wood frame edges
+    const m = 1;
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
+    noisy(ctx, x0 + m, y0 + m, [180, 40, 30], 0.06, rng);
+    // Quilting lines
+    for (let i = 0; i < 4; i++) {
+      const ly = y0 + m + 2 + i * 3;
+      ctx.fillStyle = 'rgba(140,30,20,0.25)';
+      ctx.fillRect(x0 + m, ly, S - m * 2, 1);
+    }
+    // Blanket highlights
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = 'rgba(220,70,60,0.3)';
+      ctx.fillRect(x0 + m + 2 + (rng() * (S - m * 2 - 6) | 0), y0 + m + 3 + (rng() * (S - m * 2 - 6) | 0), 2, 2);
+    }
+    // Blanket tuck lines at bottom edge
+    ctx.fillStyle = 'rgba(140,30,20,0.3)';
+    ctx.fillRect(x0 + m, y0 + S - m - 2, S - m * 2, 1);
+  },
+
+  bed_foot_side(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Foot side: wooden footboard (full height) with no pillow
+    const woodH = S;
+    noisy(ctx, x0, y0, [139, 90, 43], 0.06, rng);
+    for (let i = 0; i < 5; i++) {
+      const gy = y0 + 2 + (rng() * (S - 4) | 0);
+      ctx.fillStyle = 'rgba(110,70,30,0.3)';
+      ctx.fillRect(x0, gy, S, 1);
+    }
+    ctx.fillStyle = 'rgba(100,65,28,0.25)';
+    ctx.fillRect(x0 + (S / 3 | 0), y0, 1, S);
+    ctx.fillRect(x0 + (S * 2 / 3 | 0), y0, 1, S);
+    // Top edge highlight
+    ctx.fillStyle = 'rgba(170,115,55,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+    // Bottom edge highlight
+    ctx.fillStyle = 'rgba(100,65,28,0.3)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
+  },
+
+  // ── PRISMITE ORE ──────────────────────────────────────────────────
+  // Stone base with mixed red and green ore blobs (same style as other ores).
+  prismite_ore(ctx, x0, y0, rng) {
+    // Stone base (same as other ores)
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Red ore blobs
+    const redBlobs = 3 + (rng() * 2 | 0);
+    for (let i = 0; i < redBlobs; i++) {
+      const bx = 3 + (rng() * (TILE - 8) | 0);
+      const by = 3 + (rng() * (TILE - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(200 * f)},${clamp(48 * f)},${clamp(48 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    // Green ore blobs
+    const greenBlobs = 3 + (rng() * 2 | 0);
+    for (let i = 0; i < greenBlobs; i++) {
+      const bx = 3 + (rng() * (TILE - 8) | 0);
+      const by = 3 + (rng() * (TILE - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(40 * f)},${clamp(180 * f)},${clamp(60 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+  },
+
+  chest_top(ctx, x0, y0, rng) {
+    // Crate top: warm planks, center lid seam with steel hinges + steel trim
+    noisy(ctx, x0, y0, [135, 92, 52], 0.06, rng);
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let y = 8; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Lid seam down the center
+    ctx.fillStyle = 'rgba(50,32,14,0.6)';
+    for (let y = 0; y < TILE; y++) ctx.fillRect(x0 + 15, y0 + y, 2, 1);
+    // Steel hinges
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0 + 12, y0 + 6, 8, 3);
+    ctx.fillRect(x0 + 12, y0 + 23, 8, 3);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 13, y0 + 7, 1, 1); ctx.fillRect(x0 + 18, y0 + 7, 1, 1);
+    ctx.fillRect(x0 + 13, y0 + 24, 1, 1); ctx.fillRect(x0 + 18, y0 + 24, 1, 1);
+    // Steel edge trim
+    ctx.fillStyle = 'rgb(140,145,155)';
+    for (let x = 0; x < TILE; x++) { ctx.fillRect(x0 + x, y0, 1, 1); ctx.fillRect(x0 + x, y0 + TILE - 1, 1, 1); }
+    ctx.fillStyle = 'rgb(90,95,105)';
+    for (let y = 0; y < TILE; y++) { ctx.fillRect(x0, y0 + y, 1, 1); ctx.fillRect(x0 + TILE - 1, y0 + y, 1, 1); }
+  },
+
+  chest_side(ctx, x0, y0, rng) {
+    // Crate side: warm brown planks with a diagonal X-brace and steel corners
+    noisy(ctx, x0, y0, [130, 88, 50], 0.06, rng);
+    // Horizontal plank seams
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let y = 8; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Diagonal X-brace
+    ctx.strokeStyle = 'rgba(70,45,20,0.6)';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'square';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 2, y0 + 2); ctx.lineTo(x0 + TILE - 3, y0 + TILE - 3);
+    ctx.moveTo(x0 + TILE - 3, y0 + 2); ctx.lineTo(x0 + 2, y0 + TILE - 3);
+    ctx.stroke();
+    // Steel corner plates (top)
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0, y0, 5, 5); ctx.fillRect(x0 + TILE - 5, y0, 5, 5);
+    ctx.fillStyle = 'rgb(90,95,105)';
+    ctx.fillRect(x0, y0 + 4, 5, 1); ctx.fillRect(x0 + TILE - 5, y0 + 4, 5, 1);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 2, y0 + 2, 1, 1); ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, 1);
+  },
+
+  chest_front(ctx, x0, y0, rng) {
+    // Crate front: planks, steel handle bar, mounts + corner plates
+    noisy(ctx, x0, y0, [132, 89, 50], 0.06, rng);
+    // Vertical plank seams
+    ctx.fillStyle = 'rgba(75,48,22,0.45)';
+    for (let x = 8; x < TILE; x += 8) {
+      for (let y = 0; y < TILE; y++) ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Handle mounts
+    ctx.fillStyle = 'rgb(110,115,125)';
+    ctx.fillRect(x0 + 4, y0 + 13, 3, 6); ctx.fillRect(x0 + TILE - 7, y0 + 13, 3, 6);
+    // Steel handle bar
+    ctx.fillStyle = 'rgb(90,95,105)';
+    ctx.fillRect(x0 + 6, y0 + 15, 20, 4);
+    ctx.fillStyle = 'rgb(190,195,205)';
+    ctx.fillRect(x0 + 6, y0 + 15, 20, 2);
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0 + 6, y0 + 17, 20, 1);
+    // Corner plates
+    ctx.fillStyle = 'rgb(140,145,155)';
+    ctx.fillRect(x0, y0, 5, 5); ctx.fillRect(x0 + TILE - 5, y0, 5, 5);
+    ctx.fillStyle = 'rgb(70,75,85)';
+    ctx.fillRect(x0 + 2, y0 + 2, 1, 1); ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, 1);
+  },
+
+  // --- New block painters (BlockForge expansion) ---
+  torch(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    // Wooden post.
+    ctx.fillStyle = 'rgb(120,86,46)';
+    ctx.fillRect(x0 + 14, y0 + 12, 4, 18);
+    ctx.fillStyle = 'rgb(96,68,36)';
+    ctx.fillRect(x0 + 14, y0 + 12, 1, 18);
+    ctx.fillStyle = 'rgb(150,112,64)';
+    ctx.fillRect(x0 + 17, y0 + 12, 1, 18);
+    // Flame.
+    ctx.fillStyle = 'rgb(255,170,40)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 16, y0 + 9, 5, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(255,225,90)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 16, y0 + 11, 2.5, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(255,255,210)';
+    ctx.fillRect(x0 + 15, y0 + 11, 2, 3);
+  },
+  sandstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [222, 206, 158], 0.05, rng);
+    // Top cap band + bottom shadow.
+    ctx.fillStyle = 'rgba(200,184,140,0.7)';
+    ctx.fillRect(x0, y0, TILE, 3);
+    ctx.fillStyle = 'rgba(180,164,120,0.7)';
+    ctx.fillRect(x0, y0 + TILE - 3, TILE, 3);
+    // Chiselled centre block.
+    ctx.fillStyle = 'rgba(206,190,146,0.8)';
+    ctx.fillRect(x0 + 9, y0 + 9, 14, 14);
+    ctx.fillStyle = 'rgba(170,154,112,0.9)';
+    ctx.fillRect(x0 + 9, y0 + 9, 14, 2);
+    ctx.fillRect(x0 + 9, y0 + 21, 14, 2);
+    ctx.fillRect(x0 + 9, y0 + 9, 2, 14);
+    ctx.fillRect(x0 + 21, y0 + 9, 2, 14);
+    speckle(ctx, x0, y0, rng, 14, ['rgb(236,220,172)', 'rgb(196,180,136)']);
+  },
+  mossy_cobblestone(ctx, x0, y0, rng) {
+    _drawCobblestoneBody(ctx, x0, y0, rng);
+    // Green moss patches.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 5)) | 0, y = (rng() * (TILE - 5)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(74,128,52,0.7)' : 'rgba(96,150,64,0.7)';
+      ctx.fillRect(x0 + x, y0 + y, 3 + (rng() * 3 | 0), 3 + (rng() * 3 | 0));
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(104,160,72)', 'rgb(60,110,44)']);
+  },
+  cobblestone_wall(ctx, x0, y0, rng) {
+    _drawCobblestoneBody(ctx, x0, y0, rng);
+  },
+  nether_brick(ctx, x0, y0, rng) {
+    // Brimstone bricks: dark red-brown mortar with brick courses.
+    noisy(ctx, x0, y0, [92, 48, 40], 0.06, rng);
+    // Horizontal mortar lines.
+    ctx.fillStyle = 'rgba(60,28,24,0.8)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    // Vertical mortar (offset per course).
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8) % 2 ? 8 : 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    // Brick highlights.
+    for (let i = 0; i < 20; i++) {
+      ctx.fillStyle = 'rgb(120,64,54)';
+      ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    }
+  },
+  glass_pane(ctx, x0, y0, rng) {
+    // Thin transparent pane with border (cube stand-in).
+    ctx.clearRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = 'rgba(180,210,225,0.08)';
+    ctx.fillRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = 'rgba(200,220,230,0.85)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    ctx.fillStyle = 'rgba(236,248,255,0.7)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(x0 + 4, y0 + 6, TILE - 12, 2);
+  },
+  hay_block(ctx, x0, y0, rng) {
+    // Top: concentric rings. Side: vertical wheat stalks.
+    noisy(ctx, x0, y0, [222, 200, 110], 0.05, rng);
+    ctx.fillStyle = 'rgba(206,184,96,0.8)';
+    ctx.fillRect(x0 + 8, y0 + 8, 16, 16);
+    ctx.fillStyle = 'rgba(190,168,84,0.9)';
+    ctx.fillRect(x0 + 12, y0 + 12, 8, 8);
+    // Side stalks.
+    for (let x = 2; x < TILE; x += 4) {
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(214,192,104)' : 'rgb(196,174,90)';
+      ctx.fillRect(x0 + x, y0 + 2, 2, TILE - 4);
+    }
+    speckle(ctx, x0, y0, rng, 16, ['rgb(236,214,120)', 'rgb(184,162,80)']);
+  },
+  prismite_block(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 90, 220], 0.06, rng);
+    // Faceted gem look.
+    ctx.fillStyle = 'rgba(190,140,255,0.7)';
+    ctx.beginPath();
+    ctx.moveTo(x0 + 16, y0 + 2); ctx.lineTo(x0 + 30, y0 + 16);
+    ctx.lineTo(x0 + 16, y0 + 30); ctx.lineTo(x0 + 2, y0 + 16);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = 'rgba(230,200,255,0.9)';
+    ctx.fillRect(x0 + 14, y0 + 14, 4, 4);
+  },
+  coal_block(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [42, 42, 46], 0.05, rng);
+    // Subtle facet highlights.
+    ctx.fillStyle = 'rgba(80,80,88,0.5)';
+    ctx.fillRect(x0 + 4, y0 + 4, TILE - 8, 2);
+    ctx.fillRect(x0 + 4, y0 + 4, 2, TILE - 8);
+    speckle(ctx, x0, y0, rng, 18, ['rgb(70,70,76)', 'rgb(20,20,24)']);
+  },
+  iron_block(ctx, x0, y0, rng) {
+    // Brushed metal base
+    noisy(ctx, x0, y0, [200, 200, 205], 0.04, rng);
+    // Grid pattern
+    ctx.fillStyle = 'rgba(150,150,160,0.5)';
+    ctx.fillRect(x0 + 15, y0, 2, TILE);
+    ctx.fillRect(x0, y0 + 15, TILE, 2);
+    // Bevels
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillStyle = 'rgba(80,80,90,0.4)';
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+  },
+  gold_block(ctx, x0, y0, rng) {
+    // Rich gold base
+    noisy(ctx, x0, y0, [240, 210, 60], 0.05, rng);
+    // Inset pattern
+    ctx.fillStyle = 'rgba(180,150,30,0.4)';
+    ctx.fillRect(x0 + 4, y0 + 4, TILE - 8, TILE - 8);
+    // Shiny bevels
+    ctx.fillStyle = 'rgba(255,255,180,0.6)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillStyle = 'rgba(160,130,20,0.5)';
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+  },
+  diamond_block(ctx, x0, y0, rng) {
+    // Diamond blue base
+    noisy(ctx, x0, y0, [100, 200, 220], 0.06, rng);
+    // Faceted look
+    ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x0 + TILE, y0 + TILE);
+    ctx.moveTo(x0 + TILE, y0); ctx.lineTo(x0, y0 + TILE);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.stroke();
+    // Bevel border
+    ctx.fillStyle = 'rgba(220,255,255,0.4)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillStyle = 'rgba(40,120,150,0.5)';
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+  },
+  end_stone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [222, 220, 168], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 30, ['rgb(255,255,210)', 'rgb(190,188,140)']);
+  },
+  quartz_block(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [238, 236, 232], 0.025, rng);
+    // Chiselled column.
+    ctx.fillStyle = 'rgba(210,208,204,0.8)';
+    ctx.fillRect(x0 + 13, y0 + 2, 6, TILE - 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillRect(x0 + 13, y0 + 2, 6, 2);
+    ctx.fillStyle = 'rgba(180,178,174,0.7)';
+    ctx.fillRect(x0 + 13, y0 + TILE - 4, 6, 2);
+  },
+
+  ladder(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Side rails (dark brown wood).
+    ctx.fillStyle = 'rgb(100,72,38)';
+    ctx.fillRect(x0 + 4, y0, 2, S);
+    ctx.fillRect(x0 + S - 6, y0, 2, S);
+    // Rail highlight.
+    ctx.fillStyle = 'rgb(140,104,56)';
+    ctx.fillRect(x0 + 4, y0, 1, S);
+    ctx.fillRect(x0 + S - 6, y0, 1, S);
+    // Rail shadow.
+    ctx.fillStyle = 'rgb(72,50,24)';
+    ctx.fillRect(x0 + 5, y0, 1, S);
+    ctx.fillRect(x0 + S - 5, y0, 1, S);
+    // Horizontal rungs.
+    for (let y = 2; y < S; y += 6) {
+      ctx.fillStyle = 'rgb(120,88,46)';
+      ctx.fillRect(x0 + 6, y0 + y, S - 12, 2);
+      ctx.fillStyle = 'rgb(150,114,62)';
+      ctx.fillRect(x0 + 6, y0 + y, S - 12, 1);
+      ctx.fillStyle = 'rgb(88,62,30)';
+      ctx.fillRect(x0 + 6, y0 + y + 1, S - 12, 1);
+    }
+    // Wood grain noise on rungs.
+    speckle(ctx, x0, y0, rng, 12, ['rgb(100,72,38)', 'rgb(140,104,56)']);
+  },
+
+  copper_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    // Stone mottling.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Copper ore blobs (orange-brown).
+    const blobs = 4 + (rng() * 2 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(196 * f)},${clamp(118 * f)},${clamp(56 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    // Dark specks in stone.
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  emerald_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    // Stone mottling.
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Emerald ore blobs (bright green).
+    const blobs = 3 + (rng() * 2 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(40 * f)},${clamp(200 * f)},${clamp(80 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    // Dark specks in stone.
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  wool(ctx, x0, y0, rng) {
+    const S = TILE;
+    noisy(ctx, x0, y0, [238, 236, 232], 0.03, rng);
+    // Soft fiber noise — subtle tonal variation.
+    for (let i = 0; i < 20; i++) {
+      const x = (rng() * S) | 0, y = (rng() * S) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(250,248,244)' : 'rgb(226,222,218)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    // Faint woven cross-hatch lines (fabric texture).
+    ctx.fillStyle = 'rgba(210,206,200,0.25)';
+    for (let y = 3; y < S; y += 4) ctx.fillRect(x0, y0 + y, S, 1);
+    for (let x = 3; x < S; x += 4) ctx.fillRect(x0 + x, y0, 1, S);
+    // A few brighter specks (lint / highlight).
+    speckle(ctx, x0, y0, rng, 8, ['rgb(255,255,255)']);
+  },
+
+  // ── GREENSTONE ──────────────────────────────────────────────────
+  greenstone_ore(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Stone base (same style as iron_ore).
+    noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (S - 6)) | 0, y = (rng() * (S - 6)) | 0;
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    }
+    // Bright green ore blobs.
+    const blobs = 4 + (rng() * 3 | 0);
+    for (let i = 0; i < blobs; i++) {
+      const bx = 3 + (rng() * (S - 8) | 0);
+      const by = 3 + (rng() * (S - 8) | 0);
+      const r = 2 + (rng() * 2 | 0);
+      for (let py = -r; py <= r; py++) {
+        for (let px = -r; px <= r; px++) {
+          const d = Math.sqrt(px * px + py * py);
+          if (d > r + 0.5) continue;
+          const f = 1 + (rng() - 0.5) * 0.2;
+          ctx.fillStyle = `rgb(${clamp(18 * f)},${clamp(130 * f)},${clamp(44 * f)})`;
+          ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+        }
+      }
+      // Specular highlight.
+      ctx.fillStyle = 'rgba(255,255,255,0.55)';
+      ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
+  },
+
+  greenstone_block(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Solid dark green base.
+    noisy(ctx, x0, y0, [18, 120, 40], 0.06, rng);
+    // Darker green crosshatch pattern.
+    ctx.fillStyle = 'rgba(12,80,28,0.4)';
+    for (let y = 3; y < S; y += 5) ctx.fillRect(x0, y0 + y, S, 1);
+    for (let x = 3; x < S; x += 5) ctx.fillRect(x0 + x, y0, 1, S);
+    // Subtle noise specks.
+    speckle(ctx, x0, y0, rng, 14, ['rgb(30,140,56)', 'rgb(10,90,28)']);
+    // Bevel border.
+    ctx.fillStyle = 'rgba(50,170,80,0.4)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillStyle = 'rgba(8,60,20,0.5)';
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+  },
+
+  greenstone_lamp_off(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Dark wood frame border (2px wide).
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Inner dark area with faint green tint (unpowered).
+    ctx.fillStyle = 'rgb(42,42,42)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // Faint green tint overlay.
+    ctx.fillStyle = 'rgba(26,48,32,0.5)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // Frame highlight (top-left bevel).
+    ctx.fillStyle = 'rgba(150,120,72,0.5)';
+    ctx.fillRect(x0, y0, S, 1);
+    ctx.fillRect(x0, y0, 1, S);
+    // Frame shadow (bottom-right bevel).
+    ctx.fillStyle = 'rgba(70,50,26,0.5)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
+    ctx.fillRect(x0 + S - 1, y0, 1, S);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(60,60,60)', 'rgb(30,42,34)']);
+  },
+
+  greenstone_lamp_on(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Same wood frame as _off.
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Bright glowing green inner area.
+    ctx.fillStyle = 'rgb(64,224,96)';
+    ctx.fillRect(x0 + 2, y0 + 2, S - 4, S - 4);
+    // White-hot centre glow.
+    ctx.fillStyle = 'rgb(192,255,192)';
+    ctx.fillRect(x0 + 10, y0 + 10, S - 20, S - 20);
+    ctx.fillStyle = 'rgb(230,255,230)';
+    ctx.fillRect(x0 + 12, y0 + 12, S - 24, S - 24);
+    // Outer glow halo on the frame.
+    ctx.fillStyle = 'rgba(64,224,96,0.35)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Frame bevel.
+    ctx.fillStyle = 'rgba(150,120,72,0.4)';
+    ctx.fillRect(x0, y0, S, 1);
+    ctx.fillRect(x0, y0, 1, S);
+    ctx.fillStyle = 'rgba(30,100,50,0.5)';
+    ctx.fillRect(x0, y0 + S - 1, S, 1);
+    ctx.fillRect(x0 + S - 1, y0, 1, S);
+  },
+
+  // ── PISTON ──────────────────────────────────────────────────────
+  piston_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Square piston head in centre (iron-block colour).
+    const hs = 8;
+    const cx = (S - hs) / 2;
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, hs);
+    // Head bevel highlight.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, 2);
+    ctx.fillRect(x0 + cx, y0 + cx, 2, hs);
+    // Head shadow.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0 + cx, y0 + cx + hs - 2, hs, 2);
+    ctx.fillRect(x0 + cx + hs - 2, y0 + cx, 2, hs);
+  },
+
+  piston_side(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Horizontal piston arm groove (iron stripe in middle third).
+    const y1 = Math.floor(S / 3);
+    const y2 = Math.floor(S * 2 / 3);
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0, y0 + y1, S, y2 - y1);
+    // Top edge highlight of stripe.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0, y0 + y1, S, 2);
+    // Bottom edge shadow of stripe.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0, y0 + y2 - 2, S, 2);
+    // Faint vertical groove lines in the arm.
+    ctx.fillStyle = 'rgba(130,130,130,0.3)';
+    for (let x = 6; x < S; x += 8) ctx.fillRect(x0 + x, y0 + y1, 1, y2 - y1);
+  },
+
+  piston_bottom(ctx, x0, y0, rng) {
+    planksBody(ctx, x0, y0, rng);
+  },
+
+  sticky_piston_top(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Wooden planks body.
+    planksBody(ctx, x0, y0, rng);
+    // Square piston head in centre (iron-block colour).
+    const hs = 8;
+    const cx = (S - hs) / 2;
+    ctx.fillStyle = 'rgb(184,184,184)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, hs);
+    // Head bevel highlight.
+    ctx.fillStyle = 'rgb(210,210,210)';
+    ctx.fillRect(x0 + cx, y0 + cx, hs, 2);
+    ctx.fillRect(x0 + cx, y0 + cx, 2, hs);
+    // Head shadow.
+    ctx.fillStyle = 'rgb(140,140,140)';
+    ctx.fillRect(x0 + cx, y0 + cx + hs - 2, hs, 2);
+    ctx.fillRect(x0 + cx + hs - 2, y0 + cx, 2, hs);
+    // Green slime dot in the centre of the piston head.
+    const d = 3;
+    const dcx = cx + hs / 2, dcy = cx + hs / 2;
+    ctx.fillStyle = 'rgb(64,160,32)';
+    ctx.beginPath();
+    ctx.arc(x0 + dcx, y0 + dcy, d, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(90,200,50)';
+    ctx.beginPath();
+    ctx.arc(x0 + dcx - 0.5, y0 + dcy - 0.5, d - 1, 0, Math.PI * 2);
+    ctx.fill();
+  },
+
+  // ── GREENSTONE TORCH & WIRE ─────────────────────────────────────
+  greenstone_torch(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Thin wooden stick.
+    ctx.fillStyle = 'rgb(110,82,48)';
+    ctx.fillRect(x0 + 7, y0 + 8, 2, 8);
+    ctx.fillStyle = 'rgb(80,58,32)';
+    ctx.fillRect(x0 + 7, y0 + 8, 1, 8);
+    ctx.fillStyle = 'rgb(140,108,64)';
+    ctx.fillRect(x0 + 8, y0 + 8, 1, 8);
+    // Dark green flame body.
+    ctx.fillStyle = 'rgb(32,170,64)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 8, y0 + 6, 3, 5, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // Bright green inner glow.
+    ctx.fillStyle = 'rgb(64,220,96)';
+    ctx.beginPath();
+    ctx.ellipse(x0 + 8, y0 + 5, 2, 3, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // White-green hot centre.
+    ctx.fillStyle = 'rgb(180,255,190)';
+    ctx.fillRect(x0 + 7, y0 + 4, 2, 2);
+  },
+
+  greenstone_dust(ctx, x0, y0, rng) {
+    const S = TILE;
+    ctx.clearRect(x0, y0, S, S);
+    // Cross-shaped green dust pattern
+    ctx.fillStyle = 'rgb(20,120,40)';
+    ctx.fillRect(x0, y0 + S / 2 - 1, S, 2);
+    ctx.fillRect(x0 + S / 2 - 1, y0, 2, S);
+    ctx.fillStyle = 'rgb(40,160,60)';
+    ctx.fillRect(x0 + S / 2 - 1, y0 + S / 2 - 1, 2, 2);
+    ctx.fillStyle = 'rgba(14,80,28,0.5)';
+    ctx.fillRect(x0, y0 + S / 2 - 2, S, 1);
+    ctx.fillRect(x0, y0 + S / 2 + 1, S, 1);
+    ctx.fillRect(x0 + S / 2 - 2, y0, 1, S);
+    ctx.fillRect(x0 + S / 2 + 1, y0, 1, S);
+    // Tiny brightness specks along the wire.
+    for (let i = 0; i < 4; i++) {
+      const x = (rng() * S) | 0, y = (rng() * S) | 0;
+      // Only place on the cross.
+      if (Math.abs(x - S / 2) <= 1 || Math.abs(y - S / 2) <= 1) {
+        ctx.fillStyle = 'rgb(100,255,140)';
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+  },
+  lava(ctx, x0, y0, rng) {
+    const S = TILE;
+    for (let y = 0; y < S; y++) {
+      for (let x = 0; x < S; x++) {
+        const v = rng();
+        const r = 200 + v * 55 | 0;
+        const g = 60 + v * 40 | 0;
+        const b = 10 + rng() * 20 | 0;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    // Brighter hot spots
+    for (let i = 0; i < 6; i++) {
+      const x = rng() * S | 0, y = rng() * S | 0;
+      ctx.fillStyle = 'rgb(255,200,40)';
+      ctx.fillRect(x0 + x, y0 + y, 2, 2);
+    }
+  },
+  iron_bars(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Transparent background (default dark)
+    ctx.fillStyle = 'rgba(0,0,0,0)';
+    ctx.clearRect(x0, y0, S, S);
+    // Horizontal bars
+    ctx.fillStyle = '#8a8a8a';
+    ctx.fillRect(x0, y0 + 3, S, 2);
+    ctx.fillRect(x0, y0 + 7, S, 2);
+    ctx.fillRect(x0, y0 + 11, S, 2);
+    // Vertical bars
+    ctx.fillRect(x0 + 4, y0, 2, S);
+    ctx.fillRect(x0 + 10, y0, 2, S);
+    // Highlights
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fillRect(x0, y0 + 3, S, 1);
+    ctx.fillRect(x0 + 4, y0, 1, S);
+    ctx.fillRect(x0 + 10, y0, 1, S);
+  },
+  // ── PARKOUR BLOCKS ──────────────────────────────────────────────
+  emberock(ctx, x0, y0, rng) {
+    // Dark red-black stone with glowing ember specks
+    noisy(ctx, x0, y0, [72, 28, 28], 0.14, rng);
+    for (let i = 0; i < 8; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgb(48,14,14)';
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng() * 2 | 0), 2 + (rng() * 2 | 0));
+    }
+    // Glowing ember specks
+    for (let i = 0; i < 6; i++) {
+      ctx.fillStyle = `rgb(${180 + (rng() * 60 | 0)}, ${40 + (rng() * 30 | 0)}, ${20 + (rng() * 20 | 0)})`;
+      ctx.fillRect(x0 + (rng() * TILE | 0), y0 + (rng() * TILE | 0), 1, 1);
+    }
+  },
+  voidstone(ctx, x0, y0, rng) {
+    // Pale gray-white with dark flecks
+    noisy(ctx, x0, y0, [218, 216, 192], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 20, ['rgb(245,245,230)', 'rgb(185,182,158)']);
+    // Dark mineral veins
+    for (let i = 0; i < 4; i++) {
+      let x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      ctx.fillStyle = 'rgba(60,60,80,0.5)';
+      for (let j = 0; j < 5; j++) {
+        ctx.fillRect(x0 + x, y0 + y, 2, 1);
+        x += (rng() < 0.5 ? 1 : -1);
+        y += (rng() < 0.5 ? 1 : 0);
+      }
+    }
+  },
+  void_glass(ctx, x0, y0, rng) {
+    // Dark purple transparent glass
+    ctx.clearRect(x0, y0, TILE, TILE);
+    ctx.fillStyle = 'rgba(80,40,120,0.22)';
+    ctx.fillRect(x0, y0, TILE, TILE);
+    // 2px border
+    ctx.fillStyle = 'rgba(120,60,180,0.7)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillRect(x0, y0, 2, TILE);
+    ctx.fillRect(x0 + TILE - 2, y0, 2, TILE);
+    // Inner bevel highlight
+    ctx.fillStyle = 'rgba(160,100,220,0.5)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    // Diagonal shine
+    ctx.fillStyle = 'rgba(200,160,255,0.4)';
+    ctx.fillRect(x0 + 4, y0 + 4, 6, 1);
+    ctx.fillRect(x0 + 4, y0 + 5, 4, 1);
+  },
+  void_portal(ctx, x0, y0, rng) {
+    // Swirling indigo void — a lit portal face
+    ctx.clearRect(x0, y0, TILE, TILE);
+    noisy(ctx, x0, y0, [30, 15, 70], 0.35, rng);
+    for (let i = 0; i < 5; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const r = 6 + (rng() * 10 | 0);
+      ctx.fillStyle = `rgba(80,40,160,${0.25 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Electric rim + streak
+    ctx.fillStyle = 'rgba(180,120,255,0.9)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + TILE - 3, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, TILE - 4);
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(x0 + 5, y0 + 6, 5, 1);
+    ctx.fillRect(x0 + 12, y0 + 16, 7, 1);
+  },
+  compressed_voidstone(ctx, x0, y0, rng) {
+    // Dense slate-purple brick, faint glowing cracks
+    noisy(ctx, x0, y0, [70, 55, 105], 0.07, rng);
+    ctx.fillStyle = 'rgba(45,35,75,0.9)';
+    for (let by = 0; by < TILE; by += 8) ctx.fillRect(x0, y0 + by, TILE, 1);
+    for (let bx = 0; bx < TILE; bx += 8) {
+      const off = (Math.floor(bx / 8) % 2) * 4;
+      ctx.fillRect(x0 + bx, y0 + off, 1, 8);
+    }
+    for (let i = 0; i < 3; i++) {
+      const sx = (rng() * TILE) | 0, sy = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(200,160,255,0.5)';
+      ctx.fillRect(x0 + sx, y0 + sy, 2, 1);
+    }
+  },
+  quicksand(ctx, x0, y0, rng) {
+    // Warm golden-brown granular sand
+    noisy(ctx, x0, y0, [192, 168, 96], 0.08, rng);
+    // Darker grain bands
+    for (let y = 3; y < TILE; y += 5) {
+      ctx.fillStyle = 'rgba(160,140,76,0.5)';
+      ctx.fillRect(x0, y0 + y, TILE, 2);
+    }
+    // Bright sparkly flecks
+    speckle(ctx, x0, y0, rng, 14, ['rgb(220,200,120)', 'rgb(164,142,80)']);
+    // Dark specks
+    speckle(ctx, x0, y0, rng, 6, ['rgb(100,86,46)']);
+  },
+  blockscrap(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 105, 95], 0.1, rng);
+    speckle(ctx, x0, y0, rng, 16, ['rgb(130,125,115)', 'rgb(90,85,75)', 'rgb(70,65,55)']);
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * 28) | 0, y = (rng() * 28) | 0;
+      ctx.fillStyle = `rgba(${80 + rng()*40|0},${75 + rng()*40|0},${65 + rng()*40|0},0.6)`;
+      ctx.fillRect(x0 + x, y0 + y, 2 + (rng()*3|0), 1 + (rng()*2|0));
+    }
+  },
+  echo_ore(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [30, 32, 45], 0.08, rng);
+    for (let i = 0; i < 6; i++) {
+      const x = x0 + (rng() * 12 | 0), y = y0 + (rng() * 12 | 0);
+      const w = 2 + (rng() * 3 | 0), h = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgba(60,200,190,0.9)' : 'rgba(30,140,140,0.9)';
+      ctx.fillRect(x, y, w, h);
+      ctx.fillStyle = 'rgba(160,255,245,0.9)';
+      ctx.fillRect(x, y, 1, 1);
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(50,55,80)', 'rgb(20,22,32)']);
+  },
+  cracked_stone_bricks(ctx, x0, y0, rng) {
+    PAINTERS.stone_bricks(ctx, x0, y0, rng);
+    for (let c = 0; c < 2; c++) {
+      let cx = x0 + (rng() * 12 | 0) + 1, cy = y0 + (rng() * 12 | 0) + 1;
+      for (let s = 0; s < 6; s++) {
+        ctx.fillStyle = 'rgba(55,55,55,0.85)';
+        ctx.fillRect(cx, cy, 1, 2);
+        ctx.fillRect(cx + ((cx - x0) * 2 % 3) - 1, cy + 1, 1, 1);
+        cx += (rng() * 3 | 0) - 1;
+        cy += 1 + (rng() * 2 | 0);
+      }
+    }
+  },
+  mossy_stone_bricks(ctx, x0, y0, rng) {
+    PAINTERS.stone_bricks(ctx, x0, y0, rng);
+    for (let i = 0; i < 10; i++) {
+      const x = x0 + (rng() * 12 | 0), y = y0 + (rng() * 12 | 0);
+      ctx.fillStyle = `rgba(${55 + rng() * 60 | 0},${110 + rng() * 40 | 0},45,${0.4 + rng() * 0.4})`;
+      ctx.fillRect(x, y, 2 + (rng() * 4 | 0), 2 + (rng() * 3 | 0));
+    }
+  },
+  chiseled_stone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [122, 122, 122], 0.05, rng);
+    ctx.fillStyle = 'rgba(90,90,90,0.8)';
+    ctx.fillRect(x0, y0, TILE, 1);
+    ctx.fillRect(x0, y0 + TILE - 1, TILE, 1);
+    ctx.fillRect(x0, y0, 1, TILE);
+    ctx.fillRect(x0 + TILE - 1, y0, 1, TILE);
+    ctx.fillStyle = 'rgba(105,105,105,0.9)';
+    ctx.fillRect(x0 + 4, y0 + 4, 8, 8);
+    ctx.fillStyle = 'rgba(80,80,80,0.9)';
+    ctx.fillRect(x0 + 5, y0 + 5, 6, 6);
+  },
+  smooth_stone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [135, 135, 135], 0.018, rng);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(148,148,148)', 'rgb(122,122,122)']);
+    ctx.fillStyle = 'rgba(110,110,110,0.35)';
+    ctx.fillRect(x0, y0 + 7, TILE, 1);
+    ctx.fillRect(x0, y0 + 15, TILE, 1);
+  },
+  polished_blackstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [45, 42, 48], 0.04, rng);
+    ctx.fillStyle = 'rgba(120,110,140,0.12)';
+    ctx.beginPath();
+    ctx.moveTo(x0, y0 + TILE);
+    ctx.lineTo(x0 + TILE, y0);
+    ctx.lineTo(x0 + TILE, y0 + TILE);
+    ctx.fill();
+    speckle(ctx, x0, y0, rng, 8, ['rgb(70,66,78)', 'rgb(35,33,40)']);
+  },
+  cracked_blackstone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [38, 36, 42], 0.05, rng);
+    ctx.fillStyle = 'rgba(25,23,28,0.8)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(55,52,60)', 'rgb(28,26,32)']);
+    for (let c = 0; c < 2; c++) {
+      let cx = x0 + (rng() * 12 | 0) + 1, cy = y0 + (rng() * 12 | 0) + 1;
+      for (let s = 0; s < 6; s++) {
+        ctx.fillStyle = 'rgba(18,16,20,0.85)';
+        ctx.fillRect(cx, cy, 1, 2);
+        ctx.fillRect(cx + ((cx - x0) * 2 % 3) - 1, cy + 1, 1, 1);
+        cx += (rng() * 3 | 0) - 1;
+        cy += 1 + (rng() * 2 | 0);
+      }
+    }
+  },
+  gilded_blackstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [38, 36, 42], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 20, ['rgb(75,60,15)', 'rgb(130,105,25)']);
+    for (let i = 0; i < 4; i++) {
+      const x = x0 + 2 + (rng() * 10 | 0), y = y0 + 2 + (rng() * 10 | 0);
+      ctx.fillStyle = 'rgb(180,145,50)';
+      ctx.fillRect(x + 1, y, 2, 2);
+      ctx.fillRect(x, y + 1, 4, 2);
+      ctx.fillRect(x + 1, y + 3, 2, 2);
+      ctx.fillStyle = 'rgb(230,195,90)';
+      ctx.fillRect(x + 1, y + 1, 2, 2);
+    }
+  },
+  chiseled_brimstone_brick(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [105, 42, 40], 0.05, rng);
+    ctx.fillStyle = 'rgba(70,28,28,0.85)';
+    ctx.fillRect(x0, y0, TILE, 1);
+    ctx.fillRect(x0, y0 + TILE - 1, TILE, 1);
+    ctx.fillRect(x0, y0, 1, TILE);
+    ctx.fillRect(x0 + TILE - 1, y0, 1, TILE);
+    ctx.fillStyle = 'rgba(90,36,34,0.9)';
+    ctx.fillRect(x0 + 3, y0 + 3, 10, 1);
+    ctx.fillRect(x0 + 3, y0 + 12, 10, 1);
+    ctx.fillRect(x0 + 3, y0 + 3, 1, 10);
+    ctx.fillRect(x0 + 12, y0 + 3, 1, 10);
+    ctx.fillStyle = 'rgba(140,60,55,0.7)';
+    ctx.fillRect(x0 + 6, y0 + 6, 4, 4);
+  },
+  cracked_brimstone_brick(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [112, 48, 44], 0.05, rng);
+    ctx.fillStyle = 'rgba(60,24,24,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(140,62,56)', 'rgb(95,40,36)']);
+    for (let c = 0; c < 2; c++) {
+      let cx = x0 + (rng() * 12 | 0) + 1, cy = y0 + (rng() * 12 | 0) + 1;
+      for (let s = 0; s < 6; s++) {
+        ctx.fillStyle = 'rgba(55,22,20,0.85)';
+        ctx.fillRect(cx, cy, 1, 2);
+        ctx.fillRect(cx + ((cx - x0) * 2 % 3) - 1, cy + 1, 1, 1);
+        cx += (rng() * 3 | 0) - 1;
+        cy += 1 + (rng() * 2 | 0);
+      }
+    }
+  },
+  chiseled_sandstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [210, 178, 135], 0.05, rng);
+    ctx.fillStyle = 'rgba(160,132,92,0.9)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+    ctx.fillStyle = 'rgba(180,150,108,0.9)';
+    ctx.fillRect(x0, y0 + 2, TILE, 1);
+    ctx.fillRect(x0, y0 + TILE - 3, TILE, 1);
+    ctx.fillStyle = 'rgba(160,132,92,0.9)';
+    ctx.fillRect(x0 + 5, y0 + 6, 6, 5);
+    ctx.fillStyle = 'rgba(120,96,64,0.9)';
+    ctx.fillRect(x0 + 6, y0 + 7, 4, 3);
+  },
+  cut_sandstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [215, 183, 140], 0.03, rng);
+    ctx.fillStyle = 'rgba(150,124,86,0.4)';
+    ctx.fillRect(x0, y0, TILE, 4);
+    ctx.fillStyle = 'rgba(238,208,165,0.35)';
+    ctx.fillRect(x0, y0 + 4, TILE, 2);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(230,198,155)', 'rgb(195,162,118)']);
+  },
+  smooth_sandstone(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [212, 181, 138], 0.02, rng);
+    speckle(ctx, x0, y0, rng, 4, ['rgb(228,196,152)', 'rgb(196,164,120)']);
+  },
+  quartz_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [226, 219, 209], 0.03, rng);
+    ctx.fillStyle = 'rgba(170,160,145,0.6)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(240,234,224)', 'rgb(205,196,182)']);
+  },
+  quartz_pillar_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [228, 221, 211], 0.03, rng);
+    ctx.strokeStyle = 'rgba(190,180,165,0.7)';
+    for (let r = 2; r < TILE; r += 4) {
+      ctx.strokeRect(x0 + r, y0 + r, TILE - 1 - r * 2, TILE - 1 - r * 2);
+    }
+  },
+  quartz_pillar_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [228, 221, 211], 0.03, rng);
+    ctx.fillStyle = 'rgba(190,180,165,0.6)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + 13, TILE, 3);
+    ctx.fillStyle = 'rgba(205,196,182,0.6)';
+    ctx.fillRect(x0, y0 + 2, TILE, 11);
+    speckle(ctx, x0, y0, rng, 4, ['rgb(240,234,224)', 'rgb(205,196,182)']);
+  },
+  smooth_quartz(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [232, 225, 215], 0.015, rng);
+    speckle(ctx, x0, y0, rng, 4, ['rgb(244,238,228)', 'rgb(216,208,196)']);
+    ctx.fillStyle = 'rgba(180,172,158,0.15)';
+    ctx.fillRect(x0, y0, TILE, 2);
+    ctx.fillRect(x0, y0 + TILE - 2, TILE, 2);
+  },
+  prismarine_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 140, 130], 0.05, rng);
+    ctx.fillStyle = 'rgba(60,100,90,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(120,170,155)', 'rgb(80,110,100)']);
+  },
+  stone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [122, 122, 122], 0.05, rng);
+    ctx.fillStyle = 'rgba(90,90,90,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(140,140,140)', 'rgb(100,100,100)']);
+  },
+  deepslate(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [80, 80, 85], 0.06, rng);
+    for (let y = 0; y < TILE; y += 4) {
+      ctx.fillStyle = `rgba(60,60,65,${0.3 + rng()*0.3})`;
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(100,100,105)', 'rgb(65,65,70)']);
+  },
+  deepslate_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [75, 75, 80], 0.05, rng);
+    ctx.fillStyle = 'rgba(55,55,60,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y += 8) {
+      const off = (y / 8 % 2) * 16;
+      for (let x = off; x < TILE; x += 16) ctx.fillRect(x0 + x, y0 + y, 1, 8);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(95,95,100)', 'rgb(60,60,65)']);
+  },
+  concrete(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [200, 200, 200], 0.03, rng);
+    speckle(ctx, x0, y0, rng, 6, ['rgb(215,215,215)', 'rgb(185,185,185)']);
+  },
+  slime(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [80, 180, 80], 0.08, rng);
+    for (let i = 0; i < 12; i++) {
+      const x = (rng() * 24) | 0, y = (rng() * 24) | 0;
+      ctx.fillStyle = 'rgba(120,220,120,0.35)';
+      ctx.fillRect(x0 + x, y0 + y, 3 + (rng()*3|0), 2 + (rng()*2|0));
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(100,200,100)', 'rgb(60,140,60)']);
+  },
+  prismarine(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 140, 130], 0.06, rng);
+    for (let y = 0; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x += 8) {
+        ctx.fillStyle = `rgba(${80+rng()*40|0},${120+rng()*40|0},${110+rng()*40|0},0.4)`;
+        ctx.fillRect(x0 + x, y0 + y, 8, 8);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(120,170,155)', 'rgb(80,110,100)']);
+  },
+  dark_prismarine(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [60, 100, 90], 0.06, rng);
+    for (let y = 0; y < TILE; y += 8) {
+      for (let x = 0; x < TILE; x += 8) {
+        ctx.fillStyle = `rgba(${40+rng()*30|0},${80+rng()*30|0},${70+rng()*30|0},0.5)`;
+        ctx.fillRect(x0 + x, y0 + y, 8, 8);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgb(80,130,120)', 'rgb(50,80,70)']);
+  },
+  purpur(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    speckle(ctx, x0, y0, rng, 12, ['rgb(190,150,190)', 'rgb(150,110,150)']);
+  },
+  purpur_pillar_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    ctx.strokeStyle = 'rgba(150,110,150,0.5)';
+    for (let i = 4; i < TILE; i += 6) {
+      ctx.beginPath(); ctx.moveTo(x0 + i, y0); ctx.lineTo(x0 + i, y0 + TILE); ctx.stroke();
+    }
+    speckle(ctx, x0, y0, rng, 6, ['rgb(190,150,190)']);
+  },
+  purpur_pillar_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [170, 130, 170], 0.05, rng);
+    ctx.fillStyle = 'rgba(150,110,150,0.4)';
+    for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
+    speckle(ctx, x0, y0, rng, 8, ['rgb(190,150,190)', 'rgb(140,100,140)']);
+  },
+  blackstone_bricks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [40, 35, 45], 0.06, rng);
+    ctx.fillStyle = 'rgba(25,20,30,0.7)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let x = 0; x < TILE; x += 8) ctx.fillRect(x0 + x, y0, 1, TILE);
+    speckle(ctx, x0, y0, rng, 10, ['rgb(55,50,60)', 'rgb(30,25,35)']);
+  },
+  nether_wart(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [140, 20, 20], 0.08, rng);
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      const w = 2 + (rng() * 3 | 0), h = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(170,30,30)' : 'rgb(110,15,15)';
+      ctx.fillRect(x0 + x, y0 + y, w, h);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(180,40,40)', 'rgb(120,20,20)']);
+  },
+  warped_wart(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [25, 120, 130], 0.08, rng);
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * (TILE - 4)) | 0, y = (rng() * (TILE - 4)) | 0;
+      const w = 2 + (rng() * 3 | 0), h = 2 + (rng() * 3 | 0);
+      ctx.fillStyle = rng() < 0.5 ? 'rgb(35,150,160)' : 'rgb(20,100,110)';
+      ctx.fillRect(x0 + x, y0 + y, w, h);
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgb(40,160,170)', 'rgb(25,110,120)']);
+  },
+
+  // ── Wood-type variant planks ──
+  jungle_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [140, 100, 55], 0.05, rng);
+    ctx.fillStyle = 'rgba(90,60,28,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(118,84,48,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(120,86,48,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(80,55,28)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(140,110,70)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  birch_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [196, 175, 130], 0.04, rng);
+    ctx.fillStyle = 'rgba(145,128,88,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.15) { ctx.fillStyle = 'rgba(170,152,110,0.3)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 16; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(175,155,115,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 3 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(135,118,78)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(200,185,145)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  spruce_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [110, 82, 48], 0.05, rng);
+    ctx.fillStyle = 'rgba(72,50,25,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.2) { ctx.fillStyle = 'rgba(90,65,38,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(95,70,42,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(65,45,22)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(120,92,55)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  dark_oak_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [85, 60, 32], 0.05, rng);
+    ctx.fillStyle = 'rgba(52,35,16,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(70,50,28,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(72,52,30,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(45,30,14)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(95,70,42)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  acacia_planks(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [168, 90, 42], 0.06, rng);
+    ctx.fillStyle = 'rgba(120,58,24,0.85)';
+    for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.18) { ctx.fillStyle = 'rgba(145,75,35,0.35)'; ctx.fillRect(x0, y0 + y, TILE, 1); }
+    }
+    for (let i = 0; i < 18; i++) {
+      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+      ctx.fillStyle = 'rgba(150,78,38,0.4)';
+      ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+    }
+    for (let y = 4; y < TILE; y += 8) {
+      const row = (y / 8) | 0; const xOff = row % 2 ? 6 : TILE - 7;
+      ctx.fillStyle = 'rgb(110,52,20)'; ctx.fillRect(x0 + xOff, y0 + y, 2, 2);
+      ctx.fillStyle = 'rgb(180,100,50)'; ctx.fillRect(x0 + xOff, y0 + y, 1, 1);
+    }
+  },
+
+  // ── Wood-type variant crafting tables ──
+  jungle_crafting_top(ctx, x0, y0, rng) {
+    PAINTERS.jungle_planks(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  jungle_crafting_side(ctx, x0, y0, rng) {
+    PAINTERS.jungle_planks(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  birch_crafting_top(ctx, x0, y0, rng) {
+    PAINTERS.birch_planks(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  birch_crafting_side(ctx, x0, y0, rng) {
+    PAINTERS.birch_planks(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  spruce_crafting_top(ctx, x0, y0, rng) {
+    PAINTERS.spruce_planks(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  spruce_crafting_side(ctx, x0, y0, rng) {
+    PAINTERS.spruce_planks(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  dark_oak_crafting_top(ctx, x0, y0, rng) {
+    PAINTERS.dark_oak_planks(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  dark_oak_crafting_side(ctx, x0, y0, rng) {
+    PAINTERS.dark_oak_planks(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  acacia_crafting_top(ctx, x0, y0, rng) {
+    PAINTERS.acacia_planks(ctx, x0, y0, rng);
+    craftingGridOverlay(ctx, x0, y0);
+  },
+
+  acacia_crafting_side(ctx, x0, y0, rng) {
+    PAINTERS.acacia_planks(ctx, x0, y0, rng);
+    craftingToolsOverlay(ctx, x0, y0);
+  },
+
+  // ── Wood-type variant log tops ──
+  birch_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [190, 170, 130], 0.04, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(140,120,80)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(160,140,100,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(170,150,110)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  spruce_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [100, 72, 40], 0.05, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(65,45,22)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(80,58,32,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(70,50,28)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  dark_oak_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [75, 52, 28], 0.05, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(45,30,14)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(60,42,22,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(50,35,18)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  acacia_wood_top(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [150, 80, 35], 0.06, rng);
+    const cx = TILE / 2, cy = TILE / 2;
+    ctx.strokeStyle = 'rgb(100,50,20)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, TILE / 2 - 2, 0, Math.PI * 2); ctx.stroke();
+    for (let r = TILE / 2 - 5; r > 1; r -= 3) {
+      ctx.strokeStyle = 'rgba(130,68,30,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = 'rgb(120,62,28)'; ctx.fillRect(x0 + cx - 1, y0 + cy - 1, 3, 3);
+  },
+
+  // ── Wood-type variant log sides ──
+  birch_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [200, 185, 150], 0.04, rng);
+    // Birch: white bark with horizontal dark lines (lenticels).
+    for (let y = 0; y < TILE; y++) {
+      if (rng() < 0.3) {
+        ctx.fillStyle = 'rgba(80,65,40,0.4)';
+        const w = 4 + (rng() * 10 | 0);
+        const x = (rng() * (TILE - w)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, w, 1);
+      }
+    }
+    // Darker vertical grain.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.15) {
+        ctx.fillStyle = 'rgba(160,140,105,0.35)';
+        const h = 6 + (rng() * 14 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  spruce_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [82, 58, 32], 0.06, rng);
+    // Spruce: rough dark bark with strong vertical grain.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.4) {
+        ctx.fillStyle = 'rgba(55,38,18,0.5)';
+        const h = 10 + (rng() * 18 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.2) {
+        ctx.fillStyle = 'rgba(100,75,45,0.3)';
+        const h = 5 + (rng() * 10 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  dark_oak_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [60, 42, 22], 0.06, rng);
+    // Dark oak: very dark bark with deep vertical furrows.
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.45) {
+        ctx.fillStyle = 'rgba(35,24,10,0.55)';
+        const h = 12 + (rng() * 16 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+    for (let x = 0; x < TILE; x++) {
+      if (rng() < 0.18) {
+        ctx.fillStyle = 'rgba(80,58,32,0.3)';
+        const h = 4 + (rng() * 8 | 0);
+        const y = (rng() * (TILE - h)) | 0;
+        ctx.fillRect(x0 + x, y0 + y, 1, h);
+      }
+    }
+  },
+
+  acacia_wood_side(ctx, x0, y0, rng) {
+    noisy(ctx, x0, y0, [120, 72, 35], 0.07, rng);
+    // Acacia: grey-brown bark with horizontal banding (like jungle but different color).
+    ctx.fillStyle = 'rgba(85,50,22,0.45)';
+    for (let y = 0; y < TILE; y += 4) ctx.fillRect(x0, y0 + y, TILE, 1);
+    // Vertical specks.
+    ctx.fillStyle = 'rgba(140,90,45,0.35)';
+    for (let i = 0; i < 10; i++) {
+      const x = (rng() * TILE | 0), y = (rng() * TILE | 0);
+      ctx.fillRect(x0 + x, y0 + y, 1, 2);
+    }
+  },
+
+  // ── Wood-type variant leaves ──
+  birch_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [75, 130, 50];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 10 - 5) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgba(95,155,65,0.5)', 'rgba(55,105,35,0.5)']);
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  spruce_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [35, 72, 30];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 8 - 4) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 8, ['rgba(50,95,42,0.5)', 'rgba(25,55,22,0.5)']);
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 12; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 2) | 0;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  },
+
+  acacia_leaves(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const base = [60, 110, 35];
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const v = (rng() * 10 - 5) | 0;
+        ctx.fillStyle = `rgb(${clamp(base[0] + v)},${clamp(base[1] + v)},${clamp(base[2] + v)})`;
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      }
+    }
+    speckle(ctx, x0, y0, rng, 10, ['rgba(80,135,50,0.5)', 'rgba(45,85,28,0.5)']);
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 14; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const radius = 1 + (rng() * 3) | 0;
+      ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  },
+};
+
+// Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.
+function planksBody(ctx, x0, y0, rng) {
+  noisy(ctx, x0, y0, [160, 130, 80], 0.05, rng);
+  // Plank seams every 8px.
+  ctx.fillStyle = 'rgba(100,78,46,0.85)';
+  for (let y = 0; y < TILE; y += 8) ctx.fillRect(x0, y0 + y, TILE, 1);
+  // Faint horizontal grain lines.
+  for (let y = 0; y < TILE; y++) {
+    if (rng() < 0.18) {
+      ctx.fillStyle = 'rgba(130,104,62,0.35)';
+      ctx.fillRect(x0, y0 + y, TILE, 1);
+    }
+  }
+  // Vertical grain strokes.
+  for (let i = 0; i < 18; i++) {
+    const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+    ctx.fillStyle = 'rgba(138,110,66,0.4)';
+    ctx.fillRect(x0 + x, y0 + y, 1, 3 + (rng() * 4 | 0));
+  }
+}
+
+// 3x3 crafting grid + bevel drawn on top of a wood-plank body (top face).
+function craftingGridOverlay(ctx, x0, y0) {
+  ctx.strokeStyle = 'rgb(58,37,16)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + 6, y0 + 6, TILE - 12, TILE - 12);
+  const inner = TILE - 12;
+  ctx.beginPath();
+  ctx.moveTo(x0 + 6 + inner / 3, y0 + 6); ctx.lineTo(x0 + 6 + inner / 3, y0 + TILE - 6);
+  ctx.moveTo(x0 + 6 + 2 * inner / 3, y0 + 6); ctx.lineTo(x0 + 6 + 2 * inner / 3, y0 + TILE - 6);
+  ctx.moveTo(x0 + 6, y0 + 6 + inner / 3); ctx.lineTo(x0 + TILE - 6, y0 + 6 + inner / 3);
+  ctx.moveTo(x0 + 6, y0 + 6 + 2 * inner / 3); ctx.lineTo(x0 + TILE - 6, y0 + 6 + 2 * inner / 3);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgb(42,26,8)';
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE - 1, TILE - 1);
+}
+
+// Saw + hammer tools + border drawn on a wood-plank body (side face).
+function craftingToolsOverlay(ctx, x0, y0) {
+  ctx.fillStyle = 'rgb(42,26,8)';
+  ctx.fillRect(x0 + 4, y0 + 12, 10, 2);
+  ctx.fillStyle = 'rgb(150,150,150)';
+  ctx.fillRect(x0 + 4, y0 + 12, 10, 1);
+  ctx.fillStyle = 'rgb(120,120,120)';
+  for (let x = 4; x < 14; x += 2) ctx.fillRect(x0 + x, y0 + 14, 1, 1);
+  ctx.fillStyle = 'rgb(100,72,40)';
+  ctx.fillRect(x0 + 13, y0 + 10, 3, 4);
+  ctx.fillStyle = 'rgb(90,90,90)';
+  ctx.fillRect(x0 + 6, y0 + 4, 6, 3);
+  ctx.fillStyle = 'rgb(122,122,122)';
+  ctx.fillRect(x0 + 6, y0 + 4, 6, 1);
+  ctx.fillStyle = 'rgb(100,72,40)';
+  ctx.fillRect(x0 + 8, y0 + 7, 2, 6);
+  ctx.strokeStyle = 'rgb(42,26,8)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE - 1, TILE - 1);
+}
+
+// Ore deposit on a stone base: irregular coloured blobs with a specular shine.
+function ore(ctx, x0, y0, rng, color) {
+  noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
+  for (let i = 0; i < 8; i++) {
+    const x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
+    ctx.fillStyle = rng() < 0.5 ? 'rgba(105,105,105,0.4)' : 'rgba(148,148,148,0.4)';
+    ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+  }
+  const blobs = 4 + (rng() * 2 | 0);
+  for (let i = 0; i < blobs; i++) {
+    const bx = 3 + (rng() * (TILE - 8) | 0);
+    const by = 3 + (rng() * (TILE - 8) | 0);
+    const r = 2 + (rng() * 2 | 0);
+    for (let py = -r; py <= r; py++) {
+      for (let px = -r; px <= r; px++) {
+        const d = Math.sqrt(px * px + py * py);
+        if (d > r + 0.5) continue;
+        const f = 1 + (rng() - 0.5) * 0.2;
+        ctx.fillStyle = `rgb(${clamp(color[0] * f)},${clamp(color[1] * f)},${clamp(color[2] * f)})`;
+        ctx.fillRect(x0 + bx + px, y0 + by + py, 1, 1);
+      }
+    }
+    // Specular highlight (upper-left).
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(x0 + bx - 1, y0 + by - 1, 1, 1);
+  }
+}
+
+// Dandelion: round fluffy yellow head on a thin green stem.
+function dandelion(ctx, x0, y0, rng) {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  const cx = x0 + 16, cy = y0 + 16;
+  // Stem: thin green line from bottom to about 2/3 up
+  ctx.fillStyle = '#3a7d2c';
+  ctx.fillRect(cx - 1, cy - 2, 2, 18);
+  // Small leaf on left
+  ctx.fillRect(cx - 5, cy + 6, 4, 1);
+  ctx.fillRect(cx - 6, cy + 7, 3, 1);
+  // Small leaf on right
+  ctx.fillRect(cx + 2, cy + 2, 4, 1);
+  ctx.fillRect(cx + 3, cy + 3, 3, 1);
+  // Fluffy round head: draw a filled circle of yellow pixels
+  ctx.fillStyle = '#f0d020';
+  for (let dy = -7; dy <= 3; dy++) {
+    for (let dx = -6; dx <= 6; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 5.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
+  }
+  // Highlight: lighter yellow on top half
+  ctx.fillStyle = '#f8e848';
+  for (let dy = -7; dy <= -2; dy++) {
+    for (let dx = -5; dx <= 5; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 4.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
+  }
+  // Darker yellow accent on bottom half
+  ctx.fillStyle = '#c8a818';
+  for (let dy = 0; dy <= 3; dy++) {
+    for (let dx = -4; dx <= 4; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= 4.5) {
+        ctx.fillRect(cx + dx, cy - 10 + dy, 1, 1);
+      }
+    }
+  }
+  // Very centre bright spot
+  ctx.fillStyle = '#fff8a0';
+  ctx.fillRect(cx - 1, cy - 13, 2, 2);
+}
+
+// Poppy: red petals with dark centre on a green stem.
+function poppy(ctx, x0, y0, rng) {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  const cx = x0 + 16, cy = y0 + 16;
+  // Stem
+  ctx.fillStyle = '#3a7d2c';
+  ctx.fillRect(cx - 1, cy - 2, 2, 18);
+  // Leaves
+  ctx.fillRect(cx - 5, cy + 5, 4, 1);
+  ctx.fillRect(cx - 6, cy + 6, 3, 1);
+  ctx.fillRect(cx + 2, cy + 1, 4, 1);
+  ctx.fillRect(cx + 3, cy + 2, 3, 1);
+  // 5 red petals arranged in a circle
+  const petalAngles = [0, 72, 144, 216, 288];
+  ctx.fillStyle = '#d83838';
+  for (const deg of petalAngles) {
+    const rad = (deg * Math.PI) / 180;
+    const px = Math.round(Math.cos(rad) * 4);
+    const py = Math.round(Math.sin(rad) * 4) - 4;
+    ctx.fillRect(cx + px - 1, cy + py - 1, 3, 3);
+  }
+  // Fill gaps
+  ctx.fillRect(cx - 2, cy - 6, 5, 5);
+  // Dark red inner shadow
+  ctx.fillStyle = '#a02020';
+  ctx.fillRect(cx - 1, cy - 5, 3, 3);
+  // Bright centre
+  ctx.fillStyle = '#201010';
+  ctx.fillRect(cx, cy - 4, 1, 1);
+}
+
+// Sapling: tiny trunk with a small leaf tuft on top, colored per wood type.
+function saplingPlant(ctx, x0, y0, rng, trunkColor, leafColor) {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  const cx = x0 + 16, cy = y0 + 16;
+  // Trunk
+  ctx.fillStyle = trunkColor;
+  ctx.fillRect(cx - 1, cy - 2, 2, 12);
+  // Small side branches
+  ctx.fillRect(cx - 4, cy + 2, 3, 1);
+  ctx.fillRect(cx + 2, cy - 2, 3, 1);
+  // Leaf tuft (a few overlapping pixels at the top)
+  ctx.fillStyle = leafColor;
+  ctx.fillRect(cx - 3, cy - 7, 6, 5);
+  ctx.fillRect(cx - 2, cy - 9, 4, 3);
+  ctx.fillRect(cx - 1, cy - 11, 2, 2);
+  // Highlight flecks
+  ctx.fillStyle = 'rgba(255,255,255,0.25)';
+  ctx.fillRect(cx - 1, cy - 8, 1, 1);
+  ctx.fillRect(cx - 2, cy - 5, 1, 1);
+}
+
+// --- atlas build -------------------------------------------------------------
+export function buildAtlas(seed = 1337) {
+  const canvas = document.createElement('canvas');
+  canvas.width = ATLAS; canvas.height = ATLAS;
+  const ctx = canvas.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, ATLAS, ATLAS);
+
+  for (const [name, [tx, ty]] of Object.entries(TILES)) {
+    const rng = mulberry32(seed + tx * 131 + ty * 17 + name.length);
+    const x0 = tx * TILE, y0 = ty * TILE;
+    const painter = PAINTERS[name] || ((c, x, y) => noisy(c, x, y, [255, 0, 255], 0, rng));
+    try {
+      painter(ctx, x0, y0, rng);
+    } catch (_e) {
+      // A single broken texture must never take down the whole atlas/game:
+      // paint a magenta placeholder for that tile and keep going.
+      noisy(ctx, x0, y0, [255, 0, 255], 0, rng);
+    }
+  }
+
+  return canvas;
+}
+
+// UV rect for a tile name (with a tiny inset to avoid bleeding between tiles).
+export function tileUVRect(name) {
+  const t = TILES[name];
+  if (!t) return { u0: 0, v0: 0, u1: 1, v1: 1 };
+  const [tx, ty] = t;
+  const pad = 0.2 / ATLAS;
+  return {
+    u0: (tx * TILE) / ATLAS + pad,
+    v0: 1 - ((ty + 1) * TILE) / ATLAS + pad, // flip Y (atlas rows go down, UV v goes up)
+    u1: ((tx + 1) * TILE) / ATLAS - pad,
+    v1: 1 - (ty * TILE) / ATLAS - pad,
+  };
+}
+
+// Render a single block's "icon" (its side texture, or top for plants) for UI.
+export function makeIcon(blockId, atlasCanvas) {
+  const key = blockId + '_' + (atlasCanvas ? '1' : '0');
+  const cached = _makeIconCache.get(key);
+  if (cached) {
+    // Safari cloneNode on canvas doesn't copy pixel data — use drawImage instead
+    const c2 = document.createElement('canvas');
+    c2.width = TILE; c2.height = TILE;
+    c2.getContext('2d').drawImage(cached, 0, 0);
+    return c2;
+  }
+  const c = document.createElement('canvas');
+  c.width = TILE; c.height = TILE;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  const name = tileNameFor(blockId, 'side');
+  const t = TILES[name];
+  if (t) {
+    ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+  }
+  if (_makeIconCache.size >= _MAKE_ICON_CACHE_MAX) {
+    const firstKey = _makeIconCache.keys().next().value;
+    if (firstKey !== undefined) _makeIconCache.delete(firstKey);
+  }
+  _makeIconCache.set(key, c);
+  const c2 = document.createElement('canvas');
+  c2.width = TILE; c2.height = TILE;
+  c2.getContext('2d').drawImage(c, 0, 0);
+  return c2;
+}

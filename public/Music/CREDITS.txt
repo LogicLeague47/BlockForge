@@ -1,0 +1,55 @@
+BlockForge — Music & Sound Credits
+==================================
+
+All audio in this game is Creative Commons Zero (CC0 / Public Domain) and
+may be used freely in commercial projects without attribution. These credits
+are kept as a courtesy and for record-keeping.
+
+MUSIC
+-----
+Calm, relaxing, CC0 / public-domain tracks (OpenGameArt.org). No attribution
+is required, but we thank each artist for releasing their work into the
+public domain. All tracks are re-encoded to AAC (.m4a) at a matched loudness
+for consistent playback.
+
+- Calm Ambient 3 (Lifewave 2k), by The Cynic Project / cynicmusic
+    https://opengameart.org/content/calm-ambient-3-lifewave-2k
+- Catmint, by Kistol
+    https://opengameart.org/content/catmint
+- Forget Me Not, by Kistol
+    https://opengameart.org/content/forget-me-not
+- Somnium, by Adiutorium
+    https://opengameart.org/content/somnium
+- Daydream, by Adiutorium
+    https://opengameart.org/content/daydream
+- Restful Meadow, by Tozan
+    https://opengameart.org/content/restful-meadow
+- Soft Piano Emotional 1, by Tozan
+    https://opengameart.org/content/soft-piano-emotional-1
+- Piano Emotional 101, by Tozan
+    https://opengameart.org/content/piano-emotional-101
+- Piano Emotional Solo 139, by Tozan
+    https://opengameart.org/content/piano-emotional-solo-139
+- Piano Melody Solo 17, by Tozan
+    https://opengameart.org/content/piano-melody-solo-17
+- Piano Melody Solo 19, by Tozan
+    https://opengameart.org/content/piano-melody-solo-19
+- Bluebonnet, by Kistol
+    https://opengameart.org/content/bluebonnet
+
+SOUND EFFECTS
+-------------
+- Kenney.nl asset packs — all CC0 1.0 Universal (https://kenney.nl):
+  - Interface Sounds (100 files)
+  - Impact Sounds (130 files)
+  - Music Jingles (85 jingles) — used for checkpoint / level-complete / fail
+    stings and gameplay feedback
+  - RPG Audio (organic foley: chop, creak, cloth, metal pots, book pages, ...)
+  - Various other public-domain samples (Fantozzi footstep recordings, etc.)
+
+Kenney releases his assets under CC0; no attribution is required, but we
+thank Kenney (kenney.nl) for keeping game assets free.
+
+Licenses
+--------
+- CC0 1.0 Universal: https://creativecommons.org/publicdomain/zero/1.0/

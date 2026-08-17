@@ -1,0 +1,179 @@
+// ─── BlockForge Mod: Minimap ─────────────────────────────────────────────
+// Top-down terrain minimap (north-up) with a live facing arrow.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+//
+// Controls:
+//   M        hide / show the minimap
+//
+// The map is drawn from a small surface-height scan around the player, so it
+// works in any generated world. It is player-centred and always north-up.
+
+export const manifest = {
+  id: 'bf-minimap',
+  name: 'Minimap',
+  version: '1.0',
+  description: 'Top-down terrain minimap with a live facing arrow. Toggle with M.',
+  author: 'BlockForge Dev',
+  icon: '🗺️',
+};
+
+const SIZE = 150;       // canvas size in px
+const GRID = 15;        // samples per axis (GRID x GRID)
+const STEP = 5;         // blocks between samples
+const HALF = ((GRID - 1) * STEP) / 2;
+const CELL = SIZE / GRID;
+
+let el = null;          // hud wrapper
+let canvas = null;
+let ctx = null;
+let visible = true;
+let _timer = 0;
+let _lastX = 1e9, _lastZ = 1e9;
+const _heights = new Float32Array(GRID * GRID);
+
+function style() {
+  return {
+    top: '14px',
+    right: '14px',
+    width: SIZE + 12 + 'px',
+    textAlign: 'right',
+  };
+}
+
+function ensureEl(api) {
+  if (el) return;
+  el = api.hud.upsert(
+    'map',
+    '<canvas style="display:block;width:' + SIZE + 'px;height:' + SIZE + 'px;image-rendering:pixelated;"></canvas>' +
+      '<div style="font:10px monospace;color:rgba(255,255,255,0.7);margin-top:4px;text-shadow:1px 1px 0 #000;">MINIMAP &middot; <span class="bfmm-coords"></span></div>',
+    style()
+  );
+  canvas = el.querySelector('canvas');
+  ctx = canvas.getContext('2d');
+}
+
+function scan(world, px, pz) {
+  let min = 1e9, max = -1e9;
+  for (let i = 0; i < GRID; i++) {
+    const wx = Math.floor(px - HALF + i * STEP);
+    for (let j = 0; j < GRID; j++) {
+      const wz = Math.floor(pz - HALF + j * STEP);
+      const h = world.surfaceHeight(wx, wz);
+      const idx = i * GRID + j;
+      _heights[idx] = h;
+      if (h < min) min = h;
+      if (h > max) max = h;
+    }
+  }
+  _min = min;
+  return max;
+}
+
+// Fixed elevation ramp (like Minecraft maps): water → sand → grass → stone →
+// snow, keyed to absolute height. Not per-scan normalised, so colours stay
+// stable while you walk (no flashing/remapping).
+function rampColor(h) {
+  const s = 32; // SEA_LEVEL
+  if (h < s) {
+    const t = Math.max(0, Math.min(1, (s - h) / 24));
+    return 'rgb(' + Math.floor(30 + t * 40) + ',' + Math.floor(60 + t * 80) + ',' + Math.floor(120 + t * 60) + ')';
+  }
+  if (h <= s + 1) return 'rgb(222,208,140)'; // beach / riverbank
+  if (h <= s + 4) return 'rgb(104,168,76)';  // grassland
+  if (h <= s + 18) return 'rgb(64,132,58)';  // forest
+  if (h <= s + 34) return 'rgb(120,120,122)';// stone hills
+  if (h <= 168) return 'rgb(142,142,146)';   // rock
+  return 'rgb(238,240,244)';                  // snow peaks
+}
+
+function drawMap() {
+  ctx.clearRect(0, 0, SIZE, SIZE);
+  // subtle dark backing
+  ctx.fillStyle = 'rgba(8,10,14,0.55)';
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  for (let i = 0; i < GRID; i++) {
+    for (let j = 0; j < GRID; j++) {
+      ctx.fillStyle = rampColor(_heights[i * GRID + j]);
+      ctx.fillRect(i * CELL, j * CELL, CELL + 0.5, CELL + 0.5);
+    }
+  }
+}
+
+function drawArrow(yaw) {
+  const cx = SIZE / 2, cy = SIZE / 2;
+  ctx.save();
+  ctx.translate(cx, cy);
+  // forward = (-sin yaw, -cos yaw); canvas y grows downward, so a positive
+  // canvas rotation maps the up-arrow toward +X (east) when yaw = -90deg.
+  ctx.rotate(Math.atan2(-Math.sin(yaw), Math.cos(yaw)));
+  ctx.beginPath();
+  ctx.moveTo(0, -13);
+  ctx.lineTo(8, 8);
+  ctx.lineTo(0, 3);
+  ctx.lineTo(-8, 8);
+  ctx.closePath();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.restore();
+  // centre dot
+  ctx.beginPath();
+  ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#4af';
+  ctx.fill();
+}
+
+let _min = 0;
+let _coordsEl = null;
+let _lastCoords = '';
+
+export function onLoad(api) {
+  ensureEl(api);
+  const toggle = (e) => {
+    if (e.code !== 'KeyM' && e.key !== 'm' && e.key !== 'M') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    visible = !visible;
+    if (el) el.style.display = visible ? '' : 'none';
+  };
+  document.addEventListener('keydown', toggle);
+  el._bfmmToggle = toggle;
+}
+
+export function onUnload(api) {
+  if (el && el._bfmmToggle) document.removeEventListener('keydown', el._bfmmToggle);
+  if (el) el.remove();
+  el = canvas = ctx = _coordsEl = null;
+}
+
+export function onTick(dt, api) {
+  if (!visible) return;
+  ensureEl(api);
+  if (!api.inGame()) { if (el) el.style.display = 'none'; return; }
+  el.style.display = '';
+
+  const p = api.getPlayer();
+  const w = api.getWorld();
+  if (!p || !w) return;
+
+  _timer += dt;
+  const moved = Math.abs(p.x - _lastX) + Math.abs(p.z - _lastZ) > 4;
+  if (_timer > 0.35 || moved) {
+    _timer = 0;
+    _lastX = p.x;
+    _lastZ = p.z;
+    scan(w, p.x, p.z);
+    drawMap();
+  }
+  drawArrow(p.yaw);
+
+  const coords = Math.floor(p.x) + ' / ' + Math.floor(p.z);
+  if (coords !== _lastCoords) {
+    _lastCoords = coords;
+    if (!_coordsEl) _coordsEl = el.querySelector('.bfmm-coords');
+    if (_coordsEl) _coordsEl.textContent = coords;
+  }
+}

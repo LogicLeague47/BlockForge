@@ -1,0 +1,76 @@
+// ─── BlockForge Mod: Spyglass Zoom ────────────────────────────────────────
+// Press-and-hold Z to zoom the camera in (spyglass). Smooth zoom, restores
+// your normal FOV when released. Toggle the feature with K.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-spyglass',
+  name: 'Spyglass',
+  version: '1.0',
+  description: 'Hold Z to zoom in like a spyglass. Toggle the feature with K.',
+  author: 'BlockForge Dev',
+  icon: '🔭',
+};
+
+let enabled = true;
+let _keyDown = false;
+let BASE_FOV = 70;
+let ZOOM_FOV = 20;
+let _onKeyDown = null;
+let _onKeyUp = null;
+let _onToggle = null;
+let _lockFov = null;
+
+export function onLoad(api) {
+  _onToggle = (e) => {
+    if (e.key !== 'k' && e.key !== 'K') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    if (!enabled) { _keyDown = false; _lockFov = null; }
+    api.hud.upsert('badge', 'SPYGLASS <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>' + (enabled ? ' — hold Z to zoom' : ''),
+      { top: '96px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1800);
+  };
+  _onKeyDown = (e) => {
+    if (e.key !== 'z' && e.key !== 'Z') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    _keyDown = true;
+  };
+  _onKeyUp = (e) => {
+    if (e.key !== 'z' && e.key !== 'Z') return;
+    _keyDown = false;
+  };
+  document.addEventListener('keydown', _onToggle);
+  document.addEventListener('keydown', _onKeyDown);
+  document.addEventListener('keyup', _onKeyUp);
+}
+
+export function onTick(dt, api) {
+  const refs = api.refs();
+  if (!refs || !refs.camera) return;
+  const cam = refs.camera;
+  if (_lockFov == null) { _lockFov = cam.fov; BASE_FOV = _lockFov; }
+  if (!enabled) { _keyDown = false; }
+
+  const target = enabled && _keyDown && api.inGame() ? ZOOM_FOV : BASE_FOV;
+  if (Math.abs(cam.fov - target) > 0.1) {
+    cam.fov += (target - cam.fov) * Math.min(1, dt * 10);
+    cam.updateProjectionMatrix();
+  }
+}
+
+export function onUnload(api) {
+  if (_onKeyDown) document.removeEventListener('keydown', _onKeyDown);
+  if (_onKeyUp) document.removeEventListener('keyup', _onKeyUp);
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onKeyDown = _onKeyUp = _onToggle = null;
+  _keyDown = false;
+  const refs = api.refs();
+  if (refs && refs.camera) {
+    refs.camera.fov = BASE_FOV;
+    refs.camera.updateProjectionMatrix();
+  }
+  _lockFov = null;
+}

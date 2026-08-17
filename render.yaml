@@ -1,0 +1,24 @@
+services:
+  # Backend: WebSocket multiplayer server + API
+  - type: web
+    name: blockforge-server
+    runtime: node
+    plan: free
+    buildCommand: npm install --include=dev && npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
+
+  # Frontend: static site served on its own URL
+  # Auto-deploys from git on every push to the connected branch.
+  # Connects to blockforge-server for WebSocket multiplayer.
+  - type: static
+    name: blockforge-client
+    buildCommand: (apt-get update -y && apt-get install -y zip || true) && ELECTRON_SKIP_BINARY_DOWNLOAD=1 npm install && npm run build
+    staticPublishPath: ./dist
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache

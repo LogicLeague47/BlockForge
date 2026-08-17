@@ -1,0 +1,3683 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="refresh" content="0;url=https://blockforge-1.onrender.com" />
+    <script>window.location.replace("https://blockforge-1.onrender.com");</script>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>BlockForge</title>
+    <link rel="icon" type="image/png" href="BlockForge.png" />
+    <script>
+      // WebGL detection — show friendly error if unsupported
+      (function() {
+        try {
+          var c = document.createElement('canvas');
+          var gl = c.getContext('webgl') || c.getContext('experimental-webgl');
+          if (!gl) {
+            document.write('<div style="color:#fff;background:#111;text-align:center;padding:80px;font-family:sans-serif;"><h2>WebGL Required</h2><p style="margin-top:12px;color:#aaa;">Your browser does not support WebGL, which is required for this game.<br>Please try Google Chrome, Firefox, or Microsoft Edge.</p></div>');
+            throw new Error('WebGL not supported');
+          }
+        } catch(e) {
+          if (e.message !== 'WebGL not supported') {
+            document.write('<div style="color:#fff;background:#111;text-align:center;padding:80px;font-family:sans-serif;"><h2>Oops!</h2><p style="margin-top:12px;color:#aaa;">Something went wrong loading the game. Please try a different browser.</p></div>');
+            throw e;
+          }
+          throw e;
+        }
+      })();
+
+      // Sitelock — game is platform-agnostic, works on any domain
+      // (Previously locked to CrazyGames only for their submission)
+    </script>
+    <script>
+      // Global error banner — catches ALL runtime errors and shows a red bar linking to debug.html
+      (function() {
+        function copyError(text, btn) {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(function() {
+              btn.textContent = 'Copied!';
+              setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+            }).catch(function() {
+              fallbackCopy(text, btn);
+            });
+          } else {
+            fallbackCopy(text, btn);
+          }
+        }
+        function fallbackCopy(text, btn) {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.style.cssText = 'position:fixed;left:-9999px;top:-9999px;opacity:0;';
+          document.body.appendChild(ta);
+          ta.select();
+          try {
+            document.execCommand('copy');
+            btn.textContent = 'Copied!';
+            setTimeout(function() { btn.textContent = 'Copy'; }, 1500);
+          } catch (_) {}
+          document.body.removeChild(ta);
+        }
+        function showErrorBanner(msg, file, line, col, stack, type) {
+          if (document.getElementById('error-banner')) return;
+          var banner = document.createElement('div');
+          banner.id = 'error-banner';
+          banner.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#a00;color:#fff;padding:8px 16px;font:13px/1.4 monospace;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.5);';
+          var shortMsg = (msg || 'Unknown error').slice(0, 120);
+          var params = new URLSearchParams({
+            msg: msg || '',
+            type: type || 'Error',
+            file: file || '',
+            line: String(line || ''),
+            col: String(col || ''),
+            stack: stack || ''
+          });
+          var fullError = (type || 'Error') + ': ' + (msg || '') + '\nFile: ' + (file || '') + '\nLine: ' + line + ', Col: ' + col + '\n\nStack:\n' + (stack || '');
+          var copyData = JSON.stringify(fullError);
+          banner.innerHTML = '<span style="flex:1;">&#9888; ' + shortMsg.replace(/</g,'&lt;') + '</span>' +
+            '<button onclick="copyError(' + copyData + ', this)" style="background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:3px 10px;cursor:pointer;font:12px monospace;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.12)\'">Copy</button>' +
+            '<a href="debug.html?' + params.toString() + '" target="_blank" style="color:#fff;text-decoration:underline;white-space:nowrap;font:12px monospace;">Debug</a>' +
+            '<button onclick="this.parentElement.remove()" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#fff;padding:3px 8px;cursor:pointer;font:12px monospace;border-radius:4px;transition:background 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.15)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.08)\'">Dismiss</button>';
+          document.body.appendChild(banner);
+        }
+        // Only surface the red error banner to developers — regular players get
+        // nothing visible (errors still reach the console for debugging).
+        function isDevViewer() {
+          try {
+            var name = ((localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '')).toLowerCase();
+            var role = (localStorage.getItem('bf_role') || '').toLowerCase();
+            if (name === 'logicleague' || name === 'cdkide2') return true;
+            if (role === 'dev' || role === 'gamedev' || role === 'owner') return true;
+          } catch (_) {}
+          return false;
+        }
+        // Persistent error log (dev tool). Keep the last 200 entries so the
+        // pause-menu error viewer can inspect/copy recent failures.
+        window.__devErrors = window.__devErrors || [];
+        function logErrorToStore(msg, file, line, col, stack, type) {
+          try {
+            window.__devErrors.push({ t: Date.now(), type: type || 'Error', msg: msg || '', file: file || '', line: line || 0, col: col || 0, stack: stack || '' });
+            if (window.__devErrors.length > 200) window.__devErrors.splice(0, window.__devErrors.length - 200);
+          } catch (_) {}
+        }
+        window.addEventListener('error', function(e) {
+          logErrorToStore(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack, e.error && e.error.name);
+          if (!isDevViewer()) { console.error(e.message); return; }
+          showErrorBanner(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack, e.error && e.error.name);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+          var reason = e.reason;
+          var msg = (reason && reason.message) ? reason.message : String(reason);
+          var stack = (reason && reason.stack) ? reason.stack : '';
+          // Ignore pointer lock rejections (Safari bug: .catch() doesn't suppress unhandledrejection)
+          if (/pointer lock/i.test(msg)) { e.preventDefault(); return; }
+          logErrorToStore(msg, '', '', '', stack, 'UnhandledPromiseRejection');
+          if (!isDevViewer()) { console.error(msg); return; }
+          showErrorBanner(msg, '', '', '', stack, 'UnhandledPromiseRejection');
+        });
+        window.isDevViewer = isDevViewer;
+      })();
+    </script>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%238B6B3B'/%3E%3Crect y='0' width='16' height='5' fill='%235B8C2A'/%3E%3Crect y='5' width='16' height='2' fill='%236B4B2B'/%3E%3Crect x='2' y='1' width='2' height='2' fill='%234A7A1A'/%3E%3Crect x='8' y='2' width='3' height='2' fill='%234A7A1A'/%3E%3Crect x='5' y='0' width='2' height='1' fill='%234A7A1A'/%3E%3C/svg%3E" />
+    <style>
+      :root {
+        --bg-overlay: #000;
+        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7) 100%);
+        --bg-screen: rgba(0,0,0,0.65);
+        --bg-panel: rgba(8,8,16,0.65);
+        --bg-panel-border: rgba(100,140,255,0.15);
+        --bg-card: rgba(0,0,0,0.35);
+        --bg-card-hover: rgba(0,0,0,0.5);
+        --bg-input: rgba(30,30,30,0.8);
+        --bg-input-border: rgba(80,80,80,0.5);
+        --bg-creative: rgba(0,0,0,0.4);
+        --bg-creative-border: rgba(80,80,80,0.4);
+        --bg-slot: rgba(60,60,60,0.45);
+        --bg-armor-slot: rgba(0,0,0,0.45);
+        --btn-bg: linear-gradient(180deg,rgba(60,60,80,0.7),rgba(40,40,60,0.8),rgba(30,30,50,0.85),rgba(20,20,40,0.9));
+        --btn-bg-hover: linear-gradient(180deg,rgba(80,80,120,0.8),rgba(60,60,100,0.85),rgba(50,50,80,0.9),rgba(40,40,70,0.95));
+        --btn-color: #e0e8ff;
+        --btn-border: rgba(100,140,255,0.2);
+        --btn-shadow: 0 3px 0 rgba(20,20,40,0.6);
+        --btn-play-bg: linear-gradient(180deg,rgba(60,140,80,0.7),rgba(40,110,60,0.8),rgba(30,90,50,0.85),rgba(20,70,40,0.9));
+        --btn-mp-bg: linear-gradient(180deg,rgba(50,100,160,0.7),rgba(40,80,140,0.8),rgba(30,70,120,0.85),rgba(20,60,100,0.9));
+        --accent-glow: rgba(100,160,255,0.25);
+        --accent-glow-hover: rgba(100,160,255,0.4);
+        --glass-edge: rgba(100,160,255,0.08);
+        --text-primary: #fff;
+        --text-secondary: #ddd;
+        --text-muted: #aab;
+        --text-heading: #fff;
+        --border-primary: #222;
+        --scrollbar-thumb: rgba(100,140,200,0.35);
+      }
+      .theme-light {
+        --bg-overlay: #c8c8c8;
+        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 20%, rgba(180,180,180,0.4) 80%, rgba(160,160,160,0.6) 100%);
+        --bg-screen: rgba(210,210,210,0.85);
+        --bg-panel: rgba(220,220,240,0.75);
+        --bg-panel-border: rgba(60,100,180,0.2);
+        --bg-card: rgba(200,200,200,0.6);
+        --bg-card-hover: rgba(190,190,190,0.8);
+        --bg-input: rgba(230,230,230,0.9);
+        --bg-input-border: rgba(140,140,140,0.6);
+        --bg-creative: rgba(200,200,200,0.6);
+        --bg-creative-border: rgba(140,140,140,0.5);
+        --bg-slot: rgba(180,180,180,0.5);
+        --bg-armor-slot: rgba(200,200,200,0.5);
+        --btn-bg: linear-gradient(180deg,rgba(200,200,220,0.8),rgba(180,180,210,0.85),rgba(170,170,200,0.9),rgba(160,160,190,0.95));
+        --btn-bg-hover: linear-gradient(180deg,rgba(210,210,230,0.85),rgba(195,195,220,0.9),rgba(185,185,210,0.95),rgba(175,175,200,1));
+        --btn-color: #222;
+        --btn-border: rgba(60,100,180,0.25);
+        --btn-shadow: 0 3px 0 rgba(120,120,140,0.5);
+        --btn-play-bg: linear-gradient(180deg,rgba(100,180,120,0.7),rgba(80,160,100,0.8),rgba(70,140,90,0.85),rgba(60,120,80,0.9));
+        --btn-mp-bg: linear-gradient(180deg,rgba(80,140,200,0.7),rgba(60,120,180,0.8),rgba(50,110,170,0.85),rgba(40,100,160,0.9));
+        --accent-glow: rgba(60,120,220,0.2);
+        --accent-glow-hover: rgba(60,120,220,0.35);
+        --glass-edge: rgba(60,120,220,0.1);
+        --text-primary: #222;
+        --text-secondary: #444;
+        --text-muted: #777;
+        --text-heading: #333;
+        --border-primary: #999;
+        --scrollbar-thumb: rgba(80,120,180,0.5);
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #000; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; touch-action: none; -webkit-touch-callout: none; -webkit-overflow-scrolling: auto; }
+      /* Prevent pull-to-refresh on mobile */
+      html { overscroll-behavior: none; -ms-overflow-style: none; scrollbar-width: none; }
+      #app { width: 100vw; height: 100vh; }
+      canvas { display: block; }
+
+      /* Crosshair — Bedrock style: small, thin, white */
+      #crosshair {
+        position: fixed; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: 12px; height: 12px;
+        pointer-events: none; z-index: 10;
+        mix-blend-mode: difference;
+      }
+      #crosshair::before, #crosshair::after {
+        content: ""; position: absolute; background: rgba(255,255,255,0.85);
+      }
+      #crosshair::before { left: 50%; top: 0; width: 1px; height: 100%; transform: translateX(-50%); }
+      #crosshair::after  { top: 50%; left: 0; height: 1px; width: 100%; transform: translateY(-50%); }
+      #attack-cooldown {
+        position: fixed; left: 50%; top: 50%;
+        transform: translate(-50%, -50%);
+        width: 28px; height: 28px;
+        pointer-events: none; z-index: 9;
+        border-radius: 50%;
+        background: conic-gradient(transparent 0deg, rgba(255,255,255,0.7) 0deg);
+        mask: radial-gradient(circle, transparent 11px, black 12px);
+        -webkit-mask: radial-gradient(circle, transparent 11px, black 12px);
+        opacity: 0;
+        transition: opacity 0.1s;
+      }
+
+      /* Held item name */
+      #item-name {
+        position: fixed; left: 50%; bottom: 74px;
+        transform: translateX(-50%);
+        font: bold 15px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, 2px 2px 0 #000;
+        pointer-events: none; z-index: 10;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #item-name.visible { opacity: 1; }
+
+      /* Hotbar — Bedrock style */
+      #hotbar {
+        position: fixed; left: 50%; bottom: 4px;
+        transform: translateX(-50%);
+        display: none; gap: 0px;
+        padding: 2px 3px; z-index: 30;
+        background: rgba(0,0,0,0.55);
+        border: 2px solid rgba(50,50,50,0.85);
+        border-top-color: rgba(80,80,80,0.9);
+        border-left-color: rgba(70,70,70,0.85);
+        border-radius: 2px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+        image-rendering: pixelated;
+      }
+      .slot {
+        width: 36px; height: 36px;
+        background: rgba(60,60,60,0.45);
+        border: 2px solid rgba(20,20,20,0.8);
+        border-top-color: rgba(60,60,60,0.6);
+        border-left-color: rgba(50,50,50,0.55);
+        border-radius: 1px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        transition: border-color 0.08s, box-shadow 0.08s;
+      }
+      .slot.active {
+        border-color: rgba(255,255,255,0.85);
+        border-top-color: #fff;
+        box-shadow: 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 8px rgba(255,255,255,0.1);
+      }
+      .slot canvas { width: 26px; height: 26px; image-rendering: pixelated;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
+      }
+      .slot .num {
+        position: absolute; top: calc(100% + 3px); left: 50%;
+        transform: translateX(-50%);
+        font: bold 9px monospace; color: rgba(255,255,255,0.55);
+        text-shadow: 1px 1px 0 #000;
+        pointer-events: none;
+      }
+      .slot.active .num { color: rgba(255,255,255,0.9); }
+      .slot .count {
+        position: absolute; bottom: 1px; right: 3px;
+        font: bold 10px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, -1px 1px 0 #000, 1px -1px 0 #000, -1px -1px 0 #000;
+        pointer-events: none;
+        line-height: 1;
+      }
+      /* Low durability warning — pulse the selected slot red */
+      @keyframes durWarn {
+        0%, 100% { box-shadow: 0 0 0 2px rgba(255,255,255,0.55), inset 0 0 8px rgba(255,255,255,0.1); }
+        50% { box-shadow: 0 0 0 2px rgba(255,60,60,0.9), inset 0 0 10px rgba(255,40,40,0.4); }
+      }
+      .slot.low-dur.active {
+        animation: durWarn 0.8s ease-in-out infinite;
+      }
+
+      /* XP Bar */
+      #xp-bar {
+        position: fixed; left: 50%; bottom: 48px;
+        transform: translateX(-50%);
+        width: 350px; height: 5px;
+        background: #1a1a1a;
+        border: 2px solid #0a0a0a;
+        border-top-color: #0a0a0a;
+        border-left-color: #0a0a0a;
+        border-bottom-color: #3a3a3a;
+        border-right-color: #3a3a3a;
+        border-radius: 1px;
+        z-index: 10;
+        pointer-events: none;
+        overflow: visible;
+      }
+      #xp-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(180deg, #7dff5f 0%, #5ec43a 35%, #3fa52a 70%, #2d8a1e 100%);
+        border-radius: 0;
+        transition: width 0.3s;
+        box-shadow: 0 0 4px rgba(80,200,40,0.4);
+      }
+      #xp-level {
+        position: absolute; left: 50%; top: -13px;
+        transform: translateX(-50%);
+        font: bold 11px monospace; color: #7fff5f;
+        text-shadow: 1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000;
+        opacity: 0;
+        transition: opacity 0.2s;
+      }
+      #xp-level.visible { opacity: 1; }
+
+      /* Status bars container — sits above XP bar, hearts left, hunger right */
+      #status-bars {
+        position: fixed; bottom: 56px; left: 50%;
+        transform: translateX(-50%);
+        width: 350px; z-index: 10;
+        pointer-events: none;
+        display: flex; justify-content: space-between;
+        align-items: flex-end;
+      }
+      @keyframes hungerPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+      .hunger-warn { animation: hungerPulse 0.7s ease-in-out infinite; filter: drop-shadow(0 0 2px #f55); }
+      /* Minecraft armor bar — row of chestplate icons directly above the hearts */
+      #armor-row {
+        position: fixed; bottom: 66px; left: 50%;
+        transform: translateX(-50%);
+        width: 350px;
+        z-index: 10;
+        pointer-events: none;
+        text-align: left;
+        line-height: 0;
+      }
+      #offhand-slot {
+        position: fixed; right: calc(50% - 210px); bottom: 6px;
+        width: 30px; height: 30px;
+        background: rgba(0,0,0,0.45);
+        border: 2px solid rgba(20,20,20,0.7);
+        border-top-color: rgba(50,50,50,0.6);
+        border-left-color: rgba(40,40,40,0.5);
+        border-radius: 1px;
+        display: flex; align-items: center; justify-content: center;
+        z-index: 10;
+        pointer-events: none;
+      }
+      #offhand-slot img {
+        width: 22px; height: 22px;
+        image-rendering: pixelated;
+      }
+      #offhand-slot .offhand-label {
+        position: absolute; bottom: -1px; left: 50%;
+        transform: translateX(-50%);
+        font-size: 7px; color: rgba(200,200,200,0.4);
+        letter-spacing: 0.3px;
+      }
+      /* HUD */
+      #hud {
+        position: fixed; top: 6px; left: 8px; z-index: 10;
+        font: bold 12px/1.6 monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, 2px 2px 0 #000;
+        pointer-events: none;
+      }
+      #hud .fps { color: #9ad; }
+      #hud .mode { color: #faa; }
+      #hud .coord { color: #ddd; }
+      #hud .biome { color: #9cf; }
+      #coords-hud .ch-val { color: #9cf; }
+
+      /* Hand overlay — first-person held item in bottom-right */
+      #hand-overlay {
+        position: fixed; bottom: 20px; right: 20px;
+        width: 80px; height: 80px;
+        pointer-events: none; z-index: 9;
+        display: flex; align-items: flex-end; justify-content: flex-end;
+        opacity: 0;
+        transition: opacity 0.15s;
+      }
+      #hand-overlay.visible { opacity: 1; }
+      #hand-overlay .hand-item {
+        width: 56px; height: 56px;
+        image-rendering: pixelated;
+        filter: drop-shadow(2px 2px 3px rgba(0,0,0,0.7));
+        transform-origin: bottom right;
+        animation: handBob 1.5s ease-in-out infinite;
+        animation-play-state: paused;
+      }
+      #hand-overlay.bobbing .hand-item {
+        animation-play-state: running;
+      }
+      @keyframes handBob {
+        0%, 100% { transform: translateY(0) rotate(-5deg); }
+        50% { transform: translateY(-4px) rotate(0deg); }
+      }
+
+      /* Water overlay */
+      #water-overlay {
+        position: fixed; inset: 0; z-index: 8;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.3s;
+        background: radial-gradient(ellipse at center, transparent 40%, rgba(30,70,160,0.35) 100%);
+      }
+      #water-overlay.active { opacity: 1; }
+
+      /* Underwater overlay — solid blue tint */
+      #underwater-overlay {
+        position: fixed; inset: 0;
+        background: rgba(0, 40, 120, 0.25);
+        pointer-events: none; display: none;
+        z-index: 5;
+      }
+
+      /* Sleep overlay */
+      #sleep-overlay {
+        position: fixed; inset: 0; z-index: 90;
+        background: #000; opacity: 0;
+        pointer-events: none;
+      }
+      #sleep-message {
+        position: fixed; top: 40%; left: 50%;
+        transform: translate(-50%, -50%);
+        font: bold 18px monospace; color: #fff;
+        text-shadow: 2px 2px 0 #000;
+        pointer-events: none; z-index: 91;
+        opacity: 0; transition: opacity 0.3s;
+        text-align: center;
+      }
+      #sleep-message.visible { opacity: 1; }
+
+      /* Damage flash overlay — red vignette when hurt */
+      #damage-overlay {
+        position: fixed; inset: 0; z-index: 6;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(ellipse at center, rgba(180,0,0,0) 35%, rgba(180,0,0,0.55) 100%);
+        transition: opacity 0.12s ease-out;
+      }
+      #damage-overlay.flash { opacity: 1; }
+
+      /* Low health vignette — persistent red border when health <= 4 hearts */
+      #low-health-vignette {
+        position: fixed; inset: 0; z-index: 5;
+        pointer-events: none;
+        opacity: 0;
+        background: radial-gradient(ellipse at center, rgba(180,0,0,0) 40%, rgba(180,0,0,0.45) 100%);
+        transition: opacity 0.4s ease-in-out;
+      }
+
+      /* ── Parkour HUD ─────────────────────────────────────────── */
+      #parkour-hud {
+        position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+        z-index: 25;
+        display: none;
+        text-align: center;
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        pointer-events: none;
+        background: rgba(0,0,0,0.5);
+        padding: 6px 16px;
+        border-radius: 6px;
+        border: 1px solid rgba(255,255,255,0.15);
+      }
+      .pk-hud-level { font: bold 16px monospace; color: #ff0; margin-bottom: 2px; }
+      .pk-hud-time { font: 14px monospace; color: #fff; }
+      .pk-hud-deaths { font: 14px monospace; color: #f88; }
+
+      #parkour-finish {
+        position: fixed; inset: 0; z-index: 60;
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.75);
+        font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        color: #fff;
+      }
+      .pk-finish-title { font: bold 28px monospace; color: #ffd700; margin-bottom: 12px; text-shadow: 0 0 20px rgba(255,215,0,0.5); }
+      .pk-finish-grade { font: bold 48px monospace; margin: 8px 0; text-shadow: 0 0 30px currentColor; }
+      .pk-finish-time { font: 24px monospace; color: #ddd; margin: 4px 0; }
+      .pk-finish-deaths { font: 18px monospace; color: #f88; margin: 4px 0 20px; }
+      .pk-finish-btn {
+        padding: 12px 40px;
+        font: bold 16px monospace;
+        background: linear-gradient(180deg,#6b6b6b,#555,#4a4a4a,#3a3a3a);
+        color: #fff; border: 2px solid #222; border-radius: 3px;
+        cursor: pointer;
+        margin-top: 12px;
+      }
+      .pk-finish-btn:hover { background: linear-gradient(180deg,#7a7a7a,#666,#555,#444); }
+
+      /* Minigame grid */
+      .mg-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-bottom: 12px;
+      }
+      .mg-btn {
+        height: 52px !important;
+        font-size: 10px !important;
+        line-height: 1.2 !important;
+        padding: 6px 2px !important;
+        white-space: normal !important;
+        text-align: center !important;
+      }
+      .mg-coming {
+        border-color: rgba(120,120,120,0.5) !important;
+        background: rgba(60,60,60,0.6) !important;
+        color: #999 !important;
+        cursor: default !important;
+        opacity: 0.7;
+      }
+      .mg-coming:hover {
+        background: rgba(70,70,70,0.6) !important;
+        color: #bbb !important;
+        opacity: 0.85;
+      }
+
+      /* Achievement toast notification */
+      #achievement-toast {
+        position: fixed; top: 70px; right: -400px;
+        z-index: 100;
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(10,10,10,0.82);
+        border: 2px solid rgba(220,185,50,0.7);
+        border-radius: 8px;
+        padding: 10px 18px;
+        min-width: 280px;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.6), 0 0 12px rgba(220,185,50,0.25), inset 0 1px 0 rgba(255,255,255,0.05);
+        pointer-events: none;
+        transform: translateX(0);
+        transition: right 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      #achievement-toast.show { right: 20px; }
+      #achievement-toast .ach-icon {
+        width: 40px; height: 40px;
+        image-rendering: pixelated;
+        border: 2px solid rgba(220,185,50,0.6);
+        border-radius: 4px;
+        flex-shrink: 0;
+        box-shadow: 0 0 6px rgba(220,185,50,0.3);
+      }
+      #achievement-toast .ach-text { text-align: left; }
+      #achievement-toast .ach-label {
+        font: bold 10px/1 'Segoe UI', Arial, monospace;
+        color: #dcb932;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #achievement-toast .ach-name {
+        font: bold 13px/1.2 'Segoe UI', Arial, monospace;
+        color: #fff;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+        margin-top: 2px;
+      }
+      #achievement-toast .ach-desc {
+        font: 11px/1.2 'Segoe UI', Arial, monospace;
+        color: #aaa;
+        margin-top: 1px;
+      }
+
+      /* Achievement list screen */
+      #achievement-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.8);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto;
+        padding: 30px 20px;
+      }
+      #achievement-screen.open { display: flex; }
+
+      /* Recipe book screen */
+      #recipe-screen {
+        position: fixed; inset: 0; z-index: 70;
+        background: rgba(0,0,0,0.85);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto; padding: 30px 20px;
+      }
+      #recipe-screen { display: none; }
+      #recipe-screen.open { display: flex; }
+      #recipe-screen h2 { font-size: 24px; color: #ddd; margin-bottom: 12px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+      .recipe-tabs { display: flex; gap: 4px; margin-bottom: 12px; flex-wrap: wrap; justify-content: center; }
+      .recipe-tab, .adv-tab {
+        background: rgba(60,60,60,0.5); border: 1px solid rgba(80,80,80,0.4);
+        color: #ccc; cursor: pointer; font: bold 10px monospace; padding: 5px 10px; border-radius: 3px;
+      }
+      .recipe-tab.active, .adv-tab.active { background: rgba(100,150,200,0.4); border-color: #8af; color: #fff; }
+      .lan-tab {
+        background: rgba(40,40,50,0.6); border: 1px solid rgba(80,80,90,0.4);
+        color: #aaa; cursor: pointer; font: bold 12px monospace; padding: 10px 8px; border-radius: 4px;
+        letter-spacing: 0.5px; transition: background 0.15s, border-color 0.15s, color 0.15s;
+      }
+      .lan-tab:hover { background: rgba(60,60,70,0.6); color: #ddd; }
+      .lan-tab.active { background: rgba(90,140,90,0.35); border-color: #7c5; color: #fff; }
+      #recipe-list {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px; width: 100%; max-width: 800px; padding: 4px;
+      }
+      .recipe-card {
+        background: rgba(255,255,255,0.04); border: 1px solid rgba(100,100,120,0.25);
+        border-radius: 5px; padding: 8px; display: flex; gap: 10px; align-items: center;
+      }
+      .recipe-info { flex: 1; }
+      .recipe-name { font: bold 12px monospace; color: #eee; }
+      .recipe-cat { font: 9px monospace; color: #888; margin-top: 2px; }
+      .recipe-grid-mini { display: grid; gap: 1px; image-rendering: pixelated; }
+      .recipe-grid-mini canvas { width: 16px; height: 16px; image-rendering: pixelated; }
+      #recipe-close, #recipe-screen button#recipe-close {
+        position: sticky; bottom: 0; z-index: 2;
+        margin-top: 16px; padding: 12px 40px;
+        background: linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);
+        border: 2px solid #2a5a2a; border-radius: 6px; color: #fff; cursor: pointer; font: bold 14px monospace;
+        box-shadow: 0 2px 0 #224;
+      }
+      #stats-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: rgba(0,0,0,0.8);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-start;
+        color: #fff; font-family: 'Segoe UI', Arial, monospace;
+        overflow-y: auto; padding: 30px 20px;
+      }
+      #stats-screen.open { display: flex; }
+      #stats-screen h2 { font-size: 24px; color: #ddd; margin-bottom: 12px; letter-spacing: 2px; text-shadow: 2px 2px 0 #000; }
+      #stats-list { width: 100%; max-width: 500px; background: rgba(255,255,255,0.03); border-radius: 6px; padding: 16px; }
+      .stat-row { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font: 13px monospace; }
+      .stat-row:last-child { border-bottom: none; }
+      .stat-label { color: #aaa; }
+      .stat-value { color: #7fff5f; font-weight: bold; }
+      #stats-close {
+        position: sticky; bottom: 0; z-index: 2;
+        margin-top: 16px; padding: 12px 40px;
+        background: linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);
+        border: 2px solid #2a5a2a; border-radius: 6px; color: #fff; cursor: pointer; font: bold 14px monospace;
+        box-shadow: 0 2px 0 #224;
+      }
+      #achievement-screen h2 {
+        font-size: 24px; color: #ddd; margin-bottom: 4px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #ach-progress-bar {
+        width: 300px; height: 10px;
+        background: rgba(0,0,0,0.5);
+        border: 1px solid rgba(100,100,100,0.4);
+        border-radius: 3px;
+        margin-bottom: 16px;
+        overflow: hidden;
+      }
+      #ach-progress-fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(90deg, #c8aa3c, #e8ca5c);
+        border-radius: 2px;
+        transition: width 0.4s;
+      }
+      #ach-progress-text {
+        font-size: 11px; color: #aaa; margin-bottom: 20px;
+      }
+      .ach-category {
+        width: min(700px, 95vw);
+        margin-bottom: 16px;
+      }
+      .ach-cat-title {
+        font-size: 14px; color: #c8aa3c;
+        letter-spacing: 2px; text-transform: uppercase;
+        padding-bottom: 6px;
+        border-bottom: 1px solid rgba(200,170,60,0.2);
+        margin-bottom: 8px;
+      }
+      .ach-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 8px;
+      }
+      .ach-card {
+        display: flex; align-items: center; gap: 10px;
+        background: rgba(40,40,50,0.6);
+        border: 1px solid rgba(80,80,80,0.3);
+        border-radius: 3px;
+        padding: 8px 10px;
+        transition: background 0.1s;
+      }
+      .ach-card.locked {
+        opacity: 0.45;
+      }
+      .ach-card .ach-card-icon {
+        width: 36px; height: 36px;
+        image-rendering: pixelated;
+        border: 1px solid rgba(100,100,100,0.3);
+        border-radius: 2px;
+        flex-shrink: 0;
+        background: rgba(30,30,40,0.5);
+      }
+      .ach-card .ach-card-info { text-align: left; min-width: 0; }
+      .ach-card .ach-card-name {
+        font: bold 12px/1.2 'Segoe UI', Arial, monospace;
+        color: #ddd;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ach-card.locked .ach-card-name { color: #888; }
+      .ach-card .ach-card-desc {
+        font: 10px/1.2 'Segoe UI', Arial, monospace;
+        color: #999;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .ach-card.locked .ach-card-desc { color: #666; }
+      #ach-close {
+        position: sticky; bottom: 0; z-index: 2;
+        margin-top: 16px;
+        padding: 12px 40px;
+        font: bold 14px 'Segoe UI', Arial, monospace;
+        background: linear-gradient(180deg, #5a8a5a 0%, #4a7a4a 40%, #407040 60%, #366336 100%);
+        color: #fff; border: 2px solid #2a5a2a; border-radius: 6px;
+        cursor: pointer;
+        box-shadow: 0 2px 0 #224;
+      }
+      #ach-close:hover { background: linear-gradient(180deg, #6a9a6a 0%, #5a8a5a 40%, #4a8050 60%, #467346 100%); }
+
+      /* Pause menu — Bedrock style overlay */
+      #menu-pause {
+        position: fixed; inset: 0; z-index: 56;
+        background: rgba(0,0,0,0.7);
+        display: none; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: #fff; font-family: monospace;
+      }
+      #menu-pause.active { display: flex; animation: pauseFadeIn 0.2s ease; }
+      @keyframes pauseFadeIn { from { opacity: 0; } to { opacity: 1; } }
+      #menu-pause .pause-panel {
+        background: rgba(12,12,24,0.8);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 340px;
+        width: 100%;
+        display: flex; flex-direction: column; align-items: center; gap: 10px;
+        backdrop-filter: blur(16px);
+        border: 1px solid rgba(100,140,255,0.12);
+        box-shadow: 0 0 0 1px rgba(100,160,255,0.04), 0 16px 48px rgba(0,0,0,0.4);
+      }
+      #menu-pause .pause-title {
+        font-size: 24px; font-weight: bold;
+        background: linear-gradient(135deg, #e0e8ff 0%, #8af 50%, #c084fc 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 8px; letter-spacing: 1px;
+      }
+      #menu-pause .pause-btn {
+        width: 100%; padding: 10px 16px;
+        background: linear-gradient(180deg, rgba(60,60,80,0.7), rgba(40,40,60,0.8), rgba(30,30,50,0.85), rgba(20,20,40,0.9));
+        color: #e0e8ff; border: 1px solid rgba(100,140,255,0.15); border-radius: 6px;
+        font: bold 14px monospace; cursor: pointer;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.3);
+        box-shadow: 0 2px 0 rgba(20,20,40,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+        transition: transform 0.15s cubic-bezier(0.16,1,0.3,1), box-shadow 0.2s, background 0.2s, border-color 0.2s;
+      }
+      #menu-pause .pause-btn:hover {
+        background: linear-gradient(180deg, rgba(80,80,120,0.8), rgba(60,60,100,0.85), rgba(50,50,80,0.9), rgba(40,40,70,0.95));
+        box-shadow: 0 2px 0 rgba(20,20,40,0.5), 0 0 20px rgba(100,160,255,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(100,160,255,0.3);
+      }
+      #menu-pause .pause-btn:active {
+        transform: translateY(1px);
+        box-shadow: 0 1px 0 rgba(20,20,40,0.5), inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      #menu-pause .pause-btn.danger {
+        background: linear-gradient(180deg, rgba(180,60,60,0.7), rgba(140,40,40,0.8), rgba(120,30,30,0.85), rgba(100,20,20,0.9));
+        border-color: rgba(200,60,60,0.25);
+        box-shadow: 0 2px 0 rgba(80,20,20,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      #menu-pause .pause-btn.danger:hover {
+        background: linear-gradient(180deg, rgba(200,80,80,0.75), rgba(160,60,60,0.85), rgba(140,50,50,0.9), rgba(120,40,40,0.95));
+        box-shadow: 0 2px 0 rgba(80,20,20,0.5), 0 0 20px rgba(220,60,60,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(220,60,60,0.35);
+      }
+      #menu-pause .pause-btn.dev {
+        border-color: rgba(240,180,60,0.3);
+      }
+      #menu-pause .pause-btn.dev:hover {
+        border-color: rgba(240,180,60,0.55);
+        box-shadow: 0 2px 0 rgba(20,20,40,0.5), 0 0 20px rgba(240,180,60,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+      }
+
+      /* Dev error log panel */
+      #error-log-panel {
+        position: fixed; inset: 0; z-index: 9999;
+        display: none; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+      }
+      #error-log-panel.active { display: flex; }
+      #error-log-panel .elog-box {
+        width: 640px; max-width: 94vw; max-height: 80vh;
+        display: flex; flex-direction: column; gap: 12px;
+        background: rgba(10,10,22,0.92); border: 1px solid rgba(100,140,255,0.2);
+        border-radius: 12px; padding: 18px;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+      }
+      #error-log-panel .elog-head { display: flex; align-items: center; gap: 10px; }
+      #error-log-panel .elog-title { flex: 1; font: bold 16px monospace; color: #e0e8ff; }
+      #error-log-panel .elog-copy, #error-log-panel .elog-clear {
+        padding: 6px 12px; font: bold 12px monospace; cursor: pointer;
+        border-radius: 6px; border: 1px solid rgba(100,160,255,0.3);
+        background: rgba(60,120,200,0.2); color: #8cf;
+      }
+      #error-log-panel .elog-copy:hover, #error-log-panel .elog-clear:hover { background: rgba(60,120,200,0.4); color: #fff; }
+      #error-log-panel .elog-list { flex: 1; overflow-y: auto; min-height: 120px; display: flex; flex-direction: column; gap: 8px; }
+      #error-log-panel .elog-empty { font: 13px monospace; color: #667; text-align: center; padding: 24px 0; }
+      #error-log-panel .elog-item {
+        border: 1px solid rgba(120,40,40,0.4); border-left: 3px solid #a44;
+        background: rgba(40,10,10,0.4); border-radius: 6px; padding: 8px 10px;
+        font: 12px monospace; color: #e0b8b8; white-space: pre-wrap; word-break: break-word;
+      }
+      #error-log-panel .elog-item .elog-meta { color: #889; font-size: 10px; margin-bottom: 4px; }
+      #error-log-panel .elog-item .elog-stack { color: #a88; margin-top: 4px; font-size: 11px; }
+      #error-log-panel .elog-close {
+        padding: 8px 16px; font: bold 13px monospace; cursor: pointer; text-align: center;
+        border-radius: 6px; border: 1px solid rgba(100,140,255,0.2);
+        background: linear-gradient(180deg, rgba(60,60,80,0.7), rgba(40,40,60,0.8));
+        color: #e0e8ff;
+      }
+      #error-log-panel .elog-close:hover { border-color: rgba(100,160,255,0.4); }
+
+      /* Item tooltip */
+      #item-tooltip {
+        position: fixed; z-index: 65;
+        background: rgba(10,10,10,0.92);
+        color: #fff; font: 12px monospace;
+        padding: 4px 8px; border-radius: 4px;
+        border: 1px solid rgba(80,80,80,0.5);
+        pointer-events: none;
+        display: none; white-space: nowrap;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      }
+
+      /* When any full-screen modal is open, hide the on-screen mobile controls
+         so they can't overlap the modal or intercept taps meant for its buttons. */
+      body.screen-open #mobile-controls { display: none !important; }
+
+      /* Inventory screen */
+      #inventory-screen {
+        position: fixed; inset: 0; z-index: 55;
+        background: var(--bg-screen);
+        backdrop-filter: blur(4px);
+        display: none; flex-direction: column;
+        align-items: stretch; justify-content: flex-start;
+        padding: 0;
+        overflow-y: auto; overflow-x: hidden;
+        color: var(--text-primary); font-family: monospace;
+        -webkit-overflow-scrolling: touch;
+      }
+      #inventory-screen.open {
+        display: flex;
+        animation: modalFadeIn 0.15s ease;
+      }
+      .modal-container { animation: modalFadeIn 0.15s ease; }
+      @keyframes modalFadeIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+      }
+      #inventory-screen h2 {
+        position: sticky; top: 0; z-index: 5;
+        flex-wrap: wrap; gap: 8px;
+        font-size: 18px; color: var(--text-heading);
+        margin: 0 0 12px; padding: 10px 12px;
+        text-shadow: 2px 2px 0 #000;
+        letter-spacing: 2px;
+        background: var(--bg-screen);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+      }
+      #inv-layout {
+        display: flex; gap: 16px; align-items: flex-start;
+        flex-wrap: wrap; justify-content: center;
+        padding: 0 12px 16px;
+      }
+      #inv-left {
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #inv-right {
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      #creative-browser {
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 8px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+        width: 280px;
+        max-height: 400px;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      #creative-browser .creative-label {
+        font-size: 11px; color: #444; letter-spacing: 1px; text-align: center;
+      }
+      #creative-search {
+        width: 100%;
+        padding: 5px 8px;
+        background: #999;
+        border: 1px solid #373737;
+        box-shadow: inset 0 2px 0 rgba(0,0,0,0.2);
+        border-radius: 3px;
+        color: #000;
+        font: 12px monospace;
+        outline: none;
+        box-sizing: border-box;
+      }
+      #creative-search::placeholder { color: rgba(0,0,0,0.4); }
+      #creative-search:focus { border-color: rgba(120,160,200,0.9); }
+      #creative-grid {
+        display: grid;
+        grid-template-columns: repeat(7, 34px);
+        gap: 2px;
+        overflow-y: auto;
+        max-height: 340px;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(100,100,100,0.5) transparent;
+      }
+      #creative-grid::-webkit-scrollbar { width: 6px; }
+      #creative-grid::-webkit-scrollbar-track { background: transparent; }
+      #creative-grid::-webkit-scrollbar-thumb { background: rgba(100,100,100,0.5); border-radius: 3px; }
+      #creative-grid .inv-slot {
+        width: 34px; height: 34px;
+      }
+      #creative-grid .inv-slot canvas { width: 28px; height: 28px;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
+      }
+      #creative-grid .inv-slot:hover {
+        background: rgba(100,130,160,0.7);
+      }
+      #creative-grid .inv-slot .cri-name {
+        display: none;
+        position: absolute; bottom: -18px; left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0,0,0,0.85);
+        color: #eee;
+        font: 9px monospace;
+        padding: 2px 5px;
+        border-radius: 2px;
+        white-space: nowrap;
+        z-index: 65;
+        pointer-events: none;
+      }
+      #creative-grid .inv-slot:hover .cri-name { display: block; }
+      #inv-crafting-area {
+        display: flex; flex-direction: column; align-items: center; gap: 8px;
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 12px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+      }
+      #inv-crafting-area .craft-label {
+        font-size: 11px; color: #444; letter-spacing: 1px;
+      }
+      #crafting-input {
+        display: grid;
+        grid-template-columns: repeat(2, 42px);
+        gap: 2px;
+      }
+      #crafting-arrow {
+        font-size: 24px; color: #888; margin: 4px 0;
+      }
+      #crafting-output {
+        width: 42px; height: 42px;
+        background: #8b8b8b;
+        border: 2px solid #373737;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.4);
+        border-radius: 2px;
+        display: flex; align-items: center; justify-content: center;
+        position: relative;
+        cursor: pointer;
+      }
+      #crafting-output:hover { border-color: #fff; }
+      #crafting-output canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+      #cursor-item {
+        position: fixed; pointer-events: none; z-index: 60;
+        width: 42px; height: 42px;
+        display: none;
+      }
+      #cursor-item canvas { width: 32px; height: 32px; image-rendering: pixelated; }
+      #cursor-item .cur-count {
+        position: absolute; bottom: 1px; right: 2px;
+        font: bold 9px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000;
+      }
+      #inventory-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 6px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+      }
+      .inv-slot {
+        width: 42px; height: 42px;
+        background: #8b8b8b;
+        border: 1px solid #373737;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), inset 2px 0 0 rgba(255,255,255,0.2), inset -2px 0 0 rgba(0,0,0,0.3);
+        border-radius: 2px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+      }
+      .inv-slot:hover {
+        background: #a0a0a0;
+        border-color: #fff;
+      }
+      .inv-slot canvas {
+        width: 32px; height: 32px; image-rendering: pixelated;
+        filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.6));
+      }
+      .inv-slot .inv-count {
+        position: absolute; bottom: 1px; right: 2px;
+        font: bold 9px monospace; color: #fff;
+        text-shadow: 1px 1px 0 #000, 0 0 3px #000;
+      }
+      .inv-slot .inv-num {
+        position: absolute; top: 1px; left: 2px;
+        font: bold 8px monospace; color: rgba(255,255,255,0.9);
+        text-shadow: 1px 1px 0 #000;
+      }
+      .inv-slot.selected {
+        border-color: #fff;
+        box-shadow: 0 0 6px rgba(255,255,255,0.6), 0 0 12px rgba(255,255,255,0.3), 0 0 0 1px #fff inset;
+      }
+      #inventory-grid .inv-slot.craft-slot {
+        background: #8b8b8b;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), inset 2px 0 0 rgba(255,255,255,0.2), inset -2px 0 0 rgba(0,0,0,0.3);
+      }
+      .inv-separator {
+        grid-column: 1 / -1;
+        height: 2px;
+        background: rgba(80,80,80,0.3);
+        margin: 2px 0;
+      }
+      .inventory-hint {
+        margin-top: 10px; font-size: 11px; color: #888;
+      }
+      /* Armor display in inventory */
+      #inv-armor-area {
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 8px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+        display: flex; flex-direction: column; gap: 4px;
+        align-items: center;
+      }
+      #inv-armor-area .inv-armor-label {
+        font-size: 11px; color: #444; letter-spacing: 1px; text-align: center;
+        margin-bottom: 2px;
+      }
+      #inv-armor-slots {
+        display: flex; flex-direction: column; gap: 3px;
+      }
+      .inv-armor-slot {
+        width: 42px; height: 42px;
+        background: #8b8b8b;
+        border: 1px solid #373737;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.4), inset 2px 0 0 rgba(255,255,255,0.2), inset -2px 0 0 rgba(0,0,0,0.3);
+        border-radius: 2px;
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer;
+      }
+      .inv-armor-slot:hover {
+        background: #a0a0a0;
+        border-color: #fff;
+      }
+      .inv-armor-slot canvas {
+        width: 32px; height: 32px; image-rendering: pixelated;
+      }
+      .inv-armor-slot .inv-armor-name {
+        position: absolute; bottom: 1px; left: 0; right: 0;
+        text-align: center;
+        font: bold 7px monospace; color: #333;
+        text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+        pointer-events: none;
+      }
+      /* Light inventory theme */
+      #inventory-screen.inv-light {
+        background: rgba(180,190,200,0.92);
+        color: #222;
+      }
+      #inventory-screen.inv-light #inventory-grid {
+        background: rgba(200,210,220,0.8);
+        border-color: rgba(150,150,160,0.6);
+      }
+      #inventory-screen.inv-light .inv-slot {
+        background: rgba(210,215,220,0.9);
+        border-color: rgba(140,140,150,0.5);
+      }
+      #inventory-screen.inv-light .inv-slot:hover {
+        background: rgba(180,190,200,0.9);
+        border-color: rgba(100,120,160,0.6);
+      }
+      #inventory-screen.inv-light .inv-slot.craft-slot {
+        background: rgba(190,200,210,0.9);
+      }
+      #inventory-screen.inv-light #inv-crafting-area {
+        background: rgba(190,200,210,0.7);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light #inv-armor-area {
+        background: rgba(190,200,210,0.7);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light .inv-armor-slot {
+        background: rgba(210,215,220,0.9);
+        border-color: rgba(140,140,150,0.5);
+      }
+      #inventory-screen.inv-light .inv-armor-slot:hover {
+        background: rgba(180,190,200,0.9);
+        border-color: rgba(100,120,160,0.6);
+      }
+      #inventory-screen.inv-light #creative-browser {
+        background: rgba(195,205,215,0.9);
+        border-color: rgba(150,150,160,0.5);
+      }
+      #inventory-screen.inv-light .inv-slot .inv-count { color: #222; text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inv-slot .inv-num { color: rgba(0,0,0,0.4); text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inv-slot .inv-armor-name { color: rgba(40,40,40,0.6); text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .inventory-hint { color: #666; }
+      #inventory-screen.inv-light h2 { color: #333; text-shadow: 1px 1px 0 #ddd; }
+      #inventory-screen.inv-light .craft-label,
+      #inventory-screen.inv-light .inv-armor-label,
+      #inventory-screen.inv-light .creative-label { color: #555; }
+      #inventory-screen.inv-light #crafting-output {
+        background: rgba(190,200,210,0.8);
+        border-color: rgba(140,140,150,0.5);
+      }
+
+      /* Furnace screen */
+      #furnace-screen {
+        position: fixed; inset: 0; z-index: 56;
+        background: var(--bg-screen);
+        display: none; flex-direction: column;
+        align-items: stretch; justify-content: flex-start;
+        overflow-y: auto; overflow-x: hidden;
+        font-family: monospace;
+      }
+      #furnace-screen.open { display: flex; animation: modalFadeIn 0.15s ease; }
+      #furnace-screen h2 {
+        position: sticky; top: 0; z-index: 5; margin: 0 0 12px; padding: 10px 12px;
+        background: var(--bg-screen); border-bottom: 1px solid rgba(255,255,255,0.08);
+        flex-wrap: wrap; gap: 8px;
+      }
+      #chest-screen {
+        position: fixed; inset: 0; z-index: 56;
+        background: var(--bg-screen);
+        display: none; flex-direction: column;
+        align-items: stretch; justify-content: flex-start;
+        overflow-y: auto; overflow-x: hidden;
+        font-family: monospace;
+      }
+      #chest-screen.open { display: flex; animation: modalFadeIn 0.15s ease; }
+      #chest-screen h2 {
+        font-size: 18px; color: #fff; margin-bottom: 12px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #chest-layout {
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 16px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      #chest-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      #chest-inv-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      #chest-hotbar-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+        margin-top: 4px;
+      }
+      .skin-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 100px);
+        gap: 10px;
+        justify-content: center;
+        margin: 6px 0 12px;
+      }
+      .skin-card {
+        display: flex; flex-direction: column; align-items: center; gap: 4px;
+        background: rgba(40,50,60,0.6);
+        border: 2px solid rgba(80,80,100,0.3);
+        border-radius: 4px; padding: 10px 6px;
+        cursor: pointer; transition: border-color 0.15s, background 0.15s;
+      }
+      .skin-card:hover {
+        background: rgba(60,80,100,0.6);
+        border-color: rgba(100,180,255,0.5);
+      }
+      .skin-card.selected {
+        border-color: rgba(100,200,100,0.8);
+        background: rgba(40,80,40,0.4);
+      }
+      .skin-card canvas {
+        image-rendering: pixelated;
+      }
+      .skin-card-name {
+        font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
+      }
+      /* Skin Editor - Bedrock style: BIG preview, grid secondary */
+      .skin-editor-layout {
+        display: flex; gap: 10px; align-items: flex-start;
+        max-height: 70vh; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: rgba(100,100,100,0.5) transparent;
+      }
+      .skin-tool-btn {
+        width: 32px; height: 32px; border: 1px solid rgba(80,80,80,0.5);
+        background: rgba(40,40,50,0.8); color: #ccc; border-radius: 3px;
+        cursor: pointer; font: bold 13px monospace; transition: all 0.1s;
+      }
+      .skin-tool-btn:hover { background: rgba(70,70,90,0.9); }
+      .skin-tool-btn.active { background: rgba(80,120,180,0.8); border-color: #8af; color: #fff; }
+      .skin-tool-btn.wide { width: auto; padding: 0 10px; font-size: 11px; }
+      .skin-act-btn {
+        flex: 1; padding: 6px 8px; border: 1px solid rgba(80,80,80,0.5);
+        background: rgba(40,40,50,0.8); color: #ccc; border-radius: 3px;
+        cursor: pointer; font: 11px monospace; transition: all 0.1s;
+      }
+      .skin-act-btn:hover { background: rgba(70,70,90,0.9); }
+      .skin-act-btn.primary { background: rgba(60,140,60,0.8); color: #fff; border-color: rgba(80,180,80,0.5); }
+      .skin-act-btn.primary:hover { background: rgba(80,170,80,0.9); }
+      .skin-color-grid {
+        display: grid; grid-template-columns: repeat(10, 1fr); gap: 2px;
+      }
+      .skin-color-cell {
+        width: 20px; height: 20px; border: 1px solid rgba(60,60,60,0.5);
+        border-radius: 2px; cursor: pointer; transition: transform 0.08s;
+      }
+      .skin-color-cell:hover { transform: scale(1.3); z-index: 1; border-color: #fff; }
+      .skin-color-cell.selected { border: 2px solid #fff; box-shadow: 0 0 4px rgba(255,255,255,0.5); }
+      .skin-editor-main {
+        flex: 1; min-width: 0;
+        display: flex; flex-direction: column; gap: 6px;
+      }
+      .skin-editor-preview-wrap {
+        display: flex; flex-direction: column; gap: 4px;
+        flex: 1;
+      }
+      .skin-editor-preview-box {
+        background: repeating-conic-gradient(rgba(60,60,70,0.4) 0% 25%, rgba(40,40,50,0.4) 0% 50%) 0 0 / 16px 16px;
+        border: 2px solid rgba(80,80,80,0.4);
+        border-radius: 6px; overflow: hidden; width: 100%;
+        flex: 1; min-height: 260px;
+        position: relative;
+      }
+      .skin-editor-grid-section {
+        display: flex; gap: 6px; align-items: center;
+        background: rgba(0,0,0,0.2); padding: 6px 8px;
+        border-radius: 6px; border: 1px solid rgba(80,80,80,0.2);
+      }
+      .skin-editor-grid-section .skin-grid-editor-wrap {
+        width: 140px; height: 140px; flex-shrink: 0;
+      }
+      .skin-editor-grid-section .skin-grid-editor-wrap canvas {
+        width: 140px; height: 140px;
+      }
+      .skin-editor-grid-section .skin-grid-overlay {
+        width: 140px; height: 140px;
+      }
+      .skin-editor-grid-section .skin-preview-hint {
+        font-size: 10px; color: #666; flex: 1;
+      }
+      .skin-editor-grid-section .skin-tool-btn {
+        width: 28px; height: 28px; font-size: 11px;
+      }
+      .skin-editor-grid-section .skin-tool-btn.wide {
+        width: auto; padding: 0 8px; font-size: 10px;
+      }
+      .skin-editor-sidebar {
+        width: 200px; flex-shrink: 0;
+        display: flex; flex-direction: column; gap: 4px;
+      }
+      .skin-editor-sidebar .skin-palette-section { display: flex; flex-direction: column; gap: 3px; }
+      .skin-editor-sidebar .skin-palette-label { font-size: 9px; color: #888; letter-spacing: 1px; }
+      .skin-editor-sidebar .skin-sat-bright-wrap {
+        width: 110px; height: 110px; flex-shrink: 0;
+        border: 1px solid rgba(80,80,80,0.5); border-radius: 3px; cursor: crosshair;
+      }
+      .skin-editor-sidebar #skin-sat-bright { width: 110px; height: 110px; }
+      .skin-editor-sidebar .skin-hue-wrap {
+        width: 16px; height: 110px; flex-shrink: 0;
+        border: 1px solid rgba(80,80,80,0.5); border-radius: 3px; cursor: pointer;
+      }
+      .skin-editor-sidebar #skin-hue-bar { width: 16px; height: 110px; }
+      .skin-editor-sidebar .skin-color-cell { width: 18px; height: 18px; }
+      .skin-editor-sidebar .skin-current-color { padding: 3px 6px; }
+      .skin-editor-sidebar .skin-swatch-lg { width: 24px; height: 24px; }
+      .skin-editor-sidebar .skin-hex-label { font-size: 10px; }
+      .skin-editor-sidebar .skin-act-btn { padding: 4px 6px; font-size: 10px; }
+      .skin-region-label { font-size: 7px; }
+      #furnace-screen h2 {
+        font-size: 18px; color: #ddd; margin-bottom: 12px;
+        text-shadow: 2px 2px 0 #000; letter-spacing: 2px;
+      }
+      #furnace-layout {
+        background: #c6c6c6;
+        box-shadow: inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -2px 0 rgba(0,0,0,0.2);
+        padding: 16px;
+        border-radius: 4px;
+        border: 2px solid #373737;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      #furnace-screen .furnace-label {
+        font-size: 10px; color: #444; letter-spacing: 1px; text-align: center;
+      }
+      #furnace-top {
+        display: flex; align-items: flex-end; gap: 6px;
+      }
+      #furnace-left, #furnace-right { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-center {
+        display: flex; align-items: center; justify-content: center;
+        padding-bottom: 6px;
+      }
+      #furnace-bottom-row {
+        display: flex; align-items: flex-end; gap: 12px;
+        padding-left: 6px;
+      }
+      #furnace-fuel-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-flame { padding-bottom: 2px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+      #furnace-fuel-bar {
+        width: 28px; height: 6px; background: #1a1a1a; border: 1px solid #0a0a0a;
+        border-radius: 2px; overflow: hidden;
+      }
+      #furnace-fuel-bar-fill {
+        height: 100%; width: 0%;
+        background: linear-gradient(180deg, #ffcc44 0%, #f89020 60%, #d87010 100%);
+        transition: width 0.3s;
+      }
+      #furnace-inv-grid {
+        display: grid;
+        grid-template-columns: repeat(9, 42px);
+        gap: 2px;
+      }
+      /* Main menu overlay — Bedrock Beta style */
+      #overlay {
+        position: fixed; inset: 0; z-index: 50;
+        display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        color: var(--text-primary); font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        text-align: center;
+        overflow-y: auto; overflow-x: hidden;
+        scrollbar-width: thin;
+      }
+      #overlay::-webkit-scrollbar { width: 8px; }
+      #overlay::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
+      #overlay::-webkit-scrollbar-track { background: transparent; }
+      #overlay.hidden { display: none; }
+      #overlay-bg {
+        position: absolute; inset: 0;
+        z-index: 0;
+        image-rendering: pixelated;
+        background-size: cover;
+        background-position: center;
+        background: radial-gradient(ellipse at 30% 40%, rgba(60,100,200,0.06) 0%, transparent 60%),
+                    radial-gradient(ellipse at 70% 60%, rgba(140,80,200,0.04) 0%, transparent 50%);
+        animation: overlayBgPulse 8s ease-in-out infinite alternate;
+      }
+      @keyframes overlayBgPulse {
+        0% { opacity: 0.6; transform: scale(1); }
+        100% { opacity: 1; transform: scale(1.02); }
+      }
+      #overlay-vignette {
+        position: absolute; inset: 0;
+        z-index: 1;
+        background: var(--bg-overlay-vignette);
+      }
+      .menu-screen {
+        display: none; flex-direction: column; align-items: center; gap: 10px;
+        position: relative; z-index: 2;
+        width: 100%; max-width: 500px;
+        /* margin:auto centres in the flex overlay AND keeps the top reachable
+           when content is taller than the viewport (so the overlay scrollbar
+           actually works instead of clipping). */
+        margin: auto;
+        /* Scale down (never up) to fit the current screen. */
+        transform-origin: top center;
+      }
+      .menu-screen.active {
+        display: flex;
+        animation: menuFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .menu-screen.active.menu-fit {
+        animation: none;
+      }
+      @keyframes menuFadeIn {
+        from { opacity: 0; transform: translateY(12px) scale(0.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      .menu-logo-wrap {
+        position: relative;
+        margin-bottom: 30px;
+      }
+      .menu-logo {
+        font-family: monospace;
+        font-size: 64px; font-weight: 900; letter-spacing: 10px;
+        background: linear-gradient(180deg, #fff 30%, #8af 70%, #c084fc 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        text-shadow: none;
+        filter: drop-shadow(4px 4px 0 rgba(30,30,50,0.6)) drop-shadow(0 0 24px rgba(100,160,255,0.2));
+        image-rendering: pixelated;
+      }
+      .menu-splash {
+        position: absolute; top: -20px; right: -80px;
+        font: bold 22px monospace;
+        background: linear-gradient(135deg, #ffdd33 0%, #ff8844 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        filter: drop-shadow(2px 2px 0 rgba(120,60,0,0.4));
+        transform: rotate(12deg);
+        letter-spacing: 1px;
+        animation: splashBounce 2s ease-in-out infinite;
+      }
+      @keyframes splashBounce {
+        0%, 100% { transform: rotate(12deg) scale(1); }
+        50% { transform: rotate(12deg) scale(1.1); }
+      }
+      .menu-title {
+        font-size: 28px; font-weight: 900; letter-spacing: 2px;
+        background: linear-gradient(135deg, #e0e8ff 0%, #8af 50%, #c084fc 100%);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+        margin-bottom: 6px;
+      }
+      .menu-btn {
+        padding: 14px 0;
+        font: bold 16px/1.2 'Segoe UI', 'Helvetica Neue', Arial, monospace;
+        background: var(--btn-bg);
+        color: var(--btn-color); border: 1px solid var(--btn-border); border-radius: 6px;
+        cursor: pointer; letter-spacing: 1px;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.2);
+        box-shadow: var(--btn-shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+        transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s, background 0.2s, border-color 0.2s;
+        min-width: 400px;
+        position: relative;
+        backdrop-filter: blur(8px);
+      }
+      .menu-btn::before {
+        content: ''; position: absolute; inset: -1px; border-radius: 7px;
+        background: linear-gradient(135deg, var(--glass-edge), transparent 40%, transparent 60%, var(--glass-edge));
+        pointer-events: none; z-index: -1;
+      }
+      .menu-btn:hover {
+        background: var(--btn-bg-hover);
+        box-shadow: var(--btn-shadow), 0 0 20px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(100,160,255,0.3);
+      }
+      .menu-btn:active {
+        transform: translateY(2px);
+        box-shadow: 0 1px 0 rgba(20,20,40,0.6), inset 0 2px 4px rgba(0,0,0,0.3);
+      }
+      .menu-btn#btn-play {
+        background: var(--btn-play-bg);
+        border-color: rgba(60,160,60,0.3);
+        box-shadow: var(--btn-shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .menu-btn#btn-play:hover {
+        background: linear-gradient(180deg, rgba(80,180,100,0.75), rgba(60,150,80,0.85), rgba(50,130,70,0.9), rgba(40,110,60,0.95));
+        box-shadow: var(--btn-shadow), 0 0 24px rgba(60,200,80,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(60,200,80,0.4);
+      }
+      .menu-btn#btn-multiplayer {
+        background: var(--btn-mp-bg);
+        border-color: rgba(60,140,220,0.3);
+        box-shadow: var(--btn-shadow), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .menu-btn#btn-multiplayer:hover {
+        background: linear-gradient(180deg, rgba(60,140,220,0.75), rgba(50,120,200,0.85), rgba(40,110,190,0.9), rgba(30,100,180,0.95));
+        box-shadow: var(--btn-shadow), 0 0 24px rgba(60,160,255,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(60,160,255,0.4);
+      }
+      .menu-btn.sel { background: rgba(80,160,255,0.25) !important; border-color: rgba(100,180,255,0.5) !important; box-shadow: 0 0 16px rgba(80,160,255,0.35); }
+      .menu-btn .btn-badge {
+        position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+        background: #5a5; color: #fff; font-size: 9px; font-weight: bold;
+        padding: 1px 5px; border-radius: 2px; letter-spacing: 0.5px;
+        text-shadow: 1px 1px 0 #383;
+      }
+      .menu-btn.danger {
+        background: linear-gradient(180deg, rgba(180,60,60,0.7), rgba(140,40,40,0.8), rgba(120,30,30,0.85), rgba(100,20,20,0.9));
+        border-color: rgba(200,60,60,0.3);
+        box-shadow: 0 3px 0 rgba(80,20,20,0.6), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .menu-btn.danger:hover {
+        background: linear-gradient(180deg, rgba(200,80,80,0.75), rgba(160,60,60,0.85), rgba(140,50,50,0.9), rgba(120,40,40,0.95));
+        box-shadow: 0 3px 0 rgba(80,20,20,0.6), 0 0 20px rgba(220,60,60,0.25), inset 0 1px 0 rgba(255,255,255,0.1);
+        border-color: rgba(220,60,60,0.4);
+      }
+      .menu-btn.secondary {
+        background: linear-gradient(180deg, rgba(50,50,90,0.6), rgba(40,40,80,0.7), rgba(35,35,70,0.75), rgba(30,30,60,0.8));
+        border-color: rgba(80,80,140,0.2);
+        box-shadow: 0 3px 0 rgba(20,20,40,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+       .menu-btn.secondary:hover {
+         background: linear-gradient(180deg, rgba(60,60,120,0.7), rgba(50,50,110,0.8), rgba(45,45,100,0.85), rgba(40,40,90,0.9));
+         box-shadow: 0 3px 0 rgba(20,20,40,0.5), 0 0 16px rgba(80,120,220,0.2), inset 0 1px 0 rgba(255,255,255,0.1);
+         border-color: rgba(100,140,220,0.35);
+       }
+       /* ── Download cards ── */
+       .dl-card {
+         display: flex; align-items: center; gap: 14px;
+         padding: 14px 16px;
+         background: rgba(8,8,16,0.55);
+         border: 1px solid rgba(100,140,255,0.1);
+         border-radius: 8px;
+         cursor: pointer;
+         transition: background 0.15s, border-color 0.15s, transform 0.1s;
+         backdrop-filter: blur(8px);
+       }
+       .dl-card:hover {
+         background: rgba(12,16,30,0.7);
+         border-color: rgba(100,160,255,0.25);
+         transform: translateX(4px);
+       }
+       .dl-icon { font-size: 28px; flex-shrink: 0; width: 40px; text-align: center; }
+       .dl-info { flex: 1; text-align: left; }
+       .dl-name { font: bold 14px monospace; color: #e0e8ff; letter-spacing: 0.5px; }
+       .dl-desc { font: 11px monospace; color: #8899aa; margin-top: 2px; }
+       .dl-arrow { font: bold 18px monospace; color: rgba(100,140,255,0.4); flex-shrink: 0; }
+       /* Bottom corners — fixed to viewport */
+      .menu-bottom-left, .menu-bottom-right {
+        position: fixed; bottom: 20px; z-index: 3;
+      }
+      .menu-bottom-left { left: 20px; }
+      .menu-bottom-right { right: 20px; }
+      .menu-icon-btn {
+        width: 44px; height: 44px;
+        background: rgba(8,8,20,0.55);
+        border: 1px solid rgba(100,140,255,0.12);
+        border-radius: 8px;
+        display: flex; align-items: center; justify-content: center;
+        cursor: pointer; transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        image-rendering: pixelated;
+        backdrop-filter: blur(8px);
+      }
+      .menu-icon-btn:hover {
+        background: rgba(40,40,80,0.6);
+        border-color: rgba(100,160,255,0.3);
+        box-shadow: 0 0 16px rgba(100,160,255,0.15);
+      }
+      .menu-icon-btn svg { width: 28px; height: 28px; }
+      /* Steve preview — fixed to right side of viewport */
+      .menu-player-preview {
+        position: fixed; z-index: 3;
+        right: 40px; top: 50%; transform: translateY(-50%);
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+      }
+      #menu-player-container {
+        box-shadow: 0 0 24px rgba(100,160,255,0.12), 0 10px 40px rgba(0,0,0,0.55);
+      }
+      .menu-player-name {
+        font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
+        background: rgba(0,0,0,0.4); padding: 2px 8px; border-radius: 2px;
+      }
+      #btn-skin-customize {
+        font-size: 12px; padding: 8px 20px; min-width: auto;
+        border: 2px solid #333;
+      }
+      .menu-panel {
+        background: var(--bg-panel);
+        border: 1px solid var(--bg-panel-border);
+        padding: 16px 20px;
+        border-radius: 8px;
+        width: 420px;
+        max-height: min(340px, 60vh);
+        overflow-y: auto;
+        scrollbar-width: thin;
+        scrollbar-color: var(--scrollbar-thumb) transparent;
+        backdrop-filter: blur(12px);
+        box-shadow: 0 0 0 1px rgba(100,160,255,0.04), inset 0 1px 0 rgba(255,255,255,0.04);
+      }
+      .menu-panel::-webkit-scrollbar { width: 6px; }
+      .menu-panel::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+      .world-card {
+        display: flex; align-items: center; justify-content: space-between;
+        background: rgba(40,50,60,0.6);
+        border: 1px solid rgba(80,80,100,0.3);
+        border-radius: 3px; padding: 10px 14px;
+        margin-bottom: 6px; cursor: pointer;
+        transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.1s, border-color 0.1s;
+      }
+      .world-card:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+        background: rgba(60,80,100,0.6);
+        border-color: rgba(100,140,180,0.5);
+      }
+      .world-card .wc-info { text-align: left; }
+      .world-card .wc-name { font-size: 14px; font-weight: bold; color: #ddd; }
+      .world-card .wc-meta { font-size: 10px; color: #999; margin-top: 2px; }
+      .world-card .wc-mode {
+        font-size: 10px; padding: 2px 6px; border-radius: 2px;
+        font-weight: bold; letter-spacing: 1px;
+      }
+      .wc-mode.creative { background: rgba(60,140,60,0.5); color: #8d8; }
+      .wc-mode.survival { background: rgba(140,60,60,0.5); color: #d88; }
+      .world-card .wc-delete {
+        background: none; border: none; color: #866; cursor: pointer;
+        font: bold 14px monospace; padding: 2px 6px; border-radius: 2px;
+      }
+      .world-card .wc-delete:hover { color: #f44; background: rgba(255,60,60,0.15); }
+      .world-card .wc-export {
+        background: none; border: none; color: #6a8; cursor: pointer;
+        font: bold 14px monospace; padding: 2px 6px; border-radius: 2px;
+      }
+      .world-card .wc-export:hover { color: #0fc; background: rgba(0,255,204,0.12); }
+      .menu-form { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+      .menu-form label {
+        font-size: 11px; color: #aaa; letter-spacing: 1px; text-align: left;
+      }
+      .menu-form input, .menu-form select {
+        width: 100%; padding: 8px 10px;
+        background: rgba(20,20,20,0.8);
+        border: 1px solid rgba(80,80,100,0.4);
+        border-radius: 3px; color: #ddd;
+        font: 13px monospace; outline: none;
+        box-sizing: border-box;
+      }
+      .menu-form input:focus, .menu-form select:focus {
+        border-color: rgba(100,160,100,0.6);
+      }
+      .mode-select { display: flex; gap: 8px; }
+      .mode-option {
+        flex: 1; padding: 12px 10px;
+        border: 2px solid var(--btn-border); border-radius: 8px;
+        cursor: pointer; text-align: center;
+        background: var(--bg-card);
+        backdrop-filter: blur(8px);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .mode-option:hover {
+        background: var(--bg-card-hover);
+        border-color: rgba(100,160,255,0.3);
+        box-shadow: 0 0 12px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .mode-option.selected {
+        border-color: rgba(100,200,100,0.6); background: rgba(60,140,60,0.12);
+        box-shadow: 0 0 16px rgba(60,180,60,0.2), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .mode-option .mo-icon { font-size: 24px; margin-bottom: 4px; }
+      .mode-option .mo-label { font: bold 12px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .mode-option .mo-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 3px; }
+      .menu-panel .menu-btn {
+        min-width: 0;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      .menu-hint {
+        font-size: 11px; color: #777; margin-top: 8px; line-height: 1.5;
+      }
+      .menu-divider {
+        width: 100%; height: 1px;
+        background: rgba(100,100,120,0.3); margin: 4px 0;
+      }
+      .settings-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 8px 0; border-bottom: 1px solid rgba(60,60,70,0.3);
+      }
+      .settings-row:last-child { border-bottom: none; }
+      .settings-row label { font-size: 12px; color: #ccc; }
+      .settings-row select, .settings-row input[type=range] {
+        width: 140px;
+      }
+      .settings-row input[type=range] {
+        -webkit-appearance: none; appearance: none; height: 6px;
+        background: rgba(80,80,100,0.4); border-radius: 3px; outline: none;
+      }
+      .settings-row input[type=range]::-webkit-slider-thumb {
+        -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+        background: #7af; border: 2px solid #5af; cursor: pointer;
+        transition: transform 0.1s, background 0.1s;
+      }
+      .settings-row input[type=range]::-webkit-slider-thumb:hover {
+        transform: scale(1.15); background: #8bf;
+      }
+      .settings-row input[type=range]::-moz-range-thumb {
+        width: 16px; height: 16px; border-radius: 50%;
+        background: #7af; border: 2px solid #5af; cursor: pointer;
+      }
+
+      /* ── Dev Panel ──────────────────────────────────────────────────── */
+      .dev-panel { width: 480px; max-height: 80vh; display: flex; flex-direction: column; gap: 0; }
+      .dev-panel .menu-panel { max-height: none; width: 100%; flex: 1; overflow-y: auto; }
+      .dev-section {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(100,140,255,0.08);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-bottom: 10px;
+        backdrop-filter: blur(6px);
+        transition: border-color 0.2s;
+      }
+      .dev-section:hover { border-color: rgba(100,140,255,0.15); }
+      .dev-section-title {
+        font: bold 11px monospace; color: #5af;
+        letter-spacing: 1.5px; text-transform: uppercase;
+        margin-bottom: 10px;
+        display: flex; align-items: center; gap: 6px;
+      }
+      .dev-section-title::before {
+        content: ''; width: 3px; height: 12px;
+        background: linear-gradient(180deg, #5af, #36d);
+        border-radius: 2px;
+      }
+      .dev-stats-grid {
+        display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
+      }
+      .dev-stat-card {
+        text-align: center; padding: 10px 6px;
+        background: rgba(0,0,0,0.25);
+        border: 1px solid rgba(100,140,255,0.06);
+        border-radius: 6px;
+        transition: border-color 0.2s, transform 0.15s;
+      }
+      .dev-stat-card:hover { border-color: rgba(100,140,255,0.15); transform: translateY(-1px); }
+      .dev-stat-label { font: 10px monospace; color: #667; letter-spacing: 0.5px; margin-bottom: 4px; }
+      .dev-stat-value { font: bold 20px monospace; }
+      .dev-stat-value.green { color: #5f5; }
+      .dev-stat-value.orange { color: #fa0; }
+      .dev-search-input {
+        width: 100%; padding: 8px 12px;
+        background: rgba(0,0,0,0.4); color: #fff;
+        border: 1px solid rgba(100,140,255,0.1);
+        border-radius: 5px; font: 12px monospace; outline: none;
+        transition: border-color 0.2s;
+        margin-bottom: 8px; box-sizing: border-box;
+      }
+      .dev-search-input:focus { border-color: rgba(100,160,255,0.25); }
+      .dev-search-input::placeholder { color: #556; }
+      .dev-account-list { max-height: 200px; overflow-y: auto; }
+      .dev-account-item {
+        cursor: pointer; padding: 6px 10px; border-radius: 5px;
+        font: 12px monospace; color: #ccd;
+        display: flex; align-items: center; gap: 8px;
+        transition: background 0.1s, border-color 0.1s;
+        border: 1px solid transparent;
+      }
+      .dev-account-item:hover { background: rgba(80,120,200,0.1); border-color: rgba(100,140,255,0.1); }
+      .dev-account-item.selected { background: rgba(80,150,255,0.15); border-color: rgba(100,160,255,0.2); }
+      .dev-account-item .role-badge {
+        font-size: 9px; font-weight: bold;
+        padding: 1px 6px; border-radius: 3px;
+        letter-spacing: 0.5px;
+      }
+      .dev-detail {
+        background: rgba(0,0,0,0.3); border-radius: 8px;
+        padding: 14px; margin-top: 8px;
+        border: 1px solid rgba(100,140,255,0.08);
+      }
+      .dev-detail-header {
+        font: bold 14px monospace; color: #fff; margin-bottom: 10px;
+        display: flex; align-items: center; gap: 8px;
+      }
+      .dev-detail-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 6px 0; border-bottom: 1px solid rgba(60,60,80,0.2);
+      }
+      .dev-detail-row:last-child { border-bottom: none; }
+      .dev-detail-row label { font: 11px monospace; color: #89a; }
+      .dev-detail-row .value { font: 12px monospace; color: #dde; }
+      .dev-detail-input {
+        padding: 4px 8px; background: rgba(0,0,0,0.4); color: #fff;
+        border: 1px solid rgba(100,140,255,0.12); border-radius: 4px;
+        font: 11px monospace; outline: none; width: 120px;
+      }
+      .dev-detail-input:focus { border-color: rgba(100,160,255,0.3); }
+      .dev-detail-btn {
+        padding: 4px 10px; font: bold 10px monospace;
+        border-radius: 4px; cursor: pointer;
+        transition: all 0.15s;
+      }
+      .dev-detail-btn.primary { background: rgba(60,120,200,0.2); border: 1px solid rgba(100,160,255,0.2); color: #8cf; }
+      .dev-detail-btn.primary:hover { background: rgba(60,120,200,0.4); color: #fff; }
+      .dev-detail-btn.green { background: rgba(60,160,80,0.15); border: 1px solid rgba(80,200,100,0.2); color: #5f5; }
+      .dev-detail-btn.green:hover { background: rgba(60,160,80,0.3); color: #8f8; }
+      .dev-detail-btn.red { background: rgba(180,40,40,0.15); border: 1px solid rgba(255,60,60,0.2); color: #f55; }
+      .dev-detail-btn.red:hover { background: rgba(180,40,40,0.3); color: #f88; }
+      .dev-stats-pill {
+        display: inline-flex; gap: 6px; flex-wrap: wrap;
+      }
+      .dev-stats-pill span {
+        background: rgba(0,0,0,0.25); border-radius: 4px;
+        padding: 3px 8px; font: 10px monospace;
+      }
+      .dev-stats-pill span .sl { color: #667; }
+      .dev-stats-pill span .sv { color: #dde; }
+      .dev-stats-pill span .sv.red { color: #f55; }
+      .dev-empty { font: 12px monospace; color: #556; text-align: center; padding: 16px; }
+      .dev-achievements { font: 10px monospace; color: #89a; max-height: 80px; overflow-y: auto; line-height: 1.6; }
+      .dev-achievements::-webkit-scrollbar { width: 4px; }
+      .dev-achievements::-webkit-scrollbar-thumb { background: rgba(100,140,200,0.3); border-radius: 2px; }
+
+      /* Key bindings / controls screen */
+      .control-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 7px 0; border-bottom: 1px solid rgba(60,60,70,0.3);
+      }
+      .control-row label { font-size: 12px; color: #ccc; }
+      .key-btn {
+        min-width: 110px; padding: 6px 10px; text-align: center; cursor: pointer;
+        background: #1a2a3a; color: #cfe6ff; border: 1px solid #456; border-radius: 4px;
+        font: 12px monospace; user-select: none;
+      }
+      .key-btn:hover { background: #21384f; }
+      .key-btn.listening { background: #5a3a1a; color: #ffd98a; border-color: #a87; animation: keypulse 0.8s infinite; }
+      @keyframes keypulse { 50% { opacity: 0.55; } }
+
+      /* Create World layout — Bedrock two-column style */
+      .create-layout {
+        display: flex; gap: 0; width: 100%; margin-bottom: 12px;
+        border-radius: 8px; overflow: hidden;
+        border: 1px solid rgba(100,140,255,0.12);
+        min-height: 380px;
+        background: rgba(16,20,35,0.45);
+        backdrop-filter: blur(12px);
+        box-shadow: 0 0 0 1px rgba(100,160,255,0.04), inset 0 1px 0 rgba(255,255,255,0.06);
+      }
+      .create-left {
+        width: 180px; min-width: 180px;
+        background: rgba(20,25,40,0.35);
+        border-right: 1px solid rgba(100,140,255,0.1);
+        display: flex; flex-direction: column;
+        backdrop-filter: blur(6px);
+      }
+      .create-sidebar-tab {
+        padding: 12px 16px;
+        font: bold 12px 'Segoe UI', Arial, sans-serif;
+        color: #8899aa; cursor: pointer;
+        border-left: 3px solid transparent;
+        transition: all 0.12s;
+        letter-spacing: 0.5px;
+      }
+      .create-sidebar-tab:hover { background: rgba(255,255,255,0.05); color: #aabbcc; }
+      .create-sidebar-tab.active {
+        background: rgba(255,255,255,0.08);
+        color: #fff; border-left-color: #6cbb3c;
+      }
+      .create-sidebar-tab .tab-icon { margin-right: 8px; font-size: 14px; }
+      .create-right {
+        flex: 1; background: rgba(20,25,40,0.35);
+        padding: 20px 24px; overflow-y: auto;
+        scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent;
+        backdrop-filter: blur(6px);
+      }
+      .create-right::-webkit-scrollbar { width: 6px; }
+      .create-right::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 3px; }
+      .create-section {
+        background: rgba(30,35,50,0.35); border: 1px solid rgba(100,140,255,0.1);
+        border-radius: 8px; padding: 16px 18px; margin-bottom: 14px;
+        backdrop-filter: blur(4px);
+      }
+      .create-section-title {
+        font: bold 11px 'Segoe UI', Arial, sans-serif; color: #7ab;
+        letter-spacing: 1.5px; margin-bottom: 12px; text-transform: uppercase;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      .create-section label {
+        font: bold 12px 'Segoe UI', Arial, sans-serif; color: var(--text-secondary);
+        display: block; margin-bottom: 5px;
+      }
+      .create-section input[type="text"] {
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: rgba(40,45,60,0.6); border: 1px solid rgba(100,120,160,0.3);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, monospace;
+        box-sizing: border-box; transition: border-color 0.15s;
+      }
+      .create-section input[type="text"]:focus {
+        outline: none; border-color: #5af;
+      }
+      .create-section input[type="text"]::placeholder { color: rgba(150,150,170,0.5); }
+      .create-section input[type="number"] {
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: rgba(40,45,60,0.6); border: 1px solid rgba(100,120,160,0.3);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, monospace;
+        box-sizing: border-box; transition: border-color 0.15s;
+        -moz-appearance: textfield;
+      }
+      .create-section input[type="number"]::-webkit-inner-spin-button,
+      .create-section input[type="number"]::-webkit-outer-spin-button { opacity: 1; }
+      .create-section input[type="number"]:focus { outline: none; border-color: #5af; }
+      .create-mode-btn {
+        display: flex; align-items: center; gap: 10px;
+        width: 100%; padding: 12px 14px; margin-bottom: 8px;
+        background: var(--bg-card); border: 2px solid var(--btn-border);
+        border-radius: 8px; cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        text-align: left;
+        backdrop-filter: blur(8px);
+      }
+      .create-mode-btn:hover { border-color: rgba(100,160,255,0.3); background: var(--bg-card-hover); box-shadow: 0 0 12px var(--accent-glow); }
+      .create-mode-btn.selected { border-color: rgba(100,200,100,0.6); background: rgba(60,140,60,0.12); box-shadow: 0 0 16px rgba(60,180,60,0.2); }
+      .create-mode-btn .mode-emoji { font-size: 22px; width: 32px; text-align: center; }
+      .create-mode-btn .mode-info { flex: 1; }
+      .create-mode-btn .mode-title { font: bold 13px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .create-mode-btn .mode-desc { font: 11px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 1px; }
+      .create-dropdown {
+        width: 100%; padding: 10px 12px; margin-bottom: 12px;
+        background: var(--bg-input); border: 1px solid var(--bg-input-border);
+        border-radius: 4px; color: var(--text-primary); font: 13px 'Segoe UI', Arial, sans-serif;
+        box-sizing: border-box; cursor: pointer;
+        -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='2' fill='none'/%3E%3C/svg%3E");
+        background-repeat: no-repeat; background-position: right 10px center;
+      }
+      .create-dropdown option { background: #1a1a2e; color: var(--text-primary); }
+      .create-toggle-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 0; border-bottom: 1px solid rgba(60,60,70,0.2);
+      }
+      .create-toggle-row:last-child { border-bottom: none; }
+      .create-toggle-label { font: 12px 'Segoe UI', Arial, sans-serif; color: var(--text-secondary); }
+      .create-toggle-desc { font: 10px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 1px; }
+      .sv-info-grid { display: flex; flex-direction: column; gap: 6px; }
+      .sv-info-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid rgba(100,100,120,0.15); }
+      .sv-info-row:last-child { border-bottom: none; }
+      .sv-info-label { font: 11px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); letter-spacing: 0.5px; }
+      .sv-info-value { font: bold 12px 'Segoe UI', Arial, monospace; color: var(--text-primary); }
+      .toggle-switch {
+        width: 40px; height: 22px; border-radius: 11px;
+        background: rgba(60,60,80,0.6); cursor: pointer;
+        position: relative; transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .toggle-switch.on { background: #6cbb3c; }
+      .toggle-switch::after {
+        content: ''; position: absolute;
+        top: 2px; left: 2px; width: 18px; height: 18px;
+        border-radius: 50%; background: #fff;
+        transition: transform 0.2s;
+      }
+      .toggle-switch.on::after { transform: translateX(18px); }
+      .create-preview-box {
+        background: var(--bg-card); border: 1px solid var(--bg-panel-border);
+        border-radius: 8px; padding: 12px; text-align: center;
+        width: 100%;
+        backdrop-filter: blur(8px);
+      }
+      .create-preview-icon { font-size: 36px; margin-bottom: 8px; }
+      .create-preview-text { font: bold 13px 'Segoe UI', Arial, sans-serif; color: var(--text-primary); }
+      .create-preview-sub { font: 11px 'Segoe UI', Arial, sans-serif; color: var(--text-muted); margin-top: 4px; }
+
+      /* Loading screen — Bedrock style */
+      #loading-screen {
+        position: fixed; inset: 0; z-index: 200;
+        display: none; flex-direction: column;
+        align-items: center; justify-content: flex-end;
+        font-family: 'Segoe UI', 'Helvetica Neue', monospace; color: #fff;
+        overflow: hidden;
+      }
+      #loading-screen.active { display: flex; }
+      #loading-bg {
+        position: absolute; inset: 0;
+        z-index: 0;
+        background-size: cover;
+        background-position: center;
+        image-rendering: pixelated;
+      }
+      #loading-vignette {
+        position: absolute; inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.65) 100%);
+      }
+      #loading-logo {
+        position: absolute; top: 24px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 3;
+        font-family: monospace;
+        font-size: 52px; font-weight: 900; letter-spacing: 8px;
+        color: #fff;
+        text-shadow: 4px 4px 0 #3f3f3f, 5px 5px 0 #2a2a2a, 6px 6px 12px rgba(0,0,0,0.7);
+      }
+      #loading-content {
+        position: relative; z-index: 2;
+        display: flex; flex-direction: column;
+        align-items: center; gap: 0;
+        width: 100%;
+        padding-bottom: 50px;
+      }
+      #loading-subtitle {
+        font-size: 15px; color: #ccc;
+        letter-spacing: 2px; text-transform: uppercase;
+        margin-bottom: 14px;
+      }
+      #loading-tip-box {
+        width: min(600px, 90vw);
+        background: rgba(0,0,0,0.7);
+        border: 2px solid rgba(80,80,80,0.5);
+        border-radius: 3px;
+        padding: 14px 20px;
+        margin-bottom: 18px;
+        text-align: center;
+      }
+      #loading-tip {
+        font-size: 13px; color: #ddd;
+        line-height: 1.6;
+        letter-spacing: 0.3px;
+      }
+      #loading-tip span { color: #fff; font-weight: bold; }
+      #loading-bar-wrap {
+        width: min(520px, 85vw); height: 16px;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(120,180,90,0.35);
+        border-radius: 8px;
+        overflow: hidden;
+        position: relative;
+        box-shadow: inset 0 2px 5px rgba(0,0,0,0.6);
+      }
+      #loading-bar-fill {
+        height: 100%; width: 0%;
+        border-radius: 8px;
+        transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+        position: relative;
+        background: linear-gradient(180deg, #8ce05a 0%, #63c23c 45%, #4ba82c 55%, #3d9024 100%);
+        box-shadow: 0 0 10px rgba(120,220,90,0.6), inset 0 1px 0 rgba(255,255,255,0.4);
+        overflow: hidden;
+      }
+      /* Glossy top highlight */
+      #loading-bar-fill::before {
+        content: '';
+        position: absolute; left: 0; right: 0; top: 0; height: 45%;
+        background: linear-gradient(180deg, rgba(255,255,255,0.45) 0%, rgba(255,255,255,0) 100%);
+      }
+      /* Flowing shine sweep */
+      #loading-bar-fill::after {
+        content: '';
+        position: absolute; top: 0; bottom: 0; width: 60px;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+        transform: skewX(-20deg);
+        animation: loadShine 1.2s linear infinite;
+      }
+      @keyframes loadShine {
+        0% { left: -80px; }
+        100% { left: 120%; }
+      }
+      #loading-bar-pct {
+        font-size: 12px; color: #aaa;
+        margin-top: 6px; letter-spacing: 1px;
+      }
+      #loading-step {
+        font-size: 11px; color: #888;
+        letter-spacing: 1px;
+        margin-top: 4px;
+        min-height: 14px;
+      }
+      #loading-spinner {
+        width: 28px; height: 28px; margin: 12px auto 0;
+        border: 3px solid rgba(255,255,255,0.12);
+        border-top-color: #7af;
+        border-radius: 50%;
+        animation: lspin 0.8s linear infinite;
+      }
+      @keyframes lspin { to { transform: rotate(360deg); } }
+
+      /* ── Offer Banner ── */
+      #offer-banner {
+        position: fixed; top: 50px; left: 50%;
+        transform: translateX(-50%);
+        z-index: 95; display: none;
+        background: rgba(10,10,10,0.88);
+        border: 2px solid rgba(220,185,50,0.7);
+        border-radius: 10px;
+        padding: 14px 22px;
+        min-width: 300px; max-width: 420px;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.7), 0 0 16px rgba(220,185,50,0.2);
+        pointer-events: auto;
+        animation: offerSlideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      @keyframes offerSlideIn {
+        from { transform: translateX(-50%) translateY(-30px); opacity: 0; }
+        to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+      }
+      #offer-banner .offer-title {
+        font: bold 14px monospace; color: #dcb932;
+        letter-spacing: 2px; text-transform: uppercase;
+        text-align: center; margin-bottom: 8px;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #offer-banner .offer-item-row {
+        display: flex; align-items: center; justify-content: center;
+        gap: 12px; margin-bottom: 10px;
+      }
+      #offer-banner .offer-item-icon {
+        width: 48px; height: 48px;
+        image-rendering: pixelated;
+        border: 2px solid rgba(220,185,50,0.5);
+        border-radius: 4px;
+        background: rgba(30,30,40,0.6);
+      }
+      #offer-banner .offer-item-name {
+        font: bold 15px monospace; color: #fff;
+        text-shadow: 1px 1px 0 rgba(0,0,0,0.5);
+      }
+      #offer-banner .offer-item-desc {
+        font: 11px monospace; color: #aaa;
+        margin-top: 2px;
+      }
+      #offer-banner .offer-actions {
+        display: flex; gap: 10px; justify-content: center;
+      }
+      #offer-banner .offer-btn {
+        padding: 6px 18px;
+        font: bold 12px monospace;
+        border: 2px solid #222; border-radius: 4px;
+        cursor: pointer;
+        text-shadow: 1px 1px 0 #222;
+        transition: background 0.1s;
+      }
+      #offer-banner .offer-btn-accept {
+        background: linear-gradient(180deg, #5a5 0%, #383 100%);
+        color: #fff; border-color: #262;
+      }
+      #offer-banner .offer-btn-accept:hover {
+        background: linear-gradient(180deg, #6b6 0%, #494 100%);
+      }
+      #offer-banner .offer-btn-deny {
+        background: linear-gradient(180deg, #a44 0%, #722 100%);
+        color: #fff; border-color: #411;
+      }
+      #offer-banner .offer-btn-deny:hover {
+        background: linear-gradient(180deg, #b55 0%, #833 100%);
+      }
+      #offer-banner .offer-key-hint {
+        text-align: center; margin-top: 6px;
+        font: 10px monospace; color: #666;
+      }
+
+      /* ── Mobile touch controls (Bedrock-style) ── */
+      #mobile-controls {
+        display: none;
+        position: fixed; inset: 0;
+        pointer-events: none; z-index: 20;
+        touch-action: none;
+        user-select: none; -webkit-user-select: none;
+      }
+      #mobile-controls * { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+      /* Joystick zone — bottom-left */
+      .mc-joystick-zone {
+        position: absolute; left: 0; bottom: 0;
+        width: 38%; height: 45%;
+        pointer-events: auto; z-index: 2;
+        display: flex; align-items: flex-end; justify-content: flex-start;
+        padding: 10px 6px;
+      }
+      .mc-joystick-base {
+        width: 110px; height: 110px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.08);
+        border: 2px solid rgba(255,255,255,0.25);
+        position: relative;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .mc-joystick-knob {
+        width: 46px; height: 46px;
+        border-radius: 50%;
+        background: rgba(255,255,255,0.28);
+        border: 2px solid rgba(255,255,255,0.45);
+        transition: transform 0.05s ease-out;
+      }
+
+      /* Camera zone — full screen (behind everything) */
+      .mc-camera-zone {
+        position: absolute; inset: 0;
+        pointer-events: auto; z-index: 1;
+      }
+
+      /* Jump button — bottom-right, big (raised above the hotbar) */
+      .mc-main-btns {
+        position: absolute; right: 14px; bottom: 66px;
+        pointer-events: auto; z-index: 40;
+      }
+      .mc-btn {
+        width: 62px; height: 62px;
+        border-radius: 50%;
+        border: 2px solid rgba(100,200,100,0.7);
+        background: rgba(255,255,255,0.15);
+        color: #fff; font-size: 22px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        transition: background 0.1s, transform 0.1s;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      }
+      .mc-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
+
+      /* Side buttons — sprint, crouch, inventory — between joystick and jump (above the hotbar) */
+      .mc-side-btns {
+        position: absolute; left: 50%; bottom: 68px;
+        transform: translateX(-50%);
+        display: flex; gap: 10px;
+        pointer-events: auto; z-index: 40;
+      }
+      .mc-btn-mid {
+        width: 48px; height: 48px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.35);
+        background: rgba(0,0,0,0.4);
+        color: #fff; font-size: 16px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        transition: background 0.1s, transform 0.1s;
+      }
+      .mc-btn-mid:active { background: rgba(255,255,255,0.35); transform: scale(0.9); }
+      .mc-btn-mid.mc-active { background: rgba(120,200,255,0.5); border-color: rgba(140,220,255,0.9); }
+      .mc-btn-sprint { border-color: rgba(120,200,255,0.6); }
+      .mc-btn-crouch { border-color: rgba(200,200,100,0.6); }
+      .mc-btn-inv { border-color: rgba(255,210,120,0.6); font-size: 14px; }
+
+      /* Gear toggle — top-right */
+      .mc-toggle {
+        position: absolute; right: 8px; top: 8px;
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.5); color: #fff; font-size: 16px;
+        pointer-events: auto; z-index: 5;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      }
+      .mc-toggle:active { background: rgba(255,255,255,0.3); }
+
+      /* Action panel — grid of small buttons below gear */
+      .mc-action-panel {
+        position: absolute; right: 8px; top: 48px;
+        display: none;
+        grid-template-columns: repeat(2, 38px);
+        gap: 3px;
+        pointer-events: auto; z-index: 5;
+      }
+      #mobile-controls.mc-open .mc-action-panel { display: grid; }
+      .mc-btn-ap {
+        width: 38px; height: 38px; font-size: 14px; border-radius: 8px;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.5); color: #fff;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+        transition: background 0.1s;
+      }
+      .mc-btn-ap:active { background: rgba(255,255,255,0.35); }
+      .mc-btn-ap.mc-btn-place { border-color: rgba(100,150,255,0.5); }
+      .mc-btn-ap.mc-btn-chat { border-color: rgba(120,180,255,0.5); }
+      .mc-btn-ap.mc-btn-menu { border-color: rgba(255,255,255,0.4); }
+      .mc-btn-ap.mc-btn-drop { border-color: rgba(255,100,100,0.5); color: #ff8888; }
+      .mc-btn-ap.mc-btn-swap { border-color: rgba(200,200,100,0.5); }
+      .mc-btn-ap.mc-btn-perspective { border-color: rgba(150,200,255,0.5); }
+      .mc-btn-ap.mc-btn-cmd { border-color: rgba(120,180,255,0.5); font-weight: bold; }
+      .mc-btn-ap.mc-btn-f3 { border-color: rgba(255,200,50,0.6); color: #fc0; font-size: 12px; font-weight: bold; }
+      .mc-btn-ap.mc-btn-voice { border-color: rgba(100,255,100,0.5); color: #8f8; }
+      .mc-btn-ap.mc-btn-exit { border-color: rgba(255,100,100,0.5); color: #f88; }
+
+      .voice-tab { flex:1; padding:8px 0; font:600 13px sans-serif; color:#888; cursor:pointer; text-align:center; border-bottom:2px solid transparent; transition:color 0.15s,border-color 0.15s; }
+      .voice-tab:hover { color:#bbb; }
+      .voice-tab-active { color:#fff; border-bottom-color:#5af; }
+
+      /* Focus styles for keyboard navigation */
+      :focus-visible {
+        outline: 2px solid #5af;
+        outline-offset: 2px;
+      }
+      .menu-btn:focus-visible, .key-btn:focus-visible, .world-card:focus-visible {
+        outline: 2px solid #5af;
+        outline-offset: 2px;
+      }
+
+      /* Disabled button state */
+      .menu-btn[disabled] {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+      }
+
+      /* Staggered list animation for world cards */
+      .world-card {
+        animation: cardSlideIn 0.25s ease both;
+      }
+      .world-card:nth-child(1) { animation-delay: 0.02s; }
+      .world-card:nth-child(2) { animation-delay: 0.04s; }
+      .world-card:nth-child(3) { animation-delay: 0.06s; }
+      .world-card:nth-child(4) { animation-delay: 0.08s; }
+      .world-card:nth-child(5) { animation-delay: 0.10s; }
+      .world-card:nth-child(6) { animation-delay: 0.12s; }
+      .world-card:nth-child(7) { animation-delay: 0.14s; }
+      .world-card:nth-child(8) { animation-delay: 0.16s; }
+      @keyframes cardSlideIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* Show mobile controls on touch devices */
+      @media (hover: none) and (pointer: coarse) {
+        #mobile-controls { display: block; }
+        #crosshair { opacity: 0.5; }
+        #crosshair-dot { opacity: 0.5; }
+      }
+      @media (max-width: 768px) {
+        .menu-btn { min-width: 0; width: 90vw; max-width: 360px; padding: 12px 0; font-size: 14px; }
+        .menu-panel { width: 90vw; max-width: 360px; }
+        .menu-logo { font-size: 36px; letter-spacing: 5px; }
+        .menu-splash { font-size: 14px; top: -12px; right: -20px; }
+        .menu-player-preview { display: none !important; }
+        #inv-layout { flex-direction: column; align-items: center; }
+        .settings-row select, .settings-row input[type=range] { width: 100px; }
+        /* Create screens: stack columns vertically */
+        .create-layout { flex-direction: column; min-height: auto !important; }
+        .create-left { width: 100% !important; min-width: 0 !important; border-right: none !important; border-bottom: 1px solid var(--bg-panel-border); }
+        .create-right { padding: 16px !important; }
+        .menu-screen { max-width: 95vw; }
+        .mode-select { flex-wrap: wrap; }
+        #terrain-select { grid-template-columns: 1fr 1fr !important; }
+      }
+      @media (orientation: landscape) and (max-height: 480px) {
+        .mc-joystick-zone { width: 32%; height: 40%; padding: 6px 4px; }
+        .mc-joystick-base { width: 85px; height: 85px; border-width: 2px; }
+        .mc-joystick-knob { width: 36px; height: 36px; border-width: 2px; }
+        .mc-main-btns { right: 10px; bottom: 54px; }
+        .mc-btn { width: 50px; height: 50px; font-size: 18px; }
+        .mc-side-btns { gap: 6px; bottom: 56px; }
+        .mc-btn-mid { width: 40px; height: 40px; font-size: 14px; }
+        .mc-toggle { right: 5px; top: 5px; width: 30px; height: 30px; font-size: 14px; }
+        .mc-action-panel { right: 5px; top: 38px; gap: 2px; grid-template-columns: repeat(2, 32px); }
+        .mc-btn-ap { width: 32px; height: 32px; font-size: 12px; }
+        .mc-btn-ap.mc-btn-f3 { font-size: 10px; }
+      }
+      /* Small phone portrait (<=400px): scale down HUD and controls to fit */
+      @media (max-width: 400px) {
+        /* Hotbar: shrink slots from 36px to 30px */
+        .slot { width: 30px !important; height: 30px !important; }
+        .slot .slot-count { font-size: 8px !important; }
+        /* Status bars, XP bar, armor row: use 90vw instead of fixed 350px */
+        #status-bars { width: 90vw !important; }
+        #xp-bar { width: 90vw !important; }
+        #armor-row { width: 90vw !important; }
+        /* Offhand slot: position relative to hotbar edge */
+        #offhand-slot { right: calc(50% - 46vw) !important; width: 26px !important; height: 26px !important; }
+        #offhand-slot img { width: 18px !important; height: 18px !important; }
+        /* Chat HUD: use 92vw instead of 400px */
+        #chat-hud { width: 92vw !important; }
+        /* Mobile controls: shrink everything */
+        .mc-joystick-base { width: 90px !important; height: 90px !important; }
+        .mc-joystick-knob { width: 38px !important; height: 38px !important; }
+        .mc-btn { width: 52px !important; height: 52px !important; font-size: 18px !important; }
+        .mc-btn-mid { width: 40px !important; height: 40px !important; font-size: 13px !important; }
+        .mc-toggle { width: 30px !important; height: 30px !important; font-size: 13px !important; }
+        .mc-action-panel { grid-template-columns: repeat(2, 30px) !important; gap: 2px !important; top: 36px !important; right: 4px !important; }
+        .mc-btn-ap { width: 30px !important; height: 30px !important; font-size: 11px !important; }
+        .mc-side-btns { gap: 6px !important; bottom: 12px !important; }
+        .mc-main-btns { right: 10px !important; bottom: 12px !important; }
+        /* Inventory grid: shrink slots so all 9 columns fit the viewport width */
+        #inventory-screen h2 { font-size: 14px; padding: 8px 10px; }
+        #inventory-screen h2 .menu-btn { font-size: 10px !important; padding: 4px 8px !important; }
+        #inventory-grid { grid-template-columns: repeat(9, 30px); }
+        .inv-slot { width: 30px !important; height: 30px !important; border-radius: 2px; }
+        .inv-slot canvas { width: 24px !important; height: 24px !important; }
+        .inv-slot .inv-count { font-size: 8px !important; }
+        .inv-slot .inv-num { font-size: 7px !important; }
+        .craft-slot { width: 30px !important; height: 30px !important; }
+        #crafting-input { grid-template-columns: repeat(2, 30px) !important; }
+        #crafting-input .inv-slot { width: 30px !important; height: 30px !important; }
+        #creative-grid .inv-slot { width: 30px !important; height: 30px !important; }
+        #inv-crafting-area, #inv-armor-area { padding: 8px; }
+        /* Create screens: compact on small phones */
+        .create-section { padding: 10px 12px !important; margin-bottom: 10px !important; }
+        .create-section-title { font-size: 10px !important; margin-bottom: 8px !important; }
+        .create-section input[type="text"], .create-section input[type="number"] { padding: 8px 10px !important; font-size: 12px !important; margin-bottom: 8px !important; }
+        #terrain-select { grid-template-columns: 1fr !important; }
+        .menu-title { font-size: 22px !important; }
+      }
+    </style>
+    <style>
+      * { box-sizing: border-box; }
+      html { background: #08080f; }
+      body::before {
+        content: ''; position: fixed; inset: 0;
+        background: radial-gradient(ellipse at 50% 0%, rgba(30,40,80,0.15) 0%, transparent 70%);
+        pointer-events: none; z-index: 0;
+      }
+      .menu-btn, .btn-flat, button, .oauth-btn, .portal-login-btn {
+        transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, filter 0.2s ease !important;
+      }
+      .menu-btn:hover, .btn-flat:hover, button:hover:not(:disabled) {
+        transform: translateY(-2px);
+        filter: brightness(1.08);
+      }
+      .menu-btn:active, .btn-flat:active, button:active:not(:disabled) {
+        transform: translateY(1px);
+        filter: brightness(0.95);
+      }
+      .card:not(.coming):hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 24px rgba(0,0,0,0.5);
+      }
+      input:focus, textarea:focus, select:focus {
+        outline: none;
+        box-shadow: 0 0 0 2px rgba(80,160,255,0.4);
+      }
+      ::-webkit-scrollbar { width: 6px; }
+      ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+      ::-webkit-scrollbar-thumb { background: rgba(100,140,255,0.25); border-radius: 3px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(100,140,255,0.45); }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="crosshair"></div>
+    <div id="attack-cooldown"></div>
+    <div id="item-name"></div>
+    <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
+    <div id="offhand-slot"><span class="offhand-label">F</span></div>
+    <div id="armor-row"></div>
+    <div id="status-bars"></div>
+    <div id="hotbar"></div>
+    <div id="hand-overlay"><img class="hand-item" alt=""/></div>
+    <div id="hud"></div>
+    <div id="coords-hud" style="position:fixed;bottom:96px;left:8px;z-index:10;pointer-events:none;font:bold 11px/1.5 monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;"></div>
+    <div id="time-hud" style="position:fixed;bottom:96px;right:8px;z-index:10;pointer-events:none;font:bold 12px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;text-align:right;"></div>
+    <!-- Parkour HUD -->
+    <div id="parkour-hud"></div>
+    <div id="parkour-finish"></div>
+    <div id="debug-overlay" style="display:none;position:fixed;top:4px;left:8px;z-index:12;pointer-events:none;font:bold 11px monospace;color:#fff;text-shadow:1px 1px 0 #000;line-height:1.5;"></div>
+    <!-- Player list (hold Tab) -->
+    <div id="player-list-overlay" style="display:none;position:fixed;top:8px;right:8px;z-index:16;min-width:180px;background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:8px 12px;color:#fff;font:13px/1.6 monospace;text-shadow:1px 1px 0 #000;">
+      <div class="pl-count" style="font-weight:bold;margin-bottom:4px;border-bottom:1px solid rgba(255,255,255,0.2);padding-bottom:4px;"></div>
+      <div class="pl-names"></div>
+    </div>
+    <!-- Mob health bar tooltip -->
+    <div id="mob-health" style="display:none;position:fixed;left:50%;top:20%;transform:translate(-50%,-50%);z-index:10;pointer-events:none;text-align:center;transition:opacity 0.1s;">
+      <div id="mob-health-name" style="font:bold 13px monospace;color:#fff;text-shadow:1px 1px 0 #000,2px 2px 0 #000;margin-bottom:2px;"></div>
+      <div id="mob-health-bar" style="width:80px;height:8px;background:rgba(0,0,0,0.6);border:1px solid rgba(50,50,50,0.8);border-radius:2px;overflow:hidden;margin:0 auto;">
+        <div id="mob-health-fill" style="height:100%;background:linear-gradient(90deg,#c44,#e55);transition:width 0.15s;border-radius:1px;"></div>
+      </div>
+      <div id="mob-health-hearts" style="margin-top:3px;font-size:10px;line-height:1;"></div>
+    </div>
+    <div id="water-overlay"></div>
+    <div id="underwater-overlay"></div>
+    <div id="sleep-overlay"></div>
+    <div id="sleep-message"></div>
+    <div id="damage-overlay"></div>
+    <div id="low-health-vignette"></div>
+
+    <!-- Tutorial / First-Time Intro Overlay -->
+    <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;overflow-y:auto;">
+      <div style="max-width:520px;width:90%;background:rgba(20,22,32,0.97);border:2px solid rgba(100,150,200,0.25);border-radius:10px;padding:32px 36px;color:#ddd;font-family:monospace;box-shadow:0 0 40px rgba(0,0,0,0.5);">
+        <div style="text-align:center;margin-bottom:20px;">
+          <div style="font:bold 30px monospace;color:#6cbb3c;letter-spacing:3px;text-shadow:0 2px 8px rgba(80,200,60,0.3);">BLOCKFORGE</div>
+          <div style="font:13px monospace;color:#888;margin-top:6px;">A voxel sandbox adventure</div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(60,80,100,0.3);border-radius:6px;padding:16px 20px;margin-bottom:16px;">
+          <div style="font:bold 12px monospace;color:#7ab8e0;letter-spacing:1px;margin-bottom:8px;">&#9654; GETTING STARTED</div>
+          <div style="font:12px monospace;color:#bbb;line-height:1.8;">
+            Explore a procedurally generated world. Mine resources, build structures, craft tools, and survive the night.
+            Play solo or invite friends to your server!
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;font-size:12px;line-height:1.7;">
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">MOVEMENT</div>
+            <div><span style="color:#fa0;">W A S D</span> Move</div>
+            <div><span style="color:#fa0;">Space</span> Jump</div>
+            <div><span style="color:#fa0;">Shift</span> Sprint</div>
+            <div><span style="color:#fa0;">C</span> Crouch</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">ACTIONS</div>
+            <div><span style="color:#fa0;">Left Click</span> Break block</div>
+            <div><span style="color:#fa0;">Right Click</span> Place / Use</div>
+            <div><span style="color:#fa0;">Tab / E</span> Inventory</div>
+            <div><span style="color:#fa0;">F</span> Swap offhand</div>
+            <div><span style="color:#fa0;">Q</span> Drop item</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">CAMERA</div>
+            <div><span style="color:#fa0;">P</span> 3rd Person</div>
+            <div><span style="color:#fa0;">Mouse</span> Look around</div>
+            <div><span style="color:#fa0;">Scroll</span> Hotbar select</div>
+          </div>
+          <div>
+            <div style="color:#5af;font:bold 11px monospace;margin-bottom:4px;letter-spacing:1px;border-bottom:1px solid rgba(80,80,120,0.2);padding-bottom:4px;">INFO</div>
+            <div><span style="color:#fa0;">F3</span> Debug overlay</div>
+            <div><span style="color:#fa0;">T</span> Chat</div>
+            <div><span style="color:#fa0;">/</span> Commands</div>
+            <div><span style="color:#fa0;">1-9</span> Hotbar slots</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px;margin-top:16px;">
+          <div style="flex:1;background:rgba(50,180,80,0.08);border:1px solid rgba(50,180,80,0.2);border-radius:6px;padding:10px 12px;text-align:center;">
+            <div style="font:bold 11px monospace;color:#6cbb3c;">OBJECTIVE</div>
+            <div style="font:10px monospace;color:#aaa;margin-top:3px;">Survive, explore, build, create</div>
+          </div>
+          <div style="flex:1;background:rgba(50,130,220,0.08);border:1px solid rgba(50,130,220,0.2);border-radius:6px;padding:10px 12px;text-align:center;">
+            <div style="font:bold 11px monospace;color:#5af;">TIP</div>
+            <div style="font:10px monospace;color:#aaa;margin-top:3px;">Punch a tree to get started!</div>
+          </div>
+        </div>
+
+        <div style="text-align:center;margin-top:20px;">
+          <button id="tutorial-ok-btn" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);color:#fff;border:2px solid #2a5a2a;border-radius:6px;padding:10px 36px;font:bold 14px monospace;cursor:pointer;letter-spacing:1px;text-shadow:1px 1px 0 #224;box-shadow:0 2px 0 #224, 0 0 20px rgba(80,200,80,0.1);transition:transform 0.06s;">LET'S PLAY</button>
+          <div style="margin-top:8px;">
+            <label style="font:10px monospace;color:#666;cursor:pointer;">
+              <input type="checkbox" id="tutorial-dont-show"/> Don't show again
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading Screen — Bedrock style -->
+    <div id="loading-screen">
+      <div id="loading-bg"></div>
+      <div id="loading-vignette"></div>
+      <div id="loading-logo">BLOCKFORGE</div>
+      <div id="loading-content">
+        <div id="loading-subtitle">Generating world</div>
+        <div id="loading-tip-box">
+          <div id="loading-tip"><span>Tip:</span> Loading...</div>
+        </div>
+        <div id="loading-bar-wrap">
+          <div id="loading-bar-fill"></div>
+        </div>
+        <div id="loading-bar-pct">0%</div>
+        <div id="loading-step"></div>
+        <div id="loading-spinner"></div>
+      </div>
+    </div>
+
+    <div id="overlay">
+      <div id="overlay-bg"></div>
+      <div id="overlay-vignette"></div>
+
+      <!-- One-time announcement (shown once per device, then self-deletes) -->
+      <div id="announcement-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:24px 28px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+          <div id="announcement-title" style="font:bold 18px monospace;color:#ff0;margin-bottom:12px;"></div>
+          <div id="announcement-body" style="font:14px/1.6 monospace;color:#ccc;margin-bottom:20px;white-space:pre-wrap;"></div>
+          <button id="announcement-dismiss" class="menu-btn" style="width:100%;padding:10px 0;font-size:14px;">GOT IT</button>
+        </div>
+      </div>
+
+      <!-- Screen: Main Menu — Bedrock Beta style -->
+      <!-- Screen: Login / Create Account -->
+      <div id="menu-login" class="menu-screen active">
+        <div class="menu-logo-wrap">
+          <div class="menu-logo">BLOCKFORGE</div>
+          <div class="menu-splash">Welcome!</div>
+        </div>
+        <div style="max-width:420px;width:100%;background:rgba(8,8,16,0.55);border:1px solid rgba(100,140,255,0.1);border-radius:10px;padding:20px 24px;backdrop-filter:blur(12px);box-shadow:0 0 0 1px rgba(100,160,255,0.04),0 16px 48px rgba(0,0,0,0.3);">
+          <div id="login-account-section">
+            <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ACCOUNT</div>
+            <input id="login-username" type="text" value="" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Username" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
+            <input id="login-password" type="password" placeholder="Password" maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
+            <div id="login-hint" style="font:11px monospace;min-height:16px;margin:8px 0;color:#5a8;"></div>
+            <div style="display:flex;gap:8px;">
+              <button class="menu-btn" id="btn-login-go" style="flex:1;min-width:0;padding:12px 0;font-size:13px;border-color:rgba(60,200,80,0.3);background:linear-gradient(180deg,rgba(60,140,80,0.7),rgba(40,110,60,0.8),rgba(30,90,50,0.85),rgba(20,70,40,0.9));">LOG IN</button>
+              <button class="menu-btn secondary" id="btn-login-create" style="flex:1;min-width:0;padding:12px 0;font-size:13px;">REGISTER</button>
+            </div>
+            <div style="margin-top:10px;text-align:center;">
+              <button class="menu-btn secondary" id="btn-login-guest" style="width:100%;min-width:0;padding:10px 0;font-size:12px;">Continue as Guest</button>
+            </div>
+          </div>
+          <div id="login-cg-section" style="display:none;">
+            <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin:14px 0 10px;text-shadow:1px 1px 0 #000;">PLATFORM LOGIN</div>
+            <button class="menu-btn" id="btn-login-crazygames" style="width:100%;min-width:0;padding:12px 0;font-size:13px;border-color:rgba(60,200,120,0.3);background:linear-gradient(180deg,rgba(40,140,90,0.7),rgba(30,120,75,0.8),rgba(20,100,60,0.85),rgba(15,80,50,0.9));">&#127918; Login with CrazyGames</button>
+          </div>
+          <div id="login-social-section">
+            <div style="display:flex;align-items:center;gap:12px;margin:14px 0 12px;color:#555;font:11px monospace;">
+              <span style="flex:1;height:1px;background:rgba(100,100,100,0.2);"></span>
+              <span>OR</span>
+              <span style="flex:1;height:1px;background:rgba(100,100,100,0.2);"></span>
+            </div>
+            <button class="menu-btn" id="btn-login-github" style="width:100%;min-width:0;padding:12px 0;font-size:13px;">&#128049; Continue with GitHub</button>
+            <button class="menu-btn" id="btn-login-google" style="width:100%;min-width:0;padding:12px 0;font-size:13px;margin-top:6px;"><span style="background:linear-gradient(135deg,#4285F4,#34A853,#FBBC05,#EA4335);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-weight:bold;">G</span> Continue with Google</button>
+          </div>
+          <div style="font:9px monospace;color:rgba(255,255,255,0.25);text-align:center;margin-top:12px;line-height:1.5;">By continuing, you agree to the Terms of Service</div>
+        </div>
+      </div>
+
+      <div id="menu-main" class="menu-screen">
+        <div class="menu-logo-wrap">
+          <div class="menu-logo">BLOCKFORGE</div>
+          <div class="menu-splash" id="main-splash"></div>
+        </div>
+        <button class="menu-btn" id="btn-play">Play</button>
+        <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
+        <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
+        <button class="menu-btn" id="btn-mods" style="border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);">🧩 Mods & Addons</button>
+        <button class="menu-btn" id="btn-achievements">Advancements</button>
+        <button class="menu-btn" id="btn-settings">Settings</button>
+        <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
+        <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
+        <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
+        <button class="menu-btn" id="btn-menu-errors" style="display:none;font-size:11px;padding:6px 20px;border-color:#f88;background:linear-gradient(180deg,#4a2a2a 0%,#3a1a1a 40%,#301515 60%,#200a0a 100%);">⚠ View Errors</button>
+        <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
+          Music by Kevin MacLeod (CC-BY 4.0), josepharaoh99 &amp; cynicmusic (CC0).<br>incompetech.com &middot; opengameart.org<br><br>
+          <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="https://www.crazygames.com/game/blockforge" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms of Service</a>. This game stores data locally on your device. No personal data is collected or shared. <a id="footer-privacy" href="https://www.crazygames.com/privacy" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a></span>
+        </div>
+      </div>
+
+      <!-- Fixed viewport elements -->
+      <div class="menu-player-preview">
+        <div id="menu-player-container" style="width:120px;height:180px;image-rendering:pixelated;border-radius:6px;overflow:hidden;background:rgba(0,0,0,0.3);"></div>
+        <div class="menu-player-name" id="menu-player-name">Player</div>
+        <button class="menu-btn secondary" id="btn-skin-customize">Customize Skin</button>
+      </div>
+      <div class="menu-bottom-left">
+        <div class="menu-icon-btn" id="btn-blockforge-portal" title="BlockForge Portal">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+            <path d="M5 12h14M12 5l7 7-7 7"/>
+          </svg>
+        </div>
+      </div>
+      <div id="menu-version" style="position:fixed;bottom:6px;left:56px;font:10px monospace;color:#555;pointer-events:none;z-index:100;">v2026-07-24</div>
+      <div id="electron-update-btn" style="display:none;position:fixed;bottom:4px;right:12px;z-index:100;cursor:pointer;padding:6px 14px;font:bold 12px/1 monospace;background:linear-gradient(180deg,#2a6a2a,#1a4a1a);border:1px solid #4a4;border-radius:5px;color:#5f5;box-shadow:0 0 8px rgba(80,255,80,0.15);transition:all 0.2s;" onmouseover="this.style.boxShadow='0 0 14px rgba(80,255,80,0.35)';this.style.borderColor='#6f6'" onmouseout="this.style.boxShadow='0 0 8px rgba(80,255,80,0.15)';this.style.borderColor='#4a4'">⬆ UPDATE</div>
+      <div id="music-player" style="display:none;position:fixed;bottom:40px;right:12px;z-index:100;background:rgba(0,0,0,0.65);border:1px solid rgba(120,120,150,0.4);border-radius:8px;padding:8px 12px;font:10px monospace;color:#ccc;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);user-select:none;">
+        <div id="music-track-name" style="font:bold 11px monospace;color:#e8e8e8;margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px;"></div>
+        <div style="display:flex;align-items:center;justify-content:center;gap:10px;">
+          <div class="music-nav-btn" id="music-prev" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'" style="cursor:pointer;color:#aaa;font-size:16px;line-height:1;">⏮</div>
+          <div class="music-nav-btn" id="music-toggle" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#5f5'" style="cursor:pointer;color:#5f5;font-size:18px;line-height:1;" title="Play/Pause">⏸</div>
+          <div class="music-nav-btn" id="music-next" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#aaa'" style="cursor:pointer;color:#aaa;font-size:16px;line-height:1;">⏭</div>
+        </div>
+      </div>
+      <div class="menu-bottom-right">
+        <div class="menu-icon-btn" id="btn-account-info" title="Account Info">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Account Info Modal -->
+      <div id="account-info-modal" style="display:none;position:fixed;inset:0;z-index:150;align-items:center;justify-content:center;">
+        <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:20px 24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
+          <div style="font:bold 16px monospace;color:#ff0;margin-bottom:14px;">Account Info</div>
+          <div style="font:13px/1.8 monospace;color:#ccc;">
+            <div><span style="color:#888;">Username:</span> <span id="ai-username" style="color:#fff;">—</span></div>
+            <div><span style="color:#888;">Password:</span> <span id="ai-password" style="color:#fff;">—</span></div>
+            <div><span style="color:#888;">Signed in with:</span> <span id="ai-provider" style="color:#7af;">—</span></div>
+            <div style="margin-top:10px;font-size:11px;color:#666;" id="ai-hint">Click to copy username</div>
+          </div>
+          <button class="menu-btn secondary" id="btn-ai-close" style="width:100%;margin-top:14px;padding:8px 0;font-size:13px;">CLOSE</button>
+        </div>
+        <div id="ai-backdrop" style="position:fixed;inset:0;z-index:-1;" onclick="document.getElementById('account-info-modal').style.display='none'"></div>
+      </div>
+
+      <!-- Screen: World List -->
+      <div id="menu-worlds" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">WORLDS</div>
+        <div class="menu-panel" id="world-list"></div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="menu-btn" id="btn-new-world">NEW WORLD</button>
+          <button class="menu-btn" id="btn-import-world" style="flex:0.9;min-width:auto;font-size:13px;">IMPORT WORLD</button>
+          <button class="menu-btn secondary" id="btn-worlds-back">BACK</button>
+        </div>
+        <input type="file" id="world-import-input" accept=".json,application/json" style="display:none;" />
+        <div id="world-toast" style="position:fixed;left:50%;bottom:60px;transform:translateX(-50%);background:rgba(0,0,0,0.85);color:#0fc;font:12px monospace;padding:8px 16px;border-radius:4px;border:1px solid rgba(0,255,204,0.4);opacity:0;transition:opacity 0.25s;pointer-events:none;z-index:9999;"></div>
+        <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:10px;text-align:center;">Tip: each world card has an <b style="color:#0fc;">⬇ export</b> button to save it as a file you can re-import.</div>
+      </div>
+
+      <!-- Screen: Dev Worlds -->
+      <div id="menu-dev-worlds" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;color:#0ff;">DEV WORLDS</div>
+        <div class="menu-panel" id="dev-world-list"></div>
+        <!-- Dev World Creation Form (hidden by default) -->
+        <div id="dev-world-create-form" style="display:none;background:rgba(0,255,255,0.05);border:1px solid rgba(0,255,255,0.2);border-radius:8px;padding:16px;margin:8px 0;max-width:500px;width:100%;text-align:left;">
+          <div style="font:600 14px sans-serif;color:#0ff;margin-bottom:12px;">NEW DEV WORLD</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">World Name</label>
+              <input id="dw-name" type="text" value="Dev World" maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:5px 8px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid #555;border-radius:4px;font:12px monospace;outline:none;box-sizing:border-box;"/>
+            </div>
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Seed</label>
+              <input id="dw-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off" style="width:100%;padding:5px 8px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid #555;border-radius:4px;font:12px monospace;outline:none;box-sizing:border-box;"/>
+            </div>
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Game Mode</label>
+              <div style="display:flex;gap:4px;">
+                <button class="dw-mode-btn selected" data-mode="creative" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #0ff;background:rgba(0,255,255,0.15);color:#0ff;cursor:pointer;">CREATIVE</button>
+                <button class="dw-mode-btn" data-mode="survival" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">SURVIVAL</button>
+              </div>
+            </div>
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Difficulty</label>
+              <div style="display:flex;gap:4px;">
+                <button class="dw-diff-btn" data-diff="peaceful" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">PEACEFUL</button>
+                <button class="dw-diff-btn selected" data-diff="normal" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #0ff;background:rgba(0,255,255,0.15);color:#0ff;cursor:pointer;">NORMAL</button>
+                <button class="dw-diff-btn" data-diff="hard" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">HARD</button>
+              </div>
+            </div>
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Terrain</label>
+              <div style="display:flex;gap:4px;">
+                <button class="dw-terrain-btn selected" data-terrain="flat" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #0ff;background:rgba(0,255,255,0.15);color:#0ff;cursor:pointer;">SUPERFLAT</button>
+                <button class="dw-terrain-btn" data-terrain="normal" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">NORMAL</button>
+                <button class="dw-terrain-btn" data-terrain="void" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">VOID</button>
+              </div>
+            </div>
+            <div>
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Multiplayer</label>
+              <div style="display:flex;gap:4px;">
+                <button class="dw-mp-btn selected" data-mp="solo" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #0ff;background:rgba(0,255,255,0.15);color:#0ff;cursor:pointer;">SOLO</button>
+                <button class="dw-mp-btn" data-mp="host" style="flex:1;padding:5px;font:11px sans-serif;border-radius:4px;border:1px solid #555;background:rgba(100,100,100,0.2);color:#888;cursor:pointer;">HOST</button>
+              </div>
+            </div>
+            <div id="dw-max-players-wrap" style="display:none;">
+              <label style="font:11px sans-serif;color:#aaa;display:block;margin-bottom:3px;">Max Players</label>
+              <input id="dw-max-players" type="number" value="10" min="2" max="100" style="width:100%;padding:5px 8px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid #555;border-radius:4px;font:12px monospace;outline:none;box-sizing:border-box;"/>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px;justify-content:flex-end;">
+            <button class="menu-btn" id="dw-create-go" style="min-width:140px;border-color:#0ff;">CREATE</button>
+            <button class="menu-btn secondary" id="dw-create-cancel" style="min-width:80px;">CANCEL</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn" id="btn-new-dev-world" style="border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">NEW DEV WORLD</button>
+          <button class="menu-btn secondary" id="btn-dev-worlds-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Create World -->
+      <div id="menu-create" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">CREATE NEW WORLD</div>
+        <div class="create-layout">
+          <div class="create-left">
+            <div class="create-section">
+              <div class="create-section-title">GAME MODE</div>
+              <div class="mode-select">
+                <div class="mode-option selected" id="mode-survival" data-mode="survival">
+                  <div class="mo-icon">♥</div>
+                  <div class="mo-label">SURVIVAL</div>
+                  <div class="mo-desc">Health, hunger, mining</div>
+                </div>
+                <div class="mode-option" id="mode-creative" data-mode="creative">
+                  <div class="mo-icon">✦</div>
+                  <div class="mo-label">CREATIVE</div>
+                  <div class="mo-desc">Unlimited blocks, fly</div>
+                </div>
+              </div>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">DIFFICULTY</div>
+              <div class="mode-select">
+                <div class="mode-option selected" id="diff-normal" data-diff="normal">
+                  <div class="mo-icon">⚔</div>
+                  <div class="mo-label">NORMAL</div>
+                  <div class="mo-desc">Standard challenge</div>
+                </div>
+                <div class="mode-option" id="diff-hard" data-diff="hard">
+                  <div class="mo-icon">💀</div>
+                  <div class="mo-label">HARD</div>
+                  <div class="mo-desc">Maximum danger</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="create-right">
+            <div class="create-section">
+              <div class="create-section-title">WORLD OPTIONS</div>
+              <label>World Name</label>
+              <input id="input-world-name" type="text" value="My World" maxlength="32" spellcheck="false" autocomplete="off"/>
+              <label>Seed (leave blank for random)</label>
+              <input id="input-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
+              <label>Terrain Type</label>
+              <div class="mode-select" id="terrain-select" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div class="mode-option selected" data-terrain="normal" id="terr-normal">
+                  <div class="mo-icon">⛰️</div>
+                  <div class="mo-label">NORMAL</div>
+                  <div class="mo-desc">Balanced terrain</div>
+                </div>
+                <div class="mode-option" data-terrain="weird" id="terr-weird">
+                  <div class="mo-icon">🌀</div>
+                  <div class="mo-label">WEIRD</div>
+                  <div class="mo-desc">Wild terrain</div>
+                </div>
+                <div class="mode-option" data-terrain="amplified" id="terr-amplified">
+                  <div class="mo-icon">🏔️</div>
+                  <div class="mo-label">AMPLIFIED</div>
+                  <div class="mo-desc">Extreme heights</div>
+                </div>
+                <div class="mode-option" data-terrain="flat" id="terr-flat">
+                  <div class="mo-icon">🟩</div>
+                  <div class="mo-label">SUPERFLAT</div>
+                  <div class="mo-desc">Flat creative</div>
+                </div>
+              </div>
+            </div>
+            <div class="create-preview-box" id="seed-preview-box">
+              <canvas id="seed-preview-canvas" width="240" height="160" style="width:240px;height:160px;margin-top:4px;border-radius:4px;image-rendering:pixelated;border:1px solid rgba(100,100,120,0.4);display:block;"></canvas>
+              <div class="create-preview-text" id="seed-preview-name" style="font:bold 11px monospace;color:#aaa;margin-top:6px;">A new world awaits...</div>
+              <div class="create-preview-sub" id="seed-preview-sub" style="font:10px monospace;color:#666;margin-top:2px;">Enter a seed above to preview terrain</div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="menu-btn" id="btn-create-confirm" style="min-width:220px;">CREATE NEW WORLD</button>
+          <button class="menu-btn secondary" id="btn-create-back" style="min-width:120px;">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Screen: Minigames -->
+      <div id="menu-minigames" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#fa0;">🎮 MINIGAMES</div>
+        <div class="menu-panel" style="width:400px;max-height:min(420px, 70vh);overflow-y:auto;">
+          <button class="menu-btn" id="btn-minigame-parkour" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
+          <button class="menu-btn" id="btn-minigame-oneblock" style="border-color:#5f5;background:linear-gradient(180deg,#2a5a2a 0%,#1a4a1a 40%,#1a3a1a 60%,#0a2a0a 100%);">⛏ OneBlock</button>          <button class="menu-btn" id="btn-minigame-bedwars" style="border-color:#f6f;background:linear-gradient(180deg,#5a2a6a 0%,#4a1a5a 40%,#3a154a 60%,#2a0a3a 100%);">⚔ BedWars</button>
+          <button class="menu-btn" id="btn-minigame-blockzones" style="border-color:#fb0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🧱 BlockZones</button>
+          <button class="menu-btn" id="btn-minigame-99nights" style="border-color:#77f;background:linear-gradient(180deg,#2a2a5a 0%,#1a1a4a 40%,#14143a 60%,#0a0a2a 100%);">🌙 99Nights</button>
+          <button class="menu-btn" id="btn-minigame-gunaffairs" style="border-color:#f66;background:linear-gradient(180deg,#6a2a2a 0%,#5a1a1a 40%,#4a1414 60%,#3a0a0a 100%);">🔫 GunAffair</button>
+          <button class="menu-btn" id="btn-minigame-skyblock" style="border-color:#3cf;background:linear-gradient(180deg,#1a4a5a 0%,#123a4a 40%,#0e3040 60%,#0a2030 100%);">🏝 SkyBlock</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-skywars">☁ SkyWars</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-murder">🔪 Murder Mystery</button>
+          <button class="menu-btn secondary" id="btn-minigames-back" style="margin-top:12px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Parkour Mode Select -->
+      <div id="menu-parkour-select" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#fa0;">🏁 PARKOUR PARADISE</div>
+        <div class="menu-panel" style="max-height:none;width:400px;">
+          <button class="menu-btn" id="btn-pk-singleplayer" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Play Parkour</button>
+          <button class="menu-btn secondary" id="btn-pk-worlds" style="margin-top:0;">📂 Saved Worlds</button>
+          <button class="menu-btn" id="btn-pk-100-levels" style="border-color:#7af;background:linear-gradient(180deg,#2a4a7a 0%,#1a3a6a 40%,#1a3050 60%,#0a2040 100%);">🌍 100 Levels</button>
+          <button class="menu-btn" id="btn-pk-multiplayer" style="border-color:#5f5;background:linear-gradient(180deg,#2a7a2a 0%,#1a6a1a 40%,#1a5a1a 60%,#0a4a0a 100%);">🌐 Multiplayer Server</button>
+          <button class="menu-btn secondary" id="btn-pk-back" style="margin-top:16px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Parkour Worlds List -->
+      <div id="menu-parkour-worlds" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#fa0;">🏁 PARKOUR WORLDS</div>
+        <div class="menu-panel" id="parkour-world-list"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn" id="btn-new-pk-world" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">NEW PARKOUR WORLD</button>
+          <button class="menu-btn secondary" id="btn-pk-worlds-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: OneBlock Mode Select -->
+      <div id="menu-oneblock-select" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#5f5;">⛏ ONEBLOCK</div>
+        <div class="menu-panel" style="max-height:none;width:400px;">
+          <button class="menu-btn" id="btn-ob-singleplayer" style="border-color:#5f5;background:linear-gradient(180deg,#2a5a2a 0%,#1a4a1a 40%,#1a3a1a 60%,#0a2a0a 100%);">⛏ Play OneBlock</button>
+          <button class="menu-btn secondary" id="btn-ob-worlds" style="margin-top:0;">📂 Saved Worlds</button>
+          <button class="menu-btn secondary" id="btn-ob-back" style="margin-top:16px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: OneBlock Worlds List -->
+      <div id="menu-oneblock-worlds" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#5f5;">⛏ ONEBLOCK WORLDS</div>
+        <div class="menu-panel" id="oneblock-world-list"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn" id="btn-new-ob-world" style="border-color:#5f5;background:linear-gradient(180deg,#2a5a2a 0%,#1a4a1a 40%,#1a3a1a 60%,#0a2a0a 100%);">NEW ONEBLOCK WORLD</button>
+          <button class="menu-btn secondary" id="btn-ob-worlds-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Mods & Addons -->
+      <div id="menu-mods" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;color:#a8f;">🧩 MODS & ADDONS</div>
+        <div class="menu-panel" style="width:420px;max-height:min(300px, 56vh);overflow-y:auto;padding:8px;" id="mods-list"></div>
+        <div id="mods-status" style="font:12px monospace;color:#aaa;min-height:18px;margin:6px 0 2px;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;">
+          <button class="menu-btn" id="btn-mod-import" style="border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);">⬆ Import Mod</button>
+          <button class="menu-btn" id="btn-mod-browse" style="border-color:#7af;background:linear-gradient(180deg,#2a4a7a 0%,#1a3a6a 40%,#1a3050 60%,#0a2040 100%);">🌐 Browse Mods</button>
+          <button class="menu-btn secondary" id="btn-mods-back">BACK</button>
+        </div>
+        <input type="file" id="mod-file-input" accept=".bfmod,.js,.txt" style="display:none;" />
+        <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:14px;line-height:1.6;text-align:center;max-width:420px;">Mods are plain ES-module files you download from the BlockForge mods page and import here. They run sandboxed and auto-disable if they error repeatedly.</div>
+      </div>
+
+      <!-- Screen: Settings -->
+      <div id="menu-settings" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">SETTINGS</div>
+        <div class="menu-panel" style="max-height:min(420px, 70vh);overflow-y:auto;">
+          <div class="settings-row">
+            <label>Render Distance</label>
+            <select id="set-render-distance">
+              <option value="4">4 chunks</option>
+              <option value="6">6 chunks</option>
+              <option value="7" selected>7 chunks</option>
+              <option value="8">8 chunks</option>
+              <option value="10">10 chunks</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>FOV</label>
+            <select id="set-fov">
+              <option value="60">60</option>
+              <option value="70" selected>70</option>
+              <option value="75">75</option>
+              <option value="90">90</option>
+              <option value="110">110</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Mouse Sensitivity</label>
+            <input id="set-sensitivity" type="range" min="20" max="200" value="100"/>
+          </div>
+          <div class="settings-row">
+            <label>Volume</label>
+            <input id="set-volume" type="range" min="0" max="100" value="50"/>
+          </div>
+          <div class="settings-row">
+            <label>Show FPS</label>
+            <select id="set-fps">
+              <option value="1" selected>On</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Graphics Quality</label>
+            <select id="set-quality">
+              <option value="low">Fast (Low)</option>
+              <option value="medium" selected>Normal</option>
+              <option value="high">Fancy (High)</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <label>Shadows</label>
+            <select id="set-shadows">
+              <option value="1" selected>On</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
+          <div style="margin-top:14px;text-align:center;">
+            <button class="menu-btn" id="btn-open-controls">Controls / Key Bindings</button>
+          </div>
+          <div style="margin-top:8px;text-align:center;">
+            <button class="menu-btn" id="btn-linked-accounts">Linked Accounts</button>
+          </div>
+        </div>
+        <button class="menu-btn secondary" id="btn-settings-back">BACK</button>
+      </div>
+
+      <!-- Linked Accounts -->
+      <div id="menu-linked-accounts" class="menu-screen">
+        <div class="menu-title">LINKED ACCOUNTS</div>
+        <div class="menu-panel" style="max-height:none;">
+          <p style="color:#aaa;font-size:14px;margin-bottom:10px;text-align:center;">
+            Link your accounts so you can log in from any platform.
+          </p>
+          <div id="linked-accounts-list"></div>
+        </div>
+        <button class="menu-btn secondary" id="btn-linked-accounts-back">BACK</button>
+      </div>
+
+      <!-- Screen: Controls -->
+      <div id="menu-controls" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">CONTROLS</div>
+        <div class="menu-panel" style="max-height:none;">
+          <div id="controls-list"></div>
+        </div>
+        <div style="margin-top:14px;text-align:center;display:flex;gap:10px;justify-content:center;">
+          <button class="menu-btn secondary" id="btn-controls-reset">Reset to Defaults</button>
+          <button class="menu-btn" id="btn-controls-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Credits -->
+      <div id="menu-credits" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">CREDITS</div>
+        <div class="menu-panel" style="max-height:400px;overflow-y:auto;text-align:center;line-height:1.8;">
+          <div style="font:bold 18px monospace;color:#fa0;margin-bottom:12px;">BLOCKFORGE</div>
+          <div style="font:bold 14px monospace;color:#fff;margin-bottom:16px;">Developer: Judah</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:16px;margin-bottom:4px;">Libraries</div>
+          <div style="font:12px monospace;color:#ccc;">Three.js — 3D rendering engine</div>
+          <div style="font:10px monospace;color:#888;">threejs.org &middot; MIT License</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Music</div>
+          <div style="font:12px monospace;color:#ccc;">CC0 tracks from opengameart.org &amp; incompetech.com</div>
+          <div style="font:11px monospace;color:#999;">Mystical Piano, Slow Piano Intermission, Cave Explorer, Contemplation, Emerald Tower, Esther, Exploration Theme, November Snow, Another August</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Platform</div>
+          <div style="font:12px monospace;color:#ccc;">CrazyGames SDK</div>
+          <div style="font:10px monospace;color:#888;">crazygames.com &middot; Used for ads &amp; cloud saves</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Inspiration</div>
+          <div style="font:12px monospace;color:#ccc;">Minecraft — Mojang Studios</div>
+          <div style="font:12px monospace;color:#ccc;">MultiCraft — Build and Mine!</div>
+          <div style="font:10px monospace;color:#888;">Gameplay mechanics and UI design references</div>
+
+          <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Built With</div>
+          <div style="font:12px monospace;color:#ccc;">Vite — Build tool</div>
+          <div style="font:12px monospace;color:#ccc;">ES Modules &middot; Vanilla JavaScript</div>
+
+          <div style="margin-top:20px;font:11px monospace;color:#555;">BlockForge Beta &copy; 2026 Judah</div>
+        </div>
+        <button class="menu-btn secondary" id="btn-credits-back">BACK</button>
+      </div>
+
+      <!-- Screen: Updates -->
+      <div id="menu-updates" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">UPDATES</div>
+        <div class="menu-panel" style="max-height:400px;overflow-y:auto;text-align:left;line-height:1.6;padding:10px 16px;">
+          <div id="updates-list"></div>
+        </div>
+        <button class="menu-btn secondary" id="btn-updates-back">BACK</button>
+      </div>
+
+      <!-- Screen: Feedback -->
+      <div id="menu-feedback" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">FEEDBACK</div>
+        <div class="menu-panel" style="max-width:500px;width:100%;display:flex;flex-direction:column;gap:8px;">
+          <div style="font:12px monospace;color:#aaa;margin-bottom:4px;">Report a bug or suggest a feature:</div>
+          <select id="feedback-type" style="background:#1a2a3a;color:#ddd;border:1px solid #456;padding:8px 10px;font:13px monospace;border-radius:4px;">
+            <option value="bug">Bug Report</option>
+            <option value="feature">Feature Request</option>
+          </select>
+          <textarea id="feedback-text" rows="5" placeholder="Describe the bug or feature..." style="background:#0a1a2a;color:#ddd;border:1px solid #456;padding:8px 10px;font:13px monospace;border-radius:4px;resize:vertical;font-family:monospace;"></textarea>
+          <button class="menu-btn" id="btn-feedback-submit" style="margin-top:4px;">SUBMIT</button>
+          <div id="feedback-status" style="font:11px monospace;color:#5a5;text-align:center;min-height:16px;"></div>
+          <div style="font:bold 12px monospace;color:#aaa;margin-top:8px;">Recent Submissions</div>
+          <div id="feedback-list" style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:4px;"></div>
+        </div>
+        <button class="menu-btn secondary" id="btn-feedback-back">BACK</button>
+      </div>
+
+      <!-- Screen: Death -->
+      <div id="menu-death" class="menu-screen">
+        <div class="menu-title" style="font-size:36px;color:#c44;">YOU DIED</div>
+        <div id="death-stats" style="background:rgba(0,0,0,0.3);border-radius:6px;padding:12px 18px;margin:8px 0;font:12px monospace;color:#ccc;text-align:center;line-height:1.8;"></div>
+        <button class="menu-btn" id="btn-respawn">RESPAWN</button>
+        <button class="menu-btn danger" id="btn-death-quit">QUIT TO MENU</button>
+      </div>
+
+      <!-- Screen: Multiplayer Server List -->
+      <div id="menu-multiplayer" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">MULTIPLAYER</div>
+
+        <!-- Username -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:4px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9998; YOUR IDENTITY</div>
+          <input id="input-mp-username" type="text" value="Player" maxlength="16" spellcheck="false" autocomplete="off" readonly style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.35);color:#aaa;border:1px solid rgba(80,80,80,0.3);border-radius:4px;font:14px monospace;outline:none;cursor:default;box-sizing:border-box;" />
+          <div id="mp-account-hint" style="font:9px monospace;color:#5a8;margin-top:6px;">Logged in — username cannot be changed.</div>
+        </div>
+
+        <!-- Recently Played -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:4px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9201; RECENTLY PLAYED</div>
+          <div id="recent-servers" style="max-height:88px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
+        </div>
+
+        <!-- Server Browser -->
+        <div style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,80,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:6px;">
+          <div style="font:bold 10px monospace;color:#7ab;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9881; SERVER BROWSER</div>
+          <input id="input-server-search" type="text" placeholder="Search servers..." maxlength="32" spellcheck="false" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:12px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.35)'" />
+          <div id="server-list" style="max-height:160px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
+        </div>
+
+        <div id="mp-error" style="max-width:480px;width:100%;min-height:18px;font:12px monospace;text-align:center;color:#f55;"></div>
+
+        <!-- Buttons -->
+        <div style="display:flex;gap:8px;max-width:480px;width:100%;">
+          <button class="menu-btn" id="btn-create-server" style="flex:1;min-width:auto;">CREATE SERVER</button>
+          <button class="menu-btn" id="btn-friends" style="flex:0.6;min-width:auto;font-size:13px;">FRIENDS <span class="btn-badge" id="friends-badge" style="display:none;background:#f55;color:#fff;border-radius:8px;padding:1px 6px;font:bold 10px monospace;margin-left:4px;"></span></button>
+          <button class="menu-btn" id="btn-invite-link" style="display:none;flex:0.6;min-width:auto;font-size:11px;padding:14px 16px;background:linear-gradient(180deg,#2a6b4a 0%,#1a5b3a 40%,#1a5030 60%,#0a4020 100%);border-color:#0a4020;">INVITE FRIEND</button>
+          <button class="menu-btn secondary" id="btn-mp-back" style="flex:0.5;min-width:auto;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Create Server -->
+      <div id="menu-create-server" class="menu-screen">
+        <div class="menu-title" style="font-size:26px;">CREATE SERVER</div>
+        <div class="create-layout">
+          <div class="create-left">
+            <div class="create-section">
+              <div class="create-section-title">SERVER SETTINGS</div>
+              <label>Server Name</label>
+              <input id="input-server-name" type="text" value="My Server" maxlength="32" spellcheck="false" autocomplete="off"/>
+              <label>Max Players</label>
+              <input id="input-max-players" type="number" value="10" min="2" max="100"/>
+              <label>Your Name</label>
+              <input id="input-player-name" type="text" value="Player" maxlength="16" spellcheck="false" autocomplete="off"/>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">GAME MODE</div>
+              <div class="mode-select">
+                <div class="mode-option selected" id="sv-mode-survival">
+                  <div class="mo-icon">♥</div>
+                  <div class="mo-label">SURVIVAL</div>
+                  <div class="mo-desc">Health, hunger, mining</div>
+                </div>
+                <div class="mode-option" id="sv-mode-creative">
+                  <div class="mo-icon">✦</div>
+                  <div class="mo-label">CREATIVE</div>
+                  <div class="mo-desc">Unlimited blocks, fly</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="create-right">
+            <div class="create-section">
+              <div class="create-section-title">SERVER INFO</div>
+              <div class="sv-info-grid">
+                <div class="sv-info-row"><span class="sv-info-label">Players</span><span class="sv-info-value" id="sv-info-players">10</span></div>
+                <div class="sv-info-row"><span class="sv-info-label">Mode</span><span class="sv-info-value" id="sv-info-mode">Survival</span></div>
+                <div class="sv-info-row"><span class="sv-info-label">Owner</span><span class="sv-info-value" id="sv-info-owner" style="color:#fa0;">—</span></div>
+              </div>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">WORLD SEED</div>
+              <label>Seed (leave blank for random)</label>
+              <input id="input-server-seed" type="text" placeholder="Random" maxlength="20" autocomplete="off"/>
+            </div>
+            <div class="create-section">
+              <div class="create-section-title">PRIVACY</div>
+              <div class="mode-select" style="flex-direction:column;gap:6px;">
+                <div class="mode-option selected" id="sv-priv-public">
+                  <div class="mo-label">PUBLIC</div>
+                  <div class="mo-desc">Anyone can find & join</div>
+                </div>
+                <div class="mode-option" id="sv-priv-private">
+                  <div class="mo-label">PRIVATE</div>
+                  <div class="mo-desc">Only you & your friends</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button class="menu-btn" id="btn-create-server-go" style="min-width:200px;">CREATE &amp; JOIN</button>
+          <button class="menu-btn secondary" id="btn-create-server-back" style="min-width:120px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Friends -->
+      <div id="menu-friends" class="menu-screen">
+        <div class="menu-title" style="font-size:32px;">FRIENDS</div>
+        <div id="friends-login-note" style="display:none;font:12px monospace;color:#fc8;margin-bottom:16px;text-align:center;max-width:420px;">Log in from the Multiplayer screen first to use friends.</div>
+
+        <!-- DM Panel (hidden by default) -->
+        <div id="dm-panel" style="display:none;max-width:460px;width:100%;">
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;display:flex;flex-direction:column;height:420px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid rgba(80,100,120,0.4);">
+              <button id="dm-back" class="menu-btn secondary" style="min-width:auto;padding:4px 10px;font-size:11px;">←</button>
+              <div id="dm-recipient" style="font:bold 13px monospace;color:#8bd;flex:1;"></div>
+              <div id="dm-online-dot" style="width:8px;height:8px;border-radius:50%;background:#666;"></div>
+            </div>
+            <div id="dm-messages" style="flex:1;overflow-y:auto;padding:10px 14px;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;display:flex;flex-direction:column;gap:6px;"></div>
+            <div style="display:flex;gap:6px;padding:10px 14px;border-top:1px solid rgba(80,100,120,0.4);align-items:center;">
+              <button id="dm-emoji-btn" style="background:none;border:1px solid rgba(100,100,100,0.4);border-radius:3px;padding:4px 6px;font-size:14px;cursor:pointer;color:#fff;line-height:1;">😀</button>
+              <input id="dm-input" type="text" placeholder="Type a message..." maxlength="200" autocomplete="off" spellcheck="false" style="flex:1;padding:8px 10px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:12px monospace;outline:none;box-sizing:border-box;"/>
+              <button class="menu-btn" id="dm-send" style="min-width:auto;padding:8px 14px;font-size:11px;">SEND</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Add friend + friend list (hidden when DM panel is open) -->
+        <div id="friends-main" style="max-width:460px;width:100%;">
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;margin-bottom:10px;">
+            <div style="font:bold 11px monospace;color:#8bd;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ADD FRIEND</div>
+            <div style="display:flex;gap:8px;">
+              <input id="input-friend-name" type="text" placeholder="Friend's username" maxlength="16" spellcheck="false" autocomplete="off" style="flex:1;padding:10px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;"/>
+              <button class="menu-btn" id="btn-friend-add" style="min-width:90px;padding:10px;font-size:11px;">ADD</button>
+            </div>
+            <div id="friend-msg" style="font:11px monospace;color:#8c8;min-height:16px;margin-top:6px;"></div>
+          </div>
+
+          <!-- Pending requests -->
+          <div id="friends-requests-box" style="display:none;background:rgba(40,30,10,0.55);border:1px solid rgba(200,160,60,0.5);border-radius:6px;padding:16px;margin-bottom:10px;">
+            <div id="friends-requests-header" style="font:bold 12px monospace;color:#fc6;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">FRIEND REQUESTS PENDING</div>
+            <div id="friends-requests-list"></div>
+          </div>
+
+          <!-- Friend list -->
+          <div style="background:rgba(0,0,0,0.45);border:1px solid rgba(80,100,120,0.4);border-radius:6px;padding:16px;">
+            <div style="font:bold 11px monospace;color:#8bd;letter-spacing:1px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">YOUR FRIENDS</div>
+            <div id="friends-list" style="max-height:220px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:16px;">
+          <button class="menu-btn secondary" id="btn-friends-back" style="min-width:160px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Server Player List / Admin Panel -->
+      <div id="menu-server-admin" class="menu-screen">
+        <div class="menu-title" style="font-size:26px;">SERVER: <span id="admin-server-name"></span></div>
+        <div id="server-admin-tabs" style="display:flex;gap:4px;margin-bottom:8px;">
+          <button class="menu-btn secondary" id="tab-players" style="flex:1;font-size:11px;">PLAYERS</button>
+          <button class="menu-btn secondary" id="tab-staff" style="flex:1;font-size:11px;">STAFF</button>
+          <button class="menu-btn secondary" id="tab-bans" style="flex:1;font-size:11px;">BANS</button>
+        </div>
+        <div class="menu-panel" id="admin-panel-content" style="max-height:260px;overflow-y:auto;font:12px monospace;color:#ddd;"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="menu-btn secondary" id="btn-admin-back">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Skin Picker -->
+      <div id="menu-skins" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">SELECT SKIN</div>
+        <div style="max-height:55vh;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;">
+          <div id="skin-custom-section" style="display:none;">
+            <div style="font:bold 13px monospace;color:#8f8;letter-spacing:1px;margin:8px 0 6px;text-shadow:1px 1px 0 #000;">CUSTOM SKINS</div>
+            <div class="skin-grid" id="skin-grid-custom"></div>
+          </div>
+          <div style="font:bold 13px monospace;color:#5af;letter-spacing:1px;margin:8px 0 6px;text-shadow:1px 1px 0 #000;">BOYS</div>
+          <div class="skin-grid" id="skin-grid-boys"></div>
+          <div style="font:bold 13px monospace;color:#f7a;margin:8px 0 6px;text-shadow:1px 1px 0 #000;">GIRLS</div>
+          <div class="skin-grid" id="skin-grid-girls"></div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="menu-btn secondary" id="btn-skins-edit" style="flex:1;">EDIT SKIN</button>
+          <button class="menu-btn secondary" id="btn-skins-back" style="flex:1;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: Skin Editor (built by skineditor.js) -->
+      <div id="menu-skin-editor" class="menu-screen">
+        <div class="menu-title" style="font-size:24px;">SKIN EDITOR</div>
+        <div id="skin-editor-root"></div>
+        <button class="menu-btn secondary" id="btn-skin-editor-back" style="margin-top:12px;">BACK</button>
+      </div>
+
+      <!-- Screen: Developer Panel (GameDev/Dev account) -->
+      <div id="menu-dev-panel" class="menu-screen">
+        <div class="menu-title" style="font-size:28px;">DEVELOPER PANEL</div>
+        <div class="dev-panel menu-panel" style="max-height:none;width:480px;">
+          <!-- Server Stats -->
+          <div class="dev-section">
+            <div class="dev-section-title">Server Stats</div>
+            <div class="dev-stats-grid">
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Today</div>
+                <div id="dev-dau" class="dev-stat-value green">0</div>
+              </div>
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Month</div>
+                <div id="dev-mau" class="dev-stat-value green">0</div>
+              </div>
+              <div class="dev-stat-card">
+                <div class="dev-stat-label">Servers</div>
+                <div id="dev-servers" class="dev-stat-value orange">0</div>
+              </div>
+            </div>
+          </div>
+          <!-- Accounts -->
+          <div class="dev-section">
+            <div class="dev-section-title">Accounts</div>
+            <input id="dev-account-search" class="dev-search-input" type="text" placeholder="Search accounts..." maxlength="30" spellcheck="false" autocomplete="off" />
+            <div id="dev-account-list" class="dev-account-list"></div>
+            <div id="dev-account-detail" class="dev-detail" style="display:none;"></div>
+          </div>
+        </div>
+        <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:480px;">BACK</button>
+      </div>
+    </div>
+
+    <!-- Pause Menu — OUTSIDE overlay so it's visible when overlay is hidden -->
+    <div id="menu-pause">
+      <div class="pause-panel">
+        <div class="pause-title">Game Paused</div>
+        <button class="pause-btn" id="btn-resume">Resume Game</button>
+        <button class="pause-btn" id="btn-pause-settings">Settings</button>
+        <button class="pause-btn dev" id="btn-pause-errors" style="display:none;">View Errors</button>
+        <button class="pause-btn danger" id="btn-quit">Quit to Title</button>
+      </div>
+    </div>
+
+    <!-- Dev-only error log viewer -->
+    <div id="error-log-panel">
+      <div class="elog-box">
+        <div class="elog-head">
+          <div class="elog-title">Error Log <span style="color:#667;font-size:12px;" id="elog-count"></span></div>
+          <button class="elog-copy" id="elog-copy">Copy All</button>
+          <button class="elog-clear" id="elog-clear">Clear</button>
+        </div>
+        <div class="elog-list" id="elog-list"></div>
+        <button class="elog-close" id="elog-close">CLOSE</button>
+      </div>
+    </div>
+
+    <div id="breaking"></div>
+
+    <!-- Offer Banner (free iron gear popup) -->
+    <div id="offer-banner">
+      <div class="offer-title">Free Iron Gear!</div>
+      <div class="offer-item-row">
+        <canvas class="offer-item-icon" id="offer-item-icon" width="16" height="16"></canvas>
+        <div>
+          <div class="offer-item-name" id="offer-item-name">Iron Pickaxe</div>
+          <div class="offer-item-desc">A sturdy iron pickaxe</div>
+        </div>
+      </div>
+      <div class="offer-actions">
+        <button class="offer-btn offer-btn-accept" id="offer-accept">ACCEPT [Y]</button>
+        <button class="offer-btn offer-btn-deny" id="offer-deny">DENY [X]</button>
+      </div>
+      <div class="offer-key-hint">Tap a button — or press Y to accept, X to deny</div>
+    </div>
+
+    <!-- First-time Name Prompt -->
+    <div id="name-prompt" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;backdrop-filter:blur(8px);">
+      <div style="background:rgba(10,10,24,0.75);border:1px solid rgba(100,160,255,0.15);border-radius:12px;padding:30px 40px;max-width:380px;width:90%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(100,160,255,0.04);backdrop-filter:blur(16px);">
+        <div style="font:700 24px sans-serif;background:linear-gradient(135deg,#e0e8ff 0%,#8af 50%,#c084fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;">Welcome to BlockForge!</div>
+        <div style="font:13px sans-serif;color:#aab;margin-bottom:20px;line-height:1.5;">What name would you like to play as? You can change this later in settings.</div>
+        <input id="name-prompt-input" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Enter your name..." style="width:100%;padding:12px 16px;font:15px sans-serif;background:rgba(0,0,0,0.4);border:1px solid rgba(100,160,255,0.2);border-radius:6px;color:#fff;outline:none;text-align:center;margin-bottom:16px;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='rgba(100,180,255,0.5)'" onblur="this.style.borderColor='rgba(100,160,255,0.2)'" />
+        <button id="name-prompt-confirm" style="width:100%;padding:12px;font:700 14px sans-serif;background:linear-gradient(180deg,rgba(60,140,80,0.7),rgba(40,110,60,0.8),rgba(30,90,50,0.85),rgba(20,70,40,0.9));border:1px solid rgba(60,200,80,0.3);border-radius:6px;color:#e0e8ff;cursor:pointer;transition:all .2s;box-shadow:0 2px 0 rgba(20,40,20,0.5);" onmouseover="this.style.boxShadow='0 2px 0 rgba(20,40,20,0.5), 0 0 20px rgba(60,200,80,0.2)'" onmouseout="this.style.boxShadow='0 2px 0 rgba(20,40,20,0.5)'">START PLAYING</button>
+      </div>
+    </div>
+
+    <!-- Chat HUD -->
+    <div id="chat-hud" style="display:none;position:fixed;bottom:52px;left:8px;z-index:15;width:400px;max-height:250px;pointer-events:none;transition:opacity 0.5s;">
+      <div id="chat-messages" style="max-height:200px;overflow-y:auto;font:12px/1.4 monospace;color:#fff;text-shadow:1px 1px 0 #000;padding:4px;scrollbar-width:none;"></div>
+      <div id="chat-input-wrap" style="display:none;pointer-events:auto;background:rgba(0,0,0,0.65);border:1px solid rgba(100,100,100,0.5);border-radius:3px;padding:4px 8px;align-items:center;gap:4px;">
+        <input id="chat-input" type="text" maxlength="100" autocomplete="off" spellcheck="false" style="flex:1;background:transparent;color:#fff;border:none;outline:none;font:13px monospace;"/>
+        <button id="chat-emoji-btn" style="background:none;border:1px solid rgba(100,100,100,0.4);border-radius:3px;padding:2px 6px;font-size:14px;cursor:pointer;color:#fff;line-height:1;">😀</button>
+      </div>
+    </div>
+
+    <!-- Boss Health Bar -->
+    <div id="boss-health-bar" style="display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);z-index:20;width:360px;text-align:center;pointer-events:none;">
+      <div style="font:700 13px monospace;color:#ff3300;text-shadow:0 0 8px rgba(255,51,0,0.7),0 0 16px rgba(255,51,0,0.4);margin-bottom:4px;letter-spacing:2px;">PRISMITE DRAGON</div>
+      <div style="background:rgba(0,0,0,0.7);border:2px solid rgba(255,51,0,0.5);border-radius:4px;height:14px;overflow:hidden;box-shadow:0 0 12px rgba(255,51,0,0.3);">
+        <div id="boss-health-fill" style="height:100%;width:100%;background:linear-gradient(180deg,#ff5533,#cc2200);transition:width 0.3s;box-shadow:inset 0 -2px 4px rgba(0,0,0,0.4),0 0 8px rgba(255,51,0,0.5);"></div>
+      </div>
+      <div id="boss-health-text" style="font:11px monospace;color:#ffaa88;margin-top:2px;">200 / 200</div>
+    </div>
+
+    <!-- Achievement Toast Notification -->
+    <div id="achievement-toast">
+      <canvas class="ach-icon" width="16" height="16"></canvas>
+      <div class="ach-text">
+        <div class="ach-label">Achievement Unlocked!</div>
+        <div class="ach-name"></div>
+        <div class="ach-desc"></div>
+      </div>
+    </div>
+
+    <!-- Achievement List Screen -->
+    <div id="achievement-screen">
+      <h2>ADVANCEMENTS</h2>
+      <div class="recipe-tabs">
+        <button class="adv-tab active" data-adv="achievements">ACHIEVEMENTS</button>
+        <button class="adv-tab" data-adv="statistics">STATISTICS</button>
+      </div>
+      <div id="adv-achievements">
+        <div id="ach-progress-bar"><div id="ach-progress-fill"></div></div>
+        <div id="ach-progress-text">0 / 0</div>
+        <div id="ach-list"></div>
+      </div>
+      <div id="adv-statistics" style="display:none;">
+        <div id="stats-list"></div>
+      </div>
+      <button id="ach-close">BACK</button>
+    </div>
+
+    <div id="recipe-screen">
+      <h2>RECIPE BOOK</h2>
+      <div class="recipe-tabs">
+        <button class="recipe-tab active" data-cat="all">ALL</button>
+        <button class="recipe-tab" data-cat="tools">TOOLS</button>
+        <button class="recipe-tab" data-cat="armor">ARMOR</button>
+        <button class="recipe-tab" data-cat="blocks">BLOCKS</button>
+        <button class="recipe-tab" data-cat="food">FOOD</button>
+        <button class="recipe-tab" data-cat="misc">MISC</button>
+        <button class="recipe-tab" data-cat="smelting">SMELTING</button>
+      </div>
+      <div id="recipe-list"></div>
+      <button id="recipe-close">BACK</button>
+    </div>
+
+    <div id="inventory-screen">
+      <h2 style="display:flex;align-items:center;gap:12px;">INVENTORY <button id="btn-sort-inv" class="menu-btn" style="font-size:11px;padding:4px 10px;">SORT</button> <button id="btn-inv-recipes" class="menu-btn" style="font-size:11px;padding:4px 10px;">RECIPE BOOK</button> <button id="btn-inv-theme" class="menu-btn" style="font-size:11px;padding:4px 10px;" title="Toggle light/dark inventory theme">◐ THEME</button> <button id="btn-close-inv" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
+      <div id="inv-layout">
+        <div id="inv-left">
+          <div id="creative-browser" style="display:none;">
+            <div class="creative-label">BLOCKS</div>
+            <input id="creative-search" type="text" placeholder="Search blocks..." autocomplete="off" spellcheck="false"/>
+            <div id="creative-grid"></div>
+          </div>
+          <div id="inv-armor-area">
+            <div class="inv-armor-label">ARMOR</div>
+            <div id="inv-armor-slots">
+              <div class="inv-armor-slot" data-armor-slot="0"><div class="inv-armor-name">Helmet</div></div>
+              <div class="inv-armor-slot" data-armor-slot="1"><div class="inv-armor-name">Chestplate</div></div>
+              <div class="inv-armor-slot" data-armor-slot="2"><div class="inv-armor-name">Leggings</div></div>
+              <div class="inv-armor-slot" data-armor-slot="3"><div class="inv-armor-name">Boots</div></div>
+            </div>
+            <div class="inv-armor-label" style="margin-top:6px;">OFF HAND</div>
+            <div class="inv-armor-slot" data-armor-slot="offhand" style="margin:0 auto;"><div class="inv-armor-name">Off Hand</div></div>
+          </div>
+        </div>
+        <div id="inv-right">
+          <div id="inv-crafting-area">
+            <div class="craft-label">CRAFTING</div>
+            <div id="crafting-input"></div>
+            <div id="crafting-arrow">&#x2192;</div>
+            <div id="crafting-output"></div>
+          </div>
+          <div id="inventory-grid"></div>
+        </div>
+      </div>
+      <div class="inventory-hint">Click to move items. Click output to craft. Press TAB to close.</div>
+    </div>
+    <div id="cursor-item"></div>
+    <div id="item-tooltip"></div>
+
+    <div id="furnace-screen">
+      <h2 style="display:flex;align-items:center;gap:12px;">FURNACE <button id="btn-close-furnace" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
+      <div id="furnace-layout">
+        <div id="furnace-top">
+          <div id="furnace-left">
+            <div class="furnace-label">INPUT</div>
+            <div id="furnace-input" class="inv-slot craft-slot"></div>
+          </div>
+          <div id="furnace-center">
+            <svg id="furnace-arrow" width="40" height="24" viewBox="0 0 40 24">
+              <polygon points="0,6 28,6 28,0 40,12 28,24 28,18 0,18" fill="#555"/>
+              <polygon id="furnace-arrow-fill" points="0,6 0,6 0,6 0,6 0,6 0,6 0,6" fill="#f80"/>
+            </svg>
+          </div>
+          <div id="furnace-right">
+            <div class="furnace-label">OUTPUT</div>
+            <div id="furnace-output" class="inv-slot craft-slot"></div>
+          </div>
+        </div>
+        <div id="furnace-bottom-row">
+          <div id="furnace-fuel-wrap">
+            <div class="furnace-label">FUEL</div>
+            <div id="furnace-fuel" class="inv-slot craft-slot"></div>
+          </div>
+          <div id="furnace-flame">
+            <svg width="14" height="20" viewBox="0 0 14 20">
+              <polygon points="2,18 7,2 12,18 9,13 5,13" fill="#555" opacity="0.4"/>
+              <polygon id="furnace-flame-fill" points="2,18 7,2 12,18 9,13 5,13" fill="#f80" style="display:none"/>
+            </svg>
+            <div id="furnace-fuel-bar"><div id="furnace-fuel-bar-fill"></div></div>
+          </div>
+        </div>
+        <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
+        <div id="furnace-inv-grid"></div>
+      </div>
+      <div class="inventory-hint">Click to move items. Press TAB to close.</div>
+    </div>
+
+    <div id="chest-screen">
+      <h2 style="display:flex;align-items:center;gap:12px;">CHEST <button id="btn-close-chest" class="menu-btn" style="font-size:11px;padding:4px 12px;background:linear-gradient(180deg,#8a4a4a,#633636);border-color:#5a2a2a;">✕ CLOSE</button></h2>
+      <div id="chest-layout">
+        <div id="chest-grid"></div>
+        <div class="inv-separator" style="width:100%;margin:8px 0;"></div>
+        <div id="chest-inv-grid"></div>
+        <div id="chest-hotbar-grid"></div>
+      </div>
+      <div class="inventory-hint">Click to move items. Press TAB to close.</div>
+    </div>
+
+    <script>
+      // Generate pixel-art village landscape for loading screen background
+      (function() {
+        var c = document.createElement('canvas');
+        c.width = 256; c.height = 144;
+        var x = c.getContext('2d');
+
+        // Sky gradient
+        var sky = x.createLinearGradient(0, 0, 0, 90);
+        sky.addColorStop(0, '#5bc0eb');
+        sky.addColorStop(0.6, '#87ceeb');
+        sky.addColorStop(1, '#b8e4f0');
+        x.fillStyle = sky;
+        x.fillRect(0, 0, 256, 90);
+
+        // Clouds
+        x.fillStyle = 'rgba(255,255,255,0.8)';
+        function cloud(cx, cy, w) {
+          for (var i = 0; i < w; i += 4) {
+            x.fillRect(cx + i, cy + (Math.random() > 0.5 ? 0 : -2), 4, 3);
+          }
+        }
+        cloud(20, 25, 20); cloud(80, 18, 28); cloud(150, 30, 24); cloud(210, 22, 18);
+
+        // Distant hills
+        x.fillStyle = '#6a9a5a';
+        x.beginPath(); x.moveTo(0, 90);
+        for (var i = 0; i <= 256; i += 2) {
+          x.lineTo(i, 78 + Math.sin(i * 0.025) * 6 + Math.sin(i * 0.01) * 4);
+        }
+        x.lineTo(256, 90); x.fill();
+
+        // Nearer hills
+        x.fillStyle = '#5a8a4a';
+        x.beginPath(); x.moveTo(0, 90);
+        for (var i = 0; i <= 256; i += 2) {
+          x.lineTo(i, 84 + Math.sin(i * 0.04 + 1) * 4 + Math.sin(i * 0.015) * 3);
+        }
+        x.lineTo(256, 90); x.fill();
+
+        // Grass ground
+        x.fillStyle = '#5a9a3a';
+        x.fillRect(0, 88, 256, 56);
+        x.fillStyle = '#4a8a30';
+        x.fillRect(0, 90, 256, 54);
+
+        // Dirt patches
+        x.fillStyle = '#6b4c33';
+        for (var i = 0; i < 8; i++) {
+          x.fillRect(10 + i * 30, 92, 8 + Math.floor(Math.random() * 6), 3);
+        }
+
+        // Grass tufts
+        x.fillStyle = '#68b040';
+        for (var i = 0; i < 30; i++) {
+          var gx = Math.floor(Math.random() * 256);
+          x.fillRect(gx, 87 + Math.floor(Math.random() * 3), 1, 2);
+        }
+
+        // Trees
+        function tree(tx, ty, h) {
+          x.fillStyle = '#4a3520';
+          x.fillRect(tx + 3, ty, 2, h);
+          x.fillStyle = '#3a7a2a';
+          x.fillRect(tx, ty - 6, 8, 8);
+          x.fillStyle = '#4a8a34';
+          x.fillRect(tx + 1, ty - 8, 6, 4);
+        }
+        tree(30, 82, 8); tree(60, 84, 6); tree(120, 80, 10);
+        tree(180, 83, 7); tree(230, 81, 9);
+
+        // House 1
+        x.fillStyle = '#8a6a44';
+        x.fillRect(80, 74, 16, 14);
+        x.fillStyle = '#6a4a2a';
+        x.fillRect(80, 74, 16, 2);
+        // roof
+        x.fillStyle = '#9a3a2a';
+        x.beginPath(); x.moveTo(77, 74); x.lineTo(88, 64); x.lineTo(99, 74); x.fill();
+        // door
+        x.fillStyle = '#5a3a1a';
+        x.fillRect(85, 82, 4, 6);
+        // window
+        x.fillStyle = '#8ad4f0';
+        x.fillRect(81, 78, 3, 3);
+
+        // House 2
+        x.fillStyle = '#9a7a54';
+        x.fillRect(145, 76, 14, 12);
+        x.fillStyle = '#7a5a3a';
+        x.fillRect(145, 76, 14, 2);
+        x.fillStyle = '#aa4a3a';
+        x.beginPath(); x.moveTo(143, 76); x.lineTo(152, 67); x.lineTo(161, 76); x.fill();
+        x.fillStyle = '#5a3a1a';
+        x.fillRect(150, 82, 3, 6);
+        x.fillStyle = '#8ad4f0';
+        x.fillRect(146, 78, 3, 3);
+
+        // Water pond
+        x.fillStyle = '#3a8acc';
+        x.fillRect(190, 88, 22, 5);
+        x.fillStyle = 'rgba(255,255,255,0.15)';
+        x.fillRect(192, 89, 18, 1);
+
+        // Path
+        x.fillStyle = '#9a8a70';
+        x.fillRect(92, 88, 8, 20);
+        x.fillRect(88, 90, 20, 3);
+
+        // Flowers
+        x.fillStyle = '#ee4444';
+        x.fillRect(15, 86, 2, 2);
+        x.fillRect(50, 85, 2, 2);
+        x.fillStyle = '#eeee44';
+        x.fillRect(110, 86, 2, 2);
+        x.fillRect(200, 87, 2, 2);
+        x.fillStyle = '#ee88ee';
+        x.fillRect(165, 85, 2, 2);
+
+        // Sun
+        x.fillStyle = '#ffe066';
+        x.beginPath(); x.arc(220, 20, 10, 0, Math.PI * 2); x.fill();
+        x.fillStyle = 'rgba(255,240,100,0.3)';
+        x.beginPath(); x.arc(220, 20, 16, 0, Math.PI * 2); x.fill();
+
+        var el = document.getElementById('loading-bg');
+        if (el) el.style.backgroundImage = 'url(' + c.toDataURL() + ')';
+      })();
+    </script>
+    <script>
+      // Menu background is now a real 3D rotating terrain (rendered by Three.js)
+      // overlay-bg is kept transparent so the 3D scene shows through
+    </script>
+    <script>
+      window.onerror = function(msg, src, line, col, err) {
+        var srcStr = (src || '').toString();
+        // Only surface errors that come from OUR code (Vite dev /src/ or built /assets/).
+        // Ignore CrazyGames SDK, browser extensions, and other external/benign errors.
+        var isOurs = srcStr.indexOf('/src/') !== -1 || srcStr.indexOf('/assets/') !== -1;
+        if (!isOurs) {
+          console.error('[window.onerror]', msg, '|', srcStr + ':' + line);
+          return false;
+        }
+        var m = (msg && msg.message) ? msg.message : (typeof msg === 'string' ? msg : (err && err.message) || 'Unknown error');
+        var el = document.createElement('div');
+        el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
+        el.textContent = 'ERROR: ' + m + ' @ ' + srcStr.split('/').pop() + ':' + line;
+        document.body.appendChild(el);
+        return false;
+      };
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e && e.reason;
+        var m = (reason && reason.message) ? reason.message : (typeof reason === 'string' ? reason : 'unknown');
+        // Only show for our own promise rejections
+        console.warn('[unhandledrejection]', m);
+        if (m && (m.indexOf('/src/') !== -1 || m.indexOf('main.js') !== -1)) {
+          var el = document.createElement('div');
+          el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c33;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
+          el.textContent = 'Unhandled Promise: ' + m;
+          document.body.appendChild(el);
+        }
+      });
+    </script>
+    <script>
+      // Item tooltip — shows item name on hover over inventory/hotbar slots
+      (function() {
+        var tooltip = document.getElementById('item-tooltip');
+        if (!tooltip) return;
+        var mx = 0, my = 0;
+        document.addEventListener('mousemove', function(e) {
+          mx = e.clientX; my = e.clientY;
+          if (tooltip.style.display === 'block') {
+            var tx = mx + 14, ty = my + 14;
+            if (tx + tooltip.offsetWidth > window.innerWidth - 4) tx = mx - tooltip.offsetWidth - 4;
+            if (ty + tooltip.offsetHeight > window.innerHeight - 4) ty = my - tooltip.offsetHeight - 4;
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+          }
+        });
+        document.addEventListener('mouseover', function(e) {
+          var el = e.target.closest('.inv-slot, .slot');
+          if (el && el.dataset.itemName) {
+            tooltip.textContent = el.dataset.itemName;
+            tooltip.style.display = 'block';
+            var tx = mx + 14, ty = my + 14;
+            if (tx + tooltip.offsetWidth > window.innerWidth - 4) tx = mx - tooltip.offsetWidth - 4;
+            if (ty + tooltip.offsetHeight > window.innerHeight - 4) ty = my - tooltip.offsetHeight - 4;
+            tooltip.style.left = tx + 'px';
+            tooltip.style.top = ty + 'px';
+          }
+        });
+        document.addEventListener('mouseout', function(e) {
+          var el = e.target.closest('.inv-slot, .slot');
+          if (el) tooltip.style.display = 'none';
+        });
+      })();
+    </script>
+    <script type="module" src="/src/main.js"></script>
+    <!-- CrazyGames SDK (only loaded on CrazyGames domain) -->
+    <script>window.CrazyGames = window.CrazyGames || {};</script>
+    <script>if (location.hostname.includes('crazygames') || new URLSearchParams(location.search).has('cg')) { var s = document.createElement('script'); s.src = 'https://sdk.crazygames.com/crazygames-sdk-v3.js'; s.async = true; document.body.appendChild(s); }</script>
+  </body>
+</html>

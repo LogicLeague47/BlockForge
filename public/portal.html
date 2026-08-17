@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge Portal</title>
+  <link rel="icon" type="image/png" href="BlockForge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#07070f;--card:rgba(24,24,48,0.72);--panel:rgba(16,16,30,0.78);--border:rgba(90,90,140,0.28);
+      --accent:#8af;--accent2:#c084fc;--accent3:#f472b6;--gold:#ffdd33;--green:#4c4;--red:#f55;--orange:#fa0;
+      --text:#e6e6f0;--muted:#9a9ac0;--dim:#6a6a88;
+    }
+    body[data-theme="emerald"]{--accent:#5ef2a6;--accent2:#2dd4bf;--accent3:#a3e635}
+    body[data-theme="magma"]{--accent:#ff9f43;--accent2:#ff6b6b;--accent3:#f472b6}
+    body[data-theme="ocean"]{--accent:#4dd2ff;--accent2:#7c9cff;--accent3:#5eead4}
+    body[data-theme="gold"]{--accent:#ffd75e;--accent2:#ff9f43;--accent3:#ffd75e}
+    body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0,rgba(70,80,180,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(180,60,160,.12) 0,transparent 50%);pointer-events:none;z-index:0}
+    /* ── Animated aurora sweep ────────────────────────────────────────── */
+    .aurora{position:fixed;inset:-50%;z-index:0;pointer-events:none;background:
+      radial-gradient(38% 42% at 22% 28%,rgba(120,140,255,.22),transparent 70%),
+      radial-gradient(30% 36% at 78% 22%,rgba(192,132,252,.20),transparent 70%),
+      radial-gradient(34% 40% at 65% 78%,rgba(244,114,182,.16),transparent 70%),
+      radial-gradient(28% 32% at 30% 80%,rgba(90,220,180,.14),transparent 70%);
+      animation:auroraDrift 26s ease-in-out infinite alternate;filter:blur(10px);mix-blend-mode:screen}
+    @keyframes auroraDrift{0%{transform:translate(0,0) rotate(0deg) scale(1)}50%{transform:translate(6%,4%) rotate(8deg) scale(1.08)}100%{transform:translate(-5%,-3%) rotate(-6deg) scale(1.02)}}
+    /* ── Floating voxel shards behind hero ────────────────────────────── */
+    .voxels{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+    .voxel{position:absolute;width:14px;height:14px;background:linear-gradient(135deg,var(--accent),var(--accent2));opacity:.18;border-radius:3px;animation:voxelFloat 9s ease-in-out infinite}
+    @keyframes voxelFloat{0%,100%{transform:translateY(0) rotate(0deg) scale(1)}50%{transform:translateY(-26px) rotate(180deg) scale(1.15)}}
+    /* ── Subtle scanlines + vignette for a game-feel ──────────────────── */
+    body::after{content:'';position:fixed;inset:0;z-index:3;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.03) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
+    .vignette{position:fixed;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,transparent 55%,rgba(0,0,0,.42) 100%)}
+    /* ── Animated count-up shimmer ────────────────────────────────────── */
+    .stat .v{position:relative}
+    .stat .v::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%);background-size:220% 100%;animation:shimmer 3.4s ease-in-out infinite;-webkit-background-clip:initial;opacity:.5}
+    @keyframes shimmer{0%,100%{background-position:200% 0}50%{background-position:-20% 0}}
+    #bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+    header{background:linear-gradient(135deg,#12121f 0%,#1c1230 50%,#12121f 100%);border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;gap:20px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,.4);position:sticky;top:0;backdrop-filter:blur(8px);flex-wrap:wrap}
+    header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(120,160,255,.4),rgba(200,100,230,.4),transparent)}
+    .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+    .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,var(--accent),var(--accent2),var(--accent3),var(--accent));display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(120,160,255,.35);animation:spin 12s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .brand h1{font-size:26px;background:linear-gradient(135deg,#fff 0%,var(--accent) 40%,var(--accent2) 70%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:5px;font-weight:700}
+    .brand .sub{font-size:10px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;font-weight:600}
+    nav{display:flex;gap:6px;flex-wrap:wrap}
+    nav .nav-tab{padding:8px 14px;border:1px solid transparent;border-radius:8px;cursor:pointer;font:13px 'Inter',monospace;color:var(--muted);background:transparent;transition:.2s;font-weight:500}
+    nav .nav-tab:hover{color:#fff;background:rgba(100,140,255,.08);border-color:rgba(130,160,255,.25)}
+    nav .nav-tab.active{color:#fff;background:linear-gradient(135deg,rgba(60,90,180,.25),rgba(140,80,200,.2));border-color:rgba(130,160,255,.45);box-shadow:0 0 14px rgba(100,140,255,.15)}
+    .header-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+    #status-pill{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:rgba(20,20,40,.7);color:var(--muted);transition:.2s;cursor:default}
+    #status-pill .dot{width:10px;height:10px;border-radius:50%;background:#666;box-shadow:0 0 8px rgba(255,255,255,.2);animation:pulse 1.2s infinite}
+    #status-pill.on{color:#c8ffd8;border-color:rgba(68,204,68,.35)}
+    #status-pill.on .dot{background:var(--green);box-shadow:0 0 10px rgba(68,204,68,.6);animation:none}
+    #status-pill.off{color:#ffc8c8}
+    #status-pill.off .dot{background:var(--red);box-shadow:0 0 10px rgba(255,85,85,.6);animation:none}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+    .theme-picker{display:flex;gap:6px;align-items:center;padding:6px 10px;border:1px solid var(--border);border-radius:20px;background:rgba(20,20,40,.7)}
+    .theme-dot{width:16px;height:16px;border-radius:50%;cursor:pointer;border:2px solid rgba(255,255,255,.25);transition:.2s}
+    .theme-dot:hover{transform:scale(1.25);border-color:#fff}
+    .theme-dot.active{border-color:#fff;box-shadow:0 0 10px rgba(255,255,255,.5)}
+    #user-badge{font-size:13px;color:#c8d8ff;background:linear-gradient(135deg,rgba(60,100,180,.3),rgba(140,80,200,.2));border:1px solid rgba(120,160,255,.35);border-radius:8px;padding:8px 14px;font-weight:600;backdrop-filter:blur(4px)}
+    .container{max-width:980px;margin:28px auto;padding:0 24px;flex:1;width:100%;position:relative;z-index:1}
+    .login-wrap{max-width:420px;margin:24px auto}
+    #login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:28px;box-shadow:0 0 50px rgba(60,100,180,.1);backdrop-filter:blur(12px)}
+    #login-box input{width:100%;padding:11px 14px;background:rgba(0,0,0,.5);color:#fff;border:1px solid rgba(90,90,140,.4);border-radius:8px;font:14px 'Inter',monospace;outline:none;margin-bottom:12px;transition:border-color .2s,box-shadow .2s}
+    #login-box input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(120,160,255,.2)}
+    #login-box .btn{padding:11px 26px;background:linear-gradient(135deg,#2a4a7a,#3a4a8a,#4a3a8a,#5a2a7a);border:1px solid rgba(120,140,255,.3);border-radius:10px;color:#fff;font:14px 'Inter',monospace;cursor:pointer;font-weight:600;transition:.25s;display:inline-block;position:relative;overflow:hidden}
+    #login-box .btn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,transparent,rgba(255,255,255,.08),transparent);transform:translateX(-100%);transition:transform .5s}
+    #login-box .btn:hover::after{transform:translateX(100%)}
+    #login-box .btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(90,130,220,.35)}
+    #login-hint{font-size:12px;margin-top:10px;min-height:18px}
+    #logged-in{display:none}
+    #account-info{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:24px;font-size:14px;backdrop-filter:blur(8px);display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+    #account-info .avatar{width:42px;height:42px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:grid;place-items:center;font-weight:700;font-size:20px;color:#0a0a12;box-shadow:0 0 16px rgba(120,160,255,.3)}
+    #account-info .label{color:#8d8;font-size:12px}
+    #account-info .name{background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;font-weight:700;font-size:17px}
+    #account-info .btn{margin-left:auto}
+    #content{display:none}
+    .dev-only{display:none}
+    .page{display:none}
+    .page.active{display:block;animation:pageIn .3s ease}
+    @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Dashboard */
+    .dash-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-bottom:26px}
+    @media(max-width:720px){.dash-grid{grid-template-columns:1fr}}
+    .dash-card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;backdrop-filter:blur(10px);position:relative;overflow:hidden}
+    .dash-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),transparent);opacity:.6}
+    .dash-card h3{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:14px;font-weight:600}
+    .stat-row{display:flex;gap:18px;flex-wrap:wrap}
+    .stat{flex:1;min-width:90px}
+    .stat .v{font-size:24px;font-weight:700;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .stat .l{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1.5px;margin-top:2px}
+    .stat .v small{font-size:12px;color:var(--dim);-webkit-text-fill-color:var(--dim);font-weight:500}
+    .prog-bar{height:6px;background:rgba(255,255,255,.07);border-radius:3px;margin-top:10px;overflow:hidden}
+    .prog-bar .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s ease;box-shadow:0 0 10px rgba(120,160,255,.4)}
+    .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
+    @media(max-width:768px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
+    @media(max-width:480px){.feature-grid{grid-template-columns:1fr}}
+    .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px 20px;cursor:pointer;transition:.25s cubic-bezier(.175,.885,.32,1.275);position:relative;overflow:hidden;text-decoration:none;color:inherit;display:block;backdrop-filter:blur(4px);outline:none}
+    .card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,var(--accent),var(--accent2),transparent);transform:scaleX(0);transition:transform .4s ease}
+    .card:hover::before,.card:focus-visible::before{transform:scaleX(1)}
+    .card::after{content:'';position:absolute;inset:0;border-radius:14px;opacity:0;transition:opacity .4s;pointer-events:none;box-shadow:0 0 36px rgba(100,140,255,.12),inset 0 0 30px rgba(100,140,255,.04)}
+    .card:hover::after,.card:focus-visible::after{opacity:1}
+    .card:hover,.card:focus-visible{transform:translateY(-6px) scale(1.02);box-shadow:0 16px 44px rgba(0,0,0,.5);background-color:rgba(36,36,70,.92)}
+    .card .icon{font-size:34px;margin-bottom:10px;transition:transform .3s cubic-bezier(.175,.885,.32,1.275);display:inline-block}
+    .card:hover .icon,.card:focus-visible .icon{transform:scale(1.2) rotate(-6deg)}
+    .card .name{font-size:16px;font-weight:700;margin-bottom:6px;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .card .desc{font-size:12px;color:var(--muted);line-height:1.5}
+    .card.coming{opacity:.55;cursor:not-allowed}
+    .card.coming:hover{transform:none;box-shadow:none;background-color:var(--card)}
+    .card.coming:hover::after{opacity:0}
+    .card.coming .name{-webkit-text-fill-color:var(--dim);background:var(--dim)}
+    .badge-coming{display:inline-block;font-size:10px;color:var(--gold);background:rgba(200,150,0,.2);border:1px solid rgba(200,150,0,.4);padding:2px 8px;border-radius:4px;margin-left:8px;letter-spacing:1.5px;font-weight:600}
+    .section-title{font-size:14px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:20px;font-weight:700}
+    .btn{padding:10px 22px;background:linear-gradient(135deg,rgba(40,40,70,.8),rgba(30,30,55,.8));border:1px solid var(--border);border-radius:10px;color:#b8c8ff;font:14px 'Inter',monospace;cursor:pointer;font-weight:500;transition:.25s;display:inline-flex;align-items:center;gap:6px;backdrop-filter:blur(4px)}
+    .btn:hover{background:linear-gradient(135deg,rgba(60,60,100,.85),rgba(50,50,80,.85));border-color:rgba(130,160,255,.5);color:#fff;transform:translateY(-2px);box-shadow:0 8px 26px rgba(80,120,220,.25)}
+    .btn.primary{background:linear-gradient(135deg,#2a4a8a,#3a4a9a,#5a2a9a);border-color:rgba(120,140,255,.4);color:#fff}
+    .btn.primary:hover{box-shadow:0 10px 32px rgba(90,130,220,.35)}
+    .mt-20{margin-top:20px}
+    .mb-30{margin-bottom:30px}
+    .tc{text-align:center}
+    .external-link{color:var(--accent);text-decoration:none;font-size:14px;font-weight:500;transition:.2s}
+    .external-link::after{content:' ↗';font-size:12px;transition:.2s;display:inline-block}
+    .external-link:hover::after{transform:translate(2px,-2px)}
+    .page h2{font-size:18px;background:linear-gradient(90deg,var(--gold),#ff8844);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:18px;font-weight:700}
+    .page p{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+    .page ul{list-style:none;padding:0}
+    .page li{padding:12px 16px;border:1px solid var(--border);border-radius:8px;margin-bottom:10px;font-size:13px;color:var(--muted);background:rgba(30,30,50,.55);transition:.2s}
+    .page li:hover{background:rgba(40,40,65,.7);border-color:rgba(100,140,200,.45)}
+    .page li a{color:var(--accent);text-decoration:none;font-weight:500}
+    .page li a:hover{color:#9af;text-decoration:underline}
+    .srv-header{display:flex;align-items:center;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+    .srv-status{display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+    .srv-status .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+    .srv-status .dot.on{background:var(--green);box-shadow:0 0 8px rgba(68,204,68,.5)}
+    .srv-status .dot.off{background:var(--red);box-shadow:0 0 8px rgba(255,85,85,.4)}
+    .srv-status .dot.busy{background:var(--orange);box-shadow:0 0 8px rgba(255,170,0,.4)}
+    .srv-status .dot.pending{background:#666;animation:pulse 1.2s infinite}
+    .srv-stats{font-size:13px;color:var(--muted)}
+    .srv-list{display:flex;flex-direction:column;gap:10px}
+    .srv-card{background:linear-gradient(135deg,rgba(35,35,60,.88),rgba(25,25,45,.88));border:1px solid var(--border);border-radius:12px;padding:18px 22px;display:flex;align-items:center;justify-content:space-between;transition:.25s;flex-wrap:wrap;gap:12px;backdrop-filter:blur(4px)}
+    .srv-card:hover{background:linear-gradient(135deg,rgba(45,45,75,.92),rgba(35,35,60,.92));border-color:rgba(130,160,255,.5);box-shadow:0 8px 24px rgba(60,100,180,.15);transform:translateY(-2px)}
+    .srv-card .left{display:flex;flex-direction:column;gap:4px}
+    .srv-card .name{font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .srv-card .meta{font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+    .srv-card .meta span{display:inline-flex;align-items:center;gap:4px}
+    .srv-card .players{font-size:15px;font-weight:700;color:#b8c8ff;background:rgba(60,100,180,.15);padding:6px 14px;border-radius:8px;border:1px solid rgba(100,140,200,.25)}
+    .srv-card .players .max{color:var(--dim);font-weight:400}
+    .srv-card .badge{font-size:10px;padding:3px 10px;border-radius:4px;background:linear-gradient(135deg,rgba(50,80,130,.4),rgba(100,60,160,.3));border:1px solid rgba(120,140,220,.3);color:#b8d0ff;letter-spacing:1px;font-weight:700;text-transform:uppercase}
+    .srv-empty{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px}
+    .srv-error{text-align:center;padding:40px 20px;color:var(--red);font-size:14px}
+    .srv-refresh{font-size:12px;padding:6px 14px;margin-left:auto}
+    footer{text-align:center;padding:22px;font-size:11px;color:#555;border-top:1px solid var(--border);background:linear-gradient(135deg,rgba(20,20,35,.7),rgba(15,15,25,.7));backdrop-filter:blur(4px);position:relative;z-index:1}
+    footer a{color:var(--accent);text-decoration:none}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+    ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(100,160,255,.3),rgba(160,120,255,.4));border-radius:4px}
+    .upload-btn{font-size:12px;padding:8px 16px}
+    .upload-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:12px;margin-top:12px}
+    .upload-item{background:rgba(30,30,55,.6);border:1px solid var(--border);border-radius:8px;padding:10px;text-align:center;font-size:11px;color:var(--muted)}
+    .upload-item img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:4px;margin-bottom:6px;background:rgba(0,0,0,.3)}
+    .upload-item .del{color:var(--red);cursor:pointer;font-size:10px;margin-top:4px;display:inline-block}
+    .upload-item .del:hover{text-decoration:underline}
+    .file-input-hidden{display:none}
+
+    /* Search box */
+    .search-box{width:100%;padding:11px 14px;background:rgba(0,0,0,.45);color:#fff;border:1px solid var(--border);border-radius:8px;font:13px 'Inter',monospace;outline:none;margin-bottom:16px;transition:border-color .2s}
+    .search-box:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(120,160,255,.15)}
+
+    /* Updates accordion — themed to match the portal glass/gradient style */
+    .update-section{background:var(--card);border:1px solid var(--border);border-radius:14px;overflow:hidden;margin-bottom:12px;backdrop-filter:blur(4px);transition:border-color .25s,border-radius .25s;position:relative}
+    .update-section .update-head{display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:pointer;padding:14px 16px;user-select:none;transition:background .2s;text-align:left;width:100%}
+    .update-section .update-head:hover .update-title{filter:brightness(1.15)}
+    .update-section .update-meta{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+    .update-section .update-hash{font:bold 10px monospace;color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.12);padding:1px 6px;border-radius:5px;border:1px solid rgba(var(--accent-rgb,120,160,255),.25)}
+    .update-section .update-date{font:bold 10px monospace;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+    .update-section .update-title{font-weight:700;font-size:14px;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;transition:filter .2s}
+    .update-section .update-desc{font:11px/1.45 'Inter',monospace;color:var(--muted);margin-top:3px}
+    .update-section .update-arrow{font-size:11px;color:var(--accent);flex-shrink:0;transition:transform .25s;border:1px solid var(--border);border-radius:6px;width:22px;height:22px;display:grid;place-items:center}
+    .update-section.open .update-arrow{transform:rotate(180deg)}
+    .update-section.open{border-color:rgba(var(--accent-rgb,120,160,255),.4);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+    .update-body{padding:0 16px;max-height:0;overflow:hidden;transition:max-height .28s ease,padding .28s ease,opacity .28s}
+    .update-body .u-group{font:bold 10px monospace;letter-spacing:1.5px;margin:10px 0 6px}
+    .update-body .u-item{font:11px/1.5 'Inter',monospace;color:var(--text);padding:6px 8px 6px 10px;margin-bottom:4px;border-left:2px solid;border-radius:4px;background:rgba(120,160,255,.05)}
+    .update-body .u-item.bug{color:#f8c8c8;border-color:var(--red);background:rgba(255,85,85,.07)}
+    .update-body .u-item.upd{border-color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.05)}
+    .update-body .u-item.feat{border-color:var(--green);background:rgba(68,204,68,.06)}
+    .updates-pagination{display:flex;justify-content:center;align-items:center;gap:6px;margin:16px 0;flex-wrap:wrap}
+    .updates-pagination button{min-width:36px;height:36px;border:1px solid rgba(255,255,255,.1);border-radius:8px;background:rgba(255,255,255,.06);color:var(--text);font:bold 13px 'Inter',monospace;cursor:pointer;transition:all .15s}
+    .updates-pagination button:hover{background:rgba(255,255,255,.12);border-color:var(--accent)}
+    .updates-pagination button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+    .updates-pagination button:disabled{opacity:.35;cursor:default}
+
+    /* Toast notifications */
+    #toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:2000}
+    .toast{padding:13px 20px;border-radius:10px;font:13px 'Inter',monospace;color:#fff;border:1px solid var(--border);background:rgba(24,24,48,.92);box-shadow:0 12px 40px rgba(0,0,0,.5);animation:toastIn .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:10px;backdrop-filter:blur(8px);max-width:340px}
+    .toast.ok{border-color:rgba(68,204,68,.4)}
+    .toast.err{border-color:rgba(255,85,85,.4)}
+    .toast.info{border-color:rgba(120,160,255,.4)}
+    .toast.out{opacity:0;transform:translateX(20px);transition:.3s}
+    @keyframes toastIn{from{opacity:0;transform:translateY(12px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+    /* Welcome splash */
+    #welcome-splash{position:fixed;inset:0;z-index:1000;display:none;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);transition:opacity .6s ease,visibility .6s}
+    #welcome-splash.show{display:flex}
+    #welcome-splash.fade{opacity:0;visibility:hidden;pointer-events:none}
+    #welcome-splash .logo{font-size:48px;font-weight:700;background:linear-gradient(135deg,#fff 0%,var(--accent) 40%,var(--accent2) 70%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:6px;animation:logoIn .8s cubic-bezier(.16,1,.3,1) both}
+    #welcome-splash .sub-text{font-size:14px;color:var(--muted);letter-spacing:3px;margin-top:8px;animation:fadeUp .6s .4s cubic-bezier(.16,1,.3,1) both}
+    #welcome-splash .user-text{font-size:18px;color:var(--accent);font-weight:600;margin-top:20px;animation:fadeUp .6s .6s cubic-bezier(.16,1,.3,1) both}
+    #welcome-splash .bar{width:180px;height:3px;background:rgba(255,255,255,.08);border-radius:2px;margin-top:24px;overflow:hidden;animation:fadeUp .6s .3s cubic-bezier(.16,1,.3,1) both}
+    #welcome-splash .bar-fill{height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:2px;animation:barFill 1.2s .5s ease forwards}
+    #welcome-splash .particles{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+    #welcome-splash .particle{position:absolute;width:4px;height:4px;background:var(--accent);border-radius:50%;opacity:0;animation:particleUp 1.5s ease-out forwards}
+    @keyframes logoIn{from{opacity:0;transform:translateY(20px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+    @keyframes barFill{to{width:100%}}
+    @keyframes particleUp{0%{opacity:0;transform:translateY(0) scale(1)}20%{opacity:.6}100%{opacity:0;transform:translateY(-200px) scale(0)}}
+
+    /* Download cards */
+    .dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+    .dl-card{display:flex;align-items:center;gap:14px;padding:16px;background:var(--card);border:1px solid var(--border);border-radius:12px;cursor:pointer;transition:.2s;text-decoration:none;color:inherit;position:relative;overflow:hidden}
+    .dl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--accent),var(--accent2),transparent);transform:scaleX(0);transition:transform .3s}
+    .dl-card:hover::before{transform:scaleX(1)}
+    .dl-card:hover{background:rgba(42,42,80,.9);border-color:rgba(130,160,255,.45);transform:translateY(-2px);box-shadow:0 8px 24px rgba(60,100,180,.15)}
+    .dl-icon{font-size:30px;flex-shrink:0;width:46px;text-align:center}
+    .dl-info{flex:1}
+    .dl-name{font:bold 14px 'Inter',monospace;color:#e6e8ff}
+    .dl-desc{font:11px 'Inter',monospace;color:var(--muted);margin-top:2px}
+    .dl-arrow{font:bold 18px monospace;color:rgba(100,140,255,.4);flex-shrink:0}
+    .dl-ver{font:bold 10px monospace;color:var(--accent);background:rgba(120,160,255,.12);border:1px solid rgba(120,160,255,.28);padding:1px 7px;border-radius:5px;margin-left:6px;vertical-align:middle}
+    .dl-card:hover .dl-arrow{color:var(--accent);transform:translateX(2px)}
+    .dl-note{font-size:11px;color:var(--dim);margin-top:14px;line-height:1.6}
+    /* ── Community Chat ─────────────────────────────────────────────── */
+    .chat-wrap{display:flex;flex-direction:column;height:calc(100vh - 200px);min-height:400px;max-height:700px;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+    .chat-header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:rgba(10,10,24,.6)}
+    .chat-header h3{margin:0;font:600 14px 'Inter',monospace;color:var(--accent);flex:1}
+    .chat-status{font:11px 'Inter',monospace;color:var(--dim);display:flex;align-items:center;gap:5px}
+    .chat-status .dot{width:7px;height:7px;border-radius:50%;background:#666}
+    .chat-status.on .dot{background:var(--green);box-shadow:0 0 6px rgba(68,204,68,.5)}
+    .chat-messages{flex:1;overflow-y:auto;padding:12px 16px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth}
+    .chat-messages::-webkit-scrollbar{width:5px}
+    .chat-messages::-webkit-scrollbar-thumb{background:rgba(100,140,200,.25);border-radius:3px}
+    .chat-msg{display:flex;gap:8px;align-items:baseline;animation:chatIn .2s ease}
+    @keyframes chatIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+    .chat-msg .cm-name{font:600 12px 'Inter',monospace;white-space:nowrap}
+    .chat-msg .cm-name.owner{color:#fa0}
+    .chat-msg .cm-name.dev{color:#5af}
+    .chat-msg .cm-name.gamedev{color:#0ff}
+    .chat-msg .cm-name.player{color:var(--accent)}
+    .chat-msg .cm-text{font:12px 'Inter',monospace;color:var(--text);word-break:break-word}
+    .chat-msg .cm-time{font:10px 'Inter',monospace;color:var(--dim);white-space:nowrap;margin-left:auto}
+    .chat-msg.system{justify-content:center}
+    .chat-msg.system .cm-text{font-style:italic;color:var(--dim);font-size:11px}
+    .chat-input-row{display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border);background:rgba(10,10,24,.4)}
+    .chat-input-row input{flex:1;padding:10px 14px;background:rgba(0,0,0,.4);border:1px solid var(--border);border-radius:8px;color:var(--text);font:13px 'Inter',monospace;outline:none;transition:border-color .2s}
+    .chat-input-row input:focus{border-color:rgba(130,160,255,.45)}
+    .chat-input-row input::placeholder{color:var(--dim)}
+    .chat-input-row button{padding:10px 20px;background:linear-gradient(135deg,rgba(60,90,180,.35),rgba(140,80,200,.25));border:1px solid rgba(130,160,255,.35);border-radius:8px;color:#fff;font:600 12px 'Inter',monospace;cursor:pointer;transition:.2s;white-space:nowrap}
+    .chat-input-row button:hover{background:linear-gradient(135deg,rgba(60,90,180,.55),rgba(140,80,200,.4));border-color:rgba(130,160,255,.55);box-shadow:0 0 14px rgba(100,140,255,.2)}
+    .chat-input-row button:disabled{opacity:.4;cursor:not-allowed}
+    .comm-sub-tabs{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+    .comm-sub-tab{padding:7px 14px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font:12px 'Inter',monospace;color:var(--muted);background:transparent;transition:.2s}
+    .comm-sub-tab:hover{color:#fff;background:rgba(100,140,255,.08);border-color:rgba(130,160,255,.25)}
+    .comm-sub-tab.active{color:#fff;background:linear-gradient(135deg,rgba(60,90,180,.25),rgba(140,80,200,.2));border-color:rgba(130,160,255,.45)}
+    .comm-sub-page{display:none}
+    .comm-sub-page.active{display:block}
+
+    /* ── News ticker ───────────────────────────────────────────────────── */
+    .ticker{height:36px;display:flex;align-items:center;overflow:hidden;position:relative;z-index:8;background:linear-gradient(90deg,rgba(18,14,42,.92),rgba(44,20,64,.92),rgba(18,14,42,.92));border-bottom:1px solid var(--border)}
+    .ticker::before{content:'⚡ NOW';position:absolute;left:0;top:0;bottom:0;z-index:2;display:flex;align-items:center;padding:0 14px;font:700 10px 'Inter',monospace;letter-spacing:1.5px;color:var(--gold);background:linear-gradient(90deg,rgba(18,14,42,.98),rgba(18,14,42,.55),transparent)}
+    .ticker-track{display:inline-flex;white-space:nowrap;animation:tickerScroll 30s linear infinite;will-change:transform}
+    .ticker:hover .ticker-track{animation-play-state:paused}
+    .ticker-track span{display:inline-flex;align-items:center;margin:0 30px;font:600 12px 'Inter',monospace;color:var(--muted);letter-spacing:.3px}
+    .ticker-track span b{color:var(--accent);font-weight:700;margin-right:6px}
+    .ticker-track span i{font-style:normal;margin:0 8px;color:var(--dim)}
+    @keyframes tickerScroll{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+
+    /* ── Hero banner ───────────────────────────────────────────────────── */
+    @property --hangle{syntax:'<angle>';initial-value:0deg;inherits:false}
+    .hero{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:22px;padding:46px 34px 40px;margin-bottom:30px;background:linear-gradient(140deg,rgba(44,32,86,.78),rgba(18,18,42,.88) 48%,rgba(64,22,66,.72));backdrop-filter:blur(10px);text-align:center}
+    .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 22% 15%,rgba(120,160,255,.30),transparent 55%),radial-gradient(ellipse at 82% 90%,rgba(200,100,230,.24),transparent 55%);pointer-events:none}
+    .hero::after{content:'';position:absolute;left:-40%;right:-40%;top:-60%;bottom:-60%;background:conic-gradient(from var(--hangle),var(--accent),var(--accent2),var(--accent3),var(--accent));opacity:.10;animation:heroSpin 10s linear infinite;pointer-events:none}
+    @keyframes heroSpin{to{--hangle:360deg}}
+    .hero>*{position:relative;z-index:1}
+    .hero-tag{display:inline-block;font:700 11px 'Inter',monospace;letter-spacing:3px;text-transform:uppercase;color:var(--gold);border:1px solid rgba(200,150,0,.4);background:rgba(200,150,0,.12);padding:6px 16px;border-radius:20px;margin-bottom:18px;animation:tagPulse 2.6s ease-in-out infinite}
+    @keyframes tagPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,221,51,.35)}50%{box-shadow:0 0 20px 3px rgba(255,221,51,.22)}}
+    .hero-title{font-size:46px;line-height:1.08;font-weight:800;letter-spacing:2px;margin-bottom:14px;color:#fff}
+    @media(max-width:560px){.hero-title{font-size:30px}}
+    .hero-title .grad{background:linear-gradient(135deg,#fff 0%,var(--accent) 38%,var(--accent2) 68%,var(--accent3) 100%);background-size:220% 220%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:heroGrad 6s ease infinite}
+    @keyframes heroGrad{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+    .hero-sub{color:var(--muted);font-size:15px;max-width:560px;margin:0 auto 26px;line-height:1.65}
+    .hero-actions{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:24px}
+    .hero-play{display:inline-flex;align-items:center;gap:10px;font-size:16px;padding:15px 40px;border-radius:14px;background:linear-gradient(135deg,var(--accent),var(--accent2),var(--accent3));background-size:200% 200%;border:none;color:#0a0a14;font-weight:800;letter-spacing:1px;cursor:pointer;text-decoration:none;position:relative;overflow:hidden;animation:playGlow 2.6s ease-in-out infinite,heroGrad 4s ease infinite}
+    @keyframes playGlow{0%,100%{box-shadow:0 8px 34px rgba(100,150,255,.45)}50%{box-shadow:0 10px 48px rgba(150,120,255,.8)}}
+    .hero-play::after{content:'';position:absolute;top:0;left:0;height:100%;width:34%;transform:translateX(-190%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);animation:shineSweep 2.8s ease-in-out infinite}
+    .hero-play:hover{transform:translateY(-3px) scale(1.03)}
+    @keyframes shineSweep{0%{transform:translateX(-190%) skewX(-20deg)}55%,100%{transform:translateX(430%) skewX(-20deg)}}
+    .hero-alt{font-size:15px;padding:14px 30px;border-radius:14px}
+    .hero-stats{display:flex;gap:30px;justify-content:center;flex-wrap:wrap}
+    .hero-stat{text-align:center;min-width:84px}
+    .hero-stat b{display:block;font-size:23px;font-weight:800;background:linear-gradient(90deg,#fff,var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .hero-stat span{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:1.6px}
+
+    /* ── Premium shine sweeps ──────────────────────────────────────────── */
+    .shine-sweep{position:relative;overflow:hidden}
+    .shine-sweep::after{content:'';position:absolute;top:0;left:0;height:100%;width:34%;transform:translateX(-190%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);pointer-events:none;transition:transform .9s ease}
+    .shine-sweep:hover::after,.shine-sweep:focus-visible::after{transform:translateX(440%) skewX(-20deg)}
+    .dash-card::after{content:'';position:absolute;top:0;left:0;height:100%;width:34%;transform:translateX(-190%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.10),transparent);pointer-events:none;transition:transform .9s ease}
+    .dash-card:hover::after{transform:translateX(440%) skewX(-20deg)}
+    .srv-card{overflow:hidden}
+    .srv-card::after{content:'';position:absolute;top:0;left:0;height:100%;width:34%;transform:translateX(-190%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.10),transparent);pointer-events:none;transition:transform .9s ease}
+    .srv-card:hover::after{transform:translateX(440%) skewX(-20deg)}
+    .dl-card::after{content:'';position:absolute;top:0;left:0;height:100%;width:34%;transform:translateX(-190%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.11),transparent);pointer-events:none;transition:transform .9s ease;z-index:1}
+    .dl-card:hover::after{transform:translateX(440%) skewX(-20deg)}
+
+    /* ── Rotating gradient border on feature cards ─────────────────────── */
+    @property --angle{syntax:'<angle>';initial-value:0deg;inherits:false}
+    .card:hover,.card:focus-visible{border-color:transparent;background:linear-gradient(rgba(36,36,70,.92),rgba(36,36,70,.92)) padding-box,conic-gradient(from var(--angle),var(--accent),var(--accent2),var(--accent3),var(--accent)) border-box;animation:cardSpin 3.5s linear infinite}
+    @keyframes cardSpin{to{--angle:360deg}}
+
+    /* ── Subtle section/nav shimmer ────────────────────────────────────── */
+    .section-title{background-size:220% 100%;animation:titleShift 6s ease-in-out infinite}
+    @keyframes titleShift{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
+    .nav-tab.active{animation:navGlow 3s ease-in-out infinite}
+    @keyframes navGlow{0%,100%{box-shadow:0 0 8px rgba(100,140,255,.12)}50%{box-shadow:0 0 18px rgba(100,140,255,.35)}}
+  </style>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div class="aurora"></div>
+  <div class="vignette"></div>
+  <div id="welcome-splash">
+    <div class="particles" id="splash-particles"></div>
+    <div class="logo">BLOCKFORGE</div>
+    <div class="sub-text">PORTAL</div>
+    <div class="bar"><div class="bar-fill"></div></div>
+    <div class="user-text" id="splash-user"></div>
+  </div>
+
+  <header>
+    <div class="brand">
+      <div class="brand-logo">🧊</div>
+      <div>
+        <h1>BLOCKFORGE</h1>
+        <div class="sub">PORTAL</div>
+      </div>
+    </div>
+    <nav id="nav-tabs">
+      <button class="nav-tab active" data-nav="home">Dashboard</button>
+      <button class="nav-tab" data-nav="servers">Servers</button>
+      <button class="nav-tab" data-nav="updates">Updates</button>
+      <button class="nav-tab" data-nav="downloads">Downloads</button>
+      <button class="nav-tab" data-nav="community">Community</button>
+    </nav>
+    <div class="header-right">
+      <div class="theme-picker" id="theme-picker" title="Theme">
+        <div class="theme-dot active" data-theme-val="default" style="background:linear-gradient(135deg,#8af,#c084fc)"></div>
+        <div class="theme-dot" data-theme-val="emerald" style="background:linear-gradient(135deg,#5ef2a6,#2dd4bf)"></div>
+        <div class="theme-dot" data-theme-val="magma" style="background:linear-gradient(135deg,#ff9f43,#ff6b6b)"></div>
+        <div class="theme-dot" data-theme-val="ocean" style="background:linear-gradient(135deg,#4dd2ff,#7c9cff)"></div>
+        <div class="theme-dot" data-theme-val="gold" style="background:linear-gradient(135deg,#ffd75e,#ff9f43)"></div>
+      </div>
+      <div id="status-pill"><span class="dot"></span><span id="status-pill-text">Checking…</span></div>
+      <div id="user-badge">Not logged in</div>
+    </div>
+  </header>
+
+  <div class="ticker" aria-hidden="true"><div class="ticker-track" id="ticker-track"></div></div>
+
+  <div class="container">
+    <div class="login-wrap">
+      <div id="login-box">
+        <div style="font-weight:700;color:var(--gold);margin-bottom:14px;">Log in to access all features</div>
+        <input id="user-input" type="text" placeholder="Username" maxlength="16" spellcheck="false" autocomplete="off">
+        <input id="pass-input" type="password" placeholder="Password" maxlength="32" autocomplete="off">
+        <button class="btn" id="login-btn">Log In</button>
+        <div id="login-hint"></div>
+      </div>
+    </div>
+
+    <div id="logged-in">
+      <div id="account-info">
+        <div class="avatar" id="avatar-letter">?</div>
+        <div>
+          <div class="label">Logged in as</div>
+          <div class="name" id="user-name">—</div>
+        </div>
+        <button class="btn" id="logout-btn">Log Out</button>
+      </div>
+    </div>
+
+    <div id="content">
+      <!-- Dashboard -->
+      <div id="view-home">
+        <div class="hero">
+          <div class="voxels" id="hero-voxels"></div>
+          <div class="hero-tag">⚡ Live Multiplayer Voxel Sandbox</div>
+          <h2 class="hero-title">FORGE. BUILD. <span class="grad">BLOCKFORGE.</span></h2>
+          <p class="hero-sub">Craft, fight and build with friends in a living voxel world — right in your browser, on any device.</p>
+          <div class="hero-actions">
+            <a class="hero-play" id="hero-play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
+            <button class="btn hero-alt" id="hero-servers-btn">🌐 Live Servers</button>
+          </div>
+          <div class="hero-stats">
+            <div class="hero-stat"><b id="hero-online">—</b><span>Players Online</span></div>
+            <div class="hero-stat"><b id="hero-rooms">—</b><span>Active Rooms</span></div>
+            <div class="hero-stat"><b id="hero-versions">5</b><span>Platforms</span></div>
+            <div class="hero-stat"><b id="hero-mods">15</b><span>Mods &amp; Addons</span></div>
+          </div>
+        </div>
+
+        <div class="section-title">📊 LIVE DASHBOARD</div>
+        <div class="dash-grid">
+          <div class="dash-card">
+            <h3>Server Network</h3>
+            <div class="stat-row">
+              <div class="stat"><div class="v" id="stat-players">—</div><div class="l">Players Online</div></div>
+              <div class="stat"><div class="v" id="stat-rooms">—</div><div class="l">Active Rooms</div></div>
+              <div class="stat"><div class="v" id="stat-uptime">—</div><div class="l">Uptime</div></div>
+            </div>
+            <div class="quick-row">
+              <button class="btn primary" id="quick-refresh">↻ Refresh</button>
+              <button class="btn" id="copy-invite">🔗 Copy Play Link</button>
+            </div>
+          </div>
+          <div class="dash-card">
+            <h3>Your Progress</h3>
+            <div class="stat-row">
+              <div class="stat"><div class="v" id="stat-level">0</div><div class="l">Level</div></div>
+              <div class="stat"><div class="v" id="stat-playtime">0h</div><div class="l">Play Time</div></div>
+              <div class="stat"><div class="v" id="stat-kills">0</div><div class="l">Mob Kills</div></div>
+            </div>
+            <div style="margin-top:12px">
+              <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px">
+                <span>Achievements</span><span id="stat-ach">0 / 44</span>
+              </div>
+              <div class="prog-bar"><div class="fill" id="ach-fill" style="width:0%"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-title">⚡ QUICK ACTIONS</div>
+        <div class="feature-grid" style="grid-template-columns:repeat(3,1fr)">
+          <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
+            <div class="icon">🎮</div>
+            <div class="name">Play BlockForge</div>
+            <div class="desc">Launch the game in a new tab</div>
+          </a>
+          <div class="card" data-page="servers" tabindex="0">
+            <div class="icon">🌐</div>
+            <div class="name">Live Servers</div>
+            <div class="desc">Browse active multiplayer rooms</div>
+          </div>
+          <div class="card" data-page="downloads" tabindex="0">
+            <div class="icon">📦</div>
+            <div class="name">Downloads</div>
+            <div class="desc">Mac, Windows, Android & iPhone apps</div>
+          </div>
+        </div>
+
+        <div class="section-title">🌟 FEATURES</div>
+        <div class="card-grid feature-grid">
+          <div class="card" data-page="textures" tabindex="0">
+            <div class="icon">🎨</div>
+            <div class="name">Texture Packs</div>
+            <div class="desc">Browse and install custom texture packs</div>
+          </div>
+          <div class="card" data-page="updates" tabindex="0">
+            <div class="icon">📰</div>
+            <div class="name">Updates</div>
+            <div class="desc">Latest changes, new features, and bug fixes</div>
+          </div>
+          <div class="card coming">
+            <div class="icon">🛍️</div>
+            <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
+            <div class="desc">Support BlockForge and unlock exclusive items</div>
+          </div>
+          <div class="card" data-page="feedback" tabindex="0">
+            <div class="icon">💬</div>
+            <div class="name">Feedback</div>
+            <div class="desc">Report bugs, suggest features</div>
+          </div>
+          <div class="card" data-page="skins" tabindex="0">
+            <div class="icon">👕</div>
+            <div class="name">Community Skins</div>
+            <div class="desc">Custom skins created by players</div>
+          </div>
+          <div class="card" data-page="mods" tabindex="0">
+            <div class="icon">🔧</div>
+            <div class="name">Mods & Addons</div>
+            <div class="desc">Download mods and addons for BlockForge</div>
+          </div>
+        </div>
+
+        <div class="section-title dev-only">🔧 DEVELOPER</div>
+        <div class="card-grid feature-grid dev-only">
+          <div class="card" data-page="suggestions" tabindex="0">
+            <div class="icon">💡</div>
+            <div class="name">Feature Suggestions</div>
+            <div class="desc">Propose and vote on new features</div>
+          </div>
+          <div class="card" data-page="bugs" tabindex="0">
+            <div class="icon">🐛</div>
+            <div class="name">Bugs</div>
+            <div class="desc">Track and manage bug reports</div>
+          </div>
+        </div>
+
+        <div class="section-title" id="recent-updates-title">🔥 RECENT UPDATES</div>
+        <div id="recent-updates"></div>
+      </div>
+
+      <!-- Pages -->
+      <div id="page-updates" class="page">
+        <h2>📰 Updates</h2>
+        <p>Latest changes, bug fixes, and new features for BlockForge.</p>
+        <input type="text" class="search-box" id="updates-search" placeholder="Search updates…">
+        <div id="portal-updates-list"></div>
+        <div id="updates-pagination" class="updates-pagination"></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-community" class="page">
+        <h2>Community</h2>
+        <div class="comm-sub-tabs">
+          <button class="comm-sub-tab active" data-comm="chat">Chat</button>
+          <button class="comm-sub-tab" data-comm="skins">Skins</button>
+          <button class="comm-sub-tab" data-comm="textures">Textures</button>
+          <button class="comm-sub-tab" data-comm="mods">Mods</button>
+          <button class="comm-sub-tab" data-comm="feedback">Feedback</button>
+        </div>
+
+        <!-- Chat sub-page -->
+        <div class="comm-sub-page active" id="comm-chat">
+          <div class="chat-wrap">
+            <div class="chat-header">
+              <h3>Community Chat</h3>
+              <div class="chat-status" id="chat-status"><span class="dot"></span><span>Connecting...</span></div>
+            </div>
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-row">
+              <input id="chat-input" type="text" placeholder="Type a message..." maxlength="300" autocomplete="off" spellcheck="false" />
+              <button id="chat-send">Send</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Skins sub-page -->
+        <div class="comm-sub-page" id="comm-skins">
+          <h3>Community Skins</h3>
+          <p>Player-created skins for BlockForge.</p>
+          <p><button class="btn upload-btn" id="skin-upload-btn">Upload Skin</button></p>
+          <input type="file" accept="image/png" class="file-input-hidden" id="skin-file-input">
+          <div class="upload-grid" id="skin-grid"></div>
+        </div>
+
+        <!-- Textures sub-page -->
+        <div class="comm-sub-page" id="comm-textures">
+          <h3>Texture Packs</h3>
+          <p>Custom texture packs created by the community.</p>
+          <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
+          <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
+          <div class="upload-grid" id="tex-grid"></div>
+        </div>
+
+        <!-- Mods sub-page -->
+        <div class="comm-sub-page" id="comm-mods">
+          <h3>Mods &amp; Addons</h3>
+          <p>Download a mod below, then open the game → main menu → <b>Mods &amp; Addons</b> → <b>Import Mod</b> → pick the downloaded <b>.bfmod</b> file (or drag &amp; drop it onto the menu). Installed mods run sandboxed, auto-load on your next visit, and are stored locally.</p>
+          <div style="margin-bottom:16px;text-align:right;"><a class="btn primary upload-btn" href="mods.html" target="_blank" rel="noopener">🛍️ Browse all mods &amp; community addons →</a></div>
+          <div class="dl-grid" id="portal-mods-grid"></div>
+          <div class="dl-note">
+            <strong>Install:</strong> save the .bfmod → open BlockForge → main menu → <b>Mods &amp; Addons</b> → <b>Import Mod</b> → pick the file (or drag &amp; drop it). Mods auto-load on your next visit.<br>
+            Community-made mods and the full walkthrough live on the <a class="external-link" href="mods.html" target="_blank" rel="noopener">Mods &amp; Addons page</a>.
+          </div>
+        </div>
+
+        <!-- Feedback sub-page -->
+        <div class="comm-sub-page" id="comm-feedback">
+          <h3>Feedback</h3>
+          <p>Help shape BlockForge by reporting bugs or suggesting features.</p>
+          <p><a class="external-link" href="https://github.com/LogicLeague47/BlockForge/issues" target="_blank" rel="noopener">Open GitHub Issues</a></p>
+        </div>
+
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-servers" class="page">
+        <h2>Game Servers</h2>
+        <p>Live status from the BlockForge multiplayer server.</p>
+        <div class="srv-header">
+          <div class="srv-status" id="srv-status">
+            <span class="dot pending" id="srv-dot"></span>
+            <span id="srv-label">Checking...</span>
+          </div>
+          <div class="srv-stats" id="srv-stats"></div>
+          <button class="btn srv-refresh" id="srv-refresh">↻ Refresh</button>
+        </div>
+        <div class="srv-list" id="srv-list">
+          <div class="srv-empty">Connecting to server...</div>
+        </div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-downloads" class="page">
+        <h2>📦 Downloads</h2>
+        <p>Official builds of BlockForge. Grab the one for your device.</p>
+        <div class="dl-grid" id="downloads-grid"></div>
+        <div class="dl-note">
+          <strong>iPhone:</strong> the .ipa is unsigned — install with <strong>SideStore</strong> or <strong>LiveContainer</strong>.<br>
+          <strong>Mac:</strong> two variants available (Apple Silicon & Intel). First launch may be flagged by Gatekeeper — right-click → Open.<br>
+          Everything also lives on <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">GitHub Releases</a>.
+        </div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+    </div>
+
+    <div class="tc mb-30">
+      <button class="btn" id="close-btn">Close Portal</button>
+    </div>
+  </div>
+
+  <footer>BlockForge Portal · <a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">GitHub</a> · Not affiliated with Mojang AB · Data stored locally</footer>
+
+  <div id="toasts"></div>
+
+  <script>
+    // ── Toast system ───────────────────────────────────────────────────────
+    function toast(msg, type) {
+      var box = document.getElementById('toasts');
+      var el = document.createElement('div');
+      el.className = 'toast ' + (type || 'info');
+      var icon = type === 'ok' ? '✅' : type === 'err' ? '⚠️' : '🔔';
+      el.innerHTML = '<span>' + icon + '</span><span>' + msg + '</span>';
+      box.appendChild(el);
+      setTimeout(function() { el.classList.add('out'); setTimeout(function() { el.remove(); }, 320); }, 2800);
+    }
+
+    // ── Animated voxel background ─────────────────────────────────────────
+    (function() {
+      var canvas = document.getElementById('bg-canvas');
+      var ctx = canvas.getContext('2d');
+      var W, H, cubes = [], prts = [], stars = [];
+      var mx = 0, my = 0, px = 0, py = 0;
+      var COLORS = { a: [120,160,255], b: [192,132,252], c: [244,114,182] };
+      var colorTick = 0;
+
+      function resize() {
+        W = canvas.width = window.innerWidth;
+        H = canvas.height = window.innerHeight;
+      }
+      resize();
+      // ── Cursor sparkle trail ──────────────────────────────────────────
+      var CURSOR_SPARKS = [];
+      document.addEventListener('mousemove', function(e) {
+        if (Math.random() > 0.75) return;
+        var s = document.createElement('div');
+        s.style.cssText = 'position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:9999;background:var(--accent);box-shadow:0 0 8px var(--accent);opacity:1;left:' + e.clientX + 'px;top:' + e.clientY + 'px;transition:transform .7s ease,opacity .7s ease;';
+        document.body.appendChild(s);
+        CURSOR_SPARKS.push(s);
+        requestAnimationFrame(function() {
+          s.style.transform = 'translate(' + (Math.random()*24-12) + 'px,' + (Math.random()*24-12) + 'px) scale(0.1)';
+          s.style.opacity = '0';
+        });
+        setTimeout(function() { s.remove(); }, 750);
+      }, { passive: true });
+
+      // ── Confetti burst on hero CTA ────────────────────────────────────
+      function confettiBurst(x, y) {
+        var colors = ['var(--accent)', 'var(--accent2)', 'var(--accent3)', '#fff'];
+        for (var i = 0; i < 26; i++) {
+          var c = document.createElement('div');
+          c.style.cssText = 'position:fixed;left:' + x + 'px;top:' + y + 'px;width:' + (4+Math.random()*6) + 'px;height:' + (4+Math.random()*6) + 'px;background:' + colors[i % colors.length] + ';border-radius:' + (Math.random()>0.5?2:0) + 'px;pointer-events:none;z-index:9998;opacity:1;';
+          document.body.appendChild(c);
+          var ang = Math.random() * Math.PI * 2;
+          var dist = 40 + Math.random() * 90;
+          c.animate([
+            { transform: 'translate(0,0) rotate(0)', opacity: 1 },
+            { transform: 'translate(' + Math.cos(ang)*dist + 'px,' + (Math.sin(ang)*dist + 40) + 'px) rotate(' + (Math.random()*540-270) + 'deg)', opacity: 0 }
+          ], { duration: 700 + Math.random()*500, easing: 'cubic-bezier(.2,.7,.3,1)' }).onfinish = function() { c.remove(); };
+        }
+      }
+      var playLink = document.getElementById('hero-play-link');
+      if (playLink) playLink.addEventListener('click', function(e) { confettiBurst(e.clientX, e.clientY); });
+
+      // ── Floating voxel shards behind hero ─────────────────────────────
+      function spawnHeroVoxels() {
+        var host = document.getElementById('hero-voxels');
+        if (!host) return;
+        for (var i = 0; i < 14; i++) {
+          var v = document.createElement('div');
+          v.className = 'voxel';
+          var s = 8 + Math.random() * 14;
+          v.style.width = s + 'px';
+          v.style.height = s + 'px';
+          v.style.left = (Math.random() * 100) + '%';
+          v.style.top = (10 + Math.random() * 80) + '%';
+          v.style.animationDelay = (Math.random() * 9) + 's';
+          v.style.animationDuration = (7 + Math.random() * 8) + 's';
+          v.style.opacity = (0.08 + Math.random() * 0.16);
+          v.style.filter = 'blur(' + (Math.random() > 0.6 ? 2 : 0) + 'px)';
+          host.appendChild(v);
+        }
+      }
+
+      // ── Animated count-up for hero stats ─────────────────────────────
+      function animateCount(el, target) {
+        if (!el) return;
+        if (el.dataset.animating) return;
+        el.dataset.animating = '1';
+        var start = +el.textContent.replace(/[^0-9.]/g, '') || 0;
+        var dur = 900, t0 = Date.now();
+        (function tick() {
+          var p = Math.min((Date.now() - t0) / dur, 1);
+          var eased = 1 - Math.pow(1 - p, 3);
+          var val = Math.round(start + (target - start) * eased);
+          el.textContent = target.toString().indexOf('.') === -1 ? val : val + '.' + String(target).split('.')[1];
+          if (p < 1) requestAnimationFrame(tick);
+          else { el.textContent = target; delete el.dataset.animating; }
+        })();
+      }
+
+      window.addEventListener('resize', resize);
+
+      window.addEventListener('mousemove', function(e) {
+        mx = (e.clientX / W - 0.5) * 2;
+        my = (e.clientY / H - 0.5) * 2;
+      }, { passive: true });
+
+      function parseColor(c) {
+        try {
+          var el = document.createElement('span');
+          el.style.color = c;
+          document.body.appendChild(el);
+          var m = getComputedStyle(el).color.match(/\d+/g);
+          el.remove();
+          return m ? [+m[0], +m[1], +m[2]] : [120, 160, 255];
+        } catch (_) { return [120, 160, 255]; }
+      }
+      function readColors() {
+        try {
+          var s = getComputedStyle(document.body);
+          COLORS.a = parseColor(s.getPropertyValue('--accent') || '#8af');
+          COLORS.b = parseColor(s.getPropertyValue('--accent2') || '#c084fc');
+          COLORS.c = parseColor(s.getPropertyValue('--accent3') || '#f472b6');
+        } catch (_) {}
+      }
+      readColors();
+
+      function makeCube() {
+        return {
+          x: Math.random() * W, y: Math.random() * H,
+          size: 8 + Math.random() * 26,
+          vy: 0.2 + Math.random() * 0.55,
+          depth: 0.25 + Math.random() * 0.75,
+          alpha: 0.05 + Math.random() * 0.14,
+          hue: Math.random(), rot: Math.random() * 0.5
+        };
+      }
+      for (var i = 0; i < 22; i++) cubes.push(makeCube());
+      for (var i = 0; i < 50; i++) prts.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2.2 + 0.6, vy: 0.3 + Math.random() * 0.8, a: Math.random() * 0.5 + 0.1, tw: Math.random() * 6.28, hue: Math.random() });
+
+      function pickColor(hue) {
+        var keys = ['a', 'b', 'c'];
+        return COLORS[keys[Math.floor(hue * 3) % 3]];
+      }
+      function rgba(rgb, a) { return 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + a + ')'; }
+      function shade(rgb, f) { return 'rgb(' + Math.round(rgb[0] * f) + ',' + Math.round(rgb[1] * f) + ',' + Math.round(rgb[2] * f) + ')'; }
+
+      // Isometric fake-3D cube: top + left + right faces
+      function drawIsoCube(c, ox, oy) {
+        var x = c.x + ox, y = c.y + oy, s = c.size;
+        var r = s * 0.5, d = s * 0.24;
+        var col = pickColor(c.hue);
+        ctx.globalAlpha = c.alpha;
+        // top face
+        ctx.fillStyle = shade(col, 1);
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.lineTo(x + r, y - d);
+        ctx.lineTo(x, y + r * 0.12);
+        ctx.lineTo(x - r, y - d);
+        ctx.closePath();
+        ctx.fill();
+        // left face
+        ctx.fillStyle = shade(col, 0.45);
+        ctx.beginPath();
+        ctx.moveTo(x - r, y - d);
+        ctx.lineTo(x, y + r * 0.12);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x - r, y + d);
+        ctx.closePath();
+        ctx.fill();
+        // right face
+        ctx.fillStyle = shade(col, 0.72);
+        ctx.beginPath();
+        ctx.moveTo(x + r, y - d);
+        ctx.lineTo(x + r, y + d);
+        ctx.lineTo(x, y + r);
+        ctx.lineTo(x, y + r * 0.12);
+        ctx.closePath();
+        ctx.fill();
+      }
+
+      function drawStar(st) {
+        var tailX = st.x - st.vx * st.len, tailY = st.y - st.vy * st.len;
+        var grd = ctx.createLinearGradient(st.x, st.y, tailX, tailY);
+        grd.addColorStop(0, rgba([255,255,255], st.a));
+        grd.addColorStop(1, rgba([255,255,255], 0));
+        ctx.strokeStyle = grd;
+        ctx.lineWidth = 2;
+        ctx.globalAlpha = 1;
+        ctx.beginPath();
+        ctx.moveTo(st.x, st.y);
+        ctx.lineTo(tailX, tailY);
+        ctx.stroke();
+      }
+
+      function draw() {
+        // follow theme accent changes
+        if (++colorTick % 40 === 0) readColors();
+
+        // smooth parallax
+        px += (mx - px) * 0.04;
+        py += (my - py) * 0.04;
+
+        ctx.clearRect(0, 0, W, H);
+
+        // isometric cubes
+        for (var i = 0; i < cubes.length; i++) {
+          var c = cubes[i];
+          c.y -= c.vy;
+          c.rot += 0.002;
+          if (c.y < -c.size * 2) { c.y = H + c.size; c.x = Math.random() * W; }
+          drawIsoCube(c, px * 34 * c.depth, py * 22 * c.depth);
+        }
+
+        // rising particles
+        for (var i = 0; i < prts.length; i++) {
+          var p = prts[i];
+          p.y -= p.vy;
+          if (p.y < -4) { p.y = H + 4; p.x = Math.random() * W; }
+          p.tw += 0.05;
+          ctx.globalAlpha = p.a * (0.5 + 0.5 * Math.sin(p.tw)) * 0.8;
+          // draw mini 2px squares for a voxel feel
+          var col = pickColor(p.hue);
+          ctx.fillStyle = 'rgb(' + col[0] + ',' + col[1] + ',' + col[2] + ')';
+          ctx.fillRect(p.x + px * 18 * p.s * 0.3, p.y + py * 12 * p.s * 0.3, p.s, p.s);
+        }
+
+        // shooting stars
+        if (stars.length < 2 && Math.random() < 0.004) {
+          stars.push({ x: Math.random() * W * 0.8 + W * 0.1, y: -10 - Math.random() * 60, vx: 5 + Math.random() * 3.5, vy: 2.2 + Math.random() * 1.8, len: 24 + Math.random() * 34, a: 0.8, life: 1 });
+        }
+        for (var i = stars.length - 1; i >= 0; i--) {
+          var st = stars[i];
+          st.x += st.vx; st.y += st.vy;
+          st.life -= 0.012;
+          st.a = Math.max(0, st.life) * 0.8;
+          if (st.life <= 0 || st.y > H) { stars.splice(i, 1); continue; }
+          drawStar(st);
+        }
+
+        ctx.globalAlpha = 1;
+        requestAnimationFrame(draw);
+      }
+
+      requestAnimationFrame(draw);
+      window.addEventListener('storage', function() {});
+    })();
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // ── Theme picker ───────────────────────────────────────────────────
+      var savedTheme = localStorage.getItem('bf_portal_theme') || 'default';
+      document.body.setAttribute('data-theme', savedTheme);
+      document.querySelectorAll('.theme-dot').forEach(function(d) {
+        if (d.dataset.themeVal === savedTheme) d.classList.add('active');
+        d.addEventListener('click', function() {
+          document.querySelectorAll('.theme-dot').forEach(function(x) { x.classList.remove('active'); });
+          d.classList.add('active');
+          localStorage.setItem('bf_portal_theme', d.dataset.themeVal);
+          document.body.setAttribute('data-theme', d.dataset.themeVal);
+        });
+      });
+
+      const url = new URL(location.href);
+      const userName = url.searchParams.get('user') || localStorage.getItem('bf_portal_user') || '';
+      const userRole = url.searchParams.get('role') || localStorage.getItem('bf_portal_role') || '';
+      const isDev = ['dev','gamedev','owner'].includes(userRole);
+
+      if (isDev) document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'block');
+
+      const loginBox = document.getElementById('login-box');
+      const loggedIn = document.getElementById('logged-in');
+      const content = document.getElementById('content');
+
+      function showWelcome(name) {
+        var splash = document.getElementById('welcome-splash');
+        var splashUser = document.getElementById('splash-user');
+        var particles = document.getElementById('splash-particles');
+        splashUser.textContent = 'Welcome, ' + name + '!';
+        for (var i = 0; i < 10; i++) {
+          var p = document.createElement('div');
+          p.className = 'particle';
+          p.style.left = (10 + Math.random() * 80) + '%';
+          p.style.bottom = '20%';
+          p.style.animationDelay = (Math.random() * 0.6) + 's';
+          p.style.background = ['var(--accent)','var(--accent2)','var(--accent3)','#ffdd33'][Math.floor(Math.random()*4)];
+          particles.appendChild(p);
+        }
+        splash.classList.add('show');
+        setTimeout(function() {
+          splash.classList.add('fade');
+          setTimeout(function() { splash.style.display = 'none'; }, 600);
+        }, 1300);
+      }
+
+      if (userName) {
+        localStorage.setItem('bf_portal_user', userName);
+        if (userRole) localStorage.setItem('bf_portal_role', userRole);
+        try { showWelcome('back, ' + userName + '!'); } catch (_) {}
+        loginBox.style.display = 'none';
+        loggedIn.style.display = 'block';
+        content.style.display = 'block';
+        document.getElementById('user-badge').textContent = userName;
+        document.getElementById('user-name').textContent = userName;
+        document.getElementById('avatar-letter').textContent = userName.charAt(0).toUpperCase();
+        var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
+        if (userRole) playUrl += '&role=' + encodeURIComponent(userRole);
+        var playLink = document.getElementById('play-link');
+        if (playLink) playLink.href = playUrl;
+        var heroPlay = document.getElementById('hero-play-link');
+        if (heroPlay) heroPlay.href = playUrl;
+      } else {
+        loginBox.style.display = 'block';
+        loggedIn.style.display = 'none';
+        // Portal is browsable without an account: show the dashboard content,
+        // just without live per-player stats/play-data when logged out.
+        content.style.display = 'block';
+      }
+
+      // ── Login button ─────────────────────────────────────────────────────
+      document.getElementById('login-btn').addEventListener('click', function() {
+        const user = document.getElementById('user-input').value.trim().slice(0, 16);
+        const pass = document.getElementById('pass-input').value;
+        const hint = document.getElementById('login-hint');
+        if (!user) { hint.textContent = 'Enter a username'; hint.style.color = '#f85'; return; }
+        if (pass.length < 3) { hint.textContent = 'Password too short'; hint.style.color = '#f85'; return; }
+        localStorage.setItem('bf_portal_user', user);
+        localStorage.setItem('bf_player_name', user);
+        localStorage.setItem('bf_login_user', user);
+        var encoded = '';
+        for (var c = 0; c < pass.length; c++) encoded += String.fromCharCode(pass.charCodeAt(c) ^ 0x5A);
+        localStorage.setItem('bf_login_pass', encoded);
+        const role = userRole ? userRole : '';
+        if (role) localStorage.setItem('bf_portal_role', role);
+        showWelcome(user + '!');
+        setTimeout(function() {
+          location.href = '/?user=' + encodeURIComponent(user) + '&from=portal' + (role ? '&role=' + encodeURIComponent(role) : '');
+        }, 1700);
+      });
+
+      document.getElementById('logout-btn').addEventListener('click', function() {
+        localStorage.removeItem('bf_portal_user');
+        localStorage.removeItem('bf_portal_role');
+        localStorage.removeItem('bf_player_name');
+        localStorage.removeItem('bf_login_user');
+        localStorage.removeItem('bf_login_pass');
+        location.href = '/portal.html';
+      });
+
+      document.getElementById('close-btn').addEventListener('click', function() {
+        window.close();
+        var closeUrl = 'https://blockforge-1.onrender.com/';
+        if (userName) closeUrl += '?user=' + encodeURIComponent(userName) + '&from=portal';
+        setTimeout(function() { location.href = closeUrl; }, 250);
+      });
+
+      // ── Card navigation + keyboard ─────────────────────────────────────
+      var cards = Array.prototype.slice.call(document.querySelectorAll('.card[data-page]'));
+      function openPage(page, push) {
+        // Portal pages are browsable without logging in — no login gate.
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('#view-home').forEach(function(g) { g.style.display = 'none'; });
+        document.querySelectorAll('#recent-updates-title').forEach(function(s) { s.style.display = 'none'; });
+        var el = document.getElementById('page-' + page);
+        if (el) el.classList.add('active');
+        setNav(page);
+        if (push !== false) {
+          var u = new URL(location.href);
+          u.searchParams.set('page', page);
+          if (userName) u.searchParams.set('user', userName);
+          if (userRole) u.searchParams.set('role', userRole);
+          history.pushState({page: page}, '', u);
+        }
+        if (page === 'updates') renderUpdates();
+        if (page === 'servers') fetchServerList();
+        if (page === 'downloads') renderDownloads();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      // Dashboard feature cards that live inside the Community section.
+      var COMMUNITY_ROUTE = { textures:'textures', skins:'skins', feedback:'feedback', mods:'mods', suggestions:'feedback', bugs:'feedback' };
+      function openCommunity(tab) {
+        openPage('community');
+        if (tab === 'mods') renderPortalMods();
+        var tabEl = document.querySelector('.comm-sub-tab[data-comm="' + tab + '"]');
+        if (tabEl) tabEl.click();
+      }
+      function openCard(page) {
+        if (COMMUNITY_ROUTE[page]) { openCommunity(COMMUNITY_ROUTE[page]); return; }
+        openPage(page);
+      }
+      cards.forEach(function(card) {
+        card.addEventListener('click', function() { openCard(this.dataset.page); });
+        card.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(this.dataset.page); }
+        });
+      });
+
+      // Arrow-key navigation across cards
+      document.addEventListener('keydown', function(e) {
+        if (['ArrowRight','ArrowLeft'].indexOf(e.key) === -1) return;
+        var visible = cards.filter(function(c) { return c.offsetParent !== null && !c.classList.contains('coming'); });
+        if (!visible.length) return;
+        var idx = visible.indexOf(document.activeElement);
+        var next;
+        if (e.key === 'ArrowRight') next = (idx + 1) % visible.length;
+        else next = (idx - 1 + visible.length) % visible.length;
+        visible[next].focus();
+        e.preventDefault();
+      });
+
+      function setNav(page) {
+        var map = { servers:'servers', updates:'updates', downloads:'downloads', community:'community' };
+        var target = map[page];
+        document.querySelectorAll('.nav-tab').forEach(function(t) {
+          t.classList.toggle('active', t.dataset.nav === target || (target === 'home' && !page));
+        });
+      }
+
+      // ── Nav tabs ───────────────────────────────────────────────────────
+      function showHome() {
+        document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+        document.querySelectorAll('#view-home').forEach(function(g) { g.style.display = 'block'; });
+        document.querySelectorAll('#recent-updates-title').forEach(function(s) { s.style.display = ''; });
+        document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.nav === 'home'); });
+        var u = new URL(location.href);
+        u.searchParams.delete('page');
+        if (userName) u.searchParams.set('user', userName);
+        if (userRole) u.searchParams.set('role', userRole);
+        history.pushState({page: 'home'}, '', u);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      document.querySelectorAll('.nav-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          if (this.dataset.nav === 'home') { showHome(); return; }
+          if (this.dataset.nav === 'community') { openPage('community'); return; }
+          openPage(this.dataset.nav);
+        });
+      });
+
+      // Go home buttons
+      document.querySelectorAll('.go-home').forEach(function(btn) {
+        btn.addEventListener('click', showHome);
+      });
+
+      var pageParam = url.searchParams.get('page');
+      if (pageParam && userName) {
+        if (COMMUNITY_ROUTE[pageParam]) { showHome(); openCommunity(COMMUNITY_ROUTE[pageParam]); }
+        else if (document.getElementById('page-' + pageParam)) { showHome(); openPage(pageParam); }
+      }
+
+      window.addEventListener('popstate', function(e) {
+        var p = new URLSearchParams(location.search).get('page');
+        if (p && document.getElementById('page-' + p)) {
+          document.querySelectorAll('.page').forEach(function(x) { x.classList.remove('active'); });
+          document.getElementById('page-' + p).classList.add('active');
+          setNav(p);
+          if (p === 'updates') renderUpdates();
+          if (p === 'servers') fetchServerList();
+        } else if (p && COMMUNITY_ROUTE[p]) {
+          showHome();
+          openCommunity(COMMUNITY_ROUTE[p]);
+        } else {
+          showHome();
+        }
+      });
+
+      // ── Live dashboard stats ───────────────────────────────────────────
+      var SRV_WS = 'wss://blockforge-server.onrender.com';
+      function fmtUptime(sec) {
+        if (!sec && sec !== 0) return '—';
+        var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+        if (d > 0) return d + 'd ' + h + 'h';
+        if (h > 0) return h + 'h ' + m + 'm';
+        return m + 'm';
+      }
+      function refreshStats() {
+        if (!userName) return;
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) {
+            ws.close();
+            document.getElementById('stat-players').textContent = '—';
+            document.getElementById('stat-rooms').textContent = '—';
+            document.getElementById('stat-uptime').textContent = '—';
+          }
+        }, 6000);
+        ws.onopen = function() {
+          ws.send(JSON.stringify({ type: 'get_stats' }));
+          ws.send(JSON.stringify({ type: 'list_rooms' }));
+        };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'stats') {
+              responded = true;
+              clearTimeout(timeout);
+              document.getElementById('stat-players').textContent = msg.playersOnline || 0;
+              document.getElementById('stat-rooms').textContent = msg.roomsOnline || 0;
+              document.getElementById('stat-uptime').textContent = fmtUptime(msg.uptime);
+              var heroOn = document.getElementById('hero-online');
+              var heroRooms = document.getElementById('hero-rooms');
+              if (heroOn) heroOn.textContent = msg.playersOnline || 0;
+              if (heroRooms) heroRooms.textContent = msg.roomsOnline || 0;
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { responded = true; clearTimeout(timeout); };
+      }
+
+      function refreshServerStatus() {
+        if (!userName) return;
+        var pill = document.getElementById('status-pill');
+        var txt = document.getElementById('status-pill-text');
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) { ws.close(); pill.className = 'off'; txt.textContent = 'Offline'; }
+        }, 6000);
+        ws.onopen = function() { ws.send(JSON.stringify({ type: 'list_rooms' })); };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'room_list') {
+              responded = true;
+              clearTimeout(timeout);
+              var players = 0;
+              (msg.rooms || []).forEach(function(r) { players += (r.playerCount || 0); });
+              pill.className = 'on';
+              txt.textContent = players + ' online · ' + (msg.rooms || []).length + ' servers';
+              var heroOn = document.getElementById('hero-online');
+              var heroRooms = document.getElementById('hero-rooms');
+              if (heroOn) { animateCount(heroOn, players); }
+              if (heroRooms) { animateCount(heroRooms, (msg.rooms || []).length); }
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { responded = true; clearTimeout(timeout); pill.className = 'off'; txt.textContent = 'Offline'; };
+      }
+
+      document.getElementById('quick-refresh').addEventListener('click', function() {
+        refreshStats();
+        refreshServerStatus();
+        toast('Refreshed live stats', 'ok');
+      });
+
+      document.getElementById('copy-invite').addEventListener('click', function() {
+        var link = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
+        if (userRole) link += '&role=' + encodeURIComponent(userRole);
+        var ta = document.createElement('textarea');
+        ta.value = link;
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          toast('Play link copied to clipboard!', 'ok');
+        } catch (_) {
+          toast('Could not copy link: ' + link, 'err');
+        }
+        ta.remove();
+      });
+
+      // Auto-refresh live dashboard every 60s
+      setInterval(function() {
+        if (userName && !document.querySelector('.page.active')) { refreshStats(); refreshServerStatus(); }
+      }, 60000);
+
+      // ── Player progress (from game achievements) ───────────────────────
+      function loadPlayerProgress() {
+        try {
+          var raw = localStorage.getItem('mc-clone-achievements');
+          if (!raw) { return; }
+          var data = JSON.parse(raw);
+          var stats = data.stats || {};
+          var unlocked = (data.unlocked && data.unlocked.length) || 0;
+          var total = 44;
+          var lvl = stats.level || 0;
+          var playtime = stats.playTime || 0;
+          var kills = stats.mobKillsAny || 0;
+          var hours = Math.floor(playtime / 3600);
+          var mins = Math.floor((playtime % 3600) / 60);
+          document.getElementById('stat-level').textContent = lvl;
+          document.getElementById('stat-playtime').textContent = hours > 0 ? hours + 'h' : mins + 'm';
+          document.getElementById('stat-kills').textContent = kills;
+          document.getElementById('stat-ach').textContent = unlocked + ' / ' + total;
+          var pct = Math.round((unlocked / total) * 100);
+          document.getElementById('ach-fill').style.width = pct + '%';
+        } catch (_) {}
+      }
+
+      // ── Updates ────────────────────────────────────────────────────────
+      var UPDATE_SECTIONS = [
+        {
+          hash: '716e7bf',
+          heading: 'Items now render as thin 3D boxes (32x32x2) instead of flat planes',
+          desc: 'Fix bed placement: treat ITEM.BED (285) as block item in all placement gates; Fix security vulns and gameplay bugs; Portal: theme Updates accordion to match the rest of the site; Portal: make pages browsable without logging in; portal: move render calls after all event handlers to fix button bindings; fix: bed placement direction + break both halves + foot particle color; fix: items now render as thin 3D boxes (32x32x2) instead of flat planes',
+          date: 'Aug 03',
+          bugs: ['bed placement: treat ITEM.BED (285) as block item in all placement gates', 'security vulns and gameplay bugs', 'portal: move render calls after all event handlers to button bindings', 'bed placement direction + break both halves + foot particle color', 'items now render as thin 3D boxes (32x32x2) instead of flat planes'],
+          updates: ['Portal: theme Updates accordion to match the rest of the site', 'Portal: make pages browsable without logging in'],
+          features: [],
+        },
+        {
+          hash: '7b01aee',
+          heading: 'Minecraft-style armor, Portal Orb, portal overhaul, menu player preview shadow',
+          desc: 'Fix BLOCK_COLORS error, portal login, swim/run animations; Add 5 CC0 calm ambient tracks; Add Blower and PortalMan mobs, throwable Portal Orb teleport; Portal visual overhaul with walk-through rings; Portal website overhaul with voxel background and live dashboard',
+          date: 'Aug 02',
+          bugs: ['BLOCK_COLORS ReferenceError', 'portal login auto-register fallback', 'portal UPDATE_SECTIONS missing brace broke inline script', 'swim + run animations amplitude stacking', 'multiplayer position sync'],
+          updates: ['Minecraft-style armor: pixelated plate/chainmail textures, shoulder pads, leggings waist, boots', 'Helmet face opening: classic visor shows face', 'Route DMs over the network', 'Portal Orb: dual linked portal rings, momentum traversal, shockwave', 'Portal visual overhaul: vertical walk-through rings with vortex swirl', 'Portal website overhaul: animated voxel background, live dashboard, theme picker', 'Menu player preview shadow with glow pedestal'],
+          features: ['5 CC0 calm ambient tracks (The Cynic Project)', 'Blower and PortalMan mobs', 'real-time shadow to spinning menu player preview'],
+        },
+        {
+          hash: 'e4f15c0',
+          heading: 'Platform packages, gameplay overhaul, sound effects, music, DMs',
+          desc: 'macOS downloads as .dmg with Electron; real platform packages for Mac/Windows/Android/iOS; Gameplay: Java-style regen, world import/export, lit-TNT animation, chest remodel; CC0 Kenney sound effects; Music randomization; Roblox-style DMs',
+          date: 'Aug 01',
+          bugs: ['CI: Render deploy fallback URL, push retries', 'crash when lighting TNT', 'portal login localStorage persistence', 'splash text target element'],
+          updates: ['macOS downloads as .dmg with Electron app binary', 'Windows .exe, Android .apk, iOS .ipa', 'Apple code signing + notarization pipeline', 'Gameplay: Java-style regen, world import/export, lit-TNT, chest remodel', 'CC0 Kenney sound effects', 'Auto-update for Mac app (fixes macOS 15 malware flag)', 'Distinct running and swimming animations', 'Responsive FOV, richer break particles, accurate mining swing', 'Randomize music: multiple chord progressions, scales, and tempos', 'Replace procedural music with CC0 tracks from Magory.net (14 tracks)', 'Weighted splash texts with rarity tiers', 'Roblox-style DMs in friends menu'],
+          features: ['World export/import', 'Self-updating Mac app', 'Real CC0 sound effects'],
+        },
+        {
+          hash: 'a6d8219',
+          heading: 'App Downloads button and deployment pipeline',
+          desc: 'Added Download button to main menu with platform options; automated deployment script',
+          date: 'Jul 29',
+          bugs: ['download links, auto-generate zips, auto-deploy workflow'],
+          updates: ['switch downloads to .zip format with dynamic extension detection'],
+          features: ['Download button to main menu with platform options (Mac, Windows, Android, iPhone)', 'automated deployment script (deploy.sh)'],
+        },
+        {
+          hash: '18183bd',
+          heading: 'Menu glass-morphism, CG OAuth, promo animations, parkour fixes',
+          desc: 'Modernize menu UI: glass-morphism panels, gradient text, glow effects; Add CG OAuth auto-merge endpoint; YouTube Short promo animation; parkour 100 levels fixes',
+          date: 'Jul 28',
+          bugs: ['TDZ error: audio used before declaration', 'parkour 100 levels state reset + checkpoint messages', 'promo-short block reveal timing', 'minigame menu cut-off'],
+          updates: ['modernize menu UI: glass-morphism panels, gradient text, glow effects, smoother animations'],
+          features: ['CG OAuth auto-merge endpoint', 'YouTube Short promo animation HTML'],
+        },
+        {
+          hash: '08e717f',
+          heading: 'In-game updates screen, crouch overhaul, weather, underground biomes',
+          desc: 'Add in-game Updates/changelog screen; crouch overhaul + weather + underground biomes + tooltips + reflections + chunk priority + grass sway + golden hour; 120 bug fixes',
+          date: 'Jul 27',
+          bugs: ['shadow: pass camera to updateMatrices', 'all 120 BUGS_SCAN issues across 16 files'],
+          updates: ['remove all hostile mob sounds and hurt sounds; keep only pig/cow/sheep + footsteps + music', 'clean up stale comments and dead code in audio.js', 'remove animal sounds; add head bobbing', 'breast stroke swimming animation', 'crouch overhaul + weather + underground + tooltips + reflections + chunk priority + grass sway + golden hour', 'Make Updates accordion-style: collapsible sections'],
+          features: ['in-game Updates/changelog screen with commit history', 'YouTube Short promo animation HTML'],
+        },
+        {
+          hash: '6eef0d1',
+          heading: 'All reported bugs fixed, procedural sounds, CC0 audio',
+          desc: 'Fix all reported bugs; replace all non-open-source sound files with purely procedural Web Audio synthesis; add CC0 Kenney block sounds; real-time shadows; CC0 creature sounds',
+          date: 'Jul 26',
+          bugs: ['remove non-open-source dig/place WAVs, fall damage in water', 'mob attack range (removed double eye-height)', 'shadow camera ±100→±40, shadow bias, crack overlay', 'syntax error in _sand_step', 'pigSound infinite loop (operator precedence)', '/u/ profile redirect loops', 'IS_LAN hoisting, BIOMES import'],
+          updates: ['remove ALL non-open-source sound files, replace with purely procedural Web Audio synthesis', 'oscillator-based mob sounds, shadow matrix fix, >6 player warning'],
+          features: ['real-time shadows (shadow map in custom shaders) + CC0 Kenney block sounds', 'CC0 creature sounds, menu shadows, F3/double-tap mobile controls'],
+        },
+        {
+          hash: 'ed323fa',
+          heading: 'Leaves redesign, mobile UI overhaul, dynamic shadows, river biome',
+          desc: 'Wire up custom shaders; add dynamic entity shadows, river biome, ocean/river waves; redesign leaves texture multiple times to match Minecraft; mobile UI overhaul with edge joystick',
+          date: 'Jul 25',
+          bugs: ['shader compilation error and login bypass vulnerability', 'shadow rendering, water waves, leaf clumps', 'ghost blocks from previous world persisting', 'mobile crash: guard exitPointerLock', 'volume slider on mobile'],
+          updates: ['Switch from GitHub Actions to Render static site', 'Redo block break cracks: deterministic web pattern', 'Redesign leaves texture: overlapping circular clusters (Minecraft-style)', 'Mobile: jump/sprint/crouch/inventory always-visible, bigger buttons', 'Mobile UI: move joystick to screen edge, shrink buttons'],
+          features: ['dynamic entity shadows, river biome, ocean/river waves', 'GitHub Actions workflows for deploy, keep-awake, redis backup'],
+        },
+        {
+          hash: 'bd8ee03',
+          heading: 'Custom shaders, Player Link, /u/ page, bypass detection',
+          desc: 'Phase 2: Custom shaders, leaf transparency, screen-space god rays; add Player Link button; fix /u/ personal login page with bypass detection',
+          date: 'Jul 24',
+          bugs: ['updateSky code conflicts', 'shader + god ray bugs', '/u/ personal login page', 'leaf textures + shadow improvements', 'DirectionalLight .direction prop', 'Player Link paths', 'alpha discard making blocks see-through', 'shadow mapping', 'auto-login redirect loops'],
+          updates: ['Phase 2: Custom shaders, leaf transparency, screen-space god rays', 'restore accounts.json + server-data.json for Render deployment'],
+          features: ['Player Link button on login screen and main menu', 'player link generated after login, /u/ page shows bypass warning'],
+        },
+        {
+          hash: '6532373',
+          heading: 'Portal redo, /u/ page, deploy hooks, shadows, biome fix',
+          desc: 'Complete redo of BlockForge Portal; add /u/ as standalone login page; add live server browser to portal; shadows, biome fix, mob-specific hit sounds; Render deploy hook',
+          date: 'Jul 23',
+          bugs: ['portal card grid layout', 'Back to Portal button', 'bottom buttons display', '/u/ redirect loops', 'Safari auto-login', 'parkour binary endianness', 'chat message echo', 'shadow + sunset rendering'],
+          updates: ['Hide portal/account buttons on login screen', 'ci: add Render deploy hook', 'user-data.html page'],
+          features: ['live server browser to portal - WebSocket room list', 'BlockForge.png as favicon across all pages', '/u/ as standalone login page', 'mob-specific hit sounds, improved hitboxes', 'copyright notice and license terms'],
+        },
+        {
+          hash: 'bf96efb',
+          heading: 'OAuth, guest login, 100 levels parkour, portal overhaul',
+          desc: 'Fix OAuth security issues; add account identity linking; add guest login; add 100 Levels imported parkour map; UI polish; portal HTML page',
+          date: 'Jul 22',
+          bugs: ['favicon.ico 404', 'OAuth CSRF state validation, XSS prevention', 'all settings load/save/apply', 'portal button flash issues', 'greenstone global state/pistons, desert temple doors, quartz self-smelting', 'audio memory leak/NaN/div0', 'CORS + XSS in server'],
+          updates: ['Improve login UI: branded OAuth buttons', 'UI polish: menu fade-in animations, modal scale+fade, responsive layout', 'Polish BlockForge Portal: modern CSS with animations', 'Replace damage/hit sounds with all-procedural audio', 'Remove enderman and creeper mobs'],
+          features: ['account identity linking system: OAuth + CG identity auth', 'guest login: random Guest+8digit name', 'one-time announcement system', 'CDkide2 account back'],
+        },
+        {
+          hash: '7967c76',
+          heading: 'Social login, CrazyGames SDK, offer banner',
+          desc: 'Add social login (GitHub/Google/Microsoft/CrazyGames); gate offer banner behind isOnCrazyGames',
+          date: 'Jul 21',
+          bugs: ['social login CG detection', 'voice gating to domain-only', 'hotbar gap'],
+          updates: [],
+          features: ['social login (GitHub/Google/Microsoft/CrazyGames)'],
+        },
+        {
+          hash: 'abba554',
+          heading: 'Arm swing fixes, entity interpolation, CrazyGames readiness',
+          desc: 'Fix all arm swing directions (1st/3rd person); entity interpolation buffer eliminates remote player teleporting; CrazyGames readiness',
+          date: 'Jul 20',
+          bugs: ['3D items, bigger tools, offhand visibility, 3rd-person swing', 'held items: flat sprites not black 3D cubes', 'first-person arm swing direction', '3rd-person held item z-direction', 'mobile controls (tap-to-break, toggle panel)', 'critical bugs: empty img src, duplicate IDs, fall tunneling', 'mobile offer banner buttons'],
+          updates: ['Entity interpolation buffer — 100ms delay eliminates remote player jank', 'MC-style arm (single 4x12x4 box), enhanced eating animation', 'CrazyGames readiness: stream heavy assets from Render server', 'Remove leaked No-IP credentials from repo'],
+          features: [],
+        },
+        {
+          hash: 'b83a778',
+          heading: 'Voice chat polish, item 3D shading, binary packets, proximity culling',
+          desc: 'Voice chat: Push to Talk, volume preference, echo cancellation; item 3D: outline + directional shading + drop shadow; binary WebSocket position packets; proximity culling',
+          date: 'Jul 19',
+          bugs: ['voice group client responses', 'PTT key conflict', 'voice chat WebRTC ICE candidates', 'multiplayer position sync delay', 'item 3D shading', 'adaptive interpolation for remote players'],
+          updates: ['perf: binary WebSocket position packets (~25 bytes vs ~150 bytes JSON)', 'perf: proximity culling + separate armor sync', 'Add first-person arm mesh, fix dandelions, 3rd-person held items'],
+          features: ['Voice polish: Push to Talk, saved volume preference'],
+        },
+        {
+          hash: '7524869',
+          heading: 'Voice chat, dev panel, security hardening, multiplayer fixes',
+          desc: 'WebRTC voice chat with settings panel; full dev panel; 4 critical + 8 high/medium bug fixes; multiplayer stability; voice panel redesign',
+          date: 'Jul 18',
+          bugs: ['multiplayer crash (infinite kick-rejoin loop)', 'multiplayer stability - keepalive ping', 'NIGHT_COLOR reference before definition', 'ghost blocks in survival', 'server crash from async handleDevGetAccount', 'dev panel scope error', 'ROLE_DEV level mismatch', 'block cheat commands in multiplayer', 'audio.place(itemId) crash', 'particleGeo shared disposal', 'XSS via world/server names', 'WebSocket rate limiting'],
+          updates: ['voice panel redesign with Settings/Groups tabs + player avatars'],
+          features: ['WebRTC voice chat with settings panel (V key)', 'mobile voice & exit buttons', 'full dev panel with account list, stats, tag/role management', '/pm private message command', 'rewrite parkour with Minecraft-accurate physics + checkpoints + timer'],
+        },
+        {
+          hash: '3eec014',
+          heading: 'Parkour map overhaul, 200+ block types, MC block mappings',
+          desc: 'Convert MC world to binary format; 200+ block types mapped to game equivalents; parkour map with 53 distinct block types',
+          date: 'Jul 17',
+          bugs: ['parkour map rendering', 'wool block IDs (30→69)', 'spawn at spiral entrance', 'strip spiral interior walls (76% reduction)'],
+          updates: ['new block types: blockscrap, stone_bricks, deepslate, concrete, slime, prismarine, purpur', 'comprehensive MC block mappings: 200+ block types'],
+          features: ['real recorded footstep sounds + strip minigame from parkour', 'comprehensive sound effects library'],
+        },
+        {
+          hash: '285dfc7',
+          heading: 'Animation system rewrite, 3D items, Android APK, multiplayer sync',
+          desc: 'Rewrite animation system (FA+ style) fix 10 bugs; make all items 3D; Capacitor Android platform; multiplayer entity sync; procedural footstep sounds',
+          date: 'Jul 16',
+          bugs: ['animation hierarchy (head/arms children of body)', 'held block size/position in 3rd person', 'parkour level position XZ distance check', 'walk animation speed'],
+          updates: ['Performance: cache raycast, reuse THREE.Color, O(1) chunk edits lookup', 'Redo zombie/skeleton textures + add 7 new block sound families', 'Update app icon'],
+          features: ['Capacitor Android platform (APK-ready)', 'load Parkour Paradise Minecraft world in parkour mode', 'procedural WAV footstep sounds for all 12 block materials', 'multiplayer entity sync'],
+        },
+        {
+          hash: 'fd1543f',
+          heading: 'Parkour Paradise minigame, minigames menu, 9 game grid',
+          desc: 'Add Parkour Paradise minigame; minigames menu with celebration particles; parkour training mode with savestates and PB tracking; minigame grid (9 games)',
+          date: 'Jul 15',
+          bugs: ['_mobSpawnTimer ReferenceError crash', 'creative search input eating game keys', '3rd-person camera clipping through terrain (x-ray glitch)', 'left arm double-translation bug', 'shift-click error', 'void bedrock in parkour', 'parkour exit flow'],
+          updates: ['Separate dev worlds from singleplayer worlds', 'Dev worlds ephemeral - no localStorage save', 'Client-side keepalive ping + GitHub Action every 5min'],
+          features: ['Parkour Paradise minigame', 'minigames menu with celebration particles + sounds', 'parkour training mode, savestates, PB tracking', 'minigame grid (9 games), parkour world list'],
+        },
+        {
+          hash: '3e89b44',
+          heading: 'Greenstone, pistons, commands, Creeper mob, 22+ animations',
+          desc: 'Add greenstone system, pistons, 20+ new blocks/items; add /gamemode /give /tp /time /difficulty /weather /heal /kill /help commands; Creeper mob, explosion system, TNT ignition; 22+ new animations',
+          date: 'Jul 14',
+          bugs: ['P0 gameplay bugs, P1 performance leaks', '4fps crash, double-tap fly toggle', 'mob texture caching lag'],
+          updates: ['Enhance block textures and add eating animation'],
+          features: ['greenstone system, pistons, 20+ new blocks/items', 'server commands for singleplayer', 'Creeper mob, hostile mob sounds, explosion system, TNT ignition', '22+ new animations across mobs, player, world, and particles', 'chicken/enderman/slime mobs'],
+        },
+        {
+          hash: 'eec3313',
+          heading: 'Mobile overhaul, skin editor, friends system, music',
+          desc: 'Mobile overhaul + lag + recipe fix; friends system + private worlds; skin editor rebuild; CC0 music tracks; Redis persistence; village generation',
+          date: 'Jul 13',
+          bugs: ['friends menu bouncing to main menu', 'music/sounds path on GitHub Pages'],
+          updates: ['Show armor on local player model, left-click quick-equip armor', 'Redesign LAN screen with HOST/JOIN tab picker', 'Replace LAN with friends system + private worlds', 'Completely rebuild skin editor + add PNG skin uploader', 'Custom Skins library in skin picker', 'Mobile: push joystick to edge to auto-sprint (Bedrock-style)', 'village generation, mobile tap/hold+close buttons', 'Mobile sprint button + tappable hotbar'],
+          features: ['weekly Redis backup workflow', '3 CC0 (public domain) calm music tracks'],
+        },
+        {
+          hash: 'a49045e',
+          heading: 'BlockForge launched: multiplayer, LAN, achievements, XP',
+          desc: 'BlockForge: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics; static file server; auto-detect MP server host',
+          date: 'Jul 11',
+          bugs: [],
+          updates: ['BlockForge: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics', 'Server serves the game itself (from-scratch static file server) + LAN mode', 'Auto-detect MP server host from current origin', 'LAN mode ensures default OfficialSMP room so server list is never empty'],
+          features: [],
+        },
+        {
+          hash: '8f78243',
+          heading: 'Initial commit',
+          desc: 'Project created',
+          date: 'Jun 19',
+          bugs: [],
+          updates: ['Initial project setup'],
+          features: [],
+        },
+      ];
+
+      function updateSectionHTML(s, i, open) {
+        var group = function(label, cls, list) {
+          return '<div class="u-group" style="color:' + (cls === 'bug' ? 'var(--red)' : cls === 'feat' ? 'var(--green)' : 'var(--accent)') + ';">' + label + '</div>' +
+            list.map(function(x) { return '<div class="u-item ' + cls + '">' + x + '</div>'; }).join('');
+        };
+        return '<div class="update-section' + (open ? ' open' : '') + '" data-idx="' + i + '">' +
+          '<div class="update-head">' +
+          '<div style="flex:1;min-width:0;">' +
+          '<div class="update-meta">' +
+          '<span class="update-hash">' + s.hash + '</span>' +
+          '<span class="update-date">' + s.date + '</span></div>' +
+          '<div class="update-title">' + s.heading + '</div>' +
+          '<div class="update-desc">' + s.desc + '</div></div>' +
+          '<span class="update-arrow">▼</span></div>' +
+          '<div class="update-body">' +
+          (s.bugs.length ? group('BUGS FIXED', 'bug', s.bugs) : '') +
+          (s.updates.length ? group('UPDATES', 'upd', s.updates) : '') +
+          (s.features.length ? group('NEW FEATURES', 'feat', s.features) : '') +
+          '</div></div>';
+      }
+
+      var UPDATES_PER_PAGE = 5;
+      var updatesPage = 0;
+
+      function renderUpdates(filter, page) {
+        var list = document.getElementById('portal-updates-list');
+        var pag = document.getElementById('updates-pagination');
+        if (!list) return;
+        var q = (filter || '').toLowerCase().trim();
+        if (page !== undefined) updatesPage = page;
+        else if (q) updatesPage = 0;
+        var sections = UPDATE_SECTIONS;
+        if (q) {
+          sections = UPDATE_SECTIONS.filter(function(s) {
+            var hay = (s.heading + ' ' + s.desc + ' ' + s.updates.join(' ') + ' ' + s.features.join(' ') + ' ' + s.bugs.join(' ')).toLowerCase();
+            return hay.indexOf(q) !== -1;
+          });
+        }
+        var totalPages = Math.ceil(sections.length / UPDATES_PER_PAGE);
+        if (updatesPage >= totalPages) updatesPage = totalPages - 1;
+        if (updatesPage < 0) updatesPage = 0;
+        var start = updatesPage * UPDATES_PER_PAGE;
+        var pageSections = sections.slice(start, start + UPDATES_PER_PAGE);
+
+        list.innerHTML = pageSections.length ? pageSections.map(function(s, i) {
+          return updateSectionHTML(s, start + i, !q && i === 0);
+        }).join('') : '<div class="srv-empty">No updates match your search.</div>';
+        list.dataset.rendered = '1';
+        list.dataset.filter = q || '';
+        list.querySelectorAll('.update-section').forEach(function(sec) {
+          sec.onclick = function(e) {
+            var body = sec.querySelector('.update-body');
+            var isOpen = sec.classList.contains('open');
+            sec.classList.toggle('open');
+            body.style.maxHeight = isOpen ? '0' : (body.scrollHeight + 400) + 'px';
+            body.style.padding = isOpen ? '0 16px' : '0 16px 12px';
+            var arrow = sec.querySelector('.update-arrow');
+            arrow.textContent = isOpen ? '▼' : '▲';
+          };
+        });
+
+        // Render pagination
+        if (pag && totalPages > 1 && !q) {
+          var html = '<button id="pg-prev" ' + (updatesPage === 0 ? 'disabled' : '') + '>◀</button>';
+          for (var p = 0; p < totalPages; p++) {
+            html += '<button class="pg-btn' + (p === updatesPage ? ' active' : '') + '" data-pg="' + p + '">' + (p + 1) + '</button>';
+          }
+          html += '<button id="pg-next" ' + (updatesPage >= totalPages - 1 ? 'disabled' : '') + '>▶</button>';
+          pag.innerHTML = html;
+          pag.querySelectorAll('.pg-btn').forEach(function(btn) {
+            btn.onclick = function() { renderUpdates(q, parseInt(this.dataset.pg)); };
+          });
+          var prevBtn = document.getElementById('pg-prev');
+          var nextBtn = document.getElementById('pg-next');
+          if (prevBtn) prevBtn.onclick = function() { renderUpdates(q, updatesPage - 1); };
+          if (nextBtn) nextBtn.onclick = function() { renderUpdates(q, updatesPage + 1); };
+        } else if (pag) {
+          pag.innerHTML = '';
+        }
+      }
+      document.getElementById('updates-search').addEventListener('input', function() {
+        renderUpdates(this.value);
+      });
+
+      // Recent updates preview on dashboard
+      function renderRecentUpdates() {
+        var wrap = document.getElementById('recent-updates');
+        if (!wrap) return;
+        wrap.innerHTML = UPDATE_SECTIONS.slice(0, 3).map(function(s, i) {
+          return updateSectionHTML(s, i, i === 0);
+        }).join('');
+        wrap.style.display = 'block';
+        wrap.onclick = function(e) {
+          var head = e.target.closest('.update-head');
+          if (!head) return;
+          var sec = head.closest('.update-section');
+          var body = sec.querySelector('.update-body');
+          var arrow = head.querySelector('.update-arrow');
+          var isOpen = body.style.maxHeight !== '0px' && body.style.maxHeight !== '0';
+          body.style.maxHeight = isOpen ? '0' : 'none';
+          body.style.padding = isOpen ? '0 12px' : '8px 12px 10px';
+          arrow.textContent = isOpen ? '▼' : '▲';
+        };
+        var more = document.createElement('div');
+        more.className = 'mt-20';
+        more.innerHTML = '<button class="btn" id="recent-more">View all updates →</button>';
+        wrap.appendChild(more);
+        document.getElementById('recent-more').addEventListener('click', function() { openPage('updates'); });
+      }
+
+      // ── Mods & Addons catalog (mirrors public/mods.html) ──────────────
+      var PORTAL_MODS = [
+        { icon:'🗺️', name:'Minimap', ver:'1.0', desc:'Top-down terrain minimap, north-up, with a live facing arrow. Toggle with M.', file:'minimap.bfmod' },
+        { icon:'✨', name:'Real-Time Shaders', ver:'1.1', desc:'Custom GLSL terrain shaders: soft PCF shadows, animated water, wind sway, gradient fog.', file:'r3d-shaders.bfmod' },
+        { icon:'🍗', name:'Saturation Viewer', ver:'1.0', desc:'Shows exact hunger plus the hidden saturation reserve draining before hunger.', file:'saturation.bfmod' },
+        { icon:'🌙', name:'Night Vision', ver:'1.0', desc:'Green-tinted low-light vision, auto-activates at night. Toggle with N.', file:'nightvision.bfmod' },
+        { icon:'🧱', name:'Block Outline', ver:'1.0', desc:'Glowing wireframe around the block you are looking at. Toggle with O.', file:'blockoutline.bfmod' },
+        { icon:'🌅', name:'Sky Tint', ver:'1.0', desc:'Time-of-day color grading: warm dawns, purple dusks, deep nights. Toggle with Y.', file:'skytint.bfmod' },
+        { icon:'💨', name:'Motion FOV', ver:'1.0', desc:'Dynamic field of view that widens with speed for a cinematic feel. Toggle with G.', file:'motionfov.bfmod' },
+        { icon:'🔭', name:'Spyglass', ver:'1.0', desc:'Hold Z to zoom in like a spyglass. Toggle the feature with K.', file:'spyglass.bfmod' },
+        { icon:'❤️', name:'Damage FX', ver:'1.0', desc:'Red screen flash on damage + low-health heartbeat pulse. Toggle with U.', file:'damagefx.bfmod' },
+        { icon:'🧭', name:'Compass Bar', ver:'1.0', desc:'Top-of-screen compass showing your heading. Toggle with X.', file:'compass.bfmod' },
+        { icon:'🎯', name:'Dynamic Crosshair', ver:'1.0', desc:'Animated crosshair with hit flash. Toggle with J.', file:'crosshair.bfmod' },
+        { icon:'📍', name:'Position HUD', ver:'1.0', desc:'Live XYZ coords, heading and light level. Toggle with C.', file:'coords.bfmod' },
+        { icon:'🚀', name:'FPS Booster', ver:'1.0', desc:'Auto-tunes render resolution to hold your FPS target. Toggle with P.', file:'fpsbooster.bfmod', perf:true },
+        { icon:'⚡', name:'Fast Shadows', ver:'1.0', desc:'Lower shadow resolution for a big frame-rate win. Toggle with H.', file:'fastshadows.bfmod', perf:true },
+        { icon:'👾', name:'Pixel Vision', ver:'1.0', desc:'Retro pixelated low-res look + a huge FPS boost. Toggle with L.', file:'pixelvision.bfmod', perf:true },
+      ];
+
+      function renderPortalMods() {
+        var grid = document.getElementById('portal-mods-grid');
+        if (!grid) return;
+        if (grid.dataset.rendered) return;
+        grid.innerHTML = PORTAL_MODS.map(function(m) {
+          var perfTag = m.perf ? '<span style="font:bold 9px monospace;color:#7f7;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.3);padding:1px 7px;border-radius:5px;">PERF</span>' : '';
+          return '<a class="dl-card" href="mods/' + m.file + '" download="' + m.file + '">' +
+            '<div class="dl-icon">' + m.icon + '</div>' +
+            '<div class="dl-info"><div class="dl-name">' + esc(m.name) + ' <span class="dl-ver">v' + esc(m.ver) + '</span> ' + perfTag + '</div>' +
+            '<div class="dl-desc">' + esc(m.desc) + '</div></div>' +
+            '<div class="dl-arrow">⬇</div></a>';
+        }).join('');
+        grid.dataset.rendered = '1';
+      }
+
+      // ── Downloads page ─────────────────────────────────────────────────
+      var DOWNLOADS = [
+        { icon: '🍏', name: 'Mac · Apple Silicon', desc: 'BlockForge-mac-arm64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-arm64.dmg' },
+        { icon: '🖥️', name: 'Mac · Intel', desc: 'BlockForge-mac-x64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-x64.dmg' },
+        { icon: '🪟', name: 'Windows', desc: 'BlockForge-windows.exe', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-windows.exe' },
+        { icon: '🤖', name: 'Android', desc: 'BlockForge-android.apk', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-android.apk' },
+        { icon: '📱', name: 'iPhone (SideStore)', desc: 'BlockForge-iphone-ipa.ipa', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-iphone-ipa.ipa' },
+        { icon: '🌐', name: 'Web (Play now)', desc: 'No install needed', url: 'https://blockforge-1.onrender.com/' },
+      ];
+      function renderDownloads() {
+        var grid = document.getElementById('downloads-grid');
+        if (!grid) return;
+        if (grid.dataset.rendered) return;
+        grid.innerHTML = DOWNLOADS.map(function(d) {
+          var extra = d.url.indexOf('releases') !== -1 ? ' target="_blank" rel="noopener"' : '';
+          return '<a class="dl-card" href="' + d.url + '"' + extra + '>' +
+            '<div class="dl-icon">' + d.icon + '</div>' +
+            '<div class="dl-info"><div class="dl-name">' + d.name + '</div><div class="dl-desc">' + d.desc + '</div></div>' +
+            '<div class="dl-arrow">⬇</div></a>';
+        }).join('');
+        grid.dataset.rendered = '1';
+      }
+
+      // ── Server browser ─────────────────────────────────────────────────
+      function esc(s) {
+        if (!s) return '';
+        return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+      }
+
+      function fetchServerList() {
+        var dotEl = document.getElementById('srv-dot');
+        var labelEl = document.getElementById('srv-label');
+        var statsEl = document.getElementById('srv-stats');
+        var listEl = document.getElementById('srv-list');
+        if (!dotEl || !listEl) return;
+
+        dotEl.className = 'dot pending';
+        labelEl.textContent = 'Connecting...';
+        statsEl.textContent = '';
+        listEl.innerHTML = '<div class="srv-empty">Connecting to server...</div>';
+
+        var ws = new WebSocket(SRV_WS);
+        var responded = false;
+        var timeout = setTimeout(function() {
+          if (!responded) {
+            ws.close();
+            dotEl.className = 'dot off';
+            labelEl.textContent = 'Offline';
+            statsEl.textContent = '';
+            listEl.innerHTML = '<div class="srv-error">Server did not respond. It may be offline or starting up.</div>';
+          }
+        }, 6000);
+
+        ws.onopen = function() {
+          ws.send(JSON.stringify({ type: 'list_rooms' }));
+        };
+
+        ws.onmessage = function(e) {
+          responded = true;
+          clearTimeout(timeout);
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'room_list' && Array.isArray(msg.rooms)) {
+              var rooms = msg.rooms;
+              var totalPlayers = 0;
+              for (var i = 0; i < rooms.length; i++) totalPlayers += (rooms[i].playerCount || 0);
+
+              dotEl.className = 'dot on';
+              labelEl.textContent = 'Online';
+              statsEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '') + ' · ' + totalPlayers + ' player' + (totalPlayers !== 1 ? 's' : '') + ' online';
+
+              if (rooms.length === 0) {
+                listEl.innerHTML = '<div class="srv-empty">No active rooms right now. Be the first to start one!</div>';
+              } else {
+                var html = '';
+                for (var i = 0; i < rooms.length; i++) {
+                  var r = rooms[i];
+                  var pc = r.playerCount || 0;
+                  var mp = r.maxPlayers || 20;
+                  var mode = (r.gameMode || 'survival');
+                  mode = mode.charAt(0).toUpperCase() + mode.slice(1);
+                  var owner = r.owner || '';
+                  html += '<div class="srv-card">' +
+                    '<div class="left">' +
+                      '<div class="name">' + esc(r.name) + '</div>' +
+                      '<div class="meta">' +
+                        '<span>🎮 ' + esc(mode) + '</span>' +
+                        (owner ? '<span>👑 ' + esc(owner) + '</span>' : '') +
+                        '<span class="badge">SMP</span>' +
+                      '</div>' +
+                    '</div>' +
+                    '<div class="players">' + pc + ' <span class="max">/ ' + mp + '</span></div>' +
+                  '</div>';
+                }
+                listEl.innerHTML = html;
+              }
+            } else {
+              dotEl.className = 'dot off';
+              labelEl.textContent = 'Error';
+              listEl.innerHTML = '<div class="srv-error">Unexpected server response.</div>';
+            }
+          } catch (err) {
+            dotEl.className = 'dot off';
+            labelEl.textContent = 'Error';
+            listEl.innerHTML = '<div class="srv-error">Failed to parse server response.</div>';
+          }
+          ws.close();
+        };
+
+        ws.onerror = function() {
+          responded = true;
+          clearTimeout(timeout);
+          dotEl.className = 'dot off';
+          labelEl.textContent = 'Offline';
+          statsEl.textContent = '';
+          listEl.innerHTML = '<div class="srv-error">Could not connect to the server.</div>';
+        };
+      }
+
+      document.getElementById('srv-refresh').addEventListener('click', fetchServerList);
+
+      // ── Upload helpers ──────────────────────────────────────────────────
+      function loadUploads(key) {
+        try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+      }
+      function saveUploads(key, list) {
+        try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
+      }
+      function renderUploads(containerId, storageKey, isImage) {
+        var grid = document.getElementById(containerId);
+        if (!grid) return;
+        var items = loadUploads(storageKey);
+        if (items.length === 0) {
+          grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No uploads yet.</div>';
+          return;
+        }
+        grid.innerHTML = items.map(function(item, i) {
+          var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '';
+          return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div><span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
+        }).join('');
+      }
+      function setupUpload(btnId, inputId, gridId, storageKey, isImage) {
+        var btn = document.getElementById(btnId);
+        var input = document.getElementById(inputId);
+        if (!btn || !input) return;
+        btn.addEventListener('click', function() { input.click(); });
+        input.addEventListener('change', function(e) {
+          if (!e.target.files || !e.target.files[0]) return;
+          var file = e.target.files[0];
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            var list = loadUploads(storageKey);
+            list.push({ name: file.name, data: ev.target.result, date: Date.now() });
+            saveUploads(storageKey, list);
+            renderUploads(gridId, storageKey, isImage);
+            toast('Uploaded ' + file.name, 'ok');
+          };
+          reader.readAsDataURL(file);
+          e.target.value = '';
+        });
+        document.getElementById(gridId).addEventListener('click', function(ev) {
+          if (!ev.target.classList.contains('del')) return;
+          var idx = parseInt(ev.target.dataset.idx, 10);
+          var list = loadUploads(ev.target.dataset.key);
+          list.splice(idx, 1);
+          saveUploads(ev.target.dataset.key, list);
+          renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+        });
+      }
+
+      setupUpload('skin-upload-btn', 'skin-file-input', 'skin-grid', 'bf_uploads_skins', true);
+      setupUpload('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false);
+      if (userName) {
+        renderUploads('skin-grid', 'bf_uploads_skins', true);
+        renderUploads('tex-grid', 'bf_uploads_textures', false);
+      }
+
+      // ── Community sub-tabs ───────────────────────────────────────────
+      document.querySelectorAll('.comm-sub-tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+          if (tab.dataset.comm === 'mods') renderPortalMods();
+          document.querySelectorAll('.comm-sub-tab').forEach(function(t) { t.classList.remove('active'); });
+          document.querySelectorAll('.comm-sub-page').forEach(function(p) { p.classList.remove('active'); });
+          tab.classList.add('active');
+          var target = document.getElementById('comm-' + tab.dataset.comm);
+          if (target) target.classList.add('active');
+        });
+      });
+
+      // ── Community Chat ───────────────────────────────────────────────
+      var chatWs = null;
+      var chatConnected = false;
+      var chatMsgs = document.getElementById('chat-messages');
+      var chatInput = document.getElementById('chat-input');
+      var chatSendBtn = document.getElementById('chat-send');
+      var chatStatusEl = document.getElementById('chat-status');
+
+      function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+      function chatStatus(on) {
+        chatConnected = on;
+        if (chatStatusEl) {
+          chatStatusEl.className = on ? 'chat-status on' : 'chat-status';
+          chatStatusEl.querySelector('span:last-child').textContent = on ? 'Online' : 'Connecting...';
+        }
+        if (chatSendBtn) chatSendBtn.disabled = !on;
+      }
+
+      function addChatMsg(name, role, text, time) {
+        if (!chatMsgs) return;
+        var roleClass = (role === 'owner' || role === 'dev' || role === 'gamedev') ? role : 'player';
+        var rolePrefix = role === 'owner' ? '[Owner] ' : role === 'dev' ? '[Dev] ' : role === 'gamedev' ? '[GameDev] ' : '';
+        var t = time ? new Date(time).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '';
+        var rendered = renderChatText(text);
+        var div = document.createElement('div');
+        div.className = 'chat-msg';
+        div.innerHTML = '<span class="cm-name ' + roleClass + '">' + esc(rolePrefix) + esc(name) + '</span><span class="cm-text">' + rendered + '</span>' + (t ? '<span class="cm-time">' + t + '</span>' : '');
+        chatMsgs.appendChild(div);
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
+      }
+
+      function addSystemMsg(text) {
+        if (!chatMsgs) return;
+        var div = document.createElement('div');
+        div.className = 'chat-msg system';
+        div.innerHTML = '<span class="cm-text">' + esc(text) + '</span>';
+        chatMsgs.appendChild(div);
+        chatMsgs.scrollTop = chatMsgs.scrollHeight;
+      }
+
+      function connectChat() {
+        if (chatWs) { try { chatWs.close(); } catch(_){} }
+        chatWs = new WebSocket(SRV_WS);
+        chatStatus(false);
+        chatWs.onopen = function() {
+          chatStatus(true);
+          chatWs.send(JSON.stringify({ type: 'auth', playerName: userName || 'Guest', password: '', mode: 'portal_chat' }));
+          chatWs.send(JSON.stringify({ type: 'community_chat_history' }));
+        };
+        chatWs.onmessage = function(e) {
+          var msg;
+          try { msg = JSON.parse(e.data); } catch(_) { return; }
+          if (msg.type === 'community_chat') {
+            if (msg.role === 'system') {
+              addSystemMsg(msg.text);
+            } else {
+              addChatMsg(msg.name, msg.role, msg.text, msg.time);
+            }
+          } else if (msg.type === 'community_chat_history') {
+            var msgs = msg.messages || [];
+            if (msgs.length > 0) {
+              addSystemMsg('— Chat History (' + msgs.length + ' messages) —');
+              msgs.forEach(function(m) {
+                if (m.role === 'system') addSystemMsg(m.text);
+                else addChatMsg(m.name, m.role, m.text, m.time);
+              });
+            }
+          } else if (msg.type === 'community_online') {
+            var onlineEl = chatStatusEl ? chatStatusEl.querySelector('span:last-child') : null;
+            if (onlineEl && chatConnected) onlineEl.textContent = 'Online — ' + (msg.count || 0) + ' in chat';
+          }
+        };
+        chatWs.onclose = function() {
+          chatStatus(false);
+          setTimeout(connectChat, 5000);
+        };
+        chatWs.onerror = function() { chatStatus(false); };
+      }
+
+      function sendChatMsg() {
+        if (!chatInput || !chatWs || chatWs.readyState !== 1) return;
+        var text = chatInput.value.trim();
+        if (!text) return;
+        chatInput.value = '';
+        chatWs.send(JSON.stringify({ type: 'community_chat', text: text }));
+      }
+
+      if (chatSendBtn) chatSendBtn.addEventListener('click', sendChatMsg);
+      if (chatInput) chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendChatMsg(); });
+      connectChat();
+
+      // ── Emoji & GIF support ──────────────────────────────────────────
+      var EMOJI_LIST = [
+        '😀','😂','🤣','😊','😍','🥰','😎','🤩','🥳','😢','😭','😡','🤔','🤫','🤭','😱',
+        '👍','👎','❤️','🔥','⭐','💯','🎉','🎮','⛏️','🗡️','🛡️','💎','🧱','🌲','💀','🏆',
+        '👀','🙌','💪','🤝','✌️','🫡','🤡','👻','🎃','🌈','☀️','🌙','⚡','❄️','🍕','🍔'
+      ];
+      var GIF_SEARCH_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=8&q=';
+
+      function buildEmojiPicker(targetInput) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'position:relative;display:inline-block;';
+        var btn = document.createElement('button');
+        btn.textContent = '😀';
+        btn.title = 'Emoji';
+        btn.style.cssText = 'background:none;border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:18px;cursor:pointer;transition:.2s;line-height:1;';
+        btn.onmouseenter = function() { btn.style.borderColor = 'rgba(130,160,255,.45)'; };
+        btn.onmouseleave = function() { btn.style.borderColor = 'var(--border)'; };
+        var panel = document.createElement('div');
+        panel.style.cssText = 'display:none;position:absolute;bottom:calc(100% + 6px);left:0;background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px;z-index:100;width:260px;box-shadow:0 8px 32px rgba(0,0,0,.5);backdrop-filter:blur(12px);';
+        var search = document.createElement('input');
+        search.placeholder = 'Search GIFs...';
+        search.style.cssText = 'width:100%;padding:6px 10px;background:rgba(0,0,0,.3);border:1px solid var(--border);border-radius:6px;color:var(--text);font:12px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;';
+        var emojiGrid = document.createElement('div');
+        emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(8,1fr);gap:2px;margin-bottom:8px;';
+        EMOJI_LIST.forEach(function(em) {
+          var eb = document.createElement('button');
+          eb.textContent = em;
+          eb.style.cssText = 'background:none;border:none;font-size:18px;padding:4px;cursor:pointer;border-radius:4px;transition:.1s;line-height:1;';
+          eb.onmouseenter = function() { eb.style.background = 'rgba(100,140,255,.15)'; };
+          eb.onmouseleave = function() { eb.style.background = 'none'; };
+          eb.addEventListener('click', function() {
+            targetInput.value += em;
+            targetInput.focus();
+          });
+          emojiGrid.appendChild(eb);
+        });
+        var gifLabel = document.createElement('div');
+        gifLabel.style.cssText = 'font:600 10px monospace;color:var(--dim);letter-spacing:1px;margin-bottom:4px;';
+        gifLabel.textContent = 'GIPHY';
+        var gifGrid = document.createElement('div');
+        gifGrid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:4px;max-height:160px;overflow-y:auto;';
+        gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Type to search GIFs</div>';
+        var gifTimer = null;
+        search.addEventListener('input', function() {
+          clearTimeout(gifTimer);
+          var q = search.value.trim();
+          if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Type to search GIFs</div>'; return; }
+          gifTimer = setTimeout(function() {
+            fetch(GIF_SEARCH_URL + encodeURIComponent(q))
+              .then(function(r) { return r.json(); })
+              .then(function(data) {
+                gifGrid.innerHTML = '';
+                (data.data || []).forEach(function(gif) {
+                  var img = document.createElement('img');
+                  img.src = gif.images.fixed_height.url;
+                  img.alt = gif.title || 'GIF';
+                  img.style.cssText = 'width:100%;border-radius:6px;cursor:pointer;transition:.15s;border:1px solid transparent;';
+                  img.onmouseenter = function() { img.style.borderColor = 'var(--accent)'; };
+                  img.onmouseleave = function() { img.style.borderColor = 'transparent'; };
+                  img.addEventListener('click', function() {
+                    targetInput.value += gif.images.original.url;
+                    targetInput.focus();
+                    panel.style.display = 'none';
+                  });
+                  gifGrid.appendChild(img);
+                });
+                if (!data.data || data.data.length === 0) {
+                  gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">No GIFs found</div>';
+                }
+              })
+              .catch(function() {
+                gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--dim);font-size:11px;padding:8px;">Failed to load GIFs</div>';
+              });
+          }, 400);
+        });
+        panel.appendChild(search);
+        panel.appendChild(emojiGrid);
+        panel.appendChild(gifLabel);
+        panel.appendChild(gifGrid);
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        document.addEventListener('click', function(e) {
+          if (!wrap.contains(e.target)) panel.style.display = 'none';
+        });
+        wrap.appendChild(btn);
+        wrap.appendChild(panel);
+        return wrap;
+      }
+
+      function renderChatText(text) {
+        var s = esc(text);
+        // Render URLs as clickable links / image previews (GIF, images, GIPHY)
+        s = s.replace(/(https?:\/\/[^\s<]+)/g, function(url) {
+          if (/\.(gif|png|jpe?g|webp|svg)/i.test(url) || /giphy\.com|imgur\.com|i\.redd\.it/i.test(url)) {
+            return '<br><img src="' + url + '" style="max-width:220px;max-height:160px;border-radius:6px;margin-top:4px;cursor:pointer;" onclick="window.open(this.src)" loading="lazy">';
+          }
+          return '<a href="' + url + '" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline;">' + url + '</a>';
+        });
+        return s;
+      }
+
+      // Inject emoji pickers into chat and DM inputs
+      function injectEmojiPicker(inputEl, containerSel) {
+        if (!inputEl) return;
+        var container = inputEl.closest(containerSel);
+        if (!container) return;
+        var picker = buildEmojiPicker(inputEl);
+        inputEl.parentElement.insertBefore(picker, inputEl);
+      }
+      injectEmojiPicker(document.getElementById('chat-input'), '.chat-input-row');
+
+      // Also inject into DM input if it exists
+      setTimeout(function() {
+        var dmInput = document.querySelector('#dm-input, .dm-input input, [placeholder*="message"]');
+        if (dmInput) injectEmojiPicker(dmInput, '.dm-input-row, .chat-input-row, .dm-panel');
+      }, 1000);
+
+      // ── News ticker + hero wiring ─────────────────────────────────────
+      function initTicker() {
+        var track = document.getElementById('ticker-track');
+        if (!track) return;
+        var items = [
+          ['🆕', 'Items now render as thin 3D boxes instead of flat planes'],
+          ['🎮', 'Play now on Web, Mac, Windows, Android & iPhone'],
+          ['🌐', 'Live multiplayer with DMs, parties and global chat'],
+          ['🔧', '15 mods & addons — custom shaders, minimap, night vision'],
+          ['⚡', 'Dynamic shadows, glass-morphism UI & river biomes'],
+          ['💬', 'Community chat is live — say hi!'],
+          ['🛍️', 'In-game Shop is coming soon'],
+        ];
+        var html = items.map(function(it) { return '<span><b>' + it[0] + '</b>' + it[1] + '<i>•</i></span>'; }).join('');
+        track.innerHTML = html + html; // duplicated for a seamless -50% loop
+      }
+      initTicker();
+
+      var heroSrv = document.getElementById('hero-servers-btn');
+      if (heroSrv) heroSrv.addEventListener('click', function() { openCard('servers'); });
+      var heroPlay = document.getElementById('hero-play-link');
+      if (heroPlay && !userName) {
+        heroPlay.href = 'https://blockforge-1.onrender.com/';
+      }
+
+      // ── Initial data load (must run AFTER all event handlers are bound) ──
+      spawnHeroVoxels();
+      animateCount(document.getElementById('hero-versions'), 5);
+      animateCount(document.getElementById('hero-mods'), 15);
+      renderRecentUpdates();
+      renderDownloads();
+      renderPortalMods();
+      refreshServerStatus();
+      if (userName) {
+        loadPlayerProgress();
+        refreshStats();
+      }
+    });
+  </script>
+</body>
+</html>

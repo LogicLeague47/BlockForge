@@ -1,0 +1,69 @@
+// ─── BlockForge Mod: FPS Booster ──────────────────────────────────────────
+// Dynamically lowers the render resolution (pixel ratio) when FPS dips and
+// eases back up when the frame time improves. Toggle with P.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-fps-boost',
+  name: 'FPS Booster',
+  version: '1.0',
+  description: 'Auto-tunes render resolution to hold your FPS target. Toggle with P.',
+  author: 'BlockForge Dev',
+  icon: '🚀',
+};
+
+let enabled = true;
+let _onToggle = null;
+let _last = 0;
+let _fps = 60;
+let _targetFps = 55;
+
+export function onLoad(api) {
+  _onToggle = (e) => {
+    if (e.key !== 'p' && e.key !== 'P') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    api.hud.upsert('badge', 'FPS BOOSTER <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '156px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+  _last = performance.now();
+}
+
+export function onTick(dt, api) {
+  const refs = api.refs();
+  if (!refs || !refs.renderer) return;
+
+  const now = performance.now();
+  const d = now - _last;
+  _last = now;
+  if (d > 0) _fps = _fps * 0.9 + (1000 / d) * 0.1;
+
+  if (!enabled || !api.inGame()) {
+    // Restore a clean pixel ratio scale when disabled.
+    const pr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const set = refs.renderer.getPixelRatio();
+    if (Math.abs(set - pr) > 0.05) refs.renderer.setPixelRatio(pr);
+    return;
+  }
+
+  let ratio = refs.renderer.getPixelRatio();
+  if (_fps < _targetFps - 5 && ratio > 0.5) {
+    ratio = Math.max(0.5, ratio - 0.35);
+  } else if (_fps > _targetFps + 10 && ratio < Math.min(window.devicePixelRatio || 1, 1.5)) {
+    ratio = Math.min(1.5, Math.min(window.devicePixelRatio || 1, 1.5), ratio + 0.25);
+  }
+  refs.renderer.setPixelRatio(ratio);
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  const refs = api.refs();
+  if (refs && refs.renderer) {
+    refs.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+  }
+}

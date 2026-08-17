@@ -1,0 +1,12 @@
+[
+  {
+    "id": "bf-xp-bar",
+    "name": "Simple XP Bar",
+    "version": "1.0",
+    "description": "Shows a placeholder XP bar with animated shimmer. A sample community mod.",
+    "author": "Community",
+    "icon": "📊",
+    "file": "xp-bar.bfmod",
+    "uploadedAt": 1723730400000
+  }
+]

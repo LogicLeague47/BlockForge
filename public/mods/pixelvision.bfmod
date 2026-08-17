@@ -1,0 +1,85 @@
+// ─── BlockForge Mod: Pixel Vision ─────────────────────────────────────────
+// Renders the game to a tiny off-screen buffer and upscales it to the screen,
+// giving a retro chunky-pixel look. Drastically reduces GPU fill rate on weak
+// devices — a massive FPS boost. Toggle with L.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-pixel-vision',
+  name: 'Pixel Vision',
+  version: '1.0',
+  description: 'Retro pixelated low-res look + a huge FPS boost on weak GPUs. Toggle with L.',
+  author: 'BlockForge Dev',
+  icon: '👾',
+};
+
+let enabled = true;
+let _onToggle = null;
+let _lastRot = null;
+
+function apply(renderer) {
+  if (!renderer) return;
+  const canvas = renderer.domElement;
+  if (!canvas) return;
+  if (enabled) {
+    canvas.style.imageRendering = 'pixelated';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+  } else {
+    canvas.style.imageRendering = '';
+    canvas.style.width = '';
+    canvas.style.height = '';
+  }
+  // Force a full re-render so the new scale takes effect.
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+}
+
+export function onLoad(api) {
+  _onToggle = (e) => {
+    if (e.key !== 'l' && e.key !== 'L') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    const refs = api.refs();
+    const r = refs && refs.renderer;
+    if (r) {
+      // Bump pixel ratio up so the upscale looks chunky but not blurry.
+      const pr = enabled ? 0.5 : Math.min(window.devicePixelRatio || 1, 1.5);
+      r.setPixelRatio(pr);
+      r.setSize(window.innerWidth, window.innerHeight, false);
+      apply(r);
+    }
+    api.hud.upsert('badge', 'PIXEL VISION <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '180px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+  const refs = api.refs();
+  const r = refs && refs.renderer;
+  if (r) apply(r);
+}
+
+export function onTick(dt, api) {
+  const refs = api.refs();
+  const r = refs && refs.renderer;
+  if (!r) return;
+  if (enabled && api.inGame()) {
+    if (r.getPixelRatio() !== 0.5) {
+      r.setPixelRatio(0.5);
+      r.setSize(window.innerWidth, window.innerHeight, false);
+    }
+  }
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  const refs = api.refs();
+  const r = refs && refs.renderer;
+  if (r) {
+    r.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    r.setSize(window.innerWidth, window.innerHeight, false);
+    apply(r);
+  }
+}

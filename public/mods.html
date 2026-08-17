@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge — Mods &amp; Addons</title>
+  <link rel="icon" type="image/png" href="BlockForge.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    :root{
+      --bg:#07070f;--card:rgba(24,24,48,0.72);--panel:rgba(16,16,30,0.78);--border:rgba(90,90,140,0.28);
+      --accent:#a8f;--accent2:#c084fc;--accent3:#7f7ff5;--gold:#ffdd33;--green:#4c4;--blue:#7af;
+      --text:#e6e6f0;--muted:#9a9ac0;--dim:#6a6a88;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0,rgba(120,80,220,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(120,60,180,.12) 0,transparent 50%);pointer-events:none;z-index:0}
+    header{background:linear-gradient(135deg,#12121f 0%,#221438 50%,#12121f 100%);border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;gap:20px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,.4);position:sticky;top:0;backdrop-filter:blur(8px);flex-wrap:wrap}
+    header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(170,120,255,.45),rgba(200,120,240,.4),transparent)}
+    .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+    .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,#a8f,#c084fc,#7f7ff5,#a8f);display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(170,130,255,.35)}
+    .brand h1{font-size:24px;background:linear-gradient(135deg,#fff 0%,#a8f 40%,#c084fc 70%,#7f7ff5 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:5px;font-weight:700}
+    .brand .sub{font-size:10px;background:linear-gradient(90deg,#a8f,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;font-weight:600}
+    .container{max-width:880px;margin:28px auto;padding:0 24px;flex:1;width:100%;position:relative;z-index:1}
+    .section-title{font-size:14px;background:linear-gradient(90deg,#c084fc,#7f7ff5);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:2.5px;border-bottom:1px solid var(--border);padding-bottom:10px;margin-bottom:20px;font-weight:700}
+    .section-title .count{background:rgba(150,120,255,.15);border:1px solid rgba(150,120,255,.35);color:#c084fc;font:bold 10px monospace;padding:2px 8px;border-radius:8px;margin-left:8px;-webkit-text-fill-color:#c084fc;letter-spacing:0}
+    .intro{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.7}
+    .dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
+    .dl-card{display:flex;flex-direction:column;gap:10px;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden;backdrop-filter:blur(4px)}
+    .dl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#a8f,#c084fc,transparent);transform:scaleX(0);transition:transform .4s}
+    .dl-card:hover::before{transform:scaleX(1)}
+    .dl-card:hover{background:rgba(42,34,80,.9);border-color:rgba(170,130,255,.45);transform:translateY(-2px);box-shadow:0 10px 30px rgba(90,60,180,.18)}
+    .dl-card.community::before{background:linear-gradient(90deg,transparent,#4c4,#7af,transparent)}
+    .dl-card.community:hover{border-color:rgba(120,180,120,.45);background:rgba(30,50,45,.9)}
+    .dl-top{display:flex;align-items:center;gap:12px}
+    .dl-icon{font-size:34px;width:48px;text-align:center;flex-shrink:0}
+    .dl-name{font:bold 16px 'Inter',monospace;color:#e8e8ff;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+    .dl-ver{font:bold 10px monospace;color:#c084fc;background:rgba(170,130,255,.14);border:1px solid rgba(170,130,255,.3);padding:1px 7px;border-radius:5px;align-self:flex-start}
+    .dl-ver.community{color:#7f7;background:rgba(80,200,120,.12);border-color:rgba(80,200,120,.3)}
+    .badge{font:bold 9px monospace;padding:1px 7px;border-radius:5px;letter-spacing:1px}
+    .badge.official{color:#ffd;background:linear-gradient(135deg,#a8f,#7f7ff5);border:1px solid rgba(200,180,255,.4)}
+    .badge.thirdparty{color:#7f7;background:rgba(80,200,120,.14);border:1px solid rgba(80,200,120,.35)}
+    .dl-desc{font:12px/1.6 'Inter',monospace;color:var(--muted);flex:1}
+    .dl-meta{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:4px}
+    .dl-author{font:10px 'Inter',monospace;color:var(--dim)}
+    .dl-btn{padding:10px 18px;background:linear-gradient(135deg,#2a4a8a,#3a3a9a,#5a2a9a);border:1px solid rgba(150,120,255,.4);border-radius:10px;color:#fff;font:600 12px 'Inter',monospace;cursor:pointer;transition:.25s;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+    .dl-btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(120,90,220,.35)}
+    .dl-btn.community{background:linear-gradient(135deg,#1a6a4a,#2a8a5a);border-color:rgba(90,210,140,.4)}
+    .dl-btn.community:hover{box-shadow:0 10px 32px rgba(90,200,140,.3)}
+    .steps{display:flex;flex-direction:column;gap:10px;margin-bottom:26px}
+    .step{display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border:1px solid var(--border);border-radius:12px;background:rgba(30,26,50,.55);font-size:13px;color:var(--muted);line-height:1.6}
+    .step .num{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#a8f,#c084fc);color:#10101a;font-weight:700;display:grid;place-items:center;flex-shrink:0;font-size:13px}
+    .step b{color:#e8e8ff}
+    .legal{font-size:11px;color:var(--dim);line-height:1.7;margin-top:24px}
+    .upload-box{margin-top:8px;padding:26px;border:1px dashed rgba(120,180,140,.4);border-radius:14px;background:rgba(20,40,32,.4);text-align:center}
+    .upload-box.dragover{border-color:#6f6;background:rgba(30,80,50,.45)}
+    .upload-box h3{font-size:14px;color:#7f7;margin-bottom:8px;letter-spacing:1px}
+    .upload-box p{font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+    .upload-box .up-btn{padding:12px 22px;background:linear-gradient(135deg,#1a6a4a,#2a8a5a);border:1px solid rgba(90,210,140,.4);border-radius:10px;color:#fff;font:600 12px 'Inter',monospace;cursor:pointer;transition:.25s}
+    .upload-box .up-btn:hover{transform:translateY(-2px);box-shadow:0 10px 30px rgba(90,200,140,.3)}
+    .upload-status{font-size:12px;color:var(--muted);margin-top:12px;min-height:16px}
+    .upload-status.ok{color:#6f6}
+    .upload-status.err{color:#f88}
+    #community-grid{min-height:60px}
+    .community-empty{grid-column:1/-1;font-size:13px;color:var(--dim);padding:14px;text-align:center}
+    footer{text-align:center;padding:22px;font-size:11px;color:#555;border-top:1px solid var(--border);background:linear-gradient(135deg,rgba(20,20,35,.7),rgba(15,15,25,.7));backdrop-filter:blur(4px);position:relative;z-index:1}
+    footer a{color:#a8f;text-decoration:none}
+    ::-webkit-scrollbar{width:8px}
+    ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}
+    ::-webkit-scrollbar-thumb{background:linear-gradient(180deg,rgba(170,130,255,.3),rgba(200,120,255,.4));border-radius:4px}
+    @media(max-width:520px){.dl-grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="brand-logo">🧩</div>
+      <div>
+        <h1>BLOCKFORGE</h1>
+        <div class="sub">MODS &amp; ADDONS</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="section-title">💠 OFFICIAL MODS — by BlockForge Dev <span class="count" id="official-count"></span></div>
+    <p class="intro">
+      Official mods are made and maintained by the BlockForge team. They are safe, well-tested,
+      and get updates alongside the game. Download a <b>.bfmod</b> below, then install it
+      in-game: main menu → <b>Mods &amp; Addons</b> → <b>Import Mod</b> (or drag &amp; drop it).
+    </p>
+    <div class="dl-grid" id="official-grid"></div>
+
+    <div style="height:34px"></div>
+
+    <div class="section-title">🌐 COMMUNITY MODS — from players like you <span class="count" id="community-count"></span></div>
+    <p class="intro">
+      Community mods are uploaded by the BlockForge community via the form below. They are
+      sandboxed exactly like official mods — a broken mod auto-disables and never harms your
+      worlds — but <b>you install them at your own risk</b>. To make one yourself, see the
+      upload box, or clone any official mod and change the <b>manifest</b>.
+    </p>
+    <div class="upload-box" id="upload-box">
+      <h3>⬆ UPLOAD YOUR MOD</h3>
+      <p>Drop a <b>.bfmod</b> file anywhere in this box, or click to browse. The page validates the manifest and makes it downloadable for everyone.</p>
+      <button class="up-btn" id="up-btn">📦 Choose .bfmod file</button>
+      <input type="file" id="up-input" accept=".bfmod,.js,.txt" style="display:none;" />
+      <div class="upload-status" id="up-status"></div>
+    </div>
+    <div class="dl-grid" id="community-grid"><div class="community-empty">Loading community mods…</div></div>
+
+    <div style="height:34px"></div>
+
+    <div class="section-title">📥 HOW TO INSTALL</div>
+    <div class="steps">
+      <div class="step"><div class="num">1</div><div><b>Download</b> a <b>.bfmod</b> (right-click → Save Link As also works).</div></div>
+      <div class="step"><div class="num">2</div><div>Open <b>BlockForge</b> → main menu → <b>Mods &amp; Addons</b>.</div></div>
+      <div class="step"><div class="num">3</div><div>Tap <b>Import Mod</b> and pick the downloaded file — or <b>drag &amp; drop</b> it onto the menu.</div></div>
+      <div class="step"><div class="num">4</div><div>The mod appears in your list, <b>ON</b>. Toggle or Remove it anytime.</div></div>
+    </div>
+
+    <div class="upload-box" style="margin-top:8px;border-color:rgba(170,130,255,.35);background:rgba(30,24,50,.4)">
+      <h3 style="color:#c084fc">🧑‍💻 WANT TO BUILD YOUR OWN MOD?</h3>
+      <p style="font-size:12px;color:var(--muted);line-height:1.7">
+        Mods are plain JavaScript ES-modules exporting a <b>manifest</b> and optional
+        <b>onLoad()</b>, <b>onTick(dt, api)</b> and <b>onUnload()</b> hooks. Start from any
+        official mod file, read the game API in <b>src/mods.js</b>, then upload your creation below.
+        Community mods appear instantly on this page for everyone to download.
+      </p>
+    </div>
+
+    <div class="legal">
+      <strong>Notes:</strong> on phones/tablets, downloads land in your Downloads folder — pick that file when the importer opens.
+      Mods are stored locally on your device and never uploaded to us — only mods you explicitly <b>upload</b> via the community box are shared.
+      Uploaded mods are sandboxed client-side. BlockForge is not affiliated with Mojang AB or Microsoft.
+    </div>
+  </div>
+
+  <footer>BlockForge Mods &amp; Addons · <a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">GitHub</a> · Official + Community mods</footer>
+
+  <script>
+    // ── Official mods catalog (maintained by BlockForge Dev) ──────────────
+    const OFFICIAL_MODS = [
+      { icon:'🗺️', name:'Minimap', ver:'1.0', desc:'Top-down terrain minimap, north-up, with a live facing arrow. Toggle with M.', file:'minimap.bfmod' },
+      { icon:'✨', name:'Real-Time Shaders', ver:'1.1', desc:'Custom GLSL terrain shaders: soft PCF shadows, animated water, wind sway, gradient fog.', file:'r3d-shaders.bfmod' },
+      { icon:'🍗', name:'Saturation Viewer', ver:'1.0', desc:'Shows exact hunger plus the hidden saturation reserve draining before hunger.', file:'saturation.bfmod' },
+      { icon:'🌙', name:'Night Vision', ver:'1.0', desc:'Green-tinted low-light vision, auto-activates at night. Toggle with N.', file:'nightvision.bfmod' },
+      { icon:'🧱', name:'Block Outline', ver:'1.0', desc:'Glowing wireframe around the block you are looking at. Toggle with O.', file:'blockoutline.bfmod' },
+      { icon:'🌅', name:'Sky Tint', ver:'1.0', desc:'Time-of-day color grading: warm dawns, purple dusks, deep nights. Toggle with Y.', file:'skytint.bfmod' },
+      { icon:'💨', name:'Motion FOV', ver:'1.0', desc:'Dynamic field of view that widens with speed for a cinematic feel. Toggle with G.', file:'motionfov.bfmod' },
+      { icon:'🔭', name:'Spyglass', ver:'1.0', desc:'Hold Z to zoom in like a spyglass. Toggle the feature with K.', file:'spyglass.bfmod' },
+      { icon:'❤️', name:'Damage FX', ver:'1.0', desc:'Red screen flash on damage + low-health heartbeat pulse. Toggle with U.', file:'damagefx.bfmod' },
+      { icon:'🧭', name:'Compass Bar', ver:'1.0', desc:'Top-of-screen compass showing your heading. Toggle with X.', file:'compass.bfmod' },
+      { icon:'🎯', name:'Dynamic Crosshair', ver:'1.0', desc:'Animated crosshair with hit flash. Toggle with J.', file:'crosshair.bfmod' },
+      { icon:'📍', name:'Position HUD', ver:'1.0', desc:'Live XYZ coords, heading and light level. Toggle with C.', file:'coords.bfmod' },
+      { icon:'🚀', name:'FPS Booster', ver:'1.0', desc:'Auto-tunes render resolution to hold your FPS target. Toggle with P.', file:'fpsbooster.bfmod', perf:true },
+      { icon:'⚡', name:'Fast Shadows', ver:'1.0', desc:'Lower shadow resolution for a big frame-rate win. Toggle with H.', file:'fastshadows.bfmod', perf:true },
+      { icon:'👾', name:'Pixel Vision', ver:'1.0', desc:'Retro pixelated low-res look + a huge FPS boost. Toggle with L.', file:'pixelvision.bfmod', perf:true },
+    ];
+
+    function esc(s) {
+      return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    function cardHTML(m, cls) {
+      const badge = cls === 'official'
+        ? '<span class="badge official">OFFICIAL</span>'
+        : '<span class="badge thirdparty">3RD-PARTY</span>';
+      const perfTag = m.perf ? '<span style="font:bold 9px monospace;color:#7f7;background:rgba(80,200,120,.12);border:1px solid rgba(80,200,120,.3);padding:1px 7px;border-radius:5px;">PERF</span>' : '';
+      return '<div class="dl-card ' + (cls === 'official' ? '' : 'community') + '">' +
+        '<div class="dl-top">' +
+          '<div class="dl-icon">' + (m.icon || '📦') + '</div>' +
+          '<div style="flex:1">' +
+            '<div class="dl-name">' + esc(m.name) + ' <span class="dl-ver ' + (cls === 'official' ? '' : 'community') + '">v' + esc(m.ver || m.version || '1.0') + '</span> ' + perfTag + '</div>' +
+            '<div style="margin-top:3px;">' + badge + '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="dl-desc">' + esc(m.desc || m.description || '') + '</div>' +
+        '<div class="dl-meta">' +
+          '<div class="dl-author">by ' + esc(m.author || 'BlockForge Dev') + '</div>' +
+          '<a class="dl-btn ' + (cls === 'official' ? '' : 'community') + '" href="' + (m.dl || 'mods/' + m.file) + '" download="' + esc(m.file) + '">⬇ Download</a>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function setCount(id, n, label) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = n + ' ' + label;
+    }
+
+    function renderOfficial() {
+      const grid = document.getElementById('official-grid');
+      if (!grid) return;
+      grid.innerHTML = OFFICIAL_MODS.map((m) => cardHTML(m, 'official')).join('');
+      setCount('official-count', OFFICIAL_MODS.length, 'available');
+    }
+
+    // ── Community mods ─────────────────────────────────────────────────────
+    // Prefer the backend API; fall back to the static host's community index.
+    async function fetchCommunityMods() {
+      const urls = [
+        '/api/mods/community',
+        'mods/community/index.json',
+        'https://blockforge-server.onrender.com/api/mods/community',
+      ];
+      for (const u of urls) {
+        try {
+          const r = await fetch(u, { cache: 'no-cache' });
+          if (!r.ok) continue;
+          const data = await r.json();
+          if (Array.isArray(data)) return data;
+        } catch (_) { /* try next */ }
+      }
+      return null;
+    }
+
+    function downloadURL(mod) {
+      // Prefer the dynamic backend download; fall back to a static file.
+      const base = window.location.origin;
+      if (mod.file && mod.url) return mod.url;
+      if (mod.file) return 'mods/community/' + mod.file;
+      return null;
+    }
+
+    async function renderCommunity() {
+      const grid = document.getElementById('community-grid');
+      if (!grid) return;
+      const list = await fetchCommunityMods();
+      if (!list || !list.length) {
+        grid.innerHTML = '<div class="community-empty">No community mods yet. Be the first — upload one above! 🚀</div>';
+        setCount('community-count', 0, 'uploaded');
+        return;
+      }
+      grid.innerHTML = list.map((m) => cardHTML({
+        name: m.name, icon: m.icon, ver: m.version, desc: m.description, author: m.author, file: m.file, dl: downloadURL(m),
+      }, 'community')).join('');
+      setCount('community-count', list.length, 'uploaded');
+    }
+
+    // ── Upload ─────────────────────────────────────────────────────────────
+    const box = document.getElementById('upload-box');
+    const input = document.getElementById('up-input');
+    const status = document.getElementById('up-status');
+    document.getElementById('up-btn').addEventListener('click', () => input.click());
+    input.addEventListener('change', () => { if (input.files && input.files[0]) uploadFile(input.files[0]); });
+    box.addEventListener('dragover', (e) => { e.preventDefault(); box.classList.add('dragover'); });
+    box.addEventListener('dragleave', () => box.classList.remove('dragover'));
+    box.addEventListener('drop', (e) => {
+      e.preventDefault();
+      box.classList.remove('dragover');
+      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) uploadFile(f);
+    });
+
+    function setStatus(msg, ok) {
+      status.textContent = msg || '';
+      status.className = 'upload-status' + (ok == null ? '' : (ok ? ' ok' : ' err'));
+    }
+
+    async function uploadFile(file) {
+      setStatus('Reading ' + file.name + '…');
+      const text = await file.text();
+      setStatus('Uploading ' + file.name + '…');
+      try {
+        // Prefer backend; fall back to static host endpoint if it exists.
+        const endpoints = ['/api/mods/upload', 'https://blockforge-server.onrender.com/api/mods/upload'];
+        let done = null;
+        for (const ep of endpoints) {
+          try {
+            const r = await fetch(ep, {
+              method: 'POST',
+              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+              body: text,
+            });
+            const data = await r.json();
+            if (data && data.ok) { done = data; break; }
+            if (data && data.ok === false) { setStatus('⚠ ' + (data.reason || 'Upload rejected'), false); return; }
+          } catch (_) { /* try next */ }
+        }
+        if (!done) { setStatus('⚠ Could not reach the upload server. Are you online?', false); return; }
+        setStatus('✅ "' + done.mod.name + '" uploaded! Reloading community list…', true);
+        input.value = '';
+        renderCommunity();
+      } catch (e) {
+        setStatus('⚠ ' + (e && e.message ? e.message : 'Upload failed'), false);
+      }
+    }
+
+    renderOfficial();
+    renderCommunity();
+  </script>
+</body>
+</html>

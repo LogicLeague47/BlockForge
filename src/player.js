@@ -1,0 +1,773 @@
+// First-person player controller.
+//
+// - Pointer-lock mouse look (yaw on the camera, pitch clamped).
+// - WASD movement in the look direction (horizontal only).
+// - Sprint (Shift), crouch (Ctrl/C), jump (Space), fly toggle (F or double-tap Space in creative).
+// - Gravity + AABB-vs-voxel collision resolved per-axis.
+// - Swimming when the eye is in water (slower, gentler gravity, rise with Space).
+//
+// Collision uses the player's AABB swept against solid voxels. We resolve X,
+// then Z, then Y independently which is the standard cheap-and-stable approach
+// for voxel worlds and avoids most corner-sticking bugs.
+
+import * as THREE from 'three';
+import { BLOCK, BLOCKS } from './blocks.js';
+import { WORLD_HEIGHT, SEA_LEVEL } from './world.js';
+import { Inventory } from './inventory.js';
+import { Noise } from './noise.js';
+import { calcHeight, getClimate, spawnFitness } from './worldgen.js';
+import { totalArmorDefense } from './items.js';
+import { getKeybinds } from './keybinds.js';
+import { raycastVoxel } from './raycast.js';
+
+const EYE_HEIGHT = 1.62;
+const PLAYER_HALF_WIDTH = 0.3;
+const PLAYER_HEIGHT = 1.8;
+
+const GRAVITY = 28;        // blocks/s^2
+const WALK_SPEED = 4.317;  // ~minecraft
+const SPRINT_SPEED = 5.6;
+const CROUCH_SPEED = 1.297;
+const FLY_SPEED = 11;
+const JUMP_VELOCITY = 8.4;
+const SWIM_GRAVITY = 4;
+const SWIM_SPEED = 2.858;
+const EAT_SPEED = 1.3;
+const MAX_BOUNCE_VEL = Math.sqrt(2 * GRAVITY * 57.625);
+
+// Pre-allocated reusable vectors (avoids per-frame GC pressure)
+const _forward = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _move = new THREE.Vector3();
+const _minBox = new THREE.Vector3();
+const _maxBox = new THREE.Vector3();
+const _tmpVec = new THREE.Vector3();
+
+// Survival constants (in half-points unless noted). 20 = full bar.
+const MAX_HEALTH = 20;
+const MAX_HUNGER = 20;
+const MAX_AIR = 300;       // ticks of breath underwater (~15s at 20tps)
+
+export class Player {
+  constructor(camera, world, seed) {
+    this.camera = camera;
+    this.world = world;
+    this.seed = seed;
+    this.position = new THREE.Vector3(0, 60, 0);
+    this.velocity = new THREE.Vector3();
+    this.yaw = 0;
+    this.pitch = 0;
+    this.onGround = false;
+    this.flying = false;
+    this.knockback = { x: 0, y: 0, z: 0 }; // decaying impulse separate from input velocity
+    this.crouching = false;
+    this._crouchSmooth = 0;
+    this.sprinting = false;
+    this._bobPhase = 0;
+    this.inWater = false;
+    this.headInWater = false;
+    this._lastSpaceTime = 0;
+
+    // --- survival state ---
+    this.gamemode = 'creative';            // 'creative' | 'survival'
+    this.health = MAX_HEALTH;
+    this.maxHealth = MAX_HEALTH;
+    this.hunger = MAX_HUNGER;
+    this.maxHunger = MAX_HUNGER;
+    this.saturation = 2;   // food saturation; drains before hunger
+    this.exhaustion = 0;   // 0..4; crossing 4 drains 0.5 saturation
+    this.air = MAX_AIR;
+    this.damageTimer = 0;  // i-frames after taking damage (seconds)
+    this.spawnPoint = new THREE.Vector3(0.5, 70, 0.5);
+    this.voidRespawnPos = null; // set by main.js for dimension world respawn
+    this.inventory = new Inventory();
+    this.lastYVelocity = 0;   // for fall damage
+    this.fallStartY = -1;     // Y position when player started falling (Minecraft Bedrock style)
+    this.cameraMode = 0;      // 0 = first person, 1 = 3rd person back, 2 = 3rd person front
+    this.cameraOffset = new THREE.Vector3();
+
+    // --- ladder state ---
+    this.onLadder = false;
+
+    // --- eating state ---
+    this.eating = false;
+    this.eatTimer = 0;
+    this.eatBiteTimer = 0;
+
+    // --- XP / leveling ---
+    this.xp = 0;
+    this.level = 0;
+    this.xpToNextLevel = 10;
+
+    // --- difficulty (normal | hard) ---
+    this.difficulty = 'normal';
+  }
+
+  // XP thresholds follow a simplified formula: each level needs more XP
+  // Level 1 = 10, Level 2 = 20, Level 3 = 35, etc. (roughly level * 10 + level * level)
+  static xpForLevel(level) {
+    if (level <= 0) return 0;
+    return level * 10 + Math.floor(level * level * 1.5);
+  }
+
+  addXp(amount) {
+    this.xp += amount;
+    let leveled = false;
+    while (this.xp >= this.xpToNextLevel) {
+      this.xp -= this.xpToNextLevel;
+      this.level++;
+      this.xpToNextLevel = Player.xpForLevel(this.level);
+      leveled = true;
+    }
+    return leveled;
+  }
+
+  getXpProgress() {
+    return this.xpToNextLevel > 0 ? this.xp / this.xpToNextLevel : 0;
+  }
+
+  setGamemode(mode) {
+    const prev = this.gamemode;
+    this.gamemode = mode;
+    if (mode === 'creative') {
+      this.health = this.maxHealth;
+      this.hunger = this.maxHunger;
+      this.saturation = 5;
+      this.air = MAX_AIR;
+      this.flying = false;
+    } else if (mode === 'spectator') {
+      this.flying = true;
+    } else if (mode === 'adventure') {
+      // adventure: can't break blocks by hand, same as survival otherwise
+    }
+  }
+
+  isCreative() { return this.gamemode === 'creative'; }
+  isSurvival() { return this.gamemode === 'survival'; }
+  isAdventure() { return this.gamemode === 'adventure'; }
+  isSpectator() { return this.gamemode === 'spectator'; }
+  isDead() { return this.health <= 0; }
+
+  // MC-style world spawn: spiral outward sampling the climate noise router and
+  // pick the position whose climate best matches the overworld spawn_target.
+  // Candidates must also sit on open, flat, inland ground — no coastlines,
+  // no clifftops, no narrow ledges.
+  spawn() {
+    const noise = new Noise(this.seed);
+
+    // Survey the terrain around a candidate: how close the nearest water is and
+    // how rough the ground is. Used to reject beaches and cliff edges.
+    const survey = (cx, cz, h) => {
+      let minWaterDist = Infinity;
+      let maxDrop = 0;
+      // Sample rings at 8/16/24/32 blocks out, 12 directions each
+      for (const rad of [8, 16, 24, 32]) {
+        for (let a = 0; a < 12; a++) {
+          const ang = (a / 12) * Math.PI * 2;
+          const sx = cx + Math.round(Math.cos(ang) * rad);
+          const sz = cz + Math.round(Math.sin(ang) * rad);
+          const sh = calcHeight(noise, sx, sz);
+          if (sh <= SEA_LEVEL && rad < minWaterDist) minWaterDist = rad;
+          const drop = Math.abs(sh - h);
+          if (rad <= 16 && drop > maxDrop) maxDrop = drop;
+        }
+      }
+      return { minWaterDist, maxDrop };
+    };
+
+    let bestX = null, bestZ = null, bestCost = Infinity;
+    let fallbackX = 0.5, fallbackZ = 0.5, fallbackCost = Infinity;
+
+    for (let r = 24; r <= 600; r += 8) {
+      for (let a = 0; a < 24; a++) {
+        const angle = (a / 24) * Math.PI * 2;
+        const tx = Math.floor(Math.cos(angle) * r);
+        const tz = Math.floor(Math.sin(angle) * r);
+        const h = calcHeight(noise, tx, tz);
+
+        // Hard requirement: dry land clearly above sea level.
+        if (h <= SEA_LEVEL + 4) continue;
+
+        const climate = getClimate(noise, tx, tz);
+        const fit = spawnFitness(climate);
+        const { minWaterDist, maxDrop } = survey(tx, tz, h);
+
+        // Track a loose fallback in case nothing passes the strict test.
+        const loose = fit + maxDrop * 0.02;
+        if (loose < fallbackCost) {
+          fallbackCost = loose; fallbackX = tx + 0.5; fallbackZ = tz + 0.5;
+        }
+
+        // Strict: no water within 32 blocks, ground rises/falls < 6 blocks
+        // across the surrounding 16-block radius (rules out cliff edges).
+        if (minWaterDist !== Infinity) continue;
+        if (maxDrop > 6) continue;
+
+        const cost = fit + maxDrop * 0.03 + (r / 600) * 0.02;
+        if (cost < bestCost) {
+          bestCost = cost; bestX = tx + 0.5; bestZ = tz + 0.5;
+          if (cost < 0.01) { r = 99999; break; }
+        }
+      }
+    }
+
+    if (bestX === null) { bestX = fallbackX; bestZ = fallbackZ; }
+    const bestH = calcHeight(noise, Math.floor(bestX), Math.floor(bestZ));
+    this.position.set(bestX, Math.max(bestH + 1.05, SEA_LEVEL + 4), bestZ);
+    this.velocity.set(0, 0, 0);
+  }
+
+  // Spawn for the Shattered Echo dimension: islands hang in the void with no
+  // continuous floor, so survey by scanning world blocks for the nearest
+  // island top instead of the overworld heightmap/climate logic.
+  spawnDimension() {
+    // Spawn on the flat overworld near origin
+    let groundY = 60;
+    for (let y = 80; y >= 0; y--) {
+      const b = this.world.getBlock(0, y, 0);
+      if (BLOCKS[b] && BLOCKS[b].solid) { groundY = y + 1; break; }
+    }
+    this.position.set(0.5, groundY + 0.05, 0.5);
+    this.spawnPoint.copy(this.position);
+    this.velocity.set(0, 0, 0);
+  }
+
+  // Full respawn: restore vitals, move to spawn point, clear velocity.
+  respawn() {
+    this.position.copy(this.spawnPoint);
+    // Find actual ground below spawn point (prevent falling through air)
+    const sx = Math.floor(this.spawnPoint.x);
+    const sz = Math.floor(this.spawnPoint.z);
+    let groundY = Math.floor(this.spawnPoint.y);
+    for (let y = Math.min(groundY + 10, WORLD_HEIGHT - 1); y >= 0; y--) {
+      const b = this.world.getBlock(sx, y, sz);
+      if (BLOCKS[b]?.solid) { groundY = y + 1; break; }
+    }
+    this.position.y = groundY + 0.001;
+    this.velocity.set(0, 0, 0);
+    this.health = this.maxHealth;
+    this.hunger = this.maxHunger;
+    this.saturation = 5;
+    this.air = MAX_AIR;
+    this.damageTimer = 0;
+  }
+
+  // --- damage / death ------------------------------------------------------
+  takeDamage(amount, source = 'generic') {
+    if (this.isCreative() || this.isDead()) return;
+    if (this.damageTimer > 0) return; // i-frames
+
+    // Knockback: push away from the damage source if it has a position.
+    if (source && typeof source === 'object' && source.x !== undefined) {
+      const dx = this.position.x - source.x;
+      const dz = this.position.z - source.z;
+      const len = Math.hypot(dx, dz) || 1;
+      const power = source.knockback ?? 6;
+      this.knockback.x += (dx / len) * power;
+      this.knockback.z += (dz / len) * power;
+      this.knockback.y += 3.2;
+    }
+
+    // Armor damage reduction using totalArmorDefense (handles full-set bonuses)
+    const armorDef = this.inventory ? totalArmorDefense(this.inventory.armor) : 0;
+    if (armorDef >= 999) return false; // Full Prismite set = invincible, no damage dealt
+    const reduction = Math.min(0.8, armorDef * 0.04);
+    const finalDamage = Math.max(1, Math.ceil(amount * (1 - reduction)));
+
+    this.health = Math.max(0, this.health - finalDamage);
+    this.damageTimer = 0.5;
+    this.addExhaustion(0.1);
+    if (this.onHurt) this.onHurt(finalDamage);
+    if (this.health <= 0) this.die(source);
+    return true;
+  }
+
+  die(source = 'generic') {
+    this.health = 0;
+    if (this.onDeath) this.onDeath(source);
+    // (caller in main.js handles the death overlay + respawn prompt)
+  }
+
+  // --- hunger / exhaustion -------------------------------------------------
+  // Add exhaustion (from mining, sprinting, jumping, taking damage).
+  // Minecraft Java: 4 exhaustion == 1 food point; saturation is consumed first.
+  addExhaustion(amount) {
+    if (!this.isSurvival()) return;
+    this.exhaustion += amount;
+    while (this.exhaustion >= 4) {
+      this.exhaustion -= 4;
+      if (this.saturation > 0) this.saturation = Math.max(0, this.saturation - 1);
+      else if (this.hunger > 0) this.hunger = Math.max(0, this.hunger - 1);
+    }
+  }
+
+  // Eat food: restore hunger + saturation. Returns true if consumed.
+  eat(foodValue) {
+    if (!this.isSurvival()) return false;
+    if (this.hunger >= this.maxHunger) return false;
+    this.hunger = Math.min(this.maxHunger, this.hunger + foodValue);
+    this.saturation = Math.min(this.hunger, this.saturation + foodValue * 0.4);
+    // Start eating animation — stops sprint, slows movement
+    this.eating = true;
+    this.eatTimer = 1.0;   // 1 second eating animation
+    this.eatBiteTimer = 0;
+    this.sprinting = false;
+    return true;
+  }
+
+  // --- per-frame survival tick --------------------------------------------
+  tickSurvival(dt) {
+    if (this.damageTimer > 0) this.damageTimer -= dt;
+    if (!this.isSurvival()) return;
+
+    // regen (Minecraft Java): fast +1 HP/2s while saturation > 0, slow +1 HP/4s
+    // while saturation == 0 and hunger >= 18. Both cost 3.0 exhaustion per HP.
+    if (this.hunger >= 18 && this.health < this.maxHealth) {
+      const interval = this.saturation > 0 ? 2 : 4;
+      if ((this.regenAcc = (this.regenAcc || 0) + dt) >= interval) {
+        this.regenAcc -= interval;
+        this.health = Math.min(this.maxHealth, this.health + 1);
+        this.addExhaustion(3);
+      }
+    } else {
+      this.regenAcc = 0;
+    }
+
+    // starvation: 1 HP / 4s when hunger = 0
+    // Normal: stops at half a heart (1 HP). Hard: can kill you entirely.
+    const starveMin = this.difficulty === 'hard' ? 0 : 1;
+    if (this.hunger <= 0 && this.health > starveMin) {
+      if ((this.starveAcc = (this.starveAcc || 0) + dt) >= 4) {
+        this.starveAcc -= 4;
+        this.takeDamage(1, 'starve');
+      }
+    } else {
+      this.starveAcc = 0;
+    }
+
+    // drowning
+    if (this.headInWater) {
+      this.air -= dt * 20;
+      if (this.air <= 0) {
+        this.air = 0;
+        if ((this.drownAcc = (this.drownAcc || 0) + dt) >= 1) {
+          this.drownAcc -= 1;
+          this.takeDamage(2, 'drown');
+        }
+      }
+    } else {
+      this.air = Math.min(MAX_AIR, this.air + dt * 20 * 4); // recover fast
+      this.drownAcc = 0;
+    }
+  }
+
+  setLookFromCamera() {
+    if (this.cameraMode !== 0) return;
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
+  applyMouse(dx, dy) {
+    const sens = 0.0022 * (window.__mouseSens || 1.0);
+    this.yaw -= dx * sens;
+    this.pitch -= dy * sens;
+    const max = Math.PI / 2 - 0.01;
+    this.pitch = Math.max(-max, Math.min(max, this.pitch));
+  }
+
+  // Returns the block id at the player's eye, for water/fog detection.
+  eyeBlock() {
+    const ex = Math.floor(this.position.x);
+    const ey = Math.floor(this.position.y + EYE_HEIGHT);
+    const ez = Math.floor(this.position.z);
+    return this.world.getBlock(ex, ey, ez);
+  }
+
+  update(dt, input) {
+    // Eating timer countdown
+    if (this.eating) {
+      this.eatTimer -= dt;
+      this.eatBiteTimer -= dt;
+      if (this.eatTimer <= 0) {
+        this.eating = false;
+        this.eatTimer = 0;
+        this.eatBiteTimer = 0;
+      }
+    }
+
+    // Are we in water (check feet & middle)?
+    const fb = this.world.getBlock(
+      Math.floor(this.position.x),
+      Math.floor(this.position.y + 0.5),
+      Math.floor(this.position.z)
+    );
+    this.inWater = fb === BLOCK.WATER;
+    const wasInWater = this._wasInWater !== undefined ? this._wasInWater : false;
+    if (this.inWater && !wasInWater && this.onSplash) this.onSplash();
+    this._wasInWater = this.inWater;
+    // Head-in-water check (eye level) for drowning.
+    this.headInWater = this.eyeBlock() === BLOCK.WATER;
+
+    const kb = getKeybinds();
+    const wantCrouch = (!!input.keys[kb.crouch] || !!input.keys['KeyC']) && !this.flying;
+    // Crouching negates fall damage
+    if (wantCrouch && this.onGround) this.fallStartY = -1;
+    // Uncrouch head check: can't stand up if there's a solid block at head level
+    if (!wantCrouch && this._crouchSmooth > 0.01) {
+      const hx = Math.floor(this.position.x);
+      const hy = Math.floor(this.position.y + 1.6);
+      const hz = Math.floor(this.position.z);
+      if (this._solid(hx, hy, hz) || this._solid(hx, hy + 1, hz)) {
+        this.crouching = true;
+        this._crouchSmooth = Math.max(this._crouchSmooth, 0.5);
+      } else {
+        this.crouching = false;
+      }
+    } else {
+      this.crouching = wantCrouch;
+    }
+    // Smooth crouch transition
+    const targetCrouch = this.crouching ? 1 : 0;
+    this._crouchSmooth += (targetCrouch - this._crouchSmooth) * Math.min(1, dt * 12);
+    // Sprinting: disabled when starving (hunger = 0), crouching, or eating
+    if (this.isSurvival() && this.hunger <= 0) this.sprinting = false;
+    else this.sprinting = !!input.keys[kb.sprint] && !this.crouching && !this.eating;
+
+    // Double-tap space to toggle fly in creative
+    // Only detect on initial press, not while held (prevents flicker)
+    if (this.isCreative() && input.keys[kb.jump] && !this.inWater && !this._spaceHeld) {
+      const now = performance.now();
+      if (now - this._lastSpaceTime < 300) {
+        this.toggleFly();
+    this._lastSpaceTime = 0;
+    this.onJump = null;    // optional callback fired when a grounded jump starts
+      } else {
+        this._lastSpaceTime = now;
+      }
+    }
+    this._spaceHeld = !!input.keys[kb.jump];
+
+    // --- desired horizontal velocity from input ---
+    const speed = this.flying ? FLY_SPEED
+      : this.inWater ? SWIM_SPEED
+      : this.eating ? EAT_SPEED
+      : this.crouching ? CROUCH_SPEED
+      : this.sprinting ? SPRINT_SPEED : WALK_SPEED;
+
+    const forward = _forward.set(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
+    const right = _right.set(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+
+    const move = _move.set(0, 0, 0);
+    if (input.analogActive) {
+      // Mobile joystick: analog magnitude + direction relative to yaw.
+      const ax = input.analogX || 0;
+      const az = input.analogZ || 0;
+      const m = Math.min(1, Math.hypot(ax, az));
+      if (m > 0) {
+        move.set(right.x * ax + forward.x * az, 0, right.z * ax + forward.z * az);
+        move.x *= speed;
+        move.z *= speed;
+      }
+    } else {
+      if (input.keys[kb.forward]) move.add(forward);
+      if (input.keys[kb.back]) move.sub(forward);
+      if (input.keys[kb.right]) move.add(right);
+      if (input.keys[kb.left]) move.sub(right);
+      if (move.lengthSq() > 0) move.normalize().multiplyScalar(speed);
+    }
+
+    this.velocity.x = move.x;
+    this.velocity.z = move.z;
+
+    // sprinting exhaustion: 0.01 per meter (Java)
+    if (this.sprinting && move.lengthSq() > 0.01) {
+      this.addExhaustion(0.01 * move.length() * dt);
+    }
+
+    // --- ladder detection ---
+    const feetBlockX = Math.floor(this.position.x);
+    const feetBlockY = Math.floor(this.position.y);
+    const feetBlockZ = Math.floor(this.position.z);
+    const blockAtFeet = this.world.getBlock(feetBlockX, feetBlockY, feetBlockZ);
+    const blockAtHead = this.world.getBlock(feetBlockX, feetBlockY + 1, feetBlockZ);
+    this.onLadder = (blockAtFeet === BLOCK.LADDER || blockAtHead === BLOCK.LADDER);
+
+    if (this.flying) {
+      // vertical fly: jump up, crouch (C/Ctrl) down
+      this.velocity.y = 0;
+      if (input.keys[kb.jump]) this.velocity.y = FLY_SPEED;
+      if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = -FLY_SPEED;
+    } else if (this.onLadder) {
+      // Ladder physics: no gravity, climb with jump, slow descent with crouch
+      this.velocity.y = 0;
+      if (input.keys[kb.jump]) {
+        this.velocity.y = CROUCH_SPEED * 2;
+      } else if (input.keys[kb.crouch] || input.keys['KeyC']) {
+        this.velocity.y = -CROUCH_SPEED;
+      }
+    } else if (this.inWater) {
+      this.velocity.y -= SWIM_GRAVITY * dt;
+      this.velocity.y = Math.max(this.velocity.y, -3);
+      if (input.keys[kb.jump]) this.velocity.y = SWIM_SPEED;
+      this.fallStartY = -1;
+    } else {
+      this.velocity.y -= GRAVITY * dt; // gravity always applied (guard removed)
+      if (input.keys[kb.jump] && this.onGround) {
+        this.velocity.y = JUMP_VELOCITY;
+        this.onGround = false;
+        this.fallStartY = this.position.y;
+        this.addExhaustion(0.05);
+        if (this.onJump) this.onJump();
+      }
+    }
+
+    // --- integrate with per-axis collision ---
+    let dx = this.velocity.x * dt;
+    let dy = this.velocity.y * dt;
+    let dz = this.velocity.z * dt;
+
+    // Knockback impulse (decays quickly, separate from input velocity).
+    if (Math.abs(this.knockback.x) > 0.001 || Math.abs(this.knockback.y) > 0.001 || Math.abs(this.knockback.z) > 0.001) {
+      dx += this.knockback.x * dt;
+      dy += this.knockback.y * dt;
+      dz += this.knockback.z * dt;
+      const decay = Math.exp(-7 * dt);
+      this.knockback.x *= decay;
+      this.knockback.z *= decay;
+      this.knockback.y -= GRAVITY * dt * 0.6; // settle the upward pop
+      if (this.knockback.y < 0) this.knockback.y *= decay;
+    }
+
+    this.moveAxis('x', dx);
+    this.moveAxis('y', dy);
+    this.moveAxis('z', dz);
+
+    // respawn if we fall out of the world
+    if (this.position.y < -10) {
+      if (this.isSurvival()) {
+        this.takeDamage(100, 'void');
+        if (this.isDead()) return; // let death screen show
+      }
+      // In dimension worlds, use the saved spawn position instead of
+      // overworld terrain noise (which doesn't apply to floating islands)
+      if (this.world && this.world.dimension && this.voidRespawnPos) {
+        this.position.copy(this.voidRespawnPos);
+        this.velocity.set(0, 0, 0);
+      } else {
+        this.spawn();
+      }
+    }
+
+    // run survival systems (hunger drain, regen, drowning)
+    this.tickSurvival(dt);
+
+    // sync camera
+    const crouchEyeOffset = this._crouchSmooth * -0.15;
+    // head bob
+    const moving = this.onGround && (this.velocity.x !== 0 || this.velocity.z !== 0);
+    if (moving) {
+      this._bobPhase += dt * (this.sprinting ? 3.74 : 2.88);
+    } else {
+      this._bobPhase *= 0.85;
+    }
+    const bobV = moving ? Math.sin(this._bobPhase) * 0.0625 : 0;
+    const bobH = moving ? Math.cos(this._bobPhase) * 0.0625 : 0;
+    if (this.cameraMode === 0) {
+      // First person: camera at eye level
+      this.camera.position.copy(this.position);
+      this.camera.position.x += Math.cos(this.yaw) * bobH;
+      this.camera.position.z += Math.sin(this.yaw) * bobH;
+      this.camera.position.y += EYE_HEIGHT + crouchEyeOffset + bobV;
+    } else {
+      // 3rd person: camera orbits player using yaw + pitch
+      const dist = 4;
+      const height = 2;
+      const d = this.cameraMode === 1 ? 1 : -1; // 1=behind, -1=front
+      const pitchRad = Math.max(-1.2, Math.min(1.2, this.pitch)); // clamp ±69°
+      const horizDist = dist * Math.cos(pitchRad);
+      const vertDist = -dist * Math.sin(pitchRad); // looking up → camera drops, looking down → camera rises
+      const offsetX = Math.sin(this.yaw) * horizDist * d;
+      const offsetZ = Math.cos(this.yaw) * horizDist * d;
+      const desiredX = this.position.x + offsetX;
+      const desiredY = this.position.y + height + vertDist + crouchEyeOffset;
+      const desiredZ = this.position.z + offsetZ;
+      // Raycast from eye to desired camera pos; if blocked, pull camera forward
+      const eyeX = this.position.x;
+      const eyeY = this.position.y + EYE_HEIGHT + crouchEyeOffset;
+      const eyeZ = this.position.z;
+      const dx = desiredX - eyeX;
+      const dy = desiredY - eyeY;
+      const dz = desiredZ - eyeZ;
+      const rayDist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      let safeDist = rayDist;
+      if (rayDist > 0.1) {
+        const dirX = dx / rayDist;
+        const dirY = dy / rayDist;
+        const dirZ = dz / rayDist;
+        const hit = raycastVoxel(this.world, { x: eyeX, y: eyeY, z: eyeZ }, { x: dirX, y: dirY, z: dirZ }, rayDist);
+        if (hit) safeDist = Math.max(0.5, hit.distance - 0.5);
+      }
+      const t = safeDist / rayDist;
+      this.camera.position.set(
+        eyeX + dx * t,
+        eyeY + dy * t,
+        eyeZ + dz * t
+      );
+    }
+    // Crouch vision: while pinned at a block edge (the body cannot walk off),
+    // extend the eye slightly past the edge so you can see and place blocks
+    // over the gap beside/behind you (body stays at the edge, ~5.9999).
+    if (this.crouching && this.onGround) {
+      const vFootY = Math.floor(this.position.y - 0.05);
+      const vbx = Math.floor(this.position.x);
+      const vbz = Math.floor(this.position.z);
+      if (this._solid(vbx, vFootY, vbz)) {
+        const eyeOverhang = 0.15;
+        if ((vbx + 1 - this.position.x) < 0.3 && !this._solid(vbx + 1, vFootY, vbz)) {
+          this.camera.position.x = vbx + 1 + eyeOverhang;
+        } else if ((this.position.x - vbx) < 0.3 && !this._solid(vbx - 1, vFootY, vbz)) {
+          this.camera.position.x = vbx - eyeOverhang;
+        }
+        if ((vbz + 1 - this.position.z) < 0.3 && !this._solid(vbx, vFootY, vbz + 1)) {
+          this.camera.position.z = vbz + 1 + eyeOverhang;
+        } else if ((this.position.z - vbz) < 0.3 && !this._solid(vbx, vFootY, vbz - 1)) {
+          this.camera.position.z = vbz - eyeOverhang;
+        }
+      }
+    }
+    if (this.cameraMode === 0) {
+      this.setLookFromCamera();
+    } else {
+      // 3rd person: look at the player's head
+      this.camera.lookAt(this.position.x, this.position.y + EYE_HEIGHT + crouchEyeOffset, this.position.z);
+    }
+  }
+
+  // Move along one axis by `delta`, resolving collisions against solid voxels.
+  // Returns true if the block at (bx,by,bz) is solid.
+  _solid(bx, by, bz) {
+    const b = this.world.getBlock(bx, by, bz);
+    return !!(BLOCKS[b]?.solid);
+  }
+
+  // Edge protection: when crouching on ground, prevent walking off block edges.
+  // Uses the center foot position so you can reach the absolute block edge
+  // before being stopped (Minecraft-style).
+  _crouchEdgeBlocked(dx, dz) {
+    if (!this.crouching || this.flying || !this.onGround) return false;
+    const nx = this.position.x + dx;
+    const nz = this.position.z + dz;
+    const footY = Math.floor(this.position.y - 0.05);
+    return !this._solid(Math.floor(nx), footY, Math.floor(nz));
+  }
+
+  moveAxis(axis, delta) {
+    if (delta === 0) return;
+
+    // Crouch edge protection: keep the center over the supported block, clamping to
+    // the absolute block edge instead of stopping short (large deltas from low FPS
+    // would otherwise leave the player unable to reach the edge).
+    if (axis === 'x' && this._crouchEdgeBlocked(delta, 0)) {
+      const bx = Math.floor(this.position.x);
+      this.position.x = delta > 0 ? bx + 1 - 0.0001 : bx + 0.0001;
+      return;
+    }
+    if (axis === 'z' && this._crouchEdgeBlocked(0, delta)) {
+      const bz = Math.floor(this.position.z);
+      this.position.z = delta > 0 ? bz + 1 - 0.0001 : bz + 0.0001;
+      return;
+    }
+
+    // Sub-step the movement so a fast move (e.g. a long fall) can't tunnel
+    // through a thin floor or wall in a single frame.
+    const STEP = 0.4;
+    const steps = Math.max(1, Math.ceil(Math.abs(delta) / STEP));
+    const step = delta / steps;
+    for (let s = 0; s < steps; s++) {
+      this.position[axis] += step;
+      if (this._collideAxis(axis, step)) {
+        // _collideAxis already snapped us to the contact face — stop here.
+        // Do NOT move back and re-collide: that leaves us short and re-triggers
+        // a collision next frame, causing visible vibration against the wall.
+        return;
+      }
+    }
+
+    if (axis === 'y' && delta < 0) {
+      if (this.onGround) this.fallStartY = this.position.y;
+      this.onGround = false;
+    }
+  }
+
+  _collideAxis(axis, delta) {
+    // Capture position for landBlock lookup (may change during axis sweeps)
+    const _posX = this.position.x;
+    const _posZ = this.position.z;
+    const min = _minBox.set(
+      this.position.x - PLAYER_HALF_WIDTH,
+      this.position.y,
+      this.position.z - PLAYER_HALF_WIDTH
+    );
+    const max = _maxBox.set(
+      this.position.x + PLAYER_HALF_WIDTH,
+      this.position.y + PLAYER_HEIGHT,
+      this.position.z + PLAYER_HALF_WIDTH
+    );
+
+    const x0 = Math.floor(min.x), x1 = Math.floor(max.x);
+    const y0 = Math.floor(min.y), y1 = Math.floor(max.y);
+    const z0 = Math.floor(min.z), z1 = Math.floor(max.z);
+
+    for (let y = y0; y <= y1; y++) {
+      for (let z = z0; z <= z1; z++) {
+        for (let x = x0; x <= x1; x++) {
+          const b = this.world.getBlock(x, y, z);
+          if (!BLOCKS[b]?.solid) continue;
+          if (axis === 'x') {
+            this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
+          } else if (axis === 'z') {
+            this.position.z = delta > 0 ? z - PLAYER_HALF_WIDTH - 0.0001 : z + 1 + PLAYER_HALF_WIDTH + 0.0001;
+          } else {
+            if (delta < 0) {
+              // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
+              const landBlock = this.world.getBlock(Math.floor(_posX), y, Math.floor(_posZ));
+              if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && !this.inWater) {
+                const fallDistance = this.fallStartY - this.position.y;
+                if (this.onLand && fallDistance > 0.7) this.onLand();
+                if (fallDistance > 3) {
+                  const damage = Math.floor(fallDistance - 3);
+                  if (damage > 0) this.takeDamage(damage, 'fall');
+                }
+              }
+              this.fallStartY = -1;
+              this.position.y = y + 1 + 0.0001;
+              // Slime block bounce
+              if (landBlock === BLOCK.SLIME_BLOCK) {
+                const fallSpeed = Math.abs(this.velocity.y);
+                this.velocity.y = Math.min(fallSpeed, MAX_BOUNCE_VEL);
+                this.onGround = false;
+              } else {
+                this.onGround = true;
+                this.velocity.y = 0;
+              }
+            } else {
+              this.position.y = y - PLAYER_HEIGHT - 0.0001;
+              this.velocity.y = 0;
+            }
+          }
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  toggleFly() {
+    this.flying = !this.flying;
+    this.velocity.set(0, 0, 0);
+  }
+
+  cycleCamera() {
+    this.cameraMode = (this.cameraMode + 1) % 3;
+  }
+}

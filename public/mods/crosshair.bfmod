@@ -1,0 +1,89 @@
+// ─── BlockForge Mod: Dynamic Crosshair ────────────────────────────────────
+// A stylish expanding/contracting crosshair + hit-flash. Looks great and
+// gives clearer feedback while mining/attacking. Toggle with J.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-crosshair',
+  name: 'Dynamic Crosshair',
+  version: '1.0',
+  description: 'Animated crosshair with hit flash. Toggle with J.',
+  author: 'BlockForge Dev',
+  icon: '🎯',
+};
+
+let enabled = true;
+let _el = null;
+let _pulse = 0;
+let _lastX = 0;
+let _lastZ = 0;
+let _barEls = [];
+let _onToggle = null;
+
+function ensureEl(api) {
+  if (_el) return;
+  _el = api.hud.upsert(
+    'ch',
+    '<div style="position:relative;width:24px;height:24px;"></div>',
+    { top: '50%', left: '50%', marginTop: '-12px', marginLeft: '-12px', zIndex: '98' }
+  );
+  const bars = [
+    'top:1px;left:50%;width:2px;height:6px;margin-left:-1px;',
+    'bottom:1px;left:50%;width:2px;height:6px;margin-left:-1px;',
+    'left:1px;top:50%;width:6px;height:2px;margin-top:-1px;',
+    'right:1px;top:50%;width:6px;height:2px;margin-top:-1px;',
+  ];
+  for (const css of bars) {
+    const b = document.createElement('div');
+    b.style.cssText = 'position:absolute;background:rgba(255,255,255,0.85);box-shadow:0 0 2px rgba(0,0,0,0.8);transition:all 80ms linear;' + css;
+    _el.appendChild(b);
+    _barEls.push(b);
+  }
+  _el._bfDot = document.createElement('div');
+  _el._bfDot.style.cssText = 'position:absolute;top:50%;left:50%;width:2px;height:2px;margin:-1px 0 0 -1px;background:#fff;border-radius:50%;transition:opacity 80ms linear;';
+  _el.appendChild(_el._bfDot);
+}
+
+export function onLoad(api) {
+  ensureEl(api);
+  _onToggle = (e) => {
+    if (e.key !== 'j' && e.key !== 'J') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    if (_el) _el.style.display = enabled ? '' : 'none';
+    api.hud.upsert('badge', 'CROSSHAIR <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '132px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+}
+
+export function onTick(dt, api) {
+  if (!_el) return;
+  if (!enabled || !api.inGame()) { _el.style.display = 'none'; return; }
+  _el.style.display = '';
+
+  _pulse = Math.max(0, _pulse - dt * 6);
+  const p = api.getPlayer();
+  const moving = p && (Math.abs(p.x - _lastX) + Math.abs(p.z - _lastZ)) > 0.02;
+  if (p) { _lastX = p.x; _lastZ = p.z; }
+
+  const spread = 1 + _pulse * 4 + (moving ? 1.5 : 0);
+  const gap = Math.round(spread);
+  const half = 2 + gap;
+  // Move the four bars outward from the center.
+  _barEls[0].style.top = (1 + gap) + 'px';
+  _barEls[1].style.bottom = (1 + gap) + 'px';
+  _barEls[2].style.left = (1 + gap) + 'px';
+  _barEls[3].style.right = (1 + gap) + 'px';
+  if (_el._bfDot) _el._bfDot.style.opacity = String(0.3 + (1 - _pulse) * 0.7);
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('ch');
+  _el = null;
+}

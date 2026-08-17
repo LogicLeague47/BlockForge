@@ -1,0 +1,273 @@
+// Voxel world: chunk storage, block access, world management.
+// Generation logic lives in worldgen.js.
+
+import { Noise } from './noise.js';
+import { BLOCK } from './blocks.js';
+import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
+import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight, generateDimensionColumn, generateDimensionFeatures } from './worldgen.js';
+import { generateVillages } from './structures.js';
+export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
+
+export class Chunk {
+  constructor(cx, cz) {
+    this.cx = cx; this.cz = cz;
+    this.data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
+    this.generated = false;
+    this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
+    this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
+  }
+  idx(x, y, z) { return (y * CHUNK_SIZE + z) * CHUNK_SIZE + x; }
+  get(x, y, z) { return (y < 0 || y >= WORLD_HEIGHT) ? BLOCK.AIR : this.data[this.idx(x, y, z)]; }
+  set(x, y, z, v) { if (y >= 0 && y < WORLD_HEIGHT) this.data[this.idx(x, y, z)] = v; }
+}
+
+export class World {
+  constructor(seed, opts = {}) {
+    this.seed = seed || Math.floor(Math.random() * 1e9);
+    this.noise = new Noise(this.seed);
+    this.chunks = new Map();
+    this.edits = new Map();
+    this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
+    this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
+    this.editSeq = 0; // bumped on every block edit; lets systems detect changes cheaply
+    this.flat = !!opts.flat;
+    this.void = !!opts.void;
+    this.parkour = !!opts.parkour;
+    this.amplified = !!opts.amplified;
+    this.weird = !!opts.weird;
+    this.dimension = !!opts.dimension;
+  }
+
+  getChest(x, y, z) {
+    return this.chestInventories.get(x + ',' + y + ',' + z) || null;
+  }
+
+  getOrCreateChest(x, y, z) {
+    const k = x + ',' + y + ',' + z;
+    if (!this.chestInventories.has(k)) {
+      this.chestInventories.set(k, new Array(27).fill(null));
+    }
+    return this.chestInventories.get(k);
+  }
+
+  removeChest(x, y, z) {
+    this.chestInventories.delete(x + ',' + y + ',' + z);
+  }
+
+  serializeChests() {
+    const obj = {};
+    for (const [k, v] of this.chestInventories) {
+      obj[k] = v.map(s => s ? [s.item, s.count] : null);
+    }
+    return obj;
+  }
+
+  loadChests(obj) {
+    if (!obj) return;
+    for (const [k, v] of Object.entries(obj)) {
+      this.chestInventories.set(k, v.map(s => s ? { item: s[0], count: s[1] } : null));
+    }
+  }
+
+  key(cx, cz) { return cx + ',' + cz; }
+
+  // Drop all generated chunk data so the next getChunk() re-runs generateChunk
+  // and picks up _chunkEdits (used after bulk-importing a map that must override
+  // chunks which were already generated as empty/void terrain).
+  resetChunks() {
+    this.chunks.clear();
+  }
+
+  // Drop every stored block edit (both indexes) plus any generated chunks that
+  // baked them in. Used by minigames that rebuild an arena from scratch (e.g.
+  // replacing a procedural layout with an imported one).
+  clearEdits() {
+    this.edits.clear();
+    this._chunkEdits.clear();
+    this.chunks.clear();
+  }
+
+  getChunk(cx, cz, generate = true) {
+    const k = this.key(cx, cz);
+    let c = this.chunks.get(k);
+    if (!c) { c = new Chunk(cx, cz); this.chunks.set(k, c); if (generate) this.generateChunk(c); }
+    return c;
+  }
+
+  getBlock(x, y, z) {
+    if (y < 0) return this.parkour ? BLOCK.AIR : BLOCK.BEDROCK;
+    if (y >= WORLD_HEIGHT) return BLOCK.AIR;
+    const cx = x >> 4; const cz = z >> 4;
+    const c = this.chunks.get(this.key(cx, cz));
+    if (!c) return BLOCK.AIR;
+    return c.get(x - (cx << 4), y, z - (cz << 4));
+  }
+
+  setBlock(x, y, z, v, recordEdit = true) {
+    if (y < 0 || y >= WORLD_HEIGHT) return;
+    const cx = x >> 4, cz = z >> 4;
+    const c = this.getChunk(cx, cz);
+    const lx = x - (cx << 4), lz = z - (cz << 4);
+    c.set(lx, y, lz, v);
+    // Keep surfaceMap in sync so the mesher knows the highest block
+    if (v !== 0 && y > c.surfaceMap[lz * CHUNK_SIZE + lx]) {
+      c.surfaceMap[lz * CHUNK_SIZE + lx] = y;
+    } else if (v === 0 && y >= c.surfaceMap[lz * CHUNK_SIZE + lx]) {
+      let ny = y - 1;
+      while (ny >= 0 && c.get(lx, ny, lz) === 0) ny--;
+      c.surfaceMap[lz * CHUNK_SIZE + lx] = ny;
+    }
+    if (recordEdit) {
+      this.edits.set(`${x},${y},${z}`, v);
+      this.editSeq++;
+      // Index by chunk for O(1) lookup during generation
+      const ck = this.key(cx, cz);
+      let cm = this._chunkEdits.get(ck);
+      if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
+      cm.set(`${x},${y},${z}`, v);
+    }
+  }
+
+  // Bulk load: store blocks in _chunkEdits without creating chunks.
+  // Chunks are created on demand by the chunk loader, and generateChunk()
+  // applies _chunkEdits when it runs.
+  bulkSetBlock(x, y, z, v) {
+    if (y < 0 || y >= WORLD_HEIGHT) return;
+    const cx = x >> 4, cz = z >> 4;
+    const ck = this.key(cx, cz);
+    let cm = this._chunkEdits.get(ck);
+    if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
+    cm.set(`${x},${y},${z}`, v);
+    if (v !== 0) this.editSeq++;
+  }
+
+  generateChunk(chunk) {
+    const baseX = chunk.cx * CHUNK_SIZE;
+    const baseZ = chunk.cz * CHUNK_SIZE;
+    const n = this.noise;
+
+    if (this.parkour || this.void) {
+      // Void world — only set surface/biome defaults, no terrain
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = 0;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = BIOMES.PLAINS;
+        }
+      }
+    } else if (this.flat) {
+      // Superflat: bedrock, 2 dirt, grass on top at y=3. Great for testing.
+      const FLAT_TOP = 3;
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          chunk.set(x, 0, z, BLOCK.BEDROCK);
+          chunk.set(x, 1, z, BLOCK.DIRT);
+          chunk.set(x, 2, z, BLOCK.DIRT);
+          chunk.set(x, FLAT_TOP, z, BLOCK.GRASS);
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = FLAT_TOP;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = BIOMES.PLAINS;
+        }
+      }
+    } else {
+      const terrainMode = this.amplified ? 'amplified' : this.weird ? 'weird' : 'normal';
+      for (let x = 0; x < CHUNK_SIZE; x++) {
+        for (let z = 0; z < CHUNK_SIZE; z++) {
+          const wx = baseX + x, wz = baseZ + z;
+          let result;
+          if (this.dimension) {
+            result = generateDimensionColumn(n, chunk, x, z, wx, wz);
+          } else {
+            result = generateColumn(n, chunk, x, z, wx, wz, terrainMode);
+          }
+          chunk.surfaceMap[z * CHUNK_SIZE + x] = result.topSolid;
+          chunk.biomeMap[z * CHUNK_SIZE + x] = result.biome;
+        }
+      }
+
+      if (this.dimension) {
+        generateDimensionFeatures(chunk, baseX, baseZ, n);
+      } else {
+        generateUnderground(chunk, baseX, baseZ, n);
+        generateFeatures(chunk, baseX, baseZ, n);
+      }
+
+      // Structures (villages) — placed after terrain/features, before player edits.
+      if (!this.dimension) {
+        try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
+      }
+    }
+
+    // Apply player edits for this chunk — O(1) lookup via _chunkEdits index
+    const chunkKey = this.key(chunk.cx, chunk.cz);
+    const chunkEdits = this._chunkEdits.get(chunkKey);
+    if (chunkEdits) {
+      for (const [key, v] of chunkEdits) {
+        const ci = key.indexOf(',');
+        const ci2 = key.indexOf(',', ci + 1);
+        const ex = +key.slice(0, ci);
+        const ey = +key.slice(ci + 1, ci2);
+        const ez = +key.slice(ci2 + 1);
+        const lx = ex - chunk.cx * CHUNK_SIZE;
+        const lz = ez - chunk.cz * CHUNK_SIZE;
+        chunk.set(lx, ey, lz, v);
+        if (ey > chunk.surfaceMap[lz * CHUNK_SIZE + lx]) {
+          chunk.surfaceMap[lz * CHUNK_SIZE + lx] = ey;
+        } else if (v === 0 && ey >= chunk.surfaceMap[lz * CHUNK_SIZE + lx]) {
+          let ny = ey - 1;
+          while (ny >= 0 && chunk.get(lx, ny, lz) === 0) ny--;
+          chunk.surfaceMap[lz * CHUNK_SIZE + lx] = ny;
+        }
+      }
+    }
+
+    // Cache dominant biome for water material (avoids O(n²) scan each mesh rebuild)
+    {
+      let oc = 0, rc = 0;
+      for (let i = 0; i < chunk.biomeMap.length; i++) {
+        const b = chunk.biomeMap[i];
+        if (b === BIOMES.OCEAN || b === BIOMES.DEEP_OCEAN) oc++;
+        else if (b === BIOMES.RIVER) rc++;
+      }
+      if (oc > rc && oc > 8) chunk._dominantBiome = 'ocean';
+      else if (rc > oc && rc > 8) chunk._dominantBiome = 'river';
+      else chunk._dominantBiome = 'default';
+    }
+
+    chunk.generated = true;
+  }
+
+  // Evict generated chunk data (not meshes) outside the given chunk radius.
+  // Edits, chests, and the RNG seed live elsewhere, so evicted chunks
+  // regenerate identically on demand. Prevents unbounded memory growth.
+  evictFar(pcx, pcz, limit) {
+    for (const k of this.chunks.keys()) {
+      const ci = k.indexOf(',');
+      const cx = +k.slice(0, ci), cz = +k.slice(ci + 1);
+      if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
+        this.chunks.delete(k);
+      }
+    }
+  }
+
+  heightAt(wx, wz) {
+    const cx = wx >> 4, cz = wz >> 4;
+    const c = this.chunks.get(this.key(cx, cz));
+    if (c && c.generated) {
+      const lx = wx - (cx << 4), lz = wz - (cz << 4);
+      return c.surfaceMap[lz * CHUNK_SIZE + lx];
+    }
+    return calcHeight(this.noise, wx, wz);
+  }
+
+  biomeAt(wx, wz, y) {
+    const cx = wx >> 4, cz = wz >> 4;
+    const c = this.chunks.get(this.key(cx, cz));
+    if (c && c.generated) {
+      const lx = wx - (cx << 4), lz = wz - (cz << 4);
+      return c.biomeMap[lz * CHUNK_SIZE + lx];
+    }
+    return calcBiome(this.noise, wx, wz, y);
+  }
+
+  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests() }; }
+  loadEdits(obj) { if (!obj || obj.edits == null) return; for (const [k, v] of obj.edits) this.edits.set(k, v); this.loadChests(obj.chests); }
+}

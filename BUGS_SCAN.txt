@@ -1,0 +1,205 @@
+# BlockForge Bug Scan — Updated July 2026
+
+Issues marked with [FIXED] have been resolved since the previous scan and are removed.
+Issues below are STILL PRESENT in the current codebase.
+
+## Recently fixed (August 2026)
+- server.js — Critical: `cgUsername === GAMEDEV_ACCOUNT` (client-supplied) skipped password auth AND granted ROLE_GAMEDEV, which `isDev()` treats as full access. Removed the auth bypass (always require password on public host) and made `resolveRole` never grant a privileged role from client input.
+- inventory.js — tools/armor stacks never got a `durability` field, so tools never degraded/broke. `add()` now initializes durability via `_newItemStack()`.
+- ui.js — crafted tools still lacked durability; crafting output now uses `_freshStack()`.
+- explosions.js — every exploded block was written to the persistent edit log (`recordEdit` defaulted true), ballooning saves. Now passes `recordEdit=false`.
+- crafting.js + ui.js — closing a crafting screen with a full inventory silently destroyed leftover items. `returnAll()` now returns leftovers and ui.js drops them via `ui.onItemOverflow`.
+- voice.js — group code / peer names injected into `innerHTML` unescaped (stored-XSS). Added `_esc()` and applied it to group info + avatar titles.
+
+## File: server.js
+- **Line 19**: `__dirname` referenced before its declaration at line 87; hoisting works but fragile | Severity: low
+- **Line 1024**: Typo in comment: "degrade" should be "degrade" (intentional but misspelled) | Severity: low
+- **Line 1166**: `newX = msg.x || 0` — if `msg.x` is 0, it falls back to 0, which is fine; but if position is legitimately 0, no bug. However `||` treats 0 as falsy — should use `??` | Severity: low
+- **Line 1882**: `saveRooms` interval runs every 30s but `saveRooms` already has debounce logic; two overlapping save mechanisms could cause race conditions | Severity: medium
+- **Line 120**: `redisSaveDebounced` — `_redisTimers` key collision possible if multiple keys overlap | Severity: low
+- **Line 1622**: Log `'[Data] Loaded ${rooms.size} rooms'` in `_applyRoomsData` but rooms already set | Severity: low
+- **Line 1088**: `msg.x | 0` — bitwise OR on floats, truncates to 32-bit signed; block coordinates above 2^31-1 would break | Severity: low
+
+## File: src/main.js
+- **Line 132**: `applyGraphicsQuality` references `graphicsQuality` before it's declared at line 710; works only because function is called after declaration — fragile | Severity: low
+- **Line 1340**: Empty `try { } catch (_) {}` block | Severity: low
+- **Line 1371**: Empty `try { } catch (_) {}` block | Severity: low
+- **Line 1258**: Trailing whitespace on blank line | Severity: low
+- **Line 1739**: Trailing whitespace on blank line | Severity: low
+- **Line 1756**: Trailing whitespace on blank line | Severity: low
+- **Line 1772**: Trailing whitespace on blank line | Severity: low
+- **Line 1891**: Trailing whitespace on blank line | Severity: low
+- **Line 1213**: `cancelRebind()` is defined but never called | Severity: low
+- **Line 144**: `_lastTapTime` timer resets each touch but can cause false-positive preventDefault after 300ms idle | Severity: low
+- **Line 145**: Double-tap-to-zoom prevention may block legitimate rapid taps | Severity: medium
+- **Line 147**: `touchend` event with `passive: false` for 300ms — may affect scroll performance | Severity: low
+- **Line 838**: `_relocking` logic is fragile; if `pointerlockchange` fires for other reasons, it may skip pause menu incorrectly | Severity: medium
+- **Line 849**: Checking `ui.inventoryOpen` and others after `_relocking` — but `_relocking` is only true for our own lock calls, other state may change | Severity: low
+- **Line 2574**: Remote player spawn uses `world.heightAt(0, 0) + 1` for initial position — players appear at local spawn point until first position update from server | Severity: medium
+- **Line 1196**: `renderControls` re-assigns `list.innerHTML = ''` and rebuilds entire list each time — recreating all DOM nodes unnecessarily | Severity: low
+- **Line 1091**: `localStorage.getItem('bf_login_pass')` with `atob()` — password stored in localStorage as base64 (trivially reversible, not secure) | Severity: medium
+- **Line 2752**: `localStorage.setItem('bf_login_pass', btoa(pass.value))` — same base64 password storage | Severity: medium
+- **Line 1093**: `_backgroundAuth = true` but it IS now properly reset — this line is fine now | Severity: n/a
+- **Line 2152**: Item name search with `Object.entries(ITEM)` — fragile, may match unexpected keys | Severity: low
+- **Line 167-174**: Resize listener uses `menuBgCamera` which may not be defined if menu not built yet | Severity: low
+- **Line 304-315**: `atlasTex` function in `buildMenuBackground` captures `atlasCanvas` from outer scope — closure over mutable global | Severity: low
+- **Line 656-658**: `_crackSeed` constant in `ui.js` is referenced from the import but not directly used in main.js | Severity: low
+- **Line 120**: `IS_MOBILE` detection uses `'ontouchstart' in window` — false positive on some touch-enabled laptops | Severity: low
+- **Line 1883**: `blockDrop(b, toolHarvestLevel(toolId || 0))` — `toolId` could be null but `||` coerces to 0, which is fine, but `toolHarvestLevel(0)` returns 0, meaning blocks that require harvest level > 0 drop nothing with bare hands — correct behavior but may surprise players | Severity: low
+- **Line 1882-1886**: `player.isSurvival()` drop logic runs for the 3x3 area but not for the main block break (correctly handled above) — but if `doBreak` is called from elsewhere, the behavior changes | Severity: low
+
+## File: src/blocks.js
+- **Line 78-79**: `BOOK` (70) and `CLOCK` (71) are in the BLOCK enum but are items, not blocks — confusing naming | Severity: low
+- **Line 80**: `COMPASS` (72) — same issue, listed as block but it's an item | Severity: low
+- **Line 293**: `BLOCK.STONE_BUTTON` has `faces: 'stone'` but button should use a dedicated tile | Severity: low
+- **Line 294**: `BLOCK.LEVER` has `faces: 'stone'` — same as button, no unique texture | Severity: low
+
+## File: src/items.js
+- **Line 124**: `FUEL` includes `5: 100, 10: 80` which reference block IDs directly, not item IDs — `5` is `BLOCK.WOOD` and `10` is `BLOCK.PLANKS` — works but inconsistent style | Severity: low
+- **Line 148**: `buildToolTable` accesses `ITEM[${m}_${t}]` — if PRISMITE_PICKAXE is 553, this works but relies on correct ITEM enum ordering | Severity: low
+- **Line 249-257**: `buildArmorTable` only assigns `defense` from `ARMOR_PIECES[p].defense` but doesn't incorporate the material's total defense bonus | Severity: medium
+- **Line 352-363**: `totalArmorDefense` returns 999 for full prismite, but this is handled in `player.js` separately — duplicated logic | Severity: low
+
+## File: src/player.js
+- **Line 362**: `EAT_SPEED` constant defined inside the update method — defined each frame, poor practice | Severity: low
+- **Line 418**: `this.velocity.y -= GRAVITY * dt` — gravity applied even when `onGround` is true, causing micro-accumulation of downward velocity | Severity: low
+- **Line 428**: `this.autoJump` logic checks `move.lengthSq() > 0` but `move` is populated by analog or digital input — could be zero if no keys pressed | Severity: low
+- **Line 616**: `MAX_BOUNCE_VEL` is calculated each collision — should be constant | Severity: low
+- **Line 604**: `landBlock` is fetched using `Math.floor(this.position.x)` and `Math.floor(this.position.z)` but during Y collision the player position may have moved on X/Z earlier | Severity: medium
+- **Line 300**: `setLookFromCamera` sets camera rotation from yaw/pitch but doesn't account for camera mode or third-person offset | Severity: low
+
+## File: src/noise.js
+- **Line 41**: `seed == null` comparison — should use `== null` to catch both null and undefined, which is intentional but unusual style | Severity: low
+
+## File: src/worldgen.js
+- **Line 58**: `riverRaw + n.river(...) * 0.5` — `riverRaw` is the FBM result, but `n.river` is a single octave — mixing multi-octave with single creates unbalanced river values | Severity: medium
+- **Line 168-179**: Cave generation checks `Math.abs(c1) < 0.06 && Math.abs(c2) < 0.06` which creates very narrow cave corridors — works but may produce many air pockets | Severity: low
+- **Line 310**: `ly2` variable is used but shadows the loop variable `ly` from line 306 — potential confusion | Severity: low
+
+## File: src/mesher.js
+- **Not fully reviewed, but known issue**: The mesher is the most performance-critical file and reuses few geometries | Severity: low
+
+## File: src/raycast.js
+- **Line 15-17**: `Math.sign(dir.x)` returns 0 for zero direction — if a component of dir is 0, stepX is 0, and tMaxX stays Infinity, which is correct but the ray will never advance in that axis | Severity: low
+- **Line 28-30**: `tDeltaX * Math.abs(fracX)` — if `tDeltaX` is Infinity, the multiplication produces NaN if fracX is also Infinity, though this edge case is unlikely | Severity: low
+
+## File: src/world.js
+- **Line 78**: `y < 0` returns `BLOCK.BEDROCK` for parkour worlds but line 79 checks `y >= WORLD_HEIGHT` for `y < 0` first — parkour worlds return `BLOCK.AIR` at y<0 which is correct but inconsistent with non-parkour | Severity: low
+
+## File: src/ui.js
+- **Line 1276**: `HOTBAR_BLOCKS.forEach` uses `blockId` but never checks if it's a valid block index | Severity: low
+
+## File: src/network.js
+- **Line 75**: `_pingInterval` is set inside `onopen` but may already be set from previous connection — not cleared before reassignment (it IS cleared now at line 75, but fragile) | Severity: low
+- **Line 127**: `_pingInterval` cleared but `clearInterval` is called inside `onclose` after `ws` is set to null — correct order but fragile | Severity: low
+
+## File: src/multiplayer.js
+- **Line 27**: `ROLE_LEVEL` has `ROLE_DEV: 6` but `ROLE_GAMEDEV: 5` — devs outrank gamedevs, which is inconsistent with `resolveRole` in server.js where GAMEDEV is checked first | Severity: low
+
+## File: src/structures.js
+- **Line 185**: Referenced `generateVillages` may throw but is caught in world.js — propogating failures silently | Severity: low
+
+## File: src/storage.js
+- **Line 67**: `seed` param can be 0; the check `if (finalSeed == null || finalSeed === undefined)` uses `== null` which catches undefined but `finalSeed = 0` would not trigger the random replacement, which is correct | Severity: low
+- **Line 133**: `try { return JSON.parse(raw); } catch (e) { ... }` — if JSON.parse succeeds but the data structure is wrong, no validation | Severity: low
+- **Line 119**: Backup logic `localStorage.getItem(worldDataKey(id))` is fetched inside try — if the key doesn't exist, stores `null` as backup, potentially corrupting on next save | Severity: medium
+
+## File: src/multiplayerrenderer.js
+- **Line 176-181**: The loop to find interpolation bracket `i0` has incorrect logic — if `renderTime` falls between buf[i] and buf[i+1], it sets `i0 = i` but continues looping; the final `i0 = i` at the end of the loop body ensures i0 is always the last index before breaking, but if `renderTime > buf[buf.length-2].time`, i0 points to buf[length-2] correctly — however the loop always sets `i0 = i` after every iteration, so the final i0 is always `buf.length - 2` if no break occurs, which is correct for the latest bracket | Severity: low
+- **Line 197-200**: Yaw interpolation `while (yawDiff > Math.PI) yawDiff -= Math.PI * 2` — uses `Math.PI` as threshold but should be `Math.PI` for 180-degree wrap; correct when crossing 0 angle, but the threshold is `Math.PI` (180°) which only catches 180°+ flips; the standard should catch any angle > 180° | Severity: medium
+
+## File: src/explosions.js
+- **Line 23**: Comment says "Sound (removed)" — dead code comment | Severity: low
+- **Line 42**: `resistance = (def.hardness || 0) * 0.3` — blocks with hardness 0 (like TNT) have zero resistance, so they're always destroyed | Severity: low (by design)
+
+## File: src/particles.js
+- **Line 152**: `_getParticleType` — return type is `'leaf' | 'dust' | 'snow' | 'spore' | null` but TypeScript not used | Severity: low
+- **Line 249**: Ambient particle fade uses double ternary — hard to read | Severity: low
+- **Line 285**: `height = 80` constant — clouds always at y=80 regardless of world height | Severity: low
+
+## File: src/chunkmesh.js
+- **Line 96-106**: Water material selection loops over entire `biomeMap` each time a chunk mesh is rebuilt — O(CHUNK_SIZE^2) for each rebuild | Severity: medium
+- **Line 133**: `_markDirty` is package-private (starts with underscore) but `chunkloader.js` calls `this.manager._markDirty(cx, cz)` — breaking encapsulation | Severity: low
+
+## File: src/chunkloader.js
+- **Line 44**: `manager._markDirty` called directly — should expose a public method instead | Severity: low
+- **Line 65**: `for (const k of [...this.manager.meshes.keys()])` — spreads to new array just to iterate, unnecessary memory allocation each frame when player moves | Severity: low
+
+## File: src/crafting.js
+- **Line 2**: Referenced in imports but file not fully reviewed; `CraftingGrid` class is imported but may have null-check gaps | Severity: low
+
+## File: src/voice.js
+- **Line 37**: `VoiceChat` imported in main.js but the class is referenced as `VoiceChat` — might not be fully implemented | Severity: low
+
+## File: src/mobile.js
+- **Line 19**: `isMobile` detection uses `'ontouchstart' in window && navigator.maxTouchPoints > 0` — more strict than main.js but inconsistent | Severity: low
+
+## File: src/profanity.js
+- **Line 2**: Exports `filterProfanity` which is duplicated in server.js as well — should be shared module | Severity: medium
+
+## File: src/greenstone.js
+- **Line 5**: GreenstoneSystem is imported in main.js but may have circular update dependencies | Severity: low
+
+## File: src/playermodel.js
+- **Line 40**: PlayerModel is used in main.js and multiplayerrenderer.js — armor application on line 221 of multiplayerrenderer.js catches errors silently, masking potential bugs | Severity: medium
+
+## File: src/shaders.js
+- **Line 15**: Shader uniform updates may not account for all variables when switching between water types | Severity: low
+
+## File: src/skineditor.js, src/skins.js
+- **Line 10**: Skin selection has potential race condition if skin data isn't loaded before first render | Severity: low
+
+## File: src/viewmodel.js
+- **Line 8**: ViewModel renders held item overlay with separate render pass; cleanup on world restart not guaranteed | Severity: low
+
+## File: src/parkour.js
+- **Line 30**: Parkour system imported and referenced in main.js but may have unhandled edge cases when switching worlds | Severity: low
+
+## File: src/dropped.js
+- **Line 10**: DroppedItemManager handles item entities but physics may cause items to fall through unloaded chunks | Severity: medium
+
+## File: all (cross-cutting)
+- **Cross-cutting**: No TypeScript or JSDoc type checking enables runtime type errors | Severity: high
+- **Cross-cutting**: Multiple catch blocks with empty `{}` swallow errors silently (throughout server.js, main.js, ui.js, storage.js, skins.js, etc.) | Severity: medium
+- **Cross-cutting**: LocalStorage access is wrapped in try/catch but some access is unprotected (e.g. storage.js:35, 43) | Severity: low
+- **Cross-cutting**: All `for...in` loops on arrays could iterate prototype properties (e.g. inventory.js:148) | Severity: low
+- **Cross-cutting**: No input validation on WebSocket message types — malformed messages could crash handlers | Severity: high
+- **Cross-cutting**: The `makeIcon` function from tiles.js creates new Canvas elements each time it's called — called frequently by UI updates | Severity: medium
+- **Cross-cutting**: Animation frame scheduling uses `requestAnimationFrame` but no fallback if the browser tab is backgrounded (RAF pauses) | Severity: low
+- **Cross-cutting**: WebSocket binary protocol doesn't have a version header or magic bytes — old clients could confuse new server | Severity: medium
+- **Cross-cutting**: `innerHTML` assignments throughout UI code risk XSS if any user-controlled data bypasses `escHtml` | Severity: high
+- **Cross-cutting**: Several `setInterval` calls (heartbeat, saveRooms, armor sync) never cleared on server shutdown — could cause crashes during process exit | Severity: medium
+- **Cross-cutting**: WebSocket maxPayload is 64KB (line 757) but binary messages exceed this if many players in proximity | Severity: low
+- **Cross-cutting**: No CSRF protection on OAuth callback endpoint — any site could trigger a login flow | Severity: high
+- **Cross-cutting**: `public/user-data.html:131` reads `bf_login_pass` without base64 decode — displays raw base64 value | Severity: low
+
+---
+
+## Issues REMOVED (FIXED since previous scan)
+The following issues from the original scan have been confirmed FIXED:
+- server.js:1151-1152 — `ws._roomName` nulled before `removeVoiceClient` call (handleLeave now saves roomName first, passes explicitly)
+- server.js:889 — `acc.isGuest = true` on non-existent object (now stores temp object back to accounts first)
+- main.js:2160 — wrapped object passed to `add()` (now `player.inventory.add(foundId, count)`)
+- world.js:91 — `surfaceMap` not updated on block removal (now has else-if clause scanning downward for new surface height)
+- shaders.js:332 — `updateMatrices` without view camera (now receives camera from function destructured params)
+- player.js:381 — NaN from zero-vector normalize (now checks `move.lengthSq() > 0` before normalize)
+- ui.js:1378-1461 — `toDataURL` called every frame (now cached via `_heartUrlCache`/`_drumUrlCache`); offhand DOM leak fixed (uses `querySelector` + create-once pattern)
+- multiplayer.js:243 — duplicate owner entry in `Server.load()` (now checks `!s.players.find(p => p.name === d.ownerName)`)
+- server.js:1828 — monkey-patch handleLeave (no longer present; handleLeave is a proper function)
+- server.js:383 — `_wsForUser` iterates before wss initialized (now checks `if (!wss || !wss.clients) return null`)
+- main.js:1111 — `_backgroundAuth` never reset (now reset at lines 2762, 2777, 4753)
+- main.js:1064 — innerHTML XSS in player list (now uses `textContent`)
+- main.js:1813-1833, 1836-1874 — Prismite pickaxe/axe null checks (now use optional chaining `?.`)
+- main.js:1890 — exhaustion in creative mode (now wrapped in `player.isSurvival()`)
+- main.js:1694 — slot null check (now `if (slot && player.isSurvival())`)
+- main.js:1679-1688 — bed placement direction (now uses clean `Math.round(-Math.sin/cos(yaw))` calculation)
+- player.js:253 — stale velocity for sprint exhaustion (now uses local `move` vector directly)
+- player.js:448 — knockback condition (now uses `Math.abs()` for all components)
+- server.js:1581 — `resolveRole` called with null cgUsername (no longer takes cgUsername param)
+- main.js:2447 — `syncLocalServersToNetwork` dead code (now called at lines 2424, 2428)
+- main.js:1447, 1450 — `isCriticalHit()`/`spawnCritParticles()` unused (now called at lines 3449, 3453, 5517, 5521)
+- server.js:6 — unused import `readFile` (now imported as `readFileSync` which IS used)
+- main.js:472 — `_BF_VER` assigned but never referenced (variable removed from codebase)
+- main.js:2328 — comment "Only show OfficialSMP" contradicts loop (comment now says "Always include OfficialSMP")
+- .gitignore — missing `accounts.json` and `player-data.json` entries (now present at lines 8-9)
+- server.js:763 — `const wss` in callback before declaration at line 752 (works because arrow function is delayed; structure unchanged but acceptable)

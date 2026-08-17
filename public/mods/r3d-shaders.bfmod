@@ -1,0 +1,454 @@
+// ─── BlockForge Mod: Real-Time Shaders v1.1 ────────────────────────────────
+// Replaces the base game's plain terrain materials with custom GLSL shaders:
+//   • Directional + hemisphere lighting with AO (via vertex colors)
+//   • Soft PCF shadow mapping sampled from the renderer's shadow map
+//   • Animated water (UV scroll, sine waves, specular highlights, fresnel)
+//   • Wind sway on foliage, gradient fog
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+//
+// The base game uses plain three.js materials so native shadows work out of
+// the box; this mod swaps in the fancy shader pipeline on top.
+
+export const manifest = {
+  id: 'bf-r3d-shaders',
+  name: 'Real-Time Shaders',
+  version: '1.1',
+  description: 'Custom GLSL terrain shaders: soft shadows, animated water, wind sway, gradient fog.',
+  author: 'BlockForge Dev',
+  icon: '✨',
+};
+
+// ── Shared vertex code ─────────────────────────────────────────────────────
+// modelMatrix, viewMatrix, projectionMatrix, modelViewMatrix, normalMatrix,
+// cameraPosition, position, normal, and uv are auto-injected by three.js.
+const terrainVert = /* glsl */ `
+  attribute vec3 color;
+
+  uniform vec3 sunDirection;
+  uniform mat4 shadowMatrix;
+  uniform float shadowNormalBias;
+  uniform float time;
+  uniform float windStrength;
+
+  varying vec2 vUv;
+  varying vec3 vColor;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  varying float vFogDepth;
+  varying vec4 vShadowCoord;
+
+  void main() {
+    vec3 pos = position;
+
+    float greenTint = color.g - max(color.r, color.b);
+    float isPlant = step(0.15, greenTint);
+    float wind = sin(time * 1.2 + pos.x * 3.0 + pos.z * 2.0) * windStrength * isPlant;
+    pos.x += wind;
+    pos.z += sin(time * 0.9 + pos.x * 3.5 + pos.z * 2.5) * windStrength * isPlant;
+
+    vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+    vWorldPos = worldPos.xyz;
+    vUv = uv;
+    vColor = color;
+    vNormal = normal;
+    vShadowCoord = shadowMatrix * (worldPos + vec4(normal * shadowNormalBias, 0.0));
+
+    vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+    vFogDepth = -mvPos.z;
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+// ── Shared fragment helpers ─────────────────────────────────────────────────
+const fragHelpers = /* glsl */ `
+  precision highp float;
+
+  uniform sampler2D atlas;
+  uniform vec3 sunDirection;
+  uniform vec3 sunColor;
+  uniform vec3 ambientColor;
+  uniform vec3 fogColor;
+  uniform float fogNear;
+  uniform float fogFar;
+  uniform sampler2D shadowMap;
+  uniform vec2 shadowMapSize;
+  uniform float shadowsEnabled;
+  uniform float shadowBiasScale;
+
+  varying vec2 vUv;
+  varying vec3 vColor;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  varying float vFogDepth;
+  varying vec4 vShadowCoord;
+
+  float lambert(vec3 n, vec3 l) {
+    return max(dot(n, l), 0.0);
+  }
+
+  // three r169 stores the shadow depth packed into RGBA with the high byte in R:
+  //   R = floor(v*2^8)  mod 256 (top byte), G = next byte, B = next, A = low bits.
+  // Match three's own unpackRGBAToDepth() factors so the recovered depth is exact.
+  float unpackDepth(vec4 rgba) {
+    const vec4 unpackFactors = vec4(
+      255.0 / 256.0,
+      255.0 / (256.0 * 256.0),
+      255.0 / (256.0 * 256.0 * 256.0),
+      1.0 / (256.0 * 256.0 * 256.0)
+    );
+    return dot(rgba, unpackFactors);
+  }
+
+  float getShadow(vec3 normal, vec3 lightDir) {
+    if (shadowsEnabled < 0.5) return 1.0;
+    if (lightDir.y < 0.05) return 1.0;
+    vec3 sc = vShadowCoord.xyz / vShadowCoord.w;
+    if (sc.z > 1.0 || sc.z < 0.0 || sc.x < 0.0 || sc.x > 1.0 || sc.y < 0.0 || sc.y > 1.0) return 1.0;
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / shadowMapSize;
+    float nDotL = max(dot(normal, lightDir), 0.0);
+    float slopeBias = shadowBiasScale * (1.0 + 4.0 * (1.0 - nDotL));
+    for (int x = -1; x <= 1; x++) {
+      for (int y = -1; y <= 1; y++) {
+        float wx = (x == 1 || x == -1) ? 1.0 : 2.0;
+        float wy = (y == 1 || y == -1) ? 1.0 : 2.0;
+        vec2 tapUv = sc.xy + vec2(float(x), float(y)) * texelSize;
+        vec4 packed = texture2D(shadowMap, tapUv);
+        float pcfDepth = unpackDepth(packed);
+        shadow += wx * wy * (sc.z - slopeBias > pcfDepth ? 0.3 : 1.0);
+      }
+    }
+    return shadow / 16.0;
+  }
+
+  float shadowTone(float shadow) {
+    float t = clamp((shadow - 0.30) / 0.70, 0.0, 1.0);
+    t = t * t * (3.0 - 2.0 * t);
+    return 0.2 + 0.8 * t;
+  }
+`;
+
+const opaqueFrag = /* glsl */ `
+  ${fragHelpers}
+
+  void main() {
+    vec4 tex = texture2D(atlas, vUv);
+
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(sunDirection);
+
+    float NdotL = lambert(normal, lightDir);
+    float hemi = normal.y * 0.5 + 0.5;
+
+    float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
+
+    float shadow = getShadow(normal, lightDir);
+    lighting *= shadowTone(shadow);
+
+    vec3 baseColor = tex.rgb * vColor;
+    vec3 finalColor = baseColor * (sunColor * lighting + ambientColor * 0.25);
+
+    float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+    finalColor = mix(finalColor, fogColor, fogFactor);
+
+    gl_FragColor = vec4(finalColor, 1.0);
+  }
+`;
+
+const transFrag = /* glsl */ `
+  ${fragHelpers}
+
+  void main() {
+    vec4 tex = texture2D(atlas, vUv);
+    if (tex.a < 0.1) discard;
+
+    vec3 normal = normalize(vNormal);
+    vec3 lightDir = normalize(sunDirection);
+
+    float NdotL = lambert(normal, lightDir);
+    float hemi = normal.y * 0.5 + 0.5;
+
+    float lighting = 0.35 + NdotL * 0.55 + hemi * 0.1;
+
+    float shadow = getShadow(normal, lightDir);
+    lighting *= shadowTone(shadow);
+
+    vec3 baseColor = tex.rgb * vColor;
+    vec3 finalColor = baseColor * (sunColor * lighting + ambientColor * 0.25);
+
+    float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+    finalColor = mix(finalColor, fogColor, fogFactor);
+
+    gl_FragColor = vec4(finalColor, tex.a);
+  }
+`;
+
+const waterVert = /* glsl */ `
+  uniform float time;
+  uniform float waveAmp;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
+
+  void main() {
+    vec3 pos = position;
+
+    float wave1 = sin(pos.x * 1.2 + time * 1.5) * 0.06 * waveAmp;
+    float wave2 = cos(pos.z * 0.9 + time * 1.1) * 0.04 * waveAmp;
+    pos.y += wave1 + wave2;
+
+    vec4 worldPos = modelMatrix * vec4(pos, 1.0);
+    vWorldPos = worldPos.xyz;
+    vUv = uv;
+    vNormal = normalize(normalMatrix * normal);
+
+    vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+const waterFrag = /* glsl */ `
+  precision highp float;
+
+  uniform float time;
+  uniform vec3 fogColor;
+  uniform float fogNear;
+  uniform float fogFar;
+  uniform vec3 sunDirection;
+
+  varying vec2 vUv;
+  varying vec3 vWorldPos;
+  varying vec3 vNormal;
+
+  void main() {
+    vec2 scrolledUv = vUv + vec2(time * 0.02, time * 0.015);
+
+    vec3 waterBase = vec3(0.12, 0.24, 0.65);
+    float wavePattern = sin(scrolledUv.x * 12.0 + time * 2.0) *
+                        cos(scrolledUv.y * 10.0 + time * 1.5) * 0.15;
+    vec3 waterColor = waterBase + vec3(wavePattern * 0.3, wavePattern * 0.4, wavePattern * 0.2);
+
+    vec3 viewDir = normalize(cameraPosition - vWorldPos);
+    vec3 halfVec = normalize(normalize(sunDirection) + viewDir);
+    float spec = pow(max(dot(vNormal, halfVec), 0.0), 128.0) * 0.8;
+
+    float NdotL = max(dot(vNormal, normalize(sunDirection)), 0.0);
+    float lighting = 0.3 + NdotL * 0.5;
+
+    vec3 finalColor = waterColor * lighting + vec3(spec);
+
+    float fresnel = pow(1.0 - max(dot(viewDir, vNormal), 0.0), 3.0);
+    finalColor = mix(finalColor, fogColor, fresnel * 0.4);
+
+    float dist = distance(vWorldPos, cameraPosition);
+    float fogFactor = smoothstep(fogNear, fogFar, dist);
+    finalColor = mix(finalColor, fogColor, fogFactor);
+
+    gl_FragColor = vec4(finalColor, 0.6);
+  }
+`;
+
+// Material cache + uniforms created on load; updated every frame in onTick.
+let materials = null;
+let _installedManager = null;
+let THREE = null;
+let _hudEl = null;
+
+function makeTerrainUniforms(atlas) {
+  const T = THREE;
+  return {
+    atlas: { value: atlas },
+    sunDirection: { value: new T.Vector3(0.4, 0.8, 0.3).normalize() },
+    sunColor: { value: new T.Color(1.0, 0.98, 0.92) },
+    ambientColor: { value: new T.Color(0.4, 0.45, 0.55) },
+    fogColor: { value: new T.Color(0x9ad0ff) },
+    fogNear: { value: 80.0 },
+    fogFar: { value: 144.0 },
+    shadowMatrix: { value: new T.Matrix4() },
+    shadowMap: { value: null },
+    shadowMapSize: { value: new T.Vector2(2048, 2048) },
+    shadowsEnabled: { value: 1.0 },
+    shadowBiasScale: { value: 0.0005 },
+    shadowNormalBias: { value: 0.07 },
+    time: { value: 0.0 },
+    windStrength: { value: 0.02 },
+  };
+}
+
+function makeWaterUniforms(fogColor) {
+  const T = THREE;
+  return {
+    time: { value: 0.0 },
+    waveAmp: { value: 1.0 },
+    fogColor: { value: (fogColor || new T.Color(0x9ad0ff)).clone() },
+    fogNear: { value: 80.0 },
+    fogFar: { value: 144.0 },
+    sunDirection: { value: new T.Vector3(0.4, 0.8, 0.3).normalize() },
+  };
+}
+
+function _showHud(api) {
+  if (typeof document === 'undefined') return;
+  if (_hudEl) return;
+  _hudEl = document.createElement('div');
+  _hudEl.id = 'bf-hud-shaders-active';
+  _hudEl.dataset.bfmod = 'bf-r3d-shaders';
+  _hudEl.style.cssText = 'position:fixed;top:8px;left:8px;z-index:120;pointer-events:none;font:bold 12px monospace;color:#0f0;background:rgba(0,0,0,0.55);padding:4px 10px;border-radius:6px;letter-spacing:0.5px;';
+  _hudEl.textContent = '\u2728 SHADERS';
+  document.body.appendChild(_hudEl);
+}
+
+function _hideHud() {
+  if (_hudEl) { _hudEl.remove(); _hudEl = null; }
+}
+
+function _tryInstall(manager) {
+  if (manager && materials && typeof manager.setShadingMaterials === 'function' && manager !== _installedManager) {
+    manager.setShadingMaterials(materials);
+    _installedManager = manager;
+    return true;
+  }
+  return false;
+}
+
+export function onLoad(api) {
+  THREE = api.three;
+  const atlas = api.getAtlasTexture();
+
+  const mats = {
+    opaque: new THREE.ShaderMaterial({
+      vertexShader: terrainVert,
+      fragmentShader: opaqueFrag,
+      uniforms: makeTerrainUniforms(atlas),
+      side: THREE.FrontSide,
+    }),
+    cutout: new THREE.ShaderMaterial({
+      vertexShader: terrainVert,
+      fragmentShader: transFrag,
+      uniforms: makeTerrainUniforms(atlas),
+      alphaTest: 0.1,
+      depthWrite: true,
+      side: THREE.DoubleSide,
+    }),
+    trans: new THREE.ShaderMaterial({
+      vertexShader: terrainVert,
+      fragmentShader: transFrag,
+      uniforms: makeTerrainUniforms(atlas),
+      transparent: true,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+    }),
+  };
+  const makeW = (amp) => new THREE.ShaderMaterial({
+    vertexShader: waterVert,
+    fragmentShader: waterFrag,
+    uniforms: Object.assign(makeWaterUniforms(), { waveAmp: { value: amp } }),
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  mats.water = makeW(1.0);
+  mats.oceanWater = makeW(2.0);
+  mats.riverWater = makeW(1.4);
+
+  materials = mats;
+  _installedManager = null;
+
+  const refs = api.refs();
+  const m = refs && refs.manager;
+  if (m && typeof m.setShadingMaterials === 'function') {
+    m.setShadingMaterials(mats);
+    _installedManager = m;
+    _showHud(api);
+    console.log('[R3D Shaders] onLoad: installed on existing manager');
+  } else {
+    console.log('[R3D Shaders] onLoad: materials ready, deferring install to onTick');
+  }
+}
+
+export function onTick(dt, api) {
+  if (!materials) return;
+  const refs = api.refs();
+  if (!refs || !refs.sun) return;
+
+  // (Re)install if the chunk manager was recreated on world load.
+  const m = refs.manager;
+  if (m && typeof m.setShadingMaterials === 'function') {
+    if (m !== _installedManager) {
+      m.setShadingMaterials(materials);
+      _installedManager = m;
+      _showHud(api);
+      console.log('[R3D Shaders] onTick: installed on manager');
+    }
+  } else {
+    _hideHud();
+  }
+
+  const { sun, renderer, scene, camera } = refs;
+  const time = performance.now() / 1000;
+
+  const sunDir = sun.position.clone().sub(sun.target.position).normalize();
+
+  const _applyTerrain = (mat) => {
+    const u = mat.uniforms;
+    u.sunDirection.value.copy(sunDir);
+    u.sunColor.value.copy(sun.color).multiplyScalar(sun.intensity);
+    u.ambientColor.value.copy(refs.ambient ? refs.ambient.color : new THREE.Color(0x667799)).multiplyScalar(refs.ambient ? refs.ambient.intensity : 0.15);
+    u.fogColor.value.copy(scene.fog.color);
+    u.fogNear.value = scene.fog.near;
+    u.fogFar.value = scene.fog.far;
+    u.time.value = time;
+    u.windStrength.value = 0.02;
+
+    sun.updateMatrixWorld(true);
+    if (sun.shadow && typeof sun.shadow.updateMatrices === 'function') {
+      sun.shadow.updateMatrices(sun, camera);
+      const shadowMat = sun.shadow.matrix;
+      u.shadowMatrix.value.copy(shadowMat);
+      if (sun.shadow.map && sun.shadow.map.texture) {
+        u.shadowMap.value = sun.shadow.map.texture;
+        u.shadowMapSize.value.copy(sun.shadow.mapSize);
+      }
+    }
+    u.shadowsEnabled.value = (typeof window !== 'undefined' && window.__shadowsEnabled !== false) ? 1.0 : 0.0;
+
+    if (sun.shadow && sun.shadow.camera) {
+      const sc = sun.shadow.camera;
+      const texelWorld = (sc.right - sc.left) / sun.shadow.mapSize.width;
+      const depthRange = Math.max(1, sc.far - sc.near);
+      u.shadowBiasScale.value = texelWorld / depthRange;
+      u.shadowNormalBias.value = texelWorld * 3.0;
+    }
+  };
+
+  const _applyWater = (mat) => {
+    const u = mat.uniforms;
+    u.time.value = time;
+    u.fogColor.value.copy(scene.fog.color);
+    u.fogNear.value = scene.fog.near;
+    u.fogFar.value = scene.fog.far;
+    u.sunDirection.value.copy(sunDir);
+  };
+
+  _applyTerrain(materials.opaque);
+  _applyTerrain(materials.cutout);
+  _applyTerrain(materials.trans);
+  _applyWater(materials.water);
+  _applyWater(materials.oceanWater);
+  _applyWater(materials.riverWater);
+}
+
+export function onUnload(api) {
+  _hideHud();
+  const refs = api.refs();
+  const m = refs && refs.manager;
+  if (m && typeof m.restoreShading === 'function') m.restoreShading();
+  _installedManager = null;
+  materials = null;
+  console.log('[R3D Shaders] onUnload: restored base materials');
+}

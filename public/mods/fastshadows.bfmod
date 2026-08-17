@@ -1,0 +1,85 @@
+// ─── BlockForge Mod: Fast Shadows ─────────────────────────────────────────
+// Keeps shadows but cuts the shadow-map resolution for a big frame-rate win
+// on slower devices. Toggle with H.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-fast-shadows',
+  name: 'Fast Shadows',
+  version: '1.0',
+  description: 'Lowers shadow resolution for a performance boost while keeping shadows. Toggle with H.',
+  author: 'BlockForge Dev',
+  icon: '⚡',
+};
+
+let enabled = true;
+let _onToggle = null;
+const _stored = {};
+
+function snap(refs) {
+  const sun = refs && refs.sun;
+  if (!sun || !sun.shadow) return null;
+  return {
+    w: sun.shadow.mapSize.width,
+    h: sun.shadow.mapSize.height,
+    mapEnabled: refs.renderer.shadowMap.enabled,
+  };
+}
+
+export function onLoad(api) {
+  _onToggle = (e) => {
+    if (e.key !== 'h' && e.key !== 'H') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    api.hud.upsert('badge', 'FAST SHADOWS <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '168px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+  const refs = api.refs();
+  const s = snap(refs);
+  if (s) {
+    _stored.w = s.w; _stored.h = s.h; _stored.mapEnabled = s.mapEnabled;
+  }
+}
+
+export function onTick(dt, api) {
+  const refs = api.refs();
+  if (!refs || !refs.sun || !refs.sun.shadow) return;
+  const sun = refs.sun;
+  if (!enabled || !api.inGame()) {
+    if (_stored.w && sun.shadow.mapSize.width !== _stored.w) {
+      sun.shadow.mapSize.width = _stored.w;
+      sun.shadow.mapSize.height = _stored.h;
+      refs.renderer.shadowMap.enabled = _stored.mapEnabled;
+      if (refs.sun.shadow.map) refs.sun.shadow.map.dispose();
+      refs.sun.shadow.map = null;
+      refs.renderer.shadowMap.needsUpdate = true;
+    }
+    return;
+  }
+  const fastW = Math.min(sun.shadow.mapSize.width, 1024);
+  if (sun.shadow.mapSize.width !== fastW) {
+    sun.shadow.mapSize.width = fastW;
+    sun.shadow.mapSize.height = fastW;
+    if (refs.sun.shadow.map) refs.sun.shadow.map.dispose();
+    refs.sun.shadow.map = null;
+    refs.renderer.shadowMap.needsUpdate = true;
+  }
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  const refs = api.refs();
+  if (refs && refs.sun && refs.sun.shadow && _stored.w) {
+    refs.sun.shadow.mapSize.width = _stored.w;
+    refs.sun.shadow.mapSize.height = _stored.h;
+    refs.renderer.shadowMap.enabled = _stored.mapEnabled;
+    if (refs.sun.shadow.map) refs.sun.shadow.map.dispose();
+    refs.sun.shadow.map = null;
+    refs.renderer.shadowMap.needsUpdate = true;
+  }
+}

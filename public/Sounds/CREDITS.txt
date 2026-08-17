@@ -1,0 +1,64 @@
+Sound Effects Credits
+=====================
+
+All files in this folder are freely licensed as noted below. Files not listed
+under a specific CC-BY source are CC0 1.0 Universal
+(https://creativecommons.org/publicdomain/zero/1.0/).
+
+CC0 1.0 sources:
+  - Kenney.nl sound packs ("Impact Sounds", "Interface Sounds", "Digital
+    Audio") by Kenney (https://kenney.nl/assets) — CC0, no attribution
+    required, but appreciated.
+      files: footstep_*.ogg, impact*.ogg, powerUp2.ogg, click_*.ogg,
+             interface_*.ogg, jingle_*.ogg
+  - "Fantozzi footsteps" (sand/stone footstep recordings) — CC0, sourced
+    during earlier development.
+      files: Fantozzi-*.ogg
+  - "Different Steps on Wood, Stone, Leaves, Gravel and Mud" by TinyWorlds
+    (https://opengameart.org/content/different-steps-on-wood-stone-leaves-gravel-and-mud)
+      files: step_stone_1.ogg, step_dirt_1.ogg, step_wood_1.ogg, step_wood_2.ogg,
+             step_wood_3.ogg, step_leaves_1.ogg, step_leaves_2.ogg, step_gravel_1.ogg
+  - "42 Snow and Gravel Footsteps" by Corsica_S
+    (https://opengameart.org/content/42-snow-and-gravel-footsteps)
+      files: step_snow_1.ogg ... step_snow_8.ogg
+  - "Various Sound Effects" by Spring Spring
+    (https://opengameart.org/content/various-sound-effects-0)
+      files: step_dirt_2.ogg, step_leaves_3.ogg, break_stone_2.ogg,
+             break_dirt_1.ogg, break_dirt_2.ogg, break_glass_1.ogg,
+             mine_stone_1.ogg, mob_zombie_1.ogg, mob_spider_1.ogg,
+             mob_slime_1.ogg, mob_slime_2.ogg, mob_blower_1.ogg,
+             mob_dragon_1.ogg, mob_death_1.ogg, mob_death_2.ogg,
+             liquid_glug_1.ogg, eat_1.ogg
+  - "35 wooden cracks hits and destructions" by independent n.u. ljudbank
+    (https://opengameart.org/content/35-wooden-crackshitsdestructions)
+      files: break_wood_1.ogg ... break_wood_4.ogg
+  - "Breaking Rock" by themightyglider
+    (https://opengameart.org/content/breaking-rock)
+      files: break_stone_1.ogg
+  - "Baby Animals Sounds Pack"
+    (https://opengameart.org/content/baby-animals-sounds-pack)
+      files: animal_cow_3.ogg, animal_pig_2.ogg, animal_sheep_2.ogg,
+             animal_sheep_3.ogg, animal_chicken_3.ogg, animal_villager_1.ogg
+
+CC-BY 3.0 sources:
+  - "C-Dogs footsteps on different surfaces" by swuing
+    (https://opengameart.org/content/footsteps-on-different-surfaces)
+      files: step_grass_1.ogg ... step_grass_9.ogg, step_wood_4.ogg ...
+             step_wood_9.ogg, step_gravel_2.ogg ... step_gravel_7.ogg,
+             step_metal_1.ogg ... step_metal_5.ogg, step_water_1.ogg ...
+             step_water_3.ogg, mob_skeleton_1.ogg ... mob_skeleton_3.ogg
+      (samples derived from CC0 recordings by Floerkemeyer and Bummie.
+       Attribution: swuing, https://opengameart.org/users/swuing)
+  - "Grass Foot Step Sounds (Yo Frankie)" (Blender Foundation / CC-BY 3.0)
+    (https://opengameart.org/content/grass-foot-step-sounds-yo-frankie)
+      files: step_grass_10.ogg, step_grass_11.ogg
+  - "Pig SFX Pack" by timgormly (https://opengameart.org/content/pig-sfx-pack)
+      files: animal_pig_3.ogg, animal_pig_4.ogg, animal_pig_hurt_1.ogg
+  - "Sheep Sound Bleats (Yo Frankie)" (CC-BY 3.0)
+    (https://opengameart.org/content/sheep-sound-bleats-yo-frankie)
+      files: animal_sheep_4.ogg
+  - "Chicken Sound Effect" (CC-BY 3.0)
+    (https://opengameart.org/content/chicken-sound-effect)
+      files: animal_chicken_4.ogg
+
+All new files were normalized to mono 48kHz Opus-in-Ogg for this project.

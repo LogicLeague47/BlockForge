@@ -1,0 +1,71 @@
+// ─── BlockForge Mod: Sky Tint / Color Grade ───────────────────────────────
+// Overlays a subtle time-of-day color grade on top of the whole game view so
+// dawns, dusks and nights feel richer. Toggle with Y.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-sky-tint',
+  name: 'Sky Tint',
+  version: '1.0',
+  description: 'Beautiful time-of-day color grading overlay (warm dawns, purple dusks, deep nights). Toggle with Y.',
+  author: 'BlockForge Dev',
+  icon: '🌅',
+};
+
+let enabled = true;
+let _overlay = null;
+let _onToggle = null;
+
+function ensureOverlay(api) {
+  if (_overlay) return;
+  _overlay = api.hud.upsert(
+    'env',
+    '<div style="position:fixed;inset:0;pointer-events:none;transition:background 2s;"></div>',
+    { top: '0', left: '0', zIndex: '90' }
+  );
+  _overlay._bfEnv = _overlay.querySelector('div');
+}
+
+const DAY = 'rgba(255,200,120,0.05)';
+const SUNSET = 'rgba(255,120,60,0.22)';
+const DUSK = 'rgba(120,60,180,0.28)';
+const NIGHT = 'rgba(20,30,90,0.30)';
+const DAWN = 'rgba(255,140,80,0.18)';
+
+export function onLoad(api) {
+  _onToggle = (e) => {
+    if (e.key !== 'y' && e.key !== 'Y') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    api.hud.upsert('badge', 'SKY TINT <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '72px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+  ensureOverlay(api);
+}
+
+export function onTick(dt, api) {
+  if (!_overlay || !_overlay._bfEnv) return;
+  if (!enabled) { _overlay._bfEnv.style.background = 'rgba(0,0,0,0)'; return; }
+  if (!api.inGame()) { _overlay._bfEnv.style.background = 'rgba(0,0,0,0)'; return; }
+  const t = api.getTime();
+  const d = t.dayTime; // 0..1 (0=.0 6:00?, 0.625=night)
+  let c = DAY;
+  // d maps: <0.1 dawn, 0.1-0.3 day, 0.3-0.5 sunset, 0.5-0.625 dusk, >0.625 night
+  if (d < 0.08) c = DAWN;
+  else if (d < 0.22) c = DAY;
+  else if (d < 0.36) c = SUNSET;
+  else if (d < 0.62) c = DUSK;
+  else c = NIGHT;
+  if (_overlay._bfEnv.style.background !== c) _overlay._bfEnv.style.background = c;
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('env');
+  _overlay = null;
+}

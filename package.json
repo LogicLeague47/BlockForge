@@ -1,0 +1,36 @@
+{
+  "name": "minecraft-clone",
+  "version": "1.0.1",
+  "description": "A voxel sandbox Minecraft clone built with Three.js",
+  "type": "module",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/generate-downloads.mjs",
+    "preview": "vite preview",
+    "server": "node server.js",
+    "start": "node server.js",
+    "build:cg": "vite build --mode cg && node scripts/strip-cg.mjs",
+    "package": "bash package.sh",
+    "lint": "eslint src/",
+    "typecheck": "echo 'No TS setup yet'"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9",
+    "simplex-noise": "^4.0.1",
+    "three": "^0.169.0",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.4.2",
+    "@capacitor/cli": "^8.4.2",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/ios": "^8.4.2",
+    "electron": "^43.3.0",
+    "electron-builder": "^24.13.3",
+    "vite": "^5.4.0"
+  },
+  "allowScripts": {
+    "electron@43.2.0": true
+  }
+}

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlockForge</title>
+  <link rel="icon" type="image/png" href="../BlockForge.png">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{background:#0a0a12;color:#e0e0e0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}
+    #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0}
+    .card{position:relative;z-index:1;background:rgba(8,8,16,0.65);border:1px solid rgba(100,140,255,0.15);border-radius:8px;padding:28px 32px;max-width:400px;width:90%;text-align:center;backdrop-filter:blur(12px);box-shadow:0 0 24px rgba(100,160,255,0.12),0 10px 40px rgba(0,0,0,0.55),inset 0 1px 0 rgba(255,255,255,0.04)}
+    .logo{font-size:22px;letter-spacing:6px;background:linear-gradient(135deg,#e0e8ff 0%,#8af 50%,#c084fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:2px}
+    .sub{font:11px monospace;color:#7ab;letter-spacing:2px;margin-bottom:18px}
+    .name{font:bold 18px monospace;color:#ffdd33;margin-bottom:4px}
+    .role{font:11px monospace;color:#7af;margin-bottom:16px}
+    .hint{font:11px monospace;min-height:16px;margin:8px 0;color:#5a8}
+    .btn{width:100%;padding:14px 0;font:bold 16px/1.2 'Segoe UI','Helvetica Neue',Arial,monospace;background:linear-gradient(180deg,rgba(60,140,80,0.7),rgba(40,110,60,0.8),rgba(30,90,50,0.85),rgba(20,70,40,0.9));border:1px solid rgba(60,160,60,0.3);color:#e0e8ff;border-radius:6px;cursor:pointer;letter-spacing:1px;text-shadow:1px 1px 0 rgba(0,0,0,0.2);box-shadow:0 3px 0 rgba(20,40,20,0.6),inset 0 1px 0 rgba(255,255,255,0.06);transition:transform 0.15s cubic-bezier(0.16,1,0.3,1),box-shadow 0.2s;background-clip:padding-box}
+    .btn:disabled{opacity:0.5;cursor:not-allowed}
+    .btn:hover:not(:disabled){background:linear-gradient(180deg,rgba(80,180,100,0.75),rgba(60,150,80,0.85),rgba(50,130,70,0.9),rgba(40,110,60,0.95));box-shadow:0 3px 0 rgba(20,40,20,0.6),0 0 24px rgba(60,200,80,0.25),inset 0 1px 0 rgba(255,255,255,0.1);border-color:rgba(60,200,80,0.4)}
+    .btn:active:not(:disabled){transform:translateY(2px);box-shadow:0 1px 0 rgba(20,40,20,0.6),inset 0 2px 4px rgba(0,0,0,0.3)}
+    .footer{font:9px monospace;color:rgba(255,255,255,0.25);margin-top:14px}
+    .bypass{font:bold 13px monospace;color:#f55;line-height:1.6}
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+      "simplex-noise": "https://cdn.jsdelivr.net/npm/simplex-noise@4.0.3/dist/esm/simplex-noise.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="bg-canvas"></canvas>
+  <div class="card">
+    <div class="logo">BLOCKFORGE</div>
+    <div class="sub" id="subtitle"></div>
+    <div class="name" id="pname"></div>
+    <div class="role" id="prole"></div>
+    <div class="hint" id="hint"></div>
+    <div id="homepage" style="display:none">
+      <button class="btn" id="play-btn" style="margin-top:14px;">Play BlockForge</button>
+    </div>
+    <div class="bypass" id="bypass" style="display:none"></div>
+    <div class="footer">By continuing, you agree to the Terms of Service</div>
+  </div>
+  <script type="module">
+    import * as THREE from 'three';
+    import { createNoise2D, createNoise3D } from 'simplex-noise';
+
+    const TILE = 32;
+
+    function clamp(v) { return Math.max(0, Math.min(255, v)); }
+    function rnd(rng) { return rng() * 256 | 0; }
+
+    function hashSeed(str) {
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < str.length; i++) {
+        h ^= str.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+      }
+      return h >>> 0;
+    }
+    function mulberry32(a) {
+      return function () {
+        a |= 0; a = (a + 0x6D2B79F5) | 0;
+        let t = Math.imul(a ^ (a >>> 15), 1 | a);
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+      };
+    }
+    function fbm2(fn, x, z, octaves, lacunarity, gain) {
+      let amp = 1, freq = 1, sum = 0, norm = 0;
+      for (let i = 0; i < octaves; i++) { sum += amp * fn(x * freq, z * freq); norm += amp; amp *= gain; freq *= lacunarity; }
+      return sum / norm;
+    }
+
+    const TEX = {};
+
+    function noisy(ctx, w, h, color, amount) {
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const v = (Math.random() * amount * 2 - amount) | 0;
+          ctx.fillStyle = `rgb(${clamp(color[0] + v)},${clamp(color[1] + v)},${clamp(color[2] + v)})`;
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+    }
+
+    function speckle(ctx, w, h, count, colors) {
+      for (let i = 0; i < count; i++) {
+        ctx.fillStyle = colors[Math.random() * colors.length | 0];
+        ctx.fillRect(Math.random() * w | 0, Math.random() * h | 0, 1, 1);
+      }
+    }
+
+    function makeTile(name) {
+      const c = document.createElement('canvas');
+      c.width = TILE; c.height = TILE;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+
+      if (name === 'grass_top') {
+        noisy(ctx, TILE, TILE, [110, 185, 72], 6);
+        speckle(ctx, TILE, TILE, 12, ['rgb(95,170,50)', 'rgb(130,200,90)']);
+      } else if (name === 'grass_side') {
+        ctx.fillStyle = '#7a5a3a';
+        ctx.fillRect(0, 0, TILE, TILE);
+        noisy(ctx, TILE, 8, [90, 160, 60], 6);
+        noisy(ctx, TILE, TILE, [120, 90, 55], 4);
+        speckle(ctx, TILE, TILE, 15, ['rgb(100,75,45)', 'rgb(140,105,65)']);
+      } else if (name === 'dirt') {
+        noisy(ctx, TILE, TILE, [125, 95, 60], 8);
+        speckle(ctx, TILE, TILE, 25, ['rgb(110,80,50)', 'rgb(145,110,70)', 'rgb(90,70,45)']);
+      } else if (name === 'stone') {
+        noisy(ctx, TILE, TILE, [125, 125, 125], 10);
+        speckle(ctx, TILE, TILE, 30, ['rgb(110,110,110)', 'rgb(140,140,140)', 'rgb(90,90,90)']);
+      } else if (name === 'sand') {
+        noisy(ctx, TILE, TILE, [218, 210, 158], 6);
+        speckle(ctx, TILE, TILE, 12, ['rgb(205,195,145)', 'rgb(230,220,170)']);
+      } else if (name === 'snow') {
+        noisy(ctx, TILE, TILE, [240, 245, 255], 4);
+        speckle(ctx, TILE, TILE, 8, ['rgb(228,236,250)']);
+      } else if (name === 'wood') {
+        ctx.fillStyle = '#6b5230';
+        ctx.fillRect(0, 0, TILE, TILE);
+        noisy(ctx, TILE, TILE, [107, 82, 48], 5);
+        for (let y = 2; y < TILE; y += 6) {
+          ctx.fillStyle = `rgba(90,65,35,${0.2 + Math.random() * 0.3})`;
+          ctx.fillRect(0, y, TILE, 2);
+        }
+      } else if (name === 'leaves') {
+        noisy(ctx, TILE, TILE, [100, 168, 60], 6);
+        for (let i = 0; i < 14; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 3 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(68 + v)},${clamp(128 + v)},${clamp(40 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 8; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 2 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(135 + v)},${clamp(196 + v)},${clamp(85 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 125; i++) {
+          ctx.clearRect(Math.random() * TILE | 0, Math.random() * TILE | 0, 1, 1);
+        }
+      } else if (name === 'dark_leaves') {
+        noisy(ctx, TILE, TILE, [48, 96, 30], 6);
+        for (let i = 0; i < 16; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 3 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(32 + v)},${clamp(68 + v)},${clamp(20 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 6; i++) {
+          const cx = Math.random() * TILE | 0, cy = Math.random() * TILE | 0, r = 1 + (Math.random() * 2 | 0);
+          for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+            if (Math.sqrt(dx*dx+dy*dy) > r || (Math.sqrt(dx*dx+dy*dy) > r-1.2 && Math.random() > 0.45)) continue;
+            const px = ((cx + dx) % TILE + TILE) % TILE, py = ((cy + dy) % TILE + TILE) % TILE;
+            const v = (Math.random() * 10 - 5) | 0;
+            ctx.fillStyle = `rgb(${clamp(68 + v)},${clamp(128 + v)},${clamp(46 + v)})`;
+            ctx.fillRect(px, py, 1, 1);
+          }
+        }
+        for (let i = 0; i < 100; i++) {
+          ctx.clearRect(Math.random() * TILE | 0, Math.random() * TILE | 0, 1, 1);
+        }
+      } else {
+        ctx.fillStyle = '#f0f';
+        ctx.fillRect(0, 0, TILE, TILE);
+      }
+      return c;
+    }
+
+    function tex(name) {
+      const c = makeTile(name);
+      const t = new THREE.CanvasTexture(c);
+      t.magFilter = THREE.NearestFilter;
+      t.minFilter = THREE.NearestFilter;
+      t.generateMipmaps = false;
+      return t;
+    }
+    function mat(name) { return new THREE.MeshLambertMaterial({ map: tex(name) }); }
+    function matC(color) { return new THREE.MeshLambertMaterial({ color }); }
+
+    // Build the 3D background scene
+    const canvas = document.getElementById('bg-canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x78b9e8);
+    scene.fog = new THREE.Fog(0x87ceeb, 20, 55);
+
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
+    camera.position.set(0, 22, 32);
+    camera.lookAt(0, 8, 0);
+
+    const sun = new THREE.DirectionalLight(0xfff8e7, 1.6);
+    sun.position.set(40, 80, 30);
+    sun.castShadow = true;
+    sun.shadow.mapSize.width = 2048;
+    sun.shadow.mapSize.height = 2048;
+    sun.shadow.camera.near = 0.5;
+    sun.shadow.camera.far = 200;
+    sun.shadow.camera.left = -40;
+    sun.shadow.camera.right = 40;
+    sun.shadow.camera.top = 40;
+    sun.shadow.camera.bottom = -40;
+    sun.shadow.bias = -0.001;
+    sun.shadow.camera.updateProjectionMatrix();
+    scene.add(sun);
+    scene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
+    scene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
+
+    const SEED = 'u_' + (Math.random() * 99999 | 0);
+    const noise = {
+      continentalness: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x9E3779B9)),
+      ridge: createNoise2D(mulberry32(hashSeed(SEED) ^ 0xBF58476D)),
+      detail: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x6A09E667)),
+      temp: createNoise2D(mulberry32(hashSeed(SEED) ^ 0xBB67AE85)),
+      humid: createNoise2D(mulberry32(hashSeed(SEED) ^ 0x3C6EF372)),
+      ore: createNoise3D(mulberry32(hashSeed(SEED) ^ 0xA54FF53A)),
+    };
+    const rng = mulberry32(hashSeed(SEED) + 777);
+
+    const GRID = 64, SEA = 16;
+    const heightMap = [], biomeMap = [];
+    for (let x = 0; x < GRID; x++) {
+      heightMap[x] = []; biomeMap[x] = [];
+      for (let z = 0; z < GRID; z++) {
+        const cont = fbm2(noise.continentalness, x * 0.025, z * 0.025, 5, 2, 0.5);
+        const ridge = 1 - Math.abs(fbm2(noise.ridge, x * 0.03 + 100, z * 0.03 + 100, 4, 2, 0.5));
+        const detail = fbm2(noise.detail, x * 0.08, z * 0.08, 4, 2, 0.5);
+        let h;
+        if (cont < -0.1) { h = SEA - 4 + cont * 10 + detail * 3; }
+        else if (cont < 0.15) { h = SEA + (cont + 0.1) * 12 + detail * 4; }
+        else { h = SEA + 2 + (cont - 0.15) * 18 + detail * 5; if (cont > 0.4 && ridge > 0.55) h += ridge * (cont - 0.4) * 50; h += ridge * 3; }
+        heightMap[x][z] = Math.max(1, Math.min(44, Math.floor(h)));
+        const t = fbm2(noise.temp, x * 0.02 + 200, z * 0.02 + 200, 4, 2, 0.5);
+        const hu = fbm2(noise.humid, x * 0.02 + 300, z * 0.02 + 300, 4, 2, 0.5);
+        biomeMap[x][z] = t < -0.4 ? 'snow' : t < 0.1 ? (hu > 0.1 ? 'taiga' : 'forest') : t < 0.4 ? (hu > 0.2 ? 'dark_forest' : 'forest') : t < 0.6 ? (hu > 0.15 ? 'jungle' : 'savanna') : hu < -0.1 ? 'desert' : 'savanna';
+      }
+    }
+
+    const blocks = [];
+    let grassCount = 0, dirtCount = 0, stoneCount = 0, sandCount = 0, snowCount = 0;
+    let woodCount = 0, leavesCount = 0, darkLeavesCount = 0, coalCount = 0, ironCount = 0;
+
+    function addBlock(type, x, y, z) {
+      blocks.push({ type, x, y, z });
+      if (type === 'grass') grassCount++;
+      else if (type === 'dirt') dirtCount++;
+      else if (type === 'stone') stoneCount++;
+      else if (type === 'sand') sandCount++;
+      else if (type === 'snow') snowCount++;
+      else if (type === 'wood') woodCount++;
+      else if (type === 'leaves') leavesCount++;
+      else if (type === 'dark_leaves') darkLeavesCount++;
+      else if (type === 'coal_ore') coalCount++;
+      else if (type === 'iron_ore') ironCount++;
+    }
+
+    for (let x = 0; x < GRID; x++) {
+      for (let z = 0; z < GRID; z++) {
+        const h = heightMap[x][z], biome = biomeMap[x][z], ox = x - GRID / 2, oz = z - GRID / 2;
+        for (let y = 0; y <= h; y++) {
+          let type;
+          if (y === 0) type = 'bedrock';
+          else if (y === h) {
+            type = h < SEA ? 'sand' : biome === 'desert' ? 'sand' : biome === 'snow' ? 'snow' : 'grass';
+          } else if (y > h - 4) {
+            type = h < SEA ? 'sand' : biome === 'desert' ? 'sand' : 'dirt';
+          } else {
+            type = 'stone';
+            if (y < h - 8 && y > 2) {
+              const v = noise.ore(x * 0.1, y * 0.1, z * 0.1);
+              if (v > 0.82) type = 'coal_ore';
+              else if (v > 0.88 && y < 60) type = 'iron_ore';
+            }
+          }
+          addBlock(type, ox, y, oz);
+        }
+        if (h < SEA) addBlock('water', ox, SEA, oz);
+      }
+    }
+
+    for (let i = 0; i < 70; i++) {
+      const tx = (rng() * GRID) | 0, tz = (rng() * GRID) | 0;
+      const th = heightMap[tx][tz];
+      if (th < SEA + 1 || biomeMap[tx][tz] === 'desert') continue;
+      const ox = tx - GRID / 2, oz = tz - GRID / 2;
+      const treeH = 5 + (rng() * 4) | 0;
+      const isJungle = biomeMap[tx][tz] === 'jungle';
+      const trunkH = isJungle ? treeH + 3 : treeH;
+      const leafR = isJungle ? 3 : 2;
+      for (let dy = 1; dy <= trunkH; dy++) addBlock('wood', ox, th + dy, oz);
+      for (let lx = -leafR; lx <= leafR; lx++) {
+        for (let lz = -leafR; lz <= leafR; lz++) {
+          for (let ly = -1; ly <= 2; ly++) {
+            if (lx === 0 && lz === 0 && ly < 1) continue;
+            const dist = Math.abs(lx) + Math.abs(lz) + Math.abs(ly);
+            if (dist <= leafR + 1 && rng() > 0.12) {
+              addBlock(biomeMap[tx][tz] === 'dark_forest' ? 'dark_leaves' : 'leaves', ox + lx, th + trunkH + ly, oz + lz);
+            }
+          }
+        }
+      }
+    }
+
+    // Build textures and instanced meshes
+    const grassTop = tex('grass_top');
+    const grassSide = tex('grass_side');
+    const dirtTex = tex('dirt');
+    const stoneTex = tex('stone');
+    const sandTex = tex('sand');
+    const snowTex = tex('snow');
+    const woodTex = tex('wood');
+    const leavesTex = tex('leaves');
+    const darkLeavesTex = tex('dark_leaves');
+
+    function addTexInstanced(type, texture, count, isTransparent) {
+      if (!count) return;
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      let material;
+      if (type === 'grass') {
+        material = [
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassTop }),
+          new THREE.MeshLambertMaterial({ map: dirtTex }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+          new THREE.MeshLambertMaterial({ map: grassSide }),
+        ];
+      } else if (type === 'leaves' || type === 'dark_leaves') {
+        material = new THREE.MeshLambertMaterial({ map: texture, transparent: true, depthWrite: false });
+      } else {
+        material = new THREE.MeshLambertMaterial({ map: texture });
+      }
+      const mesh = new THREE.InstancedMesh(geo, material, count);
+      let idx = 0;
+      const dummy = new THREE.Object3D();
+      for (const b of blocks) {
+        if (b.type !== type) continue;
+        dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.receiveShadow = true;
+      scene.add(mesh);
+    }
+
+    addTexInstanced('grass', null, grassCount);
+    addTexInstanced('dirt', dirtTex, dirtCount);
+    addTexInstanced('sand', sandTex, sandCount);
+    addTexInstanced('snow', snowTex, snowCount);
+    addTexInstanced('wood', woodTex, woodCount);
+    addTexInstanced('leaves', leavesTex, leavesCount, true);
+    addTexInstanced('dark_leaves', darkLeavesTex, darkLeavesCount, true);
+
+    // Stone with per-instance color for ores
+    if (stoneCount + coalCount + ironCount > 0) {
+      const geo = new THREE.BoxGeometry(1, 1, 1);
+      const mat = new THREE.MeshLambertMaterial({ map: stoneTex });
+      const mesh = new THREE.InstancedMesh(geo, mat, stoneCount + coalCount + ironCount);
+      let idx = 0;
+      const dummy = new THREE.Object3D();
+      for (const b of blocks) {
+        if (b.type !== 'stone' && b.type !== 'coal_ore' && b.type !== 'iron_ore') continue;
+        let c = null;
+        if (b.type === 'coal_ore') c = new THREE.Color(0x404040);
+        else if (b.type === 'iron_ore') c = new THREE.Color(0xc8a884);
+        if (c) mesh.setColorAt(idx, c);
+        dummy.position.set(b.x + 0.5, b.y + 0.5, b.z + 0.5);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(idx++, dummy.matrix);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      if (coalCount + ironCount > 0) mesh.instanceColor.needsUpdate = true;
+      scene.add(mesh);
+    }
+
+    // Water plane
+    const waterGeo = new THREE.PlaneGeometry(GRID, GRID);
+    const waterMat = new THREE.MeshLambertMaterial({ color: 0x3f76e4, transparent: true, opacity: 0.7, side: THREE.DoubleSide, depthWrite: false });
+    const waterMesh = new THREE.Mesh(waterGeo, waterMat);
+    waterMesh.rotation.x = -Math.PI / 2;
+    waterMesh.position.set(0, SEA + 0.01, 0);
+    scene.add(waterMesh);
+
+    let bgTime = 0;
+    function animate() {
+      requestAnimationFrame(animate);
+      bgTime += 0.012;
+      const r = 36;
+      camera.position.set(Math.cos(bgTime) * r, 26 + Math.sin(bgTime * 0.2) * 3, Math.sin(bgTime) * r);
+      camera.lookAt(0, 10, 0);
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // --- Profile page UI logic ---
+    (function() {
+      var urlUser = '';
+      try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
+      if (!urlUser) {
+        var path = location.pathname;
+        var match = path.match(/\/u\/([^/]+)\/?$/);
+        if (match) urlUser = decodeURIComponent(match[1]);
+      }
+
+      var nameEl = document.getElementById('pname');
+      var roleEl = document.getElementById('prole');
+      var hintEl = document.getElementById('hint');
+      var subtitleEl = document.getElementById('subtitle');
+      var homepageEl = document.getElementById('homepage');
+      var bypassEl = document.getElementById('bypass');
+      var playBtnEl = document.getElementById('play-btn');
+
+      if (!urlUser) {
+        subtitleEl.textContent = 'PLAYER LOGIN';
+        nameEl.textContent = 'No player specified';
+        hintEl.style.color = '#f55';
+        hintEl.textContent = 'Add ?user=YourName to the URL.';
+        return;
+      }
+
+      var fromU = false;
+      try { fromU = sessionStorage.getItem('bf_from_u') === '1'; } catch(e) {}
+
+      var savedRole = '';
+      try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
+
+      if (fromU) {
+        subtitleEl.textContent = 'PLAYER';
+        nameEl.textContent = urlUser;
+        roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
+        homepageEl.style.display = 'none';
+        setTimeout(function() {
+          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+        }, 1200);
+      } else {
+        subtitleEl.textContent = '';
+        nameEl.textContent = urlUser;
+        roleEl.textContent = '';
+        bypassEl.textContent = 'You may not bypass login. Please log in through the game.';
+        bypassEl.style.display = '';
+        hintEl.style.display = 'none';
+      }
+    })();
+  </script>
+</body>
+</html>

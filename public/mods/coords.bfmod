@@ -1,0 +1,80 @@
+// ─── BlockForge Mod: Position HUD ─────────────────────────────────────────
+// Live coordinates + facing + biome-ish info in a tidy corner panel. Great
+// for survival/build coordination. Toggle with C.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-coords',
+  name: 'Position HUD',
+  version: '1.0',
+  description: 'Live XYZ coordinates, heading and light level. Toggle with C.',
+  author: 'BlockForge Dev',
+  icon: '📍',
+};
+
+let enabled = true;
+let _el = null;
+let _xEl = null, _yEl = null, _zEl = null, _dirEl = null, _lightEl = null;
+let _onToggle = null;
+
+function ensureEl(api) {
+  if (_el) return;
+  _el = api.hud.upsert(
+    'pos',
+    '<div style="font:11px monospace;color:#eee;line-height:1.7;pointer-events:none;"></div>',
+    { bottom: '46px', left: '10px', background: 'rgba(0,0,0,0.5)', padding: '6px 10px', borderRadius: '8px', zIndex: '86' }
+  );
+  _xEl = document.createElement('div');
+  _yEl = document.createElement('div');
+  _zEl = document.createElement('div');
+  _dirEl = document.createElement('div');
+  _lightEl = document.createElement('div');
+  _el.appendChild(_xEl); _el.appendChild(_yEl); _el.appendChild(_zEl);
+  _el.appendChild(_dirEl); _el.appendChild(_lightEl);
+}
+
+function card(deg) {
+  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round((((deg + 360) % 360) / 45)) % 8] || 'N';
+}
+
+export function onLoad(api) {
+  ensureEl(api);
+  _onToggle = (e) => {
+    if (e.key !== 'c' && e.key !== 'C') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    if (_el) _el.style.display = enabled ? '' : 'none';
+    api.hud.upsert('badge', 'POSITION <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '144px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+}
+
+export function onTick(dt, api) {
+  if (!_el || !api.inGame()) return;
+  const p = api.getPlayer();
+  if (!p) return;
+  _el.style.display = enabled ? '' : 'none';
+  if (!enabled) return;
+
+  if (_xEl) _xEl.textContent = 'X ' + Math.floor(p.x);
+  if (_yEl) _yEl.textContent = 'Y ' + Math.floor(p.y);
+  if (_zEl) _zEl.textContent = 'Z ' + Math.floor(p.z);
+  if (_dirEl) _dirEl.textContent = 'Facing ' + card((p.yaw * 180) / Math.PI);
+
+  // Approximate sky light from the day cycle (0..1 → 0..15).
+  const t = api.getTime();
+  const dl = Math.round(Math.max(0, Math.min(15, (1 - t.dayTime * 1.6) * 15)));
+  if (_lightEl) _lightEl.textContent = 'Light ' + dl;
+}
+
+export function onUnload(api) {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  api.hud.remove('pos');
+  _el = _xEl = _yEl = _zEl = _dirEl = _lightEl = null;
+}

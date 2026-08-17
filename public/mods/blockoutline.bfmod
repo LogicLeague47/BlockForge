@@ -1,0 +1,110 @@
+// ─── BlockForge Mod: Block Outline ────────────────────────────────────────
+// Highlights the block you're looking at with a glowing wireframe box.
+//
+// How to install: open BlockForge → Mods & Addons → Import Mod → pick this
+// .bfmod file (or drag & drop it onto the menu).
+
+export const manifest = {
+  id: 'bf-block-outline',
+  name: 'Block Outline',
+  version: '1.0',
+  description: 'Draws a glowing wireframe around the block you are looking at. Toggle with O.',
+  author: 'BlockForge Dev',
+  icon: '🧱',
+};
+
+let enabled = true;
+let _group = null;
+let _raycaster = null;
+let _onToggle = null;
+let THREE = null;
+
+const REACH = 7;
+
+function raycastBlock(world, camera) {
+  if (!_raycaster) _raycaster = new THREE.Raycaster();
+  _raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  _raycaster.far = REACH;
+  const dir = _raycaster.ray.direction;
+  const origin = _raycaster.ray.origin;
+
+  // DDA voxel traversal from the ray origin.
+  let x = Math.floor(origin.x), y = Math.floor(origin.y), z = Math.floor(origin.z);
+  const stepX = dir.x > 0 ? 1 : -1, stepY = dir.y > 0 ? 1 : -1, stepZ = dir.z > 0 ? 1 : -1;
+  const tDeltaX = Math.abs(1 / (dir.x || 1e-10));
+  const tDeltaY = Math.abs(1 / (dir.y || 1e-10));
+  const tDeltaZ = Math.abs(1 / (dir.z || 1e-10));
+  let tMaxX = ((dir.x > 0 ? x + 1 - origin.x : origin.x - x) || 0) * tDeltaX;
+  let tMaxY = ((dir.y > 0 ? y + 1 - origin.y : origin.y - y) || 0) * tDeltaY;
+  let tMaxZ = ((dir.z > 0 ? z + 1 - origin.z : origin.z - z) || 0) * tDeltaZ;
+
+  for (let i = 0; i < 480; i++) {
+    const block = world.getBlock(x, y, z);
+    if (i > 0 && block != null && block !== 0) {
+      return { x, y, z };
+    }
+    if (tMaxX < tMaxY && tMaxX < tMaxZ) { x += stepX; tMaxX += tDeltaX; }
+    else if (tMaxY < tMaxZ) { y += stepY; tMaxY += tDeltaY; }
+    else { z += stepZ; tMaxZ += tDeltaZ; }
+    if (tMaxX > REACH && tMaxY > REACH && tMaxZ > REACH) break;
+  }
+  return null;
+}
+
+function ensureGroup() {
+  if (_group) return;
+  _group = new THREE.Group();
+  const box = new THREE.BoxGeometry(1.001, 1.001, 1.001);
+  const edges = new THREE.EdgesGeometry(box);
+  const mat = new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9, depthTest: false });
+  const line = new THREE.LineSegments(edges, mat);
+  _group.add(line);
+  _group.userData.outline = line;
+}
+
+export function onLoad(api) {
+  THREE = api.three;
+  _onToggle = (e) => {
+    if (e.key !== 'o' && e.key !== 'O') return;
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+    enabled = !enabled;
+    api.hud.upsert('badge', 'BLOCK OUTLINE <b style="color:' + (enabled ? '#7f7' : '#f88') + '">' + (enabled ? 'ON' : 'OFF') + '</b>',
+      { top: '60px', left: '10px', background: 'rgba(0,0,0,0.55)', padding: '3px 8px', borderRadius: '6px', font: 'bold 10px monospace', color: '#fff' });
+    setTimeout(() => api.hud.remove('badge'), 1400);
+  };
+  document.addEventListener('keydown', _onToggle);
+  ensureGroup();
+}
+
+export function onTick(dt, api) {
+  const refs = api.refs();
+  if (!refs || !refs.camera || !refs.scene) return;
+  if (!enabled || !api.inGame()) {
+    if (_group && _group.parent) _group.parent.remove(_group);
+    return;
+  }
+  const world = api.getWorld();
+  if (!world) {
+    if (_group && _group.parent) _group.parent.remove(_group);
+    return;
+  }
+  if (!_group.parent) refs.scene.add(_group);
+
+  const hit = raycastBlock(world, refs.camera);
+  if (hit) {
+    _group.userData.outline.position.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+    _group.userData.outline.visible = true;
+  } else {
+    _group.userData.outline.visible = false;
+  }
+}
+
+export function onUnload() {
+  if (_onToggle) document.removeEventListener('keydown', _onToggle);
+  _onToggle = null;
+  if (_group) {
+    if (_group.parent) _group.parent.remove(_group);
+    _group = null;
+  }
+  THREE = null;
+}
