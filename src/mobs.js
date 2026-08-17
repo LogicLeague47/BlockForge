@@ -3903,15 +3903,25 @@ export class MobManager {
       for (let j = 0; j < this.mobs.length; j++) this.mobs[j]._groundColStale = true;
     }
 
-    // Update all mobs
+    // Update all mobs (optimized with distance throttling & frame staggering to eliminate CPU lag)
+    if (!this._tickCounter) this._tickCounter = 0;
+    this._tickCounter++;
+
     for (let i = this.mobs.length - 1; i >= 0; i--) {
       const mob = this.mobs[i];
 
-      // Dead mobs: keep animating the death (fall over, sink, fade) until the
-      // removal loop below cleans them up.
       if (mob.dead) {
         mob.update(dt, this.world, this.world.noise, playerPos);
         continue;
+      }
+
+      if (playerPos) {
+        const dx = playerPos.x - mob.position.x;
+        const dz = playerPos.z - mob.position.z;
+        const distSq = dx * dx + dz * dz;
+        // Skip AI update for mobs further than 64 blocks away, or stagger far mobs (32-64 blocks) every 3 frames
+        if (distSq > 64 * 64) continue;
+        if (distSq > 32 * 32 && (this._tickCounter + i) % 3 !== 0) continue;
       }
 
       const def = MOB_TYPES[mob.type];
