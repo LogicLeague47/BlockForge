@@ -2,8 +2,7 @@ import { resolveCgUsername } from './multiplayer.js';
 import { getUserSetting, setUserSetting } from './storage.js';
 import { filterProfanity } from './profanity.js';
 import { setSkinUser } from './skins.js';
-import { cgGameplayStart } from './main.js';
-import { cgHappyTime } from './main.js';
+import { cgGameplayStart, cgHappyTime } from './cg-helper.js';
 
 // ===== CrazyGames Account Linking System =====
 // Handles linking Google, GitHub, and game accounts to CrazyGames users

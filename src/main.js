@@ -7962,7 +7962,7 @@ bindModsMenu(ui);
 // --- render loop ---
 let lastTime = performance.now();
 function loop() {
-  requestAnimationFrame(loop);
+requestAnimationFrame(loop);
   try {
     _gameFrame();
   } catch (_e) {
