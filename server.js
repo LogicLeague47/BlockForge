@@ -1385,7 +1385,7 @@ async function handleJoin(ws, msg) {
   if (!IS_LAN && !canAccessRoom(room, playerName)) {
     return sendError(ws, 'This is a private world. Ask the owner to add you as a friend.');
   }
-  if (room.players.size >= room.maxPlayers) return sendError(ws, 'Server is full. Create your own server or try again later.');
+  if (room.players.size >= room.maxPlayers) return sendError(ws, 'Server is full (max 10 players). Please play singleplayer or try again later.');
 
   for (const [, p] of room.players) {
     if (p.name === playerName && p.ws !== ws) return sendError(ws, 'That username is already taken.');
