@@ -7360,9 +7360,12 @@ function initMenu() {
     const urlUser = params.get('user');
     const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
-    // Auto-login when visiting via /u/ redirect OR from portal (portal already saved credentials)
+    // Auto-login whenever credentials are saved locally, so a page reload
+    // doesn't bounce the player back to the login screen. Also triggers for
+    // /u/ redirects and portal visits.
     const savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
-    if (urlUser && savedPass && savedPass.length >= 3 && (fromU || fromPortal)) {
+    const hasSavedCreds = savedName && !savedName.startsWith('Guest') && savedPass && savedPass.length >= 3;
+    if (hasSavedCreds) {
       loginPass.value = savedPass;
       autoLogin = true;
     }
