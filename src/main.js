@@ -6424,42 +6424,6 @@ function initMenu() {
   // { hash, heading, desc, date, bugs: [], updates: [], features: [] }
   const UPDATE_SECTIONS = [
     {
-      hash: '5013d73',
-      heading: 'Electron for Mac — Real App Binary',
-      desc: 'Replaced shell-script .app with a real Electron app. DMG now contains a native Chromium window, proper bundle that Finder always recognizes.',
-      date: 'Aug 1',
-      bugs: ['Mac DMG showed as folder instead of app (missing bundle bit)'],
-      updates: ['DMG now contains real Electron app binary (not shell script)', 'Applications alias for drag-and-drop install', 'Favicon used as app icon and volume icon'],
-      features: ['Native Chromium window for Mac'],
-    },
-    {
-      hash: '9f8bdde',
-      heading: 'Mac DMG — Bundle Bit Fix',
-      desc: 'Set macOS bundle bit flag so Finder recognizes BlockForge.app as an application, not a folder.',
-      date: 'Aug 1',
-      bugs: ['BlockForge.app showed as generic folder icon on some Macs'],
-      updates: ['Bundle bit (SetFile -a B) set on app before DMG creation', 'Custom icon bit set for favicon display'],
-      features: [],
-    },
-    {
-      hash: '9f8afad',
-      heading: 'Platform Downloads — Real Native Packages',
-      desc: 'Added real platform-specific downloads: Mac .dmg, Windows .exe, Android .apk, iOS .ipa via CI pipeline.',
-      date: 'Aug 1',
-      bugs: [],
-      updates: ['Downloads renamed to BlockForge-<platform>.<ext>', 'CI pipeline builds all platforms automatically', 'Render deploy hook with fallback URL'],
-      features: ['Windows .exe via Electron', 'Android .apk via Capacitor + Gradle', 'iOS .ipa via Capacitor + Xcode (unsigned for SideStore)'],
-    },
-    {
-      hash: '3b07634',
-      heading: 'Download Button — Platform Options',
-      desc: 'Added "App Downloads" button to main menu with platform-specific download cards.',
-      date: 'Jul 31',
-      bugs: [],
-      updates: ['Download menu with Mac, Windows, Android, iPhone cards', 'iPhone card notes SideStore + LiveContainer requirement'],
-      features: ['Platform-specific download cards'],
-    },
-    {
       hash: '07a16ac',
       heading: 'Menu UI — Glass Morphism Overhaul',
       desc: 'Modernized menu with glass-morphism panels, gradient text, glow effects, and smoother animations.',
@@ -9945,22 +9909,5 @@ document.getElementById('ai-data-page')?.addEventListener('click', () => {
   const role = encodeURIComponent(playerRole || '');
   window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
-// --- Electron in-app update ------------------------------------------------
-if (window.electronAPI) {
-  const updateBtn = document.getElementById('electron-update-btn');
-  window.electronAPI.checkForUpdate().then((res) => {
-    if (res && res.updateAvailable && updateBtn) {
-      updateBtn.style.display = 'block';
-      updateBtn.title = 'Update to v' + res.version;
-      updateBtn.addEventListener('click', () => {
-        updateBtn.textContent = 'DOWNLOADING...';
-        updateBtn.style.pointerEvents = 'none';
-        updateBtn.style.borderColor = '#aa0';
-        updateBtn.style.color = '#ff0';
-        window.electronAPI.doUpdate(res.downloadUrl);
-      });
-    }
-  });
-}
 
 requestAnimationFrame(loop);
