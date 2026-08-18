@@ -95,7 +95,29 @@ export class World {
   getChunk(cx, cz, generate = true) {
     const k = this.key(cx, cz);
     let c = this.chunks.get(k);
-    if (!c) { c = new Chunk(cx, cz); this.chunks.set(k, c); this.chunksNum.set(this.numKey(cx, cz), c); if (generate) this.generateChunk(c); }
+    if (!c) {
+      c = new Chunk(cx, cz);
+      this.chunks.set(k, c);
+      this.chunksNum.set(this.numKey(cx, cz), c);
+      if (generate) {
+        try {
+          this.generateChunk(c);
+        } catch (e) {
+          // Discard the partial chunk so the next access regenerates it from
+          // scratch. Otherwise a half-generated chunk (generated=false) sits
+          // in the maps forever, is never meshed, and stays invisible — the
+          // "chunks exist but you can't see them" bug.
+          this.chunks.delete(k);
+          this.chunksNum.delete(this.numKey(cx, cz));
+          if (!this._genFailWarned) this._genFailWarned = new Set();
+          if (!this._genFailWarned.has(k)) {
+            this._genFailWarned.add(k);
+            console.error('Chunk generation failed (' + k + '), will retry:', e);
+          }
+          throw e;
+        }
+      }
+    }
     return c;
   }
 

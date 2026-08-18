@@ -45,8 +45,15 @@ export class ChunkLoader {
     let gen = this.genBudget;
     while (gen-- > 0 && this.queue.length) {
       const entry = this.queue.shift();
-      const chunk = this.world.getChunk(entry.cx, entry.cz, true);
-      if (chunk.generated) this.manager.markDirty(entry.cx, entry.cz);
+      try {
+        const chunk = this.world.getChunk(entry.cx, entry.cz, true);
+        if (chunk.generated) this.manager.markDirty(entry.cx, entry.cz);
+        // Not generated (rare: generation threw) — re-queue at the end so it
+        // retries after the rest without blocking the visible world.
+        else this.queue.push(entry);
+      } catch (e) {
+        this.queue.push(entry);
+      }
     }
 
     this.allVisibleLoaded = this.queue.length === 0;
@@ -92,8 +99,13 @@ export class ChunkLoader {
         let n = budget;
         while (n-- > 0 && this.queue.length) {
           const entry = this.queue.shift();
-          const chunk = this.world.getChunk(entry.cx, entry.cz, true);
-          if (chunk.generated) this.manager.buildOrRefresh(entry.cx, entry.cz);
+          try {
+            const chunk = this.world.getChunk(entry.cx, entry.cz, true);
+            if (chunk.generated) this.manager.buildOrRefresh(entry.cx, entry.cz);
+            else this.queue.push(entry);
+          } catch (e) {
+            this.queue.push(entry);
+          }
         }
         const done = total - this.queue.length;
         if (onProgress) onProgress(done, total);
