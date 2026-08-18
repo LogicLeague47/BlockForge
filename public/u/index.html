@@ -45,49 +45,6 @@
     <div class="bypass" id="bypass" style="display:none"></div>
     <div class="footer">By continuing, you agree to the Terms of Service</div>
   </div>
-  <script>
-    // Profile + redirect logic runs in a plain script so the player link works
-    // even if the 3D background (which imports three.js from a CDN) fails to
-    // load. The game enforces login: saved credentials auto-login, otherwise
-    // the login screen is shown with the name pre-filled.
-    (function() {
-      var urlUser = '';
-      try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
-      if (!urlUser) {
-        var path = location.pathname;
-        var match = path.match(/\/u\/([^/]+)\/?$/);
-        if (match) urlUser = decodeURIComponent(match[1]);
-      }
-
-      var nameEl = document.getElementById('pname');
-      var roleEl = document.getElementById('prole');
-      var hintEl = document.getElementById('hint');
-      var subtitleEl = document.getElementById('subtitle');
-      var homepageEl = document.getElementById('homepage');
-      var bypassEl = document.getElementById('bypass');
-      var playBtnEl = document.getElementById('play-btn');
-
-      if (!urlUser) {
-        subtitleEl.textContent = 'PLAYER LOGIN';
-        nameEl.textContent = 'No player specified';
-        if (hintEl) { hintEl.style.color = '#f55'; hintEl.textContent = 'Add ?user=YourName to the URL.'; }
-        return;
-      }
-
-      var savedRole = '';
-      try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
-
-      subtitleEl.textContent = 'PLAYER';
-      nameEl.textContent = urlUser;
-      roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-      if (homepageEl) homepageEl.style.display = 'none';
-      if (bypassEl) bypassEl.style.display = 'none';
-      if (hintEl) hintEl.style.display = 'none';
-      setTimeout(function() {
-        window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-      }, 1200);
-    })();
-  </script>
   <script type="module">
     import * as THREE from 'three';
     import { createNoise2D, createNoise3D } from 'simplex-noise';
@@ -466,6 +423,53 @@
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
+    // --- Profile page UI logic ---
+    (function() {
+      var urlUser = '';
+      try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
+      if (!urlUser) {
+        var path = location.pathname;
+        var match = path.match(/\/u\/([^/]+)\/?$/);
+        if (match) urlUser = decodeURIComponent(match[1]);
+      }
+
+      var nameEl = document.getElementById('pname');
+      var roleEl = document.getElementById('prole');
+      var hintEl = document.getElementById('hint');
+      var subtitleEl = document.getElementById('subtitle');
+      var homepageEl = document.getElementById('homepage');
+      var bypassEl = document.getElementById('bypass');
+      var playBtnEl = document.getElementById('play-btn');
+
+      if (!urlUser) {
+        subtitleEl.textContent = 'PLAYER LOGIN';
+        nameEl.textContent = 'No player specified';
+        hintEl.style.color = '#f55';
+        hintEl.textContent = 'Add ?user=YourName to the URL.';
+        return;
+      }
+
+      var fromU = false;
+      try { fromU = sessionStorage.getItem('bf_from_u') === '1'; } catch(e) {}
+
+      var savedRole = '';
+      try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
+
+      // Player-specific link: show the player page, then take them into the
+      // game. The game itself enforces login (saved credentials auto-login,
+      // otherwise the login screen is shown with the name pre-filled), so a
+      // direct visit here is a shareable player link, not a login bypass.
+      subtitleEl.textContent = 'PLAYER';
+      nameEl.textContent = urlUser;
+      roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
+      homepageEl.style.display = 'none';
+      bypassEl.style.display = 'none';
+      hintEl.style.display = 'none';
+      setTimeout(function() {
+        window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+      }, 1200);
+    })();
   </script>
 </body>
 </html>
