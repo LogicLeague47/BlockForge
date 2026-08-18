@@ -7406,7 +7406,11 @@ function initMenu() {
   if (loginGoBtn) loginGoBtn.addEventListener('click', () => doLogin('login'));
   if (loginPass) loginPass.addEventListener('keydown', (e) => { if (e.key === 'Enter') doLogin('login'); });
 
-  // Pre-fill username from /u/ redirect URL params or saved storage (NOT password — prevents Safari auto-submit)
+  // Pre-fill username from player-link URL params or saved storage (NOT password —
+  // prevents Safari auto-submit). Silent auto-login (skipping the login screen)
+  // only happens when it's clearly intended: a returning CrazyGames user (CG
+  // account-integration rule), or a player-specific link that exactly matches the
+  // saved account. Everywhere else the login screen is shown, pre-filled.
   let autoLogin = false;
   let fromU = false;
   let savedName = '';
@@ -7418,21 +7422,21 @@ function initMenu() {
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
     const urlUser = params.get('user');
-    savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
-    if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
-    // Auto-login whenever credentials are saved locally, so a page reload
-    // doesn't bounce the player back to the login screen. Also triggers for
-    // /u/ redirects and portal visits. OAuth/CG users have no password, so a
-    // saved identity (provider + id) lets them silently re-authenticate too.
+    savedName = localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
+    const targetUser = urlUser || savedName;
+    if (targetUser && !targetUser.startsWith('Guest') && loginUser) loginUser.value = targetUser;
     savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
     oauthProvider = localStorage.getItem('bf_oauth_provider') || '';
     oauthProviderId = localStorage.getItem('bf_oauth_provider_id') || '';
     const hasSavedCreds = savedName && !savedName.startsWith('Guest') && savedPass && savedPass.length >= 3;
     const hasOauthCreds = savedName && !savedName.startsWith('Guest') && oauthProvider && oauthProviderId;
-    if (hasSavedCreds || hasOauthCreds) {
-      loginPass.value = savedPass || '';
-      autoLogin = true;
-    }
+    // Only trust saved credentials when the saved account is the one this link targets.
+    const credsMatchTarget = savedName && targetUser && savedName.toLowerCase() === targetUser.toLowerCase();
+    if (credsMatchTarget) loginPass.value = savedPass || '';
+    // Player-specific link that matches the saved account → enter directly.
+    if (urlUser && credsMatchTarget && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
+    // Returning CrazyGames users are auto-logged-in via their saved identity.
+    if (isOnCrazyGames() && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
   } catch (_) { console.warn("operation failed"); }
   if (autoLogin) {
     // Skip login screen entirely — go straight to main menu after auth
