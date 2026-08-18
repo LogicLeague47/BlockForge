@@ -168,6 +168,8 @@
     .upload-item img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:4px;margin-bottom:6px;background:rgba(0,0,0,.3)}
     .upload-item .del{color:var(--red);cursor:pointer;font-size:10px;margin-top:4px;display:inline-block}
     .upload-item .del:hover{text-decoration:underline}
+    .equip-btn{width:100%;margin-top:6px;padding:6px 8px;font:11px 'Inter',monospace;font-weight:600;color:#0a0a12;background:linear-gradient(180deg,#ffdd33,#e6b800);border:1px solid #b89500;border-radius:6px;cursor:pointer;transition:.15s}
+    .equip-btn:hover{filter:brightness(1.1)}
     .file-input-hidden{display:none}
 
     /* Search box */
@@ -1995,9 +1997,10 @@
       function saveUploads(key, list) {
         try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
       }
-      function renderUploads(containerId, storageKey, isImage) {
+      function renderUploads(containerId, storageKey, isImage, equip) {
         var grid = document.getElementById(containerId);
         if (!grid) return;
+        if (equip === undefined) equip = containerId === 'skin-grid';
         var items = loadUploads(storageKey);
         if (items.length === 0) {
           grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No uploads yet.</div>';
@@ -2005,8 +2008,33 @@
         }
         grid.innerHTML = items.map(function(item, i) {
           var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '';
-          return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div><span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
+          var eqBtn = (equip && isImage) ? '<button class="equip-btn" data-eq="' + i + '" data-key="' + storageKey + '">⚡ Equip in BlockForge</button>' : '';
+          return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div>' + eqBtn + '<span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
         }).join('');
+      }
+
+      // Equip a portal skin in the game: write it into the game's per-account
+      // custom-skin storage (shared localStorage, same origin) then open the game.
+      function equipSkinInGame(dataUrl) {
+        var user = '';
+        try { user = localStorage.getItem('bf_portal_user') || ''; } catch (_) {}
+        var suffix = user ? '_' + encodeURIComponent(user) : '';
+        var list = [];
+        try { list = JSON.parse(localStorage.getItem('blockforge_custom_skins' + suffix) || '[]') || []; } catch (_) {}
+        var idx = list.indexOf(dataUrl);
+        if (idx === -1) {
+          list.push(dataUrl);
+          idx = list.length - 1;
+          try { localStorage.setItem('blockforge_custom_skins' + suffix, JSON.stringify(list)); } catch (_) {}
+        }
+        try {
+          localStorage.setItem('blockforge_skin' + suffix, 'custom:' + idx);
+          localStorage.setItem('bf_custom_skin_created', '1');
+        } catch (_) {}
+        var url = 'https://blockforge-1.onrender.com/?skin=equip';
+        if (user) url += '&user=' + encodeURIComponent(user);
+        toast('Skin equipped — opening BlockForge…', 'ok');
+        location.href = url;
       }
       function setupUpload(btnId, inputId, gridId, storageKey, isImage) {
         var btn = document.getElementById(btnId);
@@ -2028,12 +2056,17 @@
           e.target.value = '';
         });
         document.getElementById(gridId).addEventListener('click', function(ev) {
-          if (!ev.target.classList.contains('del')) return;
-          var idx = parseInt(ev.target.dataset.idx, 10);
-          var list = loadUploads(ev.target.dataset.key);
-          list.splice(idx, 1);
-          saveUploads(ev.target.dataset.key, list);
-          renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+          if (ev.target.classList.contains('del')) {
+            var idx = parseInt(ev.target.dataset.idx, 10);
+            var list = loadUploads(ev.target.dataset.key);
+            list.splice(idx, 1);
+            saveUploads(ev.target.dataset.key, list);
+            renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+          } else if (ev.target.classList.contains('equip-btn')) {
+            var items = loadUploads(ev.target.dataset.key || storageKey);
+            var ei = parseInt(ev.target.dataset.eq, 10);
+            if (items[ei] && items[ei].data) equipSkinInGame(items[ei].data);
+          }
         });
       }
 
