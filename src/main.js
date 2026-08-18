@@ -7413,7 +7413,6 @@ function initMenu() {
   let oauthProviderId = '';
   try {
     fromU = sessionStorage.getItem('bf_from_u') === '1';
-    const fromPortal = new URLSearchParams(location.search).get('from') === 'portal';
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
     const urlUser = params.get('user');
