@@ -45,8 +45,31 @@ import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTota
 import { network } from './network.js';
 import { VoiceChat } from './voice.js';
 import { WeatherSystem } from './weather.js';
+import { filterProfanity } from './profanity.js';
 
 const app = document.getElementById('app');
+
+// Return a promise resolving to the CrazyGames SDK (or null when unavailable).
+function crazyGamesSDK() {
+  return new Promise((resolve) => {
+    if (window.CrazyGames && window.CrazyGames.SDK) { resolve(window.CrazyGames.SDK); return; }
+    let tries = 0;
+    const id = setInterval(() => {
+      if (window.CrazyGames && window.CrazyGames.SDK) {
+        clearInterval(id);
+        resolve(window.CrazyGames.SDK);
+      } else if (++tries > 100) {
+        clearInterval(id);
+        resolve(null);
+      }
+    }, 50);
+  });
+}
+
+// Whether we are running on the CrazyGames platform.
+function isOnCrazyGames() {
+  return /crazygames/i.test(location.hostname);
+}
 
 // Mobile devices are far weaker — detect early so we can cap the render
 // resolution and view distance for a playable frame rate.
@@ -6950,7 +6973,7 @@ function initMenu() {
           setDevAccountListMsg('Connecting...');
           _devPanelNeedsAccounts = true;
           _backgroundAuth = true;
-          const url = network.serverUrl || MP_SERVER_URL;
+          const url = network.serverUrl || BACKEND_URL;
           network.onConnectedOnce(() => {
             const pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
             network.sendAuth(playerName, pass, 'login');
@@ -7221,7 +7244,7 @@ function initMenu() {
       // Create multiplayer dev world on the server
       const roomName = name.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 32) || 'DevWorld';
       if (!network.connected) {
-        network.connect(MP_SERVER_URL);
+        network.connect(BACKEND_URL);
         network.onConnectedOnce(() => {
           createDevWorldMultiplayer(roomName, seed, _dwState.mode, _dwState.diff, _dwState.terrain, maxP);
         });
@@ -7315,7 +7338,7 @@ function initMenu() {
     if (!playerName) playerName = 'Player';
     const attempt = () => network.sendAuth(playerName, pass, mode);
     if (!network.connected) {
-      network.connect(MP_SERVER_URL);
+      network.connect(BACKEND_URL);
       network.onConnectedOnce(attempt);
       setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
     } else {
@@ -7397,7 +7420,7 @@ function initMenu() {
             try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
             const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
             if (!network.connected) {
-              network.connect(MP_SERVER_URL);
+              network.connect(BACKEND_URL);
               network.onConnectedOnce(attempt);
               setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
             } else {
@@ -7471,7 +7494,7 @@ function initMenu() {
           try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
-            network.connect(MP_SERVER_URL);
+            network.connect(BACKEND_URL);
             network.onConnectedOnce(attempt);
             setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
           } else {
@@ -7501,7 +7524,7 @@ function initMenu() {
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
             if (!network.connected) {
-              network.connect(MP_SERVER_URL);
+              network.connect(BACKEND_URL);
               network.onConnectedOnce(attempt);
               setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
             } else {
@@ -7515,7 +7538,7 @@ function initMenu() {
           try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
-            network.connect(MP_SERVER_URL);
+            network.connect(BACKEND_URL);
             network.onConnectedOnce(attempt);
             setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
           } else {
@@ -7545,7 +7568,7 @@ function initMenu() {
     try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
     const attempt = () => network.sendIdentityAuth('guest', playerName, playerName);
     if (!network.connected) {
-      network.connect(MP_SERVER_URL);
+      network.connect(BACKEND_URL);
       network.onConnectedOnce(attempt);
       setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
     } else {
