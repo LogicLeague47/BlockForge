@@ -7381,6 +7381,7 @@ function initMenu() {
     ui.showMenu('login');
   }
   showOneTimeMessages();
+  showConsentNotice();
   crazyGamesSDK().then((sdk) => {
     if (!sdk) return;
     try {
@@ -7388,6 +7389,16 @@ function initMenu() {
       if (cgName) {
         const ni = document.getElementById('login-username');
         if (ni && !ni.value) ni.value = cgName;
+      }
+      // Returning CrazyGames users are auto-logged-in (account integration
+      // requirement: "returning logged in CrazyGames users are automatically
+      // logged in within your game").
+      const cgId = sdk.user?.getId?.();
+      if (cgId && !autoLogin) {
+        window._autoLoggingIn = true;
+        _backgroundAuth = true;
+        ui.showMenu('main');
+        cgLoginFlow(cgId, cgName, true);
       }
     } catch (_) { console.warn("operation failed"); }
   });
@@ -7401,6 +7412,33 @@ function initMenu() {
   // Social login buttons always visible (GitHub/Google work everywhere).
 
   // --- Social + CG login handlers ---
+  // Shared CrazyGames auth flow. `silent` suppresses error toasts so it can run
+  // automatically at boot (no confusing popups for auto-logged-in users).
+  function cgLoginFlow(cgId, cgName, silent) {
+    const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
+    fetch(`${serverUrl}/auth/crazygames`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cgUserId: cgId || cgName, cgUsername: cgName || 'Player' }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (!data.ok) { if (!silent) showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
+        playerName = filterProfanity(data.username) || 'Player';
+        setSkinUser(playerName);
+        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
+        if (!network.connected) {
+          network.connect(BACKEND_URL);
+          network.onConnectedOnce(attempt);
+          setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+        } else {
+          attempt();
+        }
+      })
+      .catch(() => { if (!silent) showToast('CG auth network error', '#f44', 4); });
+  }
+
   function doCgLogin() {
     clearToast();
     crazyGamesSDK().then((sdk) => {
@@ -7409,28 +7447,7 @@ function initMenu() {
         const cgName = sdk.user?.getUsername?.();
         const cgId = sdk.user?.getId?.();
         if (!cgId && !cgName) { showToast('CrazyGames: could not get user info. Make sure you are logged into CrazyGames.', '#f85', 5); return; }
-        const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
-        fetch(`${serverUrl}/auth/crazygames`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cgUserId: cgId || cgName, cgUsername: cgName || 'Player' }),
-        })
-          .then(r => r.json())
-          .then(data => {
-            if (!data.ok) { showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
-            playerName = filterProfanity(data.username) || 'Player';
-            setSkinUser(playerName);
-            try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
-            const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
-            if (!network.connected) {
-              network.connect(BACKEND_URL);
-              network.onConnectedOnce(attempt);
-              setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
-            } else {
-              attempt();
-            }
-          })
-          .catch(() => { showToast('CG auth network error', '#f44', 4); });
+        cgLoginFlow(cgId, cgName, false);
       } catch (_) { console.warn("operation failed"); }
     });
   }
@@ -7589,6 +7606,64 @@ function initMenu() {
       if (privacy) { privacy.href = './privacy.html'; privacy.textContent = 'Privacy Policy'; }
     } catch (_) { console.warn("operation failed"); }
   }
+
+  // CrazyGames account rules: "Logging out in the game and allowing login with
+  // external login options (e.g. Facebook, Google, email) is not allowed."
+  // On the CrazyGames build we hide the username/password form and the GitHub/
+  // Google OAuth buttons, keeping only Login with CrazyGames + Play as Guest.
+  if (isOnCrazyGames()) {
+    try {
+      const accSection = document.getElementById('login-account-section');
+      if (accSection) accSection.style.display = 'none';
+      const ghBtn = document.getElementById('btn-login-github');
+      if (ghBtn) ghBtn.style.display = 'none';
+      const glBtn = document.getElementById('btn-login-google');
+      if (glBtn) glBtn.style.display = 'none';
+    } catch (_) { console.warn("operation failed"); }
+  }
+}
+
+function showConsentNotice() {
+  // CrazyGames User Consent requirement: games that collect personal data
+  // beyond the SDK's events must show a Terms & Conditions / Privacy Policy
+  // notice to new players. We collect a username, hashed password and game
+  // progress via our own backend, so show a simple non-blocking notice once.
+  let acked = false;
+  try { acked = !!localStorage.getItem('bf_consent_ack'); } catch (_) {}
+  if (acked) return;
+  const base = isOnCrazyGames() ? 'https://blockforge-1.onrender.com' : '';
+  const el = document.createElement('div');
+  el.id = 'consent-notice';
+  el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;background:rgba(10,12,20,0.96);border:1px solid rgba(120,140,200,0.4);border-radius:10px;padding:12px 16px;font:12px/1.5 system-ui,sans-serif;color:#ddd;box-shadow:0 6px 24px rgba(0,0,0,0.5);max-width:560px;margin:0 auto;';
+  const p = document.createElement('p');
+  p.style.margin = '0 0 8px';
+  p.appendChild(document.createTextNode('BlockForge stores your username, a hashed password and your in-game progress to keep your saves across devices. By playing you agree to our '));
+  const t = document.createElement('a');
+  t.href = base + '/terms.html';
+  t.target = '_blank';
+  t.rel = 'noopener';
+  t.textContent = 'Terms';
+  t.style.color = '#8af';
+  p.appendChild(t);
+  p.appendChild(document.createTextNode(' and '));
+  const pv = document.createElement('a');
+  pv.href = base + '/privacy.html';
+  pv.target = '_blank';
+  pv.rel = 'noopener';
+  pv.textContent = 'Privacy Policy';
+  pv.style.color = '#8af';
+  p.appendChild(pv);
+  p.appendChild(document.createTextNode('.'));
+  const btn = document.createElement('button');
+  btn.textContent = 'Got it';
+  btn.style.cssText = 'background:#2a3f5f;color:#fff;border:none;border-radius:6px;padding:6px 14px;font:12px system-ui,sans-serif;cursor:pointer;';
+  btn.onclick = () => {
+    try { localStorage.setItem('bf_consent_ack', '1'); } catch (_) {}
+    el.remove();
+  };
+  el.appendChild(p);
+  el.appendChild(btn);
+  document.body.appendChild(el);
 }
 
 function showNamePrompt() {
