@@ -374,6 +374,46 @@
     @keyframes titleShift{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
     .nav-tab.active{animation:navGlow 3s ease-in-out infinite}
     @keyframes navGlow{0%,100%{box-shadow:0 0 8px rgba(100,140,255,.12)}50%{box-shadow:0 0 18px rgba(100,140,255,.35)}}
+
+    /* ── Mobile / small-screen polish ──────────────────────────────────── */
+    @media(max-width:768px){
+      header{padding:12px 14px;gap:12px}
+      .brand h1{font-size:20px;letter-spacing:3px}
+      .brand-logo{width:32px;height:32px;font-size:16px;border-radius:8px}
+      nav{width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:4px;margin-top:2px;-webkit-overflow-scrolling:touch}
+      nav .nav-tab{padding:7px 12px;font-size:12px;white-space:nowrap}
+      nav::-webkit-scrollbar{height:3px}
+      nav::-webkit-scrollbar-thumb{background:rgba(100,140,200,.25);border-radius:3px}
+      .container{padding:0 14px;margin:18px auto}
+      .hero{padding:30px 16px 26px;margin-bottom:22px}
+      .hero-sub{font-size:13px}
+      .hero-play{font-size:14px;padding:12px 26px}
+      .hero-alt{font-size:13px;padding:11px 20px}
+      .hero-stats{gap:18px}
+      .hero-stat b{font-size:19px}
+      .section-title{font-size:12px}
+      #login-box{padding:20px}
+      #account-info{padding:16px}
+      .chat-wrap{height:calc(100vh - 240px);min-height:360px}
+      .chat-msg{flex-wrap:wrap;gap:3px}
+      .chat-msg .cm-time{margin-left:0}
+      .news-form-row{flex-wrap:wrap}
+      .news-form-row select{width:100%}
+      .news-form-actions{flex-wrap:wrap}
+      .help-table{display:block;overflow-x:auto;white-space:nowrap}
+      .lb-row{font-size:11px;gap:8px}
+      .upload-grid,.dl-grid{grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:10px}
+    }
+    @media(max-width:480px){
+      .feature-grid{grid-template-columns:1fr}
+      .hero-actions{gap:10px;flex-direction:column;align-items:center}
+      .hero-play{width:100%;justify-content:center}
+      .hero-alt{width:100%;text-align:center}
+      .comm-sub-tab{padding:6px 10px;font-size:11px}
+      .dl-arrow{display:none}
+      .ticker-track{font-size:11px}
+      #welcome-splash .logo{font-size:30px;letter-spacing:4px}
+    }
   </style>
 </head>
 <body>
@@ -501,7 +541,7 @@
         </div>
 
         <div class="section-title">⚡ QUICK ACTIONS</div>
-        <div class="feature-grid" style="grid-template-columns:repeat(3,1fr)">
+        <div class="feature-grid">
           <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
             <div class="icon">🎮</div>
             <div class="name">Play BlockForge</div>
