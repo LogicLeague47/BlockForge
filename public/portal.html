@@ -100,6 +100,16 @@
     .prog-bar{height:6px;background:rgba(255,255,255,.07);border-radius:3px;margin-top:10px;overflow:hidden}
     .prog-bar .fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .8s ease;box-shadow:0 0 10px rgba(120,160,255,.4)}
     .quick-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+    .lb-metrics{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+    .lb-metric{padding:4px 10px;font:10px monospace;font-weight:700;letter-spacing:.6px;text-transform:uppercase;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:20px;color:var(--muted);cursor:pointer;transition:.15s}
+    .lb-metric:hover{color:var(--text);border-color:rgba(130,160,255,.4)}
+    .lb-metric.active{color:#0a0a12;background:linear-gradient(180deg,#ffdd33,#e6b800);border-color:#b89500}
+    .lb-row{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;font-size:12px}
+    .lb-row:nth-child(even){background:rgba(0,0,0,.15)}
+    .lb-row.self{background:rgba(130,160,255,.12);border:1px solid rgba(130,160,255,.35)}
+    .lb-rank{width:22px;text-align:center;font-weight:800;color:var(--accent);flex-shrink:0}
+    .lb-name{flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .lb-val{font-weight:700;color:var(--accent2)}
     .feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:36px}
     @media(max-width:768px){.feature-grid{grid-template-columns:repeat(2,1fr)}}
     @media(max-width:480px){.feature-grid{grid-template-columns:1fr}}
@@ -465,6 +475,15 @@
               </div>
               <div class="prog-bar"><div class="fill" id="ach-fill" style="width:0%"></div></div>
             </div>
+          </div>
+          <div class="dash-card">
+            <h3>🏆 Leaderboard</h3>
+            <div class="lb-metrics">
+              <button class="lb-metric active" data-metric="playTime">Play Time</button>
+              <button class="lb-metric" data-metric="level">Level</button>
+              <button class="lb-metric" data-metric="mobKillsAny">Mob Kills</button>
+            </div>
+            <div class="lb-list" id="lb-list"><div style="color:var(--dim);font-size:12px;">Connecting…</div></div>
           </div>
         </div>
 
@@ -2143,6 +2162,7 @@
           chatStatus(true);
           chatWs.send(JSON.stringify({ type: 'auth', playerName: userName || 'Guest', password: '', mode: 'portal_chat' }));
           chatWs.send(JSON.stringify({ type: 'community_chat_history' }));
+          requestLeaderboard();
         };
         chatWs.onmessage = function(e) {
           var msg;
@@ -2165,6 +2185,8 @@
           } else if (msg.type === 'community_online') {
             var onlineEl = chatStatusEl ? chatStatusEl.querySelector('span:last-child') : null;
             if (onlineEl && chatConnected) onlineEl.textContent = 'Online — ' + (msg.count || 0) + ' in chat';
+          } else if (msg.type === 'leaderboard') {
+            renderLeaderboard(msg);
           }
         };
         chatWs.onclose = function() {
@@ -2185,6 +2207,50 @@
       if (chatSendBtn) chatSendBtn.addEventListener('click', sendChatMsg);
       if (chatInput) chatInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') sendChatMsg(); });
       connectChat();
+
+      // ── Leaderboard ──────────────────────────────────────────────────
+      var lbMetric = 'playTime';
+      var lbFmt = {
+        playTime: function(v) { var h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60); return (h > 0 ? h + 'h ' : '') + m + 'm'; },
+        level: function(v) { return String(v); },
+        mobKillsAny: function(v) { return String(v); }
+      };
+      function requestLeaderboard() {
+        if (!chatWs || chatWs.readyState !== 1) return;
+        chatWs.send(JSON.stringify({ type: 'leaderboard_get', metric: lbMetric }));
+      }
+      function renderLeaderboard(msg) {
+        var list = document.getElementById('lb-list');
+        if (!list) return;
+        var fmt = lbFmt[msg.metric] || lbFmt.playTime;
+        if (!msg.entries || msg.entries.length === 0) {
+          list.innerHTML = '<div style="color:var(--dim);font-size:12px;">No stats yet — play BlockForge to climb the board!</div>';
+          return;
+        }
+        var html = msg.entries.map(function(e) {
+          var medal = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank;
+          var cls = (msg.self && msg.self.name === e.name) ? 'self' : '';
+          return '<div class="lb-row ' + cls + '"><span class="lb-rank">' + medal + '</span>' +
+            '<span class="lb-name">' + esc(e.name) + '</span>' +
+            '<span class="lb-val">' + fmt(e.value) + '</span></div>';
+        }).join('');
+        if (msg.self && !msg.entries.some(function(e) { return e.name === msg.self.name; })) {
+          html += '<div class="lb-row self"><span class="lb-rank">…</span>' +
+            '<span class="lb-name">' + esc(msg.self.name) + '</span>' +
+            '<span class="lb-val">' + fmt(msg.self.value) + '</span></div>';
+        }
+        list.innerHTML = html;
+      }
+      document.querySelectorAll('.lb-metric').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          document.querySelectorAll('.lb-metric').forEach(function(b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          lbMetric = btn.dataset.metric;
+          var list = document.getElementById('lb-list');
+          if (list) list.innerHTML = '<div style="color:var(--dim);font-size:12px;">Loading…</div>';
+          requestLeaderboard();
+        });
+      });
 
       // ── Emoji & GIF support ──────────────────────────────────────────
       var EMOJI_LIST = [

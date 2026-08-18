@@ -1228,6 +1228,7 @@ function isRateLimited(ws) {
       case 'player_stats_set': handlePlayerStatsSet(ws, msg); break;
       case 'player_settings_get': handlePlayerSettingsGet(ws, msg); break;
       case 'player_settings_set': handlePlayerSettingsSet(ws, msg); break;
+      case 'leaderboard_get': handleLeaderboardGet(ws, msg); break;
       case 'dev_get_all_players': handleDevGetAllPlayers(ws, msg); break;
       case 'dev_list_accounts': handleDevListAccounts(ws, msg); break;
       case 'dev_get_account': handleDevGetAccount(ws, msg); break;
@@ -2197,6 +2198,39 @@ function handlePlayerStatsSet(ws, msg) {
     Object.assign(data.stats, msg.stats ?? {});
     return setPlayerData(pd.name, data);
   }).catch(err => { console.warn('[Data] handlePlayerStatsSet failed:', err); });
+}
+
+// ── Leaderboard ──────────────────────────────────────────────────────
+// Rank every registered account by a stats metric. Requires an attached
+// identity (game login or portal chat socket). Cheap per-user Redis GETs,
+// capped at 100 entries.
+const LEADERBOARD_METRICS = {
+  playTime: 'Play Time',
+  level: 'Level',
+  mobKillsAny: 'Mob Kills',
+  totalBlocksBroken: 'Blocks Broken',
+  distanceTraveled: 'Distance',
+};
+
+function handleLeaderboardGet(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd) return;
+  const metric = (msg && LEADERBOARD_METRICS[msg.metric]) ? msg.metric : 'playTime';
+  const limit = Math.min(parseInt((msg && msg.limit), 10) || 50, 100);
+  Promise.all(Object.keys(accounts).map(async (u) => {
+    try {
+      const data = await getPlayerData(u);
+      const s = data.stats || {};
+      return { name: u, value: Number(s[metric]) || 0, level: Number(s.level) || 1 };
+    } catch { return null; }
+  })).then(rows => {
+    const sorted = rows.filter(Boolean).filter(r => r.value > 0).sort((a, b) => b.value - a.value);
+    const entries = sorted.slice(0, limit).map((r, i) => ({ rank: i + 1, name: r.name, value: r.value, level: r.level }));
+    let self = null;
+    const selfIdx = sorted.findIndex(r => r.name === pd.name);
+    if (selfIdx !== -1) self = { rank: selfIdx + 1, name: sorted[selfIdx].name, value: sorted[selfIdx].value, level: sorted[selfIdx].level };
+    safeSend(ws, JSON.stringify({ type: 'leaderboard', metric, entries, self }));
+  }).catch(err => { console.warn('[Data] handleLeaderboardGet failed:', err); });
 }
 
 function handlePlayerSettingsGet(ws, msg) {
