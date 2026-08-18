@@ -3087,7 +3087,12 @@ class Mob {
         this._groundColStale = false;
         this._groundAge = 0;
         groundY = -1;
-        for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+        // Scan DOWNWARD from just below the mob's feet, not from the top of
+        // the world. A top-down scan found ceilings/roofs/leaves as "ground",
+        // snapping the mob up to them (mobs could teleport up arbitrarily high
+        // whenever a block sat above or beside them).
+        const startY = Math.min(Math.floor(this.position.y) - 1, WORLD_HEIGHT - 1);
+        for (let y = startY; y >= 0; y--) {
           const block = world.getBlock(bx, y, bz);
           if (block !== BLOCK.AIR && block !== BLOCK.WATER && BLOCKS[block]?.solid) {
             groundY = y + 1;
@@ -4186,6 +4191,15 @@ export class MobManager {
 
       const halfW = Math.max(def.bodyW, def.headW) / 2 + 0.1;
       const halfD = Math.max(def.bodyD, def.headD) / 2 + 0.1;
+
+      // Cheap bounding-sphere pre-filter: if the mob's center is farther than
+      // reach + its half-extent, it can't be in the way. Most mobs fail this,
+      // so we skip the (more expensive) slab test for them.
+      const maxDim = Math.max(halfW, halfD, totalH / 2) + 0.1;
+      const cdx = mob.position.x - playerPos.x;
+      const cdy = mob.position.y + totalH / 2 - playerPos.y;
+      const cdz = mob.position.z - playerPos.z;
+      if (cdx * cdx + cdy * cdy + cdz * cdz > (reach + maxDim) * (reach + maxDim)) continue;
 
       const minX = mob.position.x - halfW;
       const maxX = mob.position.x + halfW;

@@ -85,6 +85,7 @@ export class Player {
     this.fallStartY = -1;     // Y position when player started falling (Minecraft Bedrock style)
     this.cameraMode = 0;      // 0 = first person, 1 = 3rd person back, 2 = 3rd person front
     this.cameraOffset = new THREE.Vector3();
+    this.dead = false;        // sticky death flag — prevents regen/mechanics reviving a corpse
 
     // --- ladder state ---
     this.onLadder = false;
@@ -146,7 +147,7 @@ export class Player {
   isSurvival() { return this.gamemode === 'survival'; }
   isAdventure() { return this.gamemode === 'adventure'; }
   isSpectator() { return this.gamemode === 'spectator'; }
-  isDead() { return this.health <= 0; }
+  isDead() { return this.dead || this.health <= 0; }
 
   // MC-style world spawn: spiral outward sampling the climate noise router and
   // pick the position whose climate best matches the overworld spawn_target.
@@ -250,6 +251,7 @@ export class Player {
     this.saturation = 5;
     this.air = MAX_AIR;
     this.damageTimer = 0;
+    this.dead = false;
   }
 
   // --- damage / death ------------------------------------------------------
@@ -284,6 +286,7 @@ export class Player {
 
   die(source = 'generic') {
     this.health = 0;
+    this.dead = true;
     if (this.onDeath) this.onDeath(source);
     // (caller in main.js handles the death overlay + respawn prompt)
   }
@@ -318,7 +321,7 @@ export class Player {
   // --- per-frame survival tick --------------------------------------------
   tickSurvival(dt) {
     if (this.damageTimer > 0) this.damageTimer -= dt;
-    if (!this.isSurvival()) return;
+    if (!this.isSurvival() || this.dead) return;
 
     // regen (Minecraft Java): fast +1 HP/2s while saturation > 0, slow +1 HP/4s
     // while saturation == 0 and hunger >= 18. Both cost 3.0 exhaustion per HP.
@@ -623,15 +626,25 @@ export class Player {
       const vbz = Math.floor(this.position.z);
       if (this._solid(vbx, vFootY, vbz)) {
         const eyeOverhang = 0.15;
+        let overhanging = false;
         if ((vbx + 1 - this.position.x) < 0.3 && !this._solid(vbx + 1, vFootY, vbz)) {
           this.camera.position.x = vbx + 1 + eyeOverhang;
+          overhanging = true;
         } else if ((this.position.x - vbx) < 0.3 && !this._solid(vbx - 1, vFootY, vbz)) {
           this.camera.position.x = vbx - eyeOverhang;
+          overhanging = true;
         }
         if ((vbz + 1 - this.position.z) < 0.3 && !this._solid(vbx, vFootY, vbz + 1)) {
           this.camera.position.z = vbz + 1 + eyeOverhang;
+          overhanging = true;
         } else if ((this.position.z - vbz) < 0.3 && !this._solid(vbx, vFootY, vbz - 1)) {
           this.camera.position.z = vbz - eyeOverhang;
+          overhanging = true;
+        }
+        // Lift the eye to full standing height while overhanging the edge so
+        // the block you're standing on doesn't slice through the view.
+        if (overhanging && !this._solid(vbx, Math.floor(this.position.y + 1.4), vbz)) {
+          this.camera.position.y = this.position.y + EYE_HEIGHT;
         }
       }
     }

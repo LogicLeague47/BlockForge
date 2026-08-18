@@ -318,7 +318,7 @@ function ensureOfficialServer() {
   const official = rooms.get('OfficialSMP') || {
     seed: 12345,
     gameMode: 'survival',
-    maxPlayers: 50,
+    maxPlayers: 10,
     ownerName: null,
     ownerSecret: null,
     protected: true,
@@ -327,6 +327,7 @@ function ensureOfficialServer() {
     edits: new Map(),
     created: Date.now()
   };
+  official.maxPlayers = 10; // hard cap on the public server
   rooms.clear();
   rooms.set('OfficialSMP', official);
   saveRooms();

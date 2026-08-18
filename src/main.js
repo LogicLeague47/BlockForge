@@ -13,7 +13,7 @@ import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
 import { SMELTING, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -34,7 +34,7 @@ import { resetOneBlock, clearOneBlockState, updateOneBlock, onOneBlockBroken, fo
 import { BW_TEAMS, BW_Y, BW_SHOP, BW_VOID_BELOW, buildBedwarsMap, assignBedwarsTeam, BW_RES_IRON, BW_RES_GOLD, BW_RES_DIAMOND, BW_RES_EMERALD, loadTreasureIslandData, buildTreasureIslandMap, IMP_BASE_SPOTS, IMP_MID_SPOTS } from './bedwars.js';
 import { buildBlockZonesMap, startBlockZones, tickBlockZones, onBlockZonesBroken, clearBlockZones, setBlockZonesExit, BZ_Y } from './blockzones.js';
 import { buildNightsMap, startNights, tickNights, clearNights, setNightsExit, N_Y } from './nights.js';
-import { buildGunAffairMap, startGunAffair, tickGunAffair, gunFire, clearGunAffair, setGunAffairExit, GA_Y } from './gunaffair.js';
+import { buildGunAffairMap, startGunAffair, tickGunAffair, gunFire, clearGunAffair, setGunAffairExit, GA_Y, cycleGun, selectGun, GA_GUNS } from './gunaffair.js';
 import { buildSkyblockMap, clearSkyblock, SB_SPAWN, SB_VOID_BELOW, SB_STARTER_KIT } from './skyblock.js';
 import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged } from './liquid.js';
 import { GreenstoneSystem } from './greenstone.js';
@@ -83,6 +83,12 @@ const DEVICE_CORES = navigator.hardwareConcurrency || 4;
 // path on Macs where shared-memory integrated GPUs can't handle 4096 shadow maps.
 const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 const LOW_END = IS_MOBILE || DEVICE_MEM_GB <= 4 || DEVICE_CORES <= 4 || IS_SAFARI;
+
+// Block reach / mining pace.
+// REACH = how far (in blocks) you can hit mobs and target blocks — Minecraft's
+// classic 3-block range. BASE_BREAK_TIME scales the break formula below.
+const REACH = 3;
+const BASE_BREAK_TIME = 1.0; // (hardness * BASE) / toolSpeed → seconds to break
 
 // --- renderer / scene / camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
@@ -1012,11 +1018,12 @@ document.addEventListener('mousemove', (e) => {
     e.preventDefault();
     voiceChat.togglePanel();
   }
-  // F7 = toggle gamemode (singleplayer only)
+  // F7 = toggle gamemode (singleplayer only) — locked inside minigames.
   if (e.code === 'F7') {
     e.preventDefault();
-    if (isParkour) {
-      ui.itemNameEl.textContent = 'Cannot change gamemode in Parkour';
+    const inMinigame = isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock;
+    if (inMinigame) {
+      ui.itemNameEl.textContent = 'Cannot change gamemode in minigames';
       ui.itemNameEl.classList.add('visible');
       setTimeout(() => ui.itemNameEl.classList.remove('visible'), 2000);
     } else if (!isMultiplayer) {
@@ -1031,6 +1038,11 @@ document.addEventListener('mousemove', (e) => {
   if (e.code === 'KeyY' && offerActive) {
     e.preventDefault();
     acceptOffer();
+  }
+  // GunAffair weapon switching: number keys 1-4 select a gun directly.
+  if (isGunAffair && e.key >= '1' && e.key <= String(GA_GUNS.length)) {
+    e.preventDefault();
+    selectGun(Number(e.key) - 1);
   }
   // X = deny offer banner
   if (e.code === 'KeyX' && offerActive) {
@@ -1198,6 +1210,10 @@ function _mergeDmArrays(local, remote) {
 }
 let _dmOpenFor = '';
 function openDM(friendName) {
+  if (chatDisabled) {
+    addChatLine('Chat is disabled on this world.', '#f55', true);
+    return;
+  }
   _dmOpenFor = friendName;
   const friendsMain = document.getElementById('friends-main');
   const dmPanel = document.getElementById('dm-panel');
@@ -1234,8 +1250,12 @@ function _nextDmId() { return String(++_dmIdCounter); }
 
 function _dmSend() {
   if (!_dmOpenFor) return;
+  if (chatDisabled) {
+    addChatLine('Chat is disabled on this world.', '#f55', true);
+    return;
+  }
   const input = document.getElementById('dm-input');
-  const text = (input?.value || '').trim();
+  const text = filterProfanity((input?.value || '').trim());
   if (!text) return;
   const msgId = _nextDmId();
   const msgs = _loadDMThread(_dmOpenFor);
@@ -1352,9 +1372,13 @@ function startRebind(action, btn) {
   _rebinding.handler = handler;
 }
 
-// mouse wheel cycles hotbar
+// mouse wheel cycles hotbar (or the GunAffair arsenal)
 window.addEventListener('wheel', (e) => {
   if (!pointerLocked || !gameRunning) return;
+  if (isGunAffair) {
+    cycleGun(Math.sign(e.deltaY));
+    return;
+  }
   const newIdx = ui.active + Math.sign(e.deltaY);
   ui.setActive(newIdx);
   player.inventory.setSelected(newIdx);
@@ -2641,7 +2665,7 @@ function breakBlock(hit) {
   if (toolId) speed = toolSpeedFor(toolId, b);
   const isEffective = toolId && toolInfo(toolId)?.type === blockTool(b);
 
-  const breakTime = hardness > 0 ? (BASE_BREAK_TIME / speed) * (isEffective ? 0.5 : 2) : 0;
+  const breakTime = hardness > 0 ? (BASE_BREAK_TIME * hardness / speed) * (isEffective ? 0.5 : 2) : 0;
 
   if (breakTime <= 0) {
     doBreak(hit, b);
@@ -3985,14 +4009,11 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
-        if (navigator.userAgent.includes('Electron')) {
-          ui.showMenu('main');
-        } else {
-          try { sessionStorage.setItem('bf_from_u', '1'); } catch (_) { console.warn("operation failed"); }
-          setTimeout(() => {
-            window.location.href = 'u/?user=' + encodeURIComponent(playerName) + '&role=' + encodeURIComponent(playerRole);
-          }, 600);
-        }
+        // Go straight to the main menu. The old /u/ redirect chain bounced
+        // players back to the login screen whenever the auto-login credentials
+        // weren't available on the return trip (OAuth users have no password,
+        // and a full localStorage quota made the pass write fail silently).
+        ui.showMenu('main');
       }
     } else {
       // Auto-register fallback: when a portal login uses a brand-new username,
@@ -4255,6 +4276,7 @@ function renderBedwarsHud() {
 
 function bwRespawnLocal() {
   if (!player || !bwMap) return;
+  player.dead = false;
   const sp = bwMap.spawn[bwMyTeamKey];
   if (sp) {
     player.position.set(sp.x, sp.y, sp.z);
@@ -4271,6 +4293,7 @@ function bedwarsEliminateLocal() {
   if (bwSpec) return;
   bwSpec = true;
   if (player) {
+    player.dead = false;
     player.setGamemode('spectator'); // sets this.flying = true
     player.health = Math.max(1, player.health);
   }
@@ -4469,7 +4492,13 @@ function updateTimeHud() {
   const isDay = dayTime < 0.625;
   const icon = isDay ? '☀' : '☾';
   const color = isDay ? '#ffe080' : '#a0c0ff';
-  el.innerHTML = `<span style="color:${color}">${icon}</span> Day ${totalDays} &middot; ${timeStr}`;
+  const html = `<span style="color:${color}">${icon}</span> Day ${totalDays} &middot; ${timeStr}`;
+  // Only touch the DOM when the text actually changes (minute rollover) —
+  // innerHTML every frame is a major layout cost on the main thread.
+  if (el._lastHtml !== html) {
+    el._lastHtml = html;
+    el.innerHTML = html;
+  }
 }
 const _lerpA = new THREE.Color();
 const _lerpB = new THREE.Color();
@@ -5688,12 +5717,20 @@ function saveCurrentWorld() {
     };
   }
 
+  let saveOk;
   if (isMultiplayer && playerName) {
     saveMultiplayerInventory(currentWorldId, playerName, playerData.inventory);
     const perPlayer = { ...playerData, inventory: undefined };
-    saveWorld(currentWorldId, { ...saveData, player: perPlayer });
+    saveOk = saveWorld(currentWorldId, { ...saveData, player: perPlayer });
   } else {
-    saveWorld(currentWorldId, saveData);
+    saveOk = saveWorld(currentWorldId, saveData);
+  }
+  if (!saveOk) {
+    const now = Date.now();
+    if (!window.__storageFullToastAt || now - window.__storageFullToastAt > 60000) {
+      window.__storageFullToastAt = now;
+      showToast('⚠ Browser storage is full — progress may not be saved! Free up space in your browser settings.', '#f44', 6);
+    }
   }
 }
 
@@ -5876,6 +5913,10 @@ function initMenu() {
 
   // Sync tutorial flag from SDK cloud (in case another device set it)
   syncTutorialFromSdk();
+
+  // CrazyGames only: pull saved worlds/settings from the cloud when the local
+  // (partitioned) storage came up empty. Runs on the CG platform only.
+  cgPullProgress();
 
   // Track login for analytics
   trackLogin();
@@ -6082,7 +6123,7 @@ function initMenu() {
     if (loader && loader.setRadius) loader.setRadius(renderDist);
   });
   document.getElementById('set-fov')?.addEventListener('change', (e) => {
-    baseFov = parseInt(e.target.value) || 75;
+    baseFov = parseInt(e.target.value) || 70;
     camera.fov = baseFov;
     camera.updateProjectionMatrix();
     try { localStorage.setItem('bf_fov', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
@@ -6215,10 +6256,11 @@ function initMenu() {
     const id = 'bz_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     startGame(id, Math.floor(Math.random() * 1e9), 'survival', 'peaceful', { blockzones: true, void: true });
   });
-  // 99 Nights → wave-survival marathon (fresh match)
+  // 99 Nights → coming soon (button marked .mg-coming)
   document.getElementById('btn-minigame-99nights')?.addEventListener('click', () => {
-    const id = '99n_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    startGame(id, Math.floor(Math.random() * 1e9), 'survival', 'normal', { nights: true, void: true });
+    ui.itemNameEl.textContent = '99Nights is coming soon!';
+    ui.itemNameEl.classList.add('visible');
+    setTimeout(() => ui.itemNameEl.classList.remove('visible'), 2500);
   });
   // GunAffair → hitscan arena shooter (fresh match)
   document.getElementById('btn-minigame-gunaffairs')?.addEventListener('click', () => {
@@ -7352,21 +7394,29 @@ function initMenu() {
   // Pre-fill username from /u/ redirect URL params or saved storage (NOT password — prevents Safari auto-submit)
   let autoLogin = false;
   let fromU = false;
+  let savedName = '';
+  let savedPass = '';
+  let oauthProvider = '';
+  let oauthProviderId = '';
   try {
     fromU = sessionStorage.getItem('bf_from_u') === '1';
     const fromPortal = new URLSearchParams(location.search).get('from') === 'portal';
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
     const urlUser = params.get('user');
-    const savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
+    savedName = urlUser || localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || '';
     if (savedName && !savedName.startsWith('Guest') && loginUser) loginUser.value = savedName;
     // Auto-login whenever credentials are saved locally, so a page reload
     // doesn't bounce the player back to the login screen. Also triggers for
-    // /u/ redirects and portal visits.
-    const savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
+    // /u/ redirects and portal visits. OAuth/CG users have no password, so a
+    // saved identity (provider + id) lets them silently re-authenticate too.
+    savedPass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
+    oauthProvider = localStorage.getItem('bf_oauth_provider') || '';
+    oauthProviderId = localStorage.getItem('bf_oauth_provider_id') || '';
     const hasSavedCreds = savedName && !savedName.startsWith('Guest') && savedPass && savedPass.length >= 3;
-    if (hasSavedCreds) {
-      loginPass.value = savedPass;
+    const hasOauthCreds = savedName && !savedName.startsWith('Guest') && oauthProvider && oauthProviderId;
+    if (hasSavedCreds || hasOauthCreds) {
+      loginPass.value = savedPass || '';
       autoLogin = true;
     }
   } catch (_) { console.warn("operation failed"); }
@@ -7376,7 +7426,24 @@ function initMenu() {
     _backgroundAuth = true;
     _autoRegisterFallback = true;
     ui.showMenu('main');
-    setTimeout(() => doLogin('login'), 100);
+    setTimeout(() => {
+      if (oauthProvider && oauthProviderId && !(savedPass && savedPass.length >= 3)) {
+        // OAuth/CrazyGames users have no password — silently re-auth via identity.
+        playerName = savedName;
+        setSkinUser(playerName);
+        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        const attempt = () => network.sendIdentityAuth(oauthProvider, oauthProviderId, playerName);
+        if (!network.connected) {
+          network.connect(BACKEND_URL);
+          network.onConnectedOnce(attempt);
+          setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+        } else {
+          attempt();
+        }
+      } else {
+        doLogin('login');
+      }
+    }, 100);
   } else {
     ui.showMenu('login');
   }
@@ -7427,6 +7494,7 @@ function initMenu() {
         playerName = filterProfanity(data.username) || 'Player';
         setSkinUser(playerName);
         try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        try { localStorage.setItem('bf_oauth_provider', 'crazygames'); localStorage.setItem('bf_oauth_provider_id', data.providerId || playerName); } catch (_) { console.warn("localStorage write failed"); }
         const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
         if (!network.connected) {
           network.connect(BACKEND_URL);
@@ -7512,6 +7580,7 @@ function initMenu() {
           playerName = suggestedName;
           setSkinUser(playerName);
           try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+          try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
             network.connect(BACKEND_URL);
@@ -7541,6 +7610,7 @@ function initMenu() {
             if (!playerName) playerName = 'Player';
             setSkinUser(playerName);
             try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+            try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
             if (!network.connected) {
@@ -7556,6 +7626,7 @@ function initMenu() {
           // Fallback if name prompt elements not found
           playerName = suggestedName;
           try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+          try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
             network.connect(BACKEND_URL);
@@ -8133,8 +8204,8 @@ function _gameFrame() {
         breakingTarget = null;
         breakingElapsed = 0;
         mobAttackTimer += dt;
-        if (mobAttackTimer >= 0.4) { // attack every 0.4s
-          mobAttackTimer -= 0.4;
+        if (mobAttackTimer >= 0.6) { // attack every 0.6s
+          mobAttackTimer -= 0.6;
           // Calculate damage from held weapon
           const atkSlot = player.inventory.getSelected();
           const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
@@ -8208,7 +8279,7 @@ function _gameFrame() {
           }
           if (closestName) {
             _playerAttackTimer = (_playerAttackTimer || 0) + dt;
-            if (_playerAttackTimer >= 0.4) {
+            if (_playerAttackTimer >= 0.6) {
               _playerAttackTimer = 0;
               hitPlayer = true;
               // Bedwars: no friendly fire, and spectators can't attack.
@@ -8222,7 +8293,7 @@ function _gameFrame() {
               viewmodel.swing();
             }
           } else {
-            _playerAttackTimer = 0.4; // reset so next click is instant
+            _playerAttackTimer = 0.6; // reset so next click is instant
           }
         }
 
@@ -8270,7 +8341,7 @@ function _gameFrame() {
               if (toolId) speed = toolSpeedFor(toolId, b);
               const isEffective = toolId && toolInfo(toolId)?.type === blockTool(b);
               // Prismite shovel: insta-mine dirt-type blocks
-              let breakTime = hardness > 0 ? (BASE_BREAK_TIME / speed) * (isEffective ? 0.5 : 2) : 0;
+              let breakTime = hardness > 0 ? (BASE_BREAK_TIME * hardness / speed) * (isEffective ? 0.5 : 2) : 0;
               if (toolId && isTool(toolId) && toolInfo(toolId)?.material === 'PRISMITE' && toolInfo(toolId)?.type === 'shovel') {
                 if (b === BLOCK.DIRT || b === BLOCK.GRASS || b === BLOCK.SAND || b === BLOCK.GRAVEL ||
                     b === BLOCK.CLAY || b === BLOCK.RED_SAND || b === BLOCK.SNOW ||
@@ -8401,6 +8472,7 @@ function _gameFrame() {
         ? _importedParkourData.minY - 2 : 180;
       if (player.position.y < _voidFloor) {
         if (audio) audio.playerFall();
+        player.dead = false;
         const respawn = _isImportedParkour && _importedParkourData?.spawnPos
           ? _importedParkourData.spawnPos
           : getRespawnPosition();
@@ -8437,6 +8509,7 @@ function _gameFrame() {
           manager.refreshAround(Math.floor(pos.x / CHUNK_SIZE), Math.floor(pos.z / CHUNK_SIZE));
         }
         if (audio) audio.playerFall();
+        player.dead = false;
         const pos = getOneBlockPos();
         player.position.set(pos.x + 0.5, pos.y + 1, pos.z + 0.5);
         player.velocity.set(0, 0, 0);
@@ -8613,6 +8686,7 @@ function _gameFrame() {
     player.health = Math.min(player.maxHealth, player.health + dt * 0.1);
     if (player.position.y < SB_VOID_BELOW) {
       if (audio) audio.playerFall();
+      player.dead = false;
       const sp = SB_SPAWN;
       player.position.set(sp.x + 0.5, sp.y, sp.z + 0.5);
       player.velocity.set(0, 0, 0);
@@ -8777,17 +8851,23 @@ function _gameFrame() {
     if (plateBlock === BLOCK.STONE_PRESSURE_PLATE) {
       const plateKey = `${plateX},${plateY},${plateZ}`;
       if (!redstoneStates.has(plateKey)) {
-        redstoneStates.set(plateKey, { blockId: plateBlock, expiresAt: Infinity });
-        // Pressure plate activated
+        redstoneStates.set(plateKey, { blockId: plateBlock, expiresAt: Infinity, x: plateX, y: plateY, z: plateZ });
       }
     } else {
-      // Check if player stepped off a previously active pressure plate
-      for (const [key, state] of redstoneStates) {
-        if (state.blockId === BLOCK.STONE_PRESSURE_PLATE) {
-          const [kx, ky, kz] = key.split(',').map(Number);
-          const currentBlock = world.getBlock(kx, ky, kz);
-          if (currentBlock !== BLOCK.STONE_PRESSURE_PLATE) {
-            redstoneStates.delete(key);
+      // Player stepped off — clean up any plate states whose block changed.
+      // Throttled: scanning the whole redstone map with string splits every
+      // frame was pure waste (this branch runs ~every frame while walking).
+      _plateCleanTimer = (_plateCleanTimer || 0) + dt;
+      if (_plateCleanTimer >= 0.5) {
+        _plateCleanTimer = 0;
+        for (const [key, state] of redstoneStates) {
+          if (state.blockId === BLOCK.STONE_PRESSURE_PLATE) {
+            const kx = state.x ?? Number(key.split(',')[0]);
+            const ky = state.y ?? Number(key.split(',')[1]);
+            const kz = state.z ?? Number(key.split(',')[2]);
+            if (world.getBlock(kx, ky, kz) !== BLOCK.STONE_PRESSURE_PLATE) {
+              redstoneStates.delete(key);
+            }
           }
         }
       }
@@ -9301,7 +9381,7 @@ function _gameFrame() {
   // below) is used directly so the snapped shadow matrix always matches what the
   // renderer bakes from sun.position — using the lerped _sunPos here made the
   // map lag and distort while walking.
-  if (player) {
+  if (player && renderer.shadowMap.enabled) {
     const p = player.position;
     sun.target.position.set(p.x, p.y, p.z);
     sun.target.updateMatrixWorld();

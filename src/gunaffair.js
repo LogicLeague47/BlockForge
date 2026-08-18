@@ -9,9 +9,17 @@ import * as THREE from 'three';
 
 export const GA_Y = 100;           // arena surface level
 export const GA_DURATION = 60;     // seconds
-export const GA_RANGE = 50;        // hitscan reach
-export const GA_DMG = 10;          // damage per hit
-export const GA_FIRE_INTERVAL = 0.16;  // ~6 rounds/sec
+export const GA_RANGE = 50;        // hitscan reach (max across guns)
+export const GA_FIRE_INTERVAL = 0.16;  // legacy default (first gun)
+
+// Arsenal — switch with 1–4 or the mouse wheel. Each gun is a hitscan profile
+// (damage, fire rate, pellets, spread and range).
+export const GA_GUNS = [
+  { id: 'rifle',   name: 'Rifle',   dmg: 10, interval: 0.16, pellets: 1, spread: 0.00, range: 50, color: '#f66', desc: 'Balanced all-rounder' },
+  { id: 'smg',     name: 'SMG',     dmg: 5,  interval: 0.07, pellets: 1, spread: 0.03, range: 40, color: '#ff0', desc: 'Spray & pray' },
+  { id: 'shotgun', name: 'Shotgun', dmg: 8,  interval: 0.55, pellets: 5, spread: 0.16, range: 30, color: '#fa0', desc: 'Close-range spread' },
+  { id: 'sniper',  name: 'Sniper',  dmg: 40, interval: 1.00, pellets: 1, spread: 0.00, range: 80, color: '#6cf', desc: 'Slow, huge damage' },
+];
 
 const HOSTILE_POOL = ['zombie', 'zombie', 'skeleton', 'spider', 'slime', 'blower', 'portalman'];
 
@@ -30,7 +38,9 @@ let comboTime = 0;
 let fireCooldown = 0;
 let spawnTimer = 0;
 let gameOver = false;
+let currentGun = 0;
 let _hudEl = null;
+let _cycleBtn = null;
 let _overlayEl = null;
 let _exitCb = null;
 let _tracer = null;
@@ -73,15 +83,40 @@ export function startGunAffair(scene) {
   fireCooldown = 0;
   spawnTimer = 1.0;
   gameOver = false;
+  currentGun = 0;
   _ensureTracer(scene);
   _ensureHud();
+  _setCycleBtnVisible(true);
   updateHud();
 }
+
+// Switch to the next/previous gun (wheel), clamped. Returns the new gun id.
+export function cycleGun(dir) {
+  if (!active || gameOver) return null;
+  const n = GA_GUNS.length;
+  currentGun = ((currentGun + (dir > 0 ? 1 : -1)) % n + n) % n;
+  fireCooldown = Math.max(fireCooldown, 0.12); // small delay on switch
+  updateHud();
+  return GA_GUNS[currentGun].id;
+}
+
+// Direct gun selection (keys 1-4). Returns the new gun id or null.
+export function selectGun(index) {
+  if (!active || gameOver) return null;
+  if (index < 0 || index >= GA_GUNS.length || index === currentGun) return null;
+  currentGun = index;
+  fireCooldown = Math.max(fireCooldown, 0.12);
+  updateHud();
+  return GA_GUNS[currentGun].id;
+}
+
+export function getCurrentGun() { return active ? GA_GUNS[currentGun] : null; }
 
 export function clearGunAffair() {
   active = false;
   gameOver = false;
   if (_hudEl) { _hudEl.remove(); _hudEl = null; }
+  if (_cycleBtn) { _cycleBtn.remove(); _cycleBtn = null; }
   if (_overlayEl) { _overlayEl.remove(); _overlayEl = null; }
   if (_tracer) {
     _tracer.geometry.dispose();
@@ -93,48 +128,74 @@ export function clearGunAffair() {
 
 export function setGunAffairExit(fn) { _exitCb = fn; }
 
-// Fire the rifle. Guarded by cooldown so holding click fires at full-auto rate.
+// Fire the current gun. Guarded by cooldown so holding click fires at its rate.
 export function gunFire(ctx) {
   if (!active || gameOver) return;
   if (fireCooldown > 0) return;
-  fireCooldown = GA_FIRE_INTERVAL;
+  const gun = GA_GUNS[currentGun];
+  fireCooldown = gun.interval;
 
   const { camera, player, world, mobManager, breakParticles, audio } = ctx;
   const origin = camera.position.clone();
-  const dir = new THREE.Vector3();
-  camera.getWorldDirection(dir);
+  const baseDir = new THREE.Vector3();
+  camera.getWorldDirection(baseDir);
 
-  const mobHit = mobManager && mobManager.hitTest ? mobManager.hitTest(origin, dir, GA_RANGE) : null;
-  if (mobHit) {
-    mobHit.takeDamage(GA_DMG, origin);
-    if (mobManager.playHurtSound) mobManager.playHurtSound(mobHit.type);
-    if (breakParticles && breakParticles.emit) {
-      breakParticles.emit(mobHit.type === 'slime' ? BLOCK.SLIME_BLOCK : BLOCK.STONE, mobHit.position.x, mobHit.position.y, mobHit.position.z, 10);
-    }
-    showTracer(origin, mobHit.position);
-    if (mobHit.dead) {
-      kills++;
-      combo = Math.min(combo + 1, 9);
-      comboTime = 3;
-      score += 10 * combo;
-      if (audio) { if (audio.levelUp) audio.levelUp(); }
-    }
+  // Right/up vectors for spread (perpendicular to aim direction).
+  const _spreadRight = new THREE.Vector3();
+  const _spreadUp = new THREE.Vector3();
+  if (Math.abs(baseDir.y) < 0.999) {
+    _spreadRight.crossVectors(baseDir, new THREE.Vector3(0, 1, 0)).normalize();
   } else {
-    // No mob in the way: shoot blocks (destructible arena) or a tracer to range.
-    const hit = raycastVoxel(world, origin, dir, GA_RANGE);
-    if (hit) {
-      const b = world.getBlock(hit.x, hit.y, hit.z);
-      if (breakParticles && breakParticles.emit) breakParticles.emit(b, hit.x, hit.y, hit.z, 12);
-      if (b !== BLOCK.BEDROCK && b !== BLOCK.AIR) world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
-      showTracer(origin, new THREE.Vector3(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5));
+    _spreadRight.set(1, 0, 0);
+  }
+  _spreadUp.crossVectors(_spreadRight, baseDir).normalize();
+
+  let anyMobHit = false;
+  let bestTracerEnd = null;
+  const bestTracerStart = origin;
+  for (let p = 0; p < gun.pellets; p++) {
+    const dir = baseDir.clone();
+    if (gun.spread > 0) {
+      const rx = (Math.random() * 2 - 1) * gun.spread;
+      const ry = (Math.random() * 2 - 1) * gun.spread;
+      dir.addScaledVector(_spreadRight, rx).addScaledVector(_spreadUp, ry).normalize();
+    }
+    const range = gun.range;
+    const mobHit = mobManager && mobManager.hitTest ? mobManager.hitTest(origin, dir, range) : null;
+    if (mobHit) {
+      anyMobHit = true;
+      mobHit.takeDamage(gun.dmg, origin);
+      if (mobManager.playHurtSound) mobManager.playHurtSound(mobHit.type);
+      if (breakParticles && breakParticles.emit) {
+        breakParticles.emit(mobHit.type === 'slime' ? BLOCK.SLIME_BLOCK : BLOCK.STONE, mobHit.position.x, mobHit.position.y, mobHit.position.z, 10);
+      }
+      bestTracerEnd = mobHit.position;
+      if (mobHit.dead) {
+        kills++;
+        combo = Math.min(combo + 1, 9);
+        comboTime = 3;
+        score += 10 * combo;
+        if (audio) { if (audio.levelUp) audio.levelUp(); }
+      }
     } else {
-      showTracer(origin, origin.clone().add(dir.clone().multiplyScalar(GA_RANGE)));
+      // No mob in the way: shoot blocks (destructible arena) or a tracer to range.
+      const hit = raycastVoxel(world, origin, dir, range);
+      if (hit) {
+        const b = world.getBlock(hit.x, hit.y, hit.z);
+        if (breakParticles && breakParticles.emit) breakParticles.emit(b, hit.x, hit.y, hit.z, 12);
+        if (b !== BLOCK.BEDROCK && b !== BLOCK.AIR) world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+        if (!bestTracerEnd) bestTracerEnd = new THREE.Vector3(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+      } else if (!bestTracerEnd) {
+        bestTracerEnd = origin.clone().addScaledVector(dir, range);
+      }
     }
   }
+  if (bestTracerEnd) showTracer(bestTracerStart, bestTracerEnd);
+  updateHud();
   if (player) {
     // tiny impulse so every shot has a bit of feel
-    player.velocity.x += dir.x * 0.02;
-    player.velocity.z += dir.z * 0.02;
+    player.velocity.x += baseDir.x * 0.02;
+    player.velocity.z += baseDir.z * 0.02;
   }
 }
 
@@ -188,17 +249,32 @@ function _ensureHud() {
   _hudEl.id = 'gunaffair-hud';
   _hudEl.style.cssText = 'position:fixed;top:10px;left:50%;transform:translateX(-50%);z-index:100;pointer-events:none;text-align:center;font-family:monospace;text-shadow:0 1px 3px #000;';
   document.body.appendChild(_hudEl);
+  // Tap target to cycle guns (works on mobile where there are no 1-4 keys).
+  const cycleBtn = document.createElement('button');
+  cycleBtn.id = 'btn-ga-switch';
+  cycleBtn.textContent = '🔁 SWITCH GUN';
+  cycleBtn.style.cssText = 'position:fixed;right:16px;bottom:120px;z-index:100;font:bold 12px monospace;background:rgba(20,20,30,0.8);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:8px;padding:10px 14px;pointer-events:auto;touch-action:none;display:none;';
+  cycleBtn.addEventListener('click', () => cycleGun(1));
+  document.body.appendChild(cycleBtn);
+  _cycleBtn = cycleBtn;
+}
+
+function _setCycleBtnVisible(show) {
+  if (_cycleBtn) _cycleBtn.style.display = show ? '' : 'none';
 }
 
 function updateHud() {
   if (!_hudEl) return;
   const m = Math.floor(timeLeft / 60);
   const s = String(Math.max(0, Math.floor(timeLeft % 60))).padStart(2, '0');
+  const gun = GA_GUNS[currentGun];
+  const gunLabel = `<span style="color:${gun.color};">${gun.name}</span>`;
   let body;
   if (gameOver) {
     body = `<div style="font:bold 15px monospace;color:#f66;">GAME OVER — ${kills} kills</div>`;
   } else {
     body = `<div style="font:13px monospace;color:#fff;">⏱ ${m}:${s} &nbsp;·&nbsp; KILLS <b style="color:#f96;">${kills}</b> &nbsp;·&nbsp; SCORE <b style="color:#6f6;">${score}</b></div>` +
+      `<div style="font:12px monospace;color:#aaa;margin-top:2px;">Gun: ${gunLabel} <span style="color:#666;">(1-4 / wheel to switch)</span></div>` +
       (combo > 1 ? `<div style="font:12px monospace;color:#ff0;">COMBO ×${combo}</div>` : '');
   }
   _hudEl.innerHTML = '<div style="font:bold 16px monospace;color:#f66;">🔫 GUN AFFAIR</div>' + body;

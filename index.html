@@ -191,7 +191,7 @@
       html, body { width: 100%; height: 100%; overflow: hidden; background: #000; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none; touch-action: none; -webkit-touch-callout: none; -webkit-overflow-scrolling: auto; }
       /* Prevent pull-to-refresh on mobile */
       html { overscroll-behavior: none; -ms-overflow-style: none; scrollbar-width: none; }
-      #app { width: 100vw; height: 100vh; }
+      #app { width: 100vw; height: 100vh; height: 100dvh; }
       canvas { display: block; }
 
       /* Crosshair — Bedrock style: small, thin, white */
@@ -2621,7 +2621,7 @@
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
         <button class="menu-btn" id="btn-menu-errors" style="display:none;font-size:11px;padding:6px 20px;border-color:#f88;background:linear-gradient(180deg,#4a2a2a 0%,#3a1a1a 40%,#301515 60%,#200a0a 100%);">⚠ View Errors</button>
         <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
-          Music by Kevin MacLeod (CC-BY 4.0), josepharaoh99 &amp; cynicmusic (CC0).<br>incompetech.com &middot; opengameart.org<br><br>
+          Music: CC0 tracks by The Cynic Project, Kistol, Adiutorium &amp; Tozan (opengameart.org).<br>Sound effects by Kenney.nl (CC0).<br><br>
           <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="https://www.crazygames.com/game/blockforge" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms of Service</a>. This game stores data locally on your device. No personal data is collected or shared. <a id="footer-privacy" href="https://www.crazygames.com/privacy" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a></span>
         </div>
       </div>
@@ -2834,11 +2834,11 @@
         <div class="menu-title" style="font-size:28px;color:#fa0;">🎮 MINIGAMES</div>
         <div class="menu-panel" style="width:400px;max-height:min(420px, 70vh);overflow-y:auto;">
           <button class="menu-btn" id="btn-minigame-parkour" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🏁 Parkour</button>
-          <button class="menu-btn" id="btn-minigame-oneblock" style="border-color:#5f5;background:linear-gradient(180deg,#2a5a2a 0%,#1a4a1a 40%,#1a3a1a 60%,#0a2a0a 100%);">⛏ OneBlock</button>          <button class="menu-btn" id="btn-minigame-bedwars" style="border-color:#f6f;background:linear-gradient(180deg,#5a2a6a 0%,#4a1a5a 40%,#3a154a 60%,#2a0a3a 100%);">⚔ BedWars</button>
+          <button class="menu-btn" id="btn-minigame-oneblock" style="border-color:#5f5;background:linear-gradient(180deg,#2a5a2a 0%,#1a4a1a 40%,#1a3a1a 60%,#0a2a0a 100%);">⛏ OneBlock</button>          <button class="menu-btn" id="btn-minigame-bedwars" style="border-color:#f6f;background:linear-gradient(180deg,#5a2a6a 0%,#4a1a5a 40%,#3a154a 60%,#2a0a3a 100%);">⚔ BedWars<span class="btn-badge" style="background:#b06;right:10px;">PREVIEW</span></button>
           <button class="menu-btn" id="btn-minigame-blockzones" style="border-color:#fb0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🧱 BlockZones</button>
-          <button class="menu-btn" id="btn-minigame-99nights" style="border-color:#77f;background:linear-gradient(180deg,#2a2a5a 0%,#1a1a4a 40%,#14143a 60%,#0a0a2a 100%);">🌙 99Nights</button>
+          <button class="menu-btn mg-coming" id="btn-minigame-99nights">🌙 99Nights<span class="btn-badge" style="background:#999;right:10px;">COMING SOON</span></button>
           <button class="menu-btn" id="btn-minigame-gunaffairs" style="border-color:#f66;background:linear-gradient(180deg,#6a2a2a 0%,#5a1a1a 40%,#4a1414 60%,#3a0a0a 100%);">🔫 GunAffair</button>
-          <button class="menu-btn" id="btn-minigame-skyblock" style="border-color:#3cf;background:linear-gradient(180deg,#1a4a5a 0%,#123a4a 40%,#0e3040 60%,#0a2030 100%);">🏝 SkyBlock</button>
+          <button class="menu-btn" id="btn-minigame-skyblock" style="border-color:#3cf;background:linear-gradient(180deg,#1a4a5a 0%,#123a4a 40%,#0e3040 60%,#0a2030 100%);">🏝 SkyBlock<span class="btn-badge" style="background:#06a;right:10px;">PREVIEW</span></button>
           <button class="menu-btn mg-coming" id="btn-minigame-skywars">☁ SkyWars</button>
           <button class="menu-btn mg-coming" id="btn-minigame-murder">🔪 Murder Mystery</button>
           <button class="menu-btn secondary" id="btn-minigames-back" style="margin-top:12px;">BACK</button>
@@ -3001,8 +3001,8 @@
           <div style="font:10px monospace;color:#888;">threejs.org &middot; MIT License</div>
 
           <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Music</div>
-          <div style="font:12px monospace;color:#ccc;">CC0 tracks from opengameart.org &amp; incompetech.com</div>
-          <div style="font:11px monospace;color:#999;">Mystical Piano, Slow Piano Intermission, Cave Explorer, Contemplation, Emerald Tower, Esther, Exploration Theme, November Snow, Another August</div>
+          <div style="font:12px monospace;color:#ccc;">CC0 tracks from opengameart.org &amp; kenney.nl</div>
+          <div style="font:11px monospace;color:#999;">The Cynic Project, Kistol, Adiutorium &amp; Tozan — calm ambient &amp; piano tracks. Sound effects by Kenney.nl (CC0).</div>
 
           <div style="font:bold 13px monospace;color:#aaa;margin-top:12px;margin-bottom:4px;">Platform</div>
           <div style="font:12px monospace;color:#ccc;">CrazyGames SDK</div>

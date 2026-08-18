@@ -14,12 +14,53 @@ export const MODS_URL = 'mods.html';
 let _mods = [];   // { id,name,version,description,author,icon,code,enabled,module,api,errors }
 let _refs = null; // live game refs injected every frame by main.js
 
+// Each mod is stored under its own key so one oversized mod can't blow the
+// localStorage quota for the whole collection (which silently dropped mods on
+// refresh before).
+function modKey(id) { return 'bf_mod:' + id; }
+
 function loadStore() {
-  try { return JSON.parse(localStorage.getItem(MODS_KEY)) || []; } catch (_) { return []; }
+  // Migrate the legacy single-blob format to per-mod keys.
+  try {
+    const old = localStorage.getItem(MODS_KEY);
+    if (old) {
+      const arr = JSON.parse(old) || [];
+      for (const m of arr) {
+        if (m && m.id) { try { localStorage.setItem(modKey(m.id), JSON.stringify(m)); } catch (_) {} }
+      }
+      try { localStorage.removeItem(MODS_KEY); } catch (_) {}
+    }
+  } catch (_) {}
+  const out = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('bf_mod:') === 0) {
+        try {
+          const m = JSON.parse(localStorage.getItem(k));
+          if (m && m.id) out.push(m);
+        } catch (_) {}
+      }
+    }
+  } catch (_) {}
+  return out;
 }
 function saveStore() {
   const data = _mods.map(({ module, api, errors, ...m }) => m);
-  try { localStorage.setItem(MODS_KEY, JSON.stringify(data)); } catch (_) { console.warn('[Mods] localStorage write failed'); }
+  // Save each mod independently — a single failure can't wipe the others.
+  for (const m of data) {
+    try { localStorage.setItem(modKey(m.id), JSON.stringify(m)); }
+    catch (_) { console.warn('[Mods] localStorage write failed for ' + m.id); }
+  }
+  // Prune keys for mods that were removed.
+  try {
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const k = localStorage.key(i);
+      if (k && k.indexOf('bf_mod:') === 0 && !data.some(m => modKey(m.id) === k)) {
+        try { localStorage.removeItem(k); } catch (_) {}
+      }
+    }
+  } catch (_) {}
 }
 function refs() { return _refs; }
 

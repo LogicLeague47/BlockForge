@@ -356,7 +356,6 @@
       <button class="nav-tab active" data-nav="home">Dashboard</button>
       <button class="nav-tab" data-nav="servers">Servers</button>
       <button class="nav-tab" data-nav="updates">Updates</button>
-      <button class="nav-tab" data-nav="downloads">Downloads</button>
       <button class="nav-tab" data-nav="community">Community</button>
     </nav>
     <div class="header-right">
@@ -458,11 +457,11 @@
             <div class="name">Live Servers</div>
             <div class="desc">Browse active multiplayer rooms</div>
           </div>
-          <div class="card" data-page="downloads" tabindex="0">
-            <div class="icon">📦</div>
-            <div class="name">Downloads</div>
-            <div class="desc">Mac, Windows, Android & iPhone apps</div>
-          </div>
+          <a class="card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
+            <div class="icon">🎮</div>
+            <div class="name">Play Now</div>
+            <div class="desc">Open BlockForge in your browser — no install needed</div>
+          </a>
         </div>
 
         <div class="section-title">🌟 FEATURES</div>
@@ -610,14 +609,9 @@
       </div>
 
       <div id="page-downloads" class="page">
-        <h2>📦 Downloads</h2>
-        <p>Official builds of BlockForge. Grab the one for your device.</p>
+        <h2>🎮 Play Now</h2>
+        <p>BlockForge is a browser game — open it below and start playing right away.</p>
         <div class="dl-grid" id="downloads-grid"></div>
-        <div class="dl-note">
-          <strong>iPhone:</strong> the .ipa is unsigned — install with <strong>SideStore</strong> or <strong>LiveContainer</strong>.<br>
-          <strong>Mac:</strong> two variants available (Apple Silicon & Intel). First launch may be flagged by Gatekeeper — right-click → Open.<br>
-          Everything also lives on <a class="external-link" href="https://github.com/LogicLeague47/BlockForge/releases" target="_blank" rel="noopener">GitHub Releases</a>.
-        </div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
     </div>
@@ -627,7 +621,7 @@
     </div>
   </div>
 
-  <footer>BlockForge Portal · <a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">GitHub</a> · Not affiliated with Mojang AB · Data stored locally</footer>
+  <footer>BlockForge Portal · Not affiliated with Mojang AB · Data stored locally</footer>
 
   <div id="toasts"></div>
 
@@ -1563,26 +1557,15 @@
         grid.dataset.rendered = '1';
       }
 
-      // ── Downloads page ─────────────────────────────────────────────────
-      var DOWNLOADS = [
-        { icon: '🍏', name: 'Mac · Apple Silicon', desc: 'BlockForge-mac-arm64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-arm64.dmg' },
-        { icon: '🖥️', name: 'Mac · Intel', desc: 'BlockForge-mac-x64.dmg', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-mac-x64.dmg' },
-        { icon: '🪟', name: 'Windows', desc: 'BlockForge-windows.exe', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-windows.exe' },
-        { icon: '🤖', name: 'Android', desc: 'BlockForge-android.apk', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-android.apk' },
-        { icon: '📱', name: 'iPhone (SideStore)', desc: 'BlockForge-iphone-ipa.ipa', url: 'https://github.com/LogicLeague47/BlockForge/releases/download/binaries/BlockForge-iphone-ipa.ipa' },
-        { icon: '🌐', name: 'Web (Play now)', desc: 'No install needed', url: 'https://blockforge-1.onrender.com/' },
-      ];
+      // ── Downloads page (web-only) ─────────────────────────────────────
       function renderDownloads() {
         var grid = document.getElementById('downloads-grid');
         if (!grid) return;
         if (grid.dataset.rendered) return;
-        grid.innerHTML = DOWNLOADS.map(function(d) {
-          var extra = d.url.indexOf('releases') !== -1 ? ' target="_blank" rel="noopener"' : '';
-          return '<a class="dl-card" href="' + d.url + '"' + extra + '>' +
-            '<div class="dl-icon">' + d.icon + '</div>' +
-            '<div class="dl-info"><div class="dl-name">' + d.name + '</div><div class="dl-desc">' + d.desc + '</div></div>' +
-            '<div class="dl-arrow">⬇</div></a>';
-        }).join('');
+        grid.innerHTML = '<a class="dl-card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">' +
+          '<div class="dl-icon">🌐</div>' +
+          '<div class="dl-info"><div class="dl-name">Play BlockForge in your browser</div><div class="dl-desc">No install needed — works on desktop, tablet and phone.</div></div>' +
+          '<div class="dl-arrow">▶</div></a>';
         grid.dataset.rendered = '1';
       }
 

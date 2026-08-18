@@ -5,9 +5,18 @@
 // --- CrazyGames SDK abstraction ---
 // The SDK data module is async; we write to both localStorage (instant) and
 // the SDK (background cloud sync) so gameplay is never blocked.
+//
+// Cloud sync is gated to the actual CrazyGames platform ONLY. Linked external
+// accounts (Google/GitHub) that play on the regular site are NOT CrazyGames
+// users — they just use localStorage. This keeps CG cloud progress tied to the
+// CrazyGames platform account, never to a linked identity.
+
+function onCgHost() {
+  try { return /crazygames\./i.test(location.hostname); } catch { return false; }
+}
 
 function sdkAvailable() {
-  return !!(window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data);
+  return onCgHost() && !!(window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data);
 }
 
 async function sdkSet(key, value) {
@@ -223,6 +232,36 @@ export async function syncTutorialFromSdk() {
   try {
     const val = await sdkGet(key);
     if (val === '1') localStorage.setItem(key, '1');
+  } catch (_) {}
+}
+
+// Pull progress from the CrazyGames cloud into localStorage. On CrazyGames the
+// browser storage is partitioned/ephemeral, so a refresh or a new device can
+// wipe local saves — this restores them from the SDK-backed cloud.
+// Only runs on the CrazyGames platform (see sdkAvailable).
+export async function cgPullProgress() {
+  if (!sdkAvailable()) return;
+  const pull = async (key, hasLocal) => {
+    const cloud = await sdkGet(key);
+    if (cloud != null && !hasLocal()) {
+      try { localStorage.setItem(key, cloud); } catch (_) {}
+    }
+  };
+  try {
+    await pull(listKey(), () => !!localStorage.getItem(listKey()));
+    await pull(devListKey(), () => !!localStorage.getItem(devListKey()));
+    await pull(parkourListKey(), () => !!localStorage.getItem(parkourListKey()));
+    await pull(oneblockListKey(), () => !!localStorage.getItem(oneblockListKey()));
+    // Pull each saved world's data based on the (possibly restored) lists.
+    for (const list of [getWorldList(), getDevWorldList(), getParkourWorldList(), getOneBlockWorldList()]) {
+      for (const w of list || []) {
+        const id = w && w.id;
+        if (!id) continue;
+        await pull(worldDataKey(id), () => !!localStorage.getItem(worldDataKey(id)));
+      }
+    }
+    // Per-user flags (tutorial etc.) — restore from cloud when missing locally.
+    await pull(_userPrefix() + 'tutorial', () => !!localStorage.getItem(_userPrefix() + 'tutorial'));
   } catch (_) {}
 }
 
