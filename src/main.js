@@ -6786,11 +6786,14 @@ function initMenu() {
         window.addEventListener('message', linkHandler);
       }
     };
-    const providers = [
+    const allProviders = [
       { id: 'github', label: 'GitHub' },
       { id: 'google', label: 'Google' },
       { id: 'crazygames', label: 'CrazyGames' },
     ];
+    const providers = isOnCrazyGames()
+      ? allProviders.filter(p => p.id === 'crazygames')
+      : allProviders;
     _linkedAccountCallback = (msg) => {
       if (msg.type === 'dev_account_detail' && msg.account) {
         const links = msg.account.identities || {};
@@ -7658,6 +7661,8 @@ function initMenu() {
   // external login options (e.g. Facebook, Google, email) is not allowed."
   // On the CrazyGames build we hide the username/password form and the GitHub/
   // Google OAuth buttons, keeping only Login with CrazyGames + Play as Guest.
+  // We also hide buttons that open separate pages (Portal, Account Info, Browse
+  // Mods), since those relative URLs don't exist on CrazyGames' domain.
   if (isOnCrazyGames()) {
     try {
       const accSection = document.getElementById('login-account-section');
@@ -7666,6 +7671,12 @@ function initMenu() {
       if (ghBtn) ghBtn.style.display = 'none';
       const glBtn = document.getElementById('btn-login-google');
       if (glBtn) glBtn.style.display = 'none';
+      const portalBtn = document.getElementById('btn-blockforge-portal');
+      if (portalBtn) portalBtn.style.display = 'none';
+      const accInfoBtn = document.getElementById('btn-account-info');
+      if (accInfoBtn) accInfoBtn.style.display = 'none';
+      const browseModsBtn = document.getElementById('btn-mod-browse');
+      if (browseModsBtn) browseModsBtn.style.display = 'none';
     } catch (_) { console.warn("operation failed"); }
   }
 }
