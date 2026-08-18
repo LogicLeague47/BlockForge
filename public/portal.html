@@ -198,6 +198,26 @@
     .updates-pagination button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
     .updates-pagination button:disabled{opacity:.35;cursor:default}
 
+    /* News & Updates */
+    .news-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:16px;backdrop-filter:blur(4px);box-shadow:0 8px 30px rgba(0,0,0,.28)}
+    .news-media{width:100%;background:#000}
+    .news-media img,.news-media video{display:block;width:100%;max-height:420px;object-fit:contain}
+    .news-media iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+    .news-body{padding:16px 18px}
+    .news-title{font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
+    .news-desc{font:13px/1.55 'Inter',monospace;color:var(--muted);white-space:pre-wrap}
+    .news-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:10px;font:bold 10px monospace;color:var(--dim);letter-spacing:1px;text-transform:uppercase}
+    .news-meta .author{color:var(--accent);background:rgba(var(--accent-rgb,120,160,255),.12);padding:2px 8px;border-radius:5px;border:1px solid rgba(var(--accent-rgb,120,160,255),.25)}
+    .news-del{margin-left:auto;background:rgba(255,85,85,.12);border:1px solid rgba(255,85,85,.35);color:#f8c8c8;font:bold 10px monospace;padding:4px 10px;border-radius:6px;cursor:pointer;transition:.2s}
+    .news-del:hover{background:rgba(255,85,85,.25);color:#fff}
+    .news-form{background:var(--card);border:1px solid rgba(var(--accent-rgb,120,160,255),.35);border-radius:16px;padding:18px;margin-bottom:20px;backdrop-filter:blur(4px)}
+    .news-form h3{margin-bottom:12px;font-size:14px}
+    .news-form input,.news-form textarea,.news-form select{width:100%;padding:10px 12px;background:rgba(0,0,0,.45);color:#fff;border:1px solid var(--border);border-radius:8px;font:13px 'Inter',monospace;outline:none;margin-bottom:10px;box-sizing:border-box}
+    .news-form input:focus,.news-form textarea:focus,.news-form select:focus{border-color:var(--accent)}
+    .news-form-row{display:flex;gap:10px}
+    .news-form-row select{width:120px;flex-shrink:0}
+    .news-form-actions{display:flex;align-items:center;gap:12px}
+
     /* Toast notifications */
     #toasts{position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:10px;z-index:2000}
     .toast{padding:13px 20px;border-radius:10px;font:13px 'Inter',monospace;color:#fff;border:1px solid var(--border);background:rgba(24,24,48,.92);box-shadow:0 12px 40px rgba(0,0,0,.5);animation:toastIn .3s cubic-bezier(.16,1,.3,1);display:flex;align-items:center;gap:10px;backdrop-filter:blur(8px);max-width:340px}
@@ -355,6 +375,7 @@
     <nav id="nav-tabs">
       <button class="nav-tab active" data-nav="home">Dashboard</button>
       <button class="nav-tab" data-nav="servers">Servers</button>
+      <button class="nav-tab" data-nav="news">News</button>
       <button class="nav-tab" data-nav="updates">Updates</button>
       <button class="nav-tab" data-nav="community">Community</button>
     </nav>
@@ -476,6 +497,11 @@
             <div class="name">Updates</div>
             <div class="desc">Latest changes, new features, and bug fixes</div>
           </div>
+          <div class="card" data-page="news" tabindex="0">
+            <div class="icon">📣</div>
+            <div class="name">News &amp; Updates</div>
+            <div class="desc">Official announcements with videos &amp; pictures</div>
+          </div>
           <div class="card coming">
             <div class="icon">🛍️</div>
             <div class="name">Shop <span class="badge-coming">Coming Soon</span></div>
@@ -512,6 +538,9 @@
           </div>
         </div>
 
+        <div class="section-title" id="home-news-title" style="display:none">📣 LATEST NEWS</div>
+        <div id="home-news" style="display:none"></div>
+
         <div class="section-title" id="recent-updates-title">🔥 RECENT UPDATES</div>
         <div id="recent-updates"></div>
       </div>
@@ -523,6 +552,35 @@
         <input type="text" class="search-box" id="updates-search" placeholder="Search updates…">
         <div id="portal-updates-list"></div>
         <div id="updates-pagination" class="updates-pagination"></div>
+        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
+      </div>
+
+      <div id="page-news" class="page">
+        <h2>📣 News &amp; Updates</h2>
+        <p>Official announcements, videos and pictures from the BlockForge team.</p>
+
+        <div id="news-dev-form-wrap" style="display:none">
+          <div class="news-form">
+            <h3>✍️ Post News (Developers only)</h3>
+            <input type="text" id="news-title" placeholder="Title (e.g. v1.2 — The Caves Update is here!)" maxlength="120">
+            <textarea id="news-desc" rows="3" placeholder="Description — what players should know..." maxlength="2000"></textarea>
+            <div class="news-form-row">
+              <select id="news-media-type">
+                <option value="image">Image</option>
+                <option value="video">Video</option>
+              </select>
+              <input type="text" id="news-media-url" placeholder="Media URL (https://… image, mp4, or YouTube link)" maxlength="500">
+            </div>
+            <div class="news-form-actions">
+              <button class="btn primary" id="news-post-btn">Publish News</button>
+              <span id="news-post-hint" style="font-size:12px;color:var(--dim)"></span>
+            </div>
+          </div>
+        </div>
+
+        <div id="news-list">
+          <div class="srv-empty">Loading news...</div>
+        </div>
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
@@ -995,6 +1053,7 @@
           history.pushState({page: page}, '', u);
         }
         if (page === 'updates') renderUpdates();
+        if (page === 'news') fetchNews();
         if (page === 'servers') fetchServerList();
         if (page === 'downloads') renderDownloads();
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1032,7 +1091,7 @@
       });
 
       function setNav(page) {
-        var map = { servers:'servers', updates:'updates', downloads:'downloads', community:'community' };
+        var map = { servers:'servers', updates:'updates', news:'news', downloads:'downloads', community:'community' };
         var target = map[page];
         document.querySelectorAll('.nav-tab').forEach(function(t) {
           t.classList.toggle('active', t.dataset.nav === target || (target === 'home' && !page));
@@ -1078,6 +1137,7 @@
           document.getElementById('page-' + p).classList.add('active');
           setNav(p);
           if (p === 'updates') renderUpdates();
+          if (p === 'news') fetchNews();
           if (p === 'servers') fetchServerList();
         } else if (p && COMMUNITY_ROUTE[p]) {
           showHome();
@@ -1521,6 +1581,215 @@
         more.innerHTML = '<button class="btn" id="recent-more">View all updates →</button>';
         wrap.appendChild(more);
         document.getElementById('recent-more').addEventListener('click', function() { openPage('updates'); });
+      }
+
+      // ── News & Updates (dynamic, server-backed) ────────────────────────
+      var _newsCache = [];
+      var _newsDevRole = null; // 'dev' | 'gamedev' | 'owner' | null once verified
+
+      function newsMediaHTML(item) {
+        if (!item.mediaUrl) return '';
+        var url = item.mediaUrl;
+        if (item.mediaType === 'video') {
+          var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
+          if (yt) return '<div class="news-media"><iframe src="https://www.youtube.com/embed/' + yt[1] + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
+          return '<div class="news-media"><video controls preload="metadata" src="' + url + '"></video></div>';
+        }
+        return '<div class="news-media"><img src="' + url + '" alt="' + esc(item.title) + '" loading="lazy" onclick="window.open(this.src)"></div>';
+      }
+
+      function newsCardHTML(item, canManage) {
+        var date = item.createdAt ? new Date(item.createdAt).toLocaleDateString(undefined, { year:'numeric', month:'short', day:'numeric' }) : '';
+        var del = canManage ? '<button class="news-del" data-id="' + item.id + '">Delete</button>' : '';
+        return '<div class="news-card">' +
+          newsMediaHTML(item) +
+          '<div class="news-body">' +
+            '<div class="news-title">' + esc(item.title) + '</div>' +
+            '<div class="news-desc">' + esc(item.description) + '</div>' +
+            '<div class="news-meta"><span class="author">✍ ' + esc(item.author) + '</span>' +
+            (date ? '<span>' + date + '</span>' : '') + del + '</div>' +
+          '</div></div>';
+      }
+
+      function renderNews() {
+        var listEl = document.getElementById('news-list');
+        if (!listEl) return;
+        if (_newsCache.length === 0) {
+          listEl.innerHTML = '<div class="srv-empty">No news yet. Check back soon!</div>';
+          return;
+        }
+        var canManage = ['dev','gamedev','owner'].indexOf(_newsDevRole) !== -1;
+        listEl.innerHTML = _newsCache.map(function(item) { return newsCardHTML(item, canManage); }).join('');
+        listEl.querySelectorAll('.news-del').forEach(function(btn) {
+          btn.onclick = function() { deleteNewsItem(btn.dataset.id); };
+        });
+      }
+
+      function fetchNews() {
+        var ws = new WebSocket(SRV_WS);
+        var timeout = setTimeout(function() { try { ws.close(); } catch(_){} }, 6000);
+        ws.onopen = function() { ws.send(JSON.stringify({ type: 'news_list' })); };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'news_list' && Array.isArray(msg.items)) {
+              _newsCache = msg.items;
+              clearTimeout(timeout);
+              renderNews();
+              renderHomeNews();
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() {
+          clearTimeout(timeout);
+          var listEl = document.getElementById('news-list');
+          if (listEl) listEl.innerHTML = '<div class="srv-error">Could not load news. The server may be offline.</div>';
+        };
+      }
+
+      // Developer verification + posting (real server auth, never trust the URL role)
+      function portalDevVerify(cb) {
+        var ws = new WebSocket(SRV_WS);
+        var timeout = setTimeout(function() { try { ws.close(); } catch(_){} cb(null); }, 6000);
+        ws.onopen = function() {
+          var name = localStorage.getItem('bf_portal_user') || '';
+          var encoded = localStorage.getItem('bf_login_pass') || '';
+          var pass = '';
+          for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+          ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+        };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'auth_result') {
+              clearTimeout(timeout);
+              ws.close();
+              var role = msg.role || '';
+              if (msg.ok && ['dev','gamedev','owner'].indexOf(role) !== -1) cb(role);
+              else cb(null);
+            }
+          } catch (_) { cb(null); }
+        };
+        ws.onerror = function() { clearTimeout(timeout); cb(null); };
+      }
+
+      function postNews() {
+        var title = document.getElementById('news-title').value.trim();
+        var desc = document.getElementById('news-desc').value.trim();
+        var url = document.getElementById('news-media-url').value.trim();
+        var type = document.getElementById('news-media-type').value;
+        var hint = document.getElementById('news-post-hint');
+        if (!title || !desc) { hint.textContent = 'Title and description are required.'; hint.style.color = '#f85'; return; }
+        if (url && !/^https?:\/\//i.test(url)) { hint.textContent = 'Media URL must start with http(s)://'; hint.style.color = '#f85'; return; }
+        hint.textContent = 'Verifying developer access...';
+        hint.style.color = 'var(--dim)';
+        portalDevVerify(function(role) {
+          if (!role) { hint.textContent = 'You need Developer permissions to post news.'; hint.style.color = '#f85'; return; }
+          var ws = new WebSocket(SRV_WS);
+          var posted = false;
+          var timeout = setTimeout(function() { try { ws.close(); } catch(_){} if (!posted) hint.textContent = 'Timed out — try again.'; }, 8000);
+          ws.onopen = function() {
+            var name = localStorage.getItem('bf_portal_user') || '';
+            var encoded = localStorage.getItem('bf_login_pass') || '';
+            var pass = '';
+            for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+            ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+          };
+          ws.onmessage = function(e) {
+            try {
+              var msg = JSON.parse(e.data);
+              if (msg.type === 'auth_result') {
+                if (msg.ok && ['dev','gamedev','owner'].indexOf(msg.role) !== -1) {
+                  ws.send(JSON.stringify({ type: 'news_post', title: title, description: desc, mediaUrl: url, mediaType: type }));
+                } else {
+                  clearTimeout(timeout); ws.close(); hint.textContent = 'You need Developer permissions to post news.'; hint.style.color = '#f85';
+                }
+              } else if (msg.type === 'news_posted' && msg.ok) {
+                posted = true;
+                clearTimeout(timeout); ws.close();
+                hint.textContent = 'News published!'; hint.style.color = '#4c4';
+                document.getElementById('news-title').value = '';
+                document.getElementById('news-desc').value = '';
+                document.getElementById('news-media-url').value = '';
+                _newsCache = [msg.item].concat(_newsCache);
+                renderNews();
+                renderHomeNews();
+                toast('News published!', 'ok');
+              } else if (msg.type === 'error') {
+                clearTimeout(timeout); ws.close(); hint.textContent = msg.text || 'Server rejected the post.'; hint.style.color = '#f85';
+              }
+            } catch (_) {}
+          };
+          ws.onerror = function() { clearTimeout(timeout); hint.textContent = 'Could not reach the server.'; hint.style.color = '#f85'; };
+        });
+      }
+
+      function deleteNewsItem(id) {
+        var ws = new WebSocket(SRV_WS);
+        var timeout = setTimeout(function() { try { ws.close(); } catch(_){} }, 8000);
+        ws.onopen = function() {
+          var name = localStorage.getItem('bf_portal_user') || '';
+          var encoded = localStorage.getItem('bf_login_pass') || '';
+          var pass = '';
+          for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+          ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+        };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'auth_result') {
+              if (msg.ok && ['dev','gamedev','owner'].indexOf(msg.role) !== -1) {
+                ws.send(JSON.stringify({ type: 'news_delete', id: id }));
+              } else { clearTimeout(timeout); ws.close(); toast('You need Developer permissions.', 'err'); }
+            } else if (msg.type === 'news_deleted' && msg.ok) {
+              clearTimeout(timeout); ws.close();
+              _newsCache = _newsCache.filter(function(n) { return n.id !== id; });
+              renderNews();
+              renderHomeNews();
+              toast('News deleted.', 'ok');
+            } else if (msg.type === 'error') {
+              clearTimeout(timeout); ws.close(); toast(msg.text || 'Could not delete.', 'err');
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { clearTimeout(timeout); toast('Could not reach the server.', 'err'); };
+      }
+
+      // Latest news strip on the dashboard
+      function renderHomeNews() {
+        var wrap = document.getElementById('home-news');
+        var titleEl = document.getElementById('home-news-title');
+        if (!wrap) return;
+        var items = _newsCache.slice(0, 2);
+        if (items.length === 0) { wrap.style.display = 'none'; if (titleEl) titleEl.style.display = 'none'; return; }
+        wrap.style.display = 'block';
+        if (titleEl) titleEl.style.display = '';
+        wrap.innerHTML = items.map(function(item) {
+          return newsCardHTML(item, false);
+        }).join('');
+        var more = document.createElement('div');
+        more.className = 'mt-20';
+        more.innerHTML = '<button class="btn" id="home-news-more">View all news →</button>';
+        wrap.appendChild(more);
+        var btn = document.getElementById('home-news-more');
+        if (btn) btn.addEventListener('click', function() { openPage('news'); });
+      }
+
+      // Show the dev post form once real auth confirms developer access.
+      function initNewsDevForm() {
+        var wrap = document.getElementById('news-dev-form-wrap');
+        var btn = document.getElementById('news-post-btn');
+        if (!wrap || !btn) return;
+        if (localStorage.getItem('bf_portal_user')) {
+          portalDevVerify(function(role) {
+            _newsDevRole = role;
+            if (role) { wrap.style.display = 'block'; renderNews(); }
+            else { wrap.style.display = 'none'; }
+          });
+        } else {
+          wrap.innerHTML = '<div class="news-form"><h3>✍️ Post News</h3><p style="color:var(--dim);font-size:13px">Log in with a developer account on the portal to post news here.</p></div>';
+        }
+        btn.addEventListener('click', postNews);
       }
 
       // ── Mods & Addons catalog (mirrors public/mods.html) ──────────────
@@ -1978,6 +2247,8 @@
       renderRecentUpdates();
       renderDownloads();
       renderPortalMods();
+      initNewsDevForm();
+      fetchNews();
       refreshServerStatus();
       if (userName) {
         loadPlayerProgress();

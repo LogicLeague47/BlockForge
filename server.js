@@ -19,6 +19,7 @@ const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
 const FRIENDS_FILE = join(__dirname, 'friends.json');
 const PENDING_DMS_FILE = join(__dirname, 'pending-dms.json');
 const DM_HISTORY_FILE = join(__dirname, 'dm-history.json');
+const NEWS_FILE = join(__dirname, 'news.json');
 
 async function getPlayerData(username) {
   if (USE_REDIS) {
@@ -1203,6 +1204,9 @@ function isRateLimited(ws) {
       case 'mob_death': handleMobDeath(ws, msg); break;
       case 'community_chat': handleCommunityChat(ws, msg); break;
       case 'community_chat_history': handleCommunityChatHistory(ws); break;
+      case 'news_list': handleNewsList(ws); break;
+      case 'news_post': handleNewsPost(ws, msg); break;
+      case 'news_delete': handleNewsDelete(ws, msg); break;
       // Identity linking
       case 'link_identity': handleLinkIdentity(ws, msg); break;
       case 'start_oauth_link': handleStartOAuthLink(ws, msg); break;
@@ -1771,6 +1775,86 @@ function _communityChatLeave(name) {
   _communityChatUsers.delete(name);
   _broadcastCommunityChat({ type: 'community_online', count: _communityChatUsers.size });
   _broadcastCommunityChat({ type: 'community_chat', name: 'System', role: 'system', text: name + ' left the chat', time: Date.now() });
+}
+
+// ── News & Updates (portal announcements) ────────────────────────────────
+// Only developer-role accounts (verified server-side) may post news.
+// Items persist to Redis (bf:news) with a local JSON fallback.
+let newsItems = []; // { id, title, description, mediaUrl, mediaType, author, createdAt }
+const NEWS_MAX = 200;
+
+async function loadNews() {
+  try {
+    if (existsSync(NEWS_FILE)) newsItems = JSON.parse(readFileSync(NEWS_FILE, 'utf8')) || [];
+  } catch { newsItems = []; }
+  if (USE_REDIS) {
+    const data = await redisCmd(['GET', 'bf:news']);
+    if (data) { try { const parsed = JSON.parse(data); if (Array.isArray(parsed)) newsItems = parsed; } catch { console.warn('[News] Failed to parse Redis news JSON'); } }
+  }
+}
+
+function saveNews() {
+  try { writeFileSync(NEWS_FILE, JSON.stringify(newsItems, null, 2)); } catch { console.warn('[News] file write failed'); }
+  if (USE_REDIS) {
+    redisCmd(['SET', 'bf:news', JSON.stringify(newsItems)])
+      .catch(err => console.warn('[News] Redis save failed:', err));
+  }
+}
+
+function _isNewsPoster(role) {
+  return role === ROLE_DEV || role === ROLE_GAMEDEV || role === ROLE_OWNER;
+}
+
+function _broadcastNews() {
+  const data = JSON.stringify({ type: 'news_list', items: newsItems });
+  if (wss && wss.clients) {
+    for (const client of wss.clients) {
+      if (client.readyState === 1) safeSend(client, data);
+    }
+  }
+}
+
+function handleNewsList(ws) {
+  safeSend(ws, JSON.stringify({ type: 'news_list', items: newsItems }));
+}
+
+function handleNewsPost(ws, msg) {
+  if (ws._portalChat) return sendError(ws, 'Authenticate with your password to post news.');
+  const role = ws._playerData && ws._playerData.role;
+  const author = ws._playerData && ws._playerData.name;
+  if (!_isNewsPoster(role)) return sendError(ws, 'You need Developer permissions to post news.');
+  const title = filterProfanity((msg.title || '').trim()).slice(0, 120);
+  const description = filterProfanity((msg.description || '').trim()).slice(0, 2000);
+  if (!title || !description) return sendError(ws, 'A title and description are required.');
+  let mediaUrl = (msg.mediaUrl || '').trim().slice(0, 500);
+  if (mediaUrl && !/^https?:\/\//i.test(mediaUrl)) return sendError(ws, 'Media URL must start with http:// or https://.');
+  const mediaType = msg.mediaType === 'video' ? 'video' : 'image';
+  const item = {
+    id: 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+    title,
+    description,
+    mediaUrl: mediaUrl || '',
+    mediaType,
+    author: author || 'Developer',
+    createdAt: Date.now(),
+  };
+  newsItems.unshift(item);
+  if (newsItems.length > NEWS_MAX) newsItems.length = NEWS_MAX;
+  saveNews();
+  _broadcastNews();
+  safeSend(ws, JSON.stringify({ type: 'news_posted', ok: true, item }));
+}
+
+function handleNewsDelete(ws, msg) {
+  if (ws._portalChat) return sendError(ws, 'Authenticate with your password to delete news.');
+  const role = ws._playerData && ws._playerData.role;
+  if (!_isNewsPoster(role)) return sendError(ws, 'You need Developer permissions to delete news.');
+  const idx = newsItems.findIndex(n => n.id === msg.id);
+  if (idx === -1) return sendError(ws, 'News item not found.');
+  newsItems.splice(idx, 1);
+  saveNews();
+  _broadcastNews();
+  safeSend(ws, JSON.stringify({ type: 'news_deleted', ok: true, id: msg.id }));
 }
 
 function handleCommand(ws, msg) {
@@ -2373,6 +2457,7 @@ let _hbInterval;
   await loadRooms();
   await loadAccounts();
   await loadFriends();
+  await loadNews();
   loadPendingDMs();
   loadDmHistory();
   ensureOfficialServer();
