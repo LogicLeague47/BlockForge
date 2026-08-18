@@ -19,6 +19,19 @@ import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js'
 import { MobManager, MOB_TYPES } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
+import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd } from './cg-helper.js';
+
+// XOR obfuscation for locally-stored passwords (matching linkedaccounts.js)
+function _xorEncode(str) {
+  let out = '';
+  for (let i = 0; i < str.length; i++) out += String.fromCharCode(str.charCodeAt(i) ^ 0x5A);
+  return out;
+}
+function _xorDecode(str) {
+  let out = '';
+  for (let i = 0; i < str.length; i++) out += String.fromCharCode(str.charCodeAt(i) ^ 0x5A);
+  return out;
+}
 import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, deleteCustomSkin, setSelectedCustomSkin, setSkinUser, getStoredSkinIndex } from './skins.js';
 import { PlayerModel } from './playermodel.js';
 import { SkinEditor } from './skineditor.js';
@@ -9892,13 +9905,47 @@ document.getElementById('btn-blockforge-portal')?.addEventListener('click', () =
   const role = encodeURIComponent(playerRole || '');
   window.open('portal.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
-// Bottom-right: Account Info → opens user-data page at /u/data.html
+// Bottom-right: Account Info → shows account details incl. shareable player link
 document.getElementById('btn-account-info')?.addEventListener('click', () => {
+  const aiModal = document.getElementById('account-info-modal');
+  const aiUser = document.getElementById('ai-username');
+  const aiPass = document.getElementById('ai-password');
+  const aiProv = document.getElementById('ai-provider');
+  const aiLink = document.getElementById('ai-player-link');
+  if (aiUser) aiUser.textContent = playerName || '—';
+  if (aiPass) {
+    let pass = '';
+    try { pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) { console.warn("localStorage read failed"); }
+    aiPass.textContent = pass ? pass : '—';
+  }
+  if (aiProv) aiProv.textContent = localStorage.getItem('bf_oauth_provider') || localStorage.getItem('bf_cg_provider') || 'password';
+  if (aiLink && playerName) aiLink.textContent = location.origin + '/u/?user=' + encodeURIComponent(playerName);
+  if (aiModal) aiModal.style.display = 'flex';
+});
+document.getElementById('ai-backdrop')?.addEventListener('click', () => {
+  const aiModal = document.getElementById('account-info-modal');
+  if (aiModal) aiModal.style.display = 'none';
+});
+document.getElementById('btn-ai-close')?.addEventListener('click', () => {
+  const aiModal = document.getElementById('account-info-modal');
+  if (aiModal) aiModal.style.display = 'none';
+});
+document.getElementById('btn-ai-copy-link')?.addEventListener('click', async () => {
+  const link = document.getElementById('ai-player-link')?.textContent || '';
+  const btn = document.getElementById('btn-ai-copy-link');
+  if (!link || link === '—') return;
+  try { await navigator.clipboard.writeText(link); } catch (_) { console.warn("clipboard write failed"); }
+  if (btn) { const t = btn.textContent; btn.textContent = 'COPIED!'; setTimeout(() => { btn.textContent = t; }, 1200); }
+});
+document.getElementById('ai-username')?.addEventListener('click', async () => {
+  const u = document.getElementById('ai-username')?.textContent || '';
+  try { if (u && u !== '—') await navigator.clipboard.writeText(u); } catch (_) { console.warn("clipboard write failed"); }
+});
+document.getElementById('ai-data-page')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
   const role = encodeURIComponent(playerRole || '');
   window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
-
 // --- Electron in-app update ------------------------------------------------
 if (window.electronAPI) {
   const updateBtn = document.getElementById('electron-update-btn');

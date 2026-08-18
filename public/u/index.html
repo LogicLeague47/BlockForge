@@ -456,22 +456,19 @@
       var savedRole = '';
       try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
 
-      if (fromU) {
-        subtitleEl.textContent = 'PLAYER';
-        nameEl.textContent = urlUser;
-        roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-        homepageEl.style.display = 'none';
-        setTimeout(function() {
-          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-        }, 1200);
-      } else {
-        subtitleEl.textContent = '';
-        nameEl.textContent = urlUser;
-        roleEl.textContent = '';
-        bypassEl.textContent = 'You may not bypass login. Please log in through the game.';
-        bypassEl.style.display = '';
-        hintEl.style.display = 'none';
-      }
+      // Player-specific link: show the player page, then take them into the
+      // game. The game itself enforces login (saved credentials auto-login,
+      // otherwise the login screen is shown with the name pre-filled), so a
+      // direct visit here is a shareable player link, not a login bypass.
+      subtitleEl.textContent = 'PLAYER';
+      nameEl.textContent = urlUser;
+      roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
+      homepageEl.style.display = 'none';
+      bypassEl.style.display = 'none';
+      hintEl.style.display = 'none';
+      setTimeout(function() {
+        window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+      }, 1200);
     })();
   </script>
 </body>
