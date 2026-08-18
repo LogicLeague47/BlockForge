@@ -19,6 +19,7 @@ import { BLOCK, BLOCKS, tileNameFor } from './blocks.js';
 import { tileUVRect } from './tiles.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, BIOMES } from './world.js';
 import { getLampFaces } from './greenstone.js';
+import { acquireMeshBuffers, releaseMeshBuffers } from './chunkbuffer.js';
 
 // Biome tint lookup tables (allocated once, not per chunk rebuild)
 const _GRASS_TINT = {
@@ -158,6 +159,28 @@ function isAirLike(blockId) {
   return d && (d.transparent || d.plant || d.bed);
 }
 
+// Fast block sampler for the mesher. Reads the owning chunk's Uint8Array
+// directly for in-chunk neighbours (the common case) and only falls back to a
+// numeric-key chunk lookup at chunk borders. No string allocation.
+function makeSampler(chunk, world) {
+  const cx = chunk.cx, cz = chunk.cz;
+  const baseX = cx * CHUNK_SIZE, baseZ = cz * CHUNK_SIZE;
+  const data = chunk.data;
+  const chunksNum = world.chunksNum;
+  const parkour = world.parkour;
+  return function (wx, wy, wz) {
+    if (wy < 0) return parkour ? BLOCK.AIR : BLOCK.BEDROCK;
+    if (wy >= WORLD_HEIGHT) return BLOCK.AIR;
+    const lx = wx - baseX, lz = wz - baseZ;
+    if (lx >= 0 && lx < CHUNK_SIZE && lz >= 0 && lz < CHUNK_SIZE) {
+      return data[(wy * CHUNK_SIZE + lz) * CHUNK_SIZE + lx];
+    }
+    const nc = chunksNum.get((wx >> 4) * 32768 + (wz >> 4));
+    if (!nc) return BLOCK.AIR;
+    return nc.data[((wy * CHUNK_SIZE + (wz - ((wz >> 4) << 4))) * CHUNK_SIZE) + (wx - ((wx >> 4) << 4))];
+  };
+}
+
 // UVs per corner, matching the [BL, BR, TR, TL] corner order above.
 // (u0/v0 = tile bottom-left, u1/v1 = tile top-right in atlas UV space.)
 const UV_CORNERS = [
@@ -171,14 +194,15 @@ export function buildChunkGeometry(chunk, world) {
   const baseX = chunk.cx * CHUNK_SIZE;
   const baseZ = chunk.cz * CHUNK_SIZE;
 
-  const opaque = { pos: [], uv: [], col: [], nor: [], idx: [] };
-  const cutout = { pos: [], uv: [], col: [], nor: [], idx: [] };
-  const trans = { pos: [], uv: [], col: [], nor: [], idx: [] };
-  const water = { pos: [], uv: [], col: [], nor: [], idx: [] };
+  // Sodium-style compact buffers (pooled across rebuilds — FerriteCore).
+  const opaque = acquireMeshBuffers();
+  const cutout = acquireMeshBuffers();
+  const trans = acquireMeshBuffers();
+  const water = acquireMeshBuffers();
 
-  // Helper to read world-space block, generating neighbour chunks on demand so
-  // faces at chunk borders cull correctly against adjacent chunks.
-  const sample = (wx, wy, wz) => world.getBlock(wx, wy, wz);
+  // Fast block sampler: reads the current chunk's typed array directly and
+  // uses numeric chunk keys for neighbours, avoiding string-key allocation.
+  const sample = makeSampler(chunk, world);
 
   // Find highest non-air block in the chunk to skip empty space above.
   let maxY = 0;
@@ -267,35 +291,40 @@ export function buildChunkGeometry(chunk, world) {
             tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
           }
 
-          const start = target.pos.length / 3;
+          const start = target.pos.itemCount;
           for (let c = 0; c < 4; c++) {
             const co = face.corners[c];
-            target.pos.push(
+            target.pos.push3(
               wx + co[0],
               y + co[1] + (co[1] === 1 ? yDrop : 0),
               wz + co[2]
             );
             const uvr = UV_CORNERS[c];
-            target.uv.push(
+            target.uv.push2(
               uvr[0] ? uvRect.u1 : uvRect.u0,
               uvr[1] ? uvRect.v1 : uvRect.v0
             );
             if (isWater) {
-              target.col.push(1, 1, 1);
+              target.col.push3(1, 1, 1);
             } else {
               const a = ao[c];
               const s = shade * a;
-              target.col.push(s * tintR, s * tintG, s * tintB);
+              target.col.push3(s * tintR, s * tintG, s * tintB);
             }
-            target.nor.push(face.dir[0], face.dir[1], face.dir[2]);
+            target.nor.push3(face.dir[0], face.dir[1], face.dir[2]);
           }
-          target.idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
+          target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
         }
       }
     }
   }
 
-  return { opaque: toGeometry(opaque), cutout: toGeometry(cutout), trans: toGeometry(trans), water: toGeometry(water) };
+  const result = { opaque: toGeometry(opaque), cutout: toGeometry(cutout), trans: toGeometry(trans), water: toGeometry(water) };
+  releaseMeshBuffers(opaque);
+  releaseMeshBuffers(cutout);
+  releaseMeshBuffers(trans);
+  releaseMeshBuffers(water);
+  return result;
 }
 
 // Sample 3 neighbours per corner (side1, side2, corner) for ambient occlusion.
@@ -351,7 +380,7 @@ function pushPlant(target, wx, y, wz, blockId) {
   const tile = tileNameFor(blockId, 'side');
   const uv = tileUVRect(tile);
   for (let q = 0; q < 2; q++) {
-    const start = target.pos.length / 3;
+    const start = target.pos.itemCount;
     const qu = _PLANT_QUADS[q];
     _PLANT_UVS_BUF[0][0] = uv.u0; _PLANT_UVS_BUF[0][1] = uv.v0;
     _PLANT_UVS_BUF[1][0] = uv.u1; _PLANT_UVS_BUF[1][1] = uv.v0;
@@ -359,22 +388,22 @@ function pushPlant(target, wx, y, wz, blockId) {
     _PLANT_UVS_BUF[3][0] = uv.u0; _PLANT_UVS_BUF[3][1] = uv.v1;
     for (let i = 0; i < 4; i++) {
       const cx = qu[i][0], cz = qu[i][1];
-      target.pos.push(wx + cx, y + (i >= 2 ? 1 : 0), wz + cz);
-      target.uv.push(_PLANT_UVS_BUF[i][0], _PLANT_UVS_BUF[i][1]);
-      target.col.push(1, 1, 1);
-      target.nor.push(0, 1, 0);
+      target.pos.push3(wx + cx, y + (i >= 2 ? 1 : 0), wz + cz);
+      target.uv.push2(_PLANT_UVS_BUF[i][0], _PLANT_UVS_BUF[i][1]);
+      target.col.push3(1, 1, 1);
+      target.nor.push3(0, 1, 0);
     }
-    target.idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
   }
 }
 
 function toGeometry(buf) {
   return {
-    position: new Float32Array(buf.pos),
-    uv: new Float32Array(buf.uv),
-    color: new Float32Array(buf.col),
-    normal: new Float32Array(buf.nor),
-    index: buf.idx.length ? new Uint32Array(buf.idx) : null,
+    position: buf.pos.toArray(),
+    uv: buf.uv.toArray(),
+    color: buf.col.toArray(),
+    normal: buf.nor.toArray(),
+    index: buf.idx.length ? buf.idx.toArray() : null,
   };
 }
 
@@ -421,20 +450,20 @@ function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample) {
     const shade = face.name === 'top' ? FACE_SHADE.top
                 : face.name === 'bottom' ? FACE_SHADE.bottom
                 : (SIDE_SHADE_AXIS[f] || FACE_SHADE.side);
-    const start = target.pos.length / 3;
+    const start = target.pos.itemCount;
     for (let c = 0; c < 4; c++) {
       const co = face.corners[c];
-      target.pos.push(
+      target.pos.push3(
         wx + box[0] + co[0] * (box[3] - box[0]),
         y + box[1] + co[1] * (box[4] - box[1]),
         wz + box[2] + co[2] * (box[5] - box[2])
       );
       const uvr = UV_CORNERS[(c + uvRotate) % 4];
-      target.uv.push(uvr[0] ? uv.u1 : uv.u0, uvr[1] ? uv.v1 : uv.v0);
-      target.col.push(shade, shade, shade);
-      target.nor.push(face.dir[0], face.dir[1], face.dir[2]);
+      target.uv.push2(uvr[0] ? uv.u1 : uv.u0, uvr[1] ? uv.v1 : uv.v0);
+      target.col.push3(shade, shade, shade);
+      target.nor.push3(face.dir[0], face.dir[1], face.dir[2]);
     }
-    target.idx.push(start, start + 1, start + 2, start, start + 2, start + 3);
+    target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
   }
 }
 

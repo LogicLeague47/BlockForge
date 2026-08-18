@@ -26,6 +26,7 @@ export class World {
     this.seed = seed || Math.floor(Math.random() * 1e9);
     this.noise = new Noise(this.seed);
     this.chunks = new Map();
+    this.chunksNum = new Map(); // numeric-key mirror for zero-string hot lookups
     this.edits = new Map();
     this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
@@ -71,6 +72,10 @@ export class World {
 
   key(cx, cz) { return cx + ',' + cz; }
 
+  // Numeric chunk key — avoids string allocation in hot loops (meshing).
+  // Unique for |cz| < 32768 chunks (≈ ±524k blocks). Plenty for any world.
+  numKey(cx, cz) { return cx * 32768 + cz; }
+
   // Drop all generated chunk data so the next getChunk() re-runs generateChunk
   // and picks up _chunkEdits (used after bulk-importing a map that must override
   // chunks which were already generated as empty/void terrain).
@@ -90,7 +95,7 @@ export class World {
   getChunk(cx, cz, generate = true) {
     const k = this.key(cx, cz);
     let c = this.chunks.get(k);
-    if (!c) { c = new Chunk(cx, cz); this.chunks.set(k, c); if (generate) this.generateChunk(c); }
+    if (!c) { c = new Chunk(cx, cz); this.chunks.set(k, c); this.chunksNum.set(this.numKey(cx, cz), c); if (generate) this.generateChunk(c); }
     return c;
   }
 
@@ -98,9 +103,9 @@ export class World {
     if (y < 0) return this.parkour ? BLOCK.AIR : BLOCK.BEDROCK;
     if (y >= WORLD_HEIGHT) return BLOCK.AIR;
     const cx = x >> 4; const cz = z >> 4;
-    const c = this.chunks.get(this.key(cx, cz));
+    const c = this.chunksNum.get(cx * 32768 + cz);
     if (!c) return BLOCK.AIR;
-    return c.get(x - (cx << 4), y, z - (cz << 4));
+    return c.data[((y * CHUNK_SIZE + (z - (cz << 4))) * CHUNK_SIZE) + (x - (cx << 4))];
   }
 
   setBlock(x, y, z, v, recordEdit = true) {
@@ -244,6 +249,7 @@ export class World {
       const cx = +k.slice(0, ci), cz = +k.slice(ci + 1);
       if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
         this.chunks.delete(k);
+        this.chunksNum.delete(cx * 32768 + cz);
       }
     }
   }
