@@ -1881,14 +1881,19 @@
       }
 
       // ── Downloads page (web-only) ─────────────────────────────────────
+      var PORTAL_PLATFORMS = [
+        { icon:'🌐', name:'Play BlockForge in your browser', desc:'No install needed — works on desktop, tablet and phone.', url:'https://blockforge-1.onrender.com/', arrow:'▶' },
+      ];
       function renderDownloads() {
         var grid = document.getElementById('downloads-grid');
         if (!grid) return;
         if (grid.dataset.rendered) return;
-        grid.innerHTML = '<a class="dl-card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">' +
-          '<div class="dl-icon">🌐</div>' +
-          '<div class="dl-info"><div class="dl-name">Play BlockForge in your browser</div><div class="dl-desc">No install needed — works on desktop, tablet and phone.</div></div>' +
-          '<div class="dl-arrow">▶</div></a>';
+        grid.innerHTML = PORTAL_PLATFORMS.map(function(p) {
+          return '<a class="dl-card" href="' + p.url + '" target="_blank" rel="noopener">' +
+            '<div class="dl-icon">' + p.icon + '</div>' +
+            '<div class="dl-info"><div class="dl-name">' + p.name + '</div><div class="dl-desc">' + p.desc + '</div></div>' +
+            '<div class="dl-arrow">' + p.arrow + '</div></a>';
+        }).join('');
         grid.dataset.rendered = '1';
       }
 
@@ -2327,8 +2332,8 @@
 
       // ── Initial data load (must run AFTER all event handlers are bound) ──
       spawnHeroVoxels();
-      animateCount(document.getElementById('hero-versions'), 5);
-      animateCount(document.getElementById('hero-mods'), 15);
+      animateCount(document.getElementById('hero-versions'), PORTAL_PLATFORMS.length);
+      animateCount(document.getElementById('hero-mods'), PORTAL_MODS.length);
       renderRecentUpdates();
       renderDownloads();
       renderPortalMods();
