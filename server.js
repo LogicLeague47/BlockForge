@@ -921,6 +921,55 @@ async function handleStartOAuthLink(ws, msg) {
   safeSend(ws, JSON.stringify({ type: 'start_oauth_link_result', ok: true, linkToken }));
 }
 
+// Link another account (by username + password) into the current account.
+// The target's login identities are merged into the current account, then the
+// target account record is removed so everything lives under one account.
+async function handleLinkCredentials(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd || !pd.name) return sendError(ws, 'Not authenticated');
+  const currentName = pd.name;
+  const target = filterProfanity((msg.targetUsername || '').trim());
+  const password = msg.targetPassword || '';
+  if (!target || !password) return sendError(ws, 'Enter the other account username and password.');
+  if (target.toLowerCase() === currentName.toLowerCase()) return sendError(ws, 'That is already your current account.');
+  const auth = await authAccount(target, password, 'login');
+  if (!auth.ok) return sendError(ws, auth.reason || 'That account could not be verified.');
+  if (!accounts[target]) return sendError(ws, 'Account not found.');
+  if (!accounts[currentName]) return sendError(ws, 'Your account was not found.');
+  const targetIdentities = accounts[target].identities || {};
+  const currentIdentities = accounts[currentName].identities || {};
+  for (const [prov, id] of Object.entries(targetIdentities)) {
+    const existing = findAccountByIdentity(prov, id);
+    if (existing && existing !== target && existing !== currentName) {
+      return sendError(ws, `"${prov}" is already linked to "${existing}".`);
+    }
+    currentIdentities[prov] = id;
+  }
+  accounts[currentName].identities = currentIdentities;
+  delete accounts[target];
+  saveAccounts();
+  safeSend(ws, JSON.stringify({ type: 'link_account_result', ok: true, linkedUsername: target }));
+}
+
+function handleUnlinkIdentity(ws, msg) {
+  const pd = ws._playerData;
+  if (!pd || !pd.name) return sendError(ws, 'Not authenticated');
+  const username = pd.name;
+  const acc = accounts[username];
+  if (!acc) return sendError(ws, 'Account not found.');
+  const provider = (msg.identityType || '').trim();
+  if (!provider) return sendError(ws, 'Missing provider.');
+  const ids = acc.identities || {};
+  if (!(provider in ids)) return sendError(ws, `"${provider}" is not linked.`);
+  // Don't remove the last login method if there is no password (would lock the player out).
+  const remaining = Object.keys(ids).filter(p => p !== provider);
+  if (!acc.hash && remaining.length === 0) return sendError(ws, 'Cannot unlink your only login method — set a password first.');
+  delete ids[provider];
+  acc.identities = ids;
+  saveAccounts();
+  safeSend(ws, JSON.stringify({ type: 'unlink_identity_result', ok: true, identityType: provider }));
+}
+
 const server = http.createServer((req, res) => {
   const { pathname } = new URL(req.url, 'http://localhost');
   if (req.url === '/health' || req.url === '/ping') {
@@ -1210,6 +1259,9 @@ function isRateLimited(ws) {
       // Identity linking
       case 'link_identity': handleLinkIdentity(ws, msg); break;
       case 'start_oauth_link': handleStartOAuthLink(ws, msg); break;
+      case 'get_own_account': handleGetOwnAccount(ws); break;
+      case 'link_account': handleLinkCredentials(ws, msg); break;
+      case 'unlink_identity': handleUnlinkIdentity(ws, msg); break;
     }
     } catch (err) { console.error('[Server] Error handling message:', msg?.type, err); }
   });
@@ -2216,6 +2268,8 @@ function handleDevGetAccount(ws, msg) {
       username: target,
       role: resolvedRole,
       tag: acc.tag || '',
+      identities: acc.identities || {},
+      hasPassword: !!acc.hash,
       stats: playerData.stats || {},
       settings: playerData.settings || {}
     }));
@@ -2226,10 +2280,29 @@ function handleDevGetAccount(ws, msg) {
       username: target,
       role: resolvedRole,
       tag: acc.tag || '',
+      identities: acc.identities || {},
+      hasPassword: !!acc.hash,
       stats: {},
       settings: {}
     }));
   });
+}
+
+// Return the calling account's own linked identities (any authenticated player).
+function handleGetOwnAccount(ws) {
+  const pd = ws._playerData;
+  if (!pd || !pd.name) return sendError(ws, 'Not authenticated');
+  const username = pd.name;
+  const acc = accounts[username] || {};
+  const resolvedRole = resolveRole(null, username) || acc.role || ROLE_PLAYER;
+  safeSend(ws, JSON.stringify({
+    type: 'own_account_detail',
+    username,
+    role: resolvedRole,
+    tag: acc.tag || '',
+    identities: acc.identities || {},
+    hasPassword: !!acc.hash,
+  }));
 }
 
 // Set a custom tag on an account (player cannot change it themselves)

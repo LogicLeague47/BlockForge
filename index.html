@@ -2978,6 +2978,15 @@
             Link your accounts so you can log in from any platform.
           </p>
           <div id="linked-accounts-list"></div>
+          <div id="link-creds-form" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid #333;">
+            <div style="text-align:center;font-size:13px;color:#bbb;margin-bottom:8px;">OR link another account you own (its logins merge into this one)</div>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;align-items:center;">
+              <input id="link-creds-username" type="text" placeholder="Other username" maxlength="16" style="width:150px;padding:9px 12px;background:#1b1b30;border:1px solid #3a3a5a;border-radius:8px;color:#fff;font:13px monospace;outline:none;">
+              <input id="link-creds-password" type="password" placeholder="Other password" maxlength="32" style="width:150px;padding:9px 12px;background:#1b1b30;border:1px solid #3a3a5a;border-radius:8px;color:#fff;font:13px monospace;outline:none;">
+              <button class="menu-btn" id="btn-link-creds" style="font-size:13px;padding:9px 18px;">Link</button>
+            </div>
+            <div id="link-creds-hint" style="text-align:center;font-size:12px;margin-top:8px;min-height:16px;color:#888;"></div>
+          </div>
         </div>
         <button class="menu-btn secondary" id="btn-linked-accounts-back">BACK</button>
       </div>

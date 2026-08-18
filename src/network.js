@@ -46,6 +46,9 @@ export class Network {
     this.onRoleChanged = null;    // (role) => {}
     this.onLinkIdentityResult = null;   // (msg) => {}
     this.onStartOAuthLinkResult = null; // (msg) => {}
+    this.onOwnAccountDetail = null;     // (msg) => {}
+    this.onLinkAccountResult = null;    // (msg) => {}
+    this.onUnlinkIdentityResult = null; // (msg) => {}
 
     this._reconnectTimer = null;
     this._reconnectDelay = 1000;
@@ -288,6 +291,15 @@ export class Network {
       case 'start_oauth_link_result':
         if (this.onStartOAuthLinkResult) this.onStartOAuthLinkResult(msg);
         break;
+      case 'own_account_detail':
+        if (this.onOwnAccountDetail) this.onOwnAccountDetail(msg);
+        break;
+      case 'link_account_result':
+        if (this.onLinkAccountResult) this.onLinkAccountResult(msg);
+        break;
+      case 'unlink_identity_result':
+        if (this.onUnlinkIdentityResult) this.onUnlinkIdentityResult(msg);
+        break;
     }
   }
 
@@ -372,6 +384,18 @@ export class Network {
 
   startOAuthLink(provider) {
     this._send({ type: 'start_oauth_link', provider });
+  }
+
+  getOwnAccount() {
+    this._send({ type: 'get_own_account' });
+  }
+
+  linkAccount(targetUsername, targetPassword) {
+    this._send({ type: 'link_account', targetUsername, targetPassword });
+  }
+
+  unlinkIdentity(identityType) {
+    this._send({ type: 'unlink_identity', identityType });
   }
 
   sendBlockUpdate(x, y, z, block) {

@@ -1107,7 +1107,6 @@ let _backgroundAuth = false; // true when re-authing silently (not from login sc
 let _autoRegisterFallback = false; // when true, retry auth with 'register' mode if account not found
 let _devPanelNeedsAccounts = false;
 let _pendingLinkProvider = ''; // used to track which OAuth provider is being linked
-let _linkedAccountCallback = null; // called when dev_account_detail arrives for linked accounts
 
 function openFriendsMenu() {
   const note = document.getElementById('friends-login-note');
@@ -6786,54 +6785,94 @@ function initMenu() {
         window.addEventListener('message', linkHandler);
       }
     };
-    const allProviders = [
-      { id: 'github', label: 'GitHub' },
-      { id: 'google', label: 'Google' },
-      { id: 'crazygames', label: 'CrazyGames' },
-    ];
+    network.onLinkAccountResult = (msg) => {
+      const hint = document.getElementById('link-creds-hint');
+      if (msg.ok) {
+        if (hint) hint.textContent = 'Linked ' + (msg.linkedUsername || '') + ' into your account!';
+        showToast('Accounts linked!', '#5f5', 3);
+        showLinkedAccounts();
+      } else {
+        const reason = msg.reason || 'Could not link that account.';
+        if (hint) { hint.textContent = reason; hint.style.color = '#f55'; }
+        showToast(reason, '#f44', 4);
+      }
+    };
+    network.onUnlinkIdentityResult = (msg) => {
+      if (msg.ok) {
+        showToast('Unlinked ' + msg.identityType, '#ff0', 3);
+        showLinkedAccounts();
+      } else {
+        showToast(msg.reason || 'Could not unlink.', '#f44', 4);
+      }
+    };
+    network.onOwnAccountDetail = (msg) => { renderLinkedAccounts(msg); };
+    const credsForm = document.getElementById('link-creds-form');
+    if (credsForm) credsForm.style.display = 'block';
+    if (playerName) network.onConnectedOnce(() => network.getOwnAccount());
+  }
+
+  const allProviders = [
+    { id: 'github', label: 'GitHub' },
+    { id: 'google', label: 'Google' },
+    { id: 'crazygames', label: 'CrazyGames' },
+  ];
+  function renderLinkedAccounts(msg) {
+    if (!linkedAccountsList) return;
     const providers = isOnCrazyGames()
       ? allProviders.filter(p => p.id === 'crazygames')
       : allProviders;
-    _linkedAccountCallback = (msg) => {
-      if (msg.type === 'dev_account_detail' && msg.account) {
-        const links = msg.account.identities || {};
-        let html = '';
-        for (const p of providers) {
-          const linked = links[p.id];
-          html += `<div class="settings-row" style="justify-content:space-between;">
-            <span>${p.label}</span>
-            <span>${linked ? '<span style="color:#5f5">✓ Linked</span>' : '<span style="color:#888">Not linked</span>'}</span>
-            <button class="menu-btn" style="font-size:12px;padding:4px 12px;" data-link-provider="${p.id}">
-              ${linked ? 'Unlink' : 'Link'}
-            </button>
-          </div>`;
+    const links = msg.identities || {};
+    let html = '';
+    for (const p of providers) {
+      const linked = links[p.id];
+      const state = linked ? '<span style="color:#5f5">✓ Linked</span>' : '<span style="color:#888">Not linked</span>';
+      const btn = linked
+        ? `<button class="menu-btn" style="font-size:12px;padding:4px 12px;background:rgba(255,85,85,.15);border-color:#a44;" data-link-provider="${p.id}" data-action="unlink">Unlink</button>`
+        : `<button class="menu-btn" style="font-size:12px;padding:4px 12px;" data-link-provider="${p.id}" data-action="link">Link</button>`;
+      html += `<div class="settings-row" style="justify-content:space-between;">
+        <span>${p.label}</span>
+        <span>${state}</span>
+        ${btn}
+      </div>`;
+    }
+    const pwNote = msg.hasPassword
+      ? 'Password login is active for this account'
+      : 'No password set — use "Other username" below or the OAuth buttons to add login methods';
+    html += `<div style="margin-top:10px;font-size:12px;color:#888;text-align:center;">${pwNote}</div>`;
+    linkedAccountsList.innerHTML = html;
+    linkedAccountsList.querySelectorAll('[data-link-provider]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const prov = btn.dataset.linkProvider;
+        if (btn.dataset.action === 'unlink') {
+          network.unlinkIdentity(prov);
+          return;
         }
-        linkedAccountsList.innerHTML = html;
-        linkedAccountsList.querySelectorAll('[data-link-provider]').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const prov = btn.dataset.linkProvider;
-            const links2 = msg.account.identities || {};
-            if (links2[prov]) {
-              showToast('Unlink not available yet', '#ff0', 3);
-            } else {
-              _pendingLinkProvider = prov;
-              if (prov === 'crazygames') {
-                crazyGamesSDK().then(sdk => {
-                  if (!sdk) { showToast('Not on CrazyGames', '#ff0', 3); return; }
-                  const cgId = sdk.user?.getId?.() || sdk.user?.getUsername?.();
-                  if (cgId) network.linkIdentity('crazygames', cgId);
-                  else showToast('No CG identity found', '#f44', 3);
-                });
-              } else {
-                network.startOAuthLink(prov);
-              }
-            }
+        const links2 = msg.identities || {};
+        if (links2[prov]) return;
+        _pendingLinkProvider = prov;
+        if (prov === 'crazygames') {
+          crazyGamesSDK().then(sdk => {
+            if (!sdk) { showToast('Not on CrazyGames', '#ff0', 3); return; }
+            const cgId = sdk.user?.getId?.() || sdk.user?.getUsername?.();
+            if (cgId) network.linkIdentity('crazygames', cgId);
+            else showToast('No CG identity found', '#f44', 3);
           });
-        });
-      }
-    };
-    if (playerName) network.devGetAccount(playerName);
+        } else {
+          network.startOAuthLink(prov);
+        }
+      });
+    });
   }
+
+  const btnLinkCreds = document.getElementById('btn-link-creds');
+  if (btnLinkCreds) btnLinkCreds.addEventListener('click', () => {
+    const u = document.getElementById('link-creds-username').value.trim().slice(0, 16);
+    const p = document.getElementById('link-creds-password').value;
+    const hint = document.getElementById('link-creds-hint');
+    if (!u || !p) { if (hint) hint.textContent = 'Enter a username and password.'; return; }
+    if (hint) { hint.textContent = 'Linking...'; hint.style.color = '#888'; }
+    network.linkAccount(u, p);
+  });
 
   if (linkedAccountsBtn) linkedAccountsBtn.addEventListener('click', () => {
     ui.showMenu('linked-accounts');
@@ -7028,10 +7067,6 @@ function initMenu() {
       devAccountsCache = msg.accounts || [];
       renderDevAccountList();
     } else if (msg.type === 'dev_account_detail') {
-      if (_linkedAccountCallback) {
-        _linkedAccountCallback(msg);
-        return;
-      }
       if (msg.error) {
         renderDevAccountDetail({ error: msg.error });
         return;
