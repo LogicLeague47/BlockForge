@@ -560,6 +560,7 @@
         <p>Official announcements, videos and pictures from the BlockForge team.</p>
 
         <div id="news-dev-form-wrap" style="display:none">
+          <div id="news-dev-msg" style="display:none;font-size:13px;color:var(--dim);margin-bottom:12px"></div>
           <div class="news-form">
             <h3>✍️ Post News (Developers only)</h3>
             <input type="text" id="news-title" placeholder="Title (e.g. v1.2 — The Caves Update is here!)" maxlength="120">
@@ -974,22 +975,41 @@
         }, 1300);
       }
 
-      if (userName) {
-        localStorage.setItem('bf_portal_user', userName);
-        if (userRole) localStorage.setItem('bf_portal_role', userRole);
-        try { showWelcome('back, ' + userName + '!'); } catch (_) {}
+      function applyLoggedIn(name, role) {
         loginBox.style.display = 'none';
         loggedIn.style.display = 'block';
         content.style.display = 'block';
-        document.getElementById('user-badge').textContent = userName;
-        document.getElementById('user-name').textContent = userName;
-        document.getElementById('avatar-letter').textContent = userName.charAt(0).toUpperCase();
-        var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
-        if (userRole) playUrl += '&role=' + encodeURIComponent(userRole);
+        document.getElementById('user-badge').textContent = name;
+        document.getElementById('user-name').textContent = name;
+        document.getElementById('avatar-letter').textContent = name.charAt(0).toUpperCase();
+        var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(name) + '&from=portal';
+        if (role) playUrl += '&role=' + encodeURIComponent(role);
         var playLink = document.getElementById('play-link');
         if (playLink) playLink.href = playUrl;
         var heroPlay = document.getElementById('hero-play-link');
         if (heroPlay) heroPlay.href = playUrl;
+      }
+
+      if (userName) {
+        localStorage.setItem('bf_portal_user', userName);
+        if (userRole) localStorage.setItem('bf_portal_role', userRole);
+        var hasPortalPass = false;
+        try { hasPortalPass = !!localStorage.getItem('bf_login_pass'); } catch (_) {}
+        if (hasPortalPass) {
+          try { showWelcome('back, ' + userName + '!'); } catch (_) {}
+          applyLoggedIn(userName, userRole);
+        } else {
+          // No stored password to verify against (OAuth account or fresh
+          // browser). Show the login box pre-filled so the user can enter
+          // their password — dev-only features require real auth.
+          loginBox.style.display = 'block';
+          loggedIn.style.display = 'none';
+          content.style.display = 'block';
+          var uiInput = document.getElementById('user-input');
+          if (uiInput && !uiInput.value) uiInput.value = userName;
+          var lh = document.getElementById('login-hint');
+          if (lh) { lh.textContent = 'Enter your password to verify your account.'; lh.style.color = 'var(--dim)'; }
+        }
       } else {
         loginBox.style.display = 'block';
         loggedIn.style.display = 'none';
@@ -1013,10 +1033,11 @@
         localStorage.setItem('bf_login_pass', encoded);
         const role = userRole ? userRole : '';
         if (role) localStorage.setItem('bf_portal_role', role);
+        applyLoggedIn(user, role);
         showWelcome(user + '!');
-        setTimeout(function() {
-          location.href = '/?user=' + encodeURIComponent(user) + '&from=portal' + (role ? '&role=' + encodeURIComponent(role) : '');
-        }, 1700);
+        // Stay on the portal so dev-only features (e.g. the News post form)
+        // appear immediately — the PLAY button takes them into the game.
+        initNewsDevForm();
       });
 
       document.getElementById('logout-btn').addEventListener('click', function() {
@@ -1776,20 +1797,51 @@
       }
 
       // Show the dev post form once real auth confirms developer access.
+      var _newsBtnWired = false;
       function initNewsDevForm() {
         var wrap = document.getElementById('news-dev-form-wrap');
+        var msg = document.getElementById('news-dev-msg');
         var btn = document.getElementById('news-post-btn');
         if (!wrap || !btn) return;
-        if (localStorage.getItem('bf_portal_user')) {
+        var name = localStorage.getItem('bf_portal_user') || '';
+        if (name) {
           portalDevVerify(function(role) {
             _newsDevRole = role;
-            if (role) { wrap.style.display = 'block'; renderNews(); }
-            else { wrap.style.display = 'none'; }
+            if (role) {
+              wrap.style.display = 'block';
+              if (msg) msg.style.display = 'none';
+              try { localStorage.setItem('bf_portal_role', role); } catch (_) {}
+              document.querySelectorAll('.dev-only').forEach(function(e) { e.style.display = 'block'; });
+              renderNews();
+            } else {
+              wrap.style.display = 'block';
+              if (msg) {
+                msg.style.display = 'block';
+                msg.innerHTML = 'Developer verification failed. <a href="#" id="news-login-link" style="color:var(--accent)">Log in with your developer account</a> to post news.';
+                var link = document.getElementById('news-login-link');
+                if (link) link.addEventListener('click', function(e) {
+                  e.preventDefault();
+                  loginBox.style.display = 'block';
+                  loggedIn.style.display = 'none';
+                  var ui = document.getElementById('user-input');
+                  if (ui && !ui.value) ui.value = name;
+                  var lh = document.getElementById('login-hint');
+                  if (lh) { lh.textContent = 'Enter your developer password.'; lh.style.color = 'var(--dim)'; }
+                });
+              }
+            }
           });
         } else {
-          wrap.innerHTML = '<div class="news-form"><h3>✍️ Post News</h3><p style="color:var(--dim);font-size:13px">Log in with a developer account on the portal to post news here.</p></div>';
+          wrap.style.display = 'block';
+          if (msg) {
+            msg.style.display = 'block';
+            msg.textContent = 'Log in with a developer account on the portal to post news here.';
+          }
         }
-        btn.addEventListener('click', postNews);
+        if (!_newsBtnWired) {
+          _newsBtnWired = true;
+          btn.addEventListener('click', postNews);
+        }
       }
 
       // ── Mods & Addons catalog (mirrors public/mods.html) ──────────────

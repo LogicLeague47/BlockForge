@@ -7431,7 +7431,7 @@ function initMenu() {
     const hasSavedCreds = savedName && !savedName.startsWith('Guest') && savedPass && savedPass.length >= 3;
     const hasOauthCreds = savedName && !savedName.startsWith('Guest') && oauthProvider && oauthProviderId;
     // Only trust saved credentials when the saved account is the one this link targets.
-    const credsMatchTarget = savedName && targetUser && savedName === targetUser;
+    const credsMatchTarget = savedName && targetUser && savedName.toLowerCase() === targetUser.toLowerCase();
     if (credsMatchTarget) loginPass.value = savedPass || '';
     // Player-specific link that matches the saved account → enter directly.
     if (urlUser && credsMatchTarget && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
