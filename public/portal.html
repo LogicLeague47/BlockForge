@@ -1459,6 +1459,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '0eb116e',
+          heading: 'Game loop was dying every frame — blocks, HUD, mobs all frozen',
+          desc: 'Two undeclared variables were throwing a ReferenceError every single frame in the game loop, and the frame-level error handler silently swallowed them. First _plateCleanTimer (used to throttle the pressure-plate cleanup scan) was never declared, so the moment you stepped off a plate the whole frame aborted BEFORE chunk meshes could rebuild — which is exactly why broken blocks stayed on screen as ghosts and placed blocks were invisible. Then DAY_LENGTH/DAY_FRAC (the day/night cycle constants) were never defined, so updateSky threw right after meshing, killing the rest of the frame: the health/hunger bars, weather, mobs, particles and multiplayer all froze — hence the empty bars under a "Survival" HUD. Both are fixed and verified in a full headless game run.',
+          date: 'Aug 19',
+          bugs: ['breaking a block left a permanent ghost block (with collision) because the mesh never rebuilt', 'placing a block was invisible because the mesh never rebuilt', 'health/hunger bars stayed empty even though the HUD said Survival', 'weather, mobs, particles and multiplayer all frozen (frame died before they updated)'],
+          updates: ['_plateCleanTimer now declared so the frame reaches the chunk mesh rebuild every frame', 'DAY_LENGTH (1200s = 20min) and DAY_FRAC (0.625) declared so the day/night cycle runs', 'verified in the full game: break + place rebuild meshes, dirty queue drains, bars render, zero frame errors'],
+          features: [],
+        },
+        {
           hash: '7ae5713',
           heading: 'Self-healing chunk meshes + resilient HUD',
           desc: 'A chunk whose mesh rebuild fails is no longer silently dropped (that is what left permanent ghost/invisible blocks). It now logs the error and re-queues for a retry, so a transient meshing failure heals itself instead of leaving a stuck block. The HUD subsystems (item name, underwater tint, XP bar, furnace) are each isolated in their own error boundary, so one failing call can never starve the health/hunger bars again — the bars always render in survival/adventure.',
