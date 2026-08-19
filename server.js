@@ -2566,6 +2566,16 @@ function handleNewsVerify(ws, msg) {
     if (auth.ok) {
       const role = resolveRole(null, auth.username || playerName) || ROLE_PLAYER;
       if (_isNewsPoster(role)) {
+        // Attach the verified identity to this socket so the SAME connection
+        // can immediately send news_post/news_delete — handleNewsPost checks
+        // ws._playerData.role, not the verify result, so without this the
+        // post is rejected as "You need Developer permissions" right after a
+        // successful password verify.
+        if (!ws._playerData) {
+          ws._playerData = { name: auth.username || playerName, role, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+        } else {
+          ws._playerData.role = role;
+        }
         safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: true, role }));
         return;
       }
