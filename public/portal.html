@@ -1463,6 +1463,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '36d9cd5',
+          heading: 'Portal login fixed — a broken script was killing the whole site',
+          desc: 'The portal had a stray block of dead code left over from the old login flow that broke the entire inline script — browsers skip a malformed script, so the login button (and every other button) did nothing. On top of that, a background-effect function was scoped inside an IIFE but called from outside, so the page threw an error right at the end of startup and never reached the news-form / news-list initialization. Both are fixed: login works, the news post form appears, and the news list loads.',
+          date: 'Aug 19',
+          bugs: ['portal login button did nothing even with correct credentials (whole inline script failed to parse)', 'portal startup threw before initializing the news form/news list, so the form never appeared'],
+          updates: ['removed the orphaned ws.onmessage block + stray brace that broke the inline script', 'exposed the hero-voxel/count-up helpers so the startup init runs to completion'],
+          features: [],
+        },
+        {
           hash: 'adedce4',
           heading: 'Portal News/Updates upload fixed (password login)',
           desc: 'Posting News/Updates finally works for password logins. The verify handshake validated your developer account and showed the post form, but the actual post was rejected with "You need Developer permissions" because the socket was never told who had just verified. Now the verified developer identity is attached to the socket, so the post goes through on the same connection. Verified end-to-end against a real server.',
