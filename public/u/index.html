@@ -80,14 +80,12 @@
       subtitleEl.textContent = 'PLAYER';
       nameEl.textContent = urlUser;
       roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-      if (homepageEl) homepageEl.style.display = '';
+      if (homepageEl) homepageEl.style.display = 'none';
       if (bypassEl) bypassEl.style.display = 'none';
       if (hintEl) hintEl.style.display = 'none';
-      if (playBtnEl) {
-        playBtnEl.addEventListener('click', function() {
-          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-        });
-      }
+      setTimeout(function() {
+        window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+      }, 1200);
     })();
   </script>
   <script type="module">

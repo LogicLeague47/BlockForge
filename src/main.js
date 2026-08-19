@@ -7411,6 +7411,8 @@ function initMenu() {
   // only happens when it's clearly intended: a returning CrazyGames user (CG
   // account-integration rule), or a player-specific link that exactly matches the
   // saved account. Everywhere else the login screen is shown, pre-filled.
+  // v2: restored secure auto-login — no device can claim a different account.
+  console.debug('bf-auth-v2');
   let autoLogin = false;
   let fromU = false;
   let savedName = '';
