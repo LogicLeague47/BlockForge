@@ -3295,6 +3295,28 @@
         </div>
         <button class="menu-btn secondary" id="dev-panel-back" style="min-width:auto;width:480px;">BACK</button>
       </div>
+
+      <!-- Dev Ban Modal -->
+      <div id="dev-ban-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;">
+        <div style="background:rgba(10,10,20,0.92);border:1px solid rgba(255,80,80,0.3);border-radius:10px;padding:24px 28px;max-width:380px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.7);">
+          <div style="font:bold 15px monospace;color:#f55;margin-bottom:14px;">⏱ Ban Player</div>
+          <div style="font:12px monospace;color:#aaa;margin-bottom:12px;">Target: <span id="ban-target-name" style="color:#fff;font-weight:bold;"></span></div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+            <button class="menu-btn secondary dev-ban-dur" data-ms="3600000" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;">1 hr</button>
+            <button class="menu-btn secondary dev-ban-dur" data-ms="21600000" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;">6 hrs</button>
+            <button class="menu-btn secondary dev-ban-dur" data-ms="86400000" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;">24 hrs</button>
+            <button class="menu-btn secondary dev-ban-dur" data-ms="604800000" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;">7 days</button>
+            <button class="menu-btn secondary dev-ban-dur" data-ms="2592000000" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;">30 days</button>
+            <button class="menu-btn secondary dev-ban-dur" data-ms="0" style="flex:1;min-width:60px;font-size:11px;padding:6px 0;border-color:rgba(255,80,80,0.4);color:#f55;">Perm</button>
+          </div>
+          <input id="ban-reason-input" type="text" placeholder="Reason (optional)" maxlength="200" style="width:100%;padding:8px 10px;background:rgba(0,0,0,0.4);color:#fff;border:1px solid rgba(255,255,255,0.1);border-radius:4px;font:12px monospace;margin-bottom:12px;box-sizing:border-box;" />
+          <div style="display:flex;gap:8px;">
+            <button class="menu-btn" id="ban-confirm-btn" style="flex:1;background:linear-gradient(180deg,rgba(200,40,40,0.8),rgba(160,20,20,0.9));border-color:rgba(255,80,80,0.4);">BAN</button>
+            <button class="menu-btn secondary" id="ban-cancel-btn" style="flex:1;">CANCEL</button>
+          </div>
+          <div id="ban-duration-label" style="font:11px monospace;color:#888;margin-top:8px;text-align:center;">Select a duration above</div>
+        </div>
+      </div>
     </div>
 
     <!-- Pause Menu — OUTSIDE overlay so it's visible when overlay is hidden -->

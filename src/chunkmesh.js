@@ -136,7 +136,6 @@ export class ChunkMeshManager {
     opaqueMesh.receiveShadow = true;
 
     const group = new THREE.Group();
-    group.position.set(cx * CHUNK_SIZE, 0, cz * CHUNK_SIZE);
     group.matrixAutoUpdate = false;
     group.updateMatrix();
     group.add(opaqueMesh);

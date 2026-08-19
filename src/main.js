@@ -7095,6 +7095,13 @@ function initMenu() {
       const detail = document.getElementById('dev-account-detail');
       if (detail) detail.style.display = 'none';
       network.devListAccounts();
+    } else if (msg.type === 'dev_ban_result') {
+      if (!msg.ok) { addChatLine(`Ban error: ${msg.reason}`, '#f55'); return; }
+      addChatLine(`${msg.target} banned${msg.duration} — ${msg.reason}`, '#f55');
+      if (devSelectedAccount) network.devGetAccount(devSelectedAccount);
+    } else if (msg.type === 'dev_unban_result') {
+      if (!msg.ok) { addChatLine(`Unban error: ${msg.reason}`, '#f55'); return; }
+      addChatLine(`${msg.target} unbanned`, '#5f5');
     }
   };
 
@@ -7157,6 +7164,8 @@ function initMenu() {
     const blocksBroken = stats.totalBlocksBroken || stats.blocksBrokenAny || 0;
     const deaths = stats.deaths || 0;
     const mobKills = stats.mobKillsAny || 0;
+    const distance = stats.distanceTraveled ? Math.round(stats.distanceTraveled) : 0;
+    const distLabel = distance > 1000 ? (distance / 1000).toFixed(1) + 'k' : distance;
 
     detail.innerHTML = `
       <div class="dev-detail-header">
@@ -7181,25 +7190,27 @@ function initMenu() {
       </div>
       <div style="margin-top:8px;">
         <div style="font:bold 10px monospace;color:#5af;margin-bottom:6px;">STATS</div>
-        <div class="dev-stats-pill">
-          <span><span class="sl">Play </span><span class="sv">${playTime}</span></span>
-          <span><span class="sl">Blocks </span><span class="sv">${blocksBroken}</span></span>
-          <span><span class="sl">Kills </span><span class="sv">${mobKills}</span></span>
-          <span><span class="sl">Deaths </span><span class="sv red">${deaths}</span></span>
+        <div class="dev-stats-pill" style="flex-wrap:wrap;">
+          <span><span class="sl">⏱ </span><span class="sv">${playTime}</span></span>
+          <span><span class="sl">🧱 </span><span class="sv">${blocksBroken}</span></span>
+          <span><span class="sl">⚔️ </span><span class="sv">${mobKills}</span></span>
+          <span><span class="sl">💀 </span><span class="sv red">${deaths}</span></span>
+          <span><span class="sl">🏃 </span><span class="sv">${distLabel}</span></span>
         </div>
       </div>
       <div style="margin-top:8px;">
         <div style="font:bold 10px monospace;color:#5af;margin-bottom:4px;">ACHIEVEMENTS</div>
         <div class="dev-achievements">
-          ${Object.entries(stats).filter(([k]) => k !== 'playTime' && k !== 'totalBlocksBroken' && k !== 'deaths' && k !== 'mobKillsAny').map(([k, v]) => {
+          ${Object.entries(stats).filter(([k]) => k !== 'playTime' && k !== 'totalBlocksBroken' && k !== 'deaths' && k !== 'mobKillsAny' && k !== 'distanceTraveled').map(([k, v]) => {
             if (typeof v === 'number' && v > 0) return `<div>${k}: ${v}</div>`;
             return '';
           }).filter(Boolean).join('') || '<span style="color:#556;">No data</span>'}
         </div>
       </div>
       ${data.username !== 'LogicLeague' && data.role !== 'gamedev' ? `
-      <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,60,60,0.15);">
-        <button id="dev-delete-account" class="dev-detail-btn red" style="font-size:10px;">DELETE ACCOUNT</button>
+      <div style="margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,60,60,0.15);display:flex;gap:6px;">
+        <button id="dev-ban-player" class="dev-detail-btn red" style="flex:1;font-size:10px;">⏱ BAN</button>
+        <button id="dev-delete-account" class="dev-detail-btn red" style="flex:1;font-size:10px;">DELETE</button>
       </div>` : ''}
     `;
 
@@ -7220,6 +7231,22 @@ function initMenu() {
       });
     }
 
+    const banBtn = detail.querySelector('#dev-ban-player');
+    if (banBtn) {
+      banBtn.addEventListener('click', () => {
+        const modal = document.getElementById('dev-ban-modal');
+        const targetEl = document.getElementById('ban-target-name');
+        if (modal && targetEl) {
+          targetEl.textContent = data.username;
+          modal.style.display = 'flex';
+          _banSelectedMs = 0;
+          _banTargetName = data.username;
+          document.getElementById('ban-duration-label').textContent = 'Select a duration above';
+          document.querySelectorAll('.dev-ban-dur').forEach(b => b.style.borderColor = '');
+        }
+      });
+    }
+
     const deleteBtn = detail.querySelector('#dev-delete-account');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', () => {
@@ -7228,6 +7255,44 @@ function initMenu() {
         }
       });
     }
+  }
+
+  let _banSelectedMs = 0;
+  let _banTargetName = '';
+
+  // Ban modal duration buttons
+  document.querySelectorAll('.dev-ban-dur').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dev-ban-dur').forEach(b => b.style.borderColor = '');
+      btn.style.borderColor = 'rgba(255,80,80,0.6)';
+      _banSelectedMs = parseInt(btn.dataset.ms) || 0;
+      const label = document.getElementById('ban-duration-label');
+      if (_banSelectedMs === 0) label.textContent = 'Permanent ban';
+      else if (_banSelectedMs >= 604800000) label.textContent = Math.round(_banSelectedMs / 86400000) + ' days';
+      else if (_banSelectedMs >= 86400000) label.textContent = Math.round(_banSelectedMs / 3600000) + ' hours';
+      else label.textContent = Math.round(_banSelectedMs / 60000) + ' minutes';
+    });
+  });
+
+  // Ban confirm
+  const banConfirm = document.getElementById('ban-confirm-btn');
+  if (banConfirm) {
+    banConfirm.addEventListener('click', () => {
+      if (!_banTargetName) return;
+      const reason = (document.getElementById('ban-reason-input')?.value || '').trim();
+      network.devTimedBan(_banTargetName, _banSelectedMs, reason);
+      document.getElementById('dev-ban-modal').style.display = 'none';
+      document.getElementById('ban-reason-input').value = '';
+    });
+  }
+
+  // Ban cancel
+  const banCancel = document.getElementById('ban-cancel-btn');
+  if (banCancel) {
+    banCancel.addEventListener('click', () => {
+      document.getElementById('dev-ban-modal').style.display = 'none';
+      document.getElementById('ban-reason-input').value = '';
+    });
   }
 
   // --- Dev World — dev account shows separate dev world list ---

@@ -445,6 +445,7 @@
       <button class="nav-tab" data-nav="community">Community</button>
     </nav>
     <div class="header-right">
+      <div id="portal-dev-badge" style="display:none;padding:4px 10px;font:10px monospace;color:#0fc;background:rgba(0,255,204,0.1);border:1px solid rgba(0,255,204,0.3);border-radius:6px;margin-right:8px;">🛠 DEVELOPER</div>
       <div class="theme-picker" id="theme-picker" title="Theme">
         <div class="theme-dot active" data-theme-val="default" style="background:linear-gradient(135deg,#8af,#c084fc)"></div>
         <div class="theme-dot" data-theme-val="emerald" style="background:linear-gradient(135deg,#5ef2a6,#2dd4bf)"></div>
@@ -537,6 +538,16 @@
               <button class="lb-metric" data-metric="mobKillsAny">Mob Kills</button>
             </div>
             <div class="lb-list" id="lb-list"><div style="color:var(--dim);font-size:12px;">Connecting…</div></div>
+          </div>
+          <div class="dash-card" id="dev-portal-card" style="display:none;">
+            <h3>🛠 Developer</h3>
+            <div class="stat-row">
+              <div class="stat"><div class="v" id="dev-accounts-count">—</div><div class="l">Accounts</div></div>
+              <div class="stat"><div class="v" id="dev-online-count">—</div><div class="l">Online</div></div>
+            </div>
+            <div class="quick-row" style="margin-top:12px;">
+              <a class="btn primary" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener" style="text-decoration:none;">Open Dev Panel</a>
+            </div>
           </div>
         </div>
 
@@ -1448,6 +1459,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'wip',
+          heading: 'Chunk rendering fix, dev panel polish, global bans, portal news fix',
+          desc: 'Fixed broken chunk rendering: vertices were in world space but the chunk group also had a world position, causing double-offset. Added global timed ban system (cross-server, 1h to permanent). Dev panel now shows player stats (Play Time, Blocks, Kills, Deaths, Distance) and has a BAN button with time picker. Fixed portal News/Updates form for OAuth accounts by sending identity credentials alongside password auth. Added developer badge and player management card to portal dashboard.',
+          date: 'Aug 19',
+          bugs: ['chunk rendering double-offset from world-space vertices + group position', 'portal News/Updates form invisible for OAuth-logged-in developers', 'dev panel had no ban functionality or player stats view'],
+          updates: ['global timed ban system (cross-server, 1h-30d or permanent)', 'dev panel: player stats grid (Play Time, Blocks, Kills, Deaths, Distance)', 'dev panel: BAN button with time picker modal', 'portal: developer badge in header', 'portal: developer management card on dashboard', 'portal: News form works with OAuth accounts'],
+          features: ['global bans persist across server restarts and apply to all servers', 'developer identity verification for portal news posting'],
+        },
+        {
           hash: 'c76a2b9',
           heading: 'Bot gate for the website + player-link player menu',
           desc: 'BlockForge (non-CrazyGames) now requires a legitimate login to enter: correct credentials issue a one-time entry token and go straight into the game with the player link in the URL. Manual reloads, direct opens, and copy-pasted player links are detected as bots and blocked. The /u/?user=NAME player link page opens via the Account Info OPEN button (name, role, Play button); direct opens are blocked with "ACCESS BLOCKED - Bot detected". CrazyGames keeps its SDK account-integration auto-login (no gate).',
@@ -1835,11 +1855,15 @@
         var ws = new WebSocket(SRV_WS);
         var timeout = setTimeout(function() { try { ws.close(); } catch(_){} cb(null); }, 6000);
         ws.onopen = function() {
-          var name = localStorage.getItem('bf_portal_user') || '';
+          var name = localStorage.getItem('bf_portal_user') || localStorage.getItem('bf_player_name') || '';
           var encoded = localStorage.getItem('bf_login_pass') || '';
           var pass = '';
           for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
-          ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+          var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+          var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+          var authMsg = { type: 'auth', playerName: name, password: pass, mode: 'login' };
+          if (oauthProv && oauthId) { authMsg.identityType = oauthProv; authMsg.identityId = oauthId; }
+          ws.send(JSON.stringify(authMsg));
         };
         ws.onmessage = function(e) {
           try {
@@ -1872,11 +1896,15 @@
           var posted = false;
           var timeout = setTimeout(function() { try { ws.close(); } catch(_){} if (!posted) hint.textContent = 'Timed out — try again.'; }, 8000);
           ws.onopen = function() {
-            var name = localStorage.getItem('bf_portal_user') || '';
+            var name = localStorage.getItem('bf_portal_user') || localStorage.getItem('bf_player_name') || '';
             var encoded = localStorage.getItem('bf_login_pass') || '';
             var pass = '';
             for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
-            ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+            var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+            var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+            var authMsg = { type: 'auth', playerName: name, password: pass, mode: 'login' };
+            if (oauthProv && oauthId) { authMsg.identityType = oauthProv; authMsg.identityId = oauthId; }
+            ws.send(JSON.stringify(authMsg));
           };
           ws.onmessage = function(e) {
             try {
@@ -1974,6 +2002,11 @@
               if (msg) msg.style.display = 'none';
               try { localStorage.setItem('bf_portal_role', role); } catch (_) {}
               document.querySelectorAll('.dev-only').forEach(function(e) { e.style.display = 'block'; });
+              // Show dev badge and dev management card
+              var badge = document.getElementById('portal-dev-badge');
+              if (badge) badge.style.display = '';
+              var devCard = document.getElementById('dev-portal-card');
+              if (devCard) devCard.style.display = '';
               renderNews();
             } else {
               wrap.style.display = 'block';

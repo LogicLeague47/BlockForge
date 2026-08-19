@@ -20,6 +20,7 @@ const FRIENDS_FILE = join(__dirname, 'friends.json');
 const PENDING_DMS_FILE = join(__dirname, 'pending-dms.json');
 const DM_HISTORY_FILE = join(__dirname, 'dm-history.json');
 const NEWS_FILE = join(__dirname, 'news.json');
+const GLOBAL_BANS_FILE = join(__dirname, 'global-bans.json');
 
 async function getPlayerData(username) {
   if (USE_REDIS) {
@@ -394,6 +395,37 @@ function saveAccounts() {
     return;
   }
   try { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2)); } catch { console.warn('[Data] saveAccounts file write failed'); }
+}
+
+// ── Global bans (timed, cross-server) ──────────────────────────────
+let globalBans = {}; // { username: { expiresAt, reason, bannedBy, createdAt } }
+
+function loadGlobalBans() {
+  try {
+    if (existsSync(GLOBAL_BANS_FILE)) globalBans = JSON.parse(readFileSync(GLOBAL_BANS_FILE, 'utf8')) || {};
+  } catch { globalBans = {}; }
+  // Purge expired bans on load
+  const now = Date.now();
+  for (const [user, ban] of Object.entries(globalBans)) {
+    if (ban.expiresAt && ban.expiresAt <= now) delete globalBans[user];
+  }
+  if (Object.keys(globalBans).length !== Object.keys(globalBans).length) saveGlobalBans();
+}
+
+function saveGlobalBans() {
+  try { writeFileSync(GLOBAL_BANS_FILE, JSON.stringify(globalBans, null, 2)); } catch { console.warn('[Data] saveGlobalBans write failed'); }
+}
+
+function isGloballyBanned(username) {
+  const key = (username || '').toLowerCase();
+  const ban = globalBans[key];
+  if (!ban) return null;
+  if (ban.expiresAt && ban.expiresAt <= Date.now()) {
+    delete globalBans[key];
+    saveGlobalBans();
+    return null;
+  }
+  return ban;
 }
 
 async function hashPassword(password, salt) {
@@ -1235,6 +1267,11 @@ function isRateLimited(ws) {
       case 'dev_set_tag': handleDevSetTag(ws, msg); break;
       case 'dev_set_role': handleDevSetRole(ws, msg); break;
       case 'dev_delete_account': handleDevDeleteAccount(ws, msg); break;
+      case 'dev_get_stats': handleDevGetStats(ws, msg); break;
+      case 'dev_timed_ban': handleDevTimedBan(ws, msg); break;
+      case 'dev_unban': handleDevUnban(ws, msg); break;
+      case 'dev_global_bans': handleDevGlobalBans(ws, msg); break;
+      case 'news_verify': handleNewsVerify(ws, msg); break;
       // Voice chat signaling — relay messages to target player in same room
       case 'voice_join': handleVoiceJoin(ws, msg); break;
       case 'voice_leave': removeVoiceClient(ws); break;
@@ -1439,6 +1476,11 @@ async function handleJoin(ws, msg) {
   if (!room) return sendError(ws, `Room "${roomName}" not found.`);
 
   if (room.banned.has(playerName)) return sendError(ws, 'You are banned from this server.');
+  const globalBan = isGloballyBanned(playerName);
+  if (globalBan) {
+    const until = globalBan.expiresAt ? new Date(globalBan.expiresAt).toLocaleString() : 'permanently';
+    return sendError(ws, `Globally banned ${until}: ${globalBan.reason || 'No reason given'}`);
+  }
   if (!IS_LAN && !canAccessRoom(room, playerName)) {
     return sendError(ws, 'This is a private world. Ask the owner to add you as a friend.');
   }
@@ -2432,6 +2474,106 @@ function handleDevDeleteAccount(ws, msg) {
   handleDevListAccounts(ws, msg);
 }
 
+// Dev: get full player stats for any account
+function handleDevGetStats(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = msg.target;
+  if (!target) return;
+  getPlayerData(target).then(data => {
+    safeSend(ws, JSON.stringify({ type: 'dev_stats_result', ok: true, target, stats: data.stats || {} }));
+  });
+}
+
+// Dev: globally ban a player for a duration
+function handleDevTimedBan(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = (msg.target || '').trim();
+  if (!target) return safeSend(ws, JSON.stringify({ type: 'dev_ban_result', ok: false, reason: 'Missing target' }));
+  if (DEV_USERNAMES.has(target.toLowerCase())) return safeSend(ws, JSON.stringify({ type: 'dev_ban_result', ok: false, reason: 'Cannot ban a dev account' }));
+  if (target === (ws._playerData || {}).name) return safeSend(ws, JSON.stringify({ type: 'dev_ban_result', ok: false, reason: 'Cannot ban yourself' }));
+  const durationMs = Number(msg.durationMs) || 0; // 0 = permanent
+  const reason = (msg.reason || '').trim().slice(0, 200) || 'No reason given';
+  const bannedBy = (ws._playerData || {}).name || 'Dev';
+  const now = Date.now();
+  const ban = {
+    reason,
+    bannedBy,
+    createdAt: now,
+    expiresAt: durationMs > 0 ? now + durationMs : null,
+  };
+  globalBans[target.toLowerCase()] = ban;
+  saveGlobalBans();
+  // Kick target if online in any room
+  for (const cws of wss.clients) {
+    const pd = cws._playerData;
+    if (pd && pd.name === target && cws._roomName) {
+      const room = getRoom(cws._roomName);
+      if (room) {
+        broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${target} has been banned by ${bannedBy}.` });
+      }
+      safeSend(cws, JSON.stringify({ type: 'kicked', reason: `Banned by ${bannedBy}: ${reason}` }));
+      handleLeave(cws);
+      cws.close();
+    }
+  }
+  const duration = durationMs > 0 ? ` for ${Math.round(durationMs / 60000)} minutes` : ' permanently';
+  safeSend(ws, JSON.stringify({ type: 'dev_ban_result', ok: true, target, duration, reason }));
+}
+
+// Dev: unban a player
+function handleDevUnban(ws, msg) {
+  if (!isDev(ws)) return;
+  const target = (msg.target || '').trim().toLowerCase();
+  if (!target) return;
+  if (globalBans[target]) {
+    delete globalBans[target];
+    saveGlobalBans();
+    safeSend(ws, JSON.stringify({ type: 'dev_unban_result', ok: true, target }));
+  } else {
+    safeSend(ws, JSON.stringify({ type: 'dev_unban_result', ok: false, reason: 'Player is not globally banned' }));
+  }
+}
+
+// Dev: list all active global bans
+function handleDevGlobalBans(ws, msg) {
+  if (!isDev(ws)) return;
+  const now = Date.now();
+  const list = [];
+  for (const [user, ban] of Object.entries(globalBans)) {
+    if (ban.expiresAt && ban.expiresAt <= now) { delete globalBans[user]; continue; }
+    list.push({ username: user, reason: ban.reason, bannedBy: ban.bannedBy, expiresAt: ban.expiresAt, createdAt: ban.createdAt });
+  }
+  saveGlobalBans();
+  safeSend(ws, JSON.stringify({ type: 'dev_global_bans', bans: list }));
+}
+
+// News verify: check if a connection has dev news-posting permissions
+// Used by the portal to show/hide the news form
+function handleNewsVerify(ws, msg) {
+  const { playerName, password, identityType, identityId } = msg;
+  if (ws._playerData && ws._playerData.role && _isNewsPoster(ws._playerData.role)) {
+    safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: true, role: ws._playerData.role }));
+    return;
+  }
+  if (!playerName) {
+    safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
+    return;
+  }
+  const identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
+  authAccount(playerName, password, 'login', identity).then(auth => {
+    if (auth.ok) {
+      const role = resolveRole(null, auth.username || playerName) || ROLE_PLAYER;
+      if (_isNewsPoster(role)) {
+        safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: true, role }));
+      } else {
+        safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
+      }
+    } else {
+      safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
+    }
+  });
+}
+
 // ── Voice chat signaling ──────────────────────────────────────────────
 // Track which clients in a room have voice enabled
 const voiceClients = new Map(); // roomName → Set<ws>
@@ -2565,6 +2707,7 @@ let _hbInterval;
   await loadAccounts();
   await loadFriends();
   await loadNews();
+  loadGlobalBans();
   loadPendingDMs();
   loadDmHistory();
   ensureOfficialServer();

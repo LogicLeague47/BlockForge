@@ -459,6 +459,10 @@ export class Network {
   devSetTag(target, tag) { this._send({ type: 'dev_set_tag', target, tag }); }
   devSetRole(target, role) { this._send({ type: 'dev_set_role', target, role }); }
   devDeleteAccount(target) { this._send({ type: 'dev_delete_account', target }); }
+  devGetStats(target) { this._send({ type: 'dev_get_stats', target }); }
+  devTimedBan(target, durationMs, reason) { this._send({ type: 'dev_timed_ban', target, durationMs, reason }); }
+  devUnban(target) { this._send({ type: 'dev_unban', target }); }
+  devGlobalBans() { this._send({ type: 'dev_global_bans' }); }
 
   // Queue a callback for when connection completes — safe to call from multiple places
   onConnectedOnce(cb) {
