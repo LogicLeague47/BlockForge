@@ -1091,6 +1091,10 @@
 
       requestAnimationFrame(draw);
       window.addEventListener('storage', function() {});
+      // Expose the hero-voxel/count-up helpers to the DOMContentLoaded init
+      // below (they live in this IIFE scope, but the init calls them by name).
+      window.spawnHeroVoxels = spawnHeroVoxels;
+      window.animateCount = animateCount;
     })();
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -1908,20 +1912,6 @@
               clearTimeout(timeout);
               ws.close();
               if (msg.ok && msg.role) cb(msg.role);
-              else cb(null);
-            }
-          } catch (_) { cb(null); }
-        };
-        ws.onerror = function() { clearTimeout(timeout); cb(null); };
-      }
-        ws.onmessage = function(e) {
-          try {
-            var msg = JSON.parse(e.data);
-            if (msg.type === 'auth_result') {
-              clearTimeout(timeout);
-              ws.close();
-              var role = msg.role || '';
-              if (msg.ok && ['dev','gamedev','owner'].indexOf(role) !== -1) cb(role);
               else cb(null);
             }
           } catch (_) { cb(null); }
