@@ -168,8 +168,9 @@ function makeSampler(chunk, world) {
   const data = chunk.data;
   const chunksNum = world.chunksNum;
   const parkour = world.parkour;
+  const voidWorld = world.void;
   return function (wx, wy, wz) {
-    if (wy < 0) return parkour ? BLOCK.AIR : BLOCK.BEDROCK;
+    if (wy < 0) return (parkour || voidWorld) ? BLOCK.AIR : BLOCK.BEDROCK;
     if (wy >= WORLD_HEIGHT) return BLOCK.AIR;
     const lx = wx - baseX, lz = wz - baseZ;
     if (lx >= 0 && lx < CHUNK_SIZE && lz >= 0 && lz < CHUNK_SIZE) {
