@@ -1459,13 +1459,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'wip',
-          heading: 'Chunk rendering fix, dev panel polish, global bans, portal news fix',
-          desc: 'Fixed broken chunk rendering: vertices were in world space but the chunk group also had a world position, causing double-offset. Added global timed ban system (cross-server, 1h to permanent). Dev panel now shows player stats (Play Time, Blocks, Kills, Deaths, Distance) and has a BAN button with time picker. Fixed portal News/Updates form for OAuth accounts by sending identity credentials alongside password auth. Added developer badge and player management card to portal dashboard.',
+          hash: '8e38455',
+          heading: 'Weak-GPU detection, portal news fix, VRAM savings',
+          desc: 'Auto-detects weak GPUs (Intel iGPUs, older AMD/NVIDIA) via WEBGL_debug_renderer_info and enables VRAM-safe mode: shadows default OFF, shadow maps drop from 4096→1024, menu background shadows disabled, render distance capped lower. Portal News/Updates posting now works for OAuth accounts (GitHub/Google) — uses a single-WS verify→post flow that checks identity linkage without creating duplicate accounts.',
           date: 'Aug 19',
-          bugs: ['chunk rendering double-offset from world-space vertices + group position', 'portal News/Updates form invisible for OAuth-logged-in developers', 'dev panel had no ban functionality or player stats view'],
-          updates: ['global timed ban system (cross-server, 1h-30d or permanent)', 'dev panel: player stats grid (Play Time, Blocks, Kills, Deaths, Distance)', 'dev panel: BAN button with time picker modal', 'portal: developer badge in header', 'portal: developer management card on dashboard', 'portal: News form works with OAuth accounts'],
-          features: ['global bans persist across server restarts and apply to all servers', 'developer identity verification for portal news posting'],
+          bugs: ['portal News/Updates form rejected OAuth accounts because auth auto-created duplicate accounts', 'game consumed too much VRAM on Intel iGPUs / shared-memory GPUs with 4096 shadow maps', 'shadows were ON by default for weak GPUs causing low FPS'],
+          updates: ['weak GPU auto-detection via WEBGL_debug_renderer_info', 'shadows default OFF on weak GPUs (saves ~48 MB VRAM)', 'main shadow map 4096→1024 on weak GPUs', 'menu background shadows disabled on weak GPUs', 'menu preview renderer shadows disabled on weak GPUs', 'PCFShadowMap instead of PCFSoftShadowMap on weak GPUs', 'render distance capped at 5 on weak GPUs', 'portal News uses single-WS verify→post flow (no duplicate accounts)', 'portal News form sends OAuth identity for verification'],
+          features: ['weak GPU detection covers Intel HD/Iris/UHD, AMD Vega, older NVIDIA, SwiftShader, Mesa'],
         },
         {
           hash: 'c76a2b9',
@@ -1861,10 +1861,23 @@
           for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
           var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
           var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
-          var authMsg = { type: 'auth', playerName: name, password: pass, mode: 'login' };
-          if (oauthProv && oauthId) { authMsg.identityType = oauthProv; authMsg.identityId = oauthId; }
-          ws.send(JSON.stringify(authMsg));
+          var verifyMsg = { type: 'news_verify', playerName: name, password: pass };
+          if (oauthProv && oauthId) { verifyMsg.identityType = oauthProv; verifyMsg.identityId = oauthId; }
+          ws.send(JSON.stringify(verifyMsg));
         };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'news_verify_result') {
+              clearTimeout(timeout);
+              ws.close();
+              if (msg.ok && msg.role) cb(msg.role);
+              else cb(null);
+            }
+          } catch (_) { cb(null); }
+        };
+        ws.onerror = function() { clearTimeout(timeout); cb(null); };
+      }
         ws.onmessage = function(e) {
           try {
             var msg = JSON.parse(e.data);
@@ -1890,49 +1903,47 @@
         if (url && !/^https?:\/\//i.test(url)) { hint.textContent = 'Media URL must start with http(s)://'; hint.style.color = '#f85'; return; }
         hint.textContent = 'Verifying developer access...';
         hint.style.color = 'var(--dim)';
-        portalDevVerify(function(role) {
-          if (!role) { hint.textContent = 'You need Developer permissions to post news.'; hint.style.color = '#f85'; return; }
-          var ws = new WebSocket(SRV_WS);
-          var posted = false;
-          var timeout = setTimeout(function() { try { ws.close(); } catch(_){} if (!posted) hint.textContent = 'Timed out — try again.'; }, 8000);
-          ws.onopen = function() {
-            var name = localStorage.getItem('bf_portal_user') || localStorage.getItem('bf_player_name') || '';
-            var encoded = localStorage.getItem('bf_login_pass') || '';
-            var pass = '';
-            for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
-            var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
-            var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
-            var authMsg = { type: 'auth', playerName: name, password: pass, mode: 'login' };
-            if (oauthProv && oauthId) { authMsg.identityType = oauthProv; authMsg.identityId = oauthId; }
-            ws.send(JSON.stringify(authMsg));
-          };
-          ws.onmessage = function(e) {
-            try {
-              var msg = JSON.parse(e.data);
-              if (msg.type === 'auth_result') {
-                if (msg.ok && ['dev','gamedev','owner'].indexOf(msg.role) !== -1) {
-                  ws.send(JSON.stringify({ type: 'news_post', title: title, description: desc, mediaUrl: url, mediaType: type }));
-                } else {
-                  clearTimeout(timeout); ws.close(); hint.textContent = 'You need Developer permissions to post news.'; hint.style.color = '#f85';
-                }
-              } else if (msg.type === 'news_posted' && msg.ok) {
-                posted = true;
+        var ws = new WebSocket(SRV_WS);
+        var posted = false;
+        var timeout = setTimeout(function() { try { ws.close(); } catch(_){} if (!posted) hint.textContent = 'Timed out — try again.'; }, 10000);
+        ws.onopen = function() {
+          var name = localStorage.getItem('bf_portal_user') || localStorage.getItem('bf_player_name') || '';
+          var encoded = localStorage.getItem('bf_login_pass') || '';
+          var pass = '';
+          for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+          var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+          var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+          var verifyMsg = { type: 'news_verify', playerName: name, password: pass };
+          if (oauthProv && oauthId) { verifyMsg.identityType = oauthProv; verifyMsg.identityId = oauthId; }
+          ws.send(JSON.stringify(verifyMsg));
+        };
+        ws.onmessage = function(e) {
+          try {
+            var msg = JSON.parse(e.data);
+            if (msg.type === 'news_verify_result') {
+              if (msg.ok && ['dev','gamedev','owner'].indexOf(msg.role) !== -1) {
+                ws.send(JSON.stringify({ type: 'news_post', title: title, description: desc, mediaUrl: url, mediaType: type }));
+              } else {
                 clearTimeout(timeout); ws.close();
-                hint.textContent = 'News published!'; hint.style.color = '#4c4';
-                document.getElementById('news-title').value = '';
-                document.getElementById('news-desc').value = '';
-                document.getElementById('news-media-url').value = '';
-                _newsCache = [msg.item].concat(_newsCache);
-                renderNews();
-                renderHomeNews();
-                toast('News published!', 'ok');
-              } else if (msg.type === 'error') {
-                clearTimeout(timeout); ws.close(); hint.textContent = msg.text || 'Server rejected the post.'; hint.style.color = '#f85';
+                hint.textContent = 'You need Developer permissions to post news.'; hint.style.color = '#f85';
               }
-            } catch (_) {}
-          };
-          ws.onerror = function() { clearTimeout(timeout); hint.textContent = 'Could not reach the server.'; hint.style.color = '#f85'; };
-        });
+            } else if (msg.type === 'news_posted' && msg.ok) {
+              posted = true;
+              clearTimeout(timeout); ws.close();
+              hint.textContent = 'News published!'; hint.style.color = '#4c4';
+              document.getElementById('news-title').value = '';
+              document.getElementById('news-desc').value = '';
+              document.getElementById('news-media-url').value = '';
+              _newsCache = [msg.item].concat(_newsCache);
+              renderNews();
+              renderHomeNews();
+              toast('News published!', 'ok');
+            } else if (msg.type === 'error') {
+              clearTimeout(timeout); ws.close(); hint.textContent = msg.text || 'Server rejected the post.'; hint.style.color = '#f85';
+            }
+          } catch (_) {}
+        };
+        ws.onerror = function() { clearTimeout(timeout); hint.textContent = 'Could not reach the server.'; hint.style.color = '#f85'; };
       }
 
       function deleteNewsItem(id) {
@@ -1943,12 +1954,16 @@
           var encoded = localStorage.getItem('bf_login_pass') || '';
           var pass = '';
           for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
-          ws.send(JSON.stringify({ type: 'auth', playerName: name, password: pass, mode: 'login' }));
+          var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+          var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+          var verifyMsg = { type: 'news_verify', playerName: name, password: pass };
+          if (oauthProv && oauthId) { verifyMsg.identityType = oauthProv; verifyMsg.identityId = oauthId; }
+          ws.send(JSON.stringify(verifyMsg));
         };
         ws.onmessage = function(e) {
           try {
             var msg = JSON.parse(e.data);
-            if (msg.type === 'auth_result') {
+            if (msg.type === 'news_verify_result') {
               if (msg.ok && ['dev','gamedev','owner'].indexOf(msg.role) !== -1) {
                 ws.send(JSON.stringify({ type: 'news_delete', id: id }));
               } else { clearTimeout(timeout); ws.close(); toast('You need Developer permissions.', 'err'); }

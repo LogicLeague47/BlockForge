@@ -97,6 +97,39 @@ const DEVICE_CORES = navigator.hardwareConcurrency || 4;
 const IS_SAFARI = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 const LOW_END = IS_MOBILE || DEVICE_MEM_GB <= 4 || DEVICE_CORES <= 4 || IS_SAFARI;
 
+// Detect weak GPU via WEBGL_debug_renderer_info (exposed by Chrome/Edge).
+// Known low-VRAM GPUs get WEAK_GPU = true so we can aggressively cut shadow
+// maps, disable effects, and lower render distance.
+let WEAK_GPU = false;
+try {
+  const _testCanvas = document.createElement('canvas');
+  const _testGL = _testCanvas.getContext('webgl2') || _testCanvas.getContext('webgl');
+  if (_testGL) {
+    const ext = _testGL.getExtension('WEBGL_debug_renderer_info');
+    if (ext) {
+      const gpuStr = _testGL.getParameter(ext.UNMASKED_RENDERER_WEBGL).toLowerCase();
+      // Intel HD/Iris/UHD 6xx and below = ≤1.5 GB VRAM shared
+      // AMD Radeon Vega integrated = ~2 GB shared
+      // Old Kepler/Maxwell NVIDIA = 1–2 GB
+      const weakPatterns = [
+        'intel hd', 'intel uhd', 'intel iris', 'intel(r) hd', 'intel(r) uhd', 'intel(r) iris',
+        'amd Radeon(TM) Vega', 'radeon r5', 'radeon r7',
+        'geforce 6', 'geforce 7', 'geforce 8', 'geforce gt 6', 'geforce gt 7', 'geforce gt 9',
+        'mesa dri', 'swiftshader', 'llvmpipe',
+      ];
+      WEAK_GPU = weakPatterns.some(p => gpuStr.indexOf(p) !== -1);
+      // Also flag anything with "intel" in the name (all Intel iGPUs are ≤1.5GB)
+      if (!WEAK_GPU && gpuStr.indexOf('intel') !== -1) WEAK_GPU = true;
+      console.log('[GPU]', gpuStr, WEAK_GPU ? '(weak — VRAM-safe mode)' : '(ok)');
+    }
+  }
+  // Clean up the test context — don't leave a dangling WebGL context alive
+  if (_testGL) { const ext = _testGL.getExtension('WEBGL_lose_context'); if (ext) ext.loseContext(); }
+} catch (_) {}
+
+// Combined flag: either heuristic low-end or confirmed weak GPU
+const VERY_LOW_END = LOW_END || WEAK_GPU;
+
 // Block reach / mining pace.
 // REACH = how far (in blocks) you can hit mobs and target blocks — Minecraft's
 // classic 3-block range. BASE_BREAK_TIME scales the break formula below.
@@ -108,7 +141,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'h
 renderer.setPixelRatio(LOW_END ? 1 : Math.min(window.devicePixelRatio, 1.5));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
 // Graphics quality controls the internal render resolution (the main FPS lever
 // on high-DPI/Retina screens, where a full-ratio buffer can be 4x the pixels).
@@ -117,8 +150,8 @@ function applyGraphicsQuality() {
   if (IS_MOBILE) {
     // Mobile: use native resolution for medium/high, slightly reduced for low
     pr = graphicsQuality === 'low' ? 0.85 : 1;
-  } else if (LOW_END) {
-    // Weak desktop/tablets: cap at 1x so we never render supersampled pixels
+  } else if (VERY_LOW_END) {
+    // Weak GPUs / low-end desktops: cap at 1x so we never render supersampled pixels
     pr = 1;
   } else if (graphicsQuality === 'low') pr = 1;
   else if (graphicsQuality === 'high') pr = Math.min(window.devicePixelRatio, 2);
@@ -171,9 +204,9 @@ menuBgScene.fog = new THREE.Fog(0x87ceeb, 20, 55);
 menuBgScene.background = new THREE.Color(0x78b9e8);
 const menuBgSun = new THREE.DirectionalLight(0xfff8e7, 1.6);
 menuBgSun.position.set(40, 80, 30);
-menuBgSun.castShadow = true;
-menuBgSun.shadow.mapSize.width = 2048;
-menuBgSun.shadow.mapSize.height = 2048;
+menuBgSun.castShadow = !VERY_LOW_END;
+menuBgSun.shadow.mapSize.width = VERY_LOW_END ? 512 : 2048;
+menuBgSun.shadow.mapSize.height = VERY_LOW_END ? 512 : 2048;
 menuBgSun.shadow.camera.near = 0.5;
 menuBgSun.shadow.camera.far = 200;
 menuBgSun.shadow.camera.left = -40;
@@ -386,14 +419,14 @@ function buildMenuBackground() {
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(50, 100, 30);
 sun.castShadow = true;
-sun.shadow.mapSize.width = IS_MOBILE ? 1024 : (LOW_END ? 2048 : 4096);
-sun.shadow.mapSize.height = IS_MOBILE ? 1024 : (LOW_END ? 2048 : 4096);
+sun.shadow.mapSize.width = IS_MOBILE ? 1024 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
+sun.shadow.mapSize.height = IS_MOBILE ? 1024 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
 sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = IS_MOBILE ? 300 : 700;
-sun.shadow.camera.left = IS_MOBILE ? -25 : -50;
-sun.shadow.camera.right = IS_MOBILE ? 25 : 50;
-sun.shadow.camera.top = IS_MOBILE ? 25 : 50;
-sun.shadow.camera.bottom = IS_MOBILE ? -25 : -50;
+sun.shadow.camera.far = IS_MOBILE ? 300 : (VERY_LOW_END ? 400 : 700);
+sun.shadow.camera.left = IS_MOBILE ? -25 : (VERY_LOW_END ? -35 : -50);
+sun.shadow.camera.right = IS_MOBILE ? 25 : (VERY_LOW_END ? 35 : 50);
+sun.shadow.camera.top = IS_MOBILE ? 25 : (VERY_LOW_END ? 35 : 50);
+sun.shadow.camera.bottom = IS_MOBILE ? -25 : (VERY_LOW_END ? -35 : -50);
 sun.shadow.bias = -0.0003;
 sun.shadow.normalBias = 0.015;
 sun.shadow.camera.updateProjectionMatrix();
@@ -4782,11 +4815,12 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   isSkyblock = !!opts.skyblock;
   _isImportedParkour = !!opts.importedParkour;
   currentWorldId = worldId;
-  renderDist = parseInt(document.getElementById('set-render-distance')?.value) || (LOW_END ? 5 : 7);
+  renderDist = parseInt(document.getElementById('set-render-distance')?.value) || (VERY_LOW_END ? 4 : (LOW_END ? 5 : 7));
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
   // Mobile / low-end: hard-cap view distance so the GPU/CPU isn't meshing far chunks.
   if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
   if (LOW_END) renderDist = Math.min(renderDist, 6);
+  if (VERY_LOW_END) renderDist = Math.min(renderDist, 5);
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
@@ -6044,8 +6078,13 @@ function initMenu() {
   // Apply shadows setting on startup
   try {
     const sh = localStorage.getItem('bf_shadows');
-    window.__shadowsEnabled = (sh !== '0');
-    if (sh === '0') renderer.shadowMap.enabled = false;
+    // On weak GPUs, default to shadows OFF unless user explicitly enabled them
+    const shadowsOn = sh !== null ? sh !== '0' : !VERY_LOW_END;
+    window.__shadowsEnabled = shadowsOn;
+    if (!shadowsOn) renderer.shadowMap.enabled = false;
+    // Update the toggle UI to reflect the actual state
+    const shEl = document.getElementById('set-shadows');
+    if (shEl) shEl.value = shadowsOn ? '1' : '0';
   } catch (_) { console.warn("operation failed"); }
 
   // Load mouse sensitivity setting (also applies it live)
@@ -6133,6 +6172,7 @@ function initMenu() {
     renderDist = parseInt(e.target.value) || 7;
     if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
     if (LOW_END) renderDist = Math.min(renderDist, 6);
+    if (VERY_LOW_END) renderDist = Math.min(renderDist, 5);
     try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
     // Apply to current world if loaded
     scene.fog.far = 16 * (renderDist + 2);
@@ -6168,7 +6208,7 @@ function initMenu() {
     const enabled = e.target.value !== '0';
     window.__shadowsEnabled = enabled;
     renderer.shadowMap.enabled = enabled;
-    renderer.shadowMap.type = (IS_MOBILE || LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+    renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
     try { localStorage.setItem('bf_shadows', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
   });
 
@@ -9714,8 +9754,8 @@ function initMenuPreview() {
   menuPreviewRenderer.setSize(120, 180);
   menuPreviewRenderer.setPixelRatio(1);
   menuPreviewRenderer.setClearColor(0x000000, 0);
-  menuPreviewRenderer.shadowMap.enabled = true;
-  menuPreviewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  menuPreviewRenderer.shadowMap.enabled = !VERY_LOW_END;
+  menuPreviewRenderer.shadowMap.type = THREE.PCFShadowMap;
   container.appendChild(menuPreviewRenderer.domElement);
   menuPreviewScene = new THREE.Scene();
   menuPreviewCamera = new THREE.PerspectiveCamera(35, 120 / 180, 0.1, 100);

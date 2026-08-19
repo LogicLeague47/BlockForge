@@ -2548,7 +2548,9 @@ function handleDevGlobalBans(ws, msg) {
 }
 
 // News verify: check if a connection has dev news-posting permissions
-// Used by the portal to show/hide the news form
+// Used by the portal to show/hide the news form.
+// IMPORTANT: never passes identity to authAccount to avoid auto-creating
+// duplicate accounts — identity linkage is checked separately.
 function handleNewsVerify(ws, msg) {
   const { playerName, password, identityType, identityId } = msg;
   if (ws._playerData && ws._playerData.role && _isNewsPoster(ws._playerData.role)) {
@@ -2559,18 +2561,31 @@ function handleNewsVerify(ws, msg) {
     safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
     return;
   }
-  const identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
-  authAccount(playerName, password, 'login', identity).then(auth => {
+  // Try password auth first (no identity — prevents auto-create)
+  authAccount(playerName, password, 'login').then(auth => {
     if (auth.ok) {
       const role = resolveRole(null, auth.username || playerName) || ROLE_PLAYER;
       if (_isNewsPoster(role)) {
         safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: true, role }));
-      } else {
-        safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
+        return;
       }
-    } else {
-      safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
     }
+    // Password failed — check if identity is already linked (no auto-create)
+    if (identityType && identityId) {
+      const linkedName = findAccountByIdentity(identityType, identityId);
+      if (linkedName) {
+        const role = resolveRole(null, linkedName) || ROLE_PLAYER;
+        if (_isNewsPoster(role)) {
+          // Attach identity to this socket so news_post can use it
+          if (!ws._playerData) {
+            ws._playerData = { name: linkedName, role, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+          }
+          safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: true, role }));
+          return;
+        }
+      }
+    }
+    safeSend(ws, JSON.stringify({ type: 'news_verify_result', ok: false }));
   });
 }
 
