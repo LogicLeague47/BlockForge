@@ -1459,6 +1459,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'f1d54b1',
+          heading: 'Mobile block fix, real voids, reload-safe edits, adventure status bars',
+          desc: 'Fixes the mobile exploit where the last block in a hotbar stack never ran out (consumption cleared the offhand slot instead of the hotbar slot, so you could place forever). Void worlds (OneBlock, Skyblock, Bedwars, BlockZones...) are now a true void: the invisible bedrock floor below y=0 is removed, so you actually fall into the void and the minigame respawns you. World edits are now reapplied on reload/regeneration (previously saved builds could vanish when chunks regenerated). Health/hunger bars also show in adventure mode, matching Minecraft.',
+          date: 'Aug 19',
+          bugs: ['mobile: placing the last block in a hotbar stack never consumed it (infinite blocks)', 'void minigame worlds had an invisible bedrock floor at y=0, so you could not fall into the void', 'saved block edits were lost when chunks regenerated after reload (edits indexed only in the wrong map)', 'health/hunger bars were cleared in adventure mode even though it uses survival rules'],
+          updates: ['mobile block placement now consumes the correct slot (hotbar or offhand)', 'void worlds return AIR below y=0, minigame void-fall respawn takes over', 'loadEdits also indexes edits by chunk so regenerated chunks reapply saved builds', 'status bars render in adventure mode'],
+          features: [],
+        },
+        {
           hash: '8e38455',
           heading: 'Weak-GPU detection, portal news fix, VRAM savings',
           desc: 'Auto-detects weak GPUs (Intel iGPUs, older AMD/NVIDIA) via WEBGL_debug_renderer_info and enables VRAM-safe mode: shadows default OFF, shadow maps drop from 4096→1024, menu background shadows disabled, render distance capped lower. Portal News/Updates posting now works for OAuth accounts (GitHub/Google) — uses a single-WS verify→post flow that checks identity linkage without creating duplicate accounts.',
