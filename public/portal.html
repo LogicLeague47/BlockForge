@@ -1450,10 +1450,10 @@
         {
           hash: 'c76a2b9',
           heading: 'Bot gate for the website + player-link player menu',
-          desc: 'BlockForge (non-CrazyGames) now requires a legitimate login to enter: correct credentials issue a one-time entry token and the page reloads into the main menu. Manual reloads, direct opens, and copy-pasted player links are detected as bots and blocked. The /u/?user=NAME player link is now a staying player menu (name, role, Play button) that only opens with a fresh session token; otherwise it shows "ACCESS BLOCKED - Bot detected". CrazyGames keeps its SDK account-integration auto-login (no gate).',
+          desc: 'BlockForge (non-CrazyGames) now requires a legitimate login to enter: correct credentials issue a one-time entry token and land you on your player menu at /u/?user=NAME. Manual reloads, direct opens, and copy-pasted player links are detected as bots and blocked. The /u/?user=NAME player link is the player menu (name, role, Play button) that only opens with a fresh session token; otherwise it shows "ACCESS BLOCKED - Bot detected". CrazyGames keeps its SDK account-integration auto-login (no gate).',
           date: 'Aug 19',
-          bugs: ['bot gate: manual reloads and copy-pasted links could bypass login', 'Safari served a stale cached bundle after the security fix', 'player link auto-redirect flashed before entering the game'],
-          updates: ['login reloads into the main menu via a one-time entry token', '/u/ player link is a staying player menu with a Play button', 'Account Info modal has an OPEN button to legitimately open your player menu', 'direct player-link access is blocked with an ACCESS BLOCKED screen'],
+          bugs: ['bot gate: manual reloads and copy-pasted links could bypass login', 'Safari served a stale cached bundle after the security fix', 'login landed on the main menu without changing the address bar to the player link'],
+          updates: ['correct credentials land on your player menu at /u/?user=NAME', '/u/ player link is a staying player menu with a Play button', 'Account Info modal has an OPEN button to legitimately open your player menu', 'direct player-link access is blocked with an ACCESS BLOCKED screen'],
           features: ['bot detection for the website: manual reloads and copy-pasted links are blocked'],
         },
         {
