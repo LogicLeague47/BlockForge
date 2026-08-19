@@ -1450,10 +1450,10 @@
         {
           hash: 'c76a2b9',
           heading: 'Bot gate for the website + player-link player menu',
-          desc: 'BlockForge (non-CrazyGames) now requires a legitimate login to enter: correct credentials issue a one-time entry token and land you on your player menu at /u/?user=NAME. Manual reloads, direct opens, and copy-pasted player links are detected as bots and blocked. The /u/?user=NAME player link is the player menu (name, role, Play button) that only opens with a fresh session token; otherwise it shows "ACCESS BLOCKED - Bot detected". CrazyGames keeps its SDK account-integration auto-login (no gate).',
+          desc: 'BlockForge (non-CrazyGames) now requires a legitimate login to enter: correct credentials issue a one-time entry token and go straight into the game with the player link in the URL. Manual reloads, direct opens, and copy-pasted player links are detected as bots and blocked. The /u/?user=NAME player link page opens via the Account Info OPEN button (name, role, Play button); direct opens are blocked with "ACCESS BLOCKED - Bot detected". CrazyGames keeps its SDK account-integration auto-login (no gate).',
           date: 'Aug 19',
           bugs: ['bot gate: manual reloads and copy-pasted links could bypass login', 'Safari served a stale cached bundle after the security fix', 'login landed on the main menu without changing the address bar to the player link'],
-          updates: ['correct credentials land on your player menu at /u/?user=NAME', '/u/ player link is a staying player menu with a Play button', 'Account Info modal has an OPEN button to legitimately open your player menu', 'direct player-link access is blocked with an ACCESS BLOCKED screen'],
+          updates: ['correct credentials go straight into the game with the player link in the URL', 'Account Info modal has an OPEN button to open your player menu at /u/', 'direct player-link access is blocked with an ACCESS BLOCKED screen'],
           features: ['bot detection for the website: manual reloads and copy-pasted links are blocked'],
         },
         {

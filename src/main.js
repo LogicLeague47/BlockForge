@@ -4022,17 +4022,14 @@ function setupNetworkHandlers() {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
         // Bot gate (non-CG website): correct credentials issue a one-time entry
-        // token, then land on the player's menu at /u/?user=NAME so the address
-        // bar shows the player-specific link. From there Play enters the game.
-        // Manual reloads and direct link opens have no token and are sent back
-        // to the login screen. CrazyGames keeps its SDK account-integration
-        // flow (no gate, no navigation).
+        // token, then go straight into the game with the player link in the URL.
+        // Manual reloads and direct link opens have no token and land on the
+        // login screen. CrazyGames keeps its SDK account-integration flow.
         if (isOnCrazyGames()) {
           ui.showMenu('main');
         } else {
           try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
-          const uname = encodeURIComponent(playerName || '');
-          window.location.href = '/u/?user=' + uname;
+          window.location.href = '/?user=' + encodeURIComponent(playerName || '') + '&from=game';
         }
       }
     } else {
