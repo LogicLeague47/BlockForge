@@ -4021,11 +4021,16 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
-        // Go straight to the main menu. The old /u/ redirect chain bounced
-        // players back to the login screen whenever the auto-login credentials
-        // weren't available on the return trip (OAuth users have no password,
-        // and a full localStorage quota made the pass write fail silently).
-        ui.showMenu('main');
+        // Bot gate (non-CG website): correct credentials issue a one-time entry
+        // token, then the page reloads into the main menu. Manual reloads and
+        // direct link opens have no token and are sent back to the login screen.
+        // CrazyGames keeps its SDK account-integration flow (no gate, no reload).
+        if (isOnCrazyGames()) {
+          ui.showMenu('main');
+        } else {
+          try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
+          window.location.reload();
+        }
       }
     } else {
       // Auto-register fallback: when a portal login uses a brand-new username,
@@ -7411,15 +7416,21 @@ function initMenu() {
   // only happens when it's clearly intended: a returning CrazyGames user (CG
   // account-integration rule), or a player-specific link that exactly matches the
   // saved account. Everywhere else the login screen is shown, pre-filled.
-  // v2: restored secure auto-login — no device can claim a different account.
-  console.debug('bf-auth-v2');
+  // v3: bot gate — on the regular website you can only enter through a
+  // legitimate flow. Correct credentials issue a one-time entry token and
+  // reload into the main menu. Direct loads, copy-pasted links and manual
+  // reloads have no token and are sent to the login screen (blocked).
+  console.debug('bf-auth-v3');
   let autoLogin = false;
   let fromU = false;
+  let entryToken = false;
   let savedName = '';
   let savedPass = '';
   let oauthProvider = '';
   let oauthProviderId = '';
   try {
+    entryToken = sessionStorage.getItem('bf_entry_token') === '1';
+    if (entryToken) sessionStorage.removeItem('bf_entry_token');
     fromU = sessionStorage.getItem('bf_from_u') === '1';
     if (fromU) sessionStorage.removeItem('bf_from_u');
     const params = new URLSearchParams(location.search);
@@ -7435,8 +7446,9 @@ function initMenu() {
     // Only trust saved credentials when the saved account is the one this link targets.
     const credsMatchTarget = savedName && targetUser && savedName.toLowerCase() === targetUser.toLowerCase();
     if (credsMatchTarget) loginPass.value = savedPass || '';
-    // Player-specific link that matches the saved account → enter directly.
-    if (urlUser && credsMatchTarget && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
+    // Player-specific link / login reload that matches the saved account and
+    // carries a fresh entry token → enter directly.
+    if (entryToken && credsMatchTarget && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
     // Returning CrazyGames users are auto-logged-in via their saved identity.
     if (isOnCrazyGames() && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
   } catch (_) { console.warn("operation failed"); }
@@ -9951,6 +9963,18 @@ document.getElementById('btn-ai-copy-link')?.addEventListener('click', async () 
   if (!link || link === '—') return;
   try { await navigator.clipboard.writeText(link); } catch (_) { console.warn("clipboard write failed"); }
   if (btn) { const t = btn.textContent; btn.textContent = 'COPIED!'; setTimeout(() => { btn.textContent = t; }, 1200); }
+});
+// OPEN: legitimately open your own player menu — issues a fresh entry token so
+// the /u/ page shows the menu instead of the bot block. Copy-pasting the link
+// (fresh tab, no token) is blocked.
+document.getElementById('btn-ai-open-link')?.addEventListener('click', () => {
+  if (isOnCrazyGames()) return;
+  const link = document.getElementById('ai-player-link')?.textContent || '';
+  const m = link.match(/[?&]user=([^&]+)/);
+  const user = m ? decodeURIComponent(m[1]) : playerName;
+  if (!user || user === '—') return;
+  try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
+  window.location.href = '/u/?user=' + encodeURIComponent(user);
 });
 document.getElementById('ai-username')?.addEventListener('click', async () => {
   const u = document.getElementById('ai-username')?.textContent || '';

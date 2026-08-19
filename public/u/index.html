@@ -46,10 +46,11 @@
     <div class="footer">By continuing, you agree to the Terms of Service</div>
   </div>
   <script>
-    // Player-link page: shows the player's profile as a staying menu.
-    // Clicking Play takes them into the game. The game enforces login:
-    // saved credentials auto-login, otherwise the login screen is shown
-    // with the name pre-filled.
+    // Player-link page: a staying player menu. Only opens with a fresh entry
+    // token from a legitimate flow (login reload, or OPEN from the game).
+    // Copy-pasted links / manual reloads get no token → blocked. Clicking Play
+    // issues a new token and enters the game, which auto-logs the matching
+    // saved account (otherwise shows the login screen pre-filled).
     (function() {
       var urlUser = '';
       try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
@@ -74,17 +75,35 @@
         return;
       }
 
+      // Bot gate: the player menu only opens with a fresh entry token issued by
+      // a legitimate flow (login reload, or OPEN from the game). Copy-pasting
+      // the link or manually reloading gives no token → blocked.
+      var entryToken = false;
+      try { entryToken = sessionStorage.getItem('bf_entry_token') === '1'; if (entryToken) sessionStorage.removeItem('bf_entry_token'); } catch(e) {}
+
+      if (!entryToken) {
+        subtitleEl.textContent = 'ACCESS BLOCKED';
+        nameEl.textContent = 'Bot detected';
+        if (roleEl) { roleEl.textContent = 'You may not bypass login. Sign in from the game to open your player menu.'; roleEl.style.color = '#f55'; }
+        if (homepageEl) homepageEl.style.display = 'none';
+        if (bypassEl) { bypassEl.style.display = ''; bypassEl.textContent = 'Direct player-link access is not allowed.'; }
+        if (hintEl) hintEl.style.display = 'none';
+        if (playBtnEl) playBtnEl.style.display = 'none';
+        return;
+      }
+
       var savedRole = '';
       try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
 
       subtitleEl.textContent = 'PLAYER MENU';
       nameEl.textContent = urlUser;
-      roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
+      if (roleEl) { roleEl.style.color = ''; roleEl.textContent = savedRole ? 'Role: ' + savedRole : ''; }
       if (homepageEl) homepageEl.style.display = '';
       if (bypassEl) bypassEl.style.display = 'none';
       if (hintEl) hintEl.style.display = 'none';
       if (playBtnEl) {
         playBtnEl.addEventListener('click', function() {
+          try { sessionStorage.setItem('bf_entry_token', '1'); } catch(e) {}
           window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
         });
       }
