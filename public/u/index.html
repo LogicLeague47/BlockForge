@@ -46,10 +46,10 @@
     <div class="footer">By continuing, you agree to the Terms of Service</div>
   </div>
   <script>
-    // Profile + redirect logic runs in a plain script so the player link works
-    // even if the 3D background (which imports three.js from a CDN) fails to
-    // load. The game enforces login: saved credentials auto-login, otherwise
-    // the login screen is shown with the name pre-filled.
+    // Player-link page: shows the player's profile as a staying menu.
+    // Clicking Play takes them into the game. The game enforces login:
+    // saved credentials auto-login, otherwise the login screen is shown
+    // with the name pre-filled.
     (function() {
       var urlUser = '';
       try { urlUser = new URLSearchParams(location.search).get('user') || ''; } catch(e) {}
@@ -77,15 +77,17 @@
       var savedRole = '';
       try { savedRole = localStorage.getItem('bf_role') || ''; } catch(e) {}
 
-      subtitleEl.textContent = 'PLAYER';
+      subtitleEl.textContent = 'PLAYER MENU';
       nameEl.textContent = urlUser;
       roleEl.textContent = savedRole ? 'Role: ' + savedRole : '';
-      if (homepageEl) homepageEl.style.display = 'none';
+      if (homepageEl) homepageEl.style.display = '';
       if (bypassEl) bypassEl.style.display = 'none';
       if (hintEl) hintEl.style.display = 'none';
-      setTimeout(function() {
-        window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
-      }, 1200);
+      if (playBtnEl) {
+        playBtnEl.addEventListener('click', function() {
+          window.location.href = '../?user=' + encodeURIComponent(urlUser) + '&from=game';
+        });
+      }
     })();
   </script>
   <script type="module">
