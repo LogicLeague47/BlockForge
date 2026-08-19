@@ -2477,15 +2477,18 @@ function placeBlock(slotOverride, targetHit) {
   }
   viewmodel.swing();
   placeAnimTimer = 0.3;
-  // consume in survival
+  // consume in survival — clear whichever slot the block actually came from
+  // (the offhand, or any hotbar slot: mobile passes the selected slot as
+  // slotOverride, so clearing the offhand for every slotOverride was wrong).
   if (slot && player.isSurvival()) {
     slot.count--;
     if (slot.count <= 0) {
-      if (slotOverride) {
-        // offhand slot reference
+      if (slot === player.inventory.offhand) {
         player.inventory.offhand = null;
       } else {
-        player.inventory.slots[player.inventory.selected] = null;
+        const idx = player.inventory.slots.indexOf(slot);
+        if (idx !== -1) player.inventory.slots[idx] = null;
+        else player.inventory.slots[player.inventory.selected] = null;
       }
     }
     syncUIMode();
@@ -9676,11 +9679,11 @@ function _gameFrame() {
   // Furnace tick
   ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id));
 
-  // Throttled status bar update
+  // Throttled status bar update — adventure keeps health/hunger like survival
   statusBarTimer += dt;
   if (statusBarTimer > 0.25) {
     statusBarTimer = 0;
-    if (player.isSurvival()) {
+    if (player.isSurvival() || player.isAdventure()) {
       ui.updateStatusBars(player);
     } else {
       ui.healthBar.innerHTML = '';

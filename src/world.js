@@ -122,7 +122,7 @@ export class World {
   }
 
   getBlock(x, y, z) {
-    if (y < 0) return this.parkour ? BLOCK.AIR : BLOCK.BEDROCK;
+    if (y < 0) return (this.parkour || this.void) ? BLOCK.AIR : BLOCK.BEDROCK;
     if (y >= WORLD_HEIGHT) return BLOCK.AIR;
     const cx = x >> 4; const cz = z >> 4;
     const c = this.chunksNum.get(cx * 32768 + cz);
@@ -297,5 +297,21 @@ export class World {
   }
 
   serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests() }; }
-  loadEdits(obj) { if (!obj || obj.edits == null) return; for (const [k, v] of obj.edits) this.edits.set(k, v); this.loadChests(obj.chests); }
+  loadEdits(obj) {
+    if (!obj || obj.edits == null) return;
+    for (const [k, v] of obj.edits) {
+      this.edits.set(k, v);
+      // Also index by chunk so generateChunk() can re-apply saved edits when a
+      // chunk regenerates (it reads _chunkEdits, not edits).
+      const ci = k.indexOf(',');
+      const ci2 = k.indexOf(',', ci + 1);
+      const ex = +k.slice(0, ci);
+      const ez = +k.slice(ci2 + 1);
+      const ck = this.key(ex, ez);
+      let cm = this._chunkEdits.get(ck);
+      if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
+      cm.set(k, v);
+    }
+    this.loadChests(obj.chests);
+  }
 }
