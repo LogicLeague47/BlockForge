@@ -82,6 +82,8 @@
     #account-info .btn{margin-left:auto}
     #content{display:none}
     .dev-only{display:none}
+    .feature-grid.dev-only{display:none}
+    .card-grid.dev-only{display:none}
     .page{display:none}
     .page.active{display:block;animation:pageIn .3s ease}
     @keyframes pageIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
@@ -662,6 +664,11 @@
               </select>
               <input type="text" id="news-media-url" placeholder="Media URL (https://… image, mp4, or YouTube link)" maxlength="500">
             </div>
+            <div class="news-form-row" id="news-upload-row" style="display:none">
+              <button type="button" class="btn" id="news-upload-btn">📤 Upload video</button>
+              <input type="file" id="news-video-file" accept="video/*" style="display:none">
+              <span id="news-upload-hint" style="font-size:12px;color:var(--dim)"></span>
+            </div>
             <div class="news-form-actions">
               <button class="btn primary" id="news-post-btn">Publish News</button>
               <span id="news-post-hint" style="font-size:12px;color:var(--dim)"></span>
@@ -1113,10 +1120,9 @@
 
       const url = new URL(location.href);
       const userName = url.searchParams.get('user') || localStorage.getItem('bf_portal_user') || '';
-      const userRole = url.searchParams.get('role') || localStorage.getItem('bf_portal_role') || '';
-      const isDev = ['dev','gamedev','owner'].includes(userRole);
-
-      if (isDev) document.querySelectorAll('.dev-only').forEach(e => e.style.display = 'block');
+      // Never trust a ?role= URL param or stored role for the dev UI — dev-only
+      // sections (news posting, dev menu) only appear after the server verifies
+      // the account in initNewsDevForm() below.
 
       const loginBox = document.getElementById('login-box');
       const loggedIn = document.getElementById('logged-in');
@@ -1151,7 +1157,6 @@
         document.getElementById('user-name').textContent = name;
         document.getElementById('avatar-letter').textContent = name.charAt(0).toUpperCase();
         var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(name) + '&from=portal';
-        if (role) playUrl += '&role=' + encodeURIComponent(role);
         var playLink = document.getElementById('play-link');
         if (playLink) playLink.href = playUrl;
         var heroPlay = document.getElementById('hero-play-link');
@@ -1160,12 +1165,11 @@
 
       if (userName) {
         localStorage.setItem('bf_portal_user', userName);
-        if (userRole) localStorage.setItem('bf_portal_role', userRole);
         var hasPortalPass = false;
         try { hasPortalPass = !!localStorage.getItem('bf_login_pass'); } catch (_) {}
         if (hasPortalPass) {
           try { showWelcome('back, ' + userName + '!'); } catch (_) {}
-          applyLoggedIn(userName, userRole);
+          applyLoggedIn(userName, '');
         } else {
           // No stored password to verify against (OAuth account or fresh
           // browser). Show the login box pre-filled so the user can enter
@@ -1199,9 +1203,7 @@
         var encoded = '';
         for (var c = 0; c < pass.length; c++) encoded += String.fromCharCode(pass.charCodeAt(c) ^ 0x5A);
         localStorage.setItem('bf_login_pass', encoded);
-        const role = userRole ? userRole : '';
-        if (role) localStorage.setItem('bf_portal_role', role);
-        applyLoggedIn(user, role);
+        applyLoggedIn(user, '');
         showWelcome(user + '!');
         // Stay on the portal so dev-only features (e.g. the News post form)
         // appear immediately — the PLAY button takes them into the game.
@@ -1238,7 +1240,6 @@
           var u = new URL(location.href);
           u.searchParams.set('page', page);
           if (userName) u.searchParams.set('user', userName);
-          if (userRole) u.searchParams.set('role', userRole);
           history.pushState({page: page}, '', u);
         }
         if (page === 'updates') renderUpdates();
@@ -1296,7 +1297,6 @@
         var u = new URL(location.href);
         u.searchParams.delete('page');
         if (userName) u.searchParams.set('user', userName);
-        if (userRole) u.searchParams.set('role', userRole);
         history.pushState({page: 'home'}, '', u);
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
@@ -1418,7 +1418,6 @@
 
       document.getElementById('copy-invite').addEventListener('click', function() {
         var link = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
-        if (userRole) link += '&role=' + encodeURIComponent(userRole);
         var ta = document.createElement('textarea');
         ta.value = link;
         document.body.appendChild(ta);
@@ -1462,6 +1461,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: '5435727',
+          heading: 'Dev-only controls fixed + direct video uploads for News',
+          desc: 'Non-dev accounts no longer show as developers: the portal previously trusted a ?role= URL parameter or a saved role, so anyone could look like a dev, and a CSS override left the developer section visible to everyone. The developer UI (badge, dev menu, news posting form) now only appears after the server actually verifies the account, and non-devs get the form hidden with a note — the server also rejects any non-dev post. News posts can now carry a directly uploaded video instead of a link: pick a file, it uploads to the server and plays inline in the news card with full seek support, YouTube-style.',
+          date: 'Aug 19',
+          bugs: ['non-dev accounts appeared as developers (?role= URL param / saved role was trusted)', 'the developer section and news post form were visible to everyone (CSS override beat .dev-only)', 'news posts could only use a pasted link, no direct video upload'],
+          updates: ['dev UI now only appears after real server verification', 'news post form is hidden for non-devs', 'removed the spoofable role from portal share/play links', 'direct video upload button for news posts (stored on the server, 64MB cap)'],
+          features: ['video uploads play inline in the news feed with seeking'],
+        },
         {
           hash: '36d9cd5',
           heading: 'Portal login fixed — a broken script was killing the whole site',
@@ -1969,6 +1977,10 @@
               document.getElementById('news-title').value = '';
               document.getElementById('news-desc').value = '';
               document.getElementById('news-media-url').value = '';
+              var vf = document.getElementById('news-video-file');
+              if (vf) vf.value = '';
+              var uh = document.getElementById('news-upload-hint');
+              if (uh) { uh.textContent = ''; }
               _newsCache = [msg.item].concat(_newsCache);
               renderNews();
               renderHomeNews();
@@ -2042,6 +2054,7 @@
         var wrap = document.getElementById('news-dev-form-wrap');
         var msg = document.getElementById('news-dev-msg');
         var btn = document.getElementById('news-post-btn');
+        var form = wrap && wrap.querySelector('.news-form');
         if (!wrap || !btn) return;
         var name = localStorage.getItem('bf_portal_user') || '';
         if (name) {
@@ -2049,9 +2062,11 @@
             _newsDevRole = role;
             if (role) {
               wrap.style.display = 'block';
+              if (form) form.style.display = '';
               if (msg) msg.style.display = 'none';
               try { localStorage.setItem('bf_portal_role', role); } catch (_) {}
               document.querySelectorAll('.dev-only').forEach(function(e) { e.style.display = 'block'; });
+              wireNewsUpload();
               // Show dev badge and dev management card
               var badge = document.getElementById('portal-dev-badge');
               if (badge) badge.style.display = '';
@@ -2059,10 +2074,13 @@
               if (devCard) devCard.style.display = '';
               renderNews();
             } else {
+              // Non-dev: NEVER show the post form — just a note. The server
+              // also rejects news_post for anything but a verified dev role.
               wrap.style.display = 'block';
+              if (form) form.style.display = 'none';
               if (msg) {
                 msg.style.display = 'block';
-                msg.innerHTML = 'Developer verification failed. <a href="#" id="news-login-link" style="color:var(--accent)">Log in with your developer account</a> to post news.';
+                msg.innerHTML = 'This account is not a BlockForge developer, so the news posting form is hidden. <a href="#" id="news-login-link" style="color:var(--accent)">Log in with your developer account</a> to post news.';
                 var link = document.getElementById('news-login-link');
                 if (link) link.addEventListener('click', function(e) {
                   e.preventDefault();
@@ -2078,6 +2096,7 @@
           });
         } else {
           wrap.style.display = 'block';
+          if (form) form.style.display = 'none';
           if (msg) {
             msg.style.display = 'block';
             msg.textContent = 'Log in with a developer account on the portal to post news here.';
@@ -2087,6 +2106,63 @@
           _newsBtnWired = true;
           btn.addEventListener('click', postNews);
         }
+      }
+
+      // Direct video upload (like YouTube): pick a file → upload to the
+      // backend (dev-gated) → the returned URL fills the media field.
+      var _newsUploadWired = false;
+      function wireNewsUpload() {
+        if (_newsUploadWired) return;
+        _newsUploadWired = true;
+        var typeSel = document.getElementById('news-media-type');
+        var row = document.getElementById('news-upload-row');
+        var upBtn = document.getElementById('news-upload-btn');
+        var file = document.getElementById('news-video-file');
+        var hint = document.getElementById('news-upload-hint');
+        var urlInput = document.getElementById('news-media-url');
+        if (!typeSel || !row || !upBtn || !file || !hint) return;
+        function syncRow() {
+          var isVideo = typeSel.value === 'video';
+          row.style.display = isVideo ? '' : 'none';
+          if (urlInput) {
+            urlInput.placeholder = isVideo ? '…or paste a YouTube or video URL' : 'Media URL (https://… image)';
+          }
+        }
+        typeSel.addEventListener('change', syncRow);
+        syncRow();
+        upBtn.addEventListener('click', function() { file.click(); });
+        file.addEventListener('change', function() {
+          if (!file.files || !file.files.length) return;
+          var f = file.files[0];
+          if (!f.type || f.type.indexOf('video/') !== 0) { hint.textContent = 'Please choose a video file.'; hint.style.color = '#f85'; return; }
+          if (f.size > 64 * 1024 * 1024) { hint.textContent = 'Video is too large (max 64MB).'; hint.style.color = '#f85'; return; }
+          hint.textContent = 'Uploading ' + f.name + '…';
+          hint.style.color = 'var(--dim)';
+          var headers = { 'Content-Type': f.type, 'x-bf-filename': f.name };
+          var name = localStorage.getItem('bf_portal_user') || '';
+          if (name) headers['x-bf-name'] = name;
+          var encoded = localStorage.getItem('bf_login_pass') || '';
+          var pass = '';
+          for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+          if (pass) headers['x-bf-pass'] = pass;
+          var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+          var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+          if (oauthProv && oauthId) { headers['x-bf-identity-type'] = oauthProv; headers['x-bf-identity-id'] = oauthId; }
+          var base = SRV_WS.replace(/^wss:/, 'https:');
+          fetch(base + '/api/upload', { method: 'POST', headers: headers, body: f })
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
+              if (res && res.ok && res.url) {
+                if (urlInput) urlInput.value = res.url;
+                hint.textContent = '✓ Uploaded — ready to publish.';
+                hint.style.color = '#4c4';
+              } else {
+                hint.textContent = 'Upload failed: ' + ((res && res.reason) || 'unknown error');
+                hint.style.color = '#f85';
+              }
+            })
+            .catch(function() { hint.textContent = 'Upload failed — could not reach the server.'; hint.style.color = '#f85'; });
+        });
       }
 
       // ── Mods & Addons catalog (mirrors public/mods.html) ──────────────
