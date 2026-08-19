@@ -1459,6 +1459,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '7ae5713',
+          heading: 'Self-healing chunk meshes + resilient HUD',
+          desc: 'A chunk whose mesh rebuild fails is no longer silently dropped (that is what left permanent ghost/invisible blocks). It now logs the error and re-queues for a retry, so a transient meshing failure heals itself instead of leaving a stuck block. The HUD subsystems (item name, underwater tint, XP bar, furnace) are each isolated in their own error boundary, so one failing call can never starve the health/hunger bars again — the bars always render in survival/adventure.',
+          date: 'Aug 19',
+          bugs: ['breaking/placing a block near a failing chunk rebuild left a permanent ghost/invisible block', 'a HUD subsystem error could prevent the health/hunger bars from ever rendering (HUD showed Survival but bars were empty)'],
+          updates: ['failed chunk mesh rebuilds re-queue and retry (up to 10x) instead of being dropped', 'console.error logs the exact chunk mesh failure so the cause is visible', 'each HUD update call has its own error boundary so the bars always update'],
+          features: [],
+        },
+        {
           hash: 'f1d54b1',
           heading: 'Mobile block fix, real voids, reload-safe edits, adventure status bars',
           desc: 'Fixes the mobile exploit where the last block in a hotbar stack never ran out (consumption cleared the offhand slot instead of the hotbar slot, so you could place forever). Void worlds (OneBlock, Skyblock, Bedwars, BlockZones...) are now a true void: the invisible bedrock floor below y=0 is removed, so you actually fall into the void and the minigame respawns you. World edits are now reapplied on reload/regeneration (previously saved builds could vanish when chunks regenerated). Health/hunger bars also show in adventure mode, matching Minecraft.',
