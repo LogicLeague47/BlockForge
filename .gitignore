@@ -19,3 +19,4 @@ downloads/
 # Oracle deployment secrets (never commit private keys)
 scripts/oracle/id_ed25519
 scripts/oracle/.ssh-config
+uploads/

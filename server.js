@@ -3,7 +3,7 @@
 
 import { WebSocketServer } from 'ws';
 import http from 'http';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
@@ -617,6 +617,11 @@ const MIME = {
   '.mp3': 'audio/mpeg',
   '.wav': 'audio/wav',
   '.ogg': 'audio/ogg',
+  '.mp4': 'video/mp4',
+  '.m4v': 'video/mp4',
+  '.webm': 'video/webm',
+  '.mov': 'video/quicktime',
+  '.ogv': 'video/ogg',
   '.woff': 'font/woff',
   '.woff2': 'font/woff2',
   '.ttf': 'font/ttf',
@@ -634,7 +639,17 @@ const DEV_USERNAMES = new Set(['logicleague', 'cdkide2']);
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS, POST',
+  'Access-Control-Allow-Headers': 'Content-Type, x-bf-name, x-bf-pass, x-bf-identity-type, x-bf-identity-id, x-bf-filename',
 };
+
+// ── News video uploads ───────────────────────────────────────────────
+// Videos uploaded for News posts are stored on the server's disk (ephemeral
+// on Render — wiped on redeploy) and served with Range support so the
+// browser player can seek. Uploads require a verified dev account.
+const UPLOADS_DIR = join(__dirname, 'uploads');
+const MAX_UPLOAD_BYTES = 64 * 1024 * 1024; // 64MB cap
+const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.mov', '.ogv']);
+function _videoMime(fname) { return MIME[extname(fname).toLowerCase()] || 'video/mp4'; }
 
 // ── Community mod store ──────────────────────────────────────────────
 // Uploaded .bfmod files are saved into community-mods/ (repo root). A build
@@ -1147,9 +1162,106 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // ── News video upload (dev-only) ───────────────────────────────────
+  // The portal uploads a raw video body (Content-Type: video/*) with dev
+  // credentials in custom headers; on success it stores the file under
+  // /uploads/ and returns a public URL the news card can embed.
+  if (pathname === '/api/upload' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-bf-name, x-bf-pass, x-bf-identity-type, x-bf-identity-id, x-bf-filename',
+    };
+    const name = req.headers['x-bf-name'] || '';
+    const pass = req.headers['x-bf-pass'] || '';
+    const idType = req.headers['x-bf-identity-type'] || '';
+    const idId = req.headers['x-bf-identity-id'] || '';
+    if (!String(req.headers['content-type'] || '').toLowerCase().startsWith('video/')) {
+      res.writeHead(400, h);
+      res.end(JSON.stringify({ ok: false, reason: 'Only video files can be uploaded.' }));
+      return;
+    }
+    (async () => {
+      const auth = await authAccount(name, pass, 'login');
+      let role = auth.ok ? (resolveRole(null, auth.username || name) || ROLE_PLAYER) : null;
+      if (!_isNewsPoster(role)) {
+        const linked = (idType && idId) ? findAccountByIdentity(idType, idId) : null;
+        if (linked) role = resolveRole(null, linked) || ROLE_PLAYER;
+      }
+      if (!_isNewsPoster(role)) {
+        res.writeHead(403, h);
+        res.end(JSON.stringify({ ok: false, reason: 'You need Developer permissions to upload videos.' }));
+        return;
+      }
+      const chunks = [];
+      let total = 0;
+      let tooBig = false;
+      req.on('data', c => { total += c.length; if (total > MAX_UPLOAD_BYTES) { tooBig = true; req.destroy(); } else { chunks.push(c); } });
+      req.on('end', () => {
+        if (tooBig || total > MAX_UPLOAD_BYTES) {
+          try { res.writeHead(413, h); res.end(JSON.stringify({ ok: false, reason: 'Video is too large (max 64MB).' })); } catch (_) {}
+          return;
+        }
+        const body = Buffer.concat(chunks);
+        if (body.length === 0) { res.writeHead(400, h); res.end(JSON.stringify({ ok: false, reason: 'Empty upload.' })); return; }
+        try {
+          mkdirSync(UPLOADS_DIR, { recursive: true });
+          const raw = String(req.headers['x-bf-filename'] || 'video.mp4');
+          const ext = extname(raw).toLowerCase();
+          const fname = randomBytes(8).toString('hex') + (VIDEO_EXTS.has(ext) ? ext : '.mp4');
+          writeFileSync(join(UPLOADS_DIR, fname), body);
+const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https' : 'http');
+          const baseUrl = `${proto}://${req.headers.host || 'localhost'}`;
+          res.writeHead(200, h);
+          res.end(JSON.stringify({ ok: true, url: baseUrl + '/uploads/' + fname, size: body.length }));
+        } catch (e) {
+          res.writeHead(500, h);
+          res.end(JSON.stringify({ ok: false, reason: 'Could not store the video.' }));
+        }
+      });
+    })().catch(() => { try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Upload failed.' })); } catch (_) {} });
+    return;
+  }
+
+  // Serve uploaded news videos with byte-range support (for seeking).
+  let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
+  if (urlPath.startsWith('/uploads/')) {
+    const upPath = join(UPLOADS_DIR, urlPath.slice('/uploads/'.length));
+    if (!upPath.startsWith(UPLOADS_DIR)) { res.writeHead(403, CORS); res.end('Forbidden'); return; }
+    try {
+      const stat = statSync(upPath);
+      if (!stat.isFile()) throw new Error('not a file');
+      const total = stat.size;
+      let start = 0, end = total - 1;
+      const range = req.headers.range;
+      if (range) {
+        const m = /bytes=(\d*)-(\d*)/.exec(range);
+        if (m) {
+          if (m[1]) start = parseInt(m[1], 10);
+          if (m[2]) end = parseInt(m[2], 10);
+          if (Number.isNaN(start)) start = 0;
+          if (Number.isNaN(end) || end >= total) end = total - 1;
+          if (start > end || start >= total) { res.writeHead(416, CORS); res.end(); return; }
+        }
+      }
+      res.writeHead(206, {
+        ...CORS,
+        'Content-Type': _videoMime(upPath),
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes ${start}-${end}/${total}`,
+        'Content-Length': end - start + 1,
+      });
+      createReadStream(upPath, { start, end }).pipe(res);
+    } catch (e) {
+      res.writeHead(404, CORS);
+      res.end(JSON.stringify({ ok: false, reason: 'Video not found' }));
+    }
+    return;
+  }
+
   // Serve download files from dist/downloads/ (generated by postbuild)
   // Fall back to GitHub Release for large binaries that can't live in git (>100MB).
-  let urlPath = decodeURIComponent((req.url || '/').split('?')[0]);
   if (urlPath.startsWith('/downloads/')) {
     const DL_DIR = join(PUBLIC_DIR, 'downloads');
     const dlPath = join(DL_DIR, urlPath.slice('/downloads/'.length));
