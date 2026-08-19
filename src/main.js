@@ -783,6 +783,7 @@ let breakingElapsed = 0;
 let lastBreakSound = 0;
 let miningSfxActive = false; // looping mining grit currently playing
 let placeAnimTimer = 0;
+let _plateCleanTimer = 0; // throttle for the pressure-plate cleanup scan (see _gameFrame)
 let _portalTeleportCooldown = 0;
 let _portalHomePos = null; // stored position before first portal teleport (for return trip)
 let _portalHomeVelocity = null; // saved velocity for return trip
@@ -4487,6 +4488,10 @@ function closeTutorial() {
 }
 
 // --- sky ---
+// Full day/night cycle length in seconds (Minecraft-style: 20 minutes).
+// DAY_FRAC is the fraction of the cycle that counts as daytime (10/16 = 0.625).
+const DAY_LENGTH = 1200;
+const DAY_FRAC = 10 / 16;
 let dayTime = 0.3;
 let totalDays = 1;
 
