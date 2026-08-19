@@ -1459,6 +1459,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'adedce4',
+          heading: 'Portal News/Updates upload fixed (password login)',
+          desc: 'Posting News/Updates finally works for password logins. The verify handshake validated your developer account and showed the post form, but the actual post was rejected with "You need Developer permissions" because the socket was never told who had just verified. Now the verified developer identity is attached to the socket, so the post goes through on the same connection. Verified end-to-end against a real server.',
+          date: 'Aug 19',
+          bugs: ['portal News/Updates form verified your developer account but the post was rejected as "You need Developer permissions" right after a successful password verify', 'news delete had the same socket-attach gap'],
+          updates: ['password-verified developer identities are now attached to the socket, so news_post/news_delete succeed on the same connection', 'verified end-to-end against a local server (register -> verify -> post -> posted ok)'],
+          features: [],
+        },
+        {
           hash: '0eb116e',
           heading: 'Game loop was dying every frame — blocks, HUD, mobs all frozen',
           desc: 'Two undeclared variables were throwing a ReferenceError every single frame in the game loop, and the frame-level error handler silently swallowed them. First _plateCleanTimer (used to throttle the pressure-plate cleanup scan) was never declared, so the moment you stepped off a plate the whole frame aborted BEFORE chunk meshes could rebuild — which is exactly why broken blocks stayed on screen as ghosts and placed blocks were invisible. Then DAY_LENGTH/DAY_FRAC (the day/night cycle constants) were never defined, so updateSky threw right after meshing, killing the rest of the frame: the health/hunger bars, weather, mobs, particles and multiplayer all froze — hence the empty bars under a "Survival" HUD. Both are fixed and verified in a full headless game run.',
