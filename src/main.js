@@ -9658,8 +9658,9 @@ function _gameFrame() {
     viewmodel.renderOverlay();
   }
 
-  // HUD update
-  ui.updateHud({
+  // HUD update — each subsystem is isolated so a single failure (e.g. a bad
+  // slot reference) can never starve the status bars or the rest of the HUD.
+  try { ui.updateHud({
     fps,
     pos: player.position,
     biome: world.biomeAt(
@@ -9671,13 +9672,13 @@ function _gameFrame() {
     facing: facingName(player.yaw),
     gamemode: player.gamemode,
     showFps,
-  });
-  ui.updateItemName(player.inventory, player.isCreative());
-  ui.setUnderwater(eye === BLOCK.WATER);
-  ui.updateXpBar(player.getXpProgress(), player.level);
+  }); } catch (e) { console.warn('HUD update failed:', e); }
+  try { ui.updateItemName(player.inventory, player.isCreative()); } catch (e) { console.warn('Item-name update failed:', e); }
+  try { ui.setUnderwater(eye === BLOCK.WATER); } catch (e) { console.warn('Underwater update failed:', e); }
+  try { ui.updateXpBar(player.getXpProgress(), player.level); } catch (e) { console.warn('XP bar update failed:', e); }
 
   // Furnace tick
-  ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id));
+  try { ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id)); } catch (e) { console.warn('Furnace tick failed:', e); }
 
   // Throttled status bar update — adventure keeps health/hunger like survival
   statusBarTimer += dt;

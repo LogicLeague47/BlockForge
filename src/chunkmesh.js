@@ -33,6 +33,7 @@ export class ChunkMeshManager {
     this._dirtySet = new Set();
     this._dirtyList = [];
     this._dirtyHead = 0;
+    this._retryCount = new Map(); // "cx,cz" -> consecutive failed rebuilds
     this.MESH_BUDGET_MS = _IS_MOBILE ? 4 : (_LOW_END ? 7 : 12);
   }
 
@@ -238,7 +239,23 @@ export class ChunkMeshManager {
       const { cx, cz } = list[idx];
       list[idx] = null;
       this._dirtySet.delete(cx + ',' + cz);
-      this._buildChunk(cx, cz);
+      try {
+        this._buildChunk(cx, cz);
+      } catch (e) {
+        // A chunk whose mesh build failed must NOT be silently dropped — that
+        // leaves a permanent ghost/invisible block until the chunk re-streams.
+        // Re-queue it for a later frame (bounded so a genuinely broken chunk
+        // can't spin the queue forever).
+        console.error('Chunk mesh build failed (' + cx + ',' + cz + '), will retry:', e);
+        const retries = this._retryCount.get(cx + ',' + cz) || 0;
+        if (retries < 10) {
+          this._retryCount.set(cx + ',' + cz, retries + 1);
+          this._dirtySet.add(cx + ',' + cz);
+          this._dirtyList.push({ cx, cz });
+        } else {
+          this._retryCount.delete(cx + ',' + cz);
+        }
+      }
     }
     if (this._dirtyHead >= list.length) {
       this._dirtyList.length = 0;
