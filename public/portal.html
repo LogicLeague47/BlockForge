@@ -1462,7 +1462,7 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'HASH',
+          hash: 'd3b1bb5',
           heading: 'In-game clock fixed + /time commands now match the real sun',
           desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts Minecraft-style tick values (1000/6000/13000/18000) as well.',
           date: 'Aug 20',
