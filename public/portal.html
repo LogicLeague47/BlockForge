@@ -1462,6 +1462,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'HASH',
+          heading: 'Clouds now cover the whole sky (was a sparse clump near spawn)',
+          desc: 'Clouds used to be generated as a few dozen random puffs scattered in a 200×200 block box around the world origin, so the sky was empty almost everywhere except a small clump near where you spawned — about 6-9 chunks of clouds and nothing else. The cloud layer is now placed on a dense, evenly-spaced grid that tiles the entire sky around you seamlessly (the same pattern the in-game wrap uses), so wherever you walk, fly or film, the sky is filled with drifting clouds instead of mostly empty blue. Each cloud is still a soft cluster of puffs that drifts and wraps around you, but now they share a single geometry and a few materials, so the fuller sky costs about the same to render.',
+          date: 'Aug 20',
+          bugs: ['clouds were only generated in a ~200×200 block box around the world origin', 'so most of the sky had zero clouds and coverage was a sparse clump around spawn'],
+          updates: ['clouds now placed on a jittered grid that covers the whole sky around the player and tiles seamlessly with the cloud wrap', 'fuller sky coverage (about 2.5x the clouds) with bigger puffs', 'clouds share one geometry and 3 shared materials so the denser sky stays cheap to render', 'low-end devices still get a lighter (but still full-coverage) cloud layer'],
+          features: [],
+        },
+        {
           hash: 'd3b1bb5',
           heading: 'In-game clock fixed + /time commands now match the real sun',
           desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts Minecraft-style tick values (1000/6000/13000/18000) as well.',
