@@ -95,6 +95,7 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
     seed: finalSeed,
     gamemode: gamemode || 'creative',
     difficulty: difficulty || 'normal',
+    cheats: opts.cheats !== false,
     flat: !!opts.flat,
     void: !!opts.void,
     dimension: !!opts.dimension,

@@ -1462,6 +1462,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '4bb49b5',
+          heading: 'Replay camera + world-gen "Allow Cheats" setting',
+          desc: 'A brand-new Replay camera (press Z or type /replay) detaches the camera from your player and turns it into a free-flying cinematic drone: WASD to glide, Space/Shift for up & down, mouse wheel for speed, HUD hidden — perfect for filming your builds or recording trailers. Worlds now have an "Allow Cheats" choice at creation (creative defaults to on, survival to off, picked once and locked in). Cheats on unlocks every command (including /replay and dev commands), F7 gamemode switching, and the replay camera; cheats off locks gameplay commands, F7 and the replay camera for a clean survival experience.',
+          date: 'Aug 20',
+          bugs: ['replay camera could previously be entered with no way for a survival world to block it', 'F7 gamemode switch was available in any singleplayer world regardless of game mode'],
+          updates: ['new Replay camera: free cinematic fly cam (Z key / /replay), HUD + player hidden, wheel speed', 'new world-gen "Allow Cheats" toggle (creative = on, survival = off by default; chosen once)', 'cheats on: all commands incl. /replay, dev commands and F7 gamemode unlocked', 'cheats off: gameplay commands, /replay and F7 are locked', 'world cards show a green ⚡ CHEATS badge; cheats travels with export/import', '/help now only lists commands your world actually allows'],
+          features: ['replay cinematic camera for players and trailer filming'],
+        },
+        {
           hash: '5435727',
           heading: 'Dev-only controls fixed + direct video uploads for News',
           desc: 'Non-dev accounts no longer show as developers: the portal previously trusted a ?role= URL parameter or a saved role, so anyone could look like a dev, and a CSS override left the developer section visible to everyone. The developer UI (badge, dev menu, news posting form) now only appears after the server actually verifies the account, and non-devs get the form hidden with a note — the server also rejects any non-dev post. News posts can now carry a directly uploaded video instead of a link: pick a file, it uploads to the server and plays inline in the news card with full seek support, YouTube-style.',

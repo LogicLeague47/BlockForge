@@ -2426,11 +2426,57 @@
       ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
       ::-webkit-scrollbar-thumb { background: rgba(100,140,255,0.25); border-radius: 3px; }
       ::-webkit-scrollbar-thumb:hover { background: rgba(100,140,255,0.45); }
+      /* Replay (free cinematic camera) mode: hide HUD + player chrome */
+      body.replay-mode #hotbar,
+      body.hud-hidden #hotbar,
+      body.replay-mode #crosshair,
+      body.hud-hidden #crosshair,
+      body.replay-mode #crosshair-dot,
+      body.hud-hidden #crosshair-dot,
+      body.replay-mode #attack-cooldown,
+      body.hud-hidden #attack-cooldown,
+      body.replay-mode #item-name,
+      body.hud-hidden #item-name,
+      body.replay-mode #xp-bar,
+      body.hud-hidden #xp-bar,
+      body.replay-mode #offhand-slot,
+      body.hud-hidden #offhand-slot,
+      body.replay-mode #armor-row,
+      body.hud-hidden #armor-row,
+      body.replay-mode #status-bars,
+      body.hud-hidden #status-bars,
+      body.replay-mode #hand-overlay,
+      body.hud-hidden #hand-overlay,
+      body.replay-mode #hud,
+      body.hud-hidden #hud,
+      body.replay-mode #coords-hud,
+      body.hud-hidden #coords-hud,
+      body.replay-mode #time-hud,
+      body.hud-hidden #time-hud,
+      body.replay-mode #mob-health,
+      body.hud-hidden #mob-health,
+      body.replay-mode #boss-health-bar,
+      body.hud-hidden #boss-health-bar,
+      body.replay-mode #chat-hud,
+      body.hud-hidden #chat-hud,
+      body.replay-mode #low-health-vignette,
+      body.hud-hidden #low-health-vignette,
+      body.replay-mode #player-list-overlay,
+      body.hud-hidden #player-list-overlay { display: none !important; }
+      #replay-badge {
+        display: none; position: fixed; top: 10px; left: 50%; transform: translateX(-50%);
+        z-index: 22; pointer-events: none; padding: 4px 12px; border-radius: 6px;
+        background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.2);
+        color: #9cf; font: bold 12px monospace; letter-spacing: 1px;
+        text-shadow: 0 1px 0 #000;
+      }
+      body.replay-mode #replay-badge { display: block; }
     </style>
   </head>
   <body>
     <div id="app"></div>
     <div id="crosshair"></div>
+    <div id="replay-badge">REPLAY</div>
     <div id="attack-cooldown"></div>
     <div id="item-name"></div>
     <div id="xp-bar"><div id="xp-bar-fill"></div><span id="xp-level">0</span></div>
@@ -2821,6 +2867,12 @@
                   <div class="mo-desc">Flat creative</div>
                 </div>
               </div>
+              <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;cursor:pointer;user-select:none;">
+                <input type="checkbox" id="input-cheats" style="width:16px;height:16px;margin-top:1px;accent-color:#4caf50;">
+                <span style="font:12px sans-serif;color:#cde;line-height:1.4;">Allow Cheats
+                  <span style="display:block;color:#778;font:10px sans-serif;">Commands, replay camera &amp; F7 gamemode. Picked once at world creation.</span>
+                </span>
+              </label>
             </div>
             <div class="create-preview-box" id="seed-preview-box">
               <canvas id="seed-preview-canvas" width="240" height="160" style="width:240px;height:160px;margin-top:4px;border-radius:4px;image-rendering:pixelated;border:1px solid rgba(100,100,120,0.4);display:block;"></canvas>

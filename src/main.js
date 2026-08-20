@@ -733,6 +733,7 @@ try {
 // --- sleep state ---
 let sleeping = false;
 let isDevWorld = false; // dev creative superflat test world
+let cheatsEnabled = false; // world-gen "Allow Cheats" setting (commands/replay/F7)
 let isParkour = false;   // parkour mode
 let isOneBlock = false;  // OneBlock minigame mode
 let isBedwars = false;   // Bedwars minigame mode
@@ -855,6 +856,14 @@ document.addEventListener('mousemove', (e) => {
     return;
   }
   if (!pointerLocked || !player) return;
+  if (replayMode) {
+    const sens = 0.0022 * (window.__mouseSens || 1.0);
+    replayCam.yaw -= e.movementX * sens;
+    replayCam.pitch -= e.movementY * sens;
+    const max = Math.PI / 2 - 0.01;
+    replayCam.pitch = Math.max(-max, Math.min(max, replayCam.pitch));
+    return;
+  }
   if (sleeping) return;
   player.applyMouse(e.movementX, e.movementY);
 });
@@ -1046,9 +1055,22 @@ document.addEventListener('mousemove', (e) => {
       syncUIMode();
     }
   }
+  // Z = toggle replay (free cinematic) camera
+  if (e.code === kb.replay && gameRunning && !ui.inventoryOpen && !chatOpen) {
+    e.preventDefault();
+    if (!cheatsEnabled) {
+      ui.itemNameEl.textContent = 'Cheats are disabled in this world';
+      ui.itemNameEl.classList.add('visible');
+      _itemNameTimer = 1.5;
+      return;
+    }
+    toggleReplayMode();
+    return;
+  }
   // F5 = cycle camera (1st person → 3rd person back → 3rd person front)
   if (e.code === kb.perspective) {
     e.preventDefault();
+    if (replayMode) return;
     player.cycleCamera();
     const modes = ['First Person', 'Third Person (Behind)', 'Third Person (Front)'];
     ui.itemNameEl.textContent = modes[player.cameraMode];
@@ -1065,12 +1087,16 @@ document.addEventListener('mousemove', (e) => {
     e.preventDefault();
     voiceChat.togglePanel();
   }
-  // F7 = toggle gamemode (singleplayer only) — locked inside minigames.
+  // F7 = toggle gamemode (singleplayer + cheats only) — locked inside minigames.
   if (e.code === 'F7') {
     e.preventDefault();
     const inMinigame = isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock;
     if (inMinigame) {
       ui.itemNameEl.textContent = 'Cannot change gamemode in minigames';
+      ui.itemNameEl.classList.add('visible');
+      setTimeout(() => ui.itemNameEl.classList.remove('visible'), 2000);
+    } else if (!cheatsEnabled) {
+      ui.itemNameEl.textContent = 'Cheats are disabled in this world';
       ui.itemNameEl.classList.add('visible');
       setTimeout(() => ui.itemNameEl.classList.remove('visible'), 2000);
     } else if (!isMultiplayer) {
@@ -1421,6 +1447,10 @@ function startRebind(action, btn) {
 // mouse wheel cycles hotbar (or the GunAffair arsenal)
 window.addEventListener('wheel', (e) => {
   if (!pointerLocked || !gameRunning) return;
+  if (replayMode) {
+    replayCam.speed = Math.max(2, Math.min(300, replayCam.speed * (e.deltaY > 0 ? 0.9 : 1.12)));
+    return;
+  }
   if (isGunAffair) {
     cycleGun(Math.sign(e.deltaY));
     return;
@@ -1443,6 +1473,7 @@ ui.onHotbarSelect = (i) => {
 
 // break / place on mouse buttons
 document.addEventListener('mousedown', (e) => {
+  if (replayMode) return; // no world interactions in replay camera
   if (!pointerLocked || ui.inventoryOpen || !gameRunning) return;
   if (player && player.isSpectator()) return; // no interactions in spectator
   audio.resume();
@@ -3228,8 +3259,8 @@ function submitChat() {
     // Command
     const cmdPart = text.slice(1).trim().split(/\s+/)[0].toLowerCase();
     const inMultiplayer = network.connected && network.roomName;
-    // Dev structure spawn commands (dev world only)
-    if (isDevWorld && DEV_STRUCTURES.includes(cmdPart)) {
+    // Dev structure spawn commands (dev world + cheats only)
+    if (isDevWorld && cheatsEnabled && DEV_STRUCTURES.includes(cmdPart)) {
       if (!world) return;
       const ox = Math.floor(player.position.x);
       const oy = Math.floor(player.position.y);
@@ -3249,8 +3280,8 @@ function submitChat() {
       addChatLine(`Placed ${cmdPart} at (${ox}, ${oy}, ${oz}).`, '#5f5');
       return;
     }
-    // /structure command (dev world only) — place any structure by name
-    if (isDevWorld && cmdPart === 'structure') {
+    // /structure command (dev world + cheats only) — place any structure by name
+    if (isDevWorld && cheatsEnabled && cmdPart === 'structure') {
       if (!world) return;
       const name = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!name) {
@@ -3277,9 +3308,9 @@ function submitChat() {
       addChatLine(`Placed ${name} at (${ox}, ${oy}, ${oz}).`, '#5f5');
       return;
     }
-    // Dev spawn animal commands (dev world only)
+    // Dev spawn animal commands (dev world + cheats only)
     const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer'];
-    if (isDevWorld && cmdPart === 'spawn') {
+    if (isDevWorld && cheatsEnabled && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
         addChatLine(`Usage: /spawn <${SPAWN_ANIMALS.join('|')}>`, '#f55');
@@ -3293,8 +3324,8 @@ function submitChat() {
       addChatLine(`Spawned ${animal} at (${Math.floor(sx)}, ${Math.floor(sy)}, ${Math.floor(sz)}).`, '#5f5');
       return;
     }
-    // /gamemode command — works in singleplayer; in multiplayer sent to server
-    if (cmdPart === 'gamemode' && !inMultiplayer) {
+    // /gamemode command — works in singleplayer with cheats; in multiplayer sent to server
+    if (cmdPart === 'gamemode' && (inMultiplayer || cheatsEnabled)) {
       const mode = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       const VALID_MODES = ['creative', 'survival', 'adventure', 'spectator'];
       if (!mode || !VALID_MODES.includes(mode)) {
@@ -3315,8 +3346,8 @@ function submitChat() {
       addChatLine(`Gamemode set to ${mode}.`, '#5f5');
       return;
     }
-    // /give command — singleplayer only
-    if (cmdPart === 'give' && !inMultiplayer) {
+    // /give command — singleplayer + cheats only
+    if (cmdPart === 'give' && !inMultiplayer && cheatsEnabled) {
       const args = text.slice(1).trim().split(/\s+/);
       const itemName = (args[1] || '').toUpperCase().replace(/ /g, '_');
       const count = parseInt(args[2]) || 1;
@@ -3340,8 +3371,8 @@ function submitChat() {
       addChatLine(`Gave ${count}x ${itemName}.`, '#5f5');
       return;
     }
-    // /time command — singleplayer only
-    if (cmdPart === 'time' && !inMultiplayer) {
+    // /time command — singleplayer + cheats only
+    if (cmdPart === 'time' && !inMultiplayer && cheatsEnabled) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (val === 'day' || val === '0') { dayTime = 0.01; addChatLine('Time set to day.', '#5f5'); }
       else if (val === 'night' || val === '13000') { dayTime = 0.625; addChatLine('Time set to night.', '#5f5'); }
@@ -3351,7 +3382,7 @@ function submitChat() {
       return;
     }
     // /difficulty command — singleplayer only
-    if (cmdPart === 'difficulty' && !inMultiplayer) {
+    if (cmdPart === 'difficulty' && !inMultiplayer && cheatsEnabled) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       const VALID_DIFF = ['peaceful', 'easy', 'normal', 'hard'];
       if (!val || !VALID_DIFF.includes(val)) {
@@ -3363,8 +3394,8 @@ function submitChat() {
       addChatLine(`Difficulty set to ${val}.`, '#5f5');
       return;
     }
-    // /tp command — singleplayer only
-    if (cmdPart === 'tp' && !inMultiplayer) {
+    // /tp command — singleplayer + cheats only
+    if (cmdPart === 'tp' && !inMultiplayer && cheatsEnabled) {
       const args = text.slice(1).trim().split(/\s+/);
       if (args.length >= 4 && player) {
         const x = parseFloat(args[1]) || 0;
@@ -3377,8 +3408,8 @@ function submitChat() {
       addChatLine('Usage: /tp <x> <y> <z>', '#f55');
       return;
     }
-    // /heal command — singleplayer only
-    if (cmdPart === 'heal' && !inMultiplayer) {
+    // /heal command — singleplayer + cheats only
+    if (cmdPart === 'heal' && !inMultiplayer && cheatsEnabled) {
       if (player) {
         player.health = player.maxHealth;
         player.hunger = player.maxHunger;
@@ -3389,16 +3420,16 @@ function submitChat() {
       }
       return;
     }
-    // /kill command — singleplayer only
-    if (cmdPart === 'kill' && !inMultiplayer) {
+    // /kill command — singleplayer + cheats only
+    if (cmdPart === 'kill' && !inMultiplayer && cheatsEnabled) {
       if (player) {
         player.health = 0;
         addChatLine('You died.', '#f55');
       }
       return;
     }
-    // /boss command — spawn the Ender Dragon
-    if (cmdPart === 'boss' && !inMultiplayer) {
+    // /boss command — spawn the Ender Dragon (cheats only)
+    if (cmdPart === 'boss' && !inMultiplayer && cheatsEnabled) {
       if (bossActive) { addChatLine('A boss is already active!', '#f55'); return; }
       if (!player || !mobManager || !scene) return;
       const bx = Math.round(player.position.x);
@@ -3413,8 +3444,8 @@ function submitChat() {
       addChatLine('The Prismite Dragon has appeared!', '#ff3');
       return;
     }
-    // /weather command — singleplayer only
-    if (cmdPart === 'weather' && !inMultiplayer) {
+    // /weather command — singleplayer + cheats only
+    if (cmdPart === 'weather' && !inMultiplayer && cheatsEnabled) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (val === 'clear') { weatherSystem?.setState('clear'); addChatLine('Weather set to clear.', '#5f5'); }
       else if (val === 'rain' || val === 'rainy') { weatherSystem?.setState('rain'); addChatLine('Weather set to rain.', '#5f5'); }
@@ -3422,22 +3453,35 @@ function submitChat() {
       else addChatLine('Usage: /weather <clear|rain|thunder>', '#f55');
       return;
     }
-    // /help command — singleplayer
+    // /replay command — toggle free cinematic camera (requires cheats)
+    if (cmdPart === 'replay') {
+      if (!cheatsEnabled) {
+        addChatLine('Cheats are disabled in this world — /replay is unavailable.', '#f55');
+        return;
+      }
+      toggleReplayMode();
+      return;
+    }
+    // /help command
     if (cmdPart === 'help') {
-      const cmds = [
-        '/gamemode <creative|survival|adventure|spectator>',
-        '/give <item> [count]',
-        '/tp <x> <y> <z>',
-        '/time <day|noon|night|midnight>',
-        '/difficulty <peaceful|easy|normal|hard>',
-        '/weather <clear|rain|thunder>',
-        '/heal — Restore health',
-        '/kill — Die',
-        '/boss — Spawn the Prismite Dragon',
-      ];
-      if (isDevWorld) {
-        cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager|blower|portalman>`);
-        cmds.push(`/village|house|blacksmith|well|farm|lamp|tower|desert_temple|jungle_temple — Spawn structure`);
+      const cmds = [];
+      if (cheatsEnabled) {
+        cmds.push(
+          '/gamemode <creative|survival|adventure|spectator>',
+          '/give <item> [count]',
+          '/tp <x> <y> <z>',
+          '/time <day|noon|night|midnight>',
+          '/difficulty <peaceful|easy|normal|hard>',
+          '/weather <clear|rain|thunder>',
+          '/replay — Free cinematic camera (Z key)',
+          '/heal — Restore health',
+          '/kill — Die',
+          '/boss — Spawn the Prismite Dragon',
+        );
+        if (isDevWorld) {
+          cmds.push(`/spawn <cow|pig|sheep|chicken|spider|zombie|skeleton|slime|villager|blower|portalman>`);
+          cmds.push(`/village|house|blacksmith|well|farm|lamp|tower|desert_temple|jungle_temple — Spawn structure`);
+        }
       }
       if (inMultiplayer) {
         cmds.push(
@@ -4495,6 +4539,73 @@ const DAY_FRAC = 10 / 16;
 let dayTime = 0.3;
 let totalDays = 1;
 
+// ── Replay mode: free cinematic camera (spectator-style) ──────────────
+// Toggle with the "replay" keybind (default Z) or `/replay`. While active the
+// camera detaches from the player and becomes a noclip free-fly camera:
+// WASD to move, Space/Shift to go up/down, mouse wheel to change speed, and
+// the normal mouse-look to rotate. HUD + player model are hidden so the view
+// is pure scenery — ideal for cinematics and recording trailers.
+let replayMode = false;
+const replayCam = {
+  pos: new THREE.Vector3(),
+  yaw: 0,
+  pitch: 0,
+  speed: 24,
+  _fromPos: new THREE.Vector3(),
+  _fromYaw: 0,
+  _fromPitch: 0,
+};
+
+function applyReplayMode() {
+  document.body.classList.toggle('replay-mode', replayMode);
+  if (playerModel) playerModel.setVisible(!replayMode);
+  viewmodel.setVisible(!replayMode);
+  if (replayMode) {
+    replayCam.pos.copy(camera.position);
+    replayCam.yaw = player ? player.yaw : 0;
+    replayCam.pitch = player ? player.pitch : 0;
+    if (player) player.velocity.set(0, 0, 0);
+    addChatLine('Replay camera: WASD to fly, Space/Shift up & down, wheel for speed, Z to exit.', '#9cf');
+  } else {
+    addChatLine('Replay camera off.', '#9cf');
+  }
+}
+
+function toggleReplayMode() {
+  if (!gameRunning || !player) return false;
+  replayMode = !replayMode;
+  if (replayMode) {
+    replayCam._fromPos.copy(camera.position);
+    replayCam._fromYaw = player.yaw;
+    replayCam._fromPitch = player.pitch;
+  } else {
+    camera.position.copy(replayCam._fromPos);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(replayCam._fromPitch, replayCam._fromYaw, 0);
+  }
+  applyReplayMode();
+  return replayMode;
+}
+
+function updateReplayCamera(dt) {
+  const kb = getKeybinds();
+  const fwd = (input.keys[kb.forward] ? 1 : 0) - (input.keys[kb.back] ? 1 : 0);
+  const strafe = (input.keys[kb.right] ? 1 : 0) - (input.keys[kb.left] ? 1 : 0);
+  const up = (input.keys[kb.jump] ? 1 : 0) - (input.keys[kb.sprint] ? 1 : 0);
+  const fx = -Math.sin(replayCam.yaw), fz = -Math.cos(replayCam.yaw);
+  const rx = Math.cos(replayCam.yaw), rz = -Math.sin(replayCam.yaw);
+  let mx = fx * fwd + rx * strafe;
+  let mz = fz * fwd + rz * strafe;
+  const len = Math.hypot(mx, mz);
+  if (len > 0) { mx /= len; mz /= len; }
+  const spd = replayCam.speed * dt;
+  replayCam.pos.x += mx * spd;
+  replayCam.pos.z += mz * spd;
+  replayCam.pos.y += up * spd;
+  const badge = document.getElementById('replay-badge');
+  if (badge) badge.textContent = 'REPLAY \u00d7' + (Math.round(replayCam.speed * 10) / 10);
+}
+
 // --- saplings ---
 // Planted saplings waiting to grow into trees: key "x,y,z" -> seconds elapsed.
 const _saplingGrowth = new Map();
@@ -4823,6 +4934,13 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   isSkyblock = !!opts.skyblock;
   _isImportedParkour = !!opts.importedParkour;
   currentWorldId = worldId;
+  // Cheats are a world-gen-only choice. Dev/creative worlds default to on,
+  // minigames/imported courses default to off, solo worlds honour the flag.
+  cheatsEnabled = isDevWorld
+    ? true
+    : (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock)
+      ? false
+      : opts.cheats !== false;
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || (VERY_LOW_END ? 4 : (LOW_END ? 5 : 7));
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
   // Mobile / low-end: hard-cap view distance so the GPU/CPU isn't meshing far chunks.
@@ -5696,6 +5814,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         if (!hasTutorialBeenSeen()) {
           setTimeout(() => showTutorial(), 500);
         }
+        if (cheatsEnabled) addChatLine('Cheats enabled — commands, replay camera (Z) and F7 gamemode are available.', '#9cf');
+        else addChatLine('Cheats disabled — gameplay commands are locked.', '#f99');
       }, 400);
     }).catch((err) => {
       console.error('[BlockForge] World load failed:', err);
@@ -6676,8 +6796,9 @@ function initMenu() {
     const isFlat = terrain === 'flat';
     const isAmplified = terrain === 'amplified';
     const isWeird = terrain === 'weird';
-    const w = createWorld(name, seed, mode, diff, { flat: isFlat, amplified: isAmplified, weird: isWeird });
-    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: w.flat, amplified: w.amplified, weird: w.weird });
+    const cheats = document.getElementById('input-cheats')?.checked ?? (mode === 'creative');
+    const w = createWorld(name, seed, mode, diff, { flat: isFlat, amplified: isAmplified, weird: isWeird, cheats });
+    startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: w.flat, amplified: w.amplified, weird: w.weird, cheats: w.cheats });
   });
   document.getElementById('btn-create-back').addEventListener('click', () => {
     ui.showMenu('worlds');
@@ -6693,6 +6814,13 @@ function initMenu() {
       else if (el.dataset.terrain) group = 'terrain';
       else return;
       const parent = el.closest('.mode-select') || el.parentElement;
+      // Auto-tie the cheats checkbox to the chosen mode (creative → on,
+      // survival → off). The player can flip it manually afterwards — it is
+      // only chosen at world generation and locked in once the world exists.
+      if (group === 'mode') {
+        const chk = document.getElementById('input-cheats');
+        if (chk) chk.checked = el.dataset.mode === 'creative';
+      }
       parent.querySelectorAll(`.mode-option`).forEach(m => m.classList.remove('selected'));
       el.classList.add('selected');
     });
@@ -7988,6 +8116,7 @@ function renderWorldList() {
       </div>
       <div style="display:flex;align-items:center;gap:6px;">
         <span class="wc-mode ${w.gamemode}">${w.gamemode.toUpperCase()}</span>
+        ${w.cheats ? '<span class="wc-mode" style="background:rgba(76,175,80,0.18);border-color:rgba(76,175,80,0.5);color:#9be89b;">⚡ CHEATS</span>' : ''}
         <button class="wc-export" title="Export world">&darr;</button>
         <button class="wc-delete" title="Delete world">&times;</button>
       </div>
@@ -8002,7 +8131,7 @@ function renderWorldList() {
       renderWorldList();
     });
     card.addEventListener('click', () => {
-      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, amplified: !!w.amplified, weird: !!w.weird });
+      startGame(w.id, w.seed, w.gamemode, w.difficulty, { flat: !!w.flat, amplified: !!w.amplified, weird: !!w.weird, cheats: w.cheats });
     });
     list.appendChild(card);
   }
@@ -8029,6 +8158,7 @@ function exportWorld(w) {
     gamemode: w.gamemode,
     difficulty: w.difficulty,
     flat: !!w.flat,
+    cheats: w.cheats,
     createdAt: w.createdAt,
     world: data || { seed: w.seed, edits: {} },
   }, null, 2);
@@ -8055,7 +8185,7 @@ function importWorldFromFile(file) {
         meta = parsed;
         data = parsed.world;
       } else if (parsed && typeof parsed === 'object' && 'seed' in parsed && 'edits' in parsed) {
-        meta = { name: parsed.name || 'Imported World', seed: parsed.seed, gamemode: parsed.gamemode || 'creative', difficulty: parsed.difficulty || 'normal', flat: !!parsed.flat };
+        meta = { name: parsed.name || 'Imported World', seed: parsed.seed, gamemode: parsed.gamemode || 'creative', difficulty: parsed.difficulty || 'normal', flat: !!parsed.flat, cheats: parsed.cheats !== false };
         data = parsed;
       }
       if (!data || typeof data !== 'object' || !('seed' in data && 'edits' in data)) {
@@ -8068,7 +8198,7 @@ function importWorldFromFile(file) {
         for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
         seed = h || 1;
       }
-      const world = createWorld(meta.name || 'Imported World', seed, meta.gamemode || 'creative', meta.difficulty || 'normal', { flat: !!meta.flat });
+      const world = createWorld(meta.name || 'Imported World', seed, meta.gamemode || 'creative', meta.difficulty || 'normal', { flat: !!meta.flat, cheats: meta.cheats });
       saveWorld(world.id, data);
       renderWorldList();
       showWorldToast('World imported: ' + (meta.name || 'Imported World'), true);
@@ -8345,7 +8475,7 @@ function _gameFrame() {
   if (isGunAffair && input.mouseLeftHeld && pointerLocked) {
     gunFire({ camera, player, world, mobManager, breakParticles, audio });
   }
-  if (!isGunAffair && input.mouseLeftHeld && pointerLocked) {
+  if (!isGunAffair && input.mouseLeftHeld && pointerLocked && !replayMode) {
     // Check for mob hit first
     if (mobManager && player) {
       const dir = _mobDirVec;
@@ -8542,8 +8672,8 @@ function _gameFrame() {
     for (const k in input.keys) input.keys[k] = false;
   }
 
-  // player physics (skip during sleep)
-  if (!sleeping) {
+  // player physics (skip during sleep / replay camera)
+  if (!sleeping && !replayMode) {
     player.update(dt, input);
 
     // Flush room edits that arrived while the world was loading (bedwars beds,
@@ -8924,7 +9054,7 @@ function _gameFrame() {
   // from the per-frame currentTarget() cache.
   const _mobDir = camera.getWorldDirection(_mobDirVec);
   const mobInWay = mobManager?.hitTest(camera.position, _mobDir, REACH);
-  if (target && !mobInWay) {
+  if (target && !mobInWay && !replayMode) {
     highlight.visible = true;
     highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
   } else {
@@ -8935,7 +9065,7 @@ function _gameFrame() {
 
   // Update player model visibility based on camera mode
   if (playerModel) {
-    const showModel = player.cameraMode !== 0;
+    const showModel = player.cameraMode !== 0 && !replayMode;
     playerModel.setVisible(showModel);
     if (showModel) {
       const isSwimming = player.inWater && !player.onGround;
@@ -9563,6 +9693,15 @@ function _gameFrame() {
       sun.target.position.copy(p).add(_shadowOffset);
       sun.target.updateMatrixWorld();
     }
+  }
+
+  // Replay camera overrides the player-attached camera each frame so the
+  // free cinematic camera is authoritative during replay mode.
+  if (replayMode) {
+    updateReplayCamera(dt);
+    camera.position.copy(replayCam.pos);
+    camera.rotation.order = 'YXZ';
+    camera.rotation.set(replayCam.pitch, replayCam.yaw, 0);
   }
 
   // Render scene
