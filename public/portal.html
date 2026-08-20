@@ -1462,6 +1462,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '0a0e7b5',
+          heading: 'Night is no longer pitch black — and daylight always returns',
+          desc: 'Night used to render the entire world as pure black: the sun, ambient and hemisphere lights all dropped to near zero and the sky itself turned black, so you could not see a thing (worst on the 99 Nights arena, where the sun is locked to night). Night is now lit Minecraft-style: a cool-blue moonlight takes over as the sun sets, the sky keeps a dark-navy tint instead of going black, and terrain stays readable under the stars. Also fixed the follow-up bug where, if you did NOT skip the night by sleeping, blocks stayed black even after the sun came back up: block lighting and the sky are now driven by the same cycle value (and light intensities are only ever smoothed toward targets, never hard-clamped), so the sky, fog and lighting can no longer desync — daylight always returns smoothly after a natural night.',
+          date: 'Aug 20',
+          bugs: ['night made every block and the sky render pitch black because sun/ambient/hemisphere light all dropped to near zero', 'after a night you did not sleep through, blocks stayed black even during the day (sky/fog were out of sync with block lighting)'],
+          updates: ['added a moonlight directional light that fades in at night so terrain keeps a cool blue cast, Minecraft-style', 'night ambient + hemisphere light now keep a moonlit floor instead of dropping to black', 'night sky is a dark navy, never pure black', 'light intensities are only ever smoothed toward targets (no hard-clamp), so daylight always returns', 'sky, fog and block lighting are all driven from the same cycle value so they can never desync'],
+          features: [],
+        },
+        {
           hash: '85b50f4',
           heading: 'Replay camera + world-gen "Allow Cheats" setting',
           desc: 'A brand-new Replay camera (press Z or type /replay) detaches the camera from your player and turns it into a free-flying cinematic drone: WASD to glide, Space/Shift for up & down, mouse wheel for speed, HUD hidden — perfect for filming your builds or recording trailers. Worlds now have an "Allow Cheats" choice at creation (creative defaults to on, survival to off, picked once and locked in). Cheats on unlocks every command (including /replay and dev commands), F7 gamemode switching, and the replay camera; cheats off locks gameplay commands, F7 and the replay camera for a clean survival experience.',

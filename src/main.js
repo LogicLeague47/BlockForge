@@ -436,6 +436,14 @@ const ambient = new THREE.AmbientLight(0x667799, 0.15);
 scene.add(ambient);
 const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
+// Moonlight: a dim cool light that takes over when the sun sets. Without it,
+// night scenes render pitch black — Minecraft keeps a faint blue cast so the
+// terrain stays readable. No shadows (moon shadows cost a second shadow pass
+// for almost no visual gain).
+const moonLight = new THREE.DirectionalLight(0x8899cc, 0);
+moonLight.castShadow = false;
+scene.add(moonLight);
+scene.add(moonLight.target);
 
 // --- sun & moon ---
 const sunMesh = new THREE.Mesh(
@@ -4674,6 +4682,7 @@ const _lerpB = new THREE.Color();
 const _lerpResult = new THREE.Color();
 const _nightColor = new THREE.Color();
 const _whiteColor = new THREE.Color(0xffffff);
+const _rainFog = new THREE.Color(0x8899aa);
 const _sunPos = new THREE.Vector3();
 const _cSunrise = new THREE.Color(0xff4400);
 const _cDaySun = new THREE.Color(0xfff5e0);
@@ -4688,6 +4697,9 @@ const _cAmbSunset = new THREE.Color(0x884422);
 const _cHemiDusk = new THREE.Color(0x111133);
 const _cHemiSunset = new THREE.Color(0xbb7733);
 const _cOrange = new THREE.Color(0xff8800);
+const _cMoonLight = new THREE.Color(0x8899cc);
+const _cAmbNight = new THREE.Color(0x334466);
+const _cHemiNight = new THREE.Color(0x5566aa);
 let _lastSinA = 0;
 function lerpColor(a, b, t) {
   t = Math.max(0, Math.min(1, t));
@@ -4732,30 +4744,23 @@ function updateSky(dt) {
   } else if (sinA > 0) {
     // Sunrise/sunset transition zone
     const t = sinA / 0.15;
-    const isRising = cosA > 0; // angle < π/2 means sunrise, angle > π/2 means sunset
-    if (isRising) {
-      skyColor = lerpColor(NIGHT_COLOR, DAWN_COLOR, t);
-    } else {
-      skyColor = lerpColor(DAWN_COLOR, NIGHT_COLOR, 1 - t);
-    }
+    skyColor = cosA > 0
+      ? lerpColor(NIGHT_COLOR, DAWN_COLOR, t)     // rising
+      : lerpColor(DAWN_COLOR, NIGHT_COLOR, 1 - t); // setting
   } else if (sinA > -0.15) {
     // Twilight zone near horizon
     const t = (sinA + 0.15) / 0.15;
-    const isDusk = cosA > 0; // angle just past π = sunset side
-    if (isDusk) {
-      skyColor = lerpColor(NIGHT_COLOR, DUSK_COLOR, t);
-    } else {
-      skyColor = lerpColor(NIGHT_COLOR, DUSK_COLOR, t);
-    }
+    skyColor = lerpColor(NIGHT_COLOR, DUSK_COLOR, t);
   } else {
-    // Deep night
+    // Deep night — dark navy (never pure black, matching Minecraft's sky).
     skyColor = _nightColor.set(NIGHT_COLOR);
   }
 
   scene.background.copy(skyColor);
   scene.fog.color.copy(skyColor);
 
-  // Weather: darken sky during rain
+  // Weather: darken sky during rain (the fog override below reuses whatever
+  // scene.background became here, so rain tint survives).
   if (weatherSystem) {
     const ri = weatherSystem.getRainIntensity();
     if (ri > 0.01) {
@@ -4791,11 +4796,27 @@ function updateSky(dt) {
   // Golden hour: boost warmth when sun is near the horizon
   const nearHorizon = Math.abs(sinA) < 0.3;
   const goldenBoost = nearHorizon ? 1.0 + (0.5 * (1 - Math.abs(sinA) / 0.3)) : 1.0;
-  sun.intensity = Math.max(0.15, sinA * 0.5 + 0.5) * 2.0 * goldenBoost;
 
-  // Smooth ambient/hemi transitions by lerping toward targets
-  const targetAmbientI = 0.08 + Math.max(0, sinA) * 0.35;
-  const targetHemiI = 0.04 + Math.max(0, sinA) * 0.15;
+  // dayAmt 1 = full daylight, 0 = deep night. Every light below is driven from
+  // this single value (plus the sun angle), so the world can never desync from
+  // the sky or get stuck black after a night that wasn't skipped.
+  const dayAmt = Math.max(0, Math.min(1, (sinA + 0.15) / 0.3));
+  const nightAmt = 1 - dayAmt;
+
+  // Moonlight — the sun fades out at night and the moon takes over, keeping a
+  // cool blue cast on terrain instead of pitch black.
+  sun.intensity = Math.max(0, sinA) * 2.0 * goldenBoost;
+  moonLight.intensity += (0.38 * nightAmt - moonLight.intensity) * Math.min(1, dt * 4);
+  moonLight.color.copy(_cMoonLight);
+  moonMesh.position.set(-Math.cos(angle) * 500 + sunBaseX, -Math.sin(angle) * 500, -Math.sin(angle * 0.7) * 200 + sunBaseZ);
+  moonLight.position.set(moonMesh.position.x, moonMesh.position.y, moonMesh.position.z);
+  moonLight.target.position.set(sunBaseX, player ? player.position.y : 0, sunBaseZ);
+
+  // Ambient / hemisphere: always keep a moonlit floor on at night. These are
+  // only ever lerped toward targets (never hard-clamped), so daylight always
+  // returns smoothly after a natural night.
+  const targetAmbientI = 0.06 + dayAmt * 0.42 + nightAmt * 0.26;
+  const targetHemiI = 0.04 + dayAmt * 0.18 + nightAmt * 0.12;
   ambient.intensity += (targetAmbientI - ambient.intensity) * Math.min(1, dt * 5);
   hemi.intensity += (targetHemiI - hemi.intensity) * Math.min(1, dt * 5);
 
@@ -4818,12 +4839,10 @@ function updateSky(dt) {
     ambient.color.lerpColors(_cAmbDusk, _cAmbSunset, (sinA + 0.05) / 0.1);
     hemi.color.lerpColors(_cHemiDusk, _cHemiSunset, (sinA + 0.05) / 0.1);
   } else {
-    sun.color.setHex(0x220022);
-    sun.intensity = 0.05;
-    ambient.color.setHex(0x111122);
-    ambient.intensity = 0.04;
-    hemi.color.setHex(0x111133);
-    hemi.intensity = 0.02;
+    // Deep night — cool moonlit colors, far from black.
+    sun.color.copy(_cMoonLight);
+    ambient.color.copy(_cAmbNight);
+    hemi.color.copy(_cHemiNight);
   }
   // Darken ambient light during rain
   if (weatherSystem) {
@@ -4834,7 +4853,6 @@ function updateSky(dt) {
     }
   }
   sunMesh.position.copy(sun.position);
-  moonMesh.position.set(-Math.cos(angle) * 500 + sunBaseX, -Math.sin(angle) * 500, -Math.sin(angle * 0.7) * 200 + sunBaseZ);
 }
 
 // =========================================================
@@ -9434,12 +9452,12 @@ function _gameFrame() {
     const fogFar = 16 * (renderDist + 2) * (isRaining ? 0.6 : 1.0);
     scene.fog.far = fogFar;
     scene.fog.near = fogFar * 0.35;
+    // Reuse the dynamic sky color that updateSky computed (already rain/thunder
+    // tinted) so fog, background and lights all agree on the time of day.
     if (isRaining) {
-      scene.fog.color.setHex(0x8899aa);
-    } else if (dayTime < 0.2 || dayTime > 0.8) {
-      scene.fog.color.setHex(0x1a1a2e);
+      scene.fog.color.copy(scene.background).lerp(_rainFog, 0.65);
     } else {
-      scene.fog.color.copy(skyColor);
+      scene.fog.color.copy(scene.background);
     }
     scene.background.copy(scene.fog.color);
     if (underwaterOverlay) underwaterOverlay.style.display = 'none';
