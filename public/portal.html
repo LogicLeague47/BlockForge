@@ -1462,12 +1462,12 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '2d3b33c',
-          heading: 'Clouds now cover the whole sky (was a sparse clump near spawn)',
-          desc: 'Clouds used to be generated as a few dozen random puffs scattered in a 200×200 block box around the world origin, so the sky was empty almost everywhere except a small clump near where you spawned — about 6-9 chunks of clouds and nothing else. The cloud layer is now placed on a dense, evenly-spaced grid that tiles the entire sky around you seamlessly (the same pattern the in-game wrap uses), so wherever you walk, fly or film, the sky is filled with drifting clouds instead of mostly empty blue. Each cloud is still a soft cluster of puffs that drifts and wraps around you, but now they share a single geometry and a few materials, so the fuller sky costs about the same to render.',
+          hash: 'HASH',
+          heading: 'Clouds now stretch across the whole world',
+          desc: 'Clouds used to be generated as a few dozen random puffs in a small box around the world origin, so the sky was empty almost everywhere except a clump near spawn — about 6-9 chunks of clouds and nothing else. The cloud layer is now a dense, evenly-spaced field that stretches ±320 blocks around you — well past the maximum render distance — so clouds fill the sky all the way to the horizon wherever you walk, fly or film. The field is rendered with hardware instancing (a few draw calls for the whole sky) and the far edge fades into the fog, so you never see a hard boundary where the clouds end.',
           date: 'Aug 20',
-          bugs: ['clouds were only generated in a ~200×200 block box around the world origin', 'so most of the sky had zero clouds and coverage was a sparse clump around spawn'],
-          updates: ['clouds now placed on a jittered grid that covers the whole sky around the player and tiles seamlessly with the cloud wrap', 'fuller sky coverage (about 2.5x the clouds) with bigger puffs', 'clouds share one geometry and 3 shared materials so the denser sky stays cheap to render', 'low-end devices still get a lighter (but still full-coverage) cloud layer'],
+          bugs: ['clouds were only generated in a ~200×200 block box around the world origin', 'so most of the sky had zero clouds and coverage was a sparse clump around spawn', 'the cloud layer ended just past render distance with a hard visible edge'],
+          updates: ['clouds now placed on a jittered grid stretching ±320 blocks around you (past max render distance), so they cover the whole sky to the horizon', 'cloud field tiles seamlessly with the in-game wrap, so coverage stays uniform wherever you go', 'clouds now fade into the fog/sky at distance, so there is no visible edge where the field ends', 'whole cloud field rendered with instancing: one draw call per opacity layer instead of hundreds of meshes', 'low-end devices still get a lighter (but still full-coverage) cloud layer'],
           features: [],
         },
         {

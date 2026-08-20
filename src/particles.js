@@ -335,11 +335,20 @@ export class AmbientParticles {
 
 // ── Procedural Clouds ──────────────────────────────────────────────────
 
-// Cloud wrap window kept by update() — clouds are wrapped by ±WRAP*2 to stay
-// within ±WRAP of the player. The build grid below tiles the plane with the
-// same period (2*WRAP), so the layer covers the whole sky seamlessly instead
-// of a sparse clump of puffs around the world origin.
-const CLOUD_WRAP = 120;
+// The cloud field stretches ±CLOUD_FIELD_HALF blocks around the player — well
+// past the max render distance (10 chunks → fog far 192) — so clouds cover the
+// whole sky all the way to the horizon instead of a small window around spawn.
+// Clouds drift slowly and wrap at ±CLOUD_FIELD_HALF; the build grid repeats
+// with the same period (2*CLOUD_FIELD_HALF), so a wrapped cloud lands exactly
+// on an equivalent grid cell and coverage stays uniform everywhere. Clouds are
+// rendered as InstancedMeshes (one draw call per opacity bucket) so the field
+// can be huge without thousands of draw calls, and they respect fog so the far
+// edge fades into the sky color instead of showing a hard boundary.
+const CLOUD_FIELD_HALF = 320;
+
+const _cloudQuat = new THREE.Quaternion();
+const _cloudScale = new THREE.Vector3();
+const _cloudPos = new THREE.Vector3();
 
 export class CloudSystem {
   constructor(scene) {
@@ -348,88 +357,109 @@ export class CloudSystem {
     this.group.renderOrder = -1;
     scene.add(this.group);
     this.clouds = [];
+    this._meshes = [];
     this._lastBrightness = -1;
     this._lastTintR = -1;
     this._lastTintG = -1;
     this._lastTintB = -1;
-    // One shared unit cube + a few shared opacity-bucket materials: every puff
-    // is a scaled clone of the same geometry, so ~100 clouds cost ~5 geometries
-    // and 3 materials instead of hundreds of unique ones.
     this._geo = new THREE.BoxGeometry(1, 1, 1);
     this._mats = [0.5, 0.68, 0.86].map(opacity => new THREE.MeshBasicMaterial({
       color: 0xffffff,
       transparent: true,
       opacity,
-      fog: false,
+      fog: true,
       depthWrite: false,
     }));
+    this._mat4 = new THREE.Matrix4();
     this._buildClouds();
   }
 
   _buildClouds() {
     const lowEnd = ('ontouchstart' in window && navigator.maxTouchPoints > 0) || (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 4) <= 4;
-    // Grid cell size: 24 blocks full quality, 40 on low-end. The grid fills the
-    // ±CLOUD_WRAP window and is periodic with period 2*CLOUD_WRAP, matching the
-    // wrap in update() so coverage is uniform wherever the player goes.
-    const cell = lowEnd ? 40 : 24;
-    const cellsPerAxis = Math.floor((CLOUD_WRAP * 2) / cell);
-    const gridOffset = -(CLOUD_WRAP - cell / 2);
+    // Grid cell size: 24 blocks full quality, 44 on low-end. The grid fills the
+    // ±CLOUD_FIELD_HALF window and is periodic with period 2*CLOUD_FIELD_HALF,
+    // matching the wrap in update() so coverage is uniform wherever the player
+    // goes. ~27×27 = 729 clouds full quality, ~15×15 = 225 on low-end.
+    const cell = lowEnd ? 44 : 24;
+    const cellsPerAxis = Math.ceil((CLOUD_FIELD_HALF * 2) / cell);
+    const gridOffset = -CLOUD_FIELD_HALF;
     const height = 80;
+
+    // Per-opacity-bucket instance data, plus per-cloud drift records.
+    const buckets = [[], [], []];
 
     for (let i = 0; i < cellsPerAxis; i++) {
       for (let j = 0; j < cellsPerAxis; j++) {
-        const cloudGroup = new THREE.Group();
+        const cloud = {
+          x: gridOffset + cell * i + (Math.random() - 0.5) * (cell * 0.4),
+          z: gridOffset + cell * j + (Math.random() - 0.5) * (cell * 0.4),
+          y: height + (Math.random() - 0.5) * 8,
+          speed: 0.3 + Math.random() * 0.5,
+          puffs: [],
+        };
 
         // Each cloud is a cluster of soft white boxes
         const puffCount = lowEnd ? 3 : (3 + Math.floor(Math.random() * 3));
-        const baseX = gridOffset + cell * i + (Math.random() - 0.5) * (cell * 0.4);
-        const baseZ = gridOffset + cell * j + (Math.random() - 0.5) * (cell * 0.4);
-        const baseY = height + (Math.random() - 0.5) * 8;
-
         for (let k = 0; k < puffCount; k++) {
-          const w = 4 + Math.random() * 6;
-          const h = 1.2 + Math.random() * 1.3;
-          const d = 3 + Math.random() * 5;
-          const puff = new THREE.Mesh(this._geo, this._mats[Math.floor(Math.random() * this._mats.length)]);
-          puff.scale.set(w, h, d);
-          puff.position.set(
-            (Math.random() - 0.5) * 7,
-            (Math.random() - 0.5) * 1.5,
-            (Math.random() - 0.5) * 5
-          );
-          cloudGroup.add(puff);
+          const bucket = Math.floor(Math.random() * 3);
+          const puff = {
+            ox: (Math.random() - 0.5) * 7,
+            oy: (Math.random() - 0.5) * 1.5,
+            oz: (Math.random() - 0.5) * 5,
+            w: 4 + Math.random() * 6,
+            h: 1.2 + Math.random() * 1.3,
+            d: 3 + Math.random() * 5,
+            bucket,
+            idx: buckets[bucket].length,
+          };
+          cloud.puffs.push(puff);
+          buckets[puff.bucket].push(puff);
         }
-
-        cloudGroup.position.set(baseX, baseY, baseZ);
-        this.group.add(cloudGroup);
-        this.clouds.push({
-          group: cloudGroup,
-          speed: 0.3 + Math.random() * 0.5,
-          baseX,
-          baseZ,
-        });
+        this.clouds.push(cloud);
       }
     }
+
+    this._meshes = this._mats.map((mat, b) => {
+      const list = buckets[b];
+      const mesh = new THREE.InstancedMesh(this._geo, mat, list.length);
+      // Instances move via wrap every frame; culling against the mesh's static
+      // bounds would hide them, so disable it and let the GPU clip off-screen.
+      mesh.frustumCulled = false;
+      for (const p of list) {
+        _cloudPos.set(p.ox, p.oy, p.oz);
+        _cloudScale.set(p.w, p.h, p.d);
+        this._mat4.compose(_cloudPos, _cloudQuat, _cloudScale);
+        mesh.setMatrixAt(p.idx, this._mat4);
+      }
+      mesh.instanceMatrix.needsUpdate = true;
+      this.group.add(mesh);
+      return mesh;
+    });
   }
 
   update(dt, dayTime, playerX, playerZ, sinA) {
-    // Drift clouds independently within the layer
+    // Drift clouds independently and wrap them back into the field around the
+    // player. Because the build grid has the same 2*CLOUD_FIELD_HALF period,
+    // wrapping by ±2*CLOUD_FIELD_HALF lands each cloud on an equivalent grid
+    // cell, so coverage stays uniform and seamless as the player moves.
     for (const c of this.clouds) {
-      c.group.position.x += c.speed * dt;
-    }
+      c.x += c.speed * dt;
+      const dx = c.x - playerX;
+      if (dx > CLOUD_FIELD_HALF) c.x -= CLOUD_FIELD_HALF * 2;
+      else if (dx < -CLOUD_FIELD_HALF) c.x += CLOUD_FIELD_HALF * 2;
+      const dz = c.z - playerZ;
+      if (dz > CLOUD_FIELD_HALF) c.z -= CLOUD_FIELD_HALF * 2;
+      else if (dz < -CLOUD_FIELD_HALF) c.z += CLOUD_FIELD_HALF * 2;
 
-    // Wrap clouds to stay within ~CLOUD_WRAP of the player (world-space, no
-    // follow). Because the build grid has the same 2*CLOUD_WRAP periodicity,
-    // wrapping a cloud by ±240 lands it exactly on an equivalent grid cell, so
-    // coverage stays uniform and seamless as the player moves.
-    for (const c of this.clouds) {
-      const dx = c.group.position.x - playerX;
-      if (dx > CLOUD_WRAP) c.group.position.x -= CLOUD_WRAP * 2;
-      else if (dx < -CLOUD_WRAP) c.group.position.x += CLOUD_WRAP * 2;
-      const dz = c.group.position.z - playerZ;
-      if (dz > CLOUD_WRAP) c.group.position.z -= CLOUD_WRAP * 2;
-      else if (dz < -CLOUD_WRAP) c.group.position.z += CLOUD_WRAP * 2;
+      const cy = c.y;
+      for (const p of c.puffs) {
+        _cloudPos.set(c.x + p.ox, cy + p.oy, c.z + p.oz);
+        _cloudScale.set(p.w, p.h, p.d);
+        this._mat4.compose(_cloudPos, _cloudQuat, _cloudScale);
+        this._meshes[p.bucket].setMatrixAt(p.idx, this._mat4);
+      }
     }
+    for (const m of this._meshes) m.instanceMatrix.needsUpdate = true;
 
     // Cloud brightness follows day/night
     const sA = sinA !== undefined ? sinA : (dayTime !== undefined ? Math.sin(dayTime * Math.PI * 2 - Math.PI * 0.5) : 1);
@@ -438,13 +468,8 @@ export class CloudSystem {
     // Golden hour tint: orange/pink when sun is near horizon
     const nearHorizon = Math.abs(sA) < 0.3;
     let tintR = 1, tintG = 1, tintB = 1;
-    if (nearHorizon && sA > 0) {
-      const warmth = 1 - sA / 0.3;
-      tintR = 1;
-      tintG = 0.7 + warmth * 0.2;
-      tintB = 0.5 + warmth * 0.3;
-    } else if (nearHorizon && sA < 0) {
-      const warmth = 1 + sA / 0.3;
+    if (nearHorizon) {
+      const warmth = 1 - Math.abs(sA) / 0.3;
       tintR = 1;
       tintG = 0.7 + warmth * 0.2;
       tintB = 0.5 + warmth * 0.3;
@@ -457,20 +482,16 @@ export class CloudSystem {
       this._lastBrightness = br;
       this._lastTintG = bg;
       this._lastTintB = bb;
-      for (const c of this.clouds) {
-        for (const child of c.group.children) {
-          if (child.material) {
-            child.material.color.setRGB(br, bg, bb);
-          }
-        }
-      }
+      for (const m of this._meshes) m.material.color.setRGB(br, bg, bb);
     }
   }
 
   clear() {
-    for (const c of this.clouds) {
-      this.group.remove(c.group);
+    for (const m of this._meshes) {
+      this.group.remove(m);
+      m.dispose();
     }
+    this._meshes.length = 0;
     this.clouds.length = 0;
     if (this._geo) { this._geo.dispose(); this._geo = null; }
     if (this._mats) {
