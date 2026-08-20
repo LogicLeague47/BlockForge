@@ -1462,6 +1462,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'HASH',
+          heading: 'In-game clock fixed + /time commands now match the real sun',
+          desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts Minecraft-style tick values (1000/6000/13000/18000) as well.',
+          date: 'Aug 20',
+          bugs: ['HUD clock showed ~4h ahead of the actual sun position (midnight was mapped to the start of the cycle instead of dayTime 0.8125)', '/time day set the world to just-past-midnight dawn (still dark)', '/time noon set late afternoon and /time midnight set sunrise'],
+          updates: ['clock mapped to the real solar cycle: sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00', '/time day → morning with the sun up', '/time noon → sun at its highest', '/time midnight → true night', '/time accepts Minecraft tick values too (/time 1000, 6000, 13000, 18000)'],
+          features: [],
+        },
+        {
           hash: '60d6964',
           heading: 'Night is no longer pitch black — and daylight always returns',
           desc: 'Night used to render the entire world as pure black: the sun, ambient and hemisphere lights all dropped to near zero and the sky itself turned black, so you could not see a thing (worst on the 99 Nights arena, where the sun is locked to night). Night is now lit Minecraft-style: a cool-blue moonlight takes over as the sun sets, the sky keeps a dark-navy tint instead of going black, and terrain stays readable under the stars. Also fixed the follow-up bug where, if you did NOT skip the night by sleeping, blocks stayed black even after the sun came back up: block lighting and the sky are now driven by the same cycle value (and light intensities are only ever smoothed toward targets, never hard-clamped), so the sky, fog and lighting can no longer desync — daylight always returns smoothly after a natural night.',

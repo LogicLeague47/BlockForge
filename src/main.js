@@ -164,11 +164,21 @@ function applyGraphicsQuality() {
 // gestures — single taps are left alone so click handlers still fire.
 if (IS_MOBILE) {
   let _lastTapTime = 0; // timestamp of the last touchend, used below
+  let _lastTapX = -1, _lastTapY = -1; // position of the last tap
   document.addEventListener('touchend', (e) => {
     if (e.changedTouches.length > 1) { e.preventDefault(); return; }
+    const t = e.changedTouches[0];
     const now = Date.now();
-    if (now - _lastTapTime <= 300) e.preventDefault();
+    // Only treat it as a double-tap-zoom when the two taps land close together
+    // (iOS zooms on two taps near the same spot). Rapid taps in different spots
+    // are separate actions and must NOT be suppressed, or fast placing/mining
+    // on mobile drops inputs.
+    const dx = _lastTapX >= 0 ? t.clientX - _lastTapX : 1e9;
+    const dy = _lastTapY >= 0 ? t.clientY - _lastTapY : 1e9;
+    if (now - _lastTapTime <= 300 && Math.hypot(dx, dy) < 30) e.preventDefault();
     _lastTapTime = now;
+    _lastTapX = t.clientX;
+    _lastTapY = t.clientY;
   }, { passive: false });
   // Also block pinch-zoom gestures (iOS Safari).
   document.addEventListener('gesturestart', (e) => e.preventDefault());
@@ -3382,10 +3392,10 @@ function submitChat() {
     // /time command — singleplayer + cheats only
     if (cmdPart === 'time' && !inMultiplayer && cheatsEnabled) {
       const val = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
-      if (val === 'day' || val === '0') { dayTime = 0.01; addChatLine('Time set to day.', '#5f5'); }
+      if (val === 'day' || val === '1000') { dayTime = 0.1; addChatLine('Time set to day.', '#5f5'); }
       else if (val === 'night' || val === '13000') { dayTime = 0.625; addChatLine('Time set to night.', '#5f5'); }
-      else if (val === 'noon') { dayTime = 0.5; addChatLine('Time set to noon.', '#5f5'); }
-      else if (val === 'midnight') { dayTime = 0; addChatLine('Time set to midnight.', '#5f5'); }
+      else if (val === 'noon' || val === '6000') { dayTime = 0.3125; addChatLine('Time set to noon.', '#5f5'); }
+      else if (val === 'midnight' || val === '18000') { dayTime = 0.8125; addChatLine('Time set to midnight.', '#5f5'); }
       else addChatLine('Usage: /time <day|noon|night|midnight>', '#f55');
       return;
     }
@@ -4660,9 +4670,11 @@ function updateCoordsHud(dt) {
 function updateTimeHud() {
   const el = document.getElementById('time-hud');
   if (!el || !player) return;
-  // dayTime 0..1: 0=noon start, 0.625=midnight, 0.875=sunrise
-  // Map to a 24h clock: dayTime 0 -> 12:00, 0.5 -> 00:00
-  const totalMins = dayTime * 24 * 60;
+  // Solar model: dayTime 0 = sunrise, 0.3125 = noon (sun highest),
+  // 0.625 = sunset, 0.8125 = midnight, 1.0 = sunrise again.
+  // Map to a 24h clock with sunrise ≈ 4:30, noon = 12:00, sunset ≈ 19:30,
+  // midnight = 00:00 (offset of 270 mins = 4h30 from the raw dayTime * 24h).
+  const totalMins = (dayTime * 24 * 60 + 270) % (24 * 60);
   const hrs = Math.floor(totalMins / 60) % 24;
   const mins = Math.floor(totalMins % 60);
   const timeStr = `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
