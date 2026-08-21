@@ -3846,6 +3846,7 @@ function joinServerByAddress(address) {
   const errEl = document.getElementById('mp-error');
   if (errEl) errEl.textContent = '';
   addChatLine('Connecting to ' + address + '…', '#7af', true);
+  stopMpStatusTimer();
   if (network.connected) network.disconnect();
   network.connect(address);
   network.onConnectedOnce(() => {
@@ -3869,6 +3870,11 @@ function showWorldsView() {
   if (wp) wp.style.display = '';
 }
 
+// Minecraft-style: while the Multiplayer menu is open, keep pinging saved
+// servers so their live status (name / MOTD / players) stays current.
+let _mpStatusTimer = null;
+function stopMpStatusTimer() { if (_mpStatusTimer) { clearInterval(_mpStatusTimer); _mpStatusTimer = null; } }
+
 function showMultiplayerMenu() {
   if (playerName.startsWith('Guest')) {
     addChatLine('Create an account to play multiplayer!', '#fa0');
@@ -3880,6 +3886,8 @@ function showMultiplayerMenu() {
   renderSavedServers();
   showServersView();
   ui.showMenu('multiplayer');
+  stopMpStatusTimer();
+  _mpStatusTimer = setInterval(() => renderSavedServers(), 5000);
 
   // Connect to server and fetch remote room list
   if (!network.connected) {
@@ -6809,6 +6817,7 @@ function initMenu() {
   if (addModal) addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
   document.getElementById('btn-refresh-servers')?.addEventListener('click', () => renderSavedServers());
   document.getElementById('btn-mp-back').addEventListener('click', () => {
+    stopMpStatusTimer();
     ui.showMenu('main');
   });
 
@@ -10546,5 +10555,12 @@ document.getElementById('ai-data-page')?.addEventListener('click', () => {
     }
   } catch (_) {}
 })();
+
+// Auto-connect to the official backend on launch — like Minecraft's always-online
+// main menu, so social (friends / DMs / accounts) is live immediately. Auth still
+// only happens on login; this is just the socket.
+if (!network.connected) {
+  try { network.connect(BACKEND_URL); } catch (_) { console.warn('auto-connect to backend failed'); }
+}
 
 requestAnimationFrame(loop);

@@ -1473,6 +1473,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'd636418',
+          heading: 'Servers auto-connect like Minecraft + game is online on launch',
+          desc: 'The Multiplayer menu now behaves like Minecraft Java: the moment you open it your saved servers are pinged for live status, and they keep re-pinging every few seconds while the menu is open so you always see current players / MOTD without pressing refresh. On top of that, BlockForge now opens already connected to the official backend (like Minecraft\'s always-online main menu), so your friends list, DMs and account are live the instant the game loads — you no longer have to log in first to see social. Joining a server or backing out of Multiplayer stops the background pings cleanly.',
+          date: 'Aug 21',
+          bugs: ['the Multiplayer list only refreshed when you pressed the button', 'social (friends/DMs) only came online after you logged in'],
+          updates: ['Multiplayer auto-pings saved servers on open and re-pings every few seconds while open (Minecraft-style)', 'game connects to the official backend on launch, so social is live immediately', 'background pings stop when you join a server or leave Multiplayer'],
+          features: ['Minecraft-style auto-refreshing server list', 'always-online social on launch'],
+        },
+        {
           hash: '53a194d',
           heading: 'Friends, DMs & accounts now work on any server + Multiplayer UI cleanup',
           desc: 'When you join a friend\'s self-hosted server, your social connection (accounts, friends list, DMs) used to break because the socket went to their server instead of BlockForge\'s backend. Now any player-hosted server relays social traffic upstream to the official backend automatically, so you stay logged in, your friends list and DMs keep working, and you can still chat with anyone — you never leave the social network while playing on a friend\'s world. The Multiplayer menu was also cleaned up: the WORLDS panel no longer shows on the server list (it appears only after you join a server), the confusing double row of buttons is gone, the extra NEW WORLD button was removed, and "Host a Server" was renamed to "Host Server". In the game, joined servers are remembered and re-opened to the world view, and the community server list shows every created server (including offline ones) with a Copy button and an "Add to BlockForge" deep link.',
