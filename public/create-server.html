@@ -89,23 +89,27 @@
           <pre>npm install</pre>
         </li>
         <li>
-          (Optional) copy <code class="inline">.env.example</code> to <code class="inline">.env</code> and set your
-          <code class="inline">PUBLIC_WS_URL</code> (your public IP) and <code class="inline">SERVER_NAME</code>.
+          (Recommended) copy <code class="inline">.env.example</code> to <code class="inline">.env</code> and set:
+          <pre>PUBLIC_WS_URL=ws://YOUR_PUBLIC_IP:4000   # the address friends will type
+SERVER_NAME=My BlockForge Server
+DIRECTORY_URL=https://blockforge-server.onrender.com/api/servers   # show in Community Servers
+UPSTREAM_BACKEND_URL=wss://blockforge-server.onrender.com           # friends/DMs go here</pre>
+          <span class="muted">If you have a domain (e.g. <code class="inline">play.myserver.net</code>), use that as the address.</span>
         </li>
         <li>
           Start the server:
           <pre>node server.js      # or double-click start.sh / start.bat</pre>
         </li>
         <li>
-          Let friends reach you: forward port <code class="inline">4000</code> on your router, or use a tunnel
-          (<code class="inline">cloudflared</code>, <code class="inline">ngrok</code>, <code class="inline">playit.gg</code>).
+          Let friends reach you: forward port <code class="inline">4000</code> on your router, or use a free tunnel
+          (<code class="inline">playit.gg</code>, <code class="inline">cloudflared</code>, <code class="inline">ngrok</code>) which gives you a
+          <code class="inline">wss://</code> address automatically.
         </li>
         <li>
-          In BlockForge, open <strong>Multiplayer → "+ Add Server"</strong>, give it a name, and type:
-          <pre>ws://YOUR_PUBLIC_IP:4000</pre>
-          The game pings it and shows live players. You can also use
-          <strong>Direct Connect</strong> to join instantly without saving.
-          <br /><span class="muted">If the game is open over <code class="inline">https://</code>, use a tunnel so your address is <code class="inline">wss://</code> (browsers block <code class="inline">ws://</code> on https pages).</span>
+          Friends open BlockForge → <strong>Multiplayer → "+ Add Server"</strong>, type a name and your address:
+          <pre>ws://YOUR_PUBLIC_IP:4000     (or play.myserver.net)</pre>
+          The game pings it and shows live players/MOTD. <strong>Direct Connect</strong> joins instantly without saving.
+          <br /><span class="muted">If the game is open over <code class="inline">https://</code>, your address must be <code class="inline">wss://</code> — a tunnel provides this (browsers block <code class="inline">ws://</code> on https pages).</span>
         </li>
       </ol>
     </div>

@@ -179,6 +179,11 @@
     .srv-card .players .max{color:var(--dim);font-weight:400}
     .srv-card .badge{font-size:10px;padding:3px 10px;border-radius:4px;background:linear-gradient(135deg,rgba(50,80,130,.4),rgba(100,60,160,.3));border:1px solid rgba(120,140,220,.3);color:#b8d0ff;letter-spacing:1px;font-weight:700;text-transform:uppercase}
     .srv-card .desc{font-size:13px;color:var(--muted);max-width:620px;line-height:1.45}
+    .srv-card.offline{opacity:.55;filter:grayscale(.4)}
+    .srv-card .actions{display:flex;align-items:center}
+    .srv-add{font-size:12px;padding:8px 14px;white-space:nowrap}
+    .srv-online{font-size:11px;color:#7ee07e;font-weight:600;margin-left:6px}
+    .srv-offline{font-size:11px;color:#ff8a8a;font-weight:600;margin-left:6px}
     .srv-card .addr{font-size:12px;color:#9fb0d8;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
     .srv-card .addr code{background:rgba(0,0,0,.35);border:1px solid var(--border);padding:2px 8px;border-radius:6px;font:12px monospace;color:#cfe0ff}
     .srv-card .addr-label{color:var(--dim);font-weight:700;letter-spacing:.5px}
@@ -1468,6 +1473,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '604f0ab',
+          heading: 'Friends, DMs & accounts now work on any server + Multiplayer UI cleanup',
+          desc: 'When you join a friend\'s self-hosted server, your social connection (accounts, friends list, DMs) used to break because the socket went to their server instead of BlockForge\'s backend. Now any player-hosted server relays social traffic upstream to the official backend automatically, so you stay logged in, your friends list and DMs keep working, and you can still chat with anyone — you never leave the social network while playing on a friend\'s world. The Multiplayer menu was also cleaned up: the WORLDS panel no longer shows on the server list (it appears only after you join a server), the confusing double row of buttons is gone, the extra NEW WORLD button was removed, and "Host a Server" was renamed to "Host Server". In the game, joined servers are remembered and re-opened to the world view, and the community server list shows every created server (including offline ones) with a Copy button and an "Add to BlockForge" deep link.',
+          date: 'Aug 21',
+          bugs: ['joining a friend\'s server dropped your friends list / DMs because the socket pointed at their server', 'the multiplayer menu showed a WORLDS bar on the server list and had a duplicated/cluttered button row', '"Add Server" copy + open-from-portal deep link were missing'],
+          updates: ['player-hosted servers relay social traffic upstream so accounts/friends/DMs keep working on any server', 'multiplayer menu: WORLDS panel only appears after joining a server', 'removed the duplicate button row and the extra NEW WORLD button', '"Host a Server" renamed to "Host Server"', 'joined servers remember you and open straight to the world view', 'community server list shows all servers (online + offline) with Copy and "Add to BlockForge"'],
+          features: ['social keeps working on any server (relay)', 'cleaner in-game multiplayer menu'],
+        },
+        {
           hash: '8ed90df',
           heading: 'Multiplayer redone Minecraft-style: save servers, ping for live status',
           desc: 'The in-game server list now works exactly like Minecraft Java: vanilla Minecraft has no central directory — the client stores servers locally (Add Server with name + IP) and pings each one directly for live status (name, MOTD, players, version). BlockForge now does the same: in Multiplayer you "Add Server" (saved on your device), "Direct Connect" to join instantly, and every saved server is pinged directly so you see live players / MOTD / version before joining. The server answers a Server List Ping (a status request) without requiring a join or login — just like Minecraft\'s handshake. The portal\'s "Servers" tab is now an optional public "Community Servers" directory; the real per-server status lives in the game. Host-your-own is unchanged: "Host a Server" opens the download/host page and you run the server files on your machine.',
@@ -2272,6 +2286,14 @@
         if (!s) return '';
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       }
+      function timeAgo(ts) {
+        if (!ts) return 'unknown';
+        var d = Math.floor((Date.now() - ts) / 1000);
+        if (d < 60) return d + 's ago';
+        if (d < 3600) return Math.floor(d / 60) + 'm ago';
+        if (d < 86400) return Math.floor(d / 3600) + 'h ago';
+        return Math.floor(d / 86400) + 'd ago';
+      }
 
        function fetchServerList() {
         var dotEl = document.getElementById('srv-dot');
@@ -2292,32 +2314,38 @@
         fetch(api, { headers: { 'Accept': 'application/json' } })
           .then(function(r) { return r.json(); })
           .then(function(servers) {
-            if (!Array.isArray(servers) || servers.length === 0) {
-              dotEl.className = 'dot on';
-              labelEl.textContent = 'Online';
-              statsEl.textContent = '0 servers';
-              listEl.innerHTML = '<div class="srv-empty">No live servers yet. Host your own from the game!</div>';
+            if (!Array.isArray(servers)) servers = [];
+            // The directory keeps EVERY server ever created — online or offline.
+            var totalOnline = 0, onlineCount = 0;
+            for (var i = 0; i < servers.length; i++) {
+              if (servers[i].online) { totalOnline += (servers[i].players || 0); onlineCount++; }
+            }
+            dotEl.className = servers.length ? 'dot on' : 'dot off';
+            labelEl.textContent = servers.length ? (onlineCount + ' online') : 'No servers';
+            statsEl.textContent = servers.length + ' server' + (servers.length !== 1 ? 's' : '') + ' total' + (totalOnline ? ' · ' + totalOnline + ' players' : '');
+
+            if (servers.length === 0) {
+              listEl.innerHTML = '<div class="srv-empty">No servers yet. Host your own from the game!</div>';
               return;
             }
-            var total = 0;
-            for (var i = 0; i < servers.length; i++) total += (servers[i].players || 0);
-            dotEl.className = 'dot on';
-            labelEl.textContent = 'Online';
-            statsEl.textContent = servers.length + ' server' + (servers.length !== 1 ? 's' : '') + ' · ' + total + ' player' + (total !== 1 ? 's' : '') + ' online';
-
+            servers.sort(function(a, b) {
+              return (b.official ? 1 : 0) - (a.official ? 1 : 0) || (b.online ? 1 : 0) - (a.online ? 1 : 0) || (a.name || '').localeCompare(b.name || '');
+            });
             var html = '';
             for (var i = 0; i < servers.length; i++) {
               var s = servers[i];
               var addr = s.address || '';
               var official = s.official ? '<span class="badge" style="background:linear-gradient(135deg,rgba(180,140,40,.4),rgba(200,160,60,.3));border-color:rgba(220,180,80,.4);color:#ffe6a0;">OFFICIAL</span>' : '';
-              html += '<div class="srv-card">' +
+              var statusBadge = s.online ? '<span class="srv-online">● Online</span>' : '<span class="srv-offline">● Offline</span>';
+              var meta = s.online ? ('👥 ' + (s.players || 0) + ' playing') : ('last seen ' + timeAgo(s.lastSeen));
+              html += '<div class="srv-card' + (s.online ? '' : ' offline') + '">' +
                 '<div class="left">' +
-                  '<div class="name">' + esc(s.name || 'Server') + ' ' + official + '</div>' +
+                  '<div class="name">' + esc(s.name || 'Server') + ' ' + official + ' ' + statusBadge + '</div>' +
                   (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '') +
-                  '<div class="addr"><span class="addr-label">IP:</span> <code>' + esc(addr) + '</code> <button class="srv-copy" data-addr="' + esc(addr) + '">Copy</button></div>' +
-                  '<div class="meta"><span>👥 ' + (s.players || 0) + ' playing</span></div>' +
+                  '<div class="addr"><span class="addr-label">Address:</span> <code>' + esc(addr) + '</code> <button class="srv-copy" data-addr="' + esc(addr) + '">Copy</button></div>' +
+                  '<div class="meta">' + meta + '</div>' +
                 '</div>' +
-                '<div class="players">' + (s.players || 0) + ' <span class="max">online</span></div>' +
+                (s.online ? '<div class="actions"><button class="btn srv-add" data-addr="' + esc(addr) + '">＋ Add to BlockForge</button></div>' : '') +
               '</div>';
             }
             listEl.innerHTML = html;
@@ -2330,6 +2358,12 @@
                     setTimeout(function() { b.textContent = 'Copy'; }, 1200);
                   });
                 }
+              });
+            });
+            listEl.querySelectorAll('.srv-add').forEach(function(b) {
+              b.addEventListener('click', function() {
+                var a = b.getAttribute('data-addr');
+                window.open('/index.html?add=' + encodeURIComponent(a), '_blank');
               });
             });
           })

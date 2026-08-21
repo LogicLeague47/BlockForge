@@ -3849,10 +3849,24 @@ function joinServerByAddress(address) {
   if (network.connected) network.disconnect();
   network.connect(address);
   network.onConnectedOnce(() => {
+    showWorldsView();
     renderServerList();
     network.listRooms();
     syncLocalServersToNetwork();
   });
+}
+
+function showServersView() {
+  const sp = document.getElementById('servers-panel');
+  const wp = document.getElementById('worlds-panel');
+  if (sp) sp.style.display = '';
+  if (wp) wp.style.display = 'none';
+}
+function showWorldsView() {
+  const sp = document.getElementById('servers-panel');
+  const wp = document.getElementById('worlds-panel');
+  if (sp) sp.style.display = 'none';
+  if (wp) wp.style.display = '';
 }
 
 function showMultiplayerMenu() {
@@ -3864,6 +3878,7 @@ function showMultiplayerMenu() {
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
   renderSavedServers();
+  showServersView();
   ui.showMenu('multiplayer');
 
   // Connect to server and fetch remote room list
@@ -6743,8 +6758,11 @@ function initMenu() {
     // Hosting a server is now player-run: send them to the download/host page.
     window.open('/create-server.html', '_blank');
   });
-  document.getElementById('btn-new-mp-world').addEventListener('click', () => {
+  document.getElementById('btn-new-mp-world')?.addEventListener('click', () => {
     showCreateServerMenu();
+  });
+  document.getElementById('btn-back-to-servers')?.addEventListener('click', () => {
+    showServersView();
   });
   document.getElementById('btn-direct-connect').addEventListener('click', () => {
     const v = document.getElementById('input-direct-connect')?.value || '';
@@ -10508,5 +10526,25 @@ document.getElementById('ai-data-page')?.addEventListener('click', () => {
   const role = encodeURIComponent(playerRole || '');
   window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
+
+// Deep link from the portal ("Add to BlockForge"): ?add=<ws://host:port> adds
+// the server to the player's local saved list (Minecraft-style) so they can
+// join it from Multiplayer. The param is stripped so a refresh won't re-add.
+(function handleAddServerParam() {
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const add = params.get('add');
+    if (!add) return;
+    const ok = addSavedServer('', add);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('add');
+    window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+    if (ok) {
+      const notice = () => addChatLine('Server added: ' + add + ' — open Multiplayer to join it.', '#7af', true);
+      if (document.getElementById('chat-log')) notice();
+      else window.addEventListener('DOMContentLoaded', notice);
+    }
+  } catch (_) {}
+})();
 
 requestAnimationFrame(loop);

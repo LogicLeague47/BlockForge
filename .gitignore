@@ -8,6 +8,7 @@ build/
 __MACOSX/
 friends.json
 accounts.json
+server-directory.json
 player-data.json
 .idea/
 noip.conf

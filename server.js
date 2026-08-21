@@ -1,7 +1,7 @@
 // BlockForge WebSocket Multiplayer Server
 // Run: node server.js
 
-import { WebSocketServer } from 'ws';
+import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream } from 'fs';
 import { fileURLToPath } from 'url';
@@ -10,6 +10,34 @@ import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
 import { promisify } from 'util';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
+
+// ── Social relay (player-hosted game servers) ────────────────────────────
+// A player-hosted server is ONLY the game backend (worlds/blocks/players).
+// Social systems (accounts, friends, DMs, community chat, news, leaderboard)
+// are relayed upstream to the official backend so they keep working for the
+// player even though their game socket is to a friend's server. The official
+// server (IS_OFFICIAL=true) handles everything locally and does NOT relay.
+const RELAY_SOCIAL = process.env.IS_OFFICIAL !== 'true';
+const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-server.onrender.com';
+// Message types that are social and should be relayed upstream (not handled
+// locally) on a player-hosted server.
+const SOCIAL_TYPES = new Set([
+  'auth', 'friend_list', 'friend_request', 'friend_accept', 'friend_decline', 'friend_remove',
+  'dm', 'dm_read', 'dm_sync_push',
+  'community_chat', 'community_chat_history',
+  'news_list', 'news_post', 'news_delete', 'news_verify',
+  'leaderboard_get', 'get_stats', 'player_stats_get', 'player_stats_set',
+  'player_settings_get', 'player_settings_set',
+  'get_own_account', 'link_identity', 'start_oauth_link', 'link_account', 'unlink_identity',
+]);
+function safeSendRaw(conn, data) {
+  if (!conn) return;
+  if (conn.readyState !== 1) return; // WebSocket.OPEN === 1
+  // Relayed traffic is always JSON text — send as a string so the peer's text
+  // message handler (not the binary position-data path) processes it.
+  const payload = Buffer.isBuffer(data) ? data.toString('utf8') : data;
+  try { conn.send(payload); } catch (e) { console.log('[safeSendRaw] send error', e.message); }
+}
 
 const PORT = process.env.PORT || 4000;
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -106,17 +134,32 @@ async function flushRedisSaves() {
 let rooms = new Map();
 let serverStats = { dailyUsers: {}, monthlyUsers: {}, serversCreated: 0 };
 
-// ── Live server directory (player-hosted + official) ──────────────────
+// ── Server directory (player-hosted + official) ───────────────────────
 // Players run their own BlockForge server ("you host it") and register it
-// here so it shows up on the portal + in the client's server list. The dev
-// only runs this one process (which also hosts Official SMP) — no central
-// room hosting — so compute stays tiny. Entries expire if they stop
-// heartbeating (TTL), keeping the list live.
-const LIVE_SERVERS = new Map(); // id -> { id, name, address, players, official, version, lastSeen }
+// here so it shows on the portal + in the client's server list. The dev only
+// runs this one process (which also hosts Official SMP) — no central room
+// hosting — so compute stays tiny. The directory is PERSISTED to a JSON file
+// (editable via Node) and keeps every server that was ever created, even
+// offline ones (they just show as offline until they heartbeat again).
+const SERVER_DIRECTORY_FILE = join(__dirname, 'server-directory.json');
 const SERVER_TTL = 90 * 1000;
+let DIRECTORY_MAP = new Map(); // id -> entry
+function loadDirectory() {
+  try {
+    if (existsSync(SERVER_DIRECTORY_FILE)) {
+      const arr = JSON.parse(readFileSync(SERVER_DIRECTORY_FILE, 'utf8'));
+      if (Array.isArray(arr)) DIRECTORY_MAP = new Map(arr.map(s => [s.id, s]));
+    }
+  } catch { DIRECTORY_MAP = new Map(); }
+}
+function saveDirectory() {
+  try { writeFileSync(SERVER_DIRECTORY_FILE, JSON.stringify([...DIRECTORY_MAP.values()], null, 2)); } catch {}
+}
 function registerLiveServer({ id, name, address, players = 0, official = false, version = '', description = '' }) {
   if (!id || !address) return;
-  LIVE_SERVERS.set(id, {
+  const now = Date.now();
+  const prev = DIRECTORY_MAP.get(id);
+  DIRECTORY_MAP.set(id, {
     id,
     name: String(name || id).slice(0, 48),
     address: String(address).slice(0, 256),
@@ -124,26 +167,31 @@ function registerLiveServer({ id, name, address, players = 0, official = false, 
     official: !!official,
     version: String(version || '').slice(0, 32),
     description: String(description || '').slice(0, 200),
-    lastSeen: Date.now(),
+    lastSeen: now,
+    createdAt: prev?.createdAt || now,
   });
+  saveDirectory();
 }
 function listLiveServers() {
   const now = Date.now();
-  const out = [];
-  for (const [id, s] of LIVE_SERVERS) {
-    if (now - s.lastSeen > SERVER_TTL) { LIVE_SERVERS.delete(id); continue; }
-    out.push({ id: s.id, name: s.name, address: s.address, players: s.players, official: s.official, version: s.version, description: s.description });
-  }
-  // Official server always first.
-    out.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
-    return out;
-  }
+  const out = [...DIRECTORY_MAP.values()].map(s => ({
+    id: s.id, name: s.name, address: s.address, official: s.official,
+    version: s.version, description: s.description,
+    online: (now - s.lastSeen) <= SERVER_TTL,
+    players: (now - s.lastSeen) <= SERVER_TTL ? s.players : 0,
+    lastSeen: s.lastSeen,
+  }));
+  // Official first, then online, then by name.
+  out.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0) || (b.online ? 1 : 0) - (a.online ? 1 : 0));
+  return out;
+}
+loadDirectory();
 
   // Server List Ping (SLP) analog — like Minecraft's status query, returns the
   // server's public info WITHOUT requiring a join or auth. The client pings
   // each saved server directly to show name / MOTD / players / version.
   function getServerStatusInfo() {
-    const isOfficial = process.env.DIRECTORY_URL ? (process.env.IS_OFFICIAL === 'true') : true;
+    const isOfficial = !RELAY_SOCIAL;
     let players = 0;
     for (const [, r] of rooms) players += (r.players && r.players.size) || 0;
     return {
@@ -1395,6 +1443,32 @@ function isRateLimited(ws) {
     ws.on('pong', () => { ws.isAlive = true; });
     console.log(`[Conn] New client connected (total: ${wss.clients.size})`);
 
+    // Player-hosted game server: relay social messages upstream to the official
+    // backend so accounts / friends / DMs keep working for this player while
+    // their game socket is to a friend's server. Game traffic is handled locally.
+    if (RELAY_SOCIAL) {
+      let upstream = null;
+      try { upstream = new WebSocket(UPSTREAM_URL); } catch { upstream = null; }
+      ws._upstream = upstream;
+      if (upstream) {
+        let upOpen = false; const upQueue = [];
+        upstream.on('open', () => { upOpen = true; for (const q of upQueue) safeSendRaw(upstream, q); upQueue.length = 0; });
+        upstream.on('message', (data) => {
+          // Sniff the auth result so the game side knows the player's identity.
+          try {
+            const m = JSON.parse(typeof data === 'string' ? data : data.toString());
+            if (m && m.type === 'auth_result' && m.ok) {
+              ws._playerData = { name: m.username, role: m.role || ROLE_PLAYER, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+            }
+          } catch {}
+          safeSendRaw(ws, data);
+        });
+        upstream.on('error', () => {});
+        upstream.on('close', () => { upOpen = false; });
+        ws._relay = (buf) => { if (upOpen) safeSendRaw(upstream, buf); else upQueue.push(buf); };
+      }
+    }
+
   ws.on('message', (raw, isBinary) => {
     if (isBinary) {
       if (isRateLimited(ws)) return;
@@ -1419,6 +1493,12 @@ function isRateLimited(ws) {
     try { msg = JSON.parse(raw); } catch { return; }
     if (isRateLimited(ws)) return;
     if (typeof msg !== 'object' || msg === null) return;
+
+    // Player-hosted: relay social traffic upstream; handle game traffic locally.
+    if (RELAY_SOCIAL && SOCIAL_TYPES.has(msg.type)) {
+      if (ws._relay) ws._relay(raw);
+      return;
+    }
 
     try {
     switch (msg.type) {
@@ -1499,6 +1579,7 @@ function isRateLimited(ws) {
 
   ws.on('close', () => {
     console.log(`[Conn] Client disconnected`);
+    if (ws._upstream) { try { ws._upstream.close(); } catch {} ws._upstream = null; }
     const leavingName = ws._playerData && ws._playerData.name;
     const leavingWasGuest = !!ws._playerData && ws._playerData.isGuest;
     handleLeave(ws);
@@ -1581,8 +1662,12 @@ async function handleCreateRoom(ws, msg) {
   if (!name || !playerName) return sendError(ws, 'Missing room name or player name.');
   if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
-  // Authenticate account (LAN mode skips auth since it's a local/dev server)
-  if (!IS_LAN) {
+  // Authenticate account. On the official server (or LAN) we check locally.
+  // On a player-hosted relay server, identity is already established via the
+  // upstream auth relay, so we trust ws._playerData instead of re-authing locally.
+  if (RELAY_SOCIAL) {
+    if (!ws._playerData) return sendError(ws, 'You need to sign in first.');
+  } else if (!IS_LAN) {
     const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
@@ -1659,8 +1744,12 @@ async function handleJoin(ws, msg) {
   if (!roomName || !playerName) return sendError(ws, 'Missing room name or player name.');
   if (ws._playerData && ws._playerData.isGuest) return sendError(ws, 'You need to create an account to play multiplayer!');
 
-  // Authenticate account (LAN mode skips auth since it's a local/dev server)
-  if (!IS_LAN) {
+  // Authenticate account. On the official server (or LAN) we check locally.
+  // On a player-hosted relay server, identity is already established via the
+  // upstream auth relay, so we trust ws._playerData instead of re-authing locally.
+  if (RELAY_SOCIAL) {
+    if (!ws._playerData) return sendError(ws, 'You need to sign in first.');
+  } else if (!IS_LAN) {
     const auth = await authAccount(playerName, password);
     if (!auth.ok) return sendError(ws, auth.reason);
   }
@@ -2941,7 +3030,7 @@ let _hbInterval;
   const SELF_ADDRESS = process.env.PUBLIC_WS_URL
     || (process.env.PUBLIC_HOST ? `${process.env.PUBLIC_PROTO || 'ws'}://${process.env.PUBLIC_HOST}` : `ws://localhost:${PORT}`);
   const DIRECTORY_URL = process.env.DIRECTORY_URL || '';
-  const SELF_OFFICIAL = DIRECTORY_URL ? (process.env.IS_OFFICIAL === 'true') : true;
+  const SELF_OFFICIAL = !RELAY_SOCIAL;
 
   async function advertiseSelf() {
     const entry = {
