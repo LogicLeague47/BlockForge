@@ -828,8 +828,8 @@
       </div>
 
       <div id="page-servers" class="page">
-        <h2>Game Servers</h2>
-        <p>Live status from the BlockForge multiplayer server.</p>
+        <h2>Community Servers</h2>
+        <p>Public BlockForge servers broadcasting their status. In-game, you also keep your own server list (Add Server) — like Minecraft's multiplayer menu.</p>
         <div class="srv-header">
           <div class="srv-status" id="srv-status">
             <span class="dot pending" id="srv-dot"></span>
@@ -1468,13 +1468,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'dfd8b57',
-          heading: 'Play on any server — host your own for free',
-          desc: 'Multiplayer is now player-hosted, Minecraft-Java style. The team only runs the official "Official SMP"; every other server is run by a player on their own machine. In Multiplayer you can now type a friend\'s server address (ws://ip:port) under "Join a Server", browse the live server directory (Official SMP + every player server currently up, with name, IP, description and player count), and host your own: the "Host a Server" button opens a page with one-click download of the server files, step-by-step run instructions, and port-forward help. The portal\'s Servers tab lists all live servers with their IP and a Copy button. This moves the hosting burden off our servers so the game scales without big compute.',
+          hash: '8ed90df',
+          heading: 'Multiplayer redone Minecraft-style: save servers, ping for live status',
+          desc: 'The in-game server list now works exactly like Minecraft Java: vanilla Minecraft has no central directory — the client stores servers locally (Add Server with name + IP) and pings each one directly for live status (name, MOTD, players, version). BlockForge now does the same: in Multiplayer you "Add Server" (saved on your device), "Direct Connect" to join instantly, and every saved server is pinged directly so you see live players / MOTD / version before joining. The server answers a Server List Ping (a status request) without requiring a join or login — just like Minecraft\'s handshake. The portal\'s "Servers" tab is now an optional public "Community Servers" directory; the real per-server status lives in the game. Host-your-own is unchanged: "Host a Server" opens the download/host page and you run the server files on your machine.',
           date: 'Aug 21',
-          bugs: ['all multiplayer rooms were hosted centrally (no way to run your own server)', 'there was no way to join a friend by IP address', 'the portal could not show player-hosted servers'],
-          updates: ['"Join a Server" panel: Direct Connect by ws://ip:port + a live directory of all running servers', 'live server directory API (servers self-register and heartbeat; stale ones expire)', '"Host a Server" button opens a download/host page with the server files + run steps', 'downloadable server package (server.js + profanity.js + package.json + README + start scripts), zipped to /downloads/', 'portal Servers tab now lists Name, IP, description and player count with a Copy-IP button', 'Official SMP self-registers into the directory and is tagged OFFICIAL'],
-          features: ['player-hosted multiplayer servers (you run it, friends join by IP)'],
+          bugs: ['the in-game list used a central directory instead of per-server status pings like Minecraft', 'servers could not report live name/MOTD/players without someone joining', 'there was no way to save a friend\'s server by name on your device'],
+          updates: ['in-game server list is now local (saved on your device) like Minecraft\'s multiplayer menu', '"Add Server" (name + address) and "Direct Connect" to join instantly', 'each saved server is pinged directly for live name / MOTD / players / version (Server List Ping)', 'server answers a status ping with no join or auth required', 'portal "Servers" tab relabeled "Community Servers" (optional public directory)', 'host-your-own flow ("Host a Server" page + downloadable server package) unchanged'],
+          features: ['Minecraft-style saved servers with live status pings', 'player-hosted servers joinable by IP'],
         },
         {
           hash: '7af8268',

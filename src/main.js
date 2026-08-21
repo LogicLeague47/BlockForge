@@ -1,7 +1,7 @@
 // Entry point: wires up renderer, world, player, input, and the render loop.
 
 import * as THREE from 'three';
-import { BACKEND_URL, DIRECTORY_URL } from './config.js';
+import { BACKEND_URL } from './config.js';
 import { World, CHUNK_SIZE, BIOMES } from './world.js';
 import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
@@ -3692,14 +3692,146 @@ function renderRecentServers() {
 }
 
 // ── Live server directory (player-hosted + Official SMP) ───────────────
-// Fetches the list of currently-up servers from the portal directory and
-// renders them. Clicking Join connects the client to that server's ws://
-// address (Minecraft-Java style) and then lists the worlds on it.
+// Minecraft-Java style multiplayer: the client keeps a list of servers LOCALLY
+// (added by the player with name + address) and pings each one directly for
+// live status (name / MOTD / players / version) — exactly like Minecraft's
+// Server List Ping. There is no central directory in the in-game list.
+const SAVED_SERVERS_KEY = 'bf_saved_servers';
+
 function normalizeServerAddress(input) {
   let a = (input || '').trim();
   if (!a) return '';
   if (!/^wss?:\/\//i.test(a)) a = 'ws://' + a;
+  const m = a.match(/^(wss?:\/\/)([^:/?#]+)(:[0-9]+)?(\/.*)?$/i);
+  if (m && !m[3]) {
+    const host = m[2];
+    const isLocal = host === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
+    // Only assume the default port for bare IPs / localhost (like Minecraft
+    // assumes 25565). Domains usually go through a tunnel on 443 already.
+    if (isLocal) a = m[1] + host + ':4000' + (m[4] || '');
+  }
   return a;
+}
+
+// Browsers block ws:// connections from an https page (mixed content), so a
+// self-hosted server must be reachable over wss:// (via a tunnel) or the game
+// must be served over http.
+function wsSchemeWarning(url) {
+  if (window.location && window.location.protocol === 'https:' && url.indexOf('wss://') !== 0) {
+    return 'That server is ws:// but the game is on https. Use a wss:// address (a tunnel like playit.gg or cloudflared) or open the game over http.';
+  }
+  return null;
+}
+
+function getSavedServers() {
+  try {
+    const v = JSON.parse(localStorage.getItem(SAVED_SERVERS_KEY) || '[]');
+    return Array.isArray(v) ? v : [];
+  } catch { return []; }
+}
+function saveServers(list) { try { localStorage.setItem(SAVED_SERVERS_KEY, JSON.stringify(list)); } catch (_) {} }
+function addSavedServer(name, address) {
+  const norm = normalizeServerAddress(address);
+  if (!norm) return false;
+  const list = getSavedServers();
+  if (list.some(s => s.address === norm)) return true;
+  list.push({ name: (name || '').trim() || norm, address: norm, official: false });
+  saveServers(list);
+  return true;
+}
+function removeSavedServer(address) {
+  saveServers(getSavedServers().filter(s => s.address !== address));
+}
+function ensureSeedOfficialServer() {
+  const list = getSavedServers();
+  if (list.some(s => s.address === BACKEND_URL)) return;
+  if (list.length === 0) {
+    list.push({ name: 'Official SMP', address: BACKEND_URL, official: true });
+    saveServers(list);
+  }
+}
+
+// Server List Ping — connect, ask for status, no auth/join. Returns the
+// server's public info or {error}.
+function pingServerStatus(address) {
+  return new Promise((resolve) => {
+    const url = normalizeServerAddress(address);
+    if (!url) { resolve({ error: 'Invalid address' }); return; }
+    const warn = wsSchemeWarning(url);
+    if (warn) { resolve({ error: 'needs wss://' }); return; }
+    const now = () => (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+    let done = false, ws = null;
+    const finish = (res) => { if (done) return; done = true; try { if (ws) ws.close(); } catch (_) {} resolve(res); };
+    let to;
+    try { ws = new WebSocket(url); } catch (e) { finish({ error: 'bad url' }); return; }
+    to = setTimeout(() => finish({ error: 'timed out' }), 4500);
+    ws.onopen = () => { try { ws.send(JSON.stringify({ type: 'status' })); } catch (_) {} };
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(typeof e.data === 'string' ? e.data : '');
+        if (msg && msg.type === 'status') {
+          clearTimeout(to);
+          finish({
+            ok: true,
+            name: msg.name,
+            description: msg.description || '',
+            players: msg.players || 0,
+            maxPlayers: msg.maxPlayers || 0,
+            version: msg.version || '?',
+            latency: Math.round(now() - t0),
+          });
+        }
+      } catch (_) {}
+    };
+    ws.onerror = () => finish({ error: 'unreachable' });
+    ws.onclose = () => { if (!done) finish({ error: 'closed' }); };
+    const t0 = now();
+  });
+}
+
+function updateServerRowStatus(idx, status) {
+  const row = document.querySelector('.sv-row[data-index="' + idx + '"]');
+  if (!row) return;
+  const st = row.querySelector('.sv-status');
+  if (!st) return;
+  if (status.error) {
+    st.textContent = 'Offline (' + status.error + ')';
+    st.style.color = '#f88';
+  } else {
+    const motd = status.description ? ' — ' + status.description : '';
+    st.textContent = status.players + '/' + status.maxPlayers + ' players · v' + status.version + ' · ' + status.latency + 'ms' + motd;
+    st.style.color = '#9aa4b8';
+  }
+}
+
+async function renderSavedServers() {
+  const el = document.getElementById('saved-servers');
+  if (!el) return;
+  ensureSeedOfficialServer();
+  const list = getSavedServers();
+  if (list.length === 0) {
+    el.innerHTML = '<div style="color:#888;padding:10px;font:11px monospace;text-align:center;">No servers yet. Click "+ Add Server" or type an address above.</div>';
+    return;
+  }
+  el.innerHTML = list.map((s, i) => `
+    <div class="sv-row" data-index="${i}" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;">
+      <div style="flex:1;min-width:0;">
+        <div style="font:bold 12px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}${s.official ? '<span style="color:#fa0;font:9px monospace;margin-left:6px;letter-spacing:1px;">OFFICIAL</span>' : ''}</div>
+        <div class="sv-status" style="font:10px monospace;color:#888;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Pinging…</div>
+        <div style="font:10px monospace;color:#788;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.address)}</div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;">
+        <button class="sv-join" data-address="${escHtml(s.address)}" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border:1px solid #2a5a2a;color:#fff;cursor:pointer;font:bold 11px monospace;padding:6px 14px;border-radius:3px;letter-spacing:0.5px;">JOIN</button>
+        ${s.official ? '' : '<button class="sv-del" data-address="' + escHtml(s.address) + '" style="background:transparent;border:1px solid rgba(150,80,80,0.5);color:#f99;cursor:pointer;font:10px monospace;padding:3px 8px;border-radius:3px;">✕</button>'}
+      </div>
+    </div>`).join('');
+  el.querySelectorAll('.sv-join').forEach(btn => btn.addEventListener('click', () => joinServerByAddress(btn.dataset.address)));
+  el.querySelectorAll('.sv-del').forEach(btn => btn.addEventListener('click', () => { removeSavedServer(btn.dataset.address); renderSavedServers(); }));
+  // Ping each server directly (Minecraft-style Server List Ping)
+  for (let i = 0; i < list.length; i++) {
+    const status = await pingServerStatus(list[i].address);
+    updateServerRowStatus(i, status);
+  }
 }
 
 function joinServerByAddress(address) {
@@ -3709,6 +3841,8 @@ function joinServerByAddress(address) {
     addChatLine('Create an account to play multiplayer!', '#fa0');
     return;
   }
+  const warn = wsSchemeWarning(address);
+  if (warn) { addChatLine(warn, '#f66', true); return; }
   const errEl = document.getElementById('mp-error');
   if (errEl) errEl.textContent = '';
   addChatLine('Connecting to ' + address + '…', '#7af', true);
@@ -3721,36 +3855,6 @@ function joinServerByAddress(address) {
   });
 }
 
-async function renderLiveServers() {
-  const el = document.getElementById('live-servers');
-  if (!el) return;
-  el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Loading servers…</div>';
-  try {
-    const res = await fetch(DIRECTORY_URL, { headers: { Accept: 'application/json' } });
-    const servers = await res.json();
-    if (!Array.isArray(servers) || servers.length === 0) {
-      el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">No live servers yet — host one!</div>';
-      return;
-    }
-    el.innerHTML = servers.map(s => {
-      const official = s.official ? '<span style="color:#fa0;font:9px monospace;margin-left:6px;letter-spacing:1px;">OFFICIAL</span>' : '';
-      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;">
-        <div style="flex:1;min-width:0;">
-          <div style="font:bold 12px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}${official}</div>
-          ${s.description ? `<div style="font:10px monospace;color:#9aa4b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.description)}</div>` : ''}
-          <div style="font:10px monospace;color:#888;margin-top:2px;">${s.players || 0} playing · <span style="color:#789;">${escHtml(s.address)}</span></div>
-        </div>
-        <button class="ls-join-btn" data-addr="${escHtml(s.address)}" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border:1px solid #2a5a2a;color:#fff;cursor:pointer;font:bold 11px monospace;padding:6px 12px;border-radius:3px;letter-spacing:0.5px;">JOIN</button>
-      </div>`;
-    }).join('');
-    el.querySelectorAll('.ls-join-btn').forEach(btn => {
-      btn.addEventListener('click', () => joinServerByAddress(btn.dataset.addr));
-    });
-  } catch (e) {
-    el.innerHTML = '<div style="color:#f88;padding:8px;font:11px monospace;text-align:center;">Could not load server list.</div>';
-  }
-}
-
 function showMultiplayerMenu() {
   if (playerName.startsWith('Guest')) {
     addChatLine('Create an account to play multiplayer!', '#fa0');
@@ -3759,7 +3863,7 @@ function showMultiplayerMenu() {
   const mpUsername = document.getElementById('input-mp-username');
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
-  renderLiveServers();
+  renderSavedServers();
   ui.showMenu('multiplayer');
 
   // Connect to server and fetch remote room list
@@ -6649,6 +6753,43 @@ function initMenu() {
   document.getElementById('input-direct-connect')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') joinServerByAddress(e.target.value || '');
   });
+
+  // --- Add Server modal (Minecraft-style saved servers) ---
+  const addModal = document.getElementById('add-server-modal');
+  const openAddModal = () => {
+    const e = document.getElementById('add-server-error');
+    if (e) e.textContent = '';
+    const n = document.getElementById('input-add-name');
+    const a = document.getElementById('input-add-address');
+    if (n) n.value = '';
+    if (a) a.value = '';
+    if (addModal) addModal.style.display = 'flex';
+    if (n) setTimeout(() => n.focus(), 30);
+  };
+  const closeAddModal = () => { if (addModal) addModal.style.display = 'none'; };
+  document.getElementById('btn-add-server')?.addEventListener('click', openAddModal);
+  document.getElementById('btn-add-server-cancel')?.addEventListener('click', closeAddModal);
+  document.getElementById('btn-add-server-go')?.addEventListener('click', () => {
+    const n = document.getElementById('input-add-name')?.value || '';
+    const a = document.getElementById('input-add-address')?.value || '';
+    if (!a.trim()) {
+      const e = document.getElementById('add-server-error');
+      if (e) e.textContent = 'Enter a server address.';
+      return;
+    }
+    if (addSavedServer(n, a)) {
+      closeAddModal();
+      renderSavedServers();
+    } else {
+      const e = document.getElementById('add-server-error');
+      if (e) e.textContent = 'Invalid address.';
+    }
+  });
+  document.getElementById('input-add-address')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-add-server-go')?.click();
+  });
+  if (addModal) addModal.addEventListener('click', (e) => { if (e.target === addModal) closeAddModal(); });
+  document.getElementById('btn-refresh-servers')?.addEventListener('click', () => renderSavedServers());
   document.getElementById('btn-mp-back').addEventListener('click', () => {
     ui.showMenu('main');
   });

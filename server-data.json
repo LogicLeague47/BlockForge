@@ -3,7 +3,7 @@
     "OfficialSMP": {
       "seed": 12345,
       "gameMode": "survival",
-      "maxPlayers": 50,
+      "maxPlayers": 10,
       "ownerName": null,
       "ownerSecret": null,
       "protected": true,
@@ -11,42 +11,6 @@
       "banned": [],
       "edits": [],
       "created": 1783701691745
-    },
-    "Both_611513": {
-      "seed": 42,
-      "gameMode": "creative",
-      "maxPlayers": 10,
-      "ownerName": null,
-      "ownerSecret": null,
-      "protected": true,
-      "private": false,
-      "banned": [],
-      "edits": [],
-      "created": 1786030730442
-    },
-    "Chat_361371": {
-      "seed": 42,
-      "gameMode": "creative",
-      "maxPlayers": 10,
-      "ownerName": null,
-      "ownerSecret": null,
-      "protected": true,
-      "private": false,
-      "banned": [],
-      "edits": [],
-      "created": 1786031893152
-    },
-    "Ratelim_739640": {
-      "seed": 42,
-      "gameMode": "creative",
-      "maxPlayers": 10,
-      "ownerName": null,
-      "ownerSecret": null,
-      "protected": true,
-      "private": false,
-      "banned": [],
-      "edits": [],
-      "created": 1786085401073
     }
   },
   "stats": {

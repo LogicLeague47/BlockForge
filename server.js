@@ -135,9 +135,26 @@ function listLiveServers() {
     out.push({ id: s.id, name: s.name, address: s.address, players: s.players, official: s.official, version: s.version, description: s.description });
   }
   // Official server always first.
-  out.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
-  return out;
-}
+    out.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
+    return out;
+  }
+
+  // Server List Ping (SLP) analog — like Minecraft's status query, returns the
+  // server's public info WITHOUT requiring a join or auth. The client pings
+  // each saved server directly to show name / MOTD / players / version.
+  function getServerStatusInfo() {
+    const isOfficial = process.env.DIRECTORY_URL ? (process.env.IS_OFFICIAL === 'true') : true;
+    let players = 0;
+    for (const [, r] of rooms) players += (r.players && r.players.size) || 0;
+    return {
+      name: process.env.SERVER_NAME || (isOfficial ? 'Official SMP' : 'BlockForge Server'),
+      description: process.env.SERVER_DESC || (isOfficial ? 'The official BlockForge survival server.' : 'A BlockForge server.'),
+      official: isOfficial,
+      version: process.env.npm_package_version || '1.0.1',
+      players,
+      maxPlayers: Number(process.env.SERVER_MAX_PLAYERS || 50),
+    };
+  }
 
 // ── Pending DMs (offline message queue) ─────────────────────────────
 // Maps lowercase username → array of { from, text, time, id }
@@ -1406,6 +1423,8 @@ function isRateLimited(ws) {
     try {
     switch (msg.type) {
       case 'ping': safeSend(ws, JSON.stringify({ type: 'pong' })); break;
+      // Server List Ping — status query, no auth/join required (Minecraft-style).
+      case 'status': safeSend(ws, JSON.stringify({ type: 'status', ...getServerStatusInfo() })); break;
       case 'auth': handleAuth(ws, msg); break;
       case 'create_room': handleCreateRoom(ws, msg); break;
       case 'register_room': handleRegisterRoom(ws, msg); break;

@@ -101,9 +101,11 @@
           (<code class="inline">cloudflared</code>, <code class="inline">ngrok</code>, <code class="inline">playit.gg</code>).
         </li>
         <li>
-          In BlockForge, go to <strong>Multiplayer → Direct Connect</strong> and type:
+          In BlockForge, open <strong>Multiplayer → "+ Add Server"</strong>, give it a name, and type:
           <pre>ws://YOUR_PUBLIC_IP:4000</pre>
-          Your server also shows up automatically in the <strong>Live Servers</strong> list.
+          The game pings it and shows live players. You can also use
+          <strong>Direct Connect</strong> to join instantly without saving.
+          <br /><span class="muted">If the game is open over <code class="inline">https://</code>, use a tunnel so your address is <code class="inline">wss://</code> (browsers block <code class="inline">ws://</code> on https pages).</span>
         </li>
       </ol>
     </div>
