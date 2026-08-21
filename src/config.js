@@ -15,6 +15,16 @@
 
 export const BACKEND_URL = 'wss://blockforge-server.onrender.com';
 
+// Official SMP is the one server we (the dev) host. Players join it by default
+// and can host their own (see the "Create Server" page) which they connect to
+// by IP. The address is just our own backend over ws.
+export const OFFICIAL_SMP_URL = BACKEND_URL;
+
+// Live-server directory: the portal + client fetch this to list every server
+// that's currently up (Official SMP + player-hosted). Derived from the backend
+// so it works even when the game is embedded on another site (CORS-enabled).
+export const DIRECTORY_URL = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/api/servers';
+
 export const IS_CG_BUILD =
   (typeof __CG__ !== 'undefined') && __CG__;
 

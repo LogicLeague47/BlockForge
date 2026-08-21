@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Create a BlockForge Server</title>
+<style>
+  :root {
+    --bg: #0f1117; --panel: #181b24; --panel2: #1f2330;
+    --ink: #e8ecf4; --muted: #9aa4b8; --accent: #5b8cff; --accent2: #36d399;
+    --line: #2a2f3e;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #1b2030, var(--bg));
+    color: var(--ink); min-height: 100vh; display: flex; justify-content: center;
+    padding: 32px 16px;
+  }
+  .wrap { width: 100%; max-width: 760px; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 13px;
+    color: var(--accent2); background: rgba(54,211,153,.12);
+    border: 1px solid rgba(54,211,153,.3); padding: 4px 12px; border-radius: 999px;
+    margin-bottom: 18px;
+  }
+  h1 { font-size: 34px; margin: 0 0 6px; letter-spacing: -0.5px; }
+  p.sub { color: var(--muted); margin: 0 0 26px; font-size: 15px; line-height: 1.5; }
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 16px;
+    padding: 22px 24px; margin-bottom: 18px;
+  }
+  .download-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .btn {
+    appearance: none; border: 0; cursor: pointer; font-size: 15px; font-weight: 600;
+    padding: 14px 22px; border-radius: 12px; color: #fff; text-decoration: none;
+    background: linear-gradient(180deg, var(--accent), #3f6fe0); transition: transform .08s ease, filter .15s ease;
+  }
+  .btn:hover { filter: brightness(1.07); }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--ink); }
+  .meta { color: var(--muted); font-size: 13px; }
+  ol.steps { margin: 0; padding-left: 0; list-style: none; counter-reset: s; }
+  ol.steps li {
+    counter-increment: s; position: relative; padding: 12px 12px 12px 52px;
+    border-bottom: 1px solid var(--line);
+  }
+  ol.steps li:last-child { border-bottom: 0; }
+  ol.steps li::before {
+    content: counter(s); position: absolute; left: 8px; top: 12px;
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--panel2); border: 1px solid var(--line); color: var(--accent); font-weight: 700;
+  }
+  code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  code.inline { background: #0c0e14; border: 1px solid var(--line); padding: 2px 7px; border-radius: 6px; color: #cfe0ff; }
+  pre {
+    background: #0c0e14; border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; color: #cfe0ff; font-size: 13px; margin: 8px 0 0;
+  }
+  .note { color: var(--muted); font-size: 13px; margin-top: 10px; line-height: 1.5; }
+  a.link { color: var(--accent); text-decoration: none; }
+  a.link:hover { text-decoration: underline; }
+  .footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="badge">● Free · You host it · Friends join by IP</div>
+    <h1>Create a BlockForge Server</h1>
+    <p class="sub">
+      Want a world that's yours? Host it yourself — it's free. Run the server on your
+      machine, share your IP, and friends join just like a Minecraft Java server.
+      The official <strong>Official SMP</strong> is the only server we run.
+    </p>
+
+    <div class="card">
+      <div class="download-row">
+        <a class="btn" href="/downloads/blockforge-server.zip" download>⬇ Download Server Files</a>
+        <span class="meta">~130 KB · Node.js required · Windows / macOS / Linux</span>
+      </div>
+      <p class="note">The package contains the same server the game uses, trimmed to just host your world. No game files needed — players connect from the BlockForge client.</p>
+    </div>
+
+    <div class="card">
+      <h2 style="margin:0 0 6px;font-size:18px;">How to run it</h2>
+      <ol class="steps">
+        <li>
+          Extract the zip and open a terminal in that folder.
+          <pre>npm install</pre>
+        </li>
+        <li>
+          (Optional) copy <code class="inline">.env.example</code> to <code class="inline">.env</code> and set your
+          <code class="inline">PUBLIC_WS_URL</code> (your public IP) and <code class="inline">SERVER_NAME</code>.
+        </li>
+        <li>
+          Start the server:
+          <pre>node server.js      # or double-click start.sh / start.bat</pre>
+        </li>
+        <li>
+          Let friends reach you: forward port <code class="inline">4000</code> on your router, or use a tunnel
+          (<code class="inline">cloudflared</code>, <code class="inline">ngrok</code>, <code class="inline">playit.gg</code>).
+        </li>
+        <li>
+          In BlockForge, go to <strong>Multiplayer → Direct Connect</strong> and type:
+          <pre>ws://YOUR_PUBLIC_IP:4000</pre>
+          Your server also shows up automatically in the <strong>Live Servers</strong> list.
+        </li>
+      </ol>
+    </div>
+
+    <p class="footer">
+      <a class="link" href="/">← Back to BlockForge</a> · Need help? See the README inside the download.
+    </p>
+  </div>
+</body>
+</html>

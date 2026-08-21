@@ -178,6 +178,12 @@
     .srv-card .players{font-size:15px;font-weight:700;color:#b8c8ff;background:rgba(60,100,180,.15);padding:6px 14px;border-radius:8px;border:1px solid rgba(100,140,200,.25)}
     .srv-card .players .max{color:var(--dim);font-weight:400}
     .srv-card .badge{font-size:10px;padding:3px 10px;border-radius:4px;background:linear-gradient(135deg,rgba(50,80,130,.4),rgba(100,60,160,.3));border:1px solid rgba(120,140,220,.3);color:#b8d0ff;letter-spacing:1px;font-weight:700;text-transform:uppercase}
+    .srv-card .desc{font-size:13px;color:var(--muted);max-width:620px;line-height:1.45}
+    .srv-card .addr{font-size:12px;color:#9fb0d8;display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:2px}
+    .srv-card .addr code{background:rgba(0,0,0,.35);border:1px solid var(--border);padding:2px 8px;border-radius:6px;font:12px monospace;color:#cfe0ff}
+    .srv-card .addr-label{color:var(--dim);font-weight:700;letter-spacing:.5px}
+    .srv-copy{font-size:11px;padding:3px 10px;border-radius:6px;cursor:pointer;color:#cfe0ff;background:rgba(80,120,200,.15);border:1px solid rgba(120,150,220,.3);transition:.2s}
+    .srv-copy:hover{background:rgba(80,120,200,.3);color:#fff}
     .srv-empty{text-align:center;padding:40px 20px;color:var(--dim);font-size:14px}
     .srv-error{text-align:center;padding:40px 20px;color:var(--red);font-size:14px}
     .srv-refresh{font-size:12px;padding:6px 14px;margin-left:auto}
@@ -1462,6 +1468,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'dfd8b57',
+          heading: 'Play on any server — host your own for free',
+          desc: 'Multiplayer is now player-hosted, Minecraft-Java style. The team only runs the official "Official SMP"; every other server is run by a player on their own machine. In Multiplayer you can now type a friend\'s server address (ws://ip:port) under "Join a Server", browse the live server directory (Official SMP + every player server currently up, with name, IP, description and player count), and host your own: the "Host a Server" button opens a page with one-click download of the server files, step-by-step run instructions, and port-forward help. The portal\'s Servers tab lists all live servers with their IP and a Copy button. This moves the hosting burden off our servers so the game scales without big compute.',
+          date: 'Aug 21',
+          bugs: ['all multiplayer rooms were hosted centrally (no way to run your own server)', 'there was no way to join a friend by IP address', 'the portal could not show player-hosted servers'],
+          updates: ['"Join a Server" panel: Direct Connect by ws://ip:port + a live directory of all running servers', 'live server directory API (servers self-register and heartbeat; stale ones expire)', '"Host a Server" button opens a download/host page with the server files + run steps', 'downloadable server package (server.js + profanity.js + package.json + README + start scripts), zipped to /downloads/', 'portal Servers tab now lists Name, IP, description and player count with a Copy-IP button', 'Official SMP self-registers into the directory and is tagged OFFICIAL'],
+          features: ['player-hosted multiplayer servers (you run it, friends join by IP)'],
+        },
+        {
           hash: '7af8268',
           heading: 'Clouds now stretch across the whole world',
           desc: 'Clouds used to be generated as a few dozen random puffs in a small box around the world origin, so the sky was empty almost everywhere except a clump near spawn — about 6-9 chunks of clouds and nothing else. The cloud layer is now a dense, evenly-spaced field that stretches ±320 blocks around you — well past the maximum render distance — so clouds fill the sky all the way to the horizon wherever you walk, fly or film. The field is rendered with hardware instancing (a few draw calls for the whole sky) and the far edge fades into the fog, so you never see a hard boundary where the clouds end.',
@@ -2258,7 +2273,7 @@
         return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
       }
 
-      function fetchServerList() {
+       function fetchServerList() {
         var dotEl = document.getElementById('srv-dot');
         var labelEl = document.getElementById('srv-label');
         var statsEl = document.getElementById('srv-stats');
@@ -2268,84 +2283,62 @@
         dotEl.className = 'dot pending';
         labelEl.textContent = 'Connecting...';
         statsEl.textContent = '';
-        listEl.innerHTML = '<div class="srv-empty">Connecting to server...</div>';
+        listEl.innerHTML = '<div class="srv-empty">Loading servers...</div>';
 
-        var ws = new WebSocket(SRV_WS);
-        var responded = false;
-        var timeout = setTimeout(function() {
-          if (!responded) {
-            ws.close();
+        // Live server directory — every server that's currently up (Official SMP
+        // + player-hosted) registers here. We list them with name, IP, description
+        // and player count (Minecraft-Java style server browser).
+        var api = (SRV_WS || '').replace(/^wss?:\/\//, 'https://') + '/api/servers';
+        fetch(api, { headers: { 'Accept': 'application/json' } })
+          .then(function(r) { return r.json(); })
+          .then(function(servers) {
+            if (!Array.isArray(servers) || servers.length === 0) {
+              dotEl.className = 'dot on';
+              labelEl.textContent = 'Online';
+              statsEl.textContent = '0 servers';
+              listEl.innerHTML = '<div class="srv-empty">No live servers yet. Host your own from the game!</div>';
+              return;
+            }
+            var total = 0;
+            for (var i = 0; i < servers.length; i++) total += (servers[i].players || 0);
+            dotEl.className = 'dot on';
+            labelEl.textContent = 'Online';
+            statsEl.textContent = servers.length + ' server' + (servers.length !== 1 ? 's' : '') + ' · ' + total + ' player' + (total !== 1 ? 's' : '') + ' online';
+
+            var html = '';
+            for (var i = 0; i < servers.length; i++) {
+              var s = servers[i];
+              var addr = s.address || '';
+              var official = s.official ? '<span class="badge" style="background:linear-gradient(135deg,rgba(180,140,40,.4),rgba(200,160,60,.3));border-color:rgba(220,180,80,.4);color:#ffe6a0;">OFFICIAL</span>' : '';
+              html += '<div class="srv-card">' +
+                '<div class="left">' +
+                  '<div class="name">' + esc(s.name || 'Server') + ' ' + official + '</div>' +
+                  (s.description ? '<div class="desc">' + esc(s.description) + '</div>' : '') +
+                  '<div class="addr"><span class="addr-label">IP:</span> <code>' + esc(addr) + '</code> <button class="srv-copy" data-addr="' + esc(addr) + '">Copy</button></div>' +
+                  '<div class="meta"><span>👥 ' + (s.players || 0) + ' playing</span></div>' +
+                '</div>' +
+                '<div class="players">' + (s.players || 0) + ' <span class="max">online</span></div>' +
+              '</div>';
+            }
+            listEl.innerHTML = html;
+            listEl.querySelectorAll('.srv-copy').forEach(function(b) {
+              b.addEventListener('click', function() {
+                var a = b.getAttribute('data-addr');
+                if (navigator.clipboard) {
+                  navigator.clipboard.writeText(a).then(function() {
+                    b.textContent = 'Copied!';
+                    setTimeout(function() { b.textContent = 'Copy'; }, 1200);
+                  });
+                }
+              });
+            });
+          })
+          .catch(function() {
             dotEl.className = 'dot off';
             labelEl.textContent = 'Offline';
             statsEl.textContent = '';
-            listEl.innerHTML = '<div class="srv-error">Server did not respond. It may be offline or starting up.</div>';
-          }
-        }, 6000);
-
-        ws.onopen = function() {
-          ws.send(JSON.stringify({ type: 'list_rooms' }));
-        };
-
-        ws.onmessage = function(e) {
-          responded = true;
-          clearTimeout(timeout);
-          try {
-            var msg = JSON.parse(e.data);
-            if (msg.type === 'room_list' && Array.isArray(msg.rooms)) {
-              var rooms = msg.rooms;
-              var totalPlayers = 0;
-              for (var i = 0; i < rooms.length; i++) totalPlayers += (rooms[i].playerCount || 0);
-
-              dotEl.className = 'dot on';
-              labelEl.textContent = 'Online';
-              statsEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '') + ' · ' + totalPlayers + ' player' + (totalPlayers !== 1 ? 's' : '') + ' online';
-
-              if (rooms.length === 0) {
-                listEl.innerHTML = '<div class="srv-empty">No active rooms right now. Be the first to start one!</div>';
-              } else {
-                var html = '';
-                for (var i = 0; i < rooms.length; i++) {
-                  var r = rooms[i];
-                  var pc = r.playerCount || 0;
-                  var mp = r.maxPlayers || 20;
-                  var mode = (r.gameMode || 'survival');
-                  mode = mode.charAt(0).toUpperCase() + mode.slice(1);
-                  var owner = r.owner || '';
-                  html += '<div class="srv-card">' +
-                    '<div class="left">' +
-                      '<div class="name">' + esc(r.name) + '</div>' +
-                      '<div class="meta">' +
-                        '<span>🎮 ' + esc(mode) + '</span>' +
-                        (owner ? '<span>👑 ' + esc(owner) + '</span>' : '') +
-                        '<span class="badge">SMP</span>' +
-                      '</div>' +
-                    '</div>' +
-                    '<div class="players">' + pc + ' <span class="max">/ ' + mp + '</span></div>' +
-                  '</div>';
-                }
-                listEl.innerHTML = html;
-              }
-            } else {
-              dotEl.className = 'dot off';
-              labelEl.textContent = 'Error';
-              listEl.innerHTML = '<div class="srv-error">Unexpected server response.</div>';
-            }
-          } catch (err) {
-            dotEl.className = 'dot off';
-            labelEl.textContent = 'Error';
-            listEl.innerHTML = '<div class="srv-error">Failed to parse server response.</div>';
-          }
-          ws.close();
-        };
-
-        ws.onerror = function() {
-          responded = true;
-          clearTimeout(timeout);
-          dotEl.className = 'dot off';
-          labelEl.textContent = 'Offline';
-          statsEl.textContent = '';
-          listEl.innerHTML = '<div class="srv-error">Could not connect to the server.</div>';
-        };
+            listEl.innerHTML = '<div class="srv-error">Could not reach the server directory.</div>';
+          });
       }
 
       document.getElementById('srv-refresh').addEventListener('click', fetchServerList);

@@ -1,7 +1,7 @@
 // Entry point: wires up renderer, world, player, input, and the render loop.
 
 import * as THREE from 'three';
-import { BACKEND_URL } from './config.js';
+import { BACKEND_URL, DIRECTORY_URL } from './config.js';
 import { World, CHUNK_SIZE, BIOMES } from './world.js';
 import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
@@ -3578,19 +3578,44 @@ function renderServerList(filter, remoteRooms) {
   const listEl = document.getElementById('server-list');
   if (!listEl) return;
 
-  // Track which rooms are actually online on the server
-  const remoteNames = new Set((remoteRooms || []).map(r => r.name));
+  // Build the full list: OfficialSMP + locally created servers + remote rooms.
+  const remoteByName = new Map((remoteRooms || []).map(r => [r.name, r]));
 
   const all = [];
-  // Always include OfficialSMP
-  const official = Server.load('OfficialSMP') || { name: 'OfficialSMP', seed: 12345, gameMode: 'survival', maxPlayers: 50, players: [] };
+  // Always include OfficialSMP (create it locally if missing).
+  let official = Server.load('OfficialSMP');
+  if (!official) {
+    official = new Server('OfficialSMP', 50, 'survival', null);
+    official.seed = 12345;
+    official.ownerSecret = null;
+    official.save();
+  }
+  official._online = true;
   all.push(official);
 
-  // Mark local servers that are also on the network
-  for (const s of all) {
-    if (remoteNames.has(s.name)) s._online = true;
-    else if (!s._remote) s._online = false;
-    else s._online = true;
+  // Local (created) servers — merge live network state when available.
+  for (const s of Server.listAll()) {
+    if (s.name === 'OfficialSMP') continue;
+    const remote = remoteByName.get(s.name);
+    s._online = !!remote;
+    if (remote) {
+      if (remote.seed != null) s.seed = remote.seed;
+      if (remote.gameMode) s.gameMode = remote.gameMode;
+      if (remote.maxPlayers) s.maxPlayers = remote.maxPlayers;
+      if (remote.players) s.players = remote.players;
+    }
+    all.push(s);
+  }
+
+  // Remote-only rooms (not saved locally).
+  for (const [name, r] of remoteByName) {
+    if (all.some(s => s.name === name)) continue;
+    const s = new Server(name, r.maxPlayers || 10, r.gameMode || 'survival', r.ownerName || null);
+    s.seed = r.seed != null ? r.seed : null;
+    s.players = r.players || [];
+    s._online = true;
+    s._remote = true;
+    all.push(s);
   }
 
   const servers = filter ? all.filter(s => s.name.toLowerCase().includes(filter.toLowerCase())) : all;
@@ -3666,6 +3691,66 @@ function renderRecentServers() {
   }
 }
 
+// ── Live server directory (player-hosted + Official SMP) ───────────────
+// Fetches the list of currently-up servers from the portal directory and
+// renders them. Clicking Join connects the client to that server's ws://
+// address (Minecraft-Java style) and then lists the worlds on it.
+function normalizeServerAddress(input) {
+  let a = (input || '').trim();
+  if (!a) return '';
+  if (!/^wss?:\/\//i.test(a)) a = 'ws://' + a;
+  return a;
+}
+
+function joinServerByAddress(address) {
+  address = normalizeServerAddress(address);
+  if (!address) return;
+  if (playerName.startsWith('Guest')) {
+    addChatLine('Create an account to play multiplayer!', '#fa0');
+    return;
+  }
+  const errEl = document.getElementById('mp-error');
+  if (errEl) errEl.textContent = '';
+  addChatLine('Connecting to ' + address + '…', '#7af', true);
+  if (network.connected) network.disconnect();
+  network.connect(address);
+  network.onConnectedOnce(() => {
+    renderServerList();
+    network.listRooms();
+    syncLocalServersToNetwork();
+  });
+}
+
+async function renderLiveServers() {
+  const el = document.getElementById('live-servers');
+  if (!el) return;
+  el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Loading servers…</div>';
+  try {
+    const res = await fetch(DIRECTORY_URL, { headers: { Accept: 'application/json' } });
+    const servers = await res.json();
+    if (!Array.isArray(servers) || servers.length === 0) {
+      el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">No live servers yet — host one!</div>';
+      return;
+    }
+    el.innerHTML = servers.map(s => {
+      const official = s.official ? '<span style="color:#fa0;font:9px monospace;margin-left:6px;letter-spacing:1px;">OFFICIAL</span>' : '';
+      return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font:bold 12px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name)}${official}</div>
+          ${s.description ? `<div style="font:10px monospace;color:#9aa4b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.description)}</div>` : ''}
+          <div style="font:10px monospace;color:#888;margin-top:2px;">${s.players || 0} playing · <span style="color:#789;">${escHtml(s.address)}</span></div>
+        </div>
+        <button class="ls-join-btn" data-addr="${escHtml(s.address)}" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border:1px solid #2a5a2a;color:#fff;cursor:pointer;font:bold 11px monospace;padding:6px 12px;border-radius:3px;letter-spacing:0.5px;">JOIN</button>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.ls-join-btn').forEach(btn => {
+      btn.addEventListener('click', () => joinServerByAddress(btn.dataset.addr));
+    });
+  } catch (e) {
+    el.innerHTML = '<div style="color:#f88;padding:8px;font:11px monospace;text-align:center;">Could not load server list.</div>';
+  }
+}
+
 function showMultiplayerMenu() {
   if (playerName.startsWith('Guest')) {
     addChatLine('Create an account to play multiplayer!', '#fa0');
@@ -3674,6 +3759,7 @@ function showMultiplayerMenu() {
   const mpUsername = document.getElementById('input-mp-username');
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
+  renderLiveServers();
   ui.showMenu('multiplayer');
 
   // Connect to server and fetch remote room list
@@ -5344,7 +5430,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         cgGameplayStop();
         if (isMultiplayer && network && typeof network.leaveRoom === 'function') network.leaveRoom();
         try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
-        if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) {
+        if (isMultiplayer) {
+          showMultiplayerMenu();
+        } else if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) {
           if (typeof showMinigames === 'function') showMinigames();
         } else {
           if (typeof showWorldList === 'function') showWorldList();
@@ -6548,7 +6636,18 @@ function initMenu() {
     showMultiplayerMenu();
   });
   document.getElementById('btn-create-server').addEventListener('click', () => {
+    // Hosting a server is now player-run: send them to the download/host page.
+    window.open('/create-server.html', '_blank');
+  });
+  document.getElementById('btn-new-mp-world').addEventListener('click', () => {
     showCreateServerMenu();
+  });
+  document.getElementById('btn-direct-connect').addEventListener('click', () => {
+    const v = document.getElementById('input-direct-connect')?.value || '';
+    joinServerByAddress(v);
+  });
+  document.getElementById('input-direct-connect')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') joinServerByAddress(e.target.value || '');
   });
   document.getElementById('btn-mp-back').addEventListener('click', () => {
     ui.showMenu('main');

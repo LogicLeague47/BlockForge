@@ -106,6 +106,39 @@ async function flushRedisSaves() {
 let rooms = new Map();
 let serverStats = { dailyUsers: {}, monthlyUsers: {}, serversCreated: 0 };
 
+// ── Live server directory (player-hosted + official) ──────────────────
+// Players run their own BlockForge server ("you host it") and register it
+// here so it shows up on the portal + in the client's server list. The dev
+// only runs this one process (which also hosts Official SMP) — no central
+// room hosting — so compute stays tiny. Entries expire if they stop
+// heartbeating (TTL), keeping the list live.
+const LIVE_SERVERS = new Map(); // id -> { id, name, address, players, official, version, lastSeen }
+const SERVER_TTL = 90 * 1000;
+function registerLiveServer({ id, name, address, players = 0, official = false, version = '', description = '' }) {
+  if (!id || !address) return;
+  LIVE_SERVERS.set(id, {
+    id,
+    name: String(name || id).slice(0, 48),
+    address: String(address).slice(0, 256),
+    players: Math.max(0, players | 0),
+    official: !!official,
+    version: String(version || '').slice(0, 32),
+    description: String(description || '').slice(0, 200),
+    lastSeen: Date.now(),
+  });
+}
+function listLiveServers() {
+  const now = Date.now();
+  const out = [];
+  for (const [id, s] of LIVE_SERVERS) {
+    if (now - s.lastSeen > SERVER_TTL) { LIVE_SERVERS.delete(id); continue; }
+    out.push({ id: s.id, name: s.name, address: s.address, players: s.players, official: s.official, version: s.version, description: s.description });
+  }
+  // Official server always first.
+  out.sort((a, b) => (b.official ? 1 : 0) - (a.official ? 1 : 0));
+  return out;
+}
+
 // ── Pending DMs (offline message queue) ─────────────────────────────
 // Maps lowercase username → array of { from, text, time, id }
 let pendingDMs = {};
@@ -1120,6 +1153,35 @@ const server = http.createServer((req, res) => {
     res.end(JSON.stringify(communityMods()));
     return;
   }
+  // ── Live server directory (player-hosted + official) ───────────────
+  // GET  /api/servers  → JSON array of live servers (name, address, players, official).
+  // POST /api/servers  → a server heartbeats/registers itself here.
+  // `address` is the ws:// (or wss://) endpoint other players connect to.
+  if (pathname === '/api/servers') {
+    if (req.method === 'OPTIONS') { res.writeHead(204, CORS); res.end(); return; }
+    if (req.method === 'POST') {
+      let body = ''; let bytes = 0;
+      req.on('data', (c) => { body += c; bytes += c.length; if (bytes > 4096) req.destroy(); });
+      req.on('end', () => {
+        try {
+          const d = JSON.parse(body);
+          if (!d || !d.address) { res.writeHead(400, CORS); res.end(JSON.stringify({ ok: false, reason: 'address required' })); return; }
+          registerLiveServer(d);
+          res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: true }));
+        } catch {
+          res.writeHead(400, CORS);
+          res.end(JSON.stringify({ ok: false, reason: 'invalid json' }));
+        }
+      });
+      return;
+    }
+    // GET / HEAD
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(listLiveServers()));
+    return;
+  }
+
   if (pathname === '/api/mods/upload' && req.method === 'POST') {
     const corsOrigin = req.headers.origin || '*';
     res.writeHead(200, {
@@ -2848,6 +2910,46 @@ let _hbInterval;
   loadPendingDMs();
   loadDmHistory();
   ensureOfficialServer();
+
+  // ── Advertise this server into the live-server directory ────────────
+  // The dev's instance is "Official SMP" (shows first, tagged official).
+  // A player's downloaded copy sets SERVER_NAME + PUBLIC_WS_URL + DIRECTORY_URL
+  // (the dev directory to register with) + optionally IS_OFFICIAL. It registers
+  // locally AND posts to DIRECTORY_URL so the portal/client can list it.
+  const SELF_VERSION = process.env.npm_package_version || '1.0.1';
+  const SELF_ID = process.env.SERVER_ID || 'official-smp';
+  const SELF_NAME = process.env.SERVER_NAME || 'Official SMP';
+  const SELF_ADDRESS = process.env.PUBLIC_WS_URL
+    || (process.env.PUBLIC_HOST ? `${process.env.PUBLIC_PROTO || 'ws'}://${process.env.PUBLIC_HOST}` : `ws://localhost:${PORT}`);
+  const DIRECTORY_URL = process.env.DIRECTORY_URL || '';
+  const SELF_OFFICIAL = DIRECTORY_URL ? (process.env.IS_OFFICIAL === 'true') : true;
+
+  async function advertiseSelf() {
+    const entry = {
+      id: SELF_ID,
+      name: SELF_NAME,
+      address: SELF_ADDRESS,
+      players: (rooms.get('OfficialSMP') && rooms.get('OfficialSMP').players.size) || 0,
+      official: SELF_OFFICIAL,
+      version: SELF_VERSION,
+      description: process.env.SERVER_DESC || (SELF_OFFICIAL ? 'The official BlockForge survival server.' : ''),
+    };
+    registerLiveServer(entry); // always visible locally
+    if (DIRECTORY_URL) {
+      try {
+        await fetch(DIRECTORY_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(entry),
+        });
+      } catch (e) {
+        console.warn('[Directory] register failed:', e.message);
+      }
+    }
+  }
+  advertiseSelf();
+  setInterval(advertiseSelf, 30 * 1000);
+
   server.listen(PORT, () => {
     console.log(`\n  BlockForge Server`);
     console.log(`  ─────────────────`);

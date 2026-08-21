@@ -1,0 +1,13 @@
+{
+  "name": "blockforge-server",
+  "version": "1.0.1",
+  "description": "Host your own BlockForge multiplayer server. Free, you run it, friends join by IP.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

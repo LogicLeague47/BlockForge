@@ -243,24 +243,21 @@ export class Server {
 
   static listAll() {
     const servers = [];
-    const keysToRemove = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.startsWith('bf_server_') && key !== 'bf_server_OfficialSMP') {
-        keysToRemove.push(key);
+      if (key && key.startsWith('bf_server_')) {
+        const s = Server.load(key.slice('bf_server_'.length));
+        if (s) servers.push(s);
       }
     }
-    for (const key of keysToRemove) {
-      localStorage.removeItem(key);
-    }
-    let official = Server.load('OfficialSMP');
+    let official = servers.find(s => s.name === 'OfficialSMP');
     if (!official) {
       official = new Server('OfficialSMP', 50, 'survival', null);
       official.seed = 12345;
       official.ownerSecret = null;
       official.save();
+      servers.push(official);
     }
-    servers.push(official);
     return servers;
   }
 }
