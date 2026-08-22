@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '7f03e9c',
+          heading: 'Brick Furnace + persistent cooking + iPhone 5 fix',
+          desc: 'Furnaces are now Brick Furnaces with proper red-brown brick textures and a dark furnace opening with fire glow. Furnaces keep cooking when you close them — items stay in the furnace, not dumped to inventory. Different items cook at different speeds: foods cook fast (4-6s), ores slow (10-16s), stone medium (8-10s). Fixed crashes on iPhone 5 and older devices.',
+          date: 'Aug 22',
+          bugs: ['furnace had plain grey stone texture (not brick)', 'closing furnace dumped all items back to inventory', 'furnace stopped cooking when UI was closed', 'all recipes cooked at same 3s speed', 'game crashed on iPhone 5 and older iOS devices', 'WebGL context loss caused freeze instead of recovery'],
+          updates: ['Brick Furnace with proper brick textures (top, side, front)', 'Furnace state persisted per-block in world data', 'Furnaces continue cooking in background when UI is closed', 'Per-recipe smelt speeds (foods 4-6s, ores 10-16s, stone 8-10s)', 'WebGL context loss handler with pause + recovery', 'SFX loading capped on low-end (120 samples, skip jingles)', 'Menu 3D preview disabled on low-end devices', 'Pixel ratio capped at 1 on mobile'],
+          features: ['Brick Furnace block', 'Background furnace cooking', 'Variable smelt speeds', 'iPhone 5 / low-end device support'],
+        },
+        {
           hash: '4f00c78',
           heading: 'CrazyGames account linking + CG compliance',
           desc: 'You can now link your CrazyGames account to Google and GitHub from the in-game settings. CrazyGames recommends account linking — their showAccountLinkPrompt() modal is shown before OAuth linking. Login screen still only shows CrazyGames login on CG (per TOS).',
