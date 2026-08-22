@@ -149,7 +149,7 @@ const BASE_BREAK_TIME = 1.0; // (hardness * BASE) / toolSpeed → seconds to bre
 
 // --- renderer / scene / camera ---
 const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(LOW_END ? 1 : Math.min(window.devicePixelRatio, 1.5));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;

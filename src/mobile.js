@@ -116,42 +116,42 @@ export function initMobileControls(playerRef, input, callbacks) {
   const onCG = /crazygames/i.test(location.hostname);
   const showVoice = !onCG;
   const root = document.createElement('div');
-  root.id = 'mobile-controls';
+  root.id = 'bf-controls';
   root.innerHTML = `
-    <div class="mc-joystick-zone">
-      <div class="mc-joystick-base"><div class="mc-joystick-knob"></div></div>
+    <div class="bf-joystick-zone">
+      <div class="bf-joystick-base"><div class="bf-joystick-knob"></div></div>
     </div>
-    <div class="mc-camera-zone"></div>
-    <div class="mc-main-btns">
-      <button class="mc-btn mc-btn-jump" data-action="jump">&#9650;</button>
+    <div class="bf-camera-zone"></div>
+    <div class="bf-main-btns">
+      <button class="mc-btn bf-btn-jump" data-action="jump">&#9650;</button>
     </div>
-    <div class="mc-side-btns">
-      <button class="mc-btn-mid mc-btn-sprint" data-action="sprint">&#187;</button>
-      <button class="mc-btn-mid mc-btn-crouch" data-action="crouch">&#9660;</button>
-      <button class="mc-btn-mid mc-btn-inv" data-action="inventory">&#127890;</button>
+    <div class="bf-side-btns">
+      <button class="bf-btn-mid bf-btn-sprint" data-action="sprint">&#187;</button>
+      <button class="bf-btn-mid bf-btn-crouch" data-action="crouch">&#9660;</button>
+      <button class="bf-btn-mid bf-btn-inv" data-action="inventory">&#127890;</button>
     </div>
-    <button class="mc-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
-    <div class="mc-action-panel">
-      <button class="mc-btn-ap mc-btn-place" data-action="place">&#9995;</button>
-      <button class="mc-btn-ap mc-btn-chat" data-action="chat">&#128172;</button>
-      <button class="mc-btn-ap mc-btn-menu" data-action="menu">&#9208;</button>
-      <button class="mc-btn-ap mc-btn-drop" data-action="drop">&#10006;</button>
-      <button class="mc-btn-ap mc-btn-swap" data-action="swapHands">&#8646;</button>
-      <button class="mc-btn-ap mc-btn-perspective" data-action="perspective">&#128065;</button>
-      <button class="mc-btn-ap mc-btn-cmd" data-action="command">/</button>
-      <button class="mc-btn-ap mc-btn-f3" data-action="f3">F3</button>
-      ${showVoice ? '<button class="mc-btn-ap mc-btn-voice" data-action="voice">&#127908;</button>' : ''}
-      <button class="mc-btn-ap mc-btn-exit" data-action="exit">&#128682;</button>
+    <button class="bf-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
+    <div class="bf-action-panel">
+      <button class="bf-btn-ap bf-btn-place" data-action="place">&#9995;</button>
+      <button class="bf-btn-ap bf-btn-chat" data-action="chat">&#128172;</button>
+      <button class="bf-btn-ap bf-btn-menu" data-action="menu">&#9208;</button>
+      <button class="bf-btn-ap bf-btn-drop" data-action="drop">&#10006;</button>
+      <button class="bf-btn-ap bf-btn-swap" data-action="swapHands">&#8646;</button>
+      <button class="bf-btn-ap bf-btn-perspective" data-action="perspective">&#128065;</button>
+      <button class="bf-btn-ap bf-btn-cmd" data-action="command">/</button>
+      <button class="bf-btn-ap bf-btn-f3" data-action="f3">F3</button>
+      ${showVoice ? '<button class="bf-btn-ap bf-btn-voice" data-action="voice">&#127908;</button>' : ''}
+      <button class="bf-btn-ap bf-btn-exit" data-action="exit">&#128682;</button>
     </div>
   `;
-  const prevRoot = document.getElementById('mobile-controls');
+  const prevRoot = document.getElementById('bf-controls');
   if (prevRoot) prevRoot.remove();
   document.body.appendChild(root);
   root.style.display = state.isMobile ? 'block' : 'none';
 
-  const joystickBase = root.querySelector('.mc-joystick-base');
-  const joystickKnob = root.querySelector('.mc-joystick-knob');
-  const cameraZone = root.querySelector('.mc-camera-zone');
+  const joystickBase = root.querySelector('.bf-joystick-base');
+  const joystickKnob = root.querySelector('.bf-joystick-knob');
+  const cameraZone = root.querySelector('.bf-camera-zone');
 
   // --- Joystick (analog, full travel) ---
   function joystickMax() {
@@ -191,7 +191,7 @@ export function initMobileControls(playerRef, input, callbacks) {
     state._joystickTouchId = null;
   }
 
-  const joystickZone = root.querySelector('.mc-joystick-zone');
+  const joystickZone = root.querySelector('.bf-joystick-zone');
   joystickZone.addEventListener('touchstart', (e) => {
     e.stopPropagation();
     e.preventDefault(); // no ghost mousedown/click — this touch is a joystick input
@@ -312,7 +312,7 @@ export function initMobileControls(playerRef, input, callbacks) {
   function fireButton(action, down, btnEl) {
     input.keys = input.keys || {};
     if (action === 'toggle') {
-      root.classList.toggle('mc-open');
+      root.classList.toggle('bf-open');
       return;
     }
     if (action === 'jump') {
@@ -322,13 +322,13 @@ export function initMobileControls(playerRef, input, callbacks) {
       if (down) {
         state.sprintOn = !state.sprintOn;
         input.keys['ShiftLeft'] = state.sprintOn;
-        if (btnEl) btnEl.classList.toggle('mc-active', state.sprintOn);
+        if (btnEl) btnEl.classList.toggle('bf-active', state.sprintOn);
       }
     } else if (action === 'crouch') {
       if (down) {
         state.crouchOn = !state.crouchOn;
         input.keys['ControlLeft'] = state.crouchOn;
-        if (btnEl) btnEl.classList.toggle('mc-active', state.crouchOn);
+        if (btnEl) btnEl.classList.toggle('bf-active', state.crouchOn);
       }
     } else if (action === 'place') {
       if (down && callbacks.onPlace) callbacks.onPlace();

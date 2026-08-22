@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'a5f6055',
+          heading: 'Mobile: scroll fix + branding + crisp render + perf',
+          desc: 'Fixed the long-standing bug where menu screens required flipping between portrait and landscape — menus now scroll properly from the top in any orientation. Renamed all mobile-control CSS classes from .mc to .bf for original branding. Restored render resolution to match PC (crisp visuals, no longer blurry). Water surfaces now render front-face only, cutting fragment load on mobile.',
+          date: 'Aug 22',
+          bugs: ['menus required flipping portrait/landscape to reach top content', 'mobile controls used Minecraft-style .mc class prefix', 'mobile rendered at 1x pixel ratio (blurry vs PC)'],
+          updates: ['Overlay menus scroll properly in portrait + landscape (no more flipping)', 'Mobile controls rebranded .mc → .bf', 'Render resolution restored to PC level (devicePixelRatio, capped at 2)', 'Water surfaces render front-face only (fewer fragments on mobile)'],
+          features: [],
+        },
+        {
           hash: 'da4fba2',
           heading: 'Mobile UI: responsive menus + tap-to-open',
           desc: 'Mobile UI now adapts cleanly between portrait and landscape. Create-server and other menu panels use the full screen width with no horizontal overflow or cropping, the inventory wraps to fit, and the gear (action) panel now lays its buttons out horizontally (sideways) so they never overlap on small screens. Tapping an interactable entity — like a trader (Traveler) — now opens it instead of hitting it, so a quick tap on a trader opens the trade window.',

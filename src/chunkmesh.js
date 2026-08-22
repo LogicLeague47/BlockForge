@@ -73,7 +73,7 @@ export class ChunkMeshManager {
       color,
       transparent: true,
       opacity,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
       depthWrite: false,
     });
   }
