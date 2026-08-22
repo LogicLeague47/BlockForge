@@ -10589,6 +10589,9 @@ document.getElementById('ai-data-page')?.addEventListener('click', () => {
   const role = encodeURIComponent(playerRole || '');
   openExternal('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
+document.getElementById('btn-ai-portal')?.addEventListener('click', () => {
+  openExternal('portal.html');
+});
 
 // Delete Account (right to erasure). First click reveals a confirm; the second
 // sends the request. Only works while authenticated (server enforces ownership).
