@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'ff4f63f',
+          heading: 'CrazyGames compliance + button click sound',
+          desc: 'Full CrazyGames TOS compliance audit: hosting, mods, consent notice, and footer links are now handled in-game instead of opening external tabs or links. Added Minecraft-style button click sound to all UI buttons.',
+          date: 'Aug 22',
+          bugs: ['HOST SERVER opened external page on CG (TOS violation)', 'Mods button opened external page on CG (TOS violation)', 'Consent notice had external links on CG (TOS violation)', 'Footer Terms/Privacy links 404\'d on CG domain', 'UI buttons had no click sound'],
+          updates: ['HOST SERVER shows in-game popup on CG directing to official site', 'Mods button shows in-game message on CG directing to official website', 'Consent notice uses inline text on CG (no external links)', 'Footer Terms/Privacy hidden on CG', 'Added buttonClick() to AudioManager (click_002 sample + procedural fallback)', 'Global click listener plays click sound on all buttons'],
+          features: ['Minecraft-style button click sound on all UI elements'],
+        },
+        {
           hash: '9736bfe',
           heading: 'Mobile: responsive grids + removed Minecraft references',
           desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "Minecraft" and "minecraft clone" references from the codebase, comments, package name, and portal changelogs.',
