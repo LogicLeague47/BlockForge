@@ -7411,9 +7411,7 @@ function initMenu() {
   ];
   function renderLinkedAccounts(msg) {
     if (!linkedAccountsList) return;
-    const providers = isOnCrazyGames()
-      ? allProviders.filter(p => p.id === 'crazygames')
-      : allProviders;
+    const providers = allProviders;
     const links = msg.identities || {};
     let html = '';
     for (const p of providers) {
@@ -7449,6 +7447,14 @@ function initMenu() {
             const cgId = sdk.user?.getId?.() || sdk.user?.getUsername?.();
             if (cgId) network.linkIdentity('crazygames', cgId);
             else showToast('No CG identity found', '#f44', 3);
+          });
+        } else if (isOnCrazyGames()) {
+          // On CG: use the official account link prompt before OAuth linking
+          crazyGamesSDK().then(sdk => {
+            if (!sdk || !sdk.user?.showAccountLinkPrompt) { network.startOAuthLink(prov); return; }
+            sdk.user.showAccountLinkPrompt().then(resp => {
+              if (resp && resp.response === 'yes') network.startOAuthLink(prov);
+            }).catch(() => network.startOAuthLink(prov));
           });
         } else {
           network.startOAuthLink(prov);
