@@ -1404,8 +1404,7 @@
       #overlay {
         position: fixed; inset: 0; z-index: 50;
         display: flex; flex-direction: column;
-        align-items: center; justify-content: flex-start;
-        padding: 16px 0;
+        align-items: center; justify-content: center;
         color: var(--text-primary); font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
         text-align: center;
         overflow-y: auto; overflow-x: hidden;
@@ -1441,7 +1440,7 @@
         /* margin:auto centres in the flex overlay AND keeps the top reachable
            when content is taller than the viewport (so the overlay scrollbar
            actually works instead of clipping). */
-        margin: auto 0;
+        margin: auto;
         /* Scale down (never up) to fit the current screen. */
         transform-origin: top center;
       }
