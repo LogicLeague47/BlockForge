@@ -561,6 +561,52 @@ export const SMELTING = {
   [B.GREENSTONE_ORE]: I.GREENSTONE_DUST,
 };
 
+// Per-recipe smelt times in seconds (default 10 if not listed).
+// Foods cook faster; ores and stone take longer.
+export const SMELT_TIME = {
+  // Ores → ingots (slow — real smelting)
+  [B.IRON_ORE]: 12,
+  [B.GOLD_ORE]: 14,
+  [B.COPPER_ORE]: 10,
+  [B.DIAMOND_ORE]: 16,
+  [B.EMERALD_ORE]: 14,
+  [B.GREENSTONE_ORE]: 12,
+  // Food (fast — cooking)
+  [I.APPLE]: 4,
+  [I.PORKCHOP_RAW]: 5,
+  [I.BEEF_RAW]: 6,
+  [I.CHICKEN_RAW]: 4,
+  [I.MUTTON_RAW]: 5,
+  // Stone / sand / clay (medium)
+  [B.COBBLESTONE]: 10,
+  [B.STONE]: 10,
+  [B.STONE_BRICKS]: 10,
+  [B.BLACKSTONE_BRICKS]: 10,
+  [B.SAND]: 6,
+  [B.RED_SAND]: 6,
+  [B.CLAY]: 8,
+  [B.SANDSTONE]: 8,
+  [B.QUARTZ_BLOCK]: 8,
+  // Wood → charcoal (medium)
+  [B.WOOD]: 8,
+  [B.JUNGLE_WOOD]: 8,
+  [B.BIRCH_WOOD]: 8,
+  [B.SPRUCE_WOOD]: 8,
+  [B.DARK_OAK_WOOD]: 8,
+  [B.ACACIA_WOOD]: 8,
+  // Leaves → charcoal (fast — thin material)
+  [B.DARK_OAK_LEAVES]: 4,
+  [B.BIRCH_LEAVES]: 4,
+  [B.SPRUCE_LEAVES]: 4,
+  [B.ACACIA_LEAVES]: 4,
+  // Nether / special
+  [B.NETHERRACK]: 8,
+  [B.NETHER_BRICK]: 8,
+  [B.CACTUS]: 6,
+};
+// Default smelt time for recipes not listed above.
+export const SMELT_TIME_DEFAULT = 10;
+
 // --- recipe builders --------------------------------------------------------
 function shaped({ out, pattern, key, _disabled }) {
   // Convert the string pattern into a normalized 2D grid of item ids (or null).

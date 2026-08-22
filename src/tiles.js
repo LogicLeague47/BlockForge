@@ -812,53 +812,84 @@ const PAINTERS = {
     }
   },
 
-  furnace_top(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
-    // Stone rim.
-    ctx.fillStyle = 'rgb(80,80,80)';
-    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
-    ctx.fillStyle = 'rgb(122,122,122)';
-    ctx.fillRect(x0 + 3, y0 + 3, TILE - 6, TILE - 6);
-    // Inner bowl.
-    ctx.fillStyle = 'rgb(70,70,70)';
-    ctx.fillRect(x0 + 6, y0 + 6, TILE - 12, TILE - 12);
+  brick_furnace_top(ctx, x0, y0, rng) {
+    // Brick pattern top-down: red-brown bricks with grey mortar.
+    const mortar = [160, 155, 148];
+    ctx.fillStyle = `rgb(${mortar[0]},${mortar[1]},${mortar[2]})`;
+    ctx.fillRect(x0, y0, TILE, TILE);
+    const brickColor = () => [140 + (rng() * 30 - 15) | 0, 70 + (rng() * 20 - 10) | 0, 55 + (rng() * 15 - 7) | 0];
+    // Two rows of bricks offset by half.
+    for (let row = 0; row < 4; row++) {
+      const by = y0 + row * 4;
+      const offset = (row % 2) * 8;
+      for (let col = -1; col < 3; col++) {
+        const bx = x0 + col * 8 + offset;
+        const c = brickColor();
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(bx + 1, by + 1, 7, 3);
+      }
+    }
+    // Mortar inset border.
+    ctx.fillStyle = 'rgb(110,105,98)';
+    ctx.fillRect(x0, y0, TILE, 1);
+    ctx.fillRect(x0, y0 + TILE - 1, TILE, 1);
+    ctx.fillRect(x0, y0, 1, TILE);
+    ctx.fillRect(x0 + TILE - 1, y0, 1, TILE);
   },
 
-  furnace_side(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
-    // Beveled stone frame.
-    ctx.fillStyle = 'rgb(80,80,80)';
-    ctx.fillRect(x0 + 1, y0 + 1, TILE - 2, TILE - 2);
-    ctx.fillStyle = 'rgb(126,126,126)';
-    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
-    // Top-left highlight.
-    ctx.fillStyle = 'rgb(142,142,142)';
-    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
-    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
-    // Bottom-right shadow.
-    ctx.fillStyle = 'rgb(95,95,95)';
-    ctx.fillRect(x0 + 2, y0 + TILE - 3, TILE - 4, 1);
-    ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, TILE - 4);
+  brick_furnace_side(ctx, x0, y0, rng) {
+    // Brick wall with running bond pattern.
+    const mortar = [160, 155, 148];
+    ctx.fillStyle = `rgb(${mortar[0]},${mortar[1]},${mortar[2]})`;
+    ctx.fillRect(x0, y0, TILE, TILE);
+    const brickColor = () => [140 + (rng() * 30 - 15) | 0, 70 + (rng() * 20 - 10) | 0, 55 + (rng() * 15 - 7) | 0];
+    for (let row = 0; row < 4; row++) {
+      const by = y0 + row * 4;
+      const offset = (row % 2) * 8;
+      for (let col = -1; col < 3; col++) {
+        const bx = x0 + col * 8 + offset;
+        const c = brickColor();
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(bx + 1, by + 1, 7, 3);
+        // Subtle highlight on top edge of each brick.
+        ctx.fillStyle = `rgb(${Math.min(255, c[0] + 25)},${Math.min(255, c[1] + 15)},${Math.min(255, c[2] + 10)})`;
+        ctx.fillRect(bx + 1, by + 1, 7, 1);
+      }
+    }
   },
 
-  furnace_front(ctx, x0, y0, rng) {
-    noisy(ctx, x0, y0, [110, 110, 110], 0.05, rng);
-    // Frame.
-    ctx.fillStyle = 'rgb(80,80,80)';
-    ctx.fillRect(x0 + 1, y0 + 1, TILE - 2, TILE - 2);
-    ctx.fillStyle = 'rgb(126,126,126)';
-    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, TILE - 4);
+  brick_furnace_front(ctx, x0, y0, rng) {
+    // Brick front with dark furnace opening and fire glow.
+    const mortar = [160, 155, 148];
+    ctx.fillStyle = `rgb(${mortar[0]},${mortar[1]},${mortar[2]})`;
+    ctx.fillRect(x0, y0, TILE, TILE);
+    const brickColor = () => [140 + (rng() * 30 - 15) | 0, 70 + (rng() * 20 - 10) | 0, 55 + (rng() * 15 - 7) | 0];
+    for (let row = 0; row < 4; row++) {
+      const by = y0 + row * 4;
+      const offset = (row % 2) * 8;
+      for (let col = -1; col < 3; col++) {
+        const bx = x0 + col * 8 + offset;
+        const c = brickColor();
+        ctx.fillStyle = `rgb(${c[0]},${c[1]},${c[2]})`;
+        ctx.fillRect(bx + 1, by + 1, 7, 3);
+      }
+    }
     // Dark furnace opening.
-    ctx.fillStyle = 'rgb(40,40,40)';
-    ctx.fillRect(x0 + 6, y0 + 8, TILE - 12, 12);
-    // Fire glow at the bottom of the opening.
-    ctx.fillStyle = 'rgb(255,140,30)';
-    ctx.fillRect(x0 + 7, y0 + 17, TILE - 14, 2);
-    ctx.fillStyle = 'rgb(255,202,82)';
-    ctx.fillRect(x0 + 9, y0 + 18, TILE - 18, 1);
-    // Frame top highlight.
-    ctx.fillStyle = 'rgb(146,146,146)';
-    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillStyle = 'rgb(30,25,20)';
+    ctx.fillRect(x0 + 5, y0 + 5, TILE - 10, TILE - 6);
+    // Inner glow gradient.
+    ctx.fillStyle = 'rgb(50,30,15)';
+    ctx.fillRect(x0 + 6, y0 + 6, TILE - 12, TILE - 8);
+    // Fire glow at bottom of opening.
+    ctx.fillStyle = 'rgb(255,130,25)';
+    ctx.fillRect(x0 + 6, y0 + 12, TILE - 12, 3);
+    ctx.fillStyle = 'rgb(255,190,60)';
+    ctx.fillRect(x0 + 7, y0 + 13, TILE - 14, 2);
+    ctx.fillStyle = 'rgb(255,220,120)';
+    ctx.fillRect(x0 + 9, y0 + 13, TILE - 18, 1);
+    // Top inner edge highlight.
+    ctx.fillStyle = 'rgb(100,60,40)';
+    ctx.fillRect(x0 + 5, y0 + 5, TILE - 10, 1);
   },
 
   podzol_top(ctx, x0, y0, rng) {

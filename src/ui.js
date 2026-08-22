@@ -1415,6 +1415,7 @@ export class UI {
   constructor(atlasCanvas, audio) {
     this.atlas = atlasCanvas;
     this.audio = audio;
+    this.world = null; // set when a world is loaded
     this.hotbarEl = document.getElementById('hotbar');
     this.hudEl = document.getElementById('hud');
     this.overlayEl = document.getElementById('overlay');
@@ -2612,11 +2613,29 @@ export class UI {
   }
 
   // --- furnace screen -------------------------------------------------------
-  openFurnace(inventory) {
+  openFurnace(inventory, fx, fy, fz) {
     this.furnaceOpen = true;
     this._inventoryRef = inventory;
+    this.furnacePos = (fx != null) ? { x: fx, y: fy, z: fz } : null;
     this.cursorItem = null;
     this.cursorItemEl.style.display = 'none';
+    // Load furnace state from world if available
+    if (this.world && this.furnacePos) {
+      const fe = this.world.getFurnace(this.furnacePos.x, this.furnacePos.y, this.furnacePos.z);
+      if (fe) {
+        this.furnaceSlots.input = fe.input;
+        this.furnaceSlots.fuel = fe.fuel;
+        this.furnaceSlots.output = fe.output;
+        this.furnaceBurnTime = fe.burnTime;
+        this.furnaceMaxBurnTime = fe.maxBurnTime;
+        this.furnaceSmeltTime = fe.smeltTime;
+      } else {
+        this.furnaceSlots = { input: null, fuel: null, output: null };
+        this.furnaceBurnTime = 0;
+        this.furnaceMaxBurnTime = 0;
+        this.furnaceSmeltTime = 0;
+      }
+    }
     this.furnaceScreen.classList.add('open');
     if (this.audio) this.audio.containerOpen();
     this.renderFurnaceSlots();
@@ -2632,19 +2651,20 @@ export class UI {
   }
 
   closeFurnace() {
-    const inv = this._inventoryRef;
-    const overflow = [];
-    if (inv) {
-      for (const key of ['input', 'fuel', 'output']) {
-        const slot = this.furnaceSlots[key];
-        if (slot) {
-          const left = inv.add(slot.item, slot.count);
-          if (left > 0) overflow.push({ item: slot.item, count: left });
-          this.furnaceSlots[key] = null;
-        }
-      }
+    // Save furnace state to world so it keeps cooking while UI is closed
+    if (this.world && this.furnacePos) {
+      const fe = this.world.getOrCreateFurnace(this.furnacePos.x, this.furnacePos.y, this.furnacePos.z);
+      fe.input = this.furnaceSlots.input;
+      fe.fuel = this.furnaceSlots.fuel;
+      fe.output = this.furnaceSlots.output;
+      fe.burnTime = this.furnaceBurnTime;
+      fe.maxBurnTime = this.furnaceMaxBurnTime;
+      fe.smeltTime = this.furnaceSmeltTime;
     }
+    // Only cursor item goes back to inventory (items in slots stay in furnace)
+    const overflow = [];
     if (this.cursorItem) {
+      const inv = this._inventoryRef;
       if (inv) {
         const left = inv.add(this.cursorItem.item, this.cursorItem.count);
         if (left > 0) overflow.push({ item: this.cursorItem.item, count: left });
@@ -2658,6 +2678,7 @@ export class UI {
     this.furnaceOpen = false;
     this.furnaceScreen.classList.remove('open');
     if (this.audio) this.audio.containerClose();
+    this.furnacePos = null;
     this._inventoryRef = null;
     this._updateScreenOpen();
   }
@@ -3025,30 +3046,50 @@ export class UI {
     this._updateCursorVisual();
   }
 
-  tickFurnace(dt, smelting, fuelValue) {
-    if (!this.furnaceOpen) return;
-    const fs = this.furnaceSlots;
+  tickFurnace(dt, smelting, fuelValue, smeltTime) {
+    // Tick ALL furnaces in the world (background cooking when UI is closed)
+    if (this.world && this.world.furnaceEntities) {
+      for (const [k, fe] of this.world.furnaceEntities) {
+        this._tickSingleFurnace(dt, fe, smelting, fuelValue, smeltTime);
+      }
+    }
+    // Also tick the UI-open furnace slots (which may differ from world state during interaction)
+    if (this.furnaceOpen) {
+      this._tickSingleFurnace(dt, this.furnaceSlots, smelting, fuelValue, smeltTime);
+      this._updateFurnaceUI();
+    }
+  }
+
+  _tickSingleFurnace(dt, fs, smelting, fuelValue, smeltTime) {
     // burn fuel
-    if (this.furnaceBurnTime > 0) {
-      this.furnaceBurnTime -= dt;
+    const burnKey = fs === this.furnaceSlots ? 'furnaceBurnTime' : null;
+    let burnTime = burnKey ? this.furnaceBurnTime : (fs._burnTime || 0);
+    let maxBurn = burnKey ? this.furnaceMaxBurnTime : (fs._maxBurn || 0);
+    let smeltProg = burnKey ? this.furnaceSmeltTime : (fs._smeltTime || 0);
+
+    if (burnTime > 0) {
+      burnTime -= dt;
     } else if (fs.fuel && fs.input) {
       const fv = fuelValue(fs.fuel.item);
       if (fv > 0) {
-        this.furnaceBurnTime = fv * 0.05; // each fuel tick = 0.05s
-        this.furnaceMaxBurnTime = this.furnaceBurnTime;
+        burnTime = fv * 0.05;
+        maxBurn = burnTime;
         fs.fuel.count--;
         if (fs.fuel.count <= 0) fs.fuel = null;
       }
     }
+
     // smelt
-    if (this.furnaceBurnTime > 0 && fs.input) {
+    let didSmelt = false;
+    if (burnTime > 0 && fs.input) {
       const out = smelting(fs.input.item);
       if (out != null) {
         const outCount = fs.output && fs.output.item === out ? fs.output.count : 0;
         if (outCount < 64) {
-          this.furnaceSmeltTime += dt;
-          if (this.furnaceSmeltTime >= 3) {
-            this.furnaceSmeltTime = 0;
+          const smeltDuration = smeltTime ? smeltTime(fs.input.item) : 10;
+          smeltProg += dt;
+          if (smeltProg >= smeltDuration) {
+            smeltProg = 0;
             const inputItem = fs.input.item;
             fs.input.count--;
             if (fs.input.count <= 0) fs.input = null;
@@ -3057,22 +3098,40 @@ export class UI {
             } else {
               fs.output = { item: out, count: 1 };
             }
-            if (this.audio) this.audio.furnaceCook();
+            didSmelt = true;
+            if (this.audio && this.furnaceOpen && fs === this.furnaceSlots) this.audio.furnaceCook();
             if (this.onSmelt) this.onSmelt(inputItem, 1);
-            this.renderFurnaceSlots();
           }
         }
       }
     } else {
-      this.furnaceSmeltTime = 0;
+      smeltProg = 0;
     }
+
+    // Persist back to furnace entity
+    if (burnKey) {
+      this.furnaceBurnTime = burnTime;
+      this.furnaceMaxBurnTime = maxBurn;
+      this.furnaceSmeltTime = smeltProg;
+    } else {
+      fs._burnTime = burnTime;
+      fs._maxBurn = maxBurn;
+      fs._smeltTime = smeltProg;
+    }
+
+    return didSmelt;
+  }
+
+  _updateFurnaceUI() {
+    const fs = this.furnaceSlots;
+    const smeltDuration = 10; // UI-only fallback
     if (this.furnaceProgressFill) {
-      const pct = this.furnaceBurnTime > 0 ? Math.round((this.furnaceSmeltTime / 3) * 100) : 0;
+      const pct = this.furnaceBurnTime > 0 ? Math.round((this.furnaceSmeltTime / smeltDuration) * 100) : 0;
       this.furnaceProgressFill.style.width = pct + '%';
     }
     // arrow fill
     if (this.furnaceArrowFill) {
-      const apct = this.furnaceBurnTime > 0 ? Math.round((this.furnaceSmeltTime / 3) * 100) : 0;
+      const apct = this.furnaceBurnTime > 0 ? Math.round((this.furnaceSmeltTime / smeltDuration) * 100) : 0;
       const ax = apct / 100 * 40;
       this.furnaceArrowFill.setAttribute('points', `0,6 ${ax},6 ${ax},0 40,12 ${ax},24 ${ax},18 0,18`);
       this.furnaceArrowFill.setAttribute('fill', apct > 0 ? '#f80' : '#555');
@@ -3086,6 +3145,7 @@ export class UI {
       const pct = this.furnaceMaxBurnTime > 0 ? Math.max(0, Math.round((this.furnaceBurnTime / this.furnaceMaxBurnTime) * 100)) : 0;
       this.furnaceFuelBarFill.style.width = pct + '%';
     }
+    if (this.furnaceOpen) this.renderFurnaceSlots();
   }
 
   _slotAtElement(el) {

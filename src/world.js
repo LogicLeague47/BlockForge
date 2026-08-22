@@ -30,6 +30,7 @@ export class World {
     this.edits = new Map();
     this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
     this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
+    this.furnaceEntities = new Map(); // "x,y,z" -> { input, fuel, output, burnTime, maxBurnTime, smeltTime }
     this.editSeq = 0; // bumped on every block edit; lets systems detect changes cheaply
     this.flat = !!opts.flat;
     this.void = !!opts.void;
@@ -55,6 +56,22 @@ export class World {
     this.chestInventories.delete(x + ',' + y + ',' + z);
   }
 
+  getFurnace(x, y, z) {
+    return this.furnaceEntities.get(x + ',' + y + ',' + z) || null;
+  }
+
+  getOrCreateFurnace(x, y, z) {
+    const k = x + ',' + y + ',' + z;
+    if (!this.furnaceEntities.has(k)) {
+      this.furnaceEntities.set(k, { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, smeltTime: 0 });
+    }
+    return this.furnaceEntities.get(k);
+  }
+
+  removeFurnace(x, y, z) {
+    this.furnaceEntities.delete(x + ',' + y + ',' + z);
+  }
+
   serializeChests() {
     const obj = {};
     for (const [k, v] of this.chestInventories) {
@@ -63,10 +80,39 @@ export class World {
     return obj;
   }
 
+  serializeFurnaces() {
+    const obj = {};
+    for (const [k, v] of this.furnaceEntities) {
+      obj[k] = {
+        input: v.input ? [v.input.item, v.input.count] : null,
+        fuel: v.fuel ? [v.fuel.item, v.fuel.count] : null,
+        output: v.output ? [v.output.item, v.output.count] : null,
+        burnTime: v.burnTime,
+        maxBurnTime: v.maxBurnTime,
+        smeltTime: v.smeltTime,
+      };
+    }
+    return obj;
+  }
+
   loadChests(obj) {
     if (!obj) return;
     for (const [k, v] of Object.entries(obj)) {
       this.chestInventories.set(k, v.map(s => s ? { item: s[0], count: s[1] } : null));
+    }
+  }
+
+  loadFurnaces(obj) {
+    if (!obj) return;
+    for (const [k, v] of Object.entries(obj)) {
+      this.furnaceEntities.set(k, {
+        input: v.input ? { item: v.input[0], count: v.input[1] } : null,
+        fuel: v.fuel ? { item: v.fuel[0], count: v.fuel[1] } : null,
+        output: v.output ? { item: v.output[0], count: v.output[1] } : null,
+        burnTime: v.burnTime || 0,
+        maxBurnTime: v.maxBurnTime || 0,
+        smeltTime: v.smeltTime || 0,
+      });
     }
   }
 
@@ -296,7 +342,7 @@ export class World {
     return calcBiome(this.noise, wx, wz, y);
   }
 
-  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests() }; }
+  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests(), furnaces: this.serializeFurnaces() }; }
   loadEdits(obj) {
     if (!obj || obj.edits == null) return;
     for (const [k, v] of obj.edits) {
@@ -313,5 +359,6 @@ export class World {
       cm.set(k, v);
     }
     this.loadChests(obj.chests);
+    this.loadFurnaces(obj.furnaces);
   }
 }

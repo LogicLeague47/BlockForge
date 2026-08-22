@@ -261,10 +261,22 @@ export class AudioManager {
     this.master.gain.value = muted ? 0 : 0.6;
   }
 
-  loadSfx() {
+  // On very-low-end devices, skip heavy SFX to avoid OOM crashes (iPhone 5, etc.)
+  loadSfx(skipHeavy = false) {
     if (!this.ctx || this._sfxLoading) return;
     this._sfxLoading = true;
+    let loaded = 0;
+    // On low-end: cap total loaded samples to save memory
+    const maxSamples = skipHeavy ? 120 : 9999;
     for (const f of SFX_FILES) {
+      if (loaded >= maxSamples) break;
+      // On low-end: skip non-essential samples (jingles, errors, scratches, etc.)
+      if (skipHeavy && (f.startsWith('jingle_') || f.startsWith('interface_scratch')
+        || f.startsWith('interface_glitch') || f.startsWith('interface_question')
+        || f.startsWith('interface_maximize') || f.startsWith('interface_minimize')
+        || f.startsWith('interface_scroll') || f.startsWith('interface_error')
+        || f.startsWith('interface_glass'))) continue;
+      loaded++;
       fetch(`Sounds/${f}.ogg`)
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
         .then((buf) => this.ctx.decodeAudioData(buf))

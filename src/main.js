@@ -14,7 +14,7 @@ import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, bloc
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
-import { SMELTING, RECIPES } from './recipes.js';
+import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
@@ -148,11 +148,33 @@ const REACH = 3;
 const BASE_BREAK_TIME = 1.0; // (hardness * BASE) / toolSpeed → seconds to break
 
 // --- renderer / scene / camera ---
-const renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: IS_MOBILE ? 'default' : 'high-performance' });
+} catch (_) {
+  renderer = new THREE.WebGLRenderer({ antialias: false });
+}
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
+
+// Handle WebGL context loss (common on low-memory iOS devices like iPhone 5)
+let _contextRestored = false;
+renderer.domElement.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  console.warn('[Render] WebGL context lost — pausing');
+  if (typeof gameRunning !== 'undefined' && gameRunning) {
+    gameRunning = false;
+    try { document.exitPointerLock?.(); } catch (_) {}
+  }
+}, false);
+renderer.domElement.addEventListener('webglcontextrestored', () => {
+  if (_contextRestored) { console.warn('[Render] context restored again — ignoring'); return; }
+  _contextRestored = true;
+  console.log('[Render] WebGL context restored — reloading');
+  setTimeout(() => window.location.reload(), 500);
+}, false);
 
 // Graphics quality controls the internal render resolution (the main FPS lever
 // on high-DPI/Retina screens, where a full-ratio buffer can be 4x the pixels).
@@ -1551,7 +1573,7 @@ document.addEventListener('mousedown', (e) => {
       achievements.incrementStat('inventoryOpened');
       document.exitPointerLock?.();
     } else if (hit && hit.block === BLOCK.FURNACE) {
-      ui.openFurnace(player.inventory);
+      ui.openFurnace(player.inventory, hit.x, hit.y, hit.z);
       document.exitPointerLock?.();
     } else if (hit && hit.block === BLOCK.CHEST) {
       const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
@@ -5239,6 +5261,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   gameDifficulty = difficulty || 'normal';
 
   world = new World(seed, { flat: !!opts.flat, void: !!opts.void || !!opts.bedwars || !!opts.skyblock, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird });
+  ui.world = world;
   const saved = (!isParkour && !isOneBlock && !isBedwars && !isSkyblock) ? loadWorld(worldId) : (isOneBlock ? loadWorld(worldId) : null);
   if (saved) world.loadEdits(saved);
 
@@ -5256,9 +5279,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   _pendingDimensionLoad = null;
   // Load saved edits: legacy dimension-type saves store overworld + dimension separately.
   if (saved && saved.dimensionEdits) {
-    _pendingDimensionLoad = { seed, edits: saved.dimensionEdits, chests: saved.dimensionChests };
+    _pendingDimensionLoad = { seed, edits: saved.dimensionEdits, chests: saved.dimensionChests, furnaces: saved.dimensionFurnaces };
     if (saved.edits == null && saved.overworldEdits) {
-      world.loadEdits({ seed, edits: saved.overworldEdits, chests: saved.overworldChests });
+      world.loadEdits({ seed, edits: saved.overworldEdits, chests: saved.overworldChests, furnaces: saved.overworldFurnaces });
     }
   }
   manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
@@ -5328,7 +5351,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       ui.openInventory(player.inventory, 3, false);
       achievements.incrementStat('inventoryOpened');
     } else if (target && target.block === BLOCK.FURNACE) {
-      ui.openFurnace(player.inventory);
+      ui.openFurnace(player.inventory, target.x, target.y, target.z);
     } else if (target && target.block === BLOCK.CHEST) {
       const slots = world.getOrCreateChest(target.x, target.y, target.z);
       ui.openChest(slots, player.inventory, target.x, target.y, target.z);
@@ -6106,7 +6129,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         ui.hideLoading();
         lockPointer();
         cgGameplayStart();
-        try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(); } catch (_) { console.warn("audio operation failed"); }
+        try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(VERY_LOW_END); } catch (_) { console.warn("audio operation failed"); }
         if (!hasTutorialBeenSeen()) {
           setTimeout(() => showTutorial(), 500);
         }
@@ -6171,8 +6194,10 @@ function saveCurrentWorld() {
       seed: world.seed,
       overworldEdits: owEdits.edits,
       overworldChests: owEdits.chests,
+      overworldFurnaces: owEdits.furnaces,
       dimensionEdits: dimEdits.edits,
       dimensionChests: dimEdits.chests,
+      dimensionFurnaces: dimEdits.furnaces,
       player: playerData,
     };
   } else {
@@ -7491,7 +7516,7 @@ function initMenu() {
   document.getElementById('btn-resume').addEventListener('click', () => {
     ui.hidePause();
     cgGameplayStart();
-    try { audio.loadSfx(); } catch (_) { console.warn("audio operation failed"); }
+    try { audio.loadSfx(VERY_LOW_END); } catch (_) { console.warn("audio operation failed"); }
     lockPointer();
   });
   document.getElementById('btn-pause-settings').addEventListener('click', () => {
@@ -10269,8 +10294,8 @@ function _gameFrame() {
   try { ui.setUnderwater(eye === BLOCK.WATER); } catch (e) { console.warn('Underwater update failed:', e); }
   try { ui.updateXpBar(player.getXpProgress(), player.level); } catch (e) { console.warn('XP bar update failed:', e); }
 
-  // Furnace tick
-  try { ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id)); } catch (e) { console.warn('Furnace tick failed:', e); }
+  // Furnace tick — ticks all world furnaces (background cooking)
+  try { ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id), (id) => SMELT_TIME[id] ?? SMELT_TIME_DEFAULT); } catch (e) { console.warn('Furnace tick failed:', e); }
 
   // Throttled status bar update — adventure keeps health/hunger like survival
   statusBarTimer += dt;
@@ -10346,7 +10371,11 @@ let menuPreviewRenderer = null, menuPreviewScene = null, menuPreviewCamera = nul
 function initMenuPreview() {
   const container = document.getElementById('menu-player-container');
   if (!container || menuPreviewRenderer) return;
-  menuPreviewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+  // Skip 3D preview on very low-end devices (second WebGL context = OOM on iPhone 5)
+  if (VERY_LOW_END) { container.style.display = 'none'; return; }
+  try {
+    menuPreviewRenderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+  } catch (_) { container.style.display = 'none'; return; }
   menuPreviewRenderer.setSize(120, 180);
   menuPreviewRenderer.setPixelRatio(1);
   menuPreviewRenderer.setClearColor(0x000000, 0);
