@@ -16,8 +16,11 @@ const scryptAsync = promisify(scrypt);
 // Social systems (accounts, friends, DMs, community chat, news, leaderboard)
 // are relayed upstream to the official backend so they keep working for the
 // player even though their game socket is to a friend's server. The official
-// server (IS_OFFICIAL=true) handles everything locally and does NOT relay.
-const RELAY_SOCIAL = process.env.IS_OFFICIAL !== 'true';
+// The canonical backend is official by default (handles everything locally).
+// Player-hosted servers opt in to relay mode with RELAY=true (or IS_OFFICIAL=false)
+// and point UPSTREAM_BACKEND_URL at the official backend.
+const RELAY_SOCIAL = process.env.RELAY === 'true' || process.env.IS_OFFICIAL === 'false';
+const IS_OFFICIAL = !RELAY_SOCIAL;
 const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-server.onrender.com';
 // Message types that are social and should be relayed upstream (not handled
 // locally) on a player-hosted server.
@@ -1454,11 +1457,14 @@ function isRateLimited(ws) {
         let upOpen = false; const upQueue = [];
         upstream.on('open', () => { upOpen = true; for (const q of upQueue) safeSendRaw(upstream, q); upQueue.length = 0; });
         upstream.on('message', (data) => {
-          // Sniff the auth result so the game side knows the player's identity.
+          // Sniff the auth result so the game side knows the player's identity,
+          // and forward every upstream message (including failed auth_result) to the client.
           try {
             const m = JSON.parse(typeof data === 'string' ? data : data.toString());
-            if (m && m.type === 'auth_result' && m.ok) {
-              ws._playerData = { name: m.username, role: m.role || ROLE_PLAYER, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+            if (m && m.type === 'auth_result') {
+              if (m.ok) ws._playerData = { name: m.username, role: m.role || ROLE_PLAYER, menuOnly: true, x: 0, y: 40, z: 0, yaw: 0, ws, isGuest: false };
+              safeSendRaw(ws, data);
+              return;
             }
           } catch {}
           safeSendRaw(ws, data);
