@@ -450,6 +450,13 @@ export class Player {
     }
     this._spaceHeld = !!input.keys[kb.jump];
 
+    // --- ice detection: check block below feet ---
+    const _feetBX = Math.floor(this.position.x);
+    const _feetBY = Math.floor(this.position.y - 0.1);
+    const _feetBZ = Math.floor(this.position.z);
+    const blockBelowFeet = this.world.getBlock(_feetBX, _feetBY, _feetBZ);
+    const onIce = blockBelowFeet === BLOCK.ICE;
+
     // --- desired horizontal velocity from input ---
     const speed = this.flying ? FLY_SPEED
       : this.inWater ? SWIM_SPEED
@@ -481,6 +488,24 @@ export class Player {
 
     this.velocity.x = move.x;
     this.velocity.z = move.z;
+
+    // Ice sliding: momentum persists when no input, but player can still steer.
+    // Effect: on ice, you keep sliding after letting go of keys.
+    if (onIce && !this.flying && this.onGround) {
+      const ICE_FRICTION = 3.5;  // lower = more slide, 0 = infinite slide
+      const inputMag = Math.hypot(move.x, move.z);
+      if (inputMag < 0.1) {
+        // No input: let velocity decay slowly (slide)
+        const decay = Math.exp(-ICE_FRICTION * dt);
+        this.velocity.x *= decay;
+        this.velocity.z *= decay;
+      } else {
+        // With input: blend toward desired velocity (lower traction)
+        const blend = 1 - Math.exp(-6 * dt); // slower than normal (12), faster than no-input (3.5)
+        this.velocity.x += (move.x - this.velocity.x) * blend;
+        this.velocity.z += (move.z - this.velocity.z) * blend;
+      }
+    }
 
     // sprinting exhaustion: 0.01 per meter (Java)
     if (this.sprinting && move.lengthSq() > 0.01) {

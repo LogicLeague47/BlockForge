@@ -151,6 +151,7 @@ export const BLOCK = {
   SPRUCE_CRAFTING: 136,
   DARK_OAK_CRAFTING: 137,
   ACACIA_CRAFTING: 138,
+  ICE: 139,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -326,6 +327,7 @@ export const TILES = {
   dark_oak_crafting_side:[14, 10],
   acacia_crafting_top:   [15, 10],
   acacia_crafting_side:  [0, 11],
+  ice:                   [1, 11],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -374,7 +376,7 @@ export const BLOCKS = {
   [BLOCK.RED_SAND]:   { name: 'Red Sand', solid: true, hardness: 0.5, tool: 'shovel', faces: 'red_sand' },
   [BLOCK.TERRACOTTA]: { name: 'Terracotta', solid: true, hardness: 1.25, tool: 'pickaxe', harvest: 1, faces: 'terracotta' },
   [BLOCK.SNOW_GRASS]: { name: 'Snowy Grass', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'snow', bottom: 'dirt', side: 'snow_side' } },
-  [BLOCK.FURNACE]:    { name: 'Brick Furnace', solid: true, hardness: 3.5, tool: 'pickaxe', harvest: 1, faces: { top: 'brick_furnace_top', bottom: 'brick_furnace_top', side: 'brick_furnace_side', front: 'brick_furnace_front' } },
+  [BLOCK.FURNACE]:    { name: 'Brick Furnace', solid: true, hardness: 3.5, tool: 'pickaxe', harvest: 1, faces: { top: 'brick_furnace_top', bottom: 'brick_furnace_top', side: 'brick_furnace_front' } },
   [BLOCK.PODZOL]:     { name: 'Podzol', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'podzol_top', bottom: 'dirt', side: 'podzol_side' } },
   [BLOCK.MYCELIUM]:   { name: 'Mycelium', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'mycelium_top', bottom: 'dirt', side: 'mycelium_side' } },
   [BLOCK.JUNGLE_WOOD]:{ name: 'Jungle Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'jungle_wood_top', bottom: 'jungle_wood_top', side: 'jungle_wood_side' } },
@@ -484,6 +486,7 @@ export const BLOCKS = {
   [BLOCK.SPRUCE_CRAFTING]:   { name: 'Spruce Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'spruce_crafting_top', bottom: 'spruce_planks', side: 'spruce_crafting_side' } },
   [BLOCK.DARK_OAK_CRAFTING]: { name: 'Dark Oak Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'dark_oak_crafting_top', bottom: 'dark_oak_planks', side: 'dark_oak_crafting_side' } },
   [BLOCK.ACACIA_CRAFTING]:   { name: 'Acacia Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'acacia_crafting_top', bottom: 'acacia_planks', side: 'acacia_crafting_side' } },
+  [BLOCK.ICE]:              { name: 'Ice', solid: true, transparent: true, hardness: 0.5, faces: 'ice' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

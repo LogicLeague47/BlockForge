@@ -2417,6 +2417,31 @@ const PAINTERS = {
     craftingToolsOverlay(ctx, x0, y0);
   },
 
+  ice(ctx, x0, y0, rng) {
+    // Translucent ice with cracks and subtle blue tint
+    ctx.fillStyle = 'rgb(180,220,255)';
+    ctx.fillRect(x0, y0, TILE, TILE);
+    noisy(ctx, x0, y0, [160,200,255], 0.06, rng);
+    // Cracks
+    ctx.strokeStyle = 'rgba(120,160,220,0.4)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 3; i++) {
+      const sx = (rng() * 20 + 4) | 0;
+      const sy = (rng() * 20 + 4) | 0;
+      ctx.beginPath();
+      ctx.moveTo(x0 + sx, y0 + sy);
+      ctx.lineTo(x0 + sx + (rng() * 8 - 4) | 0, y0 + sy + (rng() * 8 - 4) | 0);
+      ctx.stroke();
+    }
+    // Frost speckles
+    for (let i = 0; i < 6; i++) {
+      const x = (rng() * 26 + 2) | 0, y = (rng() * 26 + 2) | 0;
+      ctx.fillStyle = `rgba(220,240,255,${0.3 + rng() * 0.3})`;
+      ctx.fillRect(x0 + x, y0 + y, 1 + (rng() * 2 | 0), 1 + (rng() * 2 | 0));
+    }
+    speckle(ctx, x0, y0, rng, 5, ['rgb(200,230,255)', 'rgb(150,190,240)']);
+  },
+
   // ── Wood-type variant log tops ──
   birch_wood_top(ctx, x0, y0, rng) {
     noisy(ctx, x0, y0, [190, 170, 130], 0.04, rng);

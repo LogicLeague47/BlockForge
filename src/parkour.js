@@ -17,13 +17,13 @@ import { assetBase } from './config.js';
 export const PARKOUR_LEVELS = [
   { id: 1,  name: 'First Steps',       desc: 'Easy 1-block gaps',         gap: 1, w: 3, d: 3, count: 5, block: BLOCK.PLANKS,       accent: BLOCK.WOOL,         theme: 'meadow'   },
   { id: 2,  name: 'Getting Warmed Up', desc: '2-block sprint jumps',      gap: 2, w: 3, d: 3, count: 5, block: BLOCK.GRASS,        accent: BLOCK.PLANKS,       theme: 'temple'   },
-  { id: 3,  name: 'Dirt Trail',        desc: 'Mixed gaps with stairs',    gap: 2, w: 2, d: 3, count: 5, block: BLOCK.DIRT,          accent: BLOCK.GRASS,        staircase: true, theme: 'trail' },
-  { id: 4,  name: 'Stone Bridges',     desc: 'Narrow platforms',          gap: 2, w: 1, d: 3, count: 6, block: BLOCK.STONE,         accent: BLOCK.COBBLESTONE,  theme: 'desert'   },
+  { id: 3,  name: 'Dirt Trail',        desc: 'Climbing with stairs',      gap: 2, w: 2, d: 3, count: 5, block: BLOCK.DIRT,          accent: BLOCK.GRASS,        staircase: true, theme: 'trail' },
+  { id: 4,  name: 'Frozen Lake',       desc: 'Slippery ice platforms',    gap: 2, w: 3, d: 3, count: 6, block: BLOCK.ICE,           accent: BLOCK.SNOW_BLOCK,   ice: true, theme: 'frozen' },
   { id: 5,  name: 'The Zigzag',        desc: 'Diagonal jumps',            gap: 2, w: 2, d: 2, count: 6, block: BLOCK.COBBLESTONE,   accent: BLOCK.BRICK,        zigzag: true, theme: 'zigzag' },
-  { id: 6,  name: 'The Ascent',        desc: 'Climbing platforms',        gap: 2, w: 3, d: 3, count: 5, block: BLOCK.STONE,         accent: BLOCK.IRON_BLOCK,   staircase: true, stepH: 2, theme: 'ascent' },
-  { id: 7,  name: 'Wide Gaps',         desc: '3-block sprint jumps',      gap: 3, w: 3, d: 3, count: 4, block: BLOCK.COBBLESTONE,   accent: BLOCK.GOLD_BLOCK,   theme: 'wide'     },
-  { id: 8,  name: 'Precision',         desc: 'Tight 1-block platforms',   gap: 2, w: 1, d: 2, count: 7, block: BLOCK.QUARTZ_BLOCK,   accent: BLOCK.IRON_BLOCK,   theme: 'precision' },
-  { id: 9,  name: 'Mixed Challenge',   desc: 'Long + short gaps mixed',   gap: 3, w: 2, d: 3, count: 8, block: BLOCK.STONE_BRICKS,   accent: BLOCK.END_STONE,    theme: 'mixed'    },
+  { id: 6,  name: 'Bouncy Gaps',       desc: 'Slime bounce pads',         gap: 3, w: 3, d: 3, count: 5, block: BLOCK.STONE,         accent: BLOCK.IRON_BLOCK,   slimePads: true, theme: 'bouncy' },
+  { id: 7,  name: 'The Ascent',        desc: 'Climbing platforms',        gap: 2, w: 3, d: 3, count: 5, block: BLOCK.STONE,         accent: BLOCK.IRON_BLOCK,   staircase: true, stepH: 2, theme: 'ascent' },
+  { id: 8,  name: 'Ice Precision',     desc: 'Narrow ice + slime',        gap: 2, w: 1, d: 2, count: 7, block: BLOCK.ICE,           accent: BLOCK.SLIME_BLOCK,  ice: true, theme: 'iceprec' },
+  { id: 9,  name: 'Mixed Challenge',   desc: 'Long jumps + bounce',       gap: 3, w: 2, d: 3, count: 8, block: BLOCK.STONE_BRICKS,   accent: BLOCK.END_STONE,    slimePads: true, theme: 'mixed'    },
   { id: 10, name: 'The Final Leap',    desc: 'Go big or go home',         gap: 4, w: 3, d: 3, count: 6, block: BLOCK.OBSIDIAN,      accent: BLOCK.GOLD_BLOCK,   theme: 'crown'    },
 ];
 
@@ -39,6 +39,9 @@ const LEVEL_THEMES = {
   precision: { trim: BLOCK.IRON_BARS,    post: BLOCK.QUARTZ_BLOCK,  islet: BLOCK.QUARTZ_BLOCK },
   mixed:     { trim: BLOCK.END_STONE,    post: BLOCK.VOIDSTONE,     islet: BLOCK.VOIDSTONE    },
   crown:     { trim: BLOCK.GOLD_BLOCK,   post: BLOCK.DIAMOND_BLOCK, islet: BLOCK.GOLD_BLOCK   },
+  frozen:    { trim: BLOCK.ICE,          post: BLOCK.SNOW_BLOCK,    islet: BLOCK.SNOW_BLOCK   },
+  bouncy:    { trim: BLOCK.SLIME_BLOCK,  post: BLOCK.COBBLESTONE,   islet: BLOCK.LEAVES       },
+  iceprec:   { trim: BLOCK.ICE,          post: BLOCK.QUARTZ_BLOCK,  islet: BLOCK.QUARTZ_BLOCK },
 };
 
 function fillBox(world, x, y, z, w, d, h, b) {
@@ -127,6 +130,9 @@ export function buildParkourLevel(world, levelNum, ox, oy, oz) {
   post(world, ox - 2, oy + 1, oz - 2, 2, theme.post, true);
 
   // Platform run.
+  let prevCz = cz;
+  let prevWy = oy;
+  let prevWx = ox;
   for (let i = 0; i < cfg.count; i++) {
     cz -= (cfg.d + g);
     const wx = cfg.zigzag ? ox + (i % 2 === 0 ? 1 : -1) * (i + 1) : ox;
@@ -138,11 +144,20 @@ export function buildParkourLevel(world, levelNum, ox, oy, oz) {
       const accentZ = cz + cfg.d - 1;
       fillBox(world, accentX, wy2 + 1, accentZ, 1, 1, 1, accentBlocks[0]);
     }
+    // Slime bounce pad in the middle of each gap
+    if (cfg.slimePads && i > 0) {
+      const midCz = Math.floor((prevCz + cz + cfg.d) / 2);
+      const midWy = Math.floor((prevWy + wy2) / 2);
+      fillBox(world, prevWx, midWy, midCz, 1, 1, 1, BLOCK.SLIME_BLOCK);
+    }
     // Side light beacons beside the path (never on the landing line).
     if (!cfg.zigzag && i % 2 === 1) {
       const bx = wx + Math.floor(cfg.w / 2) + 3;
       post(world, bx, wy2, cz + 1, 3 + (i % 3), theme.post, true);
     }
+    prevCz = cz;
+    prevWy = wy2;
+    prevWx = wx;
   }
 
   // Gold end pad + back-corner towers.
@@ -241,6 +256,8 @@ let _parkourStartTime = 0;
 let _levelStartPositions = [];  // start position of each level
 let _elapsed = 0;
 let _running = false;
+let _deaths = 0;
+let _levelSplits = [];   // [{level, time, name}] — recorded on each level completion
 
 export function resetParkourState() {
   _checkpoints = {};
@@ -250,6 +267,8 @@ export function resetParkourState() {
   _elapsed = 0;
   _running = false;
   _levelStartPositions = [];
+  _deaths = 0;
+  _levelSplits = [];
 }
 
 export function startParkourTimer() {
@@ -271,6 +290,14 @@ export function getParkourTimerFormatted() {
   const ms = Math.floor((t % 1) * 100);
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
 }
+
+export function addParkourDeath() { _deaths++; }
+export function getParkourDeaths() { return _deaths; }
+
+export function recordLevelSplit(levelNum, time, name) {
+  _levelSplits.push({ level: levelNum, time, name });
+}
+export function getLevelSplits() { return _levelSplits; }
 
 // Check if player reached a checkpoint beacon block
 export function checkCheckpoint(player, world) {
@@ -322,6 +349,8 @@ export function checkLevelEnd(player, positions) {
 
   if (Math.abs(dx) < 2 && Math.abs(dy) < 3 && Math.abs(dz) < 2) {
     if (_currentLevel < PARKOUR_LEVELS.length) {
+      const lvl = PARKOUR_LEVELS[_currentLevel - 1];
+      recordLevelSplit(_currentLevel, getParkourTimer(), lvl ? lvl.name : '');
       _currentLevel++;
       return 'level_complete';
     } else {

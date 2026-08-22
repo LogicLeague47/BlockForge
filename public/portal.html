@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'HEAD',
+          heading: 'Parkour overhaul + bug fixes',
+          desc: 'Parkour mode completely revamped with new mechanics: ice platforms that make you slide, slime bounce pads for big gaps, death counter and per-level split times, finish screen with letter grades (S/A/B/C/D). Fixed brick furnace texture (opening now visible), iPhone 5 black screen, and CrazyGames sitelock.',
+          date: 'Aug 22',
+          bugs: ['brick furnace front face (opening) was invisible on all sides', 'iPhone 5 showed permanent black screen with crosshair (WebGL context loss)', 'no CrazyGames sitelock (required for CG review)'],
+          updates: ['Ice platform mechanic (reduced friction + momentum sliding)', 'Slime bounce pads between platforms', 'Death counter displayed in parkour HUD', 'Finish screen with grade / time / deaths / splits', 'Per-level split times tracked', '3 new level themes (frozen, bouncy, iceprec)', 'WebGL context loss auto-reloads after 1.5s on iPhone 5', 'Shadow maps disabled on VERY_LOW_END devices', 'CrazyGames sitelock added'],
+          features: ['Ice sliding physics', 'Slime bounce pads', 'Parkour finish screen', 'Letter grade system', 'Death counter'],
+        },
+        {
           hash: '7f03e9c',
           heading: 'Brick Furnace + persistent cooking + iPhone 5 fix',
           desc: 'Furnaces are now Brick Furnaces with proper red-brown brick textures and a dark furnace opening with fire glow. Furnaces keep cooking when you close them — items stay in the furnace, not dumped to inventory. Different items cook at different speeds: foods cook fast (4-6s), ores slow (10-16s), stone medium (8-10s). Fixed crashes on iPhone 5 and older devices.',

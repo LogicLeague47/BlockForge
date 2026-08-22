@@ -42,7 +42,7 @@ import { DroppedItemManager } from './dropped.js';
 import { LitTntManager } from './tnt.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour, addParkourDeath, getParkourDeaths, getLevelSplits } from './parkour.js';
 import { resetOneBlock, clearOneBlockState, updateOneBlock, onOneBlockBroken, forceRegen, getOneBlockStage, getOneBlockProgress, getOneBlockCount, getOneBlockPos, getOneBlockSave, restoreOneBlock, tickOneBlockMobTimer, rollOneBlockMob } from './oneblock.js';
 import { BW_TEAMS, BW_Y, BW_SHOP, BW_VOID_BELOW, buildBedwarsMap, assignBedwarsTeam, BW_RES_IRON, BW_RES_GOLD, BW_RES_DIAMOND, BW_RES_EMERALD, loadTreasureIslandData, buildTreasureIslandMap, IMP_BASE_SPOTS, IMP_MID_SPOTS } from './bedwars.js';
 import { buildBlockZonesMap, startBlockZones, tickBlockZones, onBlockZonesBroken, clearBlockZones, setBlockZonesExit, BZ_Y } from './blockzones.js';
@@ -156,22 +156,29 @@ try {
 }
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.shadowMap.enabled = true;
+renderer.shadowMap.enabled = !VERY_LOW_END;
 renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 
 // Handle WebGL context loss (common on low-memory iOS devices like iPhone 5)
 let _contextRestored = false;
+let _contextLostTimer = null;
 renderer.domElement.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
-  console.warn('[Render] WebGL context lost — pausing');
+  console.warn('[Render] WebGL context lost — scheduling reload');
   if (typeof gameRunning !== 'undefined' && gameRunning) {
     gameRunning = false;
     try { document.exitPointerLock?.(); } catch (_) {}
+  }
+  // On low-memory iOS (iPhone 5 etc.), context restoration rarely fires.
+  // Reload immediately so the user doesn't see a permanent black screen.
+  if (!_contextLostTimer) {
+    _contextLostTimer = setTimeout(() => { _contextLostTimer = null; window.location.reload(); }, 1500);
   }
 }, false);
 renderer.domElement.addEventListener('webglcontextrestored', () => {
   if (_contextRestored) { console.warn('[Render] context restored again — ignoring'); return; }
   _contextRestored = true;
+  if (_contextLostTimer) { clearTimeout(_contextLostTimer); _contextLostTimer = null; }
   console.log('[Render] WebGL context restored — reloading');
   setTimeout(() => window.location.reload(), 500);
 }, false);
@@ -808,6 +815,7 @@ let _isImportedParkour = false; // imported Minecraft parkour map
 let _parkourLevelEnds = null;
 let _parkourTimerEl = null;
 let _parkourLevelEl = null;
+let _parkourDeathsEl = null;
 let _oneBlockEl = null;
 let _importedParkourData = null; // holds binary map header info
 let sleepPhase = 0; // 0=none, 1=fade to black, 2=hold, 3=fade from black
@@ -4715,6 +4723,16 @@ function checkBedwarsWin() {
   }
   if (audio) audio.levelUp?.();
   renderBedwarsHud();
+
+  // CG midgame ad after Bedwars win (natural break point)
+  cgHappyTime();
+  cgGameplayStop();
+  try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+  cgMidgameAd({
+    adStarted() { audio.stopMusic(); audio.setMuted(true); },
+    adFinished() { audio.setMuted(false); showMinigames(); },
+    adError() { audio.setMuted(false); showMinigames(); },
+  });
 }
 
 const BW_CURRENCY_META = [
@@ -5767,14 +5785,16 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       // Create parkour HUD elements
       _parkourTimerEl = document.getElementById('parkour-timer');
       _parkourLevelEl = document.getElementById('parkour-level');
+      _parkourDeathsEl = document.getElementById('parkour-deaths');
       if (!_parkourTimerEl) {
         const hud = document.createElement('div');
         hud.id = 'parkour-hud';
         hud.style.cssText = 'position:fixed;top:10px;right:10px;z-index:100;pointer-events:none;text-align:right;font-family:monospace;';
-        hud.innerHTML = '<div id="parkour-level" style="font:bold 14px monospace;color:#ff0;text-shadow:0 1px 3px #000;"></div><div id="parkour-timer" style="font:bold 18px monospace;color:#fff;text-shadow:0 1px 3px #000;"></div>';
+        hud.innerHTML = '<div id="parkour-level" style="font:bold 14px monospace;color:#ff0;text-shadow:0 1px 3px #000;"></div><div id="parkour-timer" style="font:bold 18px monospace;color:#fff;text-shadow:0 1px 3px #000;"></div><div id="parkour-deaths" style="font:bold 12px monospace;color:#f88;text-shadow:0 1px 3px #000;margin-top:2px;">Deaths: 0</div>';
         document.body.appendChild(hud);
         _parkourTimerEl = document.getElementById('parkour-timer');
         _parkourLevelEl = document.getElementById('parkour-level');
+        _parkourDeathsEl = document.getElementById('parkour-deaths');
       }
     })();
   }
@@ -9192,6 +9212,8 @@ function _gameFrame() {
 
         } else if (result === 'parkour_complete') {
           const time = getParkourTimerFormatted();
+          const deaths = getParkourDeaths();
+          const splits = getLevelSplits();
           addChatLine(`PARKOUR COMPLETE! Time: ${time}`, '#0ff');
           if (audio) audio.parkourComplete();
           cgHappyTime();
@@ -9199,6 +9221,68 @@ function _gameFrame() {
           ui.itemNameEl.textContent = `PARKOUR COMPLETE! Time: ${time}`;
           ui.itemNameEl.classList.add('visible');
           setTimeout(() => ui.itemNameEl.classList.remove('visible'), 5000);
+
+          // Show finish screen with grade / time / deaths / splits
+          (function showParkourFinish() {
+            const finishEl = document.getElementById('parkour-finish');
+            if (!finishEl) return;
+            const t = getParkourTimer();
+            // Grade: S = under 60s with 0 deaths, A = under 120s or 0 deaths, etc.
+            let grade, gradeColor;
+            if (t < 60 && deaths === 0) { grade = 'S'; gradeColor = '#ffd700'; }
+            else if (t < 120 || deaths <= 2) { grade = 'A'; gradeColor = '#5f5'; }
+            else if (t < 240 || deaths <= 5) { grade = 'B'; gradeColor = '#55f'; }
+            else if (t < 480) { grade = 'C'; gradeColor = '#ff5'; }
+            else { grade = 'D'; gradeColor = '#f55'; }
+
+            let splitsHtml = '';
+            if (splits.length > 0) {
+              splitsHtml = '<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;">';
+              for (const sp of splits) {
+                const mins = Math.floor(sp.time / 60);
+                const secs = Math.floor(sp.time % 60);
+                const ms = Math.floor((sp.time % 1) * 100);
+                const tStr = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+                splitsHtml += `<div style="font:13px monospace;color:#aaa;margin:2px 0;">Level ${sp.level}: ${sp.name} — ${tStr}</div>`;
+              }
+              splitsHtml += '</div>';
+            }
+
+            finishEl.innerHTML = `
+              <div class="pk-finish-title">PARKOUR COMPLETE!</div>
+              <div class="pk-finish-grade" style="color:${gradeColor}">${grade}</div>
+              <div class="pk-finish-time">Time: ${time}</div>
+              <div class="pk-finish-deaths">Deaths: ${deaths}</div>
+              ${splitsHtml}
+              <button class="pk-finish-btn" id="pk-replay-btn">Play Again</button>
+              <button class="pk-finish-btn" id="pk-menu-btn">Menu</button>
+            `;
+            finishEl.style.display = 'flex';
+
+            document.getElementById('pk-replay-btn')?.addEventListener('click', () => {
+              finishEl.style.display = 'none';
+              if (audio) audio.click?.();
+              closeFurnace();
+              ui.closeInventory();
+              exitWorld();
+              loadWorld('parkour', { startParkour: true });
+            });
+            document.getElementById('pk-menu-btn')?.addEventListener('click', () => {
+              finishEl.style.display = 'none';
+              if (audio) audio.click?.();
+              closeFurnace();
+              ui.closeInventory();
+              exitWorld();
+            });
+          })();
+
+          // CG midgame ad after parkour completion (natural break point)
+          cgGameplayStop();
+          cgMidgameAd({
+            adStarted() { audio.stopMusic(); audio.setMuted(true); },
+            adFinished() { audio.setMuted(false); cgGameplayStart(); },
+            adError() { audio.setMuted(false); cgGameplayStart(); },
+          });
         }
       }
 
@@ -9235,6 +9319,8 @@ function _gameFrame() {
           player.velocity.set(0, 0, 0);
           addChatLine('Fell! Respawning at lobby...', '#f55');
         }
+        addParkourDeath();
+        if (_parkourDeathsEl) _parkourDeathsEl.textContent = `Deaths: ${getParkourDeaths()}`;
       }
     }
 
@@ -10763,6 +10849,20 @@ if (!network.connected) {
 // Initialise the CrazyGames SDK (no-op off-platform — the SDK script is only
 // injected on crazygames.com, so this is safe everywhere else).
 try { cgInit(); } catch (_) { console.warn('cgInit failed'); }
+
+// CrazyGames sitelock: prevent the game from running on unauthorized domains.
+// CG requires a sitelock for review approval. Off-platform builds are unaffected.
+(function cgSitelock() {
+  const h = location.hostname;
+  if (/crazygames/i.test(h)) {
+    const allowed = ['crazygames.com', 'www.crazygames.com'];
+    const ok = allowed.some(d => h === d || h.endsWith('.' + d));
+    if (!ok) {
+      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#111;color:#fff;font-family:sans-serif;text-align:center;"><div><h1>Unauthorized Domain</h1><p>This game can only be played on CrazyGames.</p></div></div>';
+      throw new Error('Sitelock: unauthorized domain');
+    }
+  }
+})();
 
 // Age gate (COPPA / 13+): block first launch and account creation for under-13.
 (function initAgeGate() {
