@@ -6617,6 +6617,14 @@ function initMenu() {
   document.addEventListener('click', startMusicOnce);
   document.addEventListener('pointerlockchange', startMusicOnce);
 
+  // Global button click sound — Minecraft-style wooden "click" on every UI button.
+  document.addEventListener('click', (e) => {
+    const t = e.target;
+    if (t.closest('button, .menu-btn, .slot, .mode-option, .inv-slot, .craft-slot, .setting-btn, .key-btn, .btn-badge, [role="button"]')) {
+      try { audio.buttonClick(); } catch (_) {}
+    }
+  });
+
   // --- Live settings ---
   document.getElementById('set-cg-trail')?.addEventListener('change', (e) => {
     cgTrailEnabled = e.target.value !== '0';
@@ -6844,6 +6852,15 @@ function initMenu() {
     showMultiplayerMenu();
   });
   document.getElementById('btn-create-server').addEventListener('click', () => {
+    if (isOnCrazyGames()) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
+      overlay.innerHTML = '<div style="max-width:340px;width:90%;background:rgba(20,22,32,0.97);border:2px solid rgba(100,150,200,0.25);border-radius:10px;padding:32px 28px;text-align:center;font-family:monospace;color:#ddd;box-shadow:0 0 40px rgba(0,0,0,0.5);"><div style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#f88;">&#128274; Computer Required</div><div style="font-size:13px;line-height:1.6;color:#bbb;">Hosting a server requires a computer.<br><span style="font-size:11px;color:#888;">Visit blockforge-1.onrender.com to host your own server!</span></div><button style="margin-top:18px;padding:10px 28px;font:bold 13px monospace;background:rgba(60,80,120,0.5);color:#e0e8ff;border:1px solid rgba(100,140,255,0.25);border-radius:6px;cursor:pointer;">OK</button></div>';
+      overlay.querySelector('button').onclick = () => overlay.remove();
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      document.body.appendChild(overlay);
+      return;
+    }
     if ('ontouchstart' in window && navigator.maxTouchPoints > 0) {
       const overlay = document.createElement('div');
       overlay.style.cssText = 'position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
@@ -8340,8 +8357,15 @@ function initMenu() {
   });
 
   // Platform-aware footer links: point at our own Terms/Privacy ONLY when NOT
-  // running on the real CrazyGames domain.
-  if (!isOnCrazyGames()) {
+  // running on the real CrazyGames domain. On CG, hide them entirely since
+  // relative URLs don't exist on CrazyGames' domain and external links are
+  // prohibited.
+  if (isOnCrazyGames()) {
+    try {
+      const footer = document.querySelector('#login-screen span[style*="font-size:9px"]');
+      if (footer) footer.style.display = 'none';
+    } catch (_) {}
+  } else {
     try {
       const terms = document.getElementById('footer-terms');
       const privacy = document.getElementById('footer-privacy');
@@ -8382,28 +8406,41 @@ function showConsentNotice() {
   let acked = false;
   try { acked = !!localStorage.getItem('bf_consent_ack'); } catch (_) {}
   if (acked) return;
-  const base = isOnCrazyGames() ? 'https://blockforge-1.onrender.com' : '';
+  const onCG = isOnCrazyGames();
+  const base = onCG ? '' : '';
   const el = document.createElement('div');
   el.id = 'consent-notice';
   el.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;z-index:99999;background:rgba(10,12,20,0.96);border:1px solid rgba(120,140,200,0.4);border-radius:10px;padding:12px 16px;font:12px/1.5 system-ui,sans-serif;color:#ddd;box-shadow:0 6px 24px rgba(0,0,0,0.5);max-width:560px;margin:0 auto;';
   const p = document.createElement('p');
   p.style.margin = '0 0 8px';
   p.appendChild(document.createTextNode('BlockForge stores your username, a hashed password and your in-game progress to keep your saves across devices. By playing you agree to our '));
-  const t = document.createElement('a');
-  t.href = base + '/terms.html';
-  t.target = '_blank';
-  t.rel = 'noopener';
-  t.textContent = 'Terms';
-  t.style.color = '#8af';
-  p.appendChild(t);
-  p.appendChild(document.createTextNode(' and '));
-  const pv = document.createElement('a');
-  pv.href = base + '/privacy.html';
-  pv.target = '_blank';
-  pv.rel = 'noopener';
-  pv.textContent = 'Privacy Policy';
-  pv.style.color = '#8af';
-  p.appendChild(pv);
+  if (onCG) {
+    const tSpan = document.createElement('span');
+    tSpan.textContent = 'Terms';
+    tSpan.style.color = '#8af';
+    p.appendChild(tSpan);
+    p.appendChild(document.createTextNode(' and '));
+    const pvSpan = document.createElement('span');
+    pvSpan.textContent = 'Privacy Policy';
+    pvSpan.style.color = '#8af';
+    p.appendChild(pvSpan);
+  } else {
+    const t = document.createElement('a');
+    t.href = base + '/terms.html';
+    t.target = '_blank';
+    t.rel = 'noopener';
+    t.textContent = 'Terms';
+    t.style.color = '#8af';
+    p.appendChild(t);
+    p.appendChild(document.createTextNode(' and '));
+    const pv = document.createElement('a');
+    pv.href = base + '/privacy.html';
+    pv.target = '_blank';
+    pv.rel = 'noopener';
+    pv.textContent = 'Privacy Policy';
+    pv.style.color = '#8af';
+    p.appendChild(pv);
+  }
   p.appendChild(document.createTextNode('.'));
   const btn = document.createElement('button');
   btn.textContent = 'Got it';

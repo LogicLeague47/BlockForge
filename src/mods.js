@@ -289,7 +289,18 @@ export function openModsMenu(ui) {
 }
 
 export function bindModsMenu(ui) {
-  document.getElementById('btn-mods')?.addEventListener('click', () => openModsMenu(ui));
+  document.getElementById('btn-mods')?.addEventListener('click', () => {
+    if (/crazygames/i.test(location.hostname)) {
+      const overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;inset:0;z-index:999;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.7);';
+      overlay.innerHTML = '<div style="max-width:340px;width:90%;background:rgba(20,22,32,0.97);border:2px solid rgba(100,150,200,0.25);border-radius:10px;padding:32px 28px;text-align:center;font-family:monospace;color:#ddd;box-shadow:0 0 40px rgba(0,0,0,0.5);"><div style="font-size:18px;font-weight:bold;margin-bottom:12px;color:#f88;">&#128274; Mods Unavailable</div><div style="font-size:13px;line-height:1.6;color:#bbb;">Mods are not available on CrazyGames.<br><span style="font-size:11px;color:#888;">Visit blockforge-1.onrender.com to use and play mods!</span></div><button style="margin-top:18px;padding:10px 28px;font:bold 13px monospace;background:rgba(60,80,120,0.5);color:#e0e8ff;border:1px solid rgba(100,140,255,0.25);border-radius:6px;cursor:pointer;">OK</button></div>';
+      overlay.querySelector('button').onclick = () => overlay.remove();
+      overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+      document.body.appendChild(overlay);
+      return;
+    }
+    openModsMenu(ui);
+  });
   document.getElementById('btn-mods-back')?.addEventListener('click', () => ui && ui.showMenu('main'));
   document.getElementById('btn-mod-import')?.addEventListener('click', () => {
     const input = document.getElementById('mod-file-input');

@@ -1068,4 +1068,14 @@ export class AudioManager {
       { noise: 'white', dur: 0.05, gain: 0.08, bp: 2200, bq: 2, atk: 0.002, rel: 0.2 },
     ]);
   }
+
+  // Short Minecraft-style wooden "click" for UI buttons.
+  buttonClick() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample('click_002', 0.3, 0.04)) return;
+    this._playLayers([
+      { wave: 'sine', freq: 1200, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.06 },
+      { wave: 'sine', freq: 800, dur: 0.06, gain: 0.06, atk: 0.002, rel: 0.08 },
+    ]);
+  }
 }
