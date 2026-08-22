@@ -2618,6 +2618,7 @@ export class UI {
     this.cursorItem = null;
     this.cursorItemEl.style.display = 'none';
     this.furnaceScreen.classList.add('open');
+    if (this.audio) this.audio.containerOpen();
     this.renderFurnaceSlots();
     this._renderFurnaceInventory(inventory);
     this._updateScreenOpen();
@@ -2656,6 +2657,7 @@ export class UI {
     this.cursorItemEl.style.display = 'none';
     this.furnaceOpen = false;
     this.furnaceScreen.classList.remove('open');
+    if (this.audio) this.audio.containerClose();
     this._inventoryRef = null;
     this._updateScreenOpen();
   }
@@ -2668,6 +2670,7 @@ export class UI {
     this.cursorItem = null;
     this.cursorItemEl.style.display = 'none';
     this.chestScreen.classList.add('open');
+    if (this.audio) this.audio.containerOpen();
     this._renderChestGrid();
     this._renderChestInventory(inventory);
     this._updateScreenOpen();
@@ -2688,6 +2691,7 @@ export class UI {
     this.cursorItemEl.style.display = 'none';
     this.chestOpen = false;
     this.chestScreen.classList.remove('open');
+    if (this.audio) this.audio.containerClose();
     this.chestSlots = null;
     this.chestPos = null;
     this._updateScreenOpen();
@@ -3053,6 +3057,7 @@ export class UI {
             } else {
               fs.output = { item: out, count: 1 };
             }
+            if (this.audio) this.audio.furnaceCook();
             if (this.onSmelt) this.onSmelt(inputItem, 1);
             this.renderFurnaceSlots();
           }

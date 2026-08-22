@@ -95,6 +95,9 @@ const SFX_FILES = [
   ...variants('interface_switch', 7),
   'interface_tick_001', 'interface_tick_002', 'interface_tick_004',
   ...variants('interface_toggle', 4),
+  // ── Chest / Furnace / Door sounds ──
+  'doorOpen_1', 'doorOpen_2', 'doorClose_1', 'doorClose_2', 'doorClose_3', 'doorClose_4',
+  'bookOpen', 'bookClose',
   // ── Kenney Music Jingles (CC0) — game stings: checkpoint/win/fail ──
   ...Array.from({ length: 17 }, (_, i) => `jingle_nes_${String(i).padStart(2, '0')}`),
   ...Array.from({ length: 17 }, (_, i) => `jingle_hit_${String(i).padStart(2, '0')}`),
@@ -1072,10 +1075,39 @@ export class AudioManager {
   // Short Minecraft-style wooden "click" for UI buttons.
   buttonClick() {
     if (!this.ctx || !this.enabled) return;
-    if (this._sample('click_002', 0.3, 0.04)) return;
+    if (this._sample(['interface_click_004', 'interface_click_005'], 0.28, 0.06)) return;
     this._playLayers([
-      { wave: 'sine', freq: 1200, dur: 0.04, gain: 0.1, atk: 0.001, rel: 0.06 },
-      { wave: 'sine', freq: 800, dur: 0.06, gain: 0.06, atk: 0.002, rel: 0.08 },
+      { noise: 'white', dur: 0.03, gain: 0.12, bp: 3500, bq: 1.5, atk: 0.001, rel: 0.04 },
+      { wave: 'sine', freq: 1800, dur: 0.02, gain: 0.06, atk: 0.001, rel: 0.03 },
+    ]);
+  }
+
+  // Chest / Furnace open: wooden creak.
+  containerOpen() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['creak1', 'creak2', 'creak3'], 0.45, 0.08)) return;
+    this._playLayers([
+      { noise: 'brown', dur: 0.18, gain: 0.1, bp: 1200, bq: 1, atk: 0.005, rel: 0.25 },
+      { wave: 'sawtooth', freq: 280, dur: 0.12, gain: 0.04, atk: 0.01, rel: 0.15 },
+    ]);
+  }
+
+  // Chest / Furnace close: short wooden thud.
+  containerClose() {
+    if (!this.ctx || !this.enabled) return;
+    if (this._sample(['doorClose_1', 'doorClose_2', 'doorClose_3', 'doorClose_4'], 0.4, 0.08)) return;
+    this._playLayers([
+      { noise: 'brown', dur: 0.08, gain: 0.15, lp: 800, lq: 1, atk: 0.001, rel: 0.1 },
+      { wave: 'sine', freq: 200, dur: 0.06, gain: 0.08, atk: 0.001, rel: 0.08 },
+    ]);
+  }
+
+  // Furnace cooking tick: soft fire crackle.
+  furnaceCook() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.06, gain: 0.04, bp: 4000, bq: 2, atk: 0.002, rel: 0.08 },
+      { noise: 'brown', dur: 0.1, gain: 0.03, lp: 1500, lq: 1, atk: 0.005, rel: 0.12 },
     ]);
   }
 }
