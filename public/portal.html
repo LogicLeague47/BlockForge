@@ -1473,6 +1473,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'PENDING',
+          heading: 'Auto-discover community servers + CrazyGames-ready (age gate, ads, privacy, account deletion)',
+          desc: 'You no longer have to type a server IP to find people to play with. A new DISCOVER tab in Multiplayer automatically lists community servers that are online right now (pulled from the official server directory) — click JOIN and you are in, no address needed, just like Minecraft LAN auto-detects nearby worlds. Behind the scenes the game is now fully CrazyGames-compliant: the official SDK is properly initialised so midgame ads show and all audio is muted during them, an age gate confirms players are 13+ (COPPA), the privacy policy is accurate about the account and multiplayer data we store, and external links are suppressed on the platform. You can also now permanently delete your account from the Account menu (right to erasure) — your credentials and associated data are wiped from our servers immediately.',
+          date: 'Aug 21',
+          bugs: ['you had to know a server\'s IP to join a friend', 'CrazyGames SDK was never initialised so its ads/lifecycle were no-ops', 'no age gate and the footer falsely claimed "no personal data collected"', 'no way to delete your account'],
+          updates: ['DISCOVER tab auto-lists online community servers (one-click JOIN, no IP)', 'CrazyGames SDK init + muted audio during ads', 'age gate (13+) on first launch and at account creation', 'accurate privacy policy + gated external links on the platform', 'Delete Account from the Account menu (erases server data)'],
+          features: ['LAN-style auto-discovery of community servers', 'CrazyGames-ready (ads, age gate, privacy, data deletion)'],
+        },
+        {
           hash: '98a501d',
           heading: 'Servers auto-connect like Minecraft + game is online on launch',
           desc: 'The Multiplayer menu now behaves like Minecraft Java: the moment you open it your saved servers are pinged for live status, and they keep re-pinging every few seconds while the menu is open so you always see current players / MOTD without pressing refresh. On top of that, BlockForge now opens already connected to the official backend (like Minecraft\'s always-online main menu), so your friends list, DMs and account are live the instant the game loads — you no longer have to log in first to see social. Joining a server or backing out of Multiplayer stops the background pings cleanly.',

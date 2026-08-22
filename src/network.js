@@ -294,6 +294,9 @@ export class Network {
       case 'own_account_detail':
         if (this.onOwnAccountDetail) this.onOwnAccountDetail(msg);
         break;
+      case 'account_deleted':
+        if (this.onAccountDeleted) this.onAccountDeleted(msg);
+        break;
       case 'link_account_result':
         if (this.onLinkAccountResult) this.onLinkAccountResult(msg);
         break;

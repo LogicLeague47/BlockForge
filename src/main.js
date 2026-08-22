@@ -84,6 +84,17 @@ function isOnCrazyGames() {
   return /crazygames/i.test(location.hostname);
 }
 
+// Open an external (off-platform) page. On CrazyGames, developer terms prohibit
+// promoting our own sites/products through the game, so we never navigate away
+// — we just tell the player where to go on the official site instead.
+function openExternal(url, target) {
+  if (isOnCrazyGames()) {
+    addChatLine('Open ' + url + ' on the official BlockForge site.', '#7af', true);
+    return null;
+  }
+  try { return window.open(url, target || '_blank'); } catch (_) { return null; }
+}
+
 // Mobile devices are far weaker — detect early so we can cap the render
 // resolution and view distance for a playable frame rate.
 const IS_MOBILE = ('ontouchstart' in window && navigator.maxTouchPoints > 0);
@@ -3834,6 +3845,36 @@ async function renderSavedServers() {
   }
 }
 
+// Minecraft-style LAN auto-discovery (web edition): instead of typing an IP,
+// the official backend's directory of online servers is fetched and shown here
+// automatically. Players join with one click — the address is filled in for them.
+async function renderDiscoverServers() {
+  const el = document.getElementById('discover-servers');
+  if (!el) return;
+  const api = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/api/servers';
+  el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Scanning for servers…</div>';
+  try {
+    const res = await fetch(api, { cache: 'no-store' });
+    const servers = await res.json();
+    const online = (servers || []).filter(s => s.online && !s.official);
+    if (!online.length) {
+      el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">No community servers online right now.</div>';
+      return;
+    }
+    el.innerHTML = online.map(s => `
+      <div class="sv-row" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;">
+        <div style="flex:1;min-width:0;">
+          <div style="font:bold 12px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name || s.address)}</div>
+          <div style="font:10px monospace;color:#9aa4b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.players || 0} players${s.description ? ' · ' + escHtml(s.description) : ''}</div>
+        </div>
+        <button class="sv-discover-join" data-address="${escHtml(s.address)}" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border:1px solid #2a5a2a;color:#fff;cursor:pointer;font:bold 11px monospace;padding:6px 14px;border-radius:3px;">JOIN</button>
+      </div>`).join('');
+    el.querySelectorAll('.sv-discover-join').forEach(btn => btn.addEventListener('click', () => joinServerByAddress(btn.dataset.address)));
+  } catch (e) {
+    el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Could not reach the server list.</div>';
+  }
+}
+
 function joinServerByAddress(address) {
   address = normalizeServerAddress(address);
   if (!address) return;
@@ -3884,10 +3925,11 @@ function showMultiplayerMenu() {
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
   renderSavedServers();
+  renderDiscoverServers();
   showServersView();
   ui.showMenu('multiplayer');
   stopMpStatusTimer();
-  _mpStatusTimer = setInterval(() => renderSavedServers(), 5000);
+  _mpStatusTimer = setInterval(() => { renderSavedServers(); renderDiscoverServers(); }, 5000);
 
   // Connect to server and fetch remote room list
   if (!network.connected) {
@@ -7284,6 +7326,14 @@ function initMenu() {
       }
     };
     network.onOwnAccountDetail = (msg) => { renderLinkedAccounts(msg); };
+    network.onAccountDeleted = (msg) => {
+      try { localStorage.removeItem('bf_login_pass'); localStorage.removeItem('bf_login_user'); } catch (_) {}
+      playerName = 'Guest' + Math.floor(Math.random() * 9000 + 1000);
+      addChatLine('Your account "' + (msg.username || '') + '" was deleted.', '#f99', true);
+      const modal = document.getElementById('account-info-modal');
+      if (modal) modal.style.display = 'none';
+      ui.showMenu('login');
+    };
     const credsForm = document.getElementById('link-creds-form');
     if (credsForm) credsForm.style.display = 'block';
     if (playerName) network.onConnectedOnce(() => network.getOwnAccount());
@@ -7385,9 +7435,9 @@ function initMenu() {
     if (isMultiplayer) network.leaveRoom();
     try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
     cgMidgameAd({
-      adStarted() { audio.stopMusic(); },
-      adFinished() { if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else showWorldList(); },
-      adError() { if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else showWorldList(); },
+      adStarted() { audio.stopMusic(); audio.setMuted(true); },
+      adFinished() { audio.setMuted(false); if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else showWorldList(); },
+      adError() { audio.setMuted(false); if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else showWorldList(); },
     });
   });
 
@@ -7477,9 +7527,9 @@ function initMenu() {
     if (isMultiplayer) network.leaveRoom();
     try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
     cgMidgameAd({
-      adStarted() { audio.stopMusic(); },
-      adFinished() { if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else deathQuitToMenu(); },
-      adError() { if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else deathQuitToMenu(); },
+      adStarted() { audio.stopMusic(); audio.setMuted(true); },
+      adFinished() { audio.setMuted(false); if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else deathQuitToMenu(); },
+      adError() { audio.setMuted(false); if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else deathQuitToMenu(); },
     });
   });
 
@@ -7928,6 +7978,10 @@ function initMenu() {
 
   function doLogin(mode) {
     clearToast();
+    if (isUnder13Blocked()) {
+      loginHint.style.color = '#f85'; loginHint.textContent = 'Accounts require players to be 13 or older.';
+      return;
+    }
     const user = (loginUser.value || '').trim().slice(0, 16);
     const pass = (loginPass.value || '');
     if (!user) { loginHint.style.color = '#f85'; loginHint.textContent = 'Please enter a username.'; loginUser.focus(); return; }
@@ -7986,9 +8040,9 @@ function initMenu() {
     if (credsMatchTarget) loginPass.value = savedPass || '';
     // Player-specific link / login reload that matches the saved account and
     // carries a fresh entry token → enter directly.
-    if (entryToken && credsMatchTarget && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
+    if (entryToken && credsMatchTarget && (hasOauthCreds || hasSavedCreds) && !isUnder13Blocked()) autoLogin = true;
     // Returning CrazyGames users are auto-logged-in via their saved identity.
-    if (isOnCrazyGames() && (hasOauthCreds || hasSavedCreds)) autoLogin = true;
+    if (isOnCrazyGames() && (hasOauthCreds || hasSavedCreds) && !isUnder13Blocked()) autoLogin = true;
   } catch (_) { console.warn("operation failed"); }
   if (autoLogin) {
     // Skip login screen entirely — go straight to main menu after auth
@@ -10480,7 +10534,7 @@ let fps = 0, fpsFrames = 0, fpsLastTime = performance.now();
 document.getElementById('btn-blockforge-portal')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
   const role = encodeURIComponent(playerRole || '');
-  window.open('portal.html' + (user ? '?user=' + user + '&role=' + role : ''));
+    openExternal('portal.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
 // Bottom-right: Account Info → shows account details incl. shareable player link
 document.getElementById('btn-account-info')?.addEventListener('click', () => {
@@ -10518,11 +10572,11 @@ document.getElementById('btn-ai-copy-link')?.addEventListener('click', async () 
 // the /u/ page shows the menu instead of the bot block. Copy-pasting the link
 // (fresh tab, no token) is blocked.
 document.getElementById('btn-ai-open-link')?.addEventListener('click', () => {
-  if (isOnCrazyGames()) return;
   const link = document.getElementById('ai-player-link')?.textContent || '';
   const m = link.match(/[?&]user=([^&]+)/);
   const user = m ? decodeURIComponent(m[1]) : playerName;
   if (!user || user === '—') return;
+  if (isOnCrazyGames()) { addChatLine('Open your profile on the official BlockForge site.', '#7af', true); return; }
   try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
   window.location.href = '/u/?user=' + encodeURIComponent(user);
 });
@@ -10533,8 +10587,22 @@ document.getElementById('ai-username')?.addEventListener('click', async () => {
 document.getElementById('ai-data-page')?.addEventListener('click', () => {
   const user = encodeURIComponent(playerName || '');
   const role = encodeURIComponent(playerRole || '');
-  window.open('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
+  openExternal('u/data.html' + (user ? '?user=' + user + '&role=' + role : ''));
 });
+
+// Delete Account (right to erasure). First click reveals a confirm; the second
+// sends the request. Only works while authenticated (server enforces ownership).
+(function initDeleteAccount() {
+  const del = document.getElementById('btn-ai-delete');
+  const hint = document.getElementById('ai-delete-hint');
+  const confirm = document.getElementById('ai-delete-confirm');
+  if (!del || !hint || !confirm) return;
+  del.addEventListener('click', () => { hint.style.display = hint.style.display === 'none' ? 'block' : 'none'; });
+  confirm.addEventListener('click', () => {
+    if (!network.connected) { addChatLine('Connect to the internet to delete your account.', '#f66', true); return; }
+    network.send({ type: 'delete_account' });
+  });
+})();
 
 // Deep link from the portal ("Add to BlockForge"): ?add=<ws://host:port> adds
 // the server to the player's local saved list (Minecraft-style) so they can
@@ -10561,6 +10629,35 @@ document.getElementById('ai-data-page')?.addEventListener('click', () => {
 // only happens on login; this is just the socket.
 if (!network.connected) {
   try { network.connect(BACKEND_URL); } catch (_) { console.warn('auto-connect to backend failed'); }
+}
+
+// Initialise the CrazyGames SDK (no-op off-platform — the SDK script is only
+// injected on crazygames.com, so this is safe everywhere else).
+try { cgInit(); } catch (_) { console.warn('cgInit failed'); }
+
+// Age gate (COPPA / 13+): block first launch and account creation for under-13.
+(function initAgeGate() {
+  try {
+    if (localStorage.getItem('bf_age_ok') === '1') return;
+    const gate = document.getElementById('age-gate');
+    if (!gate) return;
+    gate.style.display = 'flex';
+    const yes = document.getElementById('age-yes');
+    const no = document.getElementById('age-no');
+    const msg = document.getElementById('age-msg');
+    if (yes) yes.addEventListener('click', () => {
+      try { localStorage.setItem('bf_age_ok', '1'); } catch (_) {}
+      gate.style.display = 'none';
+    });
+    if (no) no.addEventListener('click', () => {
+      try { localStorage.setItem('bf_age_under13', '1'); } catch (_) {}
+      if (msg) msg.textContent = 'Sorry — accounts require players to be 13 or older. You can still play single-player locally.';
+      setTimeout(() => { gate.style.display = 'none'; }, 2600);
+    });
+  } catch (_) {}
+})();
+function isUnder13Blocked() {
+  try { return localStorage.getItem('bf_age_under13') === '1' && localStorage.getItem('bf_age_ok') !== '1'; } catch (_) { return false; }
 }
 
 requestAnimationFrame(loop);

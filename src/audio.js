@@ -252,6 +252,12 @@ export class AudioManager {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
 
+  // Used by the CrazyGames SDK to silence all audio (music + SFX) during ads.
+  setMuted(muted) {
+    if (!this.ctx || !this.master) return;
+    this.master.gain.value = muted ? 0 : 0.6;
+  }
+
   loadSfx() {
     if (!this.ctx || this._sfxLoading) return;
     this._sfxLoading = true;

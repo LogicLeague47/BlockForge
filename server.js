@@ -1573,6 +1573,7 @@ function isRateLimited(ws) {
       case 'get_own_account': handleGetOwnAccount(ws); break;
       case 'link_account': handleLinkCredentials(ws, msg); break;
       case 'unlink_identity': handleUnlinkIdentity(ws, msg); break;
+      case 'delete_account': handleDeleteAccount(ws); break;
     }
     } catch (err) { console.error('[Server] Error handling message:', msg?.type, err); }
   });
@@ -2647,7 +2648,7 @@ function handleDevGetAccount(ws, msg) {
 }
 
 // Return the calling account's own linked identities (any authenticated player).
-function handleGetOwnAccount(ws) {
+ function handleGetOwnAccount(ws) {
   const pd = ws._playerData;
   if (!pd || !pd.name) return sendError(ws, 'Not authenticated');
   const username = pd.name;
@@ -2661,6 +2662,26 @@ function handleGetOwnAccount(ws) {
     identities: acc.identities || {},
     hasPassword: !!acc.hash,
   }));
+}
+
+// Delete the authenticated user's own account and associated data (right to erasure).
+function handleDeleteAccount(ws) {
+  const pd = ws._playerData;
+  if (!pd || !pd.name) return sendError(ws, 'Not authenticated');
+  const username = pd.name;
+  if (!accounts[username]) return sendError(ws, 'Account not found');
+  // Remove credentials and profile data.
+  delete accounts[username];
+  delete playerSettings[username];
+  delete playerStatsCache[username];
+  delete pendingDMs[username.toLowerCase()];
+  friends.delete(username);
+  saveAccounts();
+  savePlayerSettings();
+  try { savePlayerStats(); } catch {}
+  // Log the user out.
+  ws._playerData = null;
+  safeSend(ws, JSON.stringify({ type: 'account_deleted', username }));
 }
 
 // Set a custom tag on an account (player cannot change it themselves)
