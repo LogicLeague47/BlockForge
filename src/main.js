@@ -1800,6 +1800,23 @@ function spawnDragonBladeParticles(pos) {
   }
 }
 
+// ── CrazyGames-exclusive "Crazy Trail" cosmetic (visual-only, local player) ──
+let cgTrailEnabled = true;
+let _cgTrailTimer = 0;
+function spawnCGTrail() {
+  if (!scene || !player || !player.position) return;
+  const hue = (performance.now() / 18) % 360;
+  const mat = new THREE.MeshBasicMaterial({ color: new THREE.Color('hsl(' + hue + ',100%,62%)'), transparent: true, opacity: 0.7 });
+  const m = new THREE.Mesh(_particleGeoTiny, mat);
+  m.position.set(
+    player.position.x + (Math.random() - 0.5) * 0.4,
+    player.position.y + 0.12,
+    player.position.z + (Math.random() - 0.5) * 0.4
+  );
+  scene.add(m);
+  _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 0.5, vy: 0.5 + Math.random() * 0.6, vz: (Math.random() - 0.5) * 0.5, life: 0.6, maxLife: 0.6 });
+}
+
 // Show held item name briefly when switching slots
 let _itemNameTimer = 0;
 function showHeldItemName() {
@@ -3848,33 +3865,6 @@ async function renderSavedServers() {
 // Minecraft-style LAN auto-discovery (web edition): instead of typing an IP,
 // the official backend's directory of online servers is fetched and shown here
 // automatically. Players join with one click — the address is filled in for them.
-async function renderDiscoverServers() {
-  const el = document.getElementById('discover-servers');
-  if (!el) return;
-  const api = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/api/servers';
-  el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Scanning for servers…</div>';
-  try {
-    const res = await fetch(api, { cache: 'no-store' });
-    const servers = await res.json();
-    const online = (servers || []).filter(s => s.online && !s.official);
-    if (!online.length) {
-      el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">No community servers online right now.</div>';
-      return;
-    }
-    el.innerHTML = online.map(s => `
-      <div class="sv-row" style="display:flex;align-items:center;gap:8px;padding:8px 10px;margin-bottom:4px;background:rgba(255,255,255,0.04);border:1px solid rgba(80,80,100,0.25);border-radius:4px;">
-        <div style="flex:1;min-width:0;">
-          <div style="font:bold 12px monospace;color:#eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(s.name || s.address)}</div>
-          <div style="font:10px monospace;color:#9aa4b8;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${s.players || 0} players${s.description ? ' · ' + escHtml(s.description) : ''}</div>
-        </div>
-        <button class="sv-discover-join" data-address="${escHtml(s.address)}" style="background:linear-gradient(180deg,#5a8a5a 0%,#4a7a4a 40%,#407040 60%,#366336 100%);border:1px solid #2a5a2a;color:#fff;cursor:pointer;font:bold 11px monospace;padding:6px 14px;border-radius:3px;">JOIN</button>
-      </div>`).join('');
-    el.querySelectorAll('.sv-discover-join').forEach(btn => btn.addEventListener('click', () => joinServerByAddress(btn.dataset.address)));
-  } catch (e) {
-    el.innerHTML = '<div style="color:#888;padding:8px;font:11px monospace;text-align:center;">Could not reach the server list.</div>';
-  }
-}
-
 function joinServerByAddress(address) {
   address = normalizeServerAddress(address);
   if (!address) return;
@@ -3925,11 +3915,10 @@ function showMultiplayerMenu() {
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
   renderSavedServers();
-  renderDiscoverServers();
   showServersView();
   ui.showMenu('multiplayer');
   stopMpStatusTimer();
-  _mpStatusTimer = setInterval(() => { renderSavedServers(); renderDiscoverServers(); }, 5000);
+  _mpStatusTimer = setInterval(() => { renderSavedServers(); }, 5000);
 
   // Connect to server and fetch remote room list
   if (!network.connected) {
@@ -4441,7 +4430,7 @@ function _simulateRemotePlayers(dt) {
   }
 }
 
-function createServer(name, maxPlayers, mode, seed, isPrivate) {
+function createServer(name, maxPlayers, mode, seed, isPrivate, address) {
   // Save locally for role tracking
   let server = Server.load(name);
   if (!server) {
@@ -4451,6 +4440,20 @@ function createServer(name, maxPlayers, mode, seed, isPrivate) {
     server.save();
   }
   trackServerCreated();
+
+  // Host on the player's own server via a custom IP (from their server files)
+  if (address) {
+    const addr = normalizeServerAddress(address);
+    if (!addr) { addChatLine('Invalid server address.', '#f55', true); return; }
+    const warn = wsSchemeWarning(addr);
+    if (warn) { addChatLine(warn, '#f66', true); return; }
+    if (network.connected) network.disconnect();
+    network.connect(addr);
+    network.onConnectedOnce(() => _doNetworkJoin(name, seed));
+    addChatLine('Hosting "' + name + '" on ' + addr + '…', '#7af', true);
+    return;
+  }
+
   // Connect and create on network
   if (!network.connected) {
     addChatLine('Please connect to WiFi or Data to play online.', '#fa0', true);
@@ -6502,6 +6505,32 @@ function initMenu() {
     if (shEl) shEl.value = shadowsOn ? '1' : '0';
   } catch (_) { console.warn("operation failed"); }
 
+  // CrazyGames-exclusive "Crazy Trail" setting (only shown on CG)
+  try {
+    if (isOnCrazyGames()) {
+      const row = document.getElementById('row-cg-trail');
+      if (row) row.style.display = 'flex';
+      const saved = localStorage.getItem('bf_cg_trail');
+      if (saved !== null) {
+        cgTrailEnabled = saved !== '0';
+        const el = document.getElementById('set-cg-trail');
+        if (el) el.value = cgTrailEnabled ? '1' : '0';
+      }
+      // Suppress off-platform external links inside the game on CrazyGames (TOS)
+      ['btn-ai-portal', 'ai-data-page'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+      });
+      // One-time welcome toast for the CG-exclusive perk
+      if (!localStorage.getItem('bf_cg_seen_trail')) {
+        try { localStorage.setItem('bf_cg_seen_trail', '1'); } catch (_) {}
+        setTimeout(() => {
+          try { showToast('✨ CrazyGames Exclusive: you have the Crazy Trail! Toggle it in Settings.', '#9af', 6); } catch (_) {}
+        }, 2600);
+      }
+    }
+  } catch (_) { console.warn("operation failed"); }
+
   // Load mouse sensitivity setting (also applies it live)
   try {
     const sens = localStorage.getItem('bf_sensitivity');
@@ -6583,6 +6612,10 @@ function initMenu() {
   document.addEventListener('pointerlockchange', startMusicOnce);
 
   // --- Live settings ---
+  document.getElementById('set-cg-trail')?.addEventListener('change', (e) => {
+    cgTrailEnabled = e.target.value !== '0';
+    try { localStorage.setItem('bf_cg_trail', cgTrailEnabled ? '1' : '0'); } catch (_) { console.warn("localStorage write failed"); }
+  });
   document.getElementById('set-render-distance')?.addEventListener('change', (e) => {
     renderDist = parseInt(e.target.value) || 7;
     if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
@@ -6900,7 +6933,8 @@ function initMenu() {
     playerName = pname;
     try { localStorage.setItem('bf_player_name', pname); } catch (_) { console.warn("localStorage write failed"); }
     if (!name) return;
-    createServer(name, maxP, mode, seedInput || undefined, isPrivate);
+    const addr = (document.getElementById('input-server-address')?.value || '').trim();
+    createServer(name, maxP, mode, seedInput || undefined, isPrivate, addr);
   });
   document.getElementById('btn-create-server-back').addEventListener('click', () => {
     showMultiplayerMenu();
@@ -9435,6 +9469,12 @@ function _gameFrame() {
 
   // Update footstep particles
   updateStepParticles(dt);
+
+  // CrazyGames-exclusive Crazy Trail (cosmetic, local player only)
+  if (isOnCrazyGames() && cgTrailEnabled && gameRunning && player && player.position) {
+    _cgTrailTimer -= dt;
+    if (_cgTrailTimer <= 0) { _cgTrailTimer = 0.09; spawnCGTrail(); }
+  }
 
   // Item name fade timer
   if (_itemNameTimer > 0) {
