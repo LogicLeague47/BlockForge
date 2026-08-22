@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '39c0927',
+          heading: 'Chest/furnace sounds + fixed button click',
+          desc: 'Added missing container sounds: chest and furnace now play a wooden creak when opened and a door-close thud when exited. Furnace plays a soft fire crackle each time an item finishes smelting. Button click sound replaced with proper Minecraft-style wooden tock.',
+          date: 'Aug 22',
+          bugs: ['chests and furnaces had no open/close sounds', 'furnace had no cooking completion sound', 'button click sounded like a soft beep instead of wooden tock'],
+          updates: ['Chest open plays creak1-3 sample', 'Chest/furnace close plays doorClose_1-4 sample', 'Furnace smelt completion plays fire crackle', 'Button click uses interface_click_004/005 + white-noise wooden tock fallback', 'Added door/book samples to SFX_FILES'],
+          features: ['Container open/close sounds', 'Furnace cooking tick sound'],
+        },
+        {
           hash: 'ff4f63f',
           heading: 'CrazyGames compliance + button click sound',
           desc: 'Full CrazyGames TOS compliance audit: hosting, mods, consent notice, and footer links are now handled in-game instead of opening external tabs or links. Added Minecraft-style button click sound to all UI buttons.',
