@@ -1413,9 +1413,22 @@
         display: flex;
         animation: menuFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       }
-      .menu-screen.active.menu-fit {
-        animation: none;
-      }
+       .menu-screen.active.menu-fit {
+         animation: none;
+       }
+       /* Add-Server modal must be a proper full-screen scrollable overlay so it
+          never crops on small screens (flex-centre + overflow used to clip it). */
+       #add-server-modal {
+         position: fixed !important; inset: 0 !important;
+         max-width: none !important; width: 100% !important; height: 100% !important;
+         z-index: 60; display: none; padding: 16px !important; overflow: auto !important;
+         background: rgba(0,0,0,0.72) !important;
+         flex-direction: column !important;
+         align-items: stretch !important; justify-content: flex-start !important;
+       }
+       #add-server-modal > div {
+         margin: auto; max-height: 100%; overflow: auto;
+       }
       @keyframes menuFadeIn {
         from { opacity: 0; transform: translateY(12px) scale(0.98); }
         to { opacity: 1; transform: translateY(0) scale(1); }

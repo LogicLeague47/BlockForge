@@ -225,9 +225,9 @@ menuBgScene.fog = new THREE.Fog(0x87ceeb, 20, 55);
 menuBgScene.background = new THREE.Color(0x78b9e8);
 const menuBgSun = new THREE.DirectionalLight(0xfff8e7, 1.6);
 menuBgSun.position.set(40, 80, 30);
-menuBgSun.castShadow = !VERY_LOW_END;
-menuBgSun.shadow.mapSize.width = VERY_LOW_END ? 512 : 2048;
-menuBgSun.shadow.mapSize.height = VERY_LOW_END ? 512 : 2048;
+menuBgSun.castShadow = !IS_MOBILE && !VERY_LOW_END;
+menuBgSun.shadow.mapSize.width = IS_MOBILE ? 512 : (VERY_LOW_END ? 512 : 2048);
+menuBgSun.shadow.mapSize.height = IS_MOBILE ? 512 : (VERY_LOW_END ? 512 : 2048);
 menuBgSun.shadow.camera.near = 0.5;
 menuBgSun.shadow.camera.far = 200;
 menuBgSun.shadow.camera.left = -40;
@@ -440,8 +440,8 @@ function buildMenuBackground() {
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(50, 100, 30);
 sun.castShadow = true;
-sun.shadow.mapSize.width = IS_MOBILE ? 1024 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
-sun.shadow.mapSize.height = IS_MOBILE ? 1024 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
+ sun.shadow.mapSize.width = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
+ sun.shadow.mapSize.height = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
 sun.shadow.camera.near = 0.5;
 sun.shadow.camera.far = IS_MOBILE ? 300 : (VERY_LOW_END ? 400 : 700);
 sun.shadow.camera.left = IS_MOBILE ? -25 : (VERY_LOW_END ? -35 : -50);
@@ -5232,9 +5232,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   renderDist = parseInt(document.getElementById('set-render-distance')?.value) || (VERY_LOW_END ? 4 : (LOW_END ? 5 : 7));
   graphicsQuality = document.getElementById('set-quality')?.value || 'medium';
   // Mobile / low-end: hard-cap view distance so the GPU/CPU isn't meshing far chunks.
-  if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
+  if (IS_MOBILE) renderDist = Math.min(renderDist, 5);
   if (LOW_END) renderDist = Math.min(renderDist, 6);
-  if (VERY_LOW_END) renderDist = Math.min(renderDist, 5);
+  if (VERY_LOW_END) renderDist = Math.min(renderDist, 4);
   applyGraphicsQuality();
   gameDifficulty = difficulty || 'normal';
 
@@ -6496,8 +6496,8 @@ function initMenu() {
   // Apply shadows setting on startup
   try {
     const sh = localStorage.getItem('bf_shadows');
-    // On weak GPUs, default to shadows OFF unless user explicitly enabled them
-    const shadowsOn = sh !== null ? sh !== '0' : !VERY_LOW_END;
+    // On weak GPUs / mobile, default to shadows OFF unless user enabled them
+    const shadowsOn = sh !== null ? sh !== '0' : (!VERY_LOW_END && !IS_MOBILE);
     window.__shadowsEnabled = shadowsOn;
     if (!shadowsOn) renderer.shadowMap.enabled = false;
     // Update the toggle UI to reflect the actual state
@@ -6618,9 +6618,9 @@ function initMenu() {
   });
   document.getElementById('set-render-distance')?.addEventListener('change', (e) => {
     renderDist = parseInt(e.target.value) || 7;
-    if (IS_MOBILE) renderDist = Math.min(renderDist, 6);
+    if (IS_MOBILE) renderDist = Math.min(renderDist, 5);
     if (LOW_END) renderDist = Math.min(renderDist, 6);
-    if (VERY_LOW_END) renderDist = Math.min(renderDist, 5);
+    if (VERY_LOW_END) renderDist = Math.min(renderDist, 4);
     try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
     // Apply to current world if loaded
     scene.fog.far = 16 * (renderDist + 2);
