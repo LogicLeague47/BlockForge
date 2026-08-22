@@ -5484,6 +5484,12 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       const { origin, dir } = screenRay(x, y);
       const mobHit = mobManager.hitTest(origin, dir, REACH);
       if (!mobHit) return false;
+      // A short tap on an interactable (peaceful trader) should OPEN it, not
+      // hit it. Longer holds still break/attack via the camera-zone logic.
+      if (mobHit.type === 'traveler' && !mobHit.dead) {
+        openTravelerTrade(mobHit);
+        return true;
+      }
       const atkSlot = player.inventory.getSelected();
       const atkTool = atkSlot && isTool(atkSlot.item) ? toolInfo(atkSlot.item) : null;
       const attackDamage = atkTool ? atkTool.swordDmg || 1 : 1;

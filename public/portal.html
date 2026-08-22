@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'da4fba2',
+          heading: 'Mobile UI: responsive menus + tap-to-open',
+          desc: 'Mobile UI now adapts cleanly between portrait and landscape. Create-server and other menu panels use the full screen width with no horizontal overflow or cropping, the inventory wraps to fit, and the gear (action) panel now lays its buttons out horizontally (sideways) so they never overlap on small screens. Tapping an interactable entity — like a trader (Traveler) — now opens it instead of hitting it, so a quick tap on a trader opens the trade window.',
+          date: 'Aug 22',
+          bugs: ['some UI screens did not fit / required switching orientation', 'gear action buttons overlapped on small screens', 'insta-tapping a trader attacked it instead of opening trade'],
+          updates: ['All menu screens fit portrait + landscape (no overflow/crop)', 'Gear action panel is horizontal on small screens', 'Quick tap on a trader opens it instead of hitting it'],
+          features: ['Tap-to-open interactables on touch'],
+        },
+        {
           hash: 'c0de52b',
           heading: 'Mobile performance + Add-Server modal fix',
           desc: 'BlockForge now follows a lightweight-by-default philosophy like vanilla voxel games: tiny 512×512 pixel-art texture atlas with nearest filtering and no mipmaps (almost no VRAM for textures), simple cube geometry, and all heavy GPU work kept off the critical path. On mobile, dynamic shadows are now OFF by default (toggleable in Settings), sun + menu-background shadow maps are shrunk (512 instead of 1024/2048), and the default view distance is tighter (5 chunks, 4 on very low-end) — which drastically cuts both GPU load and CPU chunk meshing, the main FPS killers on phones. The Add Server popup was also rebuilt as a proper full-screen scrollable overlay so it never crops or gets cut off on small screens.',
