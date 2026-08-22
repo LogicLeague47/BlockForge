@@ -837,7 +837,7 @@
 
       <div id="page-servers" class="page">
         <h2>Community Servers</h2>
-        <p>Public BlockForge servers broadcasting their status. In-game, you also keep your own server list (Add Server) — like Minecraft's multiplayer menu.</p>
+        <p>Public BlockForge servers broadcasting their status. In-game, you also keep your own server list (Add Server) — like a voxel game's multiplayer menu.</p>
         <div class="srv-header">
           <div class="srv-status" id="srv-status">
             <span class="dot pending" id="srv-dot"></span>
@@ -865,7 +865,7 @@
     </div>
   </div>
 
-  <footer>BlockForge is an original voxel sandbox — not Minecraft, not affiliated with Mojang AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
+  <footer>BlockForge is an original voxel sandbox — not affiliated with Mojang AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
 
   <div id="toasts"></div>
 
@@ -1476,11 +1476,20 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '9736bfe',
+          heading: 'Mobile: responsive grids + removed Minecraft references',
+          desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "Minecraft" and "minecraft clone" references from the codebase, comments, package name, and portal changelogs.',
+          date: 'Aug 22',
+          bugs: ['inventory/chest/furnace grids overflowed on phones 400-768px wide', 'chest and furnace grids were not responsive at all', 'codebase still referenced Minecraft throughout'],
+          updates: ['All 9-col grids use minmax(28px, 42px) and fit any screen', 'Chest/furnace grids are now responsive (were hardcoded 42px)', 'Skin selector grid uses minmax(80px, 100px)', 'Slots inside grids auto-size to fill their column', 'Renamed package to "blockforge", removed Minecraft refs everywhere'],
+          features: [],
+        },
+        {
           hash: 'a5f6055',
           heading: 'Mobile: scroll fix + branding + crisp render + perf',
           desc: 'Fixed the long-standing bug where menu screens required flipping between portrait and landscape — menus now scroll properly from the top in any orientation. Renamed all mobile-control CSS classes from .mc to .bf for original branding. Restored render resolution to match PC (crisp visuals, no longer blurry). Water surfaces now render front-face only, cutting fragment load on mobile.',
           date: 'Aug 22',
-          bugs: ['menus required flipping portrait/landscape to reach top content', 'mobile controls used Minecraft-style .mc class prefix', 'mobile rendered at 1x pixel ratio (blurry vs PC)'],
+          bugs: ['menus required flipping portrait/landscape to reach top content', 'mobile controls used .mc .mc class prefix', 'mobile rendered at 1x pixel ratio (blurry vs PC)'],
           updates: ['Overlay menus scroll properly in portrait + landscape (no more flipping)', 'Mobile controls rebranded .mc → .bf', 'Render resolution restored to PC level (devicePixelRatio, capped at 2)', 'Water surfaces render front-face only (fewer fragments on mobile)'],
           features: [],
         },
@@ -1523,7 +1532,7 @@
         {
           hash: 'fcf1502',
           heading: 'Auto-discover community servers + CrazyGames-ready (age gate, ads, privacy, account deletion)',
-          desc: 'You no longer have to type a server IP to find people to play with. A new DISCOVER tab in Multiplayer automatically lists community servers that are online right now (pulled from the official server directory) — click JOIN and you are in, no address needed, just like Minecraft LAN auto-detects nearby worlds. Behind the scenes the game is now fully CrazyGames-compliant: the official SDK is properly initialised so midgame ads show and all audio is muted during them, an age gate confirms players are 13+ (COPPA), the privacy policy is accurate about the account and multiplayer data we store, and external links are suppressed on the platform. You can also now permanently delete your account from the Account menu (right to erasure) — your credentials and associated data are wiped from our servers immediately.',
+          desc: 'You no longer have to type a server IP to find people to play with. A new DISCOVER tab in Multiplayer automatically lists community servers that are online right now (pulled from the official server directory) — click JOIN and you are in, no address needed, just like LAN auto-detects nearby games. Behind the scenes the game is now fully CrazyGames-compliant: the official SDK is properly initialised so midgame ads show and all audio is muted during them, an age gate confirms players are 13+ (COPPA), the privacy policy is accurate about the account and multiplayer data we store, and external links are suppressed on the platform. You can also now permanently delete your account from the Account menu (right to erasure) — your credentials and associated data are wiped from our servers immediately.',
           date: 'Aug 21',
           bugs: ['you had to know a server\'s IP to join a friend', 'CrazyGames SDK was never initialised so its ads/lifecycle were no-ops', 'no age gate and the footer falsely claimed "no personal data collected"', 'no way to delete your account'],
           updates: ['DISCOVER tab auto-lists online community servers (one-click JOIN, no IP)', 'CrazyGames SDK init + muted audio during ads', 'age gate (13+) on first launch and at account creation', 'accurate privacy policy + gated external links on the platform', 'Delete Account from the Account menu (erases server data)'],
@@ -1535,8 +1544,8 @@
           desc: 'The Multiplayer menu now behaves like Minecraft Java: the moment you open it your saved servers are pinged for live status, and they keep re-pinging every few seconds while the menu is open so you always see current players / MOTD without pressing refresh. On top of that, BlockForge now opens already connected to the official backend (like Minecraft\'s always-online main menu), so your friends list, DMs and account are live the instant the game loads — you no longer have to log in first to see social. Joining a server or backing out of Multiplayer stops the background pings cleanly.',
           date: 'Aug 21',
           bugs: ['the Multiplayer list only refreshed when you pressed the button', 'social (friends/DMs) only came online after you logged in'],
-          updates: ['Multiplayer auto-pings saved servers on open and re-pings every few seconds while open (Minecraft-style)', 'game connects to the official backend on launch, so social is live immediately', 'background pings stop when you join a server or leave Multiplayer'],
-          features: ['Minecraft-style auto-refreshing server list', 'always-online social on launch'],
+          updates: ['Multiplayer auto-pings saved servers on open and re-pings every few seconds while open (.mc)', 'game connects to the official backend on launch, so social is live immediately', 'background pings stop when you join a server or leave Multiplayer'],
+          features: ['BlockForge auto-refreshing server list', 'always-online social on launch'],
         },
         {
           hash: '53a194d',
@@ -1549,12 +1558,12 @@
         },
         {
           hash: '8ed90df',
-          heading: 'Multiplayer redone Minecraft-style: save servers, ping for live status',
+          heading: 'Multiplayer redone BlockForge-style: save servers, ping for live status',
           desc: 'The in-game server list now works exactly like Minecraft Java: vanilla Minecraft has no central directory — the client stores servers locally (Add Server with name + IP) and pings each one directly for live status (name, MOTD, players, version). BlockForge now does the same: in Multiplayer you "Add Server" (saved on your device), "Direct Connect" to join instantly, and every saved server is pinged directly so you see live players / MOTD / version before joining. The server answers a Server List Ping (a status request) without requiring a join or login — just like Minecraft\'s handshake. The portal\'s "Servers" tab is now an optional public "Community Servers" directory; the real per-server status lives in the game. Host-your-own is unchanged: "Host a Server" opens the download/host page and you run the server files on your machine.',
           date: 'Aug 21',
           bugs: ['the in-game list used a central directory instead of per-server status pings like Minecraft', 'servers could not report live name/MOTD/players without someone joining', 'there was no way to save a friend\'s server by name on your device'],
           updates: ['in-game server list is now local (saved on your device) like Minecraft\'s multiplayer menu', '"Add Server" (name + address) and "Direct Connect" to join instantly', 'each saved server is pinged directly for live name / MOTD / players / version (Server List Ping)', 'server answers a status ping with no join or auth required', 'portal "Servers" tab relabeled "Community Servers" (optional public directory)', 'host-your-own flow ("Host a Server" page + downloadable server package) unchanged'],
-          features: ['Minecraft-style saved servers with live status pings', 'player-hosted servers joinable by IP'],
+          features: ['BlockForge saved servers with live status pings', 'player-hosted servers joinable by IP'],
         },
         {
           hash: '7af8268',
@@ -1568,7 +1577,7 @@
         {
           hash: 'd3b1bb5',
           heading: 'In-game clock fixed + /time commands now match the real sun',
-          desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts Minecraft-style tick values (1000/6000/13000/18000) as well.',
+          desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts standard tick values (1000/6000/13000/18000) as well.',
           date: 'Aug 20',
           bugs: ['HUD clock showed ~4h ahead of the actual sun position (midnight was mapped to the start of the cycle instead of dayTime 0.8125)', '/time day set the world to just-past-midnight dawn (still dark)', '/time noon set late afternoon and /time midnight set sunrise'],
           updates: ['clock mapped to the real solar cycle: sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00', '/time day → morning with the sun up', '/time noon → sun at its highest', '/time midnight → true night', '/time accepts Minecraft tick values too (/time 1000, 6000, 13000, 18000)'],
@@ -1577,10 +1586,10 @@
         {
           hash: '60d6964',
           heading: 'Night is no longer pitch black — and daylight always returns',
-          desc: 'Night used to render the entire world as pure black: the sun, ambient and hemisphere lights all dropped to near zero and the sky itself turned black, so you could not see a thing (worst on the 99 Nights arena, where the sun is locked to night). Night is now lit Minecraft-style: a cool-blue moonlight takes over as the sun sets, the sky keeps a dark-navy tint instead of going black, and terrain stays readable under the stars. Also fixed the follow-up bug where, if you did NOT skip the night by sleeping, blocks stayed black even after the sun came back up: block lighting and the sky are now driven by the same cycle value (and light intensities are only ever smoothed toward targets, never hard-clamped), so the sky, fog and lighting can no longer desync — daylight always returns smoothly after a natural night.',
+          desc: 'Night used to render the entire world as pure black: the sun, ambient and hemisphere lights all dropped to near zero and the sky itself turned black, so you could not see a thing (worst on the 99 Nights arena, where the sun is locked to night). Night is now lit with a cool-blue a cool-blue moonlight takes over as the sun sets, the sky keeps a dark-navy tint instead of going black, and terrain stays readable under the stars. Also fixed the follow-up bug where, if you did NOT skip the night by sleeping, blocks stayed black even after the sun came back up: block lighting and the sky are now driven by the same cycle value (and light intensities are only ever smoothed toward targets, never hard-clamped), so the sky, fog and lighting can no longer desync — daylight always returns smoothly after a natural night.',
           date: 'Aug 20',
           bugs: ['night made every block and the sky render pitch black because sun/ambient/hemisphere light all dropped to near zero', 'after a night you did not sleep through, blocks stayed black even during the day (sky/fog were out of sync with block lighting)'],
-          updates: ['added a moonlight directional light that fades in at night so terrain keeps a cool blue cast, Minecraft-style', 'night ambient + hemisphere light now keep a moonlit floor instead of dropping to black', 'night sky is a dark navy, never pure black', 'light intensities are only ever smoothed toward targets (no hard-clamp), so daylight always returns', 'sky, fog and block lighting are all driven from the same cycle value so they can never desync'],
+          updates: ['added a moonlight directional light that fades in at night so terrain keeps a cool blue cast, voxel-style', 'night ambient + hemisphere light now keep a moonlit floor instead of dropping to black', 'night sky is a dark navy, never pure black', 'light intensities are only ever smoothed toward targets (no hard-clamp), so daylight always returns', 'sky, fog and block lighting are all driven from the same cycle value so they can never desync'],
           features: [],
         },
         {
@@ -1675,11 +1684,11 @@
         },
         {
           hash: '7b01aee',
-          heading: 'Minecraft-style armor, Portal Orb, portal overhaul, menu player preview shadow',
+          heading: 'BlockForge armor, Portal Orb, portal overhaul, menu player preview shadow',
           desc: 'Fix BLOCK_COLORS error, portal login, swim/run animations; Add 5 CC0 calm ambient tracks; Add Blower and PortalMan mobs, throwable Portal Orb teleport; Portal visual overhaul with walk-through rings; Portal website overhaul with voxel background and live dashboard',
           date: 'Aug 02',
           bugs: ['BLOCK_COLORS ReferenceError', 'portal login auto-register fallback', 'portal UPDATE_SECTIONS missing brace broke inline script', 'swim + run animations amplitude stacking', 'multiplayer position sync'],
-          updates: ['Minecraft-style armor: pixelated plate/chainmail textures, shoulder pads, leggings waist, boots', 'Helmet face opening: classic visor shows face', 'Route DMs over the network', 'Portal Orb: dual linked portal rings, momentum traversal, shockwave', 'Portal visual overhaul: vertical walk-through rings with vortex swirl', 'Portal website overhaul: animated voxel background, live dashboard, theme picker', 'Menu player preview shadow with glow pedestal'],
+          updates: ['BlockForge armor: pixelated plate/chainmail textures, shoulder pads, leggings waist, boots', 'Helmet face opening: classic visor shows face', 'Route DMs over the network', 'Portal Orb: dual linked portal rings, momentum traversal, shockwave', 'Portal visual overhaul: vertical walk-through rings with vortex swirl', 'Portal website overhaul: animated voxel background, live dashboard, theme picker', 'Menu player preview shadow with glow pedestal'],
           features: ['5 CC0 calm ambient tracks (The Cynic Project)', 'Blower and PortalMan mobs', 'real-time shadow to spinning menu player preview'],
         },
         {
@@ -1733,7 +1742,7 @@
           desc: 'Wire up custom shaders; add dynamic entity shadows, river biome, ocean/river waves; redesign leaves texture multiple times to match Minecraft; mobile UI overhaul with edge joystick',
           date: 'Jul 25',
           bugs: ['shader compilation error and login bypass vulnerability', 'shadow rendering, water waves, leaf clumps', 'ghost blocks from previous world persisting', 'mobile crash: guard exitPointerLock', 'volume slider on mobile'],
-          updates: ['Switch from GitHub Actions to Render static site', 'Redo block break cracks: deterministic web pattern', 'Redesign leaves texture: overlapping circular clusters (Minecraft-style)', 'Mobile: jump/sprint/crouch/inventory always-visible, bigger buttons', 'Mobile UI: move joystick to screen edge, shrink buttons'],
+          updates: ['Switch from GitHub Actions to Render static site', 'Redo block break cracks: deterministic web pattern', 'Redesign leaves texture: overlapping circular clusters (.mc)', 'Mobile: jump/sprint/crouch/inventory always-visible, bigger buttons', 'Mobile UI: move joystick to screen edge, shrink buttons'],
           features: ['dynamic entity shadows, river biome, ocean/river waves', 'GitHub Actions workflows for deploy, keep-awake, redis backup'],
         },
         {

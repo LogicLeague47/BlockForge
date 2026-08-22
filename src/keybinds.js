@@ -1,4 +1,4 @@
-// Key bindings — defaults mirror Minecraft Java Edition, except crouch/sprint
+// Key bindings — defaults mirror classic voxel games, except crouch/sprint
 // which are kept as the project's existing controls (crouch = Left Ctrl,
 // sprint = Left Shift). Bindings are stored by KeyboardEvent.code and can be
 // rebound from the in-game Settings → Controls screen (persisted to localStorage).

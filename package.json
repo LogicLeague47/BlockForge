@@ -1,7 +1,7 @@
 {
-  "name": "minecraft-clone",
+  "name": "blockforge",
   "version": "1.0.1",
-  "description": "A voxel sandbox Minecraft clone built with Three.js",
+  "description": "A voxel sandbox game built with Three.js",
   "type": "module",
   "main": "electron/main.cjs",
   "scripts": {

@@ -1,4 +1,4 @@
-// Skin Editor + Uploader — a from-scratch pixel editor for 64x64 Minecraft-format
+// Skin Editor + Uploader — a from-scratch pixel editor for 64x64 voxel-format
 // skins, with a live rotating 3D preview.
 //
 // Features:
@@ -10,7 +10,7 @@
 //   - Export the skin as a PNG
 //   - Save → applies the skin to your character
 //
-// The skin is the standard Minecraft UV layout, matching playermodel.js.
+// The skin is the standard voxel UV layout, matching playermodel.js.
 
 import * as THREE from 'three';
 import { PlayerModel } from './playermodel.js';

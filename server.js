@@ -190,7 +190,7 @@ function listLiveServers() {
 }
 loadDirectory();
 
-  // Server List Ping (SLP) analog — like Minecraft's status query, returns the
+  // Server List Ping (SLP) analog — like a classic voxel game's status query, returns the
   // server's public info WITHOUT requiring a join or auth. The client pings
   // each saved server directly to show name / MOTD / players / version.
   function getServerStatusInfo() {
@@ -1509,7 +1509,7 @@ function isRateLimited(ws) {
     try {
     switch (msg.type) {
       case 'ping': safeSend(ws, JSON.stringify({ type: 'pong' })); break;
-      // Server List Ping — status query, no auth/join required (Minecraft-style).
+      // Server List Ping — status query, no auth/join required (classic-style).
       case 'status': safeSend(ws, JSON.stringify({ type: 'status', ...getServerStatusInfo() })); break;
       case 'auth': handleAuth(ws, msg); break;
       case 'create_room': handleCreateRoom(ws, msg); break;

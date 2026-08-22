@@ -47,7 +47,7 @@ function mix(a, b, t) {
 function shade(c, f) { return [c[0] * f, c[1] * f, c[2] * f]; }
 function clamp(v) { return Math.max(0, Math.min(255, Math.round(v))); }
 
-// Per-pixel "noise" so flat colors look textured (mimics Minecraft's per-texel variance).
+// Per-pixel "noise" so flat colors look textured (per-texel variance).
 function noisy(ctx, x0, y0, base, variance, rng, darkness = 1) {
   for (let y = 0; y < TILE; y++) {
     for (let x = 0; x < TILE; x++) {
@@ -141,7 +141,7 @@ function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
 
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
-    // Meadow-green base with natural variation (Minecraft uses ~95,159,53).
+    // Meadow-green base with natural variation (similar games use ~95,159,53).
     noisy(ctx, x0, y0, [95, 159, 53], 0.08, rng);
     // Larger darker-green mottling patches (tufts of thicker grass).
     for (let i = 0; i < 14; i++) {
@@ -165,7 +165,7 @@ const PAINTERS = {
   },
 
   grass_side(ctx, x0, y0, rng) {
-    // Dirt body (Minecraft dirt: 134,96,67).
+    // Dirt body (standard dirt: 134,96,67).
     noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
     // Dirt pebbles below the grass line.
     for (let i = 0; i < 16; i++) {
@@ -282,7 +282,7 @@ const PAINTERS = {
   },
 
   wood_top(ctx, x0, y0, rng) {
-    // Minecraft oak log top: concentric growth rings.
+    // oak log top: concentric growth rings.
     noisy(ctx, x0, y0, [156, 120, 72], 0.05, rng);
     const cx = TILE / 2, cy = TILE / 2;
     // Outer bark ring (dark).
@@ -303,7 +303,7 @@ const PAINTERS = {
   },
 
   wood_side(ctx, x0, y0, rng) {
-    // Minecraft oak bark: dark brown with strong vertical grain.
+    // oak bark: dark brown with strong vertical grain.
     noisy(ctx, x0, y0, [109, 84, 52], 0.05, rng);
     // Darker grain grooves running vertically.
     for (let x = 0; x < TILE; x++) {

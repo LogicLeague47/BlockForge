@@ -99,7 +99,7 @@ const FACES = [
   },
 ];
 
-// Per-face base brightness — Minecraft-style directional shading
+// Per-face base brightness — directional shading
 // Top gets most light, bottom gets least, sides vary by axis
 const FACE_SHADE = {
   top: 1.0,
@@ -236,7 +236,7 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
-        // Beds: emit a real Minecraft-style bed model instead of a full cube.
+        // Beds: emit a real bed model instead of a full cube.
         if (b === BLOCK.BED || b === BLOCK.BED_FOOT) {
           pushBed(opaque, wx, y, wz, b, sample);
           continue;
@@ -408,7 +408,7 @@ function toGeometry(buf) {
   };
 }
 
-// ── Minecraft-style bed model ─────────────────────────────────────────
+// ── bed model ─────────────────────────────────────────
 // A bed is two blocks: a head (BED) and a foot (BED_FOOT). Instead of a full
 // cube we emit a proper bed: 4 wooden legs, a low mattress with blanket, a tall
 // headboard + pillow on the head block, and a low footboard on the foot block.
