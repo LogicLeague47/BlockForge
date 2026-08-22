@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'c0de52b',
+          heading: 'Mobile performance + Add-Server modal fix',
+          desc: 'BlockForge now follows a lightweight-by-default philosophy like vanilla voxel games: tiny 512×512 pixel-art texture atlas with nearest filtering and no mipmaps (almost no VRAM for textures), simple cube geometry, and all heavy GPU work kept off the critical path. On mobile, dynamic shadows are now OFF by default (toggleable in Settings), sun + menu-background shadow maps are shrunk (512 instead of 1024/2048), and the default view distance is tighter (5 chunks, 4 on very low-end) — which drastically cuts both GPU load and CPU chunk meshing, the main FPS killers on phones. The Add Server popup was also rebuilt as a proper full-screen scrollable overlay so it never crops or gets cut off on small screens.',
+          date: 'Aug 22',
+          bugs: ['Add Server modal cropped / cut off on small screens', 'mobile ran ~20fps — heavy VRAM/shadow/render-distance load'],
+          updates: ['Mobile: shadows off by default (opt-in in Settings)', 'Smaller shadow maps on mobile (512) and menu background', 'Tighter default view distance on mobile (5 / 4 on very low-end)', 'Add-Server modal is now a scrollable full-screen overlay'],
+          features: ['Lightweight-by-default rendering (vanilla-style)'],
+        },
+        {
           hash: 'fc9d14e',
           heading: 'CrazyGames-exclusive Crazy Trail + real IP-based multiplayer',
           desc: 'Multiplayer is back to being straightforward and user-controlled: joining is by server address (the IP is your choice), and hosting now lets you run your own server and paste its custom address straight from the server files — no auto-magic, no hidden addresses. Removed the auto-discovery server browser so nothing connects you without you choosing the IP. CrazyGames players also get an exclusive perk: the "Crazy Trail", a rainbow particle trail that follows your player, toggleable in Settings. Off-platform external links are suppressed on CrazyGames to stay within platform rules.',
