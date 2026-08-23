@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '8ea1ef7',
+          heading: 'Leaf decay',
+          desc: 'Tree leaves now decay when their trunk is broken. Leaves within 4 blocks of a removed log will randomly turn to air after a short delay if no wood is nearby.',
+          date: 'Aug 23',
+          bugs: [],
+          updates: ['Leaves within Manhattan distance 4 of a broken log check for nearby wood blocks every 1.5 seconds', 'Orphaned leaves have a 30% chance per check to decay to air for staggered effect'],
+          features: ['Leaf decay when tree trunks are broken'],
+        },
+        {
           hash: '07474bf',
           heading: 'Multiplayer bed spawn sync',
           desc: 'Bed spawn point is now saved per-player in multiplayer and synced to the server, so players respawn at their bed after death.',
