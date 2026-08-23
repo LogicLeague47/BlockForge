@@ -1,6 +1,7 @@
 // Persistence layer for multiple worlds.
 // Uses CrazyGames SDK Data Module when available (cloud sync),
 // falls back to localStorage for local development.
+import LZString from 'lz-string';
 
 // --- CrazyGames SDK abstraction ---
 // The SDK data module is async; we write to both localStorage (instant) and
@@ -159,11 +160,12 @@ function worldDataKey(id) { return 'mc-clone-world-' + id; }
 export function saveWorld(id, data) {
   try {
     const json = JSON.stringify(data);
+    const compressed = LZString.compressToUTF16(json);
     // Write backup first, then current (atomic-ish)
     const bak = localStorage.getItem(worldDataKey(id));
     if (bak !== null) { try { localStorage.setItem(worldDataKey(id) + '_bak', bak); } catch (_) {} }
-    localStorage.setItem(worldDataKey(id), json);
-    sdkSet(worldDataKey(id), json);
+    localStorage.setItem(worldDataKey(id), compressed);
+    sdkSet(worldDataKey(id), compressed);
     return true;
   } catch (e) {
     console.warn('save failed', e);
@@ -176,7 +178,11 @@ export function loadWorld(id) {
     const raw = localStorage.getItem(worldDataKey(id));
     if (raw) {
       try {
-        const data = JSON.parse(raw);
+        // Try LZ-string decompression first, fall back to raw JSON for legacy saves
+        let jsonStr;
+        try { jsonStr = LZString.decompressFromUTF16(raw); } catch (_) { jsonStr = null; }
+        if (!jsonStr) jsonStr = raw; // legacy uncompressed save
+        const data = JSON.parse(jsonStr);
         if (typeof data !== 'object' || data === null || !('seed' in data && 'edits' in data)) {
           throw new Error('Invalid structure');
         }
@@ -185,7 +191,11 @@ export function loadWorld(id) {
         console.warn('Save corrupted, trying backup...');
         const bak = localStorage.getItem(worldDataKey(id) + '_bak');
         if (bak) {
-          try { return JSON.parse(bak); } catch (_) {}
+          try {
+            let bakJson;
+            try { bakJson = LZString.decompressFromUTF16(bak); } catch (_) { bakJson = null; }
+            return JSON.parse(bakJson || bak);
+          } catch (_) {}
         }
       }
     }

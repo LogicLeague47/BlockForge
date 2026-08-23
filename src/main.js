@@ -895,8 +895,8 @@ document.addEventListener('pointerlockchange', () => {
   if (_relocking) {
     _relocking = false;
     // If pointer didn't actually lock (denied by browser), re-lock after a beat
-    if (!pointerLocked && gameRunning) {
-      setTimeout(() => { if (gameRunning) lockPointer(); }, 100);
+    if (!pointerLocked && gameRunning && !chatOpen) {
+      setTimeout(() => { if (gameRunning && !chatOpen) lockPointer(); }, 100);
     }
     return;
   }
