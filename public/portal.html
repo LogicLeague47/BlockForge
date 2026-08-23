@@ -1476,13 +1476,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '5b8be74',
-          heading: 'Full CG cloud sync — skins, DMs, identity, keybinds',
-          desc: 'CrazyGames users now get full cross-device sync. All player-visible data (skins, custom skins, DMs, player name, keybinds, voice settings, achievements, and all game settings) is pushed to and pulled from the CG cloud. Created a central cloudSet() helper for consistent dual-write across all modules.',
+          hash: 'pending',
+          heading: 'Full CrazyGames SDK integration',
+          desc: 'Implemented all missing CG SDK modules: muteAudio handling (Full Implementation requirement), rewarded ads, adblock detection, auth state listener (v3 API), game context for feedback reports, progress reporting, guest auth prompt, and environment detection. Fixed isInstantMultiplayer path bug.',
           date: 'Aug 23',
-          bugs: ['skins not synced across devices (skin selection, custom skins lost on new device)', 'DMs not synced across devices (offline messages lost)', 'player name/identity not synced (re-entering name on each device)', 'keybinds not synced (re-binding on each device)', 'voice settings not synced', 'achievements not pulled from cloud on load'],
-          updates: ['Created cloudSet() helper in storage.js for consistent localStorage + SDK dual-write', 'All skin save handlers now push to CG cloud (selection, custom list, custom data)', 'DM thread saves now push to CG cloud', 'DM offline queue synced to cloud', 'Player name synced to cloud at all save sites (11 locations)', 'bf_login_user and bf_role synced to cloud', 'Voice volume and PTT settings synced to cloud', 'Keybinds synced to cloud', 'cgPullProgress now restores: skins, DMs, player identity, keybinds, voice settings', 'Portal skin equip also pushes to CG cloud'],
-          features: [],
+          bugs: ['muteAudio setting from CG SDK was completely ignored (Full Implementation requirement)', 'auth listener used legacy onAuthStateChange instead of v3 addAuthListener', 'isInstantMultiplayer read from SDK.lobby (nonexistent) instead of SDK.game'],
+          updates: ['muteAudio now mutes all game audio when CG SDK requests it', 'Auth listener uses v3 addAuthListener API with legacy fallback', 'isInstantMultiplayer reads from correct SDK.game path', 'cgHasAdblock() detects adblock presence for graceful degradation', 'cgShowAuthPrompt() prompts guest users to create CG accounts', 'cgSetGameContext/cgClearGameContext attach mode/worldId to feedback reports', 'cgReportProgress() reports achievement completion milestones to CG', 'cgOnSettingsChange() listens for live settings changes with dispose function', 'cgEnvironment() returns local/crazygames/disabled for conditional logic', 'New SDK wrappers: cgRewardedAd, cgListFriends, cgShowBanner, cgSystemInfo, cgGetUserToken, cgUpdateRoom, cgLeftRoom'],
+          features: ['Rewarded ad support (highest revenue ad type, ready to hook up)', 'Guest user auth prompt after 15s on CG', 'Game context attached to user feedback reports'],
         },
         {
           hash: '7f03e9c',

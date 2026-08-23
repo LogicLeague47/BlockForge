@@ -19,7 +19,7 @@ import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js'
 import { MobManager, MOB_TYPES } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
-import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd } from './cg-helper.js';
+import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
 
 // XOR obfuscation for locally-stored passwords (matching linkedaccounts.js)
 function _xorEncode(str) {
@@ -766,16 +766,20 @@ let _chatAutoHideTimer = null;
 try {
   const gs = window.CrazyGames?.SDK?.game?.getGameSettings?.();
   if (gs && gs.disableChat) chatDisabled = true;
-} catch (_) { console.warn("operation failed"); }
+  if (gs && gs.muteAudio) { if (audio) audio.setMuted(true); }
+} catch (_) {}
 // Listen for live game settings changes (CrazyGames requirement)
 try {
   window.CrazyGames?.SDK?.game?.onGameSettingsUpdate?.((settings) => {
     if (settings && settings.disableChat !== undefined) chatDisabled = !!settings.disableChat;
+    if (settings && settings.muteAudio !== undefined) { if (audio) audio.setMuted(!!settings.muteAudio); }
   });
-} catch (_) { console.warn("operation failed"); }
+} catch (_) {}
 // Listen for CG auth state changes (guest logs in while playing)
+// Use addAuthListener (v3 API) with fallback to onAuthStateChange (legacy).
 try {
-  window.CrazyGames?.SDK?.user?.onAuthStateChange?.((user) => {
+  const _cgUser = window.CrazyGames?.SDK?.user;
+  const _authCb = (user) => {
     if (user && user.id) {
       const newName = user.username || playerName;
       if (newName !== playerName) {
@@ -785,8 +789,13 @@ try {
         if (nameEl) nameEl.textContent = playerName;
       }
     }
-  });
-} catch (_) { console.warn("operation failed"); }
+  };
+  if (_cgUser && typeof _cgUser.addAuthListener === 'function') {
+    _cgUser.addAuthListener(_authCb);
+  } else if (_cgUser && typeof _cgUser.onAuthStateChange === 'function') {
+    _cgUser.onAuthStateChange(_authCb);
+  }
+} catch (_) {}
 
 // --- sleep state ---
 let sleeping = false;
@@ -892,6 +901,7 @@ document.addEventListener('pointerlockchange', () => {
       refreshDevPauseBtn();
       ui.showMenu('pause');
       cgGameplayStop();
+      cgClearGameContext();
     }
   }
 });
@@ -4319,6 +4329,7 @@ function setupNetworkHandlers() {
       addChatLine('Disconnected from server.', '#f55');
       try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
       cgGameplayStop();
+      cgClearGameContext();
       gameRunning = false;
       isMultiplayer = false;
       currentServer = null;
@@ -5641,6 +5652,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         refreshDevPauseBtn();
         ui.showMenu('pause');
         cgGameplayStop();
+      cgClearGameContext();
       } catch (e) { console.warn("onPause error", e); }
     },
     onChat() {
@@ -5710,6 +5722,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         if (ui && typeof ui.hidePause === 'function') ui.hidePause();
         if (typeof saveCurrentWorld === 'function') saveCurrentWorld();
         cgGameplayStop();
+      cgClearGameContext();
         if (isMultiplayer && network && typeof network.leaveRoom === 'function') network.leaveRoom();
         try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
         if (isMultiplayer) {
@@ -6212,6 +6225,11 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         ui.hideLoading();
         lockPointer();
         cgGameplayStart();
+        // Attach context for user feedback reports
+        try {
+          const mode = isParkour ? 'parkour' : isOneBlock ? 'oneblock' : isBedwars ? 'bedwars' : isBlockZones ? 'blockzones' : isNights ? '99nights' : isGunAffair ? 'gunaffair' : isSkyblock ? 'skyblock' : 'creative';
+          cgSetGameContext({ mode, worldId: currentWorldId || null });
+        } catch (_) {}
         try { audio.init(); audio.resume(); audio.startMusic(); audio.loadSfx(VERY_LOW_END); } catch (_) { console.warn("audio operation failed"); }
         if (!hasTutorialBeenSeen()) {
           setTimeout(() => showTutorial(), 500);
@@ -6501,6 +6519,22 @@ function initMenu() {
   // (partitioned) storage came up empty. Runs on the CG platform only.
   cgPullProgress();
 
+  // Check for adblock on CG — warn gracefully if detected.
+  cgHasAdblock().then(blocked => {
+    if (blocked) window._cgAdblockDetected = true;
+  }).catch(() => {});
+
+  // Prompt guest users to create a CG account for cloud saves (one-time).
+  if (cgEnvironment() === 'crazygames' && !localStorage.getItem('bf_cg_linked')) {
+    setTimeout(() => {
+      const me = window.CrazyGames?.SDK?.user?.getUser?.();
+      if (!me || !me.id) {
+        showToast('Create a CrazyGames account to save progress across devices!', '#4af');
+        setTimeout(() => cgShowAuthPrompt(), 3000);
+      }
+    }, 15000);
+  }
+
   // Track login for analytics
   trackLogin();
 
@@ -6538,7 +6572,7 @@ function initMenu() {
   // Check if joining via CrazyGames invite link (instant multiplayer)
   setTimeout(() => {
     try {
-      const isInstant = window.CrazyGames?.SDK?.lobby?.isInstantMultiplayer?.();
+      const isInstant = window.CrazyGames?.SDK?.game?.isInstantMultiplayer;
       if (isInstant) {
         const roomId = window.CrazyGames?.SDK?.lobby?.getRoomId?.();
         if (roomId) {
@@ -6565,7 +6599,7 @@ function initMenu() {
   try {
     const params = new URLSearchParams(location.search);
     const joinRoom = params.get('join');
-    if (joinRoom && !window.CrazyGames?.SDK?.lobby?.isInstantMultiplayer?.()) {
+    if (joinRoom && !window.CrazyGames?.SDK?.game?.isInstantMultiplayer) {
       // Bypass detection: must be authenticated before joining multiplayer
       if (!sessionStorage.getItem('bf_authenticated')) {
         console.log('Blocked join link — not authenticated');
@@ -6702,6 +6736,12 @@ function initMenu() {
   // Achievement toast callback
   achievements.onUnlock((ach) => {
     cgHappyTime();
+    // Report progress to CG based on achievements unlocked
+    try {
+      const total = Object.keys(ACHIEVEMENTS || {}).length || 20;
+      const unlocked = achievements.unlocked ? achievements.unlocked.size : 0;
+      cgReportProgress(Math.round((unlocked / total) * 100));
+    } catch (_) {}
     const toast = document.getElementById('achievement-toast');
     if (!toast) return;
     const nameEl = toast.querySelector('.ach-name');
@@ -9350,6 +9390,7 @@ function _gameFrame() {
 
           // CG midgame ad after parkour completion (natural break point)
           cgGameplayStop();
+      cgClearGameContext();
           cgMidgameAd({
             adStarted() { audio.stopMusic(); audio.setMuted(true); },
             adFinished() { audio.setMuted(false); cgGameplayStart(); },
