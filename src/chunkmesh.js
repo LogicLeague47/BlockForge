@@ -133,6 +133,8 @@ export class ChunkMeshManager {
 
     const opaqueMesh = new THREE.Mesh(og, this.opaqueMaterial);
     opaqueMesh.frustumCulled = true;
+    opaqueMesh.matrixAutoUpdate = false;
+    opaqueMesh.updateMatrix();
     opaqueMesh.castShadow = true;
     opaqueMesh.receiveShadow = true;
 
