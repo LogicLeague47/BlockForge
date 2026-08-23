@@ -927,6 +927,14 @@ export class AudioManager {
     ]);
   }
 
+  armorEquip() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.04, gain: 0.15, bp: 2200, bq: 2, atk: 0.001, rel: 0.08 },
+      { noise: 'brown', dur: 0.05, gain: 0.1, lp: 800, atk: 0.001, rel: 0.12 },
+    ]);
+  }
+
   land() {
     if (!this.ctx || !this.enabled) return;
     if (this._sample(['impactSoft_medium_000', 'impactSoft_medium_001', 'impactSoft_medium_002'], 0.4, 0.06)) return;

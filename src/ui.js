@@ -2290,6 +2290,7 @@ export class UI {
     const inv = this._inventoryRef;
     if (!inv) return;
     const equipped = inv.armor[idx];
+    let equippedArmor = false;
     if (this.cursorItem) {
       const def = itemDef(this.cursorItem.item);
       if (def && def.armor && def.armor.slotIdx === idx) {
@@ -2301,6 +2302,7 @@ export class UI {
           this.cursorItem.count--;
           if (this.cursorItem.count <= 0) this.cursorItem = null;
         }
+        equippedArmor = true;
       }
     } else {
       if (equipped) {
@@ -2308,6 +2310,7 @@ export class UI {
         inv.armor[idx] = null;
       }
     }
+    if (equippedArmor && this.audio) this.audio.armorEquip();
     this.renderArmorSlots();
     this.renderInventoryGrid(inv);
     this._updateCursorVisual();
@@ -2394,6 +2397,7 @@ export class UI {
         const prev = inv.armor[idx];
         inv.armor[idx] = { item: s.item, count: 1, ...(s.durability != null ? { durability: s.durability } : {}) };
         inv.slots[i] = prev ? { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) } : null;
+        if (this.audio) this.audio.armorEquip();
         this.renderInventoryGrid(inv);
         this.renderArmorSlots();
         this._updateCursorVisual();
