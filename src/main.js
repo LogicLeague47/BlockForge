@@ -693,6 +693,10 @@ const _particleGeoTiny = new THREE.BoxGeometry(0.03, 0.03, 0.03);
 const _sprintParticleMat = new THREE.MeshBasicMaterial({ color: 0xcccccc, transparent: true, opacity: 0.5 });
 const _waterSplashMat = new THREE.MeshBasicMaterial({ color: 0x4488cc, transparent: true, opacity: 0.6 });
 const _critParticleMat = new THREE.MeshBasicMaterial({ color: 0xffff44, transparent: true, opacity: 0.7 });
+const _bossHitMat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.8 });
+const _rarityMatCache = new Map();
+const _biomeNames = ['Ocean','DeepOc','Beach','Plains','Forest','Birch','DarkF','Taiga','Desert','Jungle','Savanna','Swamp','Snowy','Mountains','River'];
+const _cameraModes = ['First Person', 'Third Person (Back)', 'Third Person (Front)'];
 
 const _dirVec = new THREE.Vector3();
 const _mobDirVec = new THREE.Vector3();
@@ -1735,6 +1739,7 @@ document.addEventListener('mousedown', (e) => {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
+            if (audio) audio.eat();
           }
         } else if (isPlaceableBlockItem(oh.item)) {
           placeBlock(oh);
@@ -5116,8 +5121,8 @@ function updateSky(dt) {
     // Sunrise/sunset transition zone
     const t = sinA / 0.15;
     skyColor = cosA > 0
-      ? lerpColor(NIGHT_COLOR, DAWN_COLOR, t)     // rising
-      : lerpColor(DAWN_COLOR, NIGHT_COLOR, 1 - t); // setting
+      ? lerpColor(DUSK_COLOR, DAWN_COLOR, t)     // rising
+      : lerpColor(DAWN_COLOR, DUSK_COLOR, 1 - t); // setting
   } else if (sinA > -0.15) {
     // Twilight zone near horizon
     const t = (sinA + 0.15) / 0.15;
@@ -5142,6 +5147,7 @@ function updateSky(dt) {
     const tf = weatherSystem.getThunderFlash();
     if (tf > 0.01) {
       scene.background.lerp(_whiteColor, tf * 0.6);
+      scene.fog.color.lerp(_whiteColor, tf * 0.6);
     }
   }
 
@@ -5534,7 +5540,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
             syncUIMode();
             achievements.incrementStat('foodEaten');
             if (oh.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-            try {  } catch (_) { console.warn("operation failed"); }
+            if (audio) audio.eat();
           }
         } else if (isPlaceableBlockItem(oh.item)) {
           placeBlock(oh, target);
@@ -9738,10 +9744,13 @@ function _gameFrame() {
       const isBreaking = input.mouseLeftHeld && pointerLocked && breakingTarget != null;
       const isPlacing = placeAnimTimer > 0;
         playerModel.update(dt, player.position, player.yaw, player.velocity, player.onGround, player.sprinting, isBreaking, isPlacing, isSwimming, player.eating, player.crouching, player.flying, player.onLadder, player.pitch);
-      const armorIds = player.inventory.armor.map(s => s ? s.item : null);
-      const armorKey = armorIds.join(',');
+      const armorKey = (player.inventory.armor[0] ? player.inventory.armor[0].item : '') + ',' +
+        (player.inventory.armor[1] ? player.inventory.armor[1].item : '') + ',' +
+        (player.inventory.armor[2] ? player.inventory.armor[2].item : '') + ',' +
+        (player.inventory.armor[3] ? player.inventory.armor[3].item : '');
       if (armorKey !== _lastLocalArmorKey) {
         _lastLocalArmorKey = armorKey;
+        const armorIds = player.inventory.armor.map(s => s ? s.item : null);
         try { playerModel.setArmor(armorIds, ARMOR); } catch (_) { console.warn("playerModel operation failed"); }
         if (network.connected && network.roomName) network.sendArmor(armorKey || null);
       }
@@ -9774,13 +9783,11 @@ function _gameFrame() {
       const by = Math.floor(player.position.y);
       const bz = Math.floor(player.position.z);
       const biomeId = world.noise ? calcBiome(world.noise, bx, bz, world.heightAt(bx, bz)) : '?';
-      const biomeNames = ['Ocean','DeepOc','Beach','Plains','Forest','Birch','DarkF','Taiga','Desert','Jungle','Savanna','Swamp','Snowy','Mountains','River'];
-      const cameraModes = ['First Person', 'Third Person (Back)', 'Third Person (Front)'];
       dbg.innerHTML = `XYZ: ${player.position.x.toFixed(1)} / ${player.position.y.toFixed(1)} / ${player.position.z.toFixed(1)}<br>` +
         `Chunk: ${Math.floor(bx/CHUNK_SIZE)}, ${Math.floor(bz/CHUNK_SIZE)}<br>` +
-        `Biome: ${biomeNames[biomeId] || biomeId}<br>` +
+        `Biome: ${_biomeNames[biomeId] || biomeId}<br>` +
         `Day: ${totalDays} &middot; Level: ${player.level}<br>` +
-        `Camera: ${cameraModes[player.cameraMode]}<br>` +
+        `Camera: ${_cameraModes[player.cameraMode]}<br>` +
         `FPS: ${Math.round(1/dt)}<br>` +
         `Mobs: ${mobManager ? mobManager.mobs.length : 0}<br>` +
         `Chunks: ${loader.loadedCount()}`;
@@ -9861,7 +9868,7 @@ function _gameFrame() {
 
   // Eating chew sounds (periodic while eating)
   if (player && player.eating && player.eatBiteTimer <= 0) {
-    try {  } catch (_) { console.warn("operation failed"); }
+    if (audio) audio.eat();
     player.eatBiteTimer = 0.35;
   }
 
@@ -9946,8 +9953,7 @@ function _gameFrame() {
         const px = bossEntity.position.x + (Math.random() - 0.5) * 3;
         const py = bossEntity.position.y + Math.random() * 2;
         const pz = bossEntity.position.z + (Math.random() - 0.5) * 3;
-        const mat = new THREE.MeshBasicMaterial({ color: 0xff3300, transparent: true, opacity: 0.8 });
-        const m = new THREE.Mesh(_particleGeoTiny, mat);
+        const m = new THREE.Mesh(_particleGeoTiny, _bossHitMat);
         m.position.set(px, py, pz);
         scene.add(m);
         _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 1, maxLife: 1 });
@@ -10010,7 +10016,9 @@ function _gameFrame() {
           const px = player.position.x + (Math.random() - 0.5) * 0.6;
           const py = player.position.y + 0.8 + Math.random() * 0.6;
           const pz = player.position.z + (Math.random() - 0.5) * 0.6;
-          const mat = new THREE.MeshBasicMaterial({ color: rarity.particle, transparent: true, opacity: 0.8 });
+          const matKey = rarity.particle | 0;
+          let mat = _rarityMatCache.get(matKey);
+          if (!mat) { mat = new THREE.MeshBasicMaterial({ color: rarity.particle, transparent: true, opacity: 0.8 }); _rarityMatCache.set(matKey, mat); }
           const m = new THREE.Mesh(_particleGeoTiny, mat);
           m.position.set(px, py, pz);
           scene.add(m);
