@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '1037989',
+          heading: 'Dropped item object pooling',
+          desc: 'Dropped items are now pooled and reused instead of creating and disposing new objects each time, reducing garbage collection pressure.',
+          date: 'Aug 23',
+          bugs: [],
+          updates: ['DroppedItem objects reused from a pool (max 64) instead of allocated on every drop', 'Item group and mesh visuals rebuilt on reset rather than creating new Three.js objects'],
+          features: ['Object pooling for dropped item entities'],
+        },
+        {
           hash: '8ea1ef7',
           heading: 'Leaf decay',
           desc: 'Tree leaves now decay when their trunk is broken. Leaves within 4 blocks of a removed log will randomly turn to air after a short delay if no wood is nearby.',
