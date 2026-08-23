@@ -42,7 +42,7 @@ import { DroppedItemManager } from './dropped.js';
 import { LitTntManager } from './tnt.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour, addParkourDeath, getParkourDeaths, getLevelSplits, saveParkourBestTime, getParkourBestTime, getParkourTimer } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour, addParkourDeath, getParkourDeaths, getLevelSplits, saveParkourBestTime, getParkourBestTime, getParkourTimer, getParkourLeaderboard } from './parkour.js';
 import { resetOneBlock, clearOneBlockState, updateOneBlock, onOneBlockBroken, forceRegen, getOneBlockStage, getOneBlockProgress, getOneBlockCount, getOneBlockPos, getOneBlockSave, restoreOneBlock, tickOneBlockMobTimer, rollOneBlockMob } from './oneblock.js';
 import { BW_TEAMS, BW_Y, BW_SHOP, BW_VOID_BELOW, buildBedwarsMap, assignBedwarsTeam, BW_RES_IRON, BW_RES_GOLD, BW_RES_DIAMOND, BW_RES_EMERALD, loadTreasureIslandData, buildTreasureIslandMap, IMP_BASE_SPOTS, IMP_MID_SPOTS } from './bedwars.js';
 import { buildBlockZonesMap, startBlockZones, tickBlockZones, onBlockZonesBroken, clearBlockZones, setBlockZonesExit, BZ_Y } from './blockzones.js';
@@ -6873,9 +6873,31 @@ function initMenu() {
     });
   }
 
+  function _populateParkourLeaderboard() {
+    const lb = document.getElementById('pk-leaderboard');
+    const content = document.getElementById('pk-lb-content');
+    if (!lb || !content) return;
+    const data = getParkourLeaderboard();
+    const keys = Object.keys(data);
+    if (keys.length === 0) { lb.style.display = 'none'; return; }
+    lb.style.display = '';
+    const labels = { default: 'Default Parkour', imported: '100 Levels' };
+    let html = '';
+    for (const key of keys) {
+      const d = data[key];
+      const m = Math.floor(d.time / 60);
+      const s = Math.floor(d.time % 60);
+      const ms = Math.floor((d.time % 1) * 100);
+      const tStr = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(2, '0')}`;
+      html += `<div style="margin:3px 0;"><span style="color:#fa0;">${labels[key] || key}</span>: <span style="color:#fff;">${tStr}</span> <span style="color:${d.grade === 'S' ? '#ffd700' : '#aaa'};">${d.grade}</span> <span style="color:#888;">(${d.deaths} deaths)</span></div>`;
+    }
+    content.innerHTML = html;
+  }
+
   // Parkour → mode select
   document.getElementById('btn-minigame-parkour')?.addEventListener('click', () => {
     ui.showMenu('parkour-select');
+    _populateParkourLeaderboard();
   });
   document.getElementById('btn-pk-back')?.addEventListener('click', () => {
     ui.showMenu('minigames');
