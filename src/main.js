@@ -9859,7 +9859,7 @@ function _gameFrame() {
   updateSky(dt);
   if (weatherSystem && player) {
     const b = world.biomeAt(Math.floor(player.position.x), Math.floor(player.position.z), Math.floor(player.position.y));
-    weatherSystem.update(player.position, camera, performance.now() / 1000, dt, b);
+    weatherSystem.update(player.position, camera, performance.now() / 1000, dt, b, world);
   }
   greenstoneSystem.update(dt, world);
   tickSaplingGrowth(dt);

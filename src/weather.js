@@ -166,11 +166,11 @@ export class WeatherSystem {
     }
   }
 
-  update(playerPos, camera, time, dt, biome) {
+  update(playerPos, camera, time, dt, biome, worldRef) {
     if (!playerPos) return;
 
     this._cycleWeather(dt, biome);
-    if (this.rainIntensity > 0.01) this._updateRainParticles(playerPos, dt);
+    if (this.rainIntensity > 0.01) this._updateRainParticles(playerPos, dt, worldRef);
     if (this.snowIntensity > 0.01) this._updateSnowParticles(playerPos, time, dt);
     this._updateThunder(playerPos, dt);
     this._updateSplashParticles(dt);
@@ -227,7 +227,7 @@ export class WeatherSystem {
     this.weatherDuration = 120 + Math.random() * 480;
   }
 
-  _updateRainParticles(playerPos, dt) {
+  _updateRainParticles(playerPos, dt, worldRef) {
     const pos = this._rainPos;
     const px = playerPos.x, py = playerPos.y, pz = playerPos.z;
     const half = RAIN_HALF;
@@ -244,6 +244,19 @@ export class WeatherSystem {
         pos[i3] = px + (Math.random() - 0.5) * half * 2;
         pos[i3 + 1] = respawnY + Math.random() * 5;
         pos[i3 + 2] = pz + (Math.random() - 0.5) * half * 2;
+        continue;
+      }
+      if (worldRef) {
+        const bx = Math.floor(pos[i3]), bz = Math.floor(pos[i3 + 2]);
+        const surfaceY = worldRef.heightAt(bx, bz);
+        if (surfaceY > 0 && pos[i3 + 1] <= surfaceY + 0.5) {
+          if (Math.random() < 0.08) {
+            this._spawnSplash(pos[i3], surfaceY + 0.5, pos[i3 + 2]);
+          }
+          pos[i3] = px + (Math.random() - 0.5) * half * 2;
+          pos[i3 + 1] = respawnY + Math.random() * 5;
+          pos[i3 + 2] = pz + (Math.random() - 0.5) * half * 2;
+        }
       }
     }
     this.rainMesh.geometry.attributes.position.needsUpdate = true;
