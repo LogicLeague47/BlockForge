@@ -3532,6 +3532,7 @@ export class MobManager {
     this._remoteMobs = new Map(); // entityId -> remote mob mesh
     this._mobPosSendTimer = 0;
     this.networkSend = null; // set by main.js: { sendMobSpawn, sendMobPosition, sendMobDeath }
+    this._lastPlayerPos = null; // cached player pos for spawn distance checks
   }
 
   _allocEntityId() {
@@ -3769,6 +3770,10 @@ export class MobManager {
     const baseZ = cz * CHUNK_SIZE;
     const noise = this.world.noise;
 
+    // Minimum distance from player (prevent spawning right next to them)
+    const MIN_PLAYER_DIST = 16;
+    const pp = this._lastPlayerPos;
+
     // Check a few positions in the chunk for biome eligibility
     const spawnPositions = [];
     const biomeCounts = {};
@@ -3857,6 +3862,11 @@ export class MobManager {
 
       if (bestIdx < 0) break;
       if (bestDist < MIN_SPAWN_DISTANCE && placed.length > 0) break;
+      // Don't spawn too close to the player
+      if (pp) {
+        const pdx = bestPos.x - pp.x, pdz = bestPos.z - pp.z;
+        if (pdx * pdx + pdz * pdz < MIN_PLAYER_DIST * MIN_PLAYER_DIST) break;
+      }
 
       const type = spawnTypes[Math.floor(rng() * spawnTypes.length)];
       const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z, this.scene);
@@ -3872,6 +3882,8 @@ export class MobManager {
   }
 
   update(dt, playerPos, dayTime) {
+    // Cache player position for spawn distance checks
+    if (playerPos) this._lastPlayerPos = playerPos;
     // dayTime: 0=midnight, 0.25=sunrise, 0.5=noon, 0.75=sunset
     // Night is when dayTime > DAY_FRAC (10/16 ≈ 0.625)
     const isNight = dayTime != null && dayTime > 0.625;

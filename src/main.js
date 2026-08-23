@@ -5634,7 +5634,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       if (crit) spawnCritParticles(mobHit.position);
       viewmodel.swing();
       mobManager.playHurtSound(mobHit.type);
-      if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton') mobHit.aggro = true;
+      if (mobHit.type === 'spider' || mobHit.type === 'zombie' || mobHit.type === 'skeleton' || mobHit.type === 'blower' || mobHit.type === 'portalman') mobHit.aggro = true;
       if (mobHit.dead) {
         // Loot + removal handled centrally by MobManager.onMobDeath
         if (player.isSurvival()) {
@@ -9873,6 +9873,7 @@ function _gameFrame() {
       player.inventory.add(c.itemId, c.count);
     }
     if (collected.length) {
+      if (audio) audio.pickup();
       ui.buildHotbarFromInventory(player.inventory);
     }
   }

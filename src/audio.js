@@ -1123,6 +1123,15 @@ export class AudioManager {
     ]);
   }
 
+  // Item pickup: quick pop sound
+  pickup() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 880, dur: 0.04, gain: 0.12, atk: 0.001, rel: 0.03 },
+      { wave: 'sine', freq: 1320, dur: 0.03, gain: 0.08, atk: 0.001, rel: 0.02 },
+    ]);
+  }
+
   // Night ambient: cricket chirp (called from game loop at night)
   cricket() {
     if (!this.ctx || !this.enabled) return;

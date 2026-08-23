@@ -25,6 +25,17 @@ export const PARKOUR_LEVELS = [
   { id: 8,  name: 'Ice Precision',     desc: 'Narrow ice + slime',        gap: 2, w: 1, d: 2, count: 7, block: BLOCK.ICE,           accent: BLOCK.SLIME_BLOCK,  ice: true, theme: 'iceprec' },
   { id: 9,  name: 'Mixed Challenge',   desc: 'Long jumps + bounce',       gap: 3, w: 2, d: 3, count: 8, block: BLOCK.STONE_BRICKS,   accent: BLOCK.END_STONE,    slimePads: true, theme: 'mixed'    },
   { id: 10, name: 'The Final Leap',    desc: 'Go big or go home',         gap: 4, w: 3, d: 3, count: 6, block: BLOCK.OBSIDIAN,      accent: BLOCK.GOLD_BLOCK,   theme: 'crown'    },
+  // ── New MC-style parkour levels (11-20) ──
+  { id: 11, name: 'Nether Run',        desc: 'Hot nether jumps',          gap: 2, w: 2, d: 2, count: 8, block: BLOCK.NETHER_BRICK,  accent: BLOCK.EMBEROCK,     zigzag: true, theme: 'nether'   },
+  { id: 12, name: 'End Parkour',       desc: 'Void jumps over the end',   gap: 3, w: 2, d: 2, count: 7, block: BLOCK.VOIDSTONE,     accent: BLOCK.END_STONE,    theme: 'end'      },
+  { id: 13, name: 'Ocean Climb',       desc: 'Underwater tower climb',    gap: 2, w: 2, d: 2, count: 8, block: BLOCK.QUARTZ_BLOCK,  accent: BLOCK.GLASS,        staircase: true, stepH: 2, theme: 'ocean'    },
+  { id: 14, name: 'Jungle Heights',    desc: 'Vine-covered leaps',        gap: 3, w: 2, d: 3, count: 7, block: BLOCK.WOOD,          accent: BLOCK.LEAVES,       slimePads: true, theme: 'jungle'   },
+  { id: 15, name: 'Canyon Drop',       desc: 'Descending precision',      gap: 2, w: 1, d: 2, count: 9, block: BLOCK.SANDSTONE,     accent: BLOCK.GRAVEL,       staircase: true, stepH: -1, theme: 'canyon'   },
+  { id: 16, name: 'Ice Shaft',         desc: 'Vertical ice challenge',    gap: 2, w: 2, d: 2, count: 8, block: BLOCK.ICE,           accent: BLOCK.SNOW_BLOCK,   ice: true, staircase: true, stepH: 2, theme: 'frozen'   },
+  { id: 17, name: 'Brick Blitz',       desc: 'Speed-run brick jumps',     gap: 3, w: 2, d: 2, count: 8, block: BLOCK.BRICK,         accent: BLOCK.QUARTZ_BLOCK, zigzag: true, theme: 'wide'      },
+  { id: 18, name: 'Slime Gauntlet',    desc: 'Mega bounce challenge',     gap: 4, w: 3, d: 3, count: 6, block: BLOCK.IRON_BLOCK,    accent: BLOCK.SLIME_BLOCK,  slimePads: true, theme: 'bouncy'   },
+  { id: 19, name: 'Diamond Heights',   desc: 'The ultimate climb',        gap: 3, w: 2, d: 2, count: 10, block: BLOCK.DIAMOND_BLOCK, accent: BLOCK.GOLD_BLOCK,   staircase: true, stepH: 2, theme: 'precision' },
+  { id: 20, name: 'The Gauntlet',      desc: 'Master everything',         gap: 4, w: 2, d: 2, count: 10, block: BLOCK.OBSIDIAN,      accent: BLOCK.DIAMOND_BLOCK, ice: true, slimePads: true, zigzag: true, theme: 'crown'   },
 ];
 
 // ─── Level themes: decorative palettes around the gameplay blocks ─────
@@ -42,6 +53,12 @@ const LEVEL_THEMES = {
   frozen:    { trim: BLOCK.ICE,          post: BLOCK.SNOW_BLOCK,    islet: BLOCK.SNOW_BLOCK   },
   bouncy:    { trim: BLOCK.SLIME_BLOCK,  post: BLOCK.COBBLESTONE,   islet: BLOCK.LEAVES       },
   iceprec:   { trim: BLOCK.ICE,          post: BLOCK.QUARTZ_BLOCK,  islet: BLOCK.QUARTZ_BLOCK },
+  // New themes (MC parkour map translations)
+  nether:    { trim: BLOCK.NETHER_BRICK, post: BLOCK.EMBEROCK,      islet: BLOCK.EMBEROCK     },
+  end:       { trim: BLOCK.VOIDSTONE,    post: BLOCK.OBSIDIAN,      islet: BLOCK.END_STONE    },
+  ocean:     { trim: BLOCK.QUARTZ_BLOCK, post: BLOCK.CONCRETE,      islet: BLOCK.GLASS        },
+  jungle:    { trim: BLOCK.LEAVES,       post: BLOCK.WOOD,          islet: BLOCK.LEAVES       },
+  canyon:    { trim: BLOCK.SANDSTONE,    post: BLOCK.COBBLESTONE,   islet: BLOCK.GRAVEL       },
 };
 
 function fillBox(world, x, y, z, w, d, h, b) {

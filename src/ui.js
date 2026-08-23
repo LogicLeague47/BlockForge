@@ -2762,7 +2762,7 @@ export class UI {
     }
     if (this.cursorItem) {
       if (!slot) {
-        this.chestSlots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
+        this.chestSlots[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
         this.cursorItem = null;
       } else if (slot.item === this.cursorItem.item) {
         const cap = maxStack(slot.item);
@@ -2771,11 +2771,12 @@ export class UI {
         this.cursorItem.count -= add;
         if (this.cursorItem.count <= 0) this.cursorItem = null;
       } else {
-        this.chestSlots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
-        this.cursorItem = { item: slot.item, count: slot.count };
+        const tmp = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
+        this.chestSlots[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
       }
     } else if (slot) {
-      this.cursorItem = { item: slot.item, count: slot.count };
+      this.cursorItem = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
       this.chestSlots[i] = null;
     }
     this._renderChestGrid();
@@ -2868,7 +2869,7 @@ export class UI {
     }
     if (this.cursorItem) {
       if (!slot) {
-        inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
+        inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
         this.cursorItem = null;
       } else if (slot.item === this.cursorItem.item) {
         const cap = maxStack(slot.item);
@@ -2877,11 +2878,12 @@ export class UI {
         this.cursorItem.count -= add;
         if (this.cursorItem.count <= 0) this.cursorItem = null;
       } else {
-        inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count };
-        this.cursorItem = { item: slot.item, count: slot.count };
+        const tmp = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
+        inv.slots[i] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
       }
     } else if (slot) {
-      this.cursorItem = { item: slot.item, count: slot.count };
+      this.cursorItem = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
       inv.slots[i] = null;
     }
     this._renderChestGrid();
@@ -3028,7 +3030,7 @@ export class UI {
     }
     if (this.cursorItem) {
       if (!slot) {
-        this.furnaceSlots[which] = { item: this.cursorItem.item, count: this.cursorItem.count };
+        this.furnaceSlots[which] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
         this.cursorItem = null;
       } else if (slot.item === this.cursorItem.item) {
         const cap = maxStack(slot.item);
@@ -3037,11 +3039,12 @@ export class UI {
         this.cursorItem.count -= add;
         if (this.cursorItem.count <= 0) this.cursorItem = null;
       } else {
-        this.furnaceSlots[which] = { item: this.cursorItem.item, count: this.cursorItem.count };
-        this.cursorItem = { item: slot.item, count: slot.count };
+        const tmp = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
+        this.furnaceSlots[which] = { item: this.cursorItem.item, count: this.cursorItem.count, ...(this.cursorItem.durability != null ? { durability: this.cursorItem.durability } : {}) };
+        this.cursorItem = tmp;
       }
     } else if (slot) {
-      this.cursorItem = { item: slot.item, count: slot.count };
+      this.cursorItem = { item: slot.item, count: slot.count, ...(slot.durability != null ? { durability: slot.durability } : {}) };
       this.furnaceSlots[which] = null;
     }
     this.renderFurnaceSlots();
