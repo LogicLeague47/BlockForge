@@ -263,6 +263,14 @@ export async function cgPullProgress() {
     }
     // Per-user flags (tutorial etc.) — restore from cloud when missing locally.
     await pull(_userPrefix() + 'tutorial', () => !!localStorage.getItem(_userPrefix() + 'tutorial'));
+    // Cloud-sync settings, skin, and achievements for CrazyGames users.
+    const settingsKeys = [
+      'bf_render_dist', 'bf_fov', 'bf_fps', 'bf_quality', 'bf_shadows',
+      'bf_volume', 'bf_sensitivity', 'bf_inv_theme', 'bf_voice_volume', 'bf_voice_ptt'
+    ];
+    for (const k of settingsKeys) await pull(k, () => !!localStorage.getItem(k));
+    await pull('blockforge_skin', () => !!localStorage.getItem('blockforge_skin'));
+    await pull('mc-clone-achievements', () => !!localStorage.getItem('mc-clone-achievements'));
   } catch (_) {}
 }
 

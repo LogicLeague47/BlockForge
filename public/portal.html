@@ -1476,13 +1476,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '07ecca3',
-          heading: 'Final polish — textures, bugs, bedwars, mobile fix',
-          desc: 'Major bug fix sweep: villager and traveler textures fixed (front/back face swap), lighting corrected (inverted axis shading), mobile controls no longer stick on menu after leaving a world, bedwars shop buy index fixed, night hostile spawning inside blocks prevented, player respawn no longer traps inside solid blocks, and more.',
+          hash: 'pending',
+          heading: 'Hotbar scroll fix, cloud storage, new features',
+          desc: 'Fixed hotbar scroll wheel broken on CrazyGames (pointer lock gate removed). Expanded CG cloud storage to sync settings, skin, and achievements across devices. Added sneak edge prevention (MC-style crouch at ledges), and night ambient cricket sounds.',
           date: 'Aug 23',
-          bugs: ['villager front showed plain tunic instead of apron (front/back face swap)', 'traveler body used hood texture on top, wrong faces everywhere', 'SIDE_SHADE_AXIS inverted — N/S brighter than E/W (terrain shading flipped)', 'mobile controls stayed visible on main menu after leaving a world', 'onJump callback nulled on double-tap fly (broke jump sounds/parkour)', 'night hostiles spawned inside solid blocks (no air check)', 'bedwars shop bought wrong items (per-category index treated as global)', 'roundedSquare islands had no chamfer (full squares instead of rounded)', 'god ray blur resolution not updated on window resize', 'respawn could trap player inside solid blocks', 'bedwars respawn loop when spawn platform destroyed'],
-          updates: ['Fixed villager body face mapping (front=back swap)', 'Fixed traveler body: added bodyTop/bodyBot textures, corrected face order', 'Corrected SIDE_SHADE_AXIS values (E/W=0.88, N/S=0.82)', 'Mobile controls hidden via _setGameUI(false) when leaving world', 'Removed accidental this.onJump = null in fly toggle', 'Night hostile spawns now verify air block at spawn position', 'Bedwars shop uses category-prefixed buy indices', 'roundedSquare chamfer now uses half/3 offset', 'God ray blur resolution uniforms updated on resize', 'Respawn scans upward for air before placing player', 'Bedwars respawn checks for solid ground under spawn point'],
-          features: ['Fall landing dust particles', 'Bedwars spawn validation on respawn'],
+          bugs: ['hotbar scroll wheel broken on CrazyGames (pointerLocked guard blocked scroll)', 'settings not synced to CG cloud (render distance, FOV, volume, etc.)', 'skin selection not synced to CG cloud', 'achievements not pulled from CG cloud on load'],
+          updates: ['Hotbar scroll works without pointer lock (CG fix)', 'All settings now dual-write to CG cloud (saveSetting helper)', 'cgPullProgress now restores settings, skin, and achievements from cloud', 'Achievements load from cloud when local storage is empty'],
+          features: ['Sneak edge prevention (crouching prevents walking off ledges)', 'Night ambient cricket sounds (procedural chirps at night, 2-7s interval)'],
         },
         {
           hash: '7f03e9c',

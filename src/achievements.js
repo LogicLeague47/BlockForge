@@ -505,10 +505,22 @@ export class AchievementManager {
   _load() {
     try {
       const raw = localStorage.getItem('mc-clone-achievements');
-      if (!raw) return;
-      const data = JSON.parse(raw);
-      if (data.unlocked) this.unlocked = new Set(data.unlocked);
-      if (data.stats) Object.assign(this.stats, data.stats);
+      if (raw) {
+        const data = JSON.parse(raw);
+        if (data.unlocked) this.unlocked = new Set(data.unlocked);
+        if (data.stats) Object.assign(this.stats, data.stats);
+      }
+      // Pull from CrazyGames cloud if local is empty but cloud has data
+      if (!raw && window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
+        window.CrazyGames.SDK.data.getItem('mc-clone-achievements').then(cloud => {
+          if (cloud) {
+            const data = JSON.parse(cloud);
+            if (data.unlocked) this.unlocked = new Set(data.unlocked);
+            if (data.stats) Object.assign(this.stats, data.stats);
+            localStorage.setItem('mc-clone-achievements', cloud);
+          }
+        }).catch(() => {});
+      }
     } catch (_) {}
   }
 

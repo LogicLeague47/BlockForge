@@ -1505,7 +1505,7 @@ function startRebind(action, btn) {
 
 // mouse wheel cycles hotbar (or the GunAffair arsenal)
 window.addEventListener('wheel', (e) => {
-  if (!pointerLocked || !gameRunning) return;
+  if (!gameRunning) return;
   if (replayMode) {
     replayCam.speed = Math.max(2, Math.min(300, replayCam.speed * (e.deltaY > 0 ? 0.9 : 1.12)));
     return;
@@ -4893,6 +4893,7 @@ const DAY_LENGTH = 1200;
 const DAY_FRAC = 10 / 16;
 let dayTime = 0.3;
 let totalDays = 1;
+let _cricketTimer = 0;
 
 // ── Replay mode: free cinematic camera (spectator-style) ──────────────
 // Toggle with the "replay" keybind (default Z) or `/replay`. While active the
@@ -5062,6 +5063,16 @@ function updateSky(dt) {
   const prevDayTime = dayTime;
   dayTime = (dayTime + dt / DAY_LENGTH) % 1;
   if (dayTime < prevDayTime) totalDays++;
+
+  // Night ambient cricket sounds (dayTime > 0.625 = after sunset, before sunrise)
+  if (dayTime > 0.625 && audio && !audio._musicPlaying) {
+    if (!_cricketTimer) _cricketTimer = 0;
+    _cricketTimer -= dt;
+    if (_cricketTimer <= 0) {
+      audio.cricket();
+      _cricketTimer = 2 + Math.random() * 5; // chirp every 2-7 seconds
+    }
+  }
 
   // Define time windows (in dayTime units):
   // dayTime 0.0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
@@ -6589,7 +6600,16 @@ function initMenu() {
         const el = document.getElementById(id);
         if (el) el.value = v;
       }
-    } catch (_) { console.warn("operation failed"); }
+    } catch (_) {}
+  }
+  // Save a setting to both localStorage and CrazyGames cloud
+  function saveSetting(key, value) {
+    try { localStorage.setItem(key, value); } catch (_) {}
+    try {
+      if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
+        window.CrazyGames.SDK.data.setItem(key, String(value)).catch(() => {});
+      }
+    } catch (_) {}
   }
   loadSetting('set-render-distance', 'bf_render_dist');
   loadSetting('set-fov', 'bf_fov');
@@ -6725,14 +6745,14 @@ function initMenu() {
   // --- Live settings ---
   document.getElementById('set-cg-trail')?.addEventListener('change', (e) => {
     cgTrailEnabled = e.target.value !== '0';
-    try { localStorage.setItem('bf_cg_trail', cgTrailEnabled ? '1' : '0'); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_cg_trail', cgTrailEnabled ? '1' : '0');
   });
   document.getElementById('set-render-distance')?.addEventListener('change', (e) => {
     renderDist = parseInt(e.target.value) || 7;
     if (IS_MOBILE) renderDist = Math.min(renderDist, 5);
     if (LOW_END) renderDist = Math.min(renderDist, 6);
     if (VERY_LOW_END) renderDist = Math.min(renderDist, 4);
-    try { localStorage.setItem('bf_render_dist', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_render_dist', e.target.value);
     // Apply to current world if loaded
     scene.fog.far = 16 * (renderDist + 2);
     scene.fog.near = 16 * 5;
@@ -6742,33 +6762,33 @@ function initMenu() {
     baseFov = parseInt(e.target.value) || 70;
     camera.fov = baseFov;
     camera.updateProjectionMatrix();
-    try { localStorage.setItem('bf_fov', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_fov', e.target.value);
   });
   document.getElementById('set-volume')?.addEventListener('input', (e) => {
     const vol = Math.max(0, Math.min(100, parseInt(e.target.value) || 50)) / 100;
     if (audio && audio.master) audio.master.gain.value = vol;
-    try { localStorage.setItem('bf_volume', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_volume', e.target.value);
   });
   document.getElementById('set-fps')?.addEventListener('change', (e) => {
     showFps = e.target.value !== '0';
-    try { localStorage.setItem('bf_fps', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_fps', e.target.value);
   });
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
     window.__mouseSens = mouseSensitivity;
-    try { localStorage.setItem('bf_sensitivity', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_sensitivity', e.target.value);
   });
   document.getElementById('set-quality')?.addEventListener('change', (e) => {
     graphicsQuality = e.target.value || 'medium';
     applyGraphicsQuality();
-    try { localStorage.setItem('bf_quality', graphicsQuality); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_quality', graphicsQuality);
   });
   document.getElementById('set-shadows')?.addEventListener('change', (e) => {
     const enabled = e.target.value !== '0';
     window.__shadowsEnabled = enabled;
     renderer.shadowMap.enabled = enabled;
     renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
-    try { localStorage.setItem('bf_shadows', e.target.value); } catch (_) { console.warn("localStorage write failed"); }
+    saveSetting('bf_shadows', e.target.value);
   });
 
   // --- Main menu ---
@@ -10759,7 +10779,13 @@ document.getElementById('btn-inv-theme')?.addEventListener('click', () => {
   const el = document.getElementById('inventory-screen');
   if (!el) return;
   el.classList.toggle('inv-light');
-  localStorage.setItem('bf_inv_theme', el.classList.contains('inv-light') ? 'light' : 'dark');
+  const theme = el.classList.contains('inv-light') ? 'light' : 'dark';
+  localStorage.setItem('bf_inv_theme', theme);
+  try {
+    if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
+      window.CrazyGames.SDK.data.setItem('bf_inv_theme', theme).catch(() => {});
+    }
+  } catch (_) {}
 });
 // Restore saved inventory theme
 try {

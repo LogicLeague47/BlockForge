@@ -1122,4 +1122,13 @@ export class AudioManager {
       { noise: 'brown', dur: 0.1, gain: 0.03, lp: 1500, lq: 1, atk: 0.005, rel: 0.12 },
     ]);
   }
+
+  // Night ambient: cricket chirp (called from game loop at night)
+  cricket() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 4200 + Math.random() * 600, dur: 0.03, gain: 0.015, atk: 0.001, rel: 0.02 },
+      { wave: 'sine', freq: 4600 + Math.random() * 400, dur: 0.025, gain: 0.01, atk: 0.001, rel: 0.015 },
+    ]);
+  }
 }

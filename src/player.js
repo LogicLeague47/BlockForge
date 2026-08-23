@@ -513,6 +513,30 @@ export class Player {
       }
     }
 
+    // Sneak edge prevention: when crouching on ground, don't walk off edges.
+    if (this.crouching && this.onGround && !this.flying) {
+      const step = 0.05; // tiny step ahead to test
+      const nx = this.position.x + this.velocity.x * step;
+      const nz = this.position.z + this.velocity.z * step;
+      const bx = Math.floor(nx);
+      const bz = Math.floor(nz);
+      const by = Math.floor(this.position.y - 0.1);
+      const hasGround = BLOCKS[this.world.getBlock(bx, by, bz)]?.solid;
+      if (!hasGround) {
+        // Project velocity onto edge tangent to allow sliding along the edge
+        const bxCur = Math.floor(this.position.x);
+        const bzCur = Math.floor(this.position.z);
+        const groundLeft = BLOCKS[this.world.getBlock(bxCur - 1, by, bzCur)]?.solid;
+        const groundRight = BLOCKS[this.world.getBlock(bxCur + 1, by, bzCur)]?.solid;
+        const groundFront = BLOCKS[this.world.getBlock(bxCur, by, bzCur - 1)]?.solid;
+        const groundBack = BLOCKS[this.world.getBlock(bxCur, by, bzCur + 1)]?.solid;
+        if (!groundLeft && this.velocity.x < 0) this.velocity.x = 0;
+        if (!groundRight && this.velocity.x > 0) this.velocity.x = 0;
+        if (!groundFront && this.velocity.z < 0) this.velocity.z = 0;
+        if (!groundBack && this.velocity.z > 0) this.velocity.z = 0;
+      }
+    }
+
     // sprinting exhaustion: 0.01 per meter (Java)
     if (this.sprinting && move.lengthSq() > 0.01) {
       this.addExhaustion(0.01 * move.length() * dt);
