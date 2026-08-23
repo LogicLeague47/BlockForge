@@ -479,3 +479,30 @@ export function buildImportedParkour(world, data) {
   const spawnYAdjusted = lowestSolid + 1;
   return { x: centerX + 0.5, y: spawnYAdjusted, z: centerZ + 0.5 };
 }
+
+// ── Best Times / Leaderboard ──────────────────────────────────────────
+const _BEST_TIMES_KEY = 'bf_parkour_best';
+
+function _loadBestTimes() {
+  try { return JSON.parse(localStorage.getItem(_BEST_TIMES_KEY)) || {}; } catch (_) { return {}; }
+}
+function _saveBestTimes(data) {
+  try { localStorage.setItem(_BEST_TIMES_KEY, JSON.stringify(data)); } catch (_) {}
+}
+
+export function saveParkourBestTime(theme, time, deaths, grade) {
+  const all = _loadBestTimes();
+  if (!all[theme] || time < all[theme].time) {
+    all[theme] = { time, deaths, grade, date: Date.now() };
+    _saveBestTimes(all);
+  }
+}
+
+export function getParkourBestTime(theme) {
+  const all = _loadBestTimes();
+  return all[theme] || null;
+}
+
+export function getParkourLeaderboard() {
+  return _loadBestTimes();
+}

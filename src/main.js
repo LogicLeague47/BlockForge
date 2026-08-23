@@ -42,7 +42,7 @@ import { DroppedItemManager } from './dropped.js';
 import { LitTntManager } from './tnt.js';
 import { MultiplayerRenderer } from './multiplayerrenderer.js';
 import { placeStructure, DEV_STRUCTURES } from './structures.js';
-import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour, addParkourDeath, getParkourDeaths, getLevelSplits } from './parkour.js';
+import { buildParkourLevel, buildParkourLobby, buildAllLevels, PARKOUR_LEVELS, resetParkourState, startParkourTimer, checkCheckpoint, checkLevelEnd, getRespawnPosition, getCurrentLevel, getCurrentLevelInfo, getParkourTimerFormatted, setParkourLevel, loadImportedParkourChunks, buildImportedParkour, addParkourDeath, getParkourDeaths, getLevelSplits, saveParkourBestTime, getParkourBestTime, getParkourTimer } from './parkour.js';
 import { resetOneBlock, clearOneBlockState, updateOneBlock, onOneBlockBroken, forceRegen, getOneBlockStage, getOneBlockProgress, getOneBlockCount, getOneBlockPos, getOneBlockSave, restoreOneBlock, tickOneBlockMobTimer, rollOneBlockMob } from './oneblock.js';
 import { BW_TEAMS, BW_Y, BW_SHOP, BW_VOID_BELOW, buildBedwarsMap, assignBedwarsTeam, BW_RES_IRON, BW_RES_GOLD, BW_RES_DIAMOND, BW_RES_EMERALD, loadTreasureIslandData, buildTreasureIslandMap, IMP_BASE_SPOTS, IMP_MID_SPOTS } from './bedwars.js';
 import { buildBlockZonesMap, startBlockZones, tickBlockZones, onBlockZonesBroken, clearBlockZones, setBlockZonesExit, BZ_Y } from './blockzones.js';
@@ -9353,6 +9353,11 @@ function _gameFrame() {
             else if (t < 480) { grade = 'C'; gradeColor = '#ff5'; }
             else { grade = 'D'; gradeColor = '#f55'; }
 
+            // Save best time per theme
+            const pkKey = _isImportedParkour ? 'imported' : 'default';
+            const prevBest = getParkourBestTime(pkKey);
+            saveParkourBestTime(pkKey, t, deaths, grade);
+
             let splitsHtml = '';
             if (splits.length > 0) {
               splitsHtml = '<div style="margin-top:12px;border-top:1px solid rgba(255,255,255,0.2);padding-top:8px;">';
@@ -9366,10 +9371,21 @@ function _gameFrame() {
               splitsHtml += '</div>';
             }
 
+            let bestHtml = '';
+            if (prevBest && prevBest.time < t) {
+              const bm = Math.floor(prevBest.time / 60);
+              const bs = Math.floor(prevBest.time % 60);
+              const bms = Math.floor((prevBest.time % 1) * 100);
+              bestHtml = `<div style="font:13px monospace;color:#ff5;margin-top:4px;">Best: ${String(bm).padStart(2, '0')}:${String(bs).padStart(2, '0')}.${String(bms).padStart(2, '0')} (${prevBest.grade})</div>`;
+            } else if (prevBest) {
+              bestHtml = `<div style="font:13px monospace;color:#5f5;margin-top:4px;">New Record!</div>`;
+            }
+
             finishEl.innerHTML = `
               <div class="pk-finish-title">PARKOUR COMPLETE!</div>
               <div class="pk-finish-grade" style="color:${gradeColor}">${grade}</div>
               <div class="pk-finish-time">Time: ${time}</div>
+              ${bestHtml}
               <div class="pk-finish-deaths">Deaths: ${deaths}</div>
               ${splitsHtml}
               <button class="pk-finish-btn" id="pk-replay-btn">Play Again</button>
