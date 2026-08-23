@@ -173,6 +173,82 @@ export class DroppedItem {
     return false;
   }
 
+  _hide() {
+    if (this.group) this.scene.remove(this.group);
+  }
+
+  reset(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0) {
+    this.scene = scene;
+    this.itemId = itemId;
+    this.count = count || 1;
+    this.x = x;
+    this.y = y + FLOAT_HEIGHT;
+    this.z = z;
+    this.vx = vx;
+    this.vz = vz;
+    this.age = 0;
+    this.collected = false;
+    this._canCollect = false;
+    this._atlasCanvas = atlasCanvas;
+    this._dropGroundY = y;
+    this.vy = 0;
+    this.group.position.set(this.x, this.y, this.z);
+    this.group.rotation.y = 0;
+    this.group.scale.set(1, 1, 1);
+    this.group.traverse(c => {
+      if (c.geometry) c.geometry.dispose();
+      if (c.material) {
+        const mats = Array.isArray(c.material) ? c.material : [c.material];
+        for (const mat of mats) {
+          if (mat.map && typeof mat.map.dispose === 'function') mat.map.dispose();
+          mat.dispose();
+        }
+      }
+    });
+    while (this.group.children.length) this.group.remove(this.group.children[0]);
+    if (isBlockItem(itemId)) {
+      const def = BLOCKS[itemId];
+      if (def && def.plant) {
+        const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
+        const mat = new THREE.MeshBasicMaterial({ map: sideTex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
+        const plane1 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat);
+        plane1.rotation.y = Math.PI / 4;
+        this.group.add(plane1);
+        const plane2 = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.3), mat);
+        plane2.rotation.y = -Math.PI / 4;
+        this.group.add(plane2);
+      } else {
+        const sideTex = this._atlasTex(tileNameFor(itemId, 'side'));
+        const topTex = this._atlasTex(tileNameFor(itemId, 'top'));
+        const botTex = this._atlasTex(tileNameFor(itemId, 'bottom'));
+        const mkMat = (t) => new THREE.MeshBasicMaterial({ map: t, fog: false });
+        const materials = [mkMat(sideTex), mkMat(sideTex), mkMat(topTex), mkMat(botTex), mkMat(sideTex), mkMat(sideTex)];
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.3, 0.3), materials);
+        this.group.add(mesh);
+      }
+    } else {
+      const canvas = makeItemIconCanvas(itemId);
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
+      const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
+      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
+      const geo = new THREE.BoxGeometry(0.35, 0.35, 1 / 16);
+      const front = new THREE.Mesh(geo, mats);
+      this.group.add(front);
+      const back = new THREE.Mesh(geo, mats);
+      back.rotation.y = Math.PI / 2;
+      this.group.add(back);
+    }
+    this.group.renderOrder = 1;
+    this.scene.add(this.group);
+    this.group.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+  }
+
   dispose() {
     if (this.group) {
       this.scene.remove(this.group);
@@ -197,14 +273,20 @@ export class DroppedItemManager {
     this.atlasCanvas = atlasCanvas;
     this.world = world;
     this.items = [];
+    this._pool = [];
   }
 
   drop(itemId, count, x, y, z, vx = 0, vz = 0) {
-    // Add small random spread
     const spread = 0.3;
     const dx = (Math.random() - 0.5) * spread;
     const dz = (Math.random() - 0.5) * spread;
-    const entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
+    let entity;
+    if (this._pool.length > 0) {
+      entity = this._pool.pop();
+      entity.reset(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
+    } else {
+      entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
+    }
     this.items.push(entity);
     return entity;
   }
@@ -217,7 +299,7 @@ export class DroppedItemManager {
       if (!this.world || !this.world.getChunk(cx, cz)) continue;
       item.update(dt, playerPos);
       if (item.collected) {
-        item.dispose();
+        this._poolItem(item);
         this.items[i] = this.items[this.items.length - 1];
         this.items.length--;
       }
@@ -231,7 +313,7 @@ export class DroppedItemManager {
       const item = this.items[i];
       if (item.checkCollect(playerPos.x, playerPos.y, playerPos.z)) {
         collected.push({ itemId: item.itemId, count: item.count });
-        item.dispose();
+        this._poolItem(item);
         this.items[i] = this.items[this.items.length - 1];
         this.items.length--;
       }
@@ -239,8 +321,19 @@ export class DroppedItemManager {
     return collected;
   }
 
+  _poolItem(item) {
+    item._hide();
+    if (this._pool.length < 64) {
+      this._pool.push(item);
+    } else {
+      item.dispose();
+    }
+  }
+
   clear() {
     for (const item of this.items) item.dispose();
+    for (const item of this._pool) item.dispose();
     this.items.length = 0;
+    this._pool.length = 0;
   }
 }
