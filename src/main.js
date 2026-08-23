@@ -5010,6 +5010,53 @@ function isSaplingBlock(id) {
          id === BLOCK.SPRUCE_SAPLING || id === BLOCK.DARK_OAK_SAPLING || id === BLOCK.ACACIA_SAPLING;
 }
 
+const _LOG_IDS = new Set([BLOCK.WOOD, BLOCK.JUNGLE_WOOD, BLOCK.BIRCH_WOOD, BLOCK.SPRUCE_WOOD, BLOCK.DARK_OAK_WOOD, BLOCK.ACACIA_WOOD]);
+const _LEAF_IDS = new Set([BLOCK.LEAVES, BLOCK.DARK_OAK_LEAVES, BLOCK.BIRCH_LEAVES, BLOCK.SPRUCE_LEAVES, BLOCK.ACACIA_LEAVES]);
+function isLogBlock(id) { return _LOG_IDS.has(id); }
+function isLeafBlock(id) { return _LEAF_IDS.has(id); }
+
+function _tickLeafDecay(dt) {
+  if (_leafDecayPositions.size === 0) return;
+  _leafDecayTimer += dt;
+  if (_leafDecayTimer < 1.5) return;
+  _leafDecayTimer = 0;
+  const positions = _leafDecayPositions;
+  _leafDecayPositions = new Set();
+  let changed = false;
+  for (const key of positions) {
+    const parts = key.split(',');
+    const bx = +parts[0], by = +parts[1], bz = +parts[2];
+    for (let dx = -4; dx <= 4; dx++) {
+      for (let dy = -4; dy <= 4; dy++) {
+        for (let dz = -4; dz <= 4; dz++) {
+          if (Math.abs(dx) + Math.abs(dy) + Math.abs(dz) > 4) continue;
+          const lx = bx + dx, ly = by + dy, lz = bz + dz;
+          const lb = world.getBlock(lx, ly, lz);
+          if (!isLeafBlock(lb)) continue;
+          let hasLog = false;
+          for (let ddx = -4; ddx <= 4 && !hasLog; ddx++) {
+            for (let ddy = -4; ddy <= 4 && !hasLog; ddy++) {
+              for (let ddz = -4; ddz <= 4 && !hasLog; ddz++) {
+                if (Math.abs(ddx) + Math.abs(ddy) + Math.abs(ddz) > 4) continue;
+                if (isLogBlock(world.getBlock(lx + ddx, ly + ddy, lz + ddz))) hasLog = true;
+              }
+            }
+          }
+          if (!hasLog && Math.random() < 0.3) {
+            world.setBlock(lx, ly, lz, BLOCK.AIR);
+            changed = true;
+          }
+        }
+      }
+    }
+  }
+  if (changed && manager) {
+    const pcx = Math.floor((player ? player.position.x : 0) / CHUNK_SIZE);
+    const pcz = Math.floor((player ? player.position.z : 0) / CHUNK_SIZE);
+    manager.refreshAround(pcx, pcz);
+  }
+}
+
 // --- weather system ---
 let weatherSystem = null;
 
@@ -9923,6 +9970,7 @@ function _gameFrame() {
   }
   greenstoneSystem.update(dt, world);
   tickSaplingGrowth(dt);
+  _tickLeafDecay(dt);
   updateCoordsHud(dt);
   updateTimeHud();
 
