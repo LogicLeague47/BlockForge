@@ -3077,6 +3077,18 @@ class Mob {
       this.velocity.x = -Math.sin(this.yaw) * moveSpeed;
       this.velocity.z = -Math.cos(this.yaw) * moveSpeed;
 
+      if (world) {
+        const footY = Math.floor(this.position.y) - 1;
+        const lookX = Math.floor(this.position.x - Math.sin(this.yaw) * 0.8);
+        const lookZ = Math.floor(this.position.z - Math.cos(this.yaw) * 0.8);
+        if (world.getBlock(lookX, footY, lookZ) === BLOCK.LAVA ||
+            world.getBlock(lookX, footY + 1, lookZ) === BLOCK.LAVA) {
+          this.targetYaw = this.yaw + (Math.random() - 0.5) * Math.PI * 2;
+          this.velocity.x = -Math.sin(this.targetYaw) * moveSpeed;
+          this.velocity.z = -Math.cos(this.targetYaw) * moveSpeed;
+        }
+      }
+
       // Stay near spawn
       const dx = this.position.x - this.spawnPos.x;
       const dz = this.position.z - this.spawnPos.z;
@@ -4183,11 +4195,11 @@ export class MobManager {
       if (proj.exploded) {
         // Blow up blocks
         if (this.explosionManager) {
-          this.explosionManager.explode(proj.x, proj.y, proj.z, 3);
+          this.explosionManager.explode(proj.x, proj.y, proj.z, 2);
         }
         // Damage the player if within blast radius
         if (playerPos) {
-          const dmg = ExplosionManager.calcDamage(proj.x, proj.y, proj.z, playerPos, 3);
+          const dmg = ExplosionManager.calcDamage(proj.x, proj.y, proj.z, playerPos, 2);
           if (dmg > 0) {
             attackEvents.push({ type: 'attack', damage: dmg, fromPos: { x: proj.x, y: proj.y, z: proj.z } });
           }

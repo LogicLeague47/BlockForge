@@ -1476,6 +1476,24 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '00de9b2',
+          heading: 'Fix fall damage at water block edge',
+          desc: 'Players no longer take fall damage when landing in water at the boundary of a water block.',
+          date: 'Aug 23',
+          bugs: ['fall damage applied when landing in water at block edge'],
+          updates: ['Fall damage check verifies water blocks at landing position'],
+          features: [],
+        },
+        {
+          hash: 'pending',
+          heading: 'Blower mob explosion radius fix',
+          desc: 'Reduced Blower mob explosion radius from 3 to 2 blocks, making it less terrain-devastating as a ranged mob attack.',
+          date: 'Aug 23',
+          bugs: ['Blower mob explosion radius was too large (3 blocks, comparable to TNT)'],
+          updates: ['Blower mob explosion radius reduced from 3 to 2'],
+          features: [],
+        },
+        {
           hash: '118aca1',
           heading: 'Performance + CG fixes + parkour leaderboard',
           desc: 'Major performance overhaul: particle object pooling, GC pressure reduction with cached materials/constants, LZ-string compression for world saves (~60% smaller), opaque mesh matrix optimization. Fixed CG chat input race condition, added parkour best time tracking with new record indicator, armor equip sound, and more.',
