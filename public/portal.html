@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '4a4517b',
+          heading: 'Chunk mesh dirty flag',
+          desc: 'Chunks now track whether their block data changed since the last mesh rebuild, skipping redundant meshing for unchanged chunks.',
+          date: 'Aug 23',
+          bugs: ['Chunks were re-meshed every time they were queued even if nothing changed'],
+          updates: ['Added _dirty flag to Chunk to track data changes since last mesh', 'ChunkMeshManager skips rebuilds for chunks where _dirty is false', '_dirty cleared after successful mesh build'],
+          features: [],
+        },
+        {
           hash: '1037989',
           heading: 'Dropped item object pooling',
           desc: 'Dropped items are now pooled and reused instead of creating and disposing new objects each time, reducing garbage collection pressure.',

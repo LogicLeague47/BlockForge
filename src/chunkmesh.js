@@ -112,7 +112,7 @@ export class ChunkMeshManager {
 
   _buildChunk(cx, cz) {
     const chunk = this.world.getChunk(cx, cz);
-    if (!chunk || !chunk.generated) return;
+    if (!chunk || !chunk.generated || !chunk._dirty) return;
     const k = cx + ',' + cz;
     let entry = this.meshes.get(k);
     if (entry) {
@@ -202,6 +202,7 @@ export class ChunkMeshManager {
 
     this.scene.add(group);
     this.meshes.set(k, { group, opaque: opaqueMesh, cutout: cutoutMesh, trans: transMesh, water: waterMesh });
+    chunk._dirty = false;
   }
 
   // Immediate build — used by the loader for initial chunk generation only.
@@ -215,6 +216,7 @@ export class ChunkMeshManager {
     if (this._dirtySet.has(k)) return;
     const chunk = this.world.getChunk(cx, cz);
     if (!chunk || !chunk.generated) return;
+    chunk._dirty = true;
     this._dirtySet.add(k);
     this._dirtyList.push({ cx, cz });
   }

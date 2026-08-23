@@ -13,6 +13,7 @@ export class Chunk {
     this.cx = cx; this.cz = cz;
     this.data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
     this.generated = false;
+    this._dirty = true;
     this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
     this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
   }
@@ -182,6 +183,7 @@ export class World {
     const c = this.getChunk(cx, cz);
     const lx = x - (cx << 4), lz = z - (cz << 4);
     c.set(lx, y, lz, v);
+    c._dirty = true;
     // Keep surfaceMap in sync so the mesher knows the highest block
     if (v !== 0 && y > c.surfaceMap[lz * CHUNK_SIZE + lx]) {
       c.surfaceMap[lz * CHUNK_SIZE + lx] = y;
@@ -212,6 +214,8 @@ export class World {
     if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
     cm.set(`${x},${y},${z}`, v);
     if (v !== 0) this.editSeq++;
+    const c = this.chunks.get(ck);
+    if (c) c._dirty = true;
   }
 
   generateChunk(chunk) {
