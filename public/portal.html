@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'c699a8d',
+          heading: 'Bug fixes + polish + 20 parkour levels',
+          desc: 'Massive batch of fixes: fog color discontinuity at sunset, GC pressure reduction, particle system cleanup, rain collision with terrain, armor equip sound, eat/drink sounds on mobile, durability preservation in chest/furnace, mob spawn distance fix, death coordinates display, and expanded parkour to 20 levels with 5 new themes.',
+          date: 'Aug 23',
+          bugs: ['fog color jumped from near-black to bright red-orange at sunset/sunrise', 'thunder flash not synced to fog color', 'biomeNames/cameraModes arrays allocated every F3 frame', 'boss/rarity particles created new MeshBasicMaterial every emission', 'armor key allocated intermediate array every frame', 'eat sounds missing on mobile and off-hand', 'periodic chew sound during eating was empty try block', 'rain particles fell through blocks with no terrain collision', 'chest/furnace inventory lost item durability on click/swap', 'mobs spawning within 16 blocks of player', 'death screen showed no coordinates'],
+          updates: ['Fog color now uses DUSK_COLOR as transition anchor for smooth sunset/sunrise', 'Thunder flash applied to scene.fog.color to match background', 'biomeNames, cameraModes hoisted to module scope', 'Boss hit and rarity glow materials cached in Map', 'Armor key built as direct string concatenation (no array alloc)', 'eat() wired up on mobile main/off-hand and desktop off-hand', 'Chew sound plays every 0.35s while eating', 'Rain particles check world.heightAt() and respawn above terrain', 'Item durability preserved in all chest/furnace slot operations', 'Mob spawn distance increased to 16 blocks minimum', 'Death screen shows player coordinates'],
+          features: ['Armor equip sound (synthesized white+brown noise)', '5 new parkour themes (Nether, End, Ocean, Jungle, Canyon)', 'Parkour expanded from 10 to 20 levels', 'Death coordinate display on death screen'],
+        },
+        {
           hash: '1f1ebbc',
           heading: 'Full CrazyGames SDK integration',
           desc: 'Implemented all missing CG SDK modules: muteAudio handling (Full Implementation requirement), rewarded ads, adblock detection, auth state listener (v3 API), game context for feedback reports, progress reporting, guest auth prompt, and environment detection. Fixed isInstantMultiplayer path bug.',
