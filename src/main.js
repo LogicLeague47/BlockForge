@@ -698,6 +698,22 @@ const _rarityMatCache = new Map();
 const _biomeNames = ['Ocean','DeepOc','Beach','Plains','Forest','Birch','DarkF','Taiga','Desert','Jungle','Savanna','Swamp','Snowy','Mountains','River'];
 const _cameraModes = ['First Person', 'Third Person (Back)', 'Third Person (Front)'];
 
+// Particle pool: reuse Mesh objects instead of allocating new ones
+const _particlePool = [];
+function _acquireParticleMesh(geo, mat) {
+  const pooled = _particlePool.pop();
+  if (pooled) {
+    pooled.geometry = geo;
+    pooled.material = mat;
+    return pooled;
+  }
+  return new THREE.Mesh(geo, mat);
+}
+function _releaseParticleMesh(m) {
+  m.visible = false;
+  _particlePool.push(m);
+}
+
 const _dirVec = new THREE.Vector3();
 const _mobDirVec = new THREE.Vector3();
 const _pvpDirVec = new THREE.Vector3();
@@ -9969,7 +9985,7 @@ function _gameFrame() {
         const px = bossEntity.position.x + (Math.random() - 0.5) * 3;
         const py = bossEntity.position.y + Math.random() * 2;
         const pz = bossEntity.position.z + (Math.random() - 0.5) * 3;
-        const m = new THREE.Mesh(_particleGeoTiny, _bossHitMat);
+        const m = _acquireParticleMesh(_particleGeoTiny, _bossHitMat);
         m.position.set(px, py, pz);
         scene.add(m);
         _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 1, maxLife: 1, shared: true });
@@ -10013,8 +10029,9 @@ function _gameFrame() {
       const pz = player.position.z + (Math.random() - 0.5) * 0.4;
       const geo = _particleGeoMed;
       const mat = _sprintParticleMat;
-      const m = new THREE.Mesh(geo, mat);
+      const m = _acquireParticleMesh(geo, mat);
       m.position.set(px, py, pz);
+      m.visible = true;
       scene.add(m);
       _particles.push({ mesh: m, vx: 0, vy: 1.5, vz: 0, life: 0.4, maxLife: 0.4, shared: true });
     }
@@ -10035,8 +10052,9 @@ function _gameFrame() {
           const matKey = rarity.particle | 0;
           let mat = _rarityMatCache.get(matKey);
           if (!mat) { mat = new THREE.MeshBasicMaterial({ color: rarity.particle, transparent: true, opacity: 0.8 }); _rarityMatCache.set(matKey, mat); }
-          const m = new THREE.Mesh(_particleGeoTiny, mat);
+          const m = _acquireParticleMesh(_particleGeoTiny, mat);
           m.position.set(px, py, pz);
+          m.visible = true;
           scene.add(m);
           _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 1, vy: 0.5 + Math.random() * 1.5, vz: (Math.random() - 0.5) * 1, life: 0.6, maxLife: 0.6, shared: true });
         }
@@ -10054,12 +10072,13 @@ function _gameFrame() {
         for (let i = 0; i < 3; i++) {
           const geo = _particleGeoSmall;
           const mat = _waterSplashMat;
-          const m = new THREE.Mesh(geo, mat);
+          const m = _acquireParticleMesh(geo, mat);
           m.position.set(
             player.position.x + (Math.random() - 0.5) * 0.6,
             player.position.y + 0.2,
             player.position.z + (Math.random() - 0.5) * 0.6
           );
+          m.visible = true;
           scene.add(m);
           _particles.push({
             mesh: m,
@@ -10086,7 +10105,9 @@ function _gameFrame() {
     p.life -= dt;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      if (!p.shared) {
+      if (p.shared) {
+        _releaseParticleMesh(p.mesh);
+      } else {
         if (Array.isArray(p.mesh.material)) { p.mesh.material.forEach(m => m.dispose()); }
         else if (p.mesh.material) p.mesh.material.dispose();
         if (p.mesh.geometry) p.mesh.geometry.dispose();
