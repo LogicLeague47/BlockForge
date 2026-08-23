@@ -10560,7 +10560,8 @@ function _gameFrame() {
         `Days Survived: <b style="color:#ffd040">${totalDays}</b><br>` +
         `Blocks Broken: <b>${blocks}</b><br>` +
         `Mobs Defeated: <b>${mobKills}</b><br>` +
-        `Distance Walked: <b>${dist} m</b>`;
+        `Distance Walked: <b>${dist} m</b><br>` +
+        `Position: <b style="color:#88aaff">${Math.floor(player.position.x)}, ${Math.floor(player.position.y)}, ${Math.floor(player.position.z)}</b>`;
     }
     // Track death for achievements (only once per death)
     if (!_deathTracked) {
