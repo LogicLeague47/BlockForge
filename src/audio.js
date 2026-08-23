@@ -394,7 +394,7 @@ export class AudioManager {
         this._envGain(g, gain, dur, 0.01, 0.4);
         osc.connect(g);
         g.connect(this.master);
-        osc.onended = () => { try { g.disconnect(); } catch (_) {} };
+        osc.onended = () => { try { osc.disconnect(); g.disconnect(); } catch (_) {} };
         osc.start();
         osc.stop(this.ctx.currentTime + dur + 0.02);
         continue;
