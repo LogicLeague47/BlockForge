@@ -440,6 +440,10 @@ export class Network {
     this._send({ type: 'command', text });
   }
 
+  sendBedSpawn(x, y, z) {
+    this._send({ type: 'bed_spawn_point', x, y, z });
+  }
+
   sendMobSpawn(id, type, x, y, z) {
     this._send({ type: 'mob_spawn', id, type, x, y, z });
   }

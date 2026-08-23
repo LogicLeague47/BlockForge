@@ -330,6 +330,25 @@ export function loadMultiplayerInventory(roomId, playerName) {
   return null;
 }
 
+function mpBedSpawnKey(roomId, playerName) {
+  return `mc-clone-mp-bedspawn-${roomId}_${playerName}`;
+}
+
+export function saveMultiplayerBedSpawn(roomId, playerName, bedSpawnData) {
+  try {
+    const json = JSON.stringify(bedSpawnData);
+    localStorage.setItem(mpBedSpawnKey(roomId, playerName), json);
+  } catch (_) {}
+}
+
+export function loadMultiplayerBedSpawn(roomId, playerName) {
+  try {
+    const json = localStorage.getItem(mpBedSpawnKey(roomId, playerName));
+    if (json) return JSON.parse(json);
+  } catch (_) {}
+  return null;
+}
+
 // --- Per-user data ---
 
 export function setUserSetting(key, value) {

@@ -13,7 +13,7 @@ import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, cloudSet } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -873,6 +873,8 @@ let lastBreakSound = 0;
 let miningSfxActive = false; // looping mining grit currently playing
 let placeAnimTimer = 0;
 let _plateCleanTimer = 0; // throttle for the pressure-plate cleanup scan (see _gameFrame)
+let _leafDecayPositions = new Set();
+let _leafDecayTimer = 0;
 let _portalTeleportCooldown = 0;
 let _portalHomePos = null; // stored position before first portal teleport (for return trip)
 let _portalHomeVelocity = null; // saved velocity for return trip
@@ -2940,6 +2942,7 @@ function doBreak(hit, b) {
   if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
   if (isSkyblock) liquidBlockChanged(hit.x, hit.y, hit.z);
+  if (isLogBlock(b)) _leafDecayPositions.add(`${hit.x},${hit.y},${hit.z}`);
   if (isSaplingBlock(b)) _saplingGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
 
@@ -3013,6 +3016,9 @@ function trySleep() {
   }
   bedSpawnPoint = { x: hit.x + 0.5, y: hit.y + 1, z: hit.z + 0.5 };
   player.spawnPoint.set(hit.x + 0.5, hit.y + 1, hit.z + 0.5);
+  if (isMultiplayer && network && network.connected) {
+    network.sendBedSpawn(bedSpawnPoint.x, bedSpawnPoint.y, bedSpawnPoint.z);
+  }
 
   // Start sleep sequence
   sleeping = true;
@@ -5795,6 +5801,8 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (isMultiplayer && playerName && currentWorldId) {
       const mpInv = loadMultiplayerInventory(currentWorldId, playerName);
       if (mpInv) player.inventory.load(mpInv);
+      const mpBed = loadMultiplayerBedSpawn(currentWorldId, playerName);
+      if (mpBed) bedSpawnPoint = mpBed;
     }
     if (typeof saved.player.level === 'number') {
       player.level = saved.player.level;
@@ -6340,7 +6348,8 @@ function saveCurrentWorld() {
   let saveOk;
   if (isMultiplayer && playerName) {
     saveMultiplayerInventory(currentWorldId, playerName, playerData.inventory);
-    const perPlayer = { ...playerData, inventory: undefined };
+    saveMultiplayerBedSpawn(currentWorldId, playerName, playerData.bedSpawnPoint);
+    const perPlayer = { ...playerData, inventory: undefined, bedSpawnPoint: undefined };
     saveOk = saveWorld(currentWorldId, { ...saveData, player: perPlayer });
   } else {
     saveOk = saveWorld(currentWorldId, saveData);

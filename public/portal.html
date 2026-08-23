@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '07474bf',
+          heading: 'Multiplayer bed spawn sync',
+          desc: 'Bed spawn point is now saved per-player in multiplayer and synced to the server, so players respawn at their bed after death.',
+          date: 'Aug 23',
+          bugs: ['Bed spawn point was lost on death/respawn in multiplayer'],
+          updates: ['Bed spawn point saved per-player in multiplayer localStorage', 'Bed spawn point synced to server on sleep via bed_spawn_point message'],
+          features: [],
+        },
+        {
           hash: '00de9b2',
           heading: 'Fix fall damage at water block edge',
           desc: 'Players no longer take fall damage when landing in water at the boundary of a water block.',
