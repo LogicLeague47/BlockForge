@@ -4641,7 +4641,6 @@ isParkour = false;
   if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
   if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
   _clearPortalBeam();
-  try {  } catch (_) { console.warn("operation failed"); }
   ui.showMenu('minigames');
 };
 
@@ -5332,8 +5331,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
   if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
   _clearPortalBeam();
-    if (weatherSystem) { weatherSystem.setState('clear'); }
-    try {  } catch (_) { console.warn("operation failed"); }
   }
 
   isParkour = !!opts.parkour;
@@ -5531,7 +5528,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
           syncUIMode();
           achievements.incrementStat('foodEaten');
           if (slot.item === ITEM.PORKCHOP_COOKED) achievements.incrementStat('foodEatenPorkchop');
-          try {  } catch (_) { console.warn("operation failed"); }
+          if (audio) audio.eat();
           used = true;
         }
       } else if (slot && isPlaceableBlockItem(slot.item)) {
