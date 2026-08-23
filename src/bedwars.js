@@ -147,9 +147,10 @@ function setR(world, x, y, z, b) { world.setBlock(x, y, z, b); }
 
 // Rounded-square platform (chamfered corners) centered at (cx,cz) on layer y.
 function roundedSquare(world, cx, cz, half, y, block) {
+  const chamfer = Math.ceil(half / 3);
   for (let dx = -half; dx <= half; dx++) {
     for (let dz = -half; dz <= half; dz++) {
-      if (Math.abs(dx) + Math.abs(dz) > half * 2) continue; // chamfer corners
+      if (Math.abs(dx) + Math.abs(dz) > half + chamfer) continue; // chamfer corners
       setR(world, cx + dx, y, cz + dz, block);
     }
   }

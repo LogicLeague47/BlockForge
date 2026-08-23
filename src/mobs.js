@@ -2131,7 +2131,7 @@ class Mob {
       this._noiseTex(ctx, s, s, BELT, 8);
     });
 
-    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodySide];
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodyFront];
 
     const legTex = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#' + BOOTS.toString(16).padStart(6,'0');
@@ -2264,7 +2264,23 @@ class Mob {
       ctx.fillStyle = '#aa8844';
       ctx.fillRect(s/2 - 3, s - 13, 6, 6);
     });
-    const body = [bodySide, bodySide, skinTop, bodyFront, bodyFront, bodySide];
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + CLOAK.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, CLOAK, 15);
+      // Hood drape across shoulders
+      ctx.fillStyle = 'rgba(0,0,0,0.1)';
+      ctx.fillRect(4, 4, s - 8, s - 8);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#' + CLOAK.toString(16).padStart(6,'0');
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, CLOAK, 15);
+      // Cloak hem
+      ctx.fillStyle = 'rgba(0,0,0,0.15)';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodyFront];
 
     // Cape textures
     const capeBack = this._tex(s, s, (ctx) => {
@@ -3631,6 +3647,8 @@ export class MobManager {
         if (BLOCKS[blk]?.solid && blk !== BLOCK.WATER) { groundY = y; break; }
       }
       if (groundY < 0) continue;
+      // Verify the space above ground is air (prevent spawning inside blocks)
+      if (this.world.getBlock(wx, groundY + 1, wz) !== BLOCK.AIR) continue;
       const type = types[Math.floor(rng() * types.length)];
       if (!MOB_TYPES[type]) continue;
       const mob = new Mob(type, wx + 0.5, groundY + 1, wz + 0.5, this.scene);

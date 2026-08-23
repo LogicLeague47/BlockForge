@@ -1476,13 +1476,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'ba56ea4',
-          heading: 'Parkour overhaul + bug fixes',
-          desc: 'Parkour mode completely revamped with new mechanics: ice platforms that make you slide, slime bounce pads for big gaps, death counter and per-level split times, finish screen with letter grades (S/A/B/C/D). Fixed brick furnace texture (opening now visible), iPhone 5 black screen, and CrazyGames sitelock.',
-          date: 'Aug 22',
-          bugs: ['brick furnace front face (opening) was invisible on all sides', 'iPhone 5 showed permanent black screen with crosshair (WebGL context loss)', 'no CrazyGames sitelock (required for CG review)'],
-          updates: ['Ice platform mechanic (reduced friction + momentum sliding)', 'Slime bounce pads between platforms', 'Death counter displayed in parkour HUD', 'Finish screen with grade / time / deaths / splits', 'Per-level split times tracked', '3 new level themes (frozen, bouncy, iceprec)', 'WebGL context loss auto-reloads after 1.5s on iPhone 5', 'Shadow maps disabled on VERY_LOW_END devices', 'CrazyGames sitelock added'],
-          features: ['Ice sliding physics', 'Slime bounce pads', 'Parkour finish screen', 'Letter grade system', 'Death counter'],
+          hash: 'pending',
+          heading: 'Final polish — textures, bugs, bedwars, mobile fix',
+          desc: 'Major bug fix sweep: villager and traveler textures fixed (front/back face swap), lighting corrected (inverted axis shading), mobile controls no longer stick on menu after leaving a world, bedwars shop buy index fixed, night hostile spawning inside blocks prevented, player respawn no longer traps inside solid blocks, and more.',
+          date: 'Aug 23',
+          bugs: ['villager front showed plain tunic instead of apron (front/back face swap)', 'traveler body used hood texture on top, wrong faces everywhere', 'SIDE_SHADE_AXIS inverted — N/S brighter than E/W (terrain shading flipped)', 'mobile controls stayed visible on main menu after leaving a world', 'onJump callback nulled on double-tap fly (broke jump sounds/parkour)', 'night hostiles spawned inside solid blocks (no air check)', 'bedwars shop bought wrong items (per-category index treated as global)', 'roundedSquare islands had no chamfer (full squares instead of rounded)', 'god ray blur resolution not updated on window resize', 'respawn could trap player inside solid blocks', 'bedwars respawn loop when spawn platform destroyed'],
+          updates: ['Fixed villager body face mapping (front=back swap)', 'Fixed traveler body: added bodyTop/bodyBot textures, corrected face order', 'Corrected SIDE_SHADE_AXIS values (E/W=0.88, N/S=0.82)', 'Mobile controls hidden via _setGameUI(false) when leaving world', 'Removed accidental this.onJump = null in fly toggle', 'Night hostile spawns now verify air block at spawn position', 'Bedwars shop uses category-prefixed buy indices', 'roundedSquare chamfer now uses half/3 offset', 'God ray blur resolution uniforms updated on resize', 'Respawn scans upward for air before placing player', 'Bedwars respawn checks for solid ground under spawn point'],
+          features: ['Fall landing dust particles', 'Bedwars spawn validation on respawn'],
         },
         {
           hash: '7f03e9c',

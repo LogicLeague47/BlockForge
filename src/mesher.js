@@ -107,7 +107,7 @@ const FACE_SHADE = {
   side: 0.75,
 };
 // E/W sides brighter, N/S sides slightly darker (like MC)
-const SIDE_SHADE_AXIS = { '0': 0.82, '1': 0.82, '2': 0.68, '3': 0.68, '4': 0.88, '5': 0.88 };
+const SIDE_SHADE_AXIS = { '0': 0.88, '1': 0.88, '2': 0.68, '3': 0.68, '4': 0.82, '5': 0.82 };
 
 // Block-specific color tints for visual variety
 const BLOCK_TINT = {

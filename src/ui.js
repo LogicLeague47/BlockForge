@@ -1800,6 +1800,9 @@ export class UI {
     if (this._sguiMenuBottomRight) this._sguiMenuBottomRight.style.display = visible ? 'none' : '';
     if (this._sguiChatHud) this._sguiChatHud.style.display = visible ? '' : 'none';
     if (this._sguiCoordsHud) this._sguiCoordsHud.style.display = visible ? '' : 'none';
+    // Hide mobile controls when leaving the game world
+    const bfControls = document.getElementById('bf-controls');
+    if (bfControls) bfControls.style.display = visible ? '' : 'none';
   }
 
   showMenu(name) {

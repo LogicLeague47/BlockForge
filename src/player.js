@@ -236,14 +236,21 @@ export class Player {
   // Full respawn: restore vitals, move to spawn point, clear velocity.
   respawn() {
     this.position.copy(this.spawnPoint);
-    // Find actual ground below spawn point (prevent falling through air)
+    // Find actual ground below spawn point and verify air above (prevent spawning inside blocks)
     const sx = Math.floor(this.spawnPoint.x);
     const sz = Math.floor(this.spawnPoint.z);
-    let groundY = Math.floor(this.spawnPoint.y);
-    for (let y = Math.min(groundY + 10, WORLD_HEIGHT - 1); y >= 0; y--) {
+    let groundY = -1;
+    for (let y = Math.min(Math.floor(this.spawnPoint.y) + 10, WORLD_HEIGHT - 1); y >= 0; y--) {
       const b = this.world.getBlock(sx, y, sz);
-      if (BLOCKS[b]?.solid) { groundY = y + 1; break; }
+      if (BLOCKS[b]?.solid) {
+        // Verify the 2 blocks above are air (player height = 1.8)
+        if (this.world.getBlock(sx, y + 1, sz) === BLOCK.AIR && this.world.getBlock(sx, y + 2, sz) === BLOCK.AIR) {
+          groundY = y + 1;
+        }
+        break;
+      }
     }
+    if (groundY < 0) groundY = Math.floor(this.spawnPoint.y);
     this.position.y = groundY + 0.001;
     this.velocity.set(0, 0, 0);
     this.health = this.maxHealth;
@@ -442,8 +449,7 @@ export class Player {
       const now = performance.now();
       if (now - this._lastSpaceTime < 300) {
         this.toggleFly();
-    this._lastSpaceTime = 0;
-    this.onJump = null;    // optional callback fired when a grounded jump starts
+        this._lastSpaceTime = 0;
       } else {
         this._lastSpaceTime = now;
       }

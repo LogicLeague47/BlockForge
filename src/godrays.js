@@ -210,6 +210,9 @@ export class GodRayPass {
     this.rtBright.setSize(hw, hh);
 
     this.blurComposer.setSize(hw, hh);
+    // Update blur resolution uniforms to match new render target size
+    this.blurHPass.uniforms.resolution.value.set(hw, hh);
+    this.blurVPass.uniforms.resolution.value.set(hw, hh);
   }
 
   _getSunScreenPos() {

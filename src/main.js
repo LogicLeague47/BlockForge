@@ -4683,6 +4683,22 @@ function bwRespawnLocal() {
   player.dead = false;
   const sp = bwMap.spawn[bwMyTeamKey];
   if (sp) {
+    // Validate spawn is on solid ground (prevent respawn loop if platform destroyed)
+    const spawnBlock = world?.getBlock(Math.floor(sp.x), Math.floor(sp.y) - 1, Math.floor(sp.z));
+    const spawnAir = world?.getBlock(Math.floor(sp.x), Math.floor(sp.y), Math.floor(sp.z));
+    if (spawnBlock && !BLOCKS[spawnBlock]?.solid) {
+      // Platform destroyed — find nearest solid ground upward
+      let found = false;
+      for (let y = Math.floor(sp.y); y < Math.floor(sp.y) + 10; y++) {
+        const b = world.getBlock(Math.floor(sp.x), y, Math.floor(sp.z));
+        if (BLOCKS[b]?.solid) {
+          sp.y = y + 1;
+          found = true;
+          break;
+        }
+      }
+      if (!found) sp.y += 3; // fallback: spawn higher
+    }
     player.position.set(sp.x, sp.y, sp.z);
     player.velocity.set(0, 0, 0);
     player.spawnPoint.set(sp.x, sp.y, sp.z);
@@ -4797,7 +4813,7 @@ function renderBedwarsShop() {
             <div style="font:12px monospace;color:#fff;">${escHtml(item.name)}</div>
             <div style="font:10px monospace;color:#889;">${escHtml(item.desc)} — ${costHtml}</div>
           </div>
-          <button data-buy="${i}" style="background:${afford ? '#3f8f4f' : '#444'};border:none;color:#fff;border-radius:4px;padding:5px 12px;cursor:${afford ? 'pointer' : 'not-allowed'};font:11px monospace;${afford ? '' : 'pointer-events:none;'}">BUY</button>
+          <button data-buy="${cat.cat}-${i}" style="background:${afford ? '#3f8f4f' : '#444'};border:none;color:#fff;border-radius:4px;padding:5px 12px;cursor:${afford ? 'pointer' : 'not-allowed'};font:11px monospace;${afford ? '' : 'pointer-events:none;'}">BUY</button>
         </div>`);
     }
   }
@@ -4805,6 +4821,29 @@ function renderBedwarsShop() {
 
 function buyBedwarsItem(idx) {
   if (!player || !player.inventory || bwSpec || bwGameOver) return;
+  // idx is now "categoryName-itemIndex" format
+  if (typeof idx === 'string') {
+    const dashIdx = idx.indexOf('-');
+    if (dashIdx === -1) return;
+    const catName = idx.slice(0, dashIdx);
+    const itemIdx = parseInt(idx.slice(dashIdx + 1), 10);
+    const cat = BW_SHOP.find(c => c.cat === catName);
+    if (!cat || itemIdx < 0 || itemIdx >= cat.items.length) return;
+    const item = cat.items[itemIdx];
+    for (const [cid, amt] of Object.entries(item.cost)) {
+      if (!player.inventory.has(parseInt(cid, 10), amt)) return;
+    }
+    for (const [cid, amt] of Object.entries(item.cost)) player.inventory.remove(parseInt(cid, 10), amt);
+    const leftover = player.inventory.add(item.id, item.count);
+    if (leftover > 0 && droppedItemManager) {
+      droppedItemManager.drop(item.id, leftover, player.position.x, player.position.y + 0.5, player.position.z);
+    }
+    if (audio) audio.click?.();
+    syncUIMode();
+    renderBedwarsShop();
+    return;
+  }
+  // Legacy numeric fallback
   for (const cat of BW_SHOP) {
     for (const item of cat.items) {
       if (idx !== cat.items.indexOf(item)) continue;
@@ -5356,7 +5395,20 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     player.difficulty = gameDifficulty;
     player.onHurt = () => { if (audio) audio.playerHurt(); };
     player.onDeath = () => { if (audio) audio.playerDie(); };
-    player.onLand = () => { if (audio) audio.land(); };
+    player.onLand = () => {
+      if (audio) audio.land();
+      // Spawn dust particles on landing
+      if (player && world && breakParticles) {
+        const px = Math.floor(player.position.x);
+        const py = Math.floor(player.position.y - 0.5);
+        const pz = Math.floor(player.position.z);
+        for (let i = 0; i < 6; i++) {
+          const ox = (Math.random() - 0.5) * 1.2;
+          const oz = (Math.random() - 0.5) * 1.2;
+          breakParticles.spawn(px + ox + 0.5, py + 0.1, pz + oz + 0.5, 0x9e8e7a, 0.3 + Math.random() * 0.3);
+        }
+      }
+    };
     player.onSplash = () => { if (audio) audio.splash(); };
     player.onJump = () => { if (audio) audio.jump(); };
   }
@@ -9264,7 +9316,7 @@ function _gameFrame() {
               if (audio) audio.click?.();
               closeFurnace();
               ui.closeInventory();
-              exitWorld();
+              gameRunning = false;
               loadWorld('parkour', { startParkour: true });
             });
             document.getElementById('pk-menu-btn')?.addEventListener('click', () => {
@@ -9272,7 +9324,7 @@ function _gameFrame() {
               if (audio) audio.click?.();
               closeFurnace();
               ui.closeInventory();
-              exitWorld();
+              showMinigames();
             });
           })();
 
