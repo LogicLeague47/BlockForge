@@ -1,5 +1,6 @@
 // Voice chat via WebRTC peer-to-peer audio.
 // Uses the game's existing WebSocket for signaling (SDP + ICE).
+import { cloudSet } from './storage.js';
 
 const STATES = { OFF: 0, ON_MUTED: 1, ON_UNMUTED: 2 };
 
@@ -409,12 +410,12 @@ export class VoiceChat {
     body.querySelector('#vp-volume')?.addEventListener('input', (e) => {
       const v = parseInt(e.target.value) / 100;
       body.querySelector('#vp-vol-label').textContent = Math.round(v * 100) + '%';
-      try { localStorage.setItem('bf_voice_volume', String(v)); } catch {}
+      cloudSet('bf_voice_volume', String(v));
       for (const pc of this.peers.values()) { if (pc._audioEl) pc._audioEl.volume = v; }
     });
     body.querySelector('#vp-ptt')?.addEventListener('click', () => {
       this._pttEnabled = !this._pttEnabled;
-      try { localStorage.setItem('bf_voice_ptt', this._pttEnabled ? '1' : '0'); } catch {}
+      cloudSet('bf_voice_ptt', this._pttEnabled ? '1' : '0');
       if (this._pttEnabled) {
         // When enabling PTT, mute mic until key is held
         this.setState(STATES.ON_MUTED);

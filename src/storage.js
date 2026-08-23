@@ -34,6 +34,18 @@ async function sdkRemove(key) {
   try { await window.CrazyGames.SDK.data.removeItem(key); } catch (_) {}
 }
 
+// Central cloud-sync helper: writes to localStorage AND fires a background
+// SDK push.  Every module that saves player-visible data should use this
+// instead of bare localStorage.setItem.
+export function cloudSet(key, value) {
+  try { localStorage.setItem(key, value); } catch (_) {}
+  try {
+    if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
+      window.CrazyGames.SDK.data.setItem(key, String(value)).catch(() => {});
+    }
+  } catch (_) {}
+}
+
 // --- World list ---
 
 function listKey() { return 'mc-clone-worlds'; }
@@ -263,13 +275,26 @@ export async function cgPullProgress() {
     }
     // Per-user flags (tutorial etc.) — restore from cloud when missing locally.
     await pull(_userPrefix() + 'tutorial', () => !!localStorage.getItem(_userPrefix() + 'tutorial'));
-    // Cloud-sync settings, skin, and achievements for CrazyGames users.
+    // Settings, voice, keybinds.
     const settingsKeys = [
       'bf_render_dist', 'bf_fov', 'bf_fps', 'bf_quality', 'bf_shadows',
-      'bf_volume', 'bf_sensitivity', 'bf_inv_theme', 'bf_voice_volume', 'bf_voice_ptt'
+      'bf_volume', 'bf_sensitivity', 'bf_inv_theme', 'bf_voice_volume', 'bf_voice_ptt',
+      'bf_keybinds'
     ];
     for (const k of settingsKeys) await pull(k, () => !!localStorage.getItem(k));
+    // Skins — pull selection and custom skin list (large data, only if missing).
     await pull('blockforge_skin', () => !!localStorage.getItem('blockforge_skin'));
+    await pull('blockforge_custom_skin_data', () => !!localStorage.getItem('blockforge_custom_skin_data'));
+    await pull('blockforge_custom_skins', () => !!localStorage.getItem('blockforge_custom_skins'));
+    await pull('bf_custom_skin_created', () => !!localStorage.getItem('bf_custom_skin_created'));
+    // Player identity.
+    await pull('bf_player_name', () => !!localStorage.getItem('bf_player_name'));
+    await pull('bf_login_user', () => !!localStorage.getItem('bf_login_user'));
+    await pull('bf_role', () => !!localStorage.getItem('bf_role'));
+    // DMs — pull offline queue and seen messages.
+    await pull('bf_dm_offline_queue', () => !!localStorage.getItem('bf_dm_offline_queue'));
+    await pull('bf_seen_messages', () => !!localStorage.getItem('bf_seen_messages'));
+    // Achievements.
     await pull('mc-clone-achievements', () => !!localStorage.getItem('mc-clone-achievements'));
   } catch (_) {}
 }

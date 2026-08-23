@@ -2,6 +2,7 @@
 // which are kept as the project's existing controls (crouch = Left Ctrl,
 // sprint = Left Shift). Bindings are stored by KeyboardEvent.code and can be
 // rebound from the in-game Settings → Controls screen (persisted to localStorage).
+import { cloudSet } from './storage.js';
 
 const STORAGE_KEY = 'bf_keybinds';
 
@@ -79,7 +80,7 @@ export function resetKeybinds() {
 }
 
 function saveBinds() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(binds)); } catch (_) {}
+  cloudSet(STORAGE_KEY, JSON.stringify(binds));
 }
 
 // Human-readable label for a KeyboardEvent.code.

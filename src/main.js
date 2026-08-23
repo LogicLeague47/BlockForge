@@ -13,7 +13,7 @@ import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
 import { ViewModel } from './viewmodel.js';
-import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory } from './storage.js';
+import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES } from './mobs.js';
@@ -780,7 +780,7 @@ try {
       const newName = user.username || playerName;
       if (newName !== playerName) {
         playerName = filterProfanity(newName);
-        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        cloudSet('bf_player_name', playerName);
         const nameEl = document.getElementById('menu-player-name');
         if (nameEl) nameEl.textContent = playerName;
       }
@@ -1315,7 +1315,7 @@ function _loadDMThread(name) {
 function _saveDMThread(name, msgs) {
   const me = playerName || '';
   if (!me || !name) return;
-  try { localStorage.setItem(_dmKey(me, name), JSON.stringify(msgs)); } catch (_) {}
+  cloudSet(_dmKey(me, name), JSON.stringify(msgs));
 }
 // Deduplicate: check if a message already exists (prevents multi-tab doubling)
 function _dmExists(name, from, text, time) {
@@ -1400,7 +1400,7 @@ function _dmSend() {
   } else {
     // Queue for delivery when we come back online
     _dmOfflineQueue.push({ to: _dmOpenFor, text, time: Date.now(), id: msgId });
-    try { localStorage.setItem('bf_dm_offline_queue', JSON.stringify(_dmOfflineQueue)); } catch {}
+    cloudSet('bf_dm_offline_queue', JSON.stringify(_dmOfflineQueue));
     addChatLine('Message queued — will send when you\'re online.', '#fa0', true);
   }
 }
@@ -1897,7 +1897,7 @@ function showOneTimeMessages() {
   const dismiss = () => {
     modal.style.display = 'none';
     seen.push(msg.id);
-    try { localStorage.setItem('bf_seen_messages', JSON.stringify(seen)); } catch {}
+    cloudSet('bf_seen_messages', JSON.stringify(seen));
   };
   dismissBtn.onclick = dismiss;
 }
@@ -4095,7 +4095,7 @@ function setupNetworkHandlers() {
       const localKey = 'bf_dm_' + serverKey;
       const existing = _loadDMThreadRaw(localKey);
       const merged = _mergeDmArrays(existing, msgs);
-      try { localStorage.setItem(localKey, JSON.stringify(merged)); } catch (_) {}
+      cloudSet(localKey, JSON.stringify(merged));
     }
     // Re-render DM panel if open
     if (_dmOpenFor) renderDMMessages();
@@ -4354,8 +4354,8 @@ function setupNetworkHandlers() {
       playerName = msg.username || playerName;
       playerRole = msg.role || 'player';
       try {
-        localStorage.setItem('bf_player_name', playerName);
-        localStorage.setItem('bf_login_user', playerName);
+        cloudSet('bf_player_name', playerName);
+        cloudSet('bf_login_user', playerName);
         const pass = document.getElementById('login-password');
         if (pass) localStorage.setItem('bf_login_pass', _xorEncode(pass.value));
       } catch (_) { console.warn("operation failed"); }
@@ -4393,7 +4393,7 @@ function setupNetworkHandlers() {
         }
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
-        try { localStorage.setItem('bf_role', playerRole); } catch (_) { console.warn("localStorage write failed"); }
+        cloudSet('bf_role', playerRole);
         // Bot gate (non-CG website): correct credentials issue a one-time entry
         // token, then go straight into the game with the player link in the URL.
         // Manual reloads and direct link opens have no token and land on the
@@ -4541,7 +4541,7 @@ window._joinServer = (name) => {
   if (mpInput) {
     const v = filterProfanity((mpInput.value || '').trim()) || 'Player';
     playerName = v;
-    try { localStorage.setItem('bf_player_name', v); } catch (_) { console.warn("localStorage write failed"); }
+    cloudSet('bf_player_name', v);
   }
   joinServer(name);
 };
@@ -7079,7 +7079,7 @@ function initMenu() {
     const seedInput = (document.getElementById('input-server-seed')?.value || '').trim();
     const isPrivate = document.getElementById('sv-priv-private')?.classList.contains('selected');
     playerName = pname;
-    try { localStorage.setItem('bf_player_name', pname); } catch (_) { console.warn("localStorage write failed"); }
+    cloudSet('bf_player_name', pname);
     if (!name) return;
     const addr = (document.getElementById('input-server-address')?.value || '').trim();
     createServer(name, maxP, mode, seedInput || undefined, isPrivate, addr);
@@ -8243,7 +8243,7 @@ function initMenu() {
         // OAuth/CrazyGames users have no password — silently re-auth via identity.
         playerName = savedName;
         setSkinUser(playerName);
-        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        cloudSet('bf_player_name', playerName);
         const attempt = () => network.sendIdentityAuth(oauthProvider, oauthProviderId, playerName);
         if (!network.connected) {
           network.connect(BACKEND_URL);
@@ -8305,7 +8305,7 @@ function initMenu() {
         if (!data.ok) { if (!silent) showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
         playerName = filterProfanity(data.username) || 'Player';
         setSkinUser(playerName);
-        try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+        cloudSet('bf_player_name', playerName);
         try { localStorage.setItem('bf_oauth_provider', 'crazygames'); localStorage.setItem('bf_oauth_provider_id', data.providerId || playerName); } catch (_) { console.warn("localStorage write failed"); }
         const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
         if (!network.connected) {
@@ -8391,7 +8391,7 @@ function initMenu() {
         if (e.data.linked) {
           playerName = suggestedName;
           setSkinUser(playerName);
-          try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+          cloudSet('bf_player_name', playerName);
           try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
@@ -8421,7 +8421,7 @@ function initMenu() {
             playerName = filterProfanity(name);
             if (!playerName) playerName = 'Player';
             setSkinUser(playerName);
-            try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+            cloudSet('bf_player_name', playerName);
             try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
@@ -8437,7 +8437,7 @@ function initMenu() {
         } else {
           // Fallback if name prompt elements not found
           playerName = suggestedName;
-          try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+          cloudSet('bf_player_name', playerName);
           try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
@@ -8468,7 +8468,7 @@ function initMenu() {
     clearToast();
     const num = Math.floor(Math.random() * 90000000) + 10000000; // 8-digit random
     playerName = 'Guest' + String(num).slice(0, 8);
-    try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+    cloudSet('bf_player_name', playerName);
     const attempt = () => network.sendIdentityAuth('guest', playerName, playerName);
     if (!network.connected) {
       network.connect(BACKEND_URL);
@@ -8590,7 +8590,7 @@ function showNamePrompt() {
     if (!name) { inputEl.focus(); return; }
     playerName = filterProfanity(name);
     if (!playerName) playerName = 'Player';
-    try { localStorage.setItem('bf_player_name', playerName); } catch (_) { console.warn("localStorage write failed"); }
+    cloudSet('bf_player_name', playerName);
     const nameTag = document.getElementById('menu-player-name');
     if (nameTag) nameTag.textContent = playerName;
     promptEl.style.display = 'none';

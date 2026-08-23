@@ -1477,12 +1477,12 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'pending',
-          heading: 'Hotbar scroll fix, cloud storage, new features',
-          desc: 'Fixed hotbar scroll wheel broken on CrazyGames (pointer lock gate removed). Expanded CG cloud storage to sync settings, skin, and achievements across devices. Added sneak edge prevention (MC-style crouch at ledges), and night ambient cricket sounds.',
+          heading: 'Full CG cloud sync — skins, DMs, identity, keybinds',
+          desc: 'CrazyGames users now get full cross-device sync. All player-visible data (skins, custom skins, DMs, player name, keybinds, voice settings, achievements, and all game settings) is pushed to and pulled from the CG cloud. Created a central cloudSet() helper for consistent dual-write across all modules.',
           date: 'Aug 23',
-          bugs: ['hotbar scroll wheel broken on CrazyGames (pointerLocked guard blocked scroll)', 'settings not synced to CG cloud (render distance, FOV, volume, etc.)', 'skin selection not synced to CG cloud', 'achievements not pulled from CG cloud on load'],
-          updates: ['Hotbar scroll works without pointer lock (CG fix)', 'All settings now dual-write to CG cloud (saveSetting helper)', 'cgPullProgress now restores settings, skin, and achievements from cloud', 'Achievements load from cloud when local storage is empty'],
-          features: ['Sneak edge prevention (crouching prevents walking off ledges)', 'Night ambient cricket sounds (procedural chirps at night, 2-7s interval)'],
+          bugs: ['skins not synced across devices (skin selection, custom skins lost on new device)', 'DMs not synced across devices (offline messages lost)', 'player name/identity not synced (re-entering name on each device)', 'keybinds not synced (re-binding on each device)', 'voice settings not synced', 'achievements not pulled from cloud on load'],
+          updates: ['Created cloudSet() helper in storage.js for consistent localStorage + SDK dual-write', 'All skin save handlers now push to CG cloud (selection, custom list, custom data)', 'DM thread saves now push to CG cloud', 'DM offline queue synced to cloud', 'Player name synced to cloud at all save sites (11 locations)', 'bf_login_user and bf_role synced to cloud', 'Voice volume and PTT settings synced to cloud', 'Keybinds synced to cloud', 'cgPullProgress now restores: skins, DMs, player identity, keybinds, voice settings', 'Portal skin equip also pushes to CG cloud'],
+          features: [],
         },
         {
           hash: '7f03e9c',
@@ -2533,10 +2533,12 @@
           list.push(dataUrl);
           idx = list.length - 1;
           try { localStorage.setItem('blockforge_custom_skins' + suffix, JSON.stringify(list)); } catch (_) {}
+          try { if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) window.CrazyGames.SDK.data.setItem('blockforge_custom_skins' + suffix, JSON.stringify(list)).catch(() => {}); } catch (_) {}
         }
         try {
           localStorage.setItem('blockforge_skin' + suffix, 'custom:' + idx);
           localStorage.setItem('bf_custom_skin_created', '1');
+          try { if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) { window.CrazyGames.SDK.data.setItem('blockforge_skin' + suffix, 'custom:' + idx).catch(() => {}); window.CrazyGames.SDK.data.setItem('bf_custom_skin_created', '1').catch(() => {}); } } catch (_) {}
         } catch (_) {}
         var url = 'https://blockforge-1.onrender.com/?skin=equip';
         if (user) url += '&user=' + encodeURIComponent(user);
