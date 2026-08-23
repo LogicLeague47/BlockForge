@@ -9956,7 +9956,7 @@ function _gameFrame() {
         const m = new THREE.Mesh(_particleGeoTiny, _bossHitMat);
         m.position.set(px, py, pz);
         scene.add(m);
-        _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 1, maxLife: 1 });
+        _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 2, vy: 1 + Math.random() * 2, vz: (Math.random() - 0.5) * 2, life: 1, maxLife: 1, shared: true });
       }
     }
     // Boss died — drop loot
@@ -10000,7 +10000,7 @@ function _gameFrame() {
       const m = new THREE.Mesh(geo, mat);
       m.position.set(px, py, pz);
       scene.add(m);
-      _particles.push({ mesh: m, vx: 0, vy: 1.5, vz: 0, life: 0.4, maxLife: 0.4 });
+      _particles.push({ mesh: m, vx: 0, vy: 1.5, vz: 0, life: 0.4, maxLife: 0.4, shared: true });
     }
   }
 
@@ -10022,7 +10022,7 @@ function _gameFrame() {
           const m = new THREE.Mesh(_particleGeoTiny, mat);
           m.position.set(px, py, pz);
           scene.add(m);
-          _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 1, vy: 0.5 + Math.random() * 1.5, vz: (Math.random() - 0.5) * 1, life: 0.6, maxLife: 0.6 });
+          _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 1, vy: 0.5 + Math.random() * 1.5, vz: (Math.random() - 0.5) * 1, life: 0.6, maxLife: 0.6, shared: true });
         }
       }
     }
@@ -10050,7 +10050,7 @@ function _gameFrame() {
             vx: (Math.random() - 0.5) * 2,
             vy: 2 + Math.random() * 2,
             vz: (Math.random() - 0.5) * 2,
-            life: 0.5, maxLife: 0.5
+            life: 0.5, maxLife: 0.5, shared: true
           });
         }
       }
@@ -10070,9 +10070,11 @@ function _gameFrame() {
     p.life -= dt;
     if (p.life <= 0) {
       scene.remove(p.mesh);
-      if (Array.isArray(p.mesh.material)) { p.mesh.material.forEach(m => m.dispose()); }
-      else if (p.mesh.material) p.mesh.material.dispose();
-      if (p.mesh.geometry) p.mesh.geometry.dispose();
+      if (!p.shared) {
+        if (Array.isArray(p.mesh.material)) { p.mesh.material.forEach(m => m.dispose()); }
+        else if (p.mesh.material) p.mesh.material.dispose();
+        if (p.mesh.geometry) p.mesh.geometry.dispose();
+      }
       _particles[i] = _particles[_particles.length - 1];
       _particles.length--;
       continue;
