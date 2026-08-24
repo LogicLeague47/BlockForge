@@ -125,6 +125,18 @@ export const ITEM = {
   VILLAGER_SPAWN_EGG: 808,
   BLOWER_SPAWN_EGG: 809,
   PORTALMAN_SPAWN_EGG: 810,
+  // Original utility / weapon items (820+)
+  GRAPPLE_HOOK: 820,
+  FROST_WAND: 821,
+  BLAZE_LAUNCHER: 822,
+  DIMENSION_COMPASS: 823,
+  CRYSTAL_PICKAXE: 824,
+  GRAVITY_BOOTS: 825,
+  MUSIC_DISC_1: 830,
+  MUSIC_DISC_2: 831,
+  MUSIC_DISC_3: 832,
+  MUSIC_DISC_4: 833,
+  MUSIC_DISC_5: 834,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -184,6 +196,7 @@ const TOOL_MATERIALS = {
   EMERALD:{ harvest: 4, durability: 1561,speedMult: 1.46, swordDmg: 5 },
   PRISMITE:{ harvest: 4, durability: 2000, speedMult: 2.0, swordDmg: 25 },
   DRAGON:  { harvest: 5, durability: 4000, speedMult: 2.5, swordDmg: 18 },
+  CRYSTAL: { harvest: 5, durability: 3000, speedMult: 2.2, swordDmg: 12 },
 };
 
 // Map tool id -> { type: 'pickaxe'|'axe'|'shovel'|'sword', material }
@@ -209,6 +222,8 @@ const TOOLS = {};
   TOOLS[ITEM.TRIDENT] = { type: 'trident', material: 'PRISMITE' };
   // Dragon Blade (mythic)
   TOOLS[ITEM.DRAGON_BLADE] = { type: 'sword', material: 'DRAGON' };
+  // Crystal pickaxe (original)
+  TOOLS[ITEM.CRYSTAL_PICKAXE] = { type: 'pickaxe', material: 'CRYSTAL' };
 })();
 
 // --- master ITEMS table -----------------------------------------------------
@@ -293,6 +308,16 @@ const NONBLOCK_ITEMS = {
   [ITEM.VILLAGER_SPAWN_EGG]: { name: 'Villager Spawn Egg', stack: 64 },
   [ITEM.BLOWER_SPAWN_EGG]: { name: 'Blower Spawn Egg', stack: 64 },
   [ITEM.PORTALMAN_SPAWN_EGG]: { name: 'Portalman Spawn Egg', stack: 64 },
+  // Original utility / weapon items
+  [ITEM.GRAPPLE_HOOK]:    { name: 'Grapple Hook', stack: 1 },
+  [ITEM.FROST_WAND]:      { name: 'Frost Wand', stack: 1 },
+  [ITEM.BLAZE_LAUNCHER]:  { name: 'Blaze Rod Launcher', stack: 1 },
+  [ITEM.DIMENSION_COMPASS]: { name: 'Dimension Compass', stack: 1 },
+  [ITEM.MUSIC_DISC_1]:    { name: 'Music Disc - Crystal', stack: 1 },
+  [ITEM.MUSIC_DISC_2]:    { name: 'Music Disc - Aurora', stack: 1 },
+  [ITEM.MUSIC_DISC_3]:    { name: 'Music Disc - Ember', stack: 1 },
+  [ITEM.MUSIC_DISC_4]:    { name: 'Music Disc - Void', stack: 1 },
+  [ITEM.MUSIC_DISC_5]:    { name: 'Music Disc - Sky', stack: 1 },
 };
 
 // --- armor definitions -------------------------------------------------------
@@ -305,6 +330,7 @@ const ARMOR_MATERIALS = {
   GOLD:    { defense: 7,  durability: 77,  slot: 'GOLD' },
   DIAMOND: { defense: 20, durability: 363, slot: 'DIAMOND' },
   PRISMITE:{ defense: 999,durability: 9999,slot: 'PRISMITE' },
+  CRYSTAL: { defense: 18, durability: 4000, slot: 'CRYSTAL' },
 };
 
 // Per-piece defense and slot index
@@ -334,6 +360,12 @@ const ARMOR = {};
     }
   }
 })();
+// Original armor: Gravity Boots (slow-fall + fall-damage immunity)
+ARMOR[ITEM.GRAVITY_BOOTS] = {
+  material: 'CRYSTAL', piece: 'BOOTS',
+  slotIdx: 3, defense: ARMOR_PIECES.BOOTS.defense + ARMOR_MATERIALS.CRYSTAL.defense,
+  totalDefense: ARMOR_MATERIALS.CRYSTAL.defense, durability: ARMOR_MATERIALS.CRYSTAL.durability,
+};
 
 // --- public helpers ---------------------------------------------------------
 export function isBlockItem(id) { return id < 256; }

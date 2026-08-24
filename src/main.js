@@ -1717,6 +1717,54 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
+      // Grapple Hook: pull the player to the targeted surface
+      if (!used && slot && slot.item === ITEM.GRAPPLE_HOOK) {
+        const hit = currentTarget();
+        if (hit) {
+          _grappleTarget.set(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+          _grappleUntil = performance.now() / 1000 + 1.6;
+          if (audio && audio.grapple) audio.grapple();
+          used = true;
+        }
+      }
+
+      // Frost Wand: freeze water/lava, or chill a mob in the crosshair
+      if (!used && slot && slot.item === ITEM.FROST_WAND) {
+        const hit = currentTarget();
+        if (hit) {
+          const b = world.getBlock(hit.x, hit.y, hit.z);
+          if (b === BLOCK.WATER) world.setBlock(hit.x, hit.y, hit.z, BLOCK.ICE);
+          else if (b === BLOCK.LAVA) world.setBlock(hit.x, hit.y, hit.z, BLOCK.OBSIDIAN);
+          else {
+            const mob = raycastMob(REACH);
+            if (mob) mob._frostSlow = performance.now() / 1000 + 3;
+          }
+          spawnFrostParticles(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+          if (audio && audio.frost) audio.frost();
+          if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+          used = true;
+        }
+      }
+
+      // Blaze Rod Launcher: shoot a fireball
+      if (!used && slot && slot.item === ITEM.BLAZE_LAUNCHER) {
+        throwFireball();
+        if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+        used = true;
+      }
+
+      // Dimension Compass: point back to spawn / nearest portal
+      if (!used && slot && slot.item === ITEM.DIMENSION_COMPASS) {
+        const sp = player.spawnPoint || { x: 0, y: 64, z: 0 };
+        const dx = sp.x - player.position.x, dz = sp.z - player.position.z;
+        const ang = Math.atan2(dz, dx) * 180 / Math.PI;
+        let dir = 'unknown';
+        if (ang >= -45 && ang < 45) dir = 'East'; else if (ang >= 45 && ang < 135) dir = 'South';
+        else if (ang >= 135 || ang < -135) dir = 'West'; else dir = 'North';
+        addChatLine(`Dimension Compass → Spawn is to the ${dir} (${Math.round(sp.x)}, ${Math.round(sp.z)})`, '#7fd0ff');
+        used = true;
+      }
+
       // Main hand: eat food or place block
       if (!used && slot && slot.item === ITEM.BONE_MEAL) {
         const bHit = currentTarget();
@@ -2160,6 +2208,94 @@ function updatePortalOrbs(dt) {
       orb.dispose();
       _portalOrbs[i] = _portalOrbs[_portalOrbs.length - 1];
       _portalOrbs.length--;
+    }
+  }
+}
+
+// ── Utility-item helpers (grapple, frost, fireball) ────────────────────────────
+const _grappleTarget = new THREE.Vector3();
+let _grappleUntil = 0;
+
+// Nearest mob along the camera ray within `range` (for the Frost Wand).
+function raycastMob(range) {
+  if (!camera || !mobManager || !mobManager.mobs) return null;
+  camera.getWorldDirection(_rayDir);
+  let best = null, bestT = Infinity;
+  for (const mob of mobManager.mobs) {
+    const p = mob.position;
+    const dx = p.x - camera.position.x, dy = (p.y + 0.8) - camera.position.y, dz = p.z - camera.position.z;
+    const t = dx * _rayDir.x + dy * _rayDir.y + dz * _rayDir.z;
+    if (t < 0 || t > range) continue;
+    const px = camera.position.x + _rayDir.x * t, py = camera.position.y + _rayDir.y * t, pz = camera.position.z + _rayDir.z * t;
+    const perp = Math.hypot(dx - _rayDir.x * t, dy - _rayDir.y * t, dz - _rayDir.z * t);
+    if (perp < 1.1 && t < bestT) { bestT = t; best = mob; }
+  }
+  return best;
+}
+
+function spawnFrostParticles(x, y, z) {
+  if (!scene) return;
+  for (let i = 0; i < 14; i++) {
+    const mat = new THREE.MeshBasicMaterial({ color: 0xbfeaff, transparent: true, opacity: 0.9 });
+    const m = new THREE.Mesh(_particleGeoTiny, mat);
+    m.position.set(x + (Math.random() - 0.5), y + (Math.random() - 0.5), z + (Math.random() - 0.5));
+    scene.add(m);
+    _particles.push({ mesh: m, vx: (Math.random() - 0.5) * 1.5, vy: Math.random() * 1.5, vz: (Math.random() - 0.5) * 1.5, life: 0.7, maxLife: 0.7 });
+  }
+}
+
+// Blaze fireballs: glowing projectile that damages mobs on impact.
+const _fireballs = [];
+function throwFireball() {
+  if (!player || !camera) return;
+  camera.getWorldDirection(_rayDir);
+  _rayDir.multiplyScalar(24); _rayDir.y += 1.5;
+  const o = camera.position;
+  const fb = { x: o.x, y: o.y, z: o.z, vx: _rayDir.x, vy: _rayDir.y, vz: _rayDir.z, life: 4 };
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff7a1a });
+  const mesh = new THREE.Mesh(_particleGeoTiny, mat);
+  mesh.scale.setScalar(2.2);
+  if (scene) scene.add(mesh);
+  fb.mesh = mesh;
+  _fireballs.push(fb);
+  if (audio && audio.throwProjectile) audio.throwProjectile();
+}
+function updateFireballs(dt) {
+  for (let i = _fireballs.length - 1; i >= 0; i--) {
+    const fb = _fireballs[i];
+    fb.life -= dt;
+    fb.x += fb.vx * dt; fb.y += fb.vy * dt; fb.z += fb.vz * dt;
+    fb.vy -= 9 * dt * 0.5;
+    if (fb.mesh) fb.mesh.position.set(fb.x, fb.y, fb.z);
+    const bx = Math.floor(fb.x), by = Math.floor(fb.y), bz = Math.floor(fb.z);
+    const blk = world ? world.getBlock(bx, by, bz) : 0;
+    let hitMob = null;
+    if (mobManager && mobManager.mobs) {
+      const fdir = new THREE.Vector3(fb.vx, fb.vy, fb.vz).normalize();
+      hitMob = mobManager.hitTest(new THREE.Vector3(fb.x, fb.y, fb.z), fdir, 1.4);
+    }
+    if ((BLOCKS[blk] && BLOCKS[blk].solid) || fb.life <= 0 || hitMob) {
+      if (hitMob && hitMob.damage) hitMob.damage(6, 'fire');
+      if (audio && audio.explode) audio.explode();
+      if (fb.mesh) scene.remove(fb.mesh);
+      _fireballs.splice(i, 1);
+    }
+  }
+}
+function updateUtilityItems(dt) {
+  updateFireballs(dt);
+  const t = performance.now() / 1000;
+  if (_grappleUntil > t && player) {
+    const dx = _grappleTarget.x - player.position.x;
+    const dy = _grappleTarget.y - (player.position.y + 0.9);
+    const dz = _grappleTarget.z - player.position.z;
+    const d = Math.hypot(dx, dy, dz);
+    if (d < 1.2) { _grappleUntil = 0; }
+    else {
+      const pull = Math.min(d, 14) * 1.6;
+      player.velocity.x += (dx / d) * pull * dt;
+      player.velocity.y += (dy / d) * pull * dt;
+      player.velocity.z += (dz / d) * pull * dt;
     }
   }
 }
@@ -9418,6 +9554,8 @@ function _gameFrame() {
   // player physics (skip during sleep / replay camera)
   if (!sleeping && !replayMode) {
     player.update(dt, input);
+
+    updateUtilityItems(dt);
 
     // Flush room edits that arrived while the world was loading (bedwars beds,
     // builds, anything a late joiner would otherwise miss).

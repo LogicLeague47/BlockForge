@@ -16,7 +16,7 @@ import { WORLD_HEIGHT, SEA_LEVEL } from './world.js';
 import { Inventory } from './inventory.js';
 import { Noise } from './noise.js';
 import { calcHeight, getClimate, spawnFitness } from './worldgen.js';
-import { totalArmorDefense } from './items.js';
+import { totalArmorDefense, ITEM } from './items.js';
 import { getKeybinds } from './keybinds.js';
 import { raycastVoxel } from './raycast.js';
 
@@ -570,6 +570,12 @@ export class Player {
       this.fallStartY = -1;
     } else {
       this.velocity.y -= GRAVITY * dt; // gravity always applied (guard removed)
+      // Gravity Boots: gentle constant slow-fall (and a deeper glide on crouch)
+      const _gb = this.inventory && this.inventory.armor && this.inventory.armor[3] && this.inventory.armor[3].item === ITEM.GRAVITY_BOOTS;
+      if (_gb) {
+        if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = Math.max(this.velocity.y, -1.5);
+        else this.velocity.y = Math.max(this.velocity.y, -4.5);
+      }
       if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
@@ -804,7 +810,9 @@ export class Player {
                 const fallDistance = this.fallStartY - this.position.y;
                 if (this.onLand && fallDistance > 0.7) this.onLand();
                 if (fallDistance > 3) {
-                  const damage = Math.floor(fallDistance - 3);
+                  let damage = Math.floor(fallDistance - 3);
+                  const _gb = this.inventory && this.inventory.armor && this.inventory.armor[3] && this.inventory.armor[3].item === ITEM.GRAVITY_BOOTS;
+                  if (_gb) damage = 0; // boots negate fall damage
                   if (damage > 0) this.takeDamage(damage, 'fall');
                 }
               }

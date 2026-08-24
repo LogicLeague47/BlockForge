@@ -3020,6 +3020,10 @@ class Mob {
       return;
     }
 
+    // Frost-Wand slow: scale movement to 35% while chilled.
+    const _frostSlow = this._frostSlow && (performance.now() / 1000) < this._frostSlow;
+    const frostMul = _frostSlow ? 0.35 : 1;
+
     // Hurt flash
     if (this.hurtTimer > 0) {
       this.hurtTimer -= dt;
@@ -3109,6 +3113,8 @@ class Mob {
           this.velocity.y += (targetY - this.position.y) * dt;
         }
       }
+      this.velocity.x *= frostMul;
+      this.velocity.z *= frostMul;
       this.position.x += this.velocity.x * dt;
       this.position.z += this.velocity.z * dt;
       this.position.y += this.velocity.y * dt;
@@ -3148,7 +3154,7 @@ class Mob {
       const turnSpeed = this.state === 'fleeing' ? 5 : 3;
       this.yaw += dy * Math.min(1, dt * turnSpeed);
 
-      const moveSpeed = this.state === 'fleeing' ? WALK_SPEED * 2.2 : WALK_SPEED;
+      const moveSpeed = (this.state === 'fleeing' ? WALK_SPEED * 2.2 : WALK_SPEED) * frostMul;
       this.velocity.x = -Math.sin(this.yaw) * moveSpeed;
       this.velocity.z = -Math.cos(this.yaw) * moveSpeed;
 
