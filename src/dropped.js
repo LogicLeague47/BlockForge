@@ -6,7 +6,7 @@ import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
 import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
-import { CHUNK_SIZE } from './constants.js';
+import { CHUNK_SIZE, WORLD_HEIGHT } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
 
 const COLLECT_RANGE = 1.5;
@@ -19,7 +19,7 @@ const BOB_AMP = 0.08;
 const DESPAWN_TIME = 60; // seconds
 
 export class DroppedItem {
-  constructor(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0) {
+  constructor(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0, world = null) {
     this.scene = scene;
     this.itemId = itemId;
     this.count = count || 1;
@@ -32,6 +32,8 @@ export class DroppedItem {
     this.collected = false;
     this._canCollect = false; // grace period before auto-collect
     this._atlasCanvas = atlasCanvas;
+    this.world = world;
+    this._dropGroundY = world ? this._findSurfaceY(x, z) : y;
 
     // Create 3D representation
     this.group = new THREE.Group();
@@ -81,8 +83,19 @@ export class DroppedItem {
       if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
     });
 
-    this._dropGroundY = y;
+    this._dropGroundY = world ? this._findSurfaceY(x, z) : y;
     this.vy = 0;
+  }
+
+  _findSurfaceY(x, z) {
+    if (!this.world) return this.y - FLOAT_HEIGHT;
+    const wx = Math.floor(x), wz = Math.floor(z);
+    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+      const b = this.world.getBlock(wx, y, wz);
+      const def = BLOCKS[b];
+      if (def && def.solid && !def.plant) return y + 1;
+    }
+    return 0;
   }
 
   _atlasTex(name) {
@@ -177,7 +190,7 @@ export class DroppedItem {
     if (this.group) this.scene.remove(this.group);
   }
 
-  reset(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0) {
+  reset(scene, atlasCanvas, itemId, x, y, z, count, vx = 0, vz = 0, world = null) {
     this.scene = scene;
     this.itemId = itemId;
     this.count = count || 1;
@@ -190,7 +203,8 @@ export class DroppedItem {
     this.collected = false;
     this._canCollect = false;
     this._atlasCanvas = atlasCanvas;
-    this._dropGroundY = y;
+    this.world = world;
+    this._dropGroundY = world ? this._findSurfaceY(x, z) : y;
     this.vy = 0;
     this.group.position.set(this.x, this.y, this.z);
     this.group.rotation.y = 0;
@@ -283,9 +297,9 @@ export class DroppedItemManager {
     let entity;
     if (this._pool.length > 0) {
       entity = this._pool.pop();
-      entity.reset(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
+      entity.reset(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz, this.world);
     } else {
-      entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz);
+      entity = new DroppedItem(this.scene, this.atlasCanvas, itemId, x + dx, y, z + dz, count, vx, vz, this.world);
     }
     this.items.push(entity);
     return entity;

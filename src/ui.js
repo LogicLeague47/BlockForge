@@ -2395,8 +2395,18 @@ export class UI {
       if (def && def.armor) {
         const idx = def.armor.slotIdx;
         const prev = inv.armor[idx];
-        inv.armor[idx] = { item: s.item, count: 1, ...(s.durability != null ? { durability: s.durability } : {}) };
-        inv.slots[i] = prev ? { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) } : null;
+        const equipDur = s.durability != null ? { durability: s.durability } : {};
+        const remainder = (s.count || 1) - 1;
+        inv.armor[idx] = { item: s.item, count: 1, ...equipDur };
+        if (prev) {
+          // Slot occupied: swap previously-equipped piece back into source slot
+          inv.slots[i] = { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) };
+        } else if (remainder > 0) {
+          // Equipped one from a stack: keep the rest in the source slot
+          inv.slots[i] = { item: s.item, count: remainder, ...equipDur };
+        } else {
+          inv.slots[i] = null;
+        }
         if (this.audio) this.audio.armorEquip();
         this.renderInventoryGrid(inv);
         this.renderArmorSlots();

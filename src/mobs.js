@@ -417,13 +417,38 @@ class Mob {
     this.legs = [];
     // Attack animation state
     this.attackAnim = 0; // arm swing progress (0 = idle, 1 = peak)
-    this.mesh = this._buildMesh(def);
+    // Lazy mesh creation: the (expensive) mesh is only built when the mob is
+    // near the camera. Until then we keep an empty Group so it can still be
+    // added to the scene / referenced without special-casing every caller.
+    this.mesh = new THREE.Group();
     this.mesh.position.copy(this.position);
-    this.mesh.traverse((child) => {
-      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
-    });
+    this._meshBuilt = false;
 
     // Cache all materials for fast hurt/flash (avoids mesh.traverse)
+    this._allMats = [];
+    this._savedColors = [];
+
+    // Store original body/head positions for bobbing
+    this._origBodyY = 0;
+    this._origHeadY = 0;
+    this._cachedBody = null;
+    this._cachedHead = null;
+    this._cachedSnout = null;
+  }
+
+  // Build the visual mesh on demand (see lazy-mesh note above). Safe to call
+  // repeatedly; only does work once.
+  _ensureMesh() {
+    if (this._meshBuilt || this._playerModel) return;
+    const def = MOB_TYPES[this.type];
+    const built = this._buildMesh(def);
+    built.position.copy(this.position);
+    built.traverse((child) => {
+      if (child.isMesh) { child.castShadow = true; child.receiveShadow = true; }
+    });
+    // Move built children into the (already scene-attached) this.mesh group.
+    while (built.children.length) this.mesh.add(built.children[0]);
+
     this._allMats = [];
     this._savedColors = [];
     this.mesh.traverse((child) => {
@@ -436,7 +461,6 @@ class Mob {
       }
     });
 
-    // Store original body/head positions for bobbing
     this._origBodyY = 0;
     this._origHeadY = 0;
     this._cachedBody = null;
@@ -447,6 +471,7 @@ class Mob {
       if (child.name === 'head') { this._origHeadY = child.position.y; this._cachedHead = child; }
       if (child.name === 'snout') this._cachedSnout = child;
     });
+    this._meshBuilt = true;
   }
 
   // Floating name tag above the Traveler so it's easy to identify among the
@@ -2871,44 +2896,94 @@ class Mob {
 
   // Resolve horizontal movement against solid voxels so mobs can't walk
   // through walls. Uses a simple AABB (width = body, height = body+head).
+  // Includes a 1-block "step up" so mobs don't get stuck on ledges/gaps.
   _moveHoriz(world, dx, dz) {
     const def = MOB_TYPES[this.type];
     const hw = def.bodyW / 2 + 0.02;
     const hd = def.bodyD / 2 + 0.02;
     const height = def.bodyH + def.headH;
-    const minY = Math.floor(this.position.y);
-    const maxY = Math.floor(this.position.y + height);
+    let minY = Math.floor(this.position.y);
+    let maxY = Math.floor(this.position.y + height);
+
+    // Can the mob step up exactly one block at column (cx,cz)? True only when
+    // the obstacle is a single-block ledge: there's solid ground to step onto
+    // (foot cell) and the swept volume one block higher is clear.
+    const canStep = (cx, cz) => {
+      // foot cell must be solid (the step itself)
+      if (!this._solid(world, cx, minY, cz)) return false;
+      // everything from one block up through head must be clear
+      for (let y = minY + 1; y <= maxY + 1; y++)
+        if (this._solid(world, cx, y, cz)) return false;
+      return true;
+    };
+    const tryStepX = (x) => {
+      const z0 = Math.floor(this.position.z - hd), z1 = Math.floor(this.position.z + hd);
+      for (let z = z0; z <= z1; z++) if (!canStep(x, z)) return false;
+      return true;
+    };
+    const tryStepZ = (z) => {
+      const x0 = Math.floor(this.position.x - hw), x1 = Math.floor(this.position.x + hw);
+      for (let x = x0; x <= x1; x++) if (!canStep(x, z)) return false;
+      return true;
+    };
 
     // X axis
     this.position.x += dx;
     if (dx > 0) {
       const x = Math.floor(this.position.x + hw);
+      let blocked = false;
       for (let y = minY; y <= maxY; y++)
         for (let z = Math.floor(this.position.z - hd); z <= Math.floor(this.position.z + hd); z++)
-          if (this._solid(world, x, y, z)) { this.position.x = x - hw - 0.001; this.velocity.x = 0; break; }
+          if (this._solid(world, x, y, z)) { blocked = true; break; }
+      if (blocked) {
+        if (tryStepX(x)) { this.position.y += 1; minY++; maxY++; }
+        else { this.position.x = x - hw - 0.001; this.velocity.x = 0; }
+      }
     } else if (dx < 0) {
       const x = Math.floor(this.position.x - hw);
+      let blocked = false;
       for (let y = minY; y <= maxY; y++)
         for (let z = Math.floor(this.position.z - hd); z <= Math.floor(this.position.z + hd); z++)
-          if (this._solid(world, x, y, z)) { this.position.x = x + 1 + hw + 0.001; this.velocity.x = 0; break; }
+          if (this._solid(world, x, y, z)) { blocked = true; break; }
+      if (blocked) {
+        if (tryStepX(x)) { this.position.y += 1; minY++; maxY++; }
+        else { this.position.x = x + 1 + hw + 0.001; this.velocity.x = 0; }
+      }
     }
 
     // Z axis
     this.position.z += dz;
     if (dz > 0) {
       const z = Math.floor(this.position.z + hd);
+      let blocked = false;
       for (let y = minY; y <= maxY; y++)
         for (let x = Math.floor(this.position.x - hw); x <= Math.floor(this.position.x + hw); x++)
-          if (this._solid(world, x, y, z)) { this.position.z = z - hd - 0.001; this.velocity.z = 0; break; }
+          if (this._solid(world, x, y, z)) { blocked = true; break; }
+      if (blocked) {
+        if (tryStepZ(z)) { this.position.y += 1; minY++; maxY++; }
+        else { this.position.z = z - hd - 0.001; this.velocity.z = 0; }
+      }
     } else if (dz < 0) {
       const z = Math.floor(this.position.z - hd);
+      let blocked = false;
       for (let y = minY; y <= maxY; y++)
         for (let x = Math.floor(this.position.x - hw); x <= Math.floor(this.position.x + hw); x++)
-          if (this._solid(world, x, y, z)) { this.position.z = z + 1 + hd + 0.001; this.velocity.z = 0; break; }
+          if (this._solid(world, x, y, z)) { blocked = true; break; }
+      if (blocked) {
+        if (tryStepZ(z)) { this.position.y += 1; minY++; maxY++; }
+        else { this.position.z = z + 1 + hd + 0.001; this.velocity.z = 0; }
+      }
     }
   }
 
   update(dt, world, noise, playerPos) {
+    // Lazy mesh creation: only build the (expensive) mesh once the mob is near
+    // the camera. Far-off mobs stay invisible and cost nothing to render.
+    if (!this._meshBuilt && !this._playerModel) {
+      const near = !playerPos || (playerPos.x - this.position.x) ** 2 + (playerPos.z - this.position.z) ** 2 < 6400;
+      if (near) this._ensureMesh();
+    }
+
     // Death animation: fall over + fade out over 0.6s
     if (this.dead) {
       this.deathTimer += dt;
