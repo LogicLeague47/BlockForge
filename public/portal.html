@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '03bfa2f',
+          heading: 'Fixed black screen + proper old-iPhone support',
+          desc: 'The previous WebGL2-swap used import maps, which both broke the build (black screen) and aren\'t supported on old Safari. Replaced with two prebuilt bundles: a modern WebGL2 build and a WebGL1-compatible build (three r162). The game loads the modern one normally and only switches to the legacy bundle on devices without WebGL2.',
+          date: 'Aug 24',
+          bugs: ['Black screen after the WebGL fallback change', 'Import maps unsupported on old Safari (the real old-iPhone target)'],
+          updates: ['Static entry script so the build can discover the bundle again', 'Separate assets/main-legacy.js (three r162) built via build-legacy.mjs', 'Runtime swaps to legacy bundle only when WebGL2 is absent — no import maps'],
+          features: ['Working modern build + automatic WebGL1 fallback for old devices'],
+        },
+        {
           hash: '955c96b',
           heading: 'Old-iPhone / WebGL1 support',
           desc: 'Added a legacy WebGL fallback. We now detect whether a device supports WebGL2; if not (e.g. old iPhones) the game loads an older three.js that still supports WebGL1, so it runs instead of showing a black screen / crash.',
