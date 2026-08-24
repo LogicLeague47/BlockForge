@@ -10219,6 +10219,17 @@ function _gameFrame() {
     stepTimer = 0;
   }
 
+  // ladder-climb + swimming ambient sounds (only while actually moving)
+  const _moving = Math.abs(player.velocity.x) > 0.01 || Math.abs(player.velocity.z) > 0.01 || Math.abs(player.velocity.y) > 0.01;
+  if (player.onLadder && _moving) {
+    climbTimer += dt;
+    if (climbTimer >= 0.4) { climbTimer = 0; if (audio) audio.climbTick(); }
+  } else climbTimer = 0;
+  if (player.inWater && _moving) {
+    swimTimer += dt;
+    if (swimTimer >= 0.45) { swimTimer = 0; if (audio) audio.swimTick(); }
+  } else swimTimer = 0;
+
   // damage sound + camera shake
   if (player.damageTimer > 0 && prevDamageTimer <= 0) {
 
@@ -11410,7 +11421,7 @@ document.getElementById('btn-close-chest')?.addEventListener('click', () => {
 });
 
 
-let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false, _mobSpawnTimer = 0;
+let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, climbTimer = 0, swimTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false, _mobSpawnTimer = 0;
 const _prevPlayerPos = new THREE.Vector3();
 const _shadowLightDir = new THREE.Vector3();
 const _shadowLookAt = new THREE.Matrix4();

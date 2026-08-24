@@ -232,7 +232,7 @@ export function buildChunkGeometry(chunk, world) {
         const target = isWater ? water : (def.cutout ? cutout : (def.transparent ? trans : opaque));
 
         if (def.plant) {
-          pushPlant(target, wx, y, wz, b);
+          pushPlant(target, wx, y, wz, b, sample);
           continue;
         }
 
@@ -338,7 +338,6 @@ const _PLANT_QUADS = [
   // Vertical billboard in the Z-Y plane, centred at x = 0.5
   [[0.5,0,0],[0.5,0,1],[0.5,1,1],[0.5,1,0]],
 ];
-const _PLANT_UVS_BUF = [[0,0],[0,0],[0,0],[0,0]];
 const _AO_T_X = [0, 1, 0];
 const _AO_T2_X = [0, 0, 1];
 const _AO_T_Y = [1, 0, 0];
@@ -379,27 +378,84 @@ function computeAO(face, x, y, z, sample) {
   return _ao;
 }
 
-// Plants / 2D decorations render as upright crossed billboards (Minecraft style):
-// two perpendicular vertical quads centred in the block, never tilted/skewed.
-function pushPlant(target, wx, y, wz, blockId) {
-  const tile = tileNameFor(blockId, 'side');
-  const uv = tileUVRect(tile);
+// Is a block id something a torch / hanging decoration can attach to?
+function _isSolidId(id) {
+  if (!id) return false;
+  const d = BLOCKS[id];
+  return !!(d && d.solid);
+}
+
+// Work out how a decoration attaches, by checking the blocks around it.
+// Returns 'north' | 'south' | 'east' | 'west' (a wall face) or 'floor' / 'ceiling'.
+function _attachDir(sample, wx, y, wz) {
+  if (_isSolidId(sample(wx, y + 1, wz))) return 'ceiling';
+  if (_isSolidId(sample(wx, y, wz + 1))) return 'north';
+  if (_isSolidId(sample(wx, y, wz - 1))) return 'south';
+  if (_isSolidId(sample(wx + 1, y, wz))) return 'east';
+  if (_isSolidId(sample(wx - 1, y, wz))) return 'west';
+  return 'floor';
+}
+
+// Two perpendicular vertical quads (Minecraft-style "crossed" billboard).
+function pushCrossedBillboard(target, wx, y, wz, uv) {
+  const uvp = [[uv.u0, uv.v0], [uv.u1, uv.v0], [uv.u1, uv.v1], [uv.u0, uv.v1]];
   for (let q = 0; q < 2; q++) {
     const start = target.pos.itemCount;
     const qu = _PLANT_QUADS[q];
-    _PLANT_UVS_BUF[0][0] = uv.u0; _PLANT_UVS_BUF[0][1] = uv.v0;
-    _PLANT_UVS_BUF[1][0] = uv.u1; _PLANT_UVS_BUF[1][1] = uv.v0;
-    _PLANT_UVS_BUF[2][0] = uv.u1; _PLANT_UVS_BUF[2][1] = uv.v1;
-    _PLANT_UVS_BUF[3][0] = uv.u0; _PLANT_UVS_BUF[3][1] = uv.v1;
     for (let i = 0; i < 4; i++) {
-      const dx = qu[i][0], dy = qu[i][1], dz = qu[i][2];
-      target.pos.push3(wx + dx, y + dy, wz + dz);
-      target.uv.push2(_PLANT_UVS_BUF[i][0], _PLANT_UVS_BUF[i][1]);
+      target.pos.push3(wx + qu[i][0], y + qu[i][1], wz + qu[i][2]);
+      target.uv.push2(uvp[i][0], uvp[i][1]);
       target.col.push3(1, 1, 1);
       target.nor.push3(0, 1, 0);
     }
     target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
   }
+}
+
+// A single quad pressed flat against a wall face (ladder / sign / painting /
+// button / lever / wall-torch). `dir` is the wall face it hangs on.
+function pushWallQuad(target, wx, y, wz, uv, dir) {
+  const start = target.pos.itemCount;
+  const o = 0.06;
+  let corners, normal;
+  if (dir === 'north') { corners = [[0, 0, 1 - o], [1, 0, 1 - o], [1, 1, 1 - o], [0, 1, 1 - o]]; normal = [0, 0, -1]; }
+  else if (dir === 'south') { corners = [[0, 0, o], [1, 0, o], [1, 1, o], [0, 1, o]]; normal = [0, 0, 1]; }
+  else if (dir === 'east') { corners = [[1 - o, 0, 0], [1 - o, 0, 1], [1 - o, 1, 1], [1 - o, 1, 0]]; normal = [-1, 0, 0]; }
+  else { corners = [[o, 0, 0], [o, 0, 1], [o, 1, 1], [o, 1, 0]]; normal = [1, 0, 0]; }
+  const uvp = [[uv.u0, uv.v0], [uv.u1, uv.v0], [uv.u1, uv.v1], [uv.u0, uv.v1]];
+  for (let i = 0; i < 4; i++) {
+    target.pos.push3(wx + corners[i][0], y + corners[i][1], wz + corners[i][2]);
+    target.uv.push2(uvp[i][0], uvp[i][1]);
+    target.col.push3(1, 1, 1);
+    target.nor.push3(normal[0], normal[1], normal[2]);
+  }
+  target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
+}
+
+// Plants / 2D decorations.
+//  - grass, flowers, saplings, pots, plates, carpets, dust: upright crossed billboard
+//  - wall decorations (ladder, sign, painting, button, lever): flat against the wall
+//  - torches: floor (crossed), wall (per direction, flat on the wall), ceiling (crossed)
+function pushPlant(target, wx, y, wz, blockId, sample) {
+  const tile = tileNameFor(blockId, 'side');
+  const uv = tileUVRect(tile);
+  const isTorch = blockId === BLOCK.TORCH || blockId === BLOCK.GREENSTONE_TORCH;
+  const wallDecor = blockId === BLOCK.LADDER || blockId === BLOCK.OAK_SIGN ||
+    blockId === BLOCK.PAINTING || blockId === BLOCK.STONE_BUTTON || blockId === BLOCK.LEVER;
+
+  if (isTorch) {
+    const dir = sample ? _attachDir(sample, wx, y, wz) : 'floor';
+    if (dir === 'floor' || dir === 'ceiling') pushCrossedBillboard(target, wx, y, wz, uv);
+    else pushWallQuad(target, wx, y, wz, uv, dir);
+    return;
+  }
+  if (wallDecor) {
+    let dir = sample ? _attachDir(sample, wx, y, wz) : 'north';
+    if (dir === 'floor' || dir === 'ceiling') dir = 'north';
+    pushWallQuad(target, wx, y, wz, uv, dir);
+    return;
+  }
+  pushCrossedBillboard(target, wx, y, wz, uv);
 }
 
 function toGeometry(buf) {

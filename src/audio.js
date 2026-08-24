@@ -957,6 +957,21 @@ export class AudioManager {
     ]);
   }
 
+  // Periodic rustle while climbing a ladder / vines — reuses cloth & creak
+  // samples so it sits in the same timbral family as footsteps.
+  climbTick() {
+    if (!this.ctx || !this.enabled) return;
+    this._sample(['cloth1', 'cloth2', 'cloth3', 'cloth4', 'creak1', 'creak2', 'creak3'], 0.26, 0.12);
+  }
+
+  // Gentle water burble while swimming. Falls back to filtered noise if the
+  // water samples are still loading / unavailable.
+  swimTick() {
+    if (!this.ctx || !this.enabled) return;
+    if (!this._sample(['step_water_1', 'step_water_2', 'step_water_3', 'liquid_glug_1'], 0.22, 0.16, 0.95))
+      this._playLayers([{ noise: 'white', dur: 0.2, gain: 0.07, lp: 1800, atk: 0.02, rel: 0.3 }]);
+  }
+
   teleport() {
     if (!this.ctx || !this.enabled) return;
     if (this._sample('powerUp2', 0.3, 0)) return;
