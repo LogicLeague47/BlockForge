@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '955c96b',
+          heading: 'Old-iPhone / WebGL1 support',
+          desc: 'Added a legacy WebGL fallback. We now detect whether a device supports WebGL2; if not (e.g. old iPhones) the game loads an older three.js that still supports WebGL1, so it runs instead of showing a black screen / crash.',
+          date: 'Aug 24',
+          bugs: ['Old iPhones (no WebGL2) crashed on a WebGL2-only renderer'],
+          updates: ['three.js kept external and chosen at runtime via an import map', 'Boot probe swaps to three r162 (WebGL1-capable) when WebGL2 is absent', 'LEGACY_WEBGL flag set so the renderer uses a WebGL1 context'],
+          features: ['Automatic WebGL1 fallback for older devices'],
+        },
+        {
           hash: '76d41cc',
           heading: 'Crash fix + working error Copy button',
           desc: 'Fixed a crash (TypeError: audio.play is not a function) when placing spawn eggs, and rebuilt the on-screen error banner so its Copy button actually copies that one error to the clipboard.',
