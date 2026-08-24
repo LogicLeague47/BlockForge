@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '92e755c',
+          heading: 'Fixes: names, movement & old-device guard',
+          desc: 'Removed trademarked names, fixed movement bugs, and added a WebGL2 capability check.',
+          date: 'Aug 24',
+          bugs: ['Trademarked names (Ender Pearl, Eye of Ender, End Stone, Blaze Rod Launcher, Ender Drake) replaced with original BlockForge names', 'Sneak froze when stepping down one block', 'Jumping could fall through the floor (stuck mid-world)', 'Creative flight bounced before flying', 'No clear message on devices without WebGL2 (e.g. iPhone 5 / iOS 10)'],
+          updates: ['Void Pearl / Rift Eye / Void Stone / Ember Launcher / Prismite Dragon', 'Sneak allows 1-block step-downs', 'Robust ground probe prevents tunneling', 'Creative hold-to-fly no longer bunny-hops', 'WebGL2 check shows a friendly message on unsupported devices'],
+          features: [],
+        },
+        {
           hash: 'b6a5327',
           heading: 'Original block behaviors',
           desc: 'New blocks now do something: Magma Tiles burn anything standing on them, and Magnetstone pulls dropped items toward it.',
