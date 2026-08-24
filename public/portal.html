@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '22c31fe',
+          heading: 'Fix: plant billboards stood diagonal',
+          desc: 'Tall grass, flowers and saplings were rendered as tilted/diagonal faces instead of upright crossing billboards. Fixed the quad geometry so they stand vertically.',
+          date: 'Aug 24',
+          bugs: ['Grass/flowers/saplings lay diagonal in the world instead of standing up'],
+          updates: ['Plant cross-billboards now use two vertical planes (X-Y and Z-Y) instead of tilted quads'],
+          features: [],
+        },
+        {
           hash: '37562df',
           heading: 'Crystal Geodes & de-branding pass',
           desc: 'Underground crystal geodes now generate, and the last trademarked proper nouns were scrubbed from the codebase.',
