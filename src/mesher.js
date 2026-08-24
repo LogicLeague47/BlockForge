@@ -333,8 +333,10 @@ const _AO_STRENGTH = [1.0, 0.8, 0.7, 0.5];
 const _ONE3 = [1, 1, 1];
 const _DEFAULT_LEAF_TINT = [0.9, 1.0, 0.85];
 const _PLANT_QUADS = [
-  [[0,0],[1,0],[1,1],[0,1]],
-  [[1,0],[0,0],[0,1],[1,1]],
+  // Vertical billboard in the X-Y plane, centred at z = 0.5
+  [[0,0,0.5],[1,0,0.5],[1,1,0.5],[0,1,0.5]],
+  // Vertical billboard in the Z-Y plane, centred at x = 0.5
+  [[0.5,0,0],[0.5,0,1],[0.5,1,1],[0.5,1,0]],
 ];
 const _PLANT_UVS_BUF = [[0,0],[0,0],[0,0],[0,0]];
 const _AO_T_X = [0, 1, 0];
@@ -388,8 +390,8 @@ function pushPlant(target, wx, y, wz, blockId) {
     _PLANT_UVS_BUF[2][0] = uv.u1; _PLANT_UVS_BUF[2][1] = uv.v1;
     _PLANT_UVS_BUF[3][0] = uv.u0; _PLANT_UVS_BUF[3][1] = uv.v1;
     for (let i = 0; i < 4; i++) {
-      const cx = qu[i][0], cz = qu[i][1];
-      target.pos.push3(wx + cx, y + (i >= 2 ? 1 : 0), wz + cz);
+      const dx = qu[i][0], dy = qu[i][1], dz = qu[i][2];
+      target.pos.push3(wx + dx, y + dy, wz + dz);
       target.uv.push2(_PLANT_UVS_BUF[i][0], _PLANT_UVS_BUF[i][1]);
       target.col.push3(1, 1, 1);
       target.nor.push3(0, 1, 0);
