@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'bb8b098',
+          heading: 'Mob & item fixes',
+          desc: 'Dropped items rest on the ground, armor shift-click is correct, and mobs no longer get stuck on single-block ledges.',
+          date: 'Aug 24',
+          bugs: ['Dropped items clipped through the ground', 'Armor shift-click discarded items / failed to swap into a full slot', 'Mobs got stuck on 1-block gaps and ledges'],
+          updates: ['Dropped items snap to the surface block below them', 'Armor shift-click keeps stack remainder and swaps with the equipped piece', 'Mobs step up one block when blocked by a single-block ledge', 'Mob meshes build lazily when near the camera'],
+          features: ['Lazy mob mesh creation (less GC / startup cost)'],
+        },
+        {
           hash: '4a4517b',
           heading: 'Chunk mesh dirty flag',
           desc: 'Chunks now track whether their block data changed since the last mesh rebuild, skipping redundant meshing for unchanged chunks.',
