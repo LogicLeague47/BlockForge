@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'c87a2b6',
+          heading: '3D plants + world now renders on load',
+          desc: 'Grass, flowers and saplings are now real 3D models. Also fixed the world sometimes being blank until you broke a block — the spawn area now meshes immediately on load.',
+          date: 'Aug 24',
+          bugs: ['Plants were flat billboards (requested real 3D models)', 'World could stay blank until the first block was broken'],
+          updates: ['Tall grass/flowers/saplings rendered as 3D geometry', 'Spawn 3x3 area force-meshed on world load so terrain is visible immediately'],
+          features: ['3D grass, flowers and saplings'],
+        },
+        {
           hash: '22c31fe',
           heading: 'Fix: plant billboards stood diagonal',
           desc: 'Tall grass, flowers and saplings were rendered as tilted/diagonal faces instead of upright crossing billboards. Fixed the quad geometry so they stand vertically.',
