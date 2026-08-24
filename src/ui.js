@@ -206,8 +206,8 @@ export function makeItemIconCanvas(itemId) {
     case 316: drawFlintSteel(x); break;
     case 320: drawPortalOrb(x); break;
     case 289: drawLavaBucket(x); break;
-    case 317: drawEnderPearl(x); break;
-    case 318: drawEyeOfEnder(x); break;
+    case 317: drawVoidPearl(x); break;
+    case 318: drawRiftEye(x); break;
     case 319: drawEndStoneItem(x); break;
     case 321: drawDragonScales(x); break;
     case 322: drawDragonHeart(x); break;
@@ -874,7 +874,7 @@ function drawLavaBucket(x) {
   px(x, '#ff7a20', 9, 9, 1, 2);    // drip
 }
 
-function drawEnderPearl(x) {
+function drawVoidPearl(x) {
   // Dark teal orb with green swirl
   px(x, '#0a3520', 4, 4, 8, 8);    // base
   px(x, '#11663a', 5, 5, 6, 6);    // body
@@ -885,7 +885,7 @@ function drawEnderPearl(x) {
   px(x, '#083020', 5, 11, 6, 1);   // shadow
 }
 
-function drawEyeOfEnder(x) {
+function drawRiftEye(x) {
   // Purple pearl with vertical eye
   px(x, '#3a1050', 4, 3, 8, 10);   // base orb
   px(x, '#602070', 5, 4, 6, 8);    // body
@@ -1945,7 +1945,7 @@ export class UI {
       { t: 'Look behind the painting for secrets.', w: 2.5 },
       { t: 'Herobrine is on vacation this week.', w: 2.5 },
       { t: 'Did you remember to hydrate today?', w: 2.5 },
-      { t: 'Free the Ender-Lizard!', w: 2.5 },
+      { t: 'Free the Void-Lizard!', w: 2.5 },
       { t: 'Pitchforks ready for the physics engine!', w: 2.5 },
       { t: 'Unlicensed block arrangement!', w: 2.5 },
       { t: 'May cause sudden urges to build castles.', w: 2.5 },

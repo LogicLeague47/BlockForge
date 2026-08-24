@@ -326,7 +326,7 @@ export function generateDimensionColumn(n, chunk, x, z, wx, wz) {
       let dens = 1 - Math.abs(0.55 - t) * 1.9 + wobble;
       let b = BLOCK.AIR;
       if (dens > 0) {
-        if (t > 0.82) b = BLOCK.END_STONE;                       // pale surface cap
+        if (t > 0.82) b = BLOCK.VOID_STONE;                       // pale surface cap
         else if (t < 0.15) b = BLOCK.EMBEROCK;               // glowing underside
         else {
           b = (n.cave(wx * 1.3, y * 1.3, wz * 1.3) > 0.6) ? BLOCK.VOID_GLASS : BLOCK.VOIDSTONE;

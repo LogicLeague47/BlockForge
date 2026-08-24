@@ -419,7 +419,7 @@ export const BW_SHOP = [
   { cat: 'Blocks', items: [
     { id: BLOCK.WOOL, name: 'Wool', count: 16, cost: { [BW_RES_IRON]: 4 }, desc: 'Cheap bridge block' },
     { id: BLOCK.PLANKS, name: 'Oak Planks', count: 16, cost: { [BW_RES_IRON]: 12 }, desc: 'Solid bridge block' },
-    { id: BLOCK.END_STONE, name: 'End Stone', count: 16, cost: { [BW_RES_EMERALD]: 3 }, desc: 'Tough building block' },
+    { id: BLOCK.VOID_STONE, name: 'Void Stone', count: 16, cost: { [BW_RES_EMERALD]: 3 }, desc: 'Tough building block' },
     { id: BLOCK.OBSIDIAN, name: 'Obsidian', count: 4, cost: { [BW_RES_EMERALD]: 6 }, desc: 'Defend your bed!' },
   ]},
   { cat: 'Weapons', items: [

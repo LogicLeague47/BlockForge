@@ -12,7 +12,7 @@ export const BZ_TARGET_EVERY = 7;  // seconds between target rotations
 // Arena rings (radius-squared → block pools). Inner rings hold the rare,
 // high-value blocks the zone target loves to pick.
 const ARENA_TIERS = [
-  [26, [BLOCK.DIAMOND_ORE, BLOCK.GOLD_ORE, BLOCK.EMERALD_ORE, BLOCK.GOLD_BLOCK, BLOCK.DIAMOND_BLOCK, BLOCK.END_STONE]],
+  [26, [BLOCK.DIAMOND_ORE, BLOCK.GOLD_ORE, BLOCK.EMERALD_ORE, BLOCK.GOLD_BLOCK, BLOCK.DIAMOND_BLOCK, BLOCK.VOID_STONE]],
   [80, [BLOCK.COAL_ORE, BLOCK.IRON_ORE, BLOCK.STONE, BLOCK.COBBLESTONE, BLOCK.STONE_BRICKS]],
   [1e9, [BLOCK.DIRT, BLOCK.SAND, BLOCK.GRAVEL, BLOCK.PLANKS, BLOCK.SANDSTONE, BLOCK.TERRACOTTA, BLOCK.WOOL, BLOCK.NETHER_BRICK, BLOCK.GLASS, BLOCK.SNOW_BLOCK]],
 ];
@@ -23,7 +23,7 @@ export const BZ_BLOCK_NAMES = {
   [BLOCK.EMERALD_ORE]: 'Emerald Ore',
   [BLOCK.GOLD_BLOCK]: 'Gold Block',
   [BLOCK.DIAMOND_BLOCK]: 'Diamond Block',
-  [BLOCK.END_STONE]: 'End Stone',
+  [BLOCK.VOID_STONE]: 'Void Stone',
   [BLOCK.COAL_ORE]: 'Coal Ore',
   [BLOCK.IRON_ORE]: 'Iron Ore',
   [BLOCK.STONE]: 'Stone',

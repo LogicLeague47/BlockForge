@@ -1185,7 +1185,7 @@ export class AudioManager {
     this._playLayers([{ wave: 'square', freq: 880, dur: 0.04, gain: 0.05, atk: 0.001, rel: 0.1 }]);
   }
 
-  // Boss roar: deep layered growl for the Ender Drake.
+  // Boss roar: deep layered growl for the Prismite Dragon.
   bossRoar() {
     if (!this.ctx || !this.enabled) return;
     this._playLayers([

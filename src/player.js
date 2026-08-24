@@ -529,6 +529,7 @@ export class Player {
     }
 
     // Sneak edge prevention: when crouching on ground, don't walk off edges.
+    // A 1-block step-down is allowed (only hard cliffs stop you).
     if (this.crouching && this.onGround && !this.flying) {
       const step = 0.05; // tiny step ahead to test
       const nx = this.position.x + this.velocity.x * step;
@@ -536,7 +537,8 @@ export class Player {
       const bx = Math.floor(nx);
       const bz = Math.floor(nz);
       const by = Math.floor(this.position.y - 0.1);
-      const hasGround = BLOCKS[this.world.getBlock(bx, by, bz)]?.solid;
+      const hasGround = BLOCKS[this.world.getBlock(bx, by, bz)]?.solid
+        || BLOCKS[this.world.getBlock(bx, by - 1, bz)]?.solid;
       if (!hasGround) {
         // Project velocity onto edge tangent to allow sliding along the edge
         const bxCur = Math.floor(this.position.x);
@@ -591,7 +593,7 @@ export class Player {
         if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = Math.max(this.velocity.y, -1.5);
         else this.velocity.y = Math.max(this.velocity.y, -4.5);
       }
-      if (input.keys[kb.jump] && this.onGround) {
+      if (input.keys[kb.jump] && this.onGround && !this.isCreative()) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
         this.fallStartY = this.position.y;
@@ -620,6 +622,29 @@ export class Player {
     this.moveAxis('x', dx);
     this.moveAxis('y', dy);
     this.moveAxis('z', dz);
+
+    // ── Robust ground state (prevents tunneling / fall-through) ───────────
+    // Probe the block directly beneath the feet and keep the player resting on
+    // top of it. This is the source of truth for onGround so the player can
+    // never sink into or pass through the floor when jumping/landing.
+    if (!this.flying && !this.inWater && !this.onLadder) {
+      const gx = Math.floor(this.position.x);
+      const gz = Math.floor(this.position.z);
+      const fy = Math.floor(this.position.y - 0.08);
+      const below = this.world.getBlock(gx, fy, gz);
+      if (BLOCKS[below]?.solid) {
+        const top = fy + 1;
+        if (this.position.y <= top + 0.001) {
+          this.position.y = top + 0.0001;
+          if (this.velocity.y < 0) this.velocity.y = 0;
+          this.onGround = true;
+        } else {
+          this.onGround = false;
+        }
+      } else {
+        this.onGround = false;
+      }
+    }
 
     // respawn if we fall out of the world
     if (this.position.y < -10) {
@@ -747,7 +772,10 @@ export class Player {
     const nx = this.position.x + dx;
     const nz = this.position.z + dz;
     const footY = Math.floor(this.position.y - 0.05);
-    return !this._solid(Math.floor(nx), footY, Math.floor(nz));
+    // Allow stepping down a single block; only block at a real cliff edge.
+    const here = this._solid(Math.floor(nx), footY, Math.floor(nz))
+      || this._solid(Math.floor(nx), footY - 1, Math.floor(nz));
+    return !here;
   }
 
   moveAxis(axis, delta) {

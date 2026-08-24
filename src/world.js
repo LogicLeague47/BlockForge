@@ -15,16 +15,10 @@ export class Chunk {
     this.generated = false;
     this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
     this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
-    this.dirty = false; // Set to true when this chunk changes
   }
   idx(x, y, z) { return (y * CHUNK_SIZE + z) * CHUNK_SIZE + x; }
   get(x, y, z) { return (y < 0 || y >= WORLD_HEIGHT) ? BLOCK.AIR : this.data[this.idx(x, y, z)]; }
-  set(x, y, z, v) { 
-    if (y >= 0 && y < WORLD_HEIGHT) {
-      this.data[this.idx(x, y, z)] = v;
-      this.dirty = true;
-    }
-  }
+  set(x, y, z, v) { if (y >= 0 && y < WORLD_HEIGHT) this.data[this.idx(x, y, z)] = v; }
 }
 
 export class World {

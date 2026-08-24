@@ -141,6 +141,28 @@ try {
 // Combined flag: either heuristic low-end or confirmed weak GPU
 const VERY_LOW_END = LOW_END || WEAK_GPU;
 
+// iPhone 5 / iOS 10 and other very old devices only support WebGL1, but three.js
+// 0.169 requires WebGL2. Detect that early and show a clear message instead of a
+// silent black screen / crash on unsupported hardware.
+(function ensureWebGL2() {
+  let ok = false;
+  try {
+    const c = document.createElement('canvas');
+    if (c.getContext('webgl2')) ok = true;
+  } catch (_) { /* ignore */ }
+  if (ok) return;
+  const host = document.getElementById('game') || document.body;
+  const msg = document.createElement('div');
+  msg.style.cssText = 'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;text-align:center;color:#fff;background:#0b0e14;font:16px/1.5 sans-serif;padding:24px;z-index:99999';
+  msg.innerHTML = '<div><h2>BlockForge needs WebGL2</h2>' +
+    '<p>Your browser or device (e.g. iPhone 5 / iOS 10) only supports WebGL1, ' +
+    'which this version of the game can’t use. Please update to a newer device or ' +
+    'use a modern browser (Chrome, Safari 15+, Firefox).</p></div>';
+  host.appendChild(msg);
+  // Stop the rest of the module from running on an unsupported stack.
+  throw new Error('WebGL2 unavailable — device not compatible');
+})();
+
 // Block reach / mining pace.
 // REACH = how far (in blocks) you can hit mobs and target blocks — Minecraft's
 // classic 3-block range. BASE_BREAK_TIME scales the break formula below.
@@ -1691,7 +1713,7 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
-      // Portal Orb: throw like an ender pearl. Sneak = place a linked portal ring.
+      // Portal Orb: throw like an void pearl. Sneak = place a linked portal ring.
       if (!used && slot && slot.item === ITEM.PORTAL_ORB) {
         const isSneaking = !!(player && player.crouching);
         throwPortalOrb(isSneaking ? 'portal' : 'warp');
@@ -1746,8 +1768,8 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
-      // Blaze Rod Launcher: shoot a fireball
-      if (!used && slot && slot.item === ITEM.BLAZE_LAUNCHER) {
+      // Ember Launcher: shoot a fireball
+      if (!used && slot && slot.item === ITEM.EMBER_LAUNCHER) {
         throwFireball();
         if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
         used = true;
@@ -2099,7 +2121,7 @@ function igniteTNT(x, y, z) {
   if (tntManager) tntManager.ignite(x, y, z, 1.5);
 }
 
-// ── Portal Orb throwable (ender-pearl style teleport) ───────────────
+// ── Portal Orb throwable (void-pearl style teleport) ───────────────
 const _portalOrbVel = new THREE.Vector3();
 
 class PortalOrb {
@@ -2109,7 +2131,7 @@ class PortalOrb {
     this.age = 0;
     this.done = false;
     this.landed = false;
-    // mode: 'warp' = instant teleport on landing (ender-pearl style),
+    // mode: 'warp' = instant teleport on landing (void-pearl style),
     //       'portal' = place a portal ring at the landing point.
     this.mode = mode || 'warp';
 
@@ -2244,7 +2266,7 @@ function spawnFrostParticles(x, y, z) {
   }
 }
 
-// Blaze fireballs: glowing projectile that damages mobs on impact.
+// Ember fireballs: glowing projectile that damages mobs on impact.
 const _fireballs = [];
 function throwFireball() {
   if (!player || !camera) return;
@@ -3697,7 +3719,7 @@ function submitChat() {
       }
       return;
     }
-    // /boss command — spawn the Ender Dragon (cheats only)
+    // /boss command — spawn the Prismite Dragon (cheats only)
     if (cmdPart === 'boss' && !inMultiplayer && cheatsEnabled) {
       if (bossActive) { addChatLine('A boss is already active!', '#f55'); return; }
       if (!player || !mobManager || !scene) return;
@@ -10181,7 +10203,7 @@ function _gameFrame() {
   // Update lit TNT entities (bounce/blink animation + fuse countdown)
   if (tntManager) tntManager.update(dt);
 
-  // Update thrown portal orbs (ender-pearl style teleport)
+  // Update thrown portal orbs (void-pearl style teleport)
   updatePortalOrbs(dt);
 
   // Update linked portal rings (stepping through links)

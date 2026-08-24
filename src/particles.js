@@ -70,6 +70,7 @@ export class BreakParticles {
     this._geo = new THREE.BoxGeometry(1, 1, 1);
     this._materialPools = new Map();
     this._poolIndex = new Map();
+    this._meshPool = []; // recycled Mesh objects to avoid per-particle allocation
   }
 
   _getMaterialPool(blockId) {
@@ -90,7 +91,7 @@ export class BreakParticles {
     return pool;
   }
 
-  emit(blockId, x, y, z, count) {
+   emit(blockId, x, y, z, count) {
     const _mob = ('ontouchstart' in window && navigator.maxTouchPoints > 0);
     count = count || (_mob ? 6 : 16);
     const pool = this._getMaterialPool(blockId);
@@ -99,7 +100,9 @@ export class BreakParticles {
       const size = 0.05 + Math.random() * 0.09;
       const mat = pool[idx % POOL_SIZE];
       idx++;
-      const mesh = new THREE.Mesh(this._geo, mat);
+      let mesh = this._meshPool.pop();
+      if (!mesh) mesh = new THREE.Mesh(this._geo, mat);
+      else mesh.material = mat;
       mesh.scale.set(size, size, size);
       mesh.position.set(
         x + 0.2 + Math.random() * 0.6,
@@ -132,6 +135,7 @@ export class BreakParticles {
       p.age += dt;
       if (p.age >= p.life) {
         this.group.remove(p.mesh);
+        if (this._meshPool.length < 512) this._meshPool.push(p.mesh);
         this.particles[i] = this.particles[this.particles.length - 1];
         this.particles.length--;
         continue;

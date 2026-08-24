@@ -514,13 +514,13 @@ export const RECIPES = [
   shaped({ out: { id: B.STICKY_PISTON, count: 1 },
     pattern: ['S', 'P'], key: { S: I.SLIME_BALL, P: B.PISTON } }),
 
-  // ---- Eye of Ender ----
-  shaped({ out: { id: I.EYE_OF_ENDER, count: 1 },
-    pattern: ['E', 'P'], key: { E: I.ENDER_PEARL, P: I.GREENSTONE_DUST } }),
+  // ---- Rift Eye ----
+  shaped({ out: { id: I.RIFT_EYE, count: 1 },
+    pattern: ['E', 'P'], key: { E: I.VOID_PEARL, P: I.GREENSTONE_DUST } }),
 
   // ---- Shattered Echo Dimension ----
   shapeless({ out: { id: B.COMPRESSED_VOIDSTONE, count: 1 }, ingredients: [B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, I.NULL_SHARD] }),
-  shapeless({ out: { id: I.PARADOX_CORE, count: 1 }, ingredients: [I.MEMORY_SHARD, I.NULL_SHARD, I.ENDER_PEARL, B.EMBEROCK] }),
+  shapeless({ out: { id: I.PARADOX_CORE, count: 1 }, ingredients: [I.MEMORY_SHARD, I.NULL_SHARD, I.VOID_PEARL, B.EMBEROCK] }),
 ];
 
 // Smelting recipes: input item id -> output item id.
