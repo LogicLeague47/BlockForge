@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
-import { TILES, tileNameFor, BLOCKS } from './blocks.js';
+import { TILES, tileNameFor, BLOCKS, BLOCK } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
 import { CHUNK_SIZE, WORLD_HEIGHT } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
@@ -169,6 +169,26 @@ export class DroppedItem {
         // Scale up slightly as it approaches (suck-in feel)
         const scale = 1 + (1 - dist / MAGNET_RANGE) * 0.2;
         this.group.scale.setScalar(scale);
+      }
+    }
+
+    // Magnetstone attraction: items within 3 blocks are pulled to the block.
+    if (this.world && !this.collected) {
+      const bx = Math.floor(this.x), by = Math.floor(this.y), bz = Math.floor(this.z);
+      let mx = 0, my = 0, mz = 0, found = false;
+      for (let xx = bx - 1; xx <= bx + 1 && !found; xx++)
+        for (let yy = by - 1; yy <= by + 1 && !found; yy++)
+          for (let zz = bz - 1; zz <= bz + 1 && !found; zz++) {
+            if (this.world.getBlock(xx, yy, zz) === BLOCK.MAGNETIC_BLOCK) {
+              mx = xx + 0.5; my = yy + 0.5; mz = zz + 0.5; found = true;
+            }
+          }
+      if (found) {
+        const dx = mx - this.x, dy = my - this.y, dz = mz - this.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+        const k = MAGNET_SPEED * 3 * dt;
+        this.x += (dx / d) * k; this.y += (dy / d) * k; this.z += (dz / d) * k;
+        this.group.position.set(this.x, this.y + Math.sin(this.age * BOB_SPEED) * BOB_AMP, this.z);
       }
     }
   }

@@ -369,6 +369,21 @@ export class Player {
       this.air = Math.min(MAX_AIR, this.air + dt * 20 * 4); // recover fast
       this.drownAcc = 0;
     }
+
+    // Magma tiles: burn while standing on them (original hazard block)
+    if (this.isSurvival() && this.onGround) {
+      const fx = Math.floor(this.position.x), fy = Math.floor(this.position.y), fz = Math.floor(this.position.z);
+      const under = this.world.getBlock(fx, fy - 1, fz);
+      if (under === BLOCK.LAVA_TILES || under === BLOCK.LAVA) {
+        if ((this.burnAcc = (this.burnAcc || 0) + dt) >= 0.5) {
+          this.burnAcc -= 0.5;
+          this.takeDamage(1, 'burn');
+          if (this.onBurn) this.onBurn();
+        }
+      } else {
+        this.burnAcc = 0;
+      }
+    }
   }
 
   setLookFromCamera() {
