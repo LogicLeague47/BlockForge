@@ -255,6 +255,12 @@ export class AudioManager {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   }
 
+  // Generic one-shot sample player used by call sites like audio.play('place_stone', 0.5).
+  play(name, vol = 0.5) {
+    if (!name) return;
+    this._sample(name, vol);
+  }
+
   // Used by the CrazyGames SDK to silence all audio (music + SFX) during ads.
   setMuted(muted) {
     if (!this.ctx || !this.master) return;
