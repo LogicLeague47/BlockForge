@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '76d41cc',
+          heading: 'Crash fix + working error Copy button',
+          desc: 'Fixed a crash (TypeError: audio.play is not a function) when placing spawn eggs, and rebuilt the on-screen error banner so its Copy button actually copies that one error to the clipboard.',
+          date: 'Aug 24',
+          bugs: ["TypeError: X.play is not a function on spawn-egg placement", 'Error banner Copy button did nothing (broken inline handler)'],
+          updates: ['Added AudioManager.play(name, vol) used by spawn-egg placement', 'Error banner now builds DOM nodes with a real Copy listener for the full error'],
+          features: ['Working Copy button on the red error banner'],
+        },
+        {
           hash: '44f6b84',
           heading: 'Wall decor + torch variants + new sounds',
           desc: 'Ladders, signs, paintings, buttons and levers now lie flat against the wall. Torches snap to floor / wall (per direction) / ceiling automatically. Added rustle-while-climbing and water-while-swimming sounds.',
