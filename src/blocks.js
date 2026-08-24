@@ -152,6 +152,8 @@ export const BLOCK = {
   DARK_OAK_CRAFTING: 137,
   ACACIA_CRAFTING: 138,
   ICE: 139,
+  SHORT_GRASS: 140,
+  TALL_GRASS: 141,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -328,6 +330,8 @@ export const TILES = {
   acacia_crafting_top:   [15, 10],
   acacia_crafting_side:  [0, 11],
   ice:                   [1, 11],
+  short_grass:           [2, 11],
+  tall_grass:            [3, 11],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -487,6 +491,8 @@ export const BLOCKS = {
   [BLOCK.DARK_OAK_CRAFTING]: { name: 'Dark Oak Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'dark_oak_crafting_top', bottom: 'dark_oak_planks', side: 'dark_oak_crafting_side' } },
   [BLOCK.ACACIA_CRAFTING]:   { name: 'Acacia Workbench', solid: true, hardness: 2.5, tool: 'axe', faces: { top: 'acacia_crafting_top', bottom: 'acacia_planks', side: 'acacia_crafting_side' } },
   [BLOCK.ICE]:              { name: 'Ice', solid: true, transparent: true, hardness: 0.5, faces: 'ice' },
+  [BLOCK.SHORT_GRASS]:      { name: 'Short Grass', solid: false, transparent: true, plant: true, hardness: 0, faces: 'short_grass' },
+  [BLOCK.TALL_GRASS]:       { name: 'Tall Grass', solid: false, transparent: true, plant: true, hardness: 0, faces: 'tall_grass' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

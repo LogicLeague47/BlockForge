@@ -3132,11 +3132,36 @@ class Mob {
       groundY = this._groundY;
 
       // Simple gravity
-      if (this.position.y > groundY) {
-        this.position.y -= 15 * dt;
-        if (this.position.y < groundY) this.position.y = groundY;
-      } else if (this.position.y < groundY) {
-        this.position.y = groundY;
+      if (this.type === 'spider' && world) {
+        const curFeetY = Math.floor(this.position.y);
+        const targetHeadY = Math.floor(groundY + def.bodyH + def.headH);
+        const curHeadY = Math.floor(this.position.y + def.bodyH + def.headH);
+        if (this.position.y > groundY) {
+          const lowestCheck = Math.floor(groundY + def.bodyH + def.headH);
+          let canFall = true;
+          for (let cy = curFeetY; cy >= lowestCheck; cy--) {
+            if (this._solid(world, bx, cy, bz)) { canFall = false; break; }
+          }
+          if (canFall) {
+            this.position.y -= 15 * dt;
+            if (this.position.y < groundY) this.position.y = groundY;
+          }
+        } else if (this.position.y < groundY) {
+          let canClimb = true;
+          for (let cy = curHeadY; cy <= targetHeadY; cy++) {
+            if (this._solid(world, bx, cy, bz)) { canClimb = false; break; }
+          }
+          if (canClimb) {
+            this.position.y = groundY;
+          }
+        }
+      } else {
+        if (this.position.y > groundY) {
+          this.position.y -= 15 * dt;
+          if (this.position.y < groundY) this.position.y = groundY;
+        } else if (this.position.y < groundY) {
+          this.position.y = groundY;
+        }
       }
     }
 

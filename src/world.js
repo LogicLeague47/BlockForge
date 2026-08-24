@@ -13,13 +13,18 @@ export class Chunk {
     this.cx = cx; this.cz = cz;
     this.data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
     this.generated = false;
-    this._dirty = true;
     this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
     this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
+    this.dirty = false; // Set to true when this chunk changes
   }
   idx(x, y, z) { return (y * CHUNK_SIZE + z) * CHUNK_SIZE + x; }
   get(x, y, z) { return (y < 0 || y >= WORLD_HEIGHT) ? BLOCK.AIR : this.data[this.idx(x, y, z)]; }
-  set(x, y, z, v) { if (y >= 0 && y < WORLD_HEIGHT) this.data[this.idx(x, y, z)] = v; }
+  set(x, y, z, v) { 
+    if (y >= 0 && y < WORLD_HEIGHT) {
+      this.data[this.idx(x, y, z)] = v;
+      this.dirty = true;
+    }
+  }
 }
 
 export class World {
@@ -27,12 +32,11 @@ export class World {
     this.seed = seed || Math.floor(Math.random() * 1e9);
     this.noise = new Noise(this.seed);
     this.chunks = new Map();
-    this.chunksNum = new Map(); // numeric-key mirror for zero-string hot lookups
     this.edits = new Map();
-    this._chunkEdits = new Map(); // "cx,cz" -> Map<"x,y,z", blockId> for O(1) lookup
-    this.chestInventories = new Map(); // "x,y,z" -> Array(27) of {item, count} or null
-    this.furnaceEntities = new Map(); // "x,y,z" -> { input, fuel, output, burnTime, maxBurnTime, smeltTime }
-    this.editSeq = 0; // bumped on every block edit; lets systems detect changes cheaply
+    this._chunkEdits = new Map(); // numKey(cx,cz) -> Map<numBlockKey, blockId>
+    this.chestInventories = new Map(); // numBlockKey -> Array(27) of {item, count} or null
+    this.furnaceEntities = new Map(); // numBlockKey -> { input, fuel, output, burnTime, maxBurnTime, smeltTime }
+    this.editSeq = 0;
     this.flat = !!opts.flat;
     this.void = !!opts.void;
     this.parkour = !!opts.parkour;
@@ -42,11 +46,11 @@ export class World {
   }
 
   getChest(x, y, z) {
-    return this.chestInventories.get(x + ',' + y + ',' + z) || null;
+    return this.chestInventories.get(x * 1000000 + y * 1000 + z) || null;
   }
 
   getOrCreateChest(x, y, z) {
-    const k = x + ',' + y + ',' + z;
+    const k = x * 1000000 + y * 1000 + z;
     if (!this.chestInventories.has(k)) {
       this.chestInventories.set(k, new Array(27).fill(null));
     }
@@ -54,15 +58,15 @@ export class World {
   }
 
   removeChest(x, y, z) {
-    this.chestInventories.delete(x + ',' + y + ',' + z);
+    this.chestInventories.delete(x * 1000000 + y * 1000 + z);
   }
 
   getFurnace(x, y, z) {
-    return this.furnaceEntities.get(x + ',' + y + ',' + z) || null;
+    return this.furnaceEntities.get(x * 1000000 + y * 1000 + z) || null;
   }
 
   getOrCreateFurnace(x, y, z) {
-    const k = x + ',' + y + ',' + z;
+    const k = x * 1000000 + y * 1000 + z;
     if (!this.furnaceEntities.has(k)) {
       this.furnaceEntities.set(k, { input: null, fuel: null, output: null, burnTime: 0, maxBurnTime: 0, smeltTime: 0 });
     }
@@ -70,13 +74,17 @@ export class World {
   }
 
   removeFurnace(x, y, z) {
-    this.furnaceEntities.delete(x + ',' + y + ',' + z);
+    this.furnaceEntities.delete(x * 1000000 + y * 1000 + z);
   }
 
   serializeChests() {
     const obj = {};
     for (const [k, v] of this.chestInventories) {
-      obj[k] = v.map(s => s ? [s.item, s.count] : null);
+      const x = (k / 1000000) | 0;
+      const rem = k - x * 1000000;
+      const y = (rem / 1000) | 0;
+      const z = rem - y * 1000;
+      obj[x + ',' + y + ',' + z] = v.map(s => s ? [s.item, s.count] : null);
     }
     return obj;
   }
@@ -84,7 +92,11 @@ export class World {
   serializeFurnaces() {
     const obj = {};
     for (const [k, v] of this.furnaceEntities) {
-      obj[k] = {
+      const x = (k / 1000000) | 0;
+      const rem = k - x * 1000000;
+      const y = (rem / 1000) | 0;
+      const z = rem - y * 1000;
+      obj[x + ',' + y + ',' + z] = {
         input: v.input ? [v.input.item, v.input.count] : null,
         fuel: v.fuel ? [v.fuel.item, v.fuel.count] : null,
         output: v.output ? [v.output.item, v.output.count] : null,
@@ -99,14 +111,24 @@ export class World {
   loadChests(obj) {
     if (!obj) return;
     for (const [k, v] of Object.entries(obj)) {
-      this.chestInventories.set(k, v.map(s => s ? { item: s[0], count: s[1] } : null));
+      const ci = k.indexOf(',');
+      const ci2 = k.indexOf(',', ci + 1);
+      const x = +k.slice(0, ci);
+      const y = +k.slice(ci + 1, ci2);
+      const z = +k.slice(ci2 + 1);
+      this.chestInventories.set(x * 1000000 + y * 1000 + z, v.map(s => s ? { item: s[0], count: s[1] } : null));
     }
   }
 
   loadFurnaces(obj) {
     if (!obj) return;
     for (const [k, v] of Object.entries(obj)) {
-      this.furnaceEntities.set(k, {
+      const ci = k.indexOf(',');
+      const ci2 = k.indexOf(',', ci + 1);
+      const x = +k.slice(0, ci);
+      const y = +k.slice(ci + 1, ci2);
+      const z = +k.slice(ci2 + 1);
+      this.furnaceEntities.set(x * 1000000 + y * 1000 + z, {
         input: v.input ? { item: v.input[0], count: v.input[1] } : null,
         fuel: v.fuel ? { item: v.fuel[0], count: v.fuel[1] } : null,
         output: v.output ? { item: v.output[0], count: v.output[1] } : null,
@@ -117,22 +139,17 @@ export class World {
     }
   }
 
-  key(cx, cz) { return cx + ',' + cz; }
-
   // Numeric chunk key — avoids string allocation in hot loops (meshing).
   // Unique for |cz| < 32768 chunks (≈ ±524k blocks). Plenty for any world.
   numKey(cx, cz) { return cx * 32768 + cz; }
 
-  // Drop all generated chunk data so the next getChunk() re-runs generateChunk
-  // and picks up _chunkEdits (used after bulk-importing a map that must override
-  // chunks which were already generated as empty/void terrain).
+  // String chunk key — kept for compatibility with legacy systems (serialization, etc.)
+  key(cx, cz) { return cx + ',' + cz; }
+
   resetChunks() {
     this.chunks.clear();
   }
 
-  // Drop every stored block edit (both indexes) plus any generated chunks that
-  // baked them in. Used by minigames that rebuild an arena from scratch (e.g.
-  // replacing a procedural layout with an imported one).
   clearEdits() {
     this.edits.clear();
     this._chunkEdits.clear();
@@ -140,26 +157,20 @@ export class World {
   }
 
   getChunk(cx, cz, generate = true) {
-    const k = this.key(cx, cz);
-    let c = this.chunks.get(k);
+    const nk = this.numKey(cx, cz);
+    let c = this.chunks.get(nk);
     if (!c) {
       c = new Chunk(cx, cz);
-      this.chunks.set(k, c);
-      this.chunksNum.set(this.numKey(cx, cz), c);
+      this.chunks.set(nk, c);
       if (generate) {
         try {
           this.generateChunk(c);
         } catch (e) {
-          // Discard the partial chunk so the next access regenerates it from
-          // scratch. Otherwise a half-generated chunk (generated=false) sits
-          // in the maps forever, is never meshed, and stays invisible — the
-          // "chunks exist but you can't see them" bug.
-          this.chunks.delete(k);
-          this.chunksNum.delete(this.numKey(cx, cz));
+          this.chunks.delete(nk);
           if (!this._genFailWarned) this._genFailWarned = new Set();
-          if (!this._genFailWarned.has(k)) {
-            this._genFailWarned.add(k);
-            console.error('Chunk generation failed (' + k + '), will retry:', e);
+          if (!this._genFailWarned.has(nk)) {
+            this._genFailWarned.add(nk);
+            console.error('Chunk generation failed (' + cx + ',' + cz + '), will retry:', e);
           }
           throw e;
         }
@@ -172,7 +183,7 @@ export class World {
     if (y < 0) return (this.parkour || this.void) ? BLOCK.AIR : BLOCK.BEDROCK;
     if (y >= WORLD_HEIGHT) return BLOCK.AIR;
     const cx = x >> 4; const cz = z >> 4;
-    const c = this.chunksNum.get(cx * 32768 + cz);
+    const c = this.chunks.get(cx * 32768 + cz);
     if (!c) return BLOCK.AIR;
     return c.data[((y * CHUNK_SIZE + (z - (cz << 4))) * CHUNK_SIZE) + (x - (cx << 4))];
   }
@@ -183,8 +194,6 @@ export class World {
     const c = this.getChunk(cx, cz);
     const lx = x - (cx << 4), lz = z - (cz << 4);
     c.set(lx, y, lz, v);
-    c._dirty = true;
-    // Keep surfaceMap in sync so the mesher knows the highest block
     if (v !== 0 && y > c.surfaceMap[lz * CHUNK_SIZE + lx]) {
       c.surfaceMap[lz * CHUNK_SIZE + lx] = y;
     } else if (v === 0 && y >= c.surfaceMap[lz * CHUNK_SIZE + lx]) {
@@ -193,29 +202,23 @@ export class World {
       c.surfaceMap[lz * CHUNK_SIZE + lx] = ny;
     }
     if (recordEdit) {
-      this.edits.set(`${x},${y},${z}`, v);
+      this.edits.set(x * 1000000 + y * 1000 + z, v);
       this.editSeq++;
-      // Index by chunk for O(1) lookup during generation
-      const ck = this.key(cx, cz);
+      const ck = this.numKey(cx, cz);
       let cm = this._chunkEdits.get(ck);
       if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
-      cm.set(`${x},${y},${z}`, v);
+      cm.set(x * 1000000 + y * 1000 + z, v);
     }
   }
 
-  // Bulk load: store blocks in _chunkEdits without creating chunks.
-  // Chunks are created on demand by the chunk loader, and generateChunk()
-  // applies _chunkEdits when it runs.
   bulkSetBlock(x, y, z, v) {
     if (y < 0 || y >= WORLD_HEIGHT) return;
     const cx = x >> 4, cz = z >> 4;
-    const ck = this.key(cx, cz);
+    const ck = this.numKey(cx, cz);
     let cm = this._chunkEdits.get(ck);
     if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
-    cm.set(`${x},${y},${z}`, v);
+    cm.set(x * 1000000 + y * 1000 + z, v);
     if (v !== 0) this.editSeq++;
-    const c = this.chunks.get(ck);
-    if (c) c._dirty = true;
   }
 
   generateChunk(chunk) {
@@ -224,7 +227,6 @@ export class World {
     const n = this.noise;
 
     if (this.parkour || this.void) {
-      // Void world — only set surface/biome defaults, no terrain
       for (let x = 0; x < CHUNK_SIZE; x++) {
         for (let z = 0; z < CHUNK_SIZE; z++) {
           chunk.surfaceMap[z * CHUNK_SIZE + x] = 0;
@@ -232,7 +234,6 @@ export class World {
         }
       }
     } else if (this.flat) {
-      // Superflat: bedrock, 2 dirt, grass on top at y=3. Great for testing.
       const FLAT_TOP = 3;
       for (let x = 0; x < CHUNK_SIZE; x++) {
         for (let z = 0; z < CHUNK_SIZE; z++) {
@@ -267,22 +268,19 @@ export class World {
         generateFeatures(chunk, baseX, baseZ, n);
       }
 
-      // Structures (villages) — placed after terrain/features, before player edits.
       if (!this.dimension) {
         try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
       }
     }
 
-    // Apply player edits for this chunk — O(1) lookup via _chunkEdits index
-    const chunkKey = this.key(chunk.cx, chunk.cz);
+    const chunkKey = this.numKey(chunk.cx, chunk.cz);
     const chunkEdits = this._chunkEdits.get(chunkKey);
     if (chunkEdits) {
-      for (const [key, v] of chunkEdits) {
-        const ci = key.indexOf(',');
-        const ci2 = key.indexOf(',', ci + 1);
-        const ex = +key.slice(0, ci);
-        const ey = +key.slice(ci + 1, ci2);
-        const ez = +key.slice(ci2 + 1);
+      for (const [bk, v] of chunkEdits) {
+        const ex = (bk / 1000000) | 0;
+        const rem = bk - ex * 1000000;
+        const ey = (rem / 1000) | 0;
+        const ez = rem - ey * 1000;
         const lx = ex - chunk.cx * CHUNK_SIZE;
         const lz = ez - chunk.cz * CHUNK_SIZE;
         chunk.set(lx, ey, lz, v);
@@ -296,7 +294,6 @@ export class World {
       }
     }
 
-    // Cache dominant biome for water material (avoids O(n²) scan each mesh rebuild)
     {
       let oc = 0, rc = 0;
       for (let i = 0; i < chunk.biomeMap.length; i++) {
@@ -312,23 +309,19 @@ export class World {
     chunk.generated = true;
   }
 
-  // Evict generated chunk data (not meshes) outside the given chunk radius.
-  // Edits, chests, and the RNG seed live elsewhere, so evicted chunks
-  // regenerate identically on demand. Prevents unbounded memory growth.
   evictFar(pcx, pcz, limit) {
     for (const k of this.chunks.keys()) {
-      const ci = k.indexOf(',');
-      const cx = +k.slice(0, ci), cz = +k.slice(ci + 1);
+      const cz = k % 32768;
+      const cx = (k - cz) / 32768;
       if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
         this.chunks.delete(k);
-        this.chunksNum.delete(cx * 32768 + cz);
       }
     }
   }
 
   heightAt(wx, wz) {
     const cx = wx >> 4, cz = wz >> 4;
-    const c = this.chunks.get(this.key(cx, cz));
+    const c = this.chunks.get(this.numKey(cx, cz));
     if (c && c.generated) {
       const lx = wx - (cx << 4), lz = wz - (cz << 4);
       return c.surfaceMap[lz * CHUNK_SIZE + lx];
@@ -338,7 +331,7 @@ export class World {
 
   biomeAt(wx, wz, y) {
     const cx = wx >> 4, cz = wz >> 4;
-    const c = this.chunks.get(this.key(cx, cz));
+    const c = this.chunks.get(this.numKey(cx, cz));
     if (c && c.generated) {
       const lx = wx - (cx << 4), lz = wz - (cz << 4);
       return c.biomeMap[lz * CHUNK_SIZE + lx];
@@ -350,17 +343,27 @@ export class World {
   loadEdits(obj) {
     if (!obj || obj.edits == null) return;
     for (const [k, v] of obj.edits) {
-      this.edits.set(k, v);
-      // Also index by chunk so generateChunk() can re-apply saved edits when a
-      // chunk regenerates (it reads _chunkEdits, not edits).
-      const ci = k.indexOf(',');
-      const ci2 = k.indexOf(',', ci + 1);
-      const ex = +k.slice(0, ci);
-      const ez = +k.slice(ci2 + 1);
-      const ck = this.key(ex, ez);
+      let bx, by, bz, bk;
+      if (typeof k === 'string') {
+        const ci = k.indexOf(',');
+        const ci2 = k.indexOf(',', ci + 1);
+        bx = +k.slice(0, ci);
+        by = +k.slice(ci + 1, ci2);
+        bz = +k.slice(ci2 + 1);
+        bk = bx * 1000000 + by * 1000 + bz;
+      } else {
+        bk = k;
+        bx = (k / 1000000) | 0;
+        const rem = k - bx * 1000000;
+        by = (rem / 1000) | 0;
+        bz = rem - by * 1000;
+      }
+      this.edits.set(bk, v);
+      const cx = bx >> 4, cz = bz >> 4;
+      const ck = this.numKey(cx, cz);
       let cm = this._chunkEdits.get(ck);
       if (!cm) { cm = new Map(); this._chunkEdits.set(ck, cm); }
-      cm.set(k, v);
+      cm.set(bk, v);
     }
     this.loadChests(obj.chests);
     this.loadFurnaces(obj.furnaces);

@@ -667,6 +667,8 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
     case BIOMES.PLAINS:
       if (roll < 0.001 && top === BLOCK.GRASS)
         chunk.set(x, h + 1, z, local() < 0.5 ? BLOCK.FLOWER_RED : BLOCK.FLOWER_YELLOW);
+      else if (roll < 0.04 && top === BLOCK.GRASS)
+        chunk.set(x, h + 1, z, local() < 0.7 ? BLOCK.SHORT_GRASS : BLOCK.TALL_GRASS);
       break;
     case BIOMES.DESERT:
       if (roll < 0.015 && top === BLOCK.SAND) plantTree(chunk, x, h + 1, z, local, 'dead');

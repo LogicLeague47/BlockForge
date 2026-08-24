@@ -672,6 +672,23 @@ const PAINTERS = {
 
   flower_red(ctx, x0, y0, rng) { poppy(ctx, x0, y0, rng); },
   flower_yellow(ctx, x0, y0, rng) { dandelion(ctx, x0, y0, rng); },
+  short_grass(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const cx = x0 + 16, cy = y0 + 20;
+    ctx.fillStyle = '#4da63b';
+    ctx.fillRect(cx - 6, cy - 4, 2, 8);
+    ctx.fillRect(cx - 2, cy - 8, 2, 12);
+    ctx.fillRect(cx + 3, cy - 6, 2, 10);
+  },
+  tall_grass(ctx, x0, y0, rng) {
+    ctx.clearRect(x0, y0, TILE, TILE);
+    const cx = x0 + 16, cy = y0 + 16;
+    ctx.fillStyle = '#3a8a2a';
+    ctx.fillRect(cx - 8, cy - 10, 2, 18);
+    ctx.fillRect(cx - 4, cy - 14, 3, 22);
+    ctx.fillRect(cx + 1, cy - 12, 2, 20);
+    ctx.fillRect(cx + 6, cy - 8, 2, 16);
+  },
 
   sapling_oak(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#6a4a2a', '#3f9a3f'); },
   sapling_jungle(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#7a5230', '#2f8f2f'); },

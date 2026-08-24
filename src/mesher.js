@@ -166,7 +166,7 @@ function makeSampler(chunk, world) {
   const cx = chunk.cx, cz = chunk.cz;
   const baseX = cx * CHUNK_SIZE, baseZ = cz * CHUNK_SIZE;
   const data = chunk.data;
-  const chunksNum = world.chunksNum;
+  const chunks = world.chunks;
   const parkour = world.parkour;
   const voidWorld = world.void;
   return function (wx, wy, wz) {
@@ -176,7 +176,7 @@ function makeSampler(chunk, world) {
     if (lx >= 0 && lx < CHUNK_SIZE && lz >= 0 && lz < CHUNK_SIZE) {
       return data[(wy * CHUNK_SIZE + lz) * CHUNK_SIZE + lx];
     }
-    const nc = chunksNum.get((wx >> 4) * 32768 + (wz >> 4));
+    const nc = chunks.get((wx >> 4) * 32768 + (wz >> 4));
     if (!nc) return BLOCK.AIR;
     return nc.data[((wy * CHUNK_SIZE + (wz - ((wz >> 4) << 4))) * CHUNK_SIZE) + (wx - ((wx >> 4) << 4))];
   };

@@ -11,7 +11,7 @@ import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor } from './blocks.js';
-import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity } from './items.js';
+import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
@@ -1587,6 +1587,20 @@ document.addEventListener('mousedown', (e) => {
   } else if (e.button === 2) {
     const hit = currentTarget();
     const held = player.inventory.getSelected();
+    if (held && SPAWN_EGG_MOBS[held.item]) {
+      if (hit && mobManager) {
+        const mobType = SPAWN_EGG_MOBS[held.item];
+        mobManager.spawnAt(mobType, hit.nx + 0.5, hit.ny, hit.nz + 0.5);
+        audio.play('place_stone', 0.5);
+        if (!player.isCreative()) {
+          held.count--;
+          if (held.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+        }
+        syncUIMode();
+        e.preventDefault();
+        return;
+      }
+    }
     if (held && (held.item === ITEM.BUCKET || held.item === ITEM.WATER_BUCKET || held.item === ITEM.LAVA_BUCKET)) {
       handleBucket(held, hit);
       e.preventDefault();
@@ -5510,6 +5524,20 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   // Shared place/interact logic. `hit` may be null (use crosshair center target).
   function mobilePlaceAt(hit) {
     const target = hit || currentTarget();
+    const held = player.inventory.getSelected();
+    if (held && SPAWN_EGG_MOBS[held.item]) {
+      if (target && mobManager) {
+        const mobType = SPAWN_EGG_MOBS[held.item];
+        mobManager.spawnAt(mobType, target.nx + 0.5, target.ny, target.nz + 0.5);
+        audio.play('place_stone', 0.5);
+        if (!player.isCreative()) {
+          held.count--;
+          if (held.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+        }
+        syncUIMode();
+        return;
+      }
+    }
     if (target && isCraftingTable(target.block)) {
       if (isBedwars) { openBedwarsShop(); return; }
       ui.openInventory(player.inventory, 3, false);

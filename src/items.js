@@ -113,6 +113,32 @@ export const ITEM = {
   MEMORY_SHARD: 701,
   PARADOX_CORE: 702,
   ECHO_SHARD: 710,
+  // Spawn Eggs (800+)
+  COW_SPAWN_EGG: 800,
+  PIG_SPAWN_EGG: 801,
+  SHEEP_SPAWN_EGG: 802,
+  CHICKEN_SPAWN_EGG: 803,
+  ZOMBIE_SPAWN_EGG: 804,
+  SKELETON_SPAWN_EGG: 805,
+  SPIDER_SPAWN_EGG: 806,
+  SLIME_SPAWN_EGG: 807,
+  VILLAGER_SPAWN_EGG: 808,
+  BLOWER_SPAWN_EGG: 809,
+  PORTALMAN_SPAWN_EGG: 810,
+};
+
+export const SPAWN_EGG_MOBS = {
+  [ITEM.COW_SPAWN_EGG]: 'cow',
+  [ITEM.PIG_SPAWN_EGG]: 'pig',
+  [ITEM.SHEEP_SPAWN_EGG]: 'sheep',
+  [ITEM.CHICKEN_SPAWN_EGG]: 'chicken',
+  [ITEM.ZOMBIE_SPAWN_EGG]: 'zombie',
+  [ITEM.SKELETON_SPAWN_EGG]: 'skeleton',
+  [ITEM.SPIDER_SPAWN_EGG]: 'spider',
+  [ITEM.SLIME_SPAWN_EGG]: 'slime',
+  [ITEM.VILLAGER_SPAWN_EGG]: 'villager',
+  [ITEM.BLOWER_SPAWN_EGG]: 'blower',
+  [ITEM.PORTALMAN_SPAWN_EGG]: 'portalman',
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -256,6 +282,17 @@ const NONBLOCK_ITEMS = {
   [ITEM.MEMORY_SHARD]: { name: 'Memory Shard', stack: 64 },
   [ITEM.PARADOX_CORE]: { name: 'Paradox Core', stack: 16 },
   [ITEM.ECHO_SHARD]: { name: 'Echo Shard', stack: 64 },
+  [ITEM.COW_SPAWN_EGG]: { name: 'Cow Spawn Egg', stack: 64 },
+  [ITEM.PIG_SPAWN_EGG]: { name: 'Pig Spawn Egg', stack: 64 },
+  [ITEM.SHEEP_SPAWN_EGG]: { name: 'Sheep Spawn Egg', stack: 64 },
+  [ITEM.CHICKEN_SPAWN_EGG]: { name: 'Chicken Spawn Egg', stack: 64 },
+  [ITEM.ZOMBIE_SPAWN_EGG]: { name: 'Zombie Spawn Egg', stack: 64 },
+  [ITEM.SKELETON_SPAWN_EGG]: { name: 'Skeleton Spawn Egg', stack: 64 },
+  [ITEM.SPIDER_SPAWN_EGG]: { name: 'Spider Spawn Egg', stack: 64 },
+  [ITEM.SLIME_SPAWN_EGG]: { name: 'Slime Spawn Egg', stack: 64 },
+  [ITEM.VILLAGER_SPAWN_EGG]: { name: 'Villager Spawn Egg', stack: 64 },
+  [ITEM.BLOWER_SPAWN_EGG]: { name: 'Blower Spawn Egg', stack: 64 },
+  [ITEM.PORTALMAN_SPAWN_EGG]: { name: 'Portalman Spawn Egg', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------
