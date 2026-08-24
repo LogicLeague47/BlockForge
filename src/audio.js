@@ -1148,4 +1148,102 @@ export class AudioManager {
       { wave: 'sine', freq: 4600 + Math.random() * 400, dur: 0.025, gain: 0.01, atk: 0.001, rel: 0.015 },
     ]);
   }
+
+  // ── Additional BlockForge SFX (procedural) ──────────────────────────────
+  // Anvil: heavy metallic clang layered with a low thud.
+  anvil() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'square', freq: 320, dur: 0.18, gain: 0.18, atk: 0.001, rel: 0.4 },
+      { noise: 'white', dur: 0.1, gain: 0.14, bp: 2400, bq: 3, atk: 0.001, rel: 0.2 },
+      { wave: 'sine', freq: 90, dur: 0.22, gain: 0.16, atk: 0.002, rel: 0.5 },
+    ]);
+  }
+
+  // Enchant: shimmering arpeggio sweep.
+  enchant() {
+    if (!this.ctx || !this.enabled) return;
+    const base = 520;
+    for (let i = 0; i < 4; i++) {
+      const f = base * Math.pow(1.18, i);
+      this._playLayers([{ wave: 'sine', freq: f, dur: 0.25, gain: 0.07, atk: 0.01, rel: 0.5 }]);
+    }
+  }
+
+  // Fire: short crackling burst (called on burn ticks).
+  fire() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.18, gain: 0.08, hp: 800, bp: 1600, bq: 0.6, atk: 0.002, rel: 0.4 },
+      { noise: 'brown', dur: 0.12, gain: 0.05, lp: 600, atk: 0.003, rel: 0.3 },
+    ]);
+  }
+
+  // Cooldown tick: tiny UI blip used while an item recharges.
+  cooldownTick() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([{ wave: 'square', freq: 880, dur: 0.04, gain: 0.05, atk: 0.001, rel: 0.1 }]);
+  }
+
+  // Boss roar: deep layered growl for the Ender Drake.
+  bossRoar() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sawtooth', freq: 70, dur: 0.9, gain: 0.3, atk: 0.02, rel: 0.7 },
+      { wave: 'sine', freq: 48, dur: 1.1, gain: 0.28, atk: 0.02, rel: 0.8 },
+      { noise: 'brown', dur: 0.7, gain: 0.12, lp: 380, atk: 0.02, rel: 0.6 },
+    ]);
+  }
+
+  // Music disc: a short original chime motif selected by track index (1-5).
+  musicDisc(track) {
+    if (!this.ctx || !this.enabled) return;
+    const scales = [
+      [523, 659, 784, 1047], [587, 698, 880, 1175], [494, 622, 740, 988],
+      [440, 554, 659, 880], [659, 784, 988, 1319],
+    ];
+    const seq = scales[(track - 1) % scales.length] || scales[0];
+    seq.forEach((f, i) => {
+      setTimeout(() => this._playLayers([
+        { wave: 'triangle', freq: f, dur: 0.4, gain: 0.08, atk: 0.01, rel: 0.6 },
+        { wave: 'sine', freq: f / 2, dur: 0.5, gain: 0.05, atk: 0.01, rel: 0.7 },
+      ]), i * 180);
+    });
+  }
+
+  // Mining fatigue while underwater (muffled bubble + thud).
+  miningFatigue() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.2, gain: 0.06, lp: 900, atk: 0.01, rel: 0.4 },
+      { wave: 'sine', freq: 200, dur: 0.18, gain: 0.07, atk: 0.01, rel: 0.4 },
+    ]);
+  }
+
+  // Nausea / warp wobble (portal distortion ambience).
+  nausea() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 180 + Math.random() * 120, dur: 0.5, gain: 0.05, atk: 0.05, rel: 0.6 },
+      { wave: 'sine', freq: 90 + Math.random() * 60, dur: 0.6, gain: 0.04, atk: 0.05, rel: 0.7 },
+    ]);
+  }
+
+  // XP orb pickup / collection chime.
+  xpOrb() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { wave: 'sine', freq: 1100, dur: 0.08, gain: 0.08, atk: 0.001, rel: 0.2 },
+      { wave: 'sine', freq: 1650, dur: 0.1, gain: 0.06, atk: 0.001, rel: 0.25 },
+    ]);
+  }
+
+  // Portal teleport whoosh (distinct from portalOpen).
+  portalTeleport() {
+    if (!this.ctx || !this.enabled) return;
+    this._playLayers([
+      { noise: 'white', dur: 0.4, gain: 0.12, bp: 1200, bq: 0.5, atk: 0.01, rel: 0.6 },
+      { wave: 'sine', freq: 300, dur: 0.4, gain: 0.1, atk: 0.01, rel: 0.7 },
+    ]);
+  }
 }

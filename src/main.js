@@ -5895,7 +5895,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         if (player.isSurvival()) {
           const mobXp = { cow: 3, pig: 3, sheep: 3, spider: 5, zombie: 5, skeleton: 5, blower: 8, portalman: 10 };
           const mobXpGain = mobXp[mobHit.type] || 2;
-          if (player.addXp(mobXpGain)) ui.showLevelUp(player.level);
+          if (player.addXp(mobXpGain)) { ui.showLevelUp(player.level); if (audio) audio.xpOrb(); }
         }
       }
       return true;
