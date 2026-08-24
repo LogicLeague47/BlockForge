@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '6c4d313',
+          heading: 'Chest sync (multiplayer)',
+          desc: 'Chest contents now stay in sync between players sharing a multiplayer world.',
+          date: 'Aug 24',
+          bugs: ['Double/normal chest inventories desynced between players in multiplayer'],
+          updates: ['Client broadcasts chest slot changes to the room', 'Server relays chest contents to other players', 'Local client updates its chest copy and refreshes the UI when viewing the same chest'],
+          features: ['Live multiplayer chest content synchronization'],
+        },
+        {
           hash: 'bb8b098',
           heading: 'Mob & item fixes',
           desc: 'Dropped items rest on the ground, armor shift-click is correct, and mobs no longer get stuck on single-block ledges.',
