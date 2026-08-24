@@ -628,9 +628,41 @@ function widenLavaCaverns(chunk, baseX, baseZ, n) {
   }
 }
 
+// Crystal geodes: rare underground hollows lined with crystal ore and a prism core.
+function generateGeodes(chunk, baseX, baseZ) {
+  const seed = ((baseX * 73856093) ^ (baseZ * 19349663) ^ 0x9e3779b1) >>> 0;
+  const rng = mulberryLocal(seed);
+  const count = rng() < 0.5 ? 1 : (rng() < 0.25 ? 2 : 0);
+  for (let g = 0; g < count; g++) {
+    const cx = 2 + ((rng() * (CHUNK_SIZE - 4)) | 0);
+    const cy = 18 + ((rng() * 30) | 0);
+    const cz = 2 + ((rng() * (CHUNK_SIZE - 4)) | 0);
+    const R = 2 + ((rng() * 2) | 0);
+    const r2 = R * R;
+    for (let dx = -R - 1; dx <= R + 1; dx++) {
+      for (let dy = -R - 1; dy <= R + 1; dy++) {
+        for (let dz = -R - 1; dz <= R + 1; dz++) {
+          const x = cx + dx, y = cy + dy, z = cz + dz;
+          if (x < 0 || x >= CHUNK_SIZE || y < 1 || y >= WORLD_HEIGHT || z < 0 || z >= CHUNK_SIZE) continue;
+          const d = dx * dx + dy * dy + dz * dz;
+          if (d <= r2) {
+            if (!isStone(chunk.get(x, y, z))) continue;
+            if (d > (R - 1) * (R - 1)) chunk.set(x, y, z, BLOCK.OBSIDIAN);
+            else if (d > (R - 2) * (R - 2)) chunk.set(x, y, z, BLOCK.CRYSTAL_ORE);
+            else chunk.set(x, y, z, BLOCK.CRYSTAL_PRISM_1);
+          } else if (d <= r2 + 2 * R + 1 && isStone(chunk.get(x, y, z)) && rng() < 0.25) {
+            chunk.set(x, y, z, BLOCK.OBSIDIAN);
+          }
+        }
+      }
+    }
+  }
+}
+
 export function generateUnderground(chunk, baseX, baseZ, n) {
   applyDeepslateBiome(chunk);
   generateOreVeins(chunk, baseX, baseZ);
+  generateGeodes(chunk, baseX, baseZ);
   widenLavaCaverns(chunk, baseX, baseZ, n);
   generateCaveDecorations(chunk, baseX, baseZ);
   generateUndergroundLakes(chunk);
