@@ -18,6 +18,11 @@ export default defineConfig(({ mode }) => ({
     target: 'es2020',
     chunkSizeWarningLimit: 1500,
     rollupOptions: {
+      // Keep three.js external so the runtime import map can choose the
+      // version per-device (modern r169, or an older WebGL1-capable r162 for
+      // legacy devices like old iPhones). This is what lets us "move old
+      // devices over to an older WebGL" without rewriting game code.
+      external: ['three', /^three\/examples\//, /^three\/addons\//],
       input: {
         main: resolve(__dirname, 'index.html'),
         debug: resolve(__dirname, 'debug.html'),

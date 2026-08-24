@@ -176,6 +176,11 @@ try {
 } catch (_) {
   renderer = new THREE.WebGLRenderer({ antialias: false });
 }
+// Legacy WebGL mode: index.html detected no WebGL2 (e.g. old iPhones) and
+// loaded an older three.js build that still supports WebGL1. The renderer above
+// auto-uses a WebGL1 context in that case — nothing else here needs to change.
+const LEGACY_WEBGL = !!window.__LEGACY_WEBGL;
+if (LEGACY_WEBGL) console.log('[BlockForge] Legacy WebGL mode (older device) — using WebGL1-compatible three.js.');
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1 : 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = !VERY_LOW_END;
