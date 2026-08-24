@@ -1,4 +1,4 @@
-// SkyBlock minigame: reproduces the "Skyblock Plus" Minecraft map (extracted to
+// SkyBlock minigame: reproduces the "Skyblock Plus" BlockForge map (extracted to
 // skyblock-data.js) in a void world. Every island from the source world is
 // rebuilt at its original coordinates, chests are filled with their captured
 // contents, and water/lava sources are handed to the liquid simulator so the

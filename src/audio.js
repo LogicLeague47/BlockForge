@@ -106,7 +106,7 @@ const SFX_FILES = [
   ...Array.from({ length: 17 }, (_, i) => `jingle_steel_${String(i).padStart(2, '0')}`),
 ];
 
-// CC0 playlist chosen to match Minecraft's ambience: sparse solo piano and
+// CC0 playlist chosen to match BlockForge's ambience: sparse solo piano and
 // slow contemplative pads rather than beat-driven synth. All tracks are
 // AAC (.m4a) re-encodes normalized to a matched loudness. See Music/CREDITS.txt.
 const MUSIC_TRACKS = [
@@ -1092,7 +1092,7 @@ export class AudioManager {
     ]);
   }
 
-  // Short Minecraft-style wooden "click" for UI buttons.
+  // Short BlockForge-style wooden "click" for UI buttons.
   buttonClick() {
     if (!this.ctx || !this.enabled) return;
     if (this._sample(['interface_click_004', 'interface_click_005'], 0.28, 0.06)) return;

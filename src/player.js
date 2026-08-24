@@ -58,6 +58,7 @@ export class Player {
     this.yaw = 0;
     this.pitch = 0;
     this.onGround = false;
+    this.vehicle = null;
     this.flying = false;
     this.knockback = { x: 0, y: 0, z: 0 }; // decaying impulse separate from input velocity
     this.crouching = false;
@@ -82,7 +83,7 @@ export class Player {
     this.voidRespawnPos = null; // set by main.js for dimension world respawn
     this.inventory = new Inventory();
     this.lastYVelocity = 0;   // for fall damage
-    this.fallStartY = -1;     // Y position when player started falling (Minecraft Bedrock style)
+    this.fallStartY = -1;     // Y position when player started falling (BlockForge Bedrock style)
     this.cameraMode = 0;      // 0 = first person, 1 = 3rd person back, 2 = 3rd person front
     this.cameraOffset = new THREE.Vector3();
     this.dead = false;        // sticky death flag — prevents regen/mechanics reviving a corpse
@@ -300,7 +301,7 @@ export class Player {
 
   // --- hunger / exhaustion -------------------------------------------------
   // Add exhaustion (from mining, sprinting, jumping, taking damage).
-  // Minecraft Java: 4 exhaustion == 1 food point; saturation is consumed first.
+  // BlockForge Java: 4 exhaustion == 1 food point; saturation is consumed first.
   addExhaustion(amount) {
     if (!this.isSurvival()) return;
     this.exhaustion += amount;
@@ -330,7 +331,7 @@ export class Player {
     if (this.damageTimer > 0) this.damageTimer -= dt;
     if (!this.isSurvival() || this.dead) return;
 
-    // regen (Minecraft Java): fast +1 HP/2s while saturation > 0, slow +1 HP/4s
+    // regen (BlockForge Java): fast +1 HP/2s while saturation > 0, slow +1 HP/4s
     // while saturation == 0 and hunger >= 18. Both cost 3.0 exhaustion per HP.
     if (this.hunger >= 18 && this.health < this.maxHealth) {
       const interval = this.saturation > 0 ? 2 : 4;
@@ -374,14 +375,16 @@ export class Player {
     if (this.isSurvival() && this.onGround) {
       const fx = Math.floor(this.position.x), fy = Math.floor(this.position.y), fz = Math.floor(this.position.z);
       const under = this.world.getBlock(fx, fy - 1, fz);
-      if (under === BLOCK.LAVA_TILES || under === BLOCK.LAVA) {
+       if (under === BLOCK.LAVA_TILES || under === BLOCK.LAVA) {
         if ((this.burnAcc = (this.burnAcc || 0) + dt) >= 0.5) {
           this.burnAcc -= 0.5;
           this.takeDamage(1, 'burn');
           if (this.onBurn) this.onBurn();
         }
+        this._burning = true;
       } else {
         this.burnAcc = 0;
+        this._burning = false;
       }
     }
   }
@@ -478,6 +481,17 @@ export class Player {
     const blockBelowFeet = this.world.getBlock(_feetBX, _feetBY, _feetBZ);
     const onIce = blockBelowFeet === BLOCK.ICE;
 
+    // --- Portal Pad: stand on it briefly to teleport to its nearest partner pad ---
+    if (blockBelowFeet === BLOCK.PORTAL_PAD) {
+      if (!this._portalPadUntil) this._portalPadUntil = performance.now() + 800;
+      else if (performance.now() >= this._portalPadUntil) {
+        this._portalPadUntil = 0;
+        this._teleportToPartnerPad(_feetBX, _feetBY, _feetBZ);
+      }
+    } else {
+      this._portalPadUntil = 0;
+    }
+
     // --- desired horizontal velocity from input ---
     const speed = this.flying ? FLY_SPEED
       : this.inWater ? SWIM_SPEED
@@ -509,6 +523,7 @@ export class Player {
 
     this.velocity.x = move.x;
     this.velocity.z = move.z;
+    if (this.vehicle) { this.velocity.x = 0; this.velocity.z = 0; }
 
     // Ice sliding: momentum persists when no input, but player can still steer.
     // Effect: on ice, you keep sliding after letting go of keys.
@@ -766,7 +781,7 @@ export class Player {
 
   // Edge protection: when crouching on ground, prevent walking off block edges.
   // Uses the center foot position so you can reach the absolute block edge
-  // before being stopped (Minecraft-style).
+  // before being stopped (BlockForge-style).
   _crouchEdgeBlocked(dx, dz) {
     if (!this.crouching || this.flying || !this.onGround) return false;
     const nx = this.position.x + dx;
@@ -846,7 +861,7 @@ export class Player {
             this.position.z = delta > 0 ? z - PLAYER_HALF_WIDTH - 0.0001 : z + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else {
             if (delta < 0) {
-              // Landing: apply fall damage based on fall distance (Minecraft Bedrock)
+              // Landing: apply fall damage based on fall distance (BlockForge Bedrock)
               const landBlock = this.world.getBlock(Math.floor(_posX), y, Math.floor(_posZ));
               const feetInWater = this.world.getBlock(Math.floor(_posX), y + 1, Math.floor(_posZ)) === BLOCK.WATER || this.world.getBlock(Math.floor(_posX), y + 2, Math.floor(_posZ)) === BLOCK.WATER;
               if (this.isSurvival() && this.fallStartY > 0 && landBlock !== BLOCK.SLIME_BLOCK && !this.inWater && !feetInWater) {
@@ -889,5 +904,33 @@ export class Player {
 
   cycleCamera() {
     this.cameraMode = (this.cameraMode + 1) % 3;
+  }
+
+  // Find the nearest other Portal Pad within a radius and teleport the player there.
+  _teleportToPartnerPad(cx, cy, cz) {
+    const R = 64;
+    let best = null, bestD = Infinity;
+    for (let x = cx - R; x <= cx + R; x++) {
+      for (let y = cy - R; y <= cy + R; y++) {
+        for (let z = cz - R; z <= cz + R; z++) {
+          if (x === cx && y === cy && z === cz) continue;
+          if (this.world.getBlock(x, y, z) !== BLOCK.PORTAL_PAD) continue;
+          const d = (x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz);
+          if (d < bestD) { bestD = d; best = { x, y, z }; }
+        }
+      }
+    }
+    let tx, ty, tz;
+    if (best) {
+      tx = best.x + 0.5; ty = best.y + 1.1; tz = best.z + 0.5;
+    } else if (this.spawnPoint) {
+      tx = this.spawnPoint.x; ty = this.spawnPoint.y + 0.2; tz = this.spawnPoint.z;
+    } else {
+      return;
+    }
+    this.position.set(tx, ty, tz);
+    this.velocity.set(0, 0, 0);
+    this.onGround = false;
+    if (typeof showFloatingText === 'function') showFloatingText('Warped!', tx, ty + 1.5, tz, '#b58bff');
   }
 }

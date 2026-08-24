@@ -1,4 +1,4 @@
-// Achievement system — tracks and unlocks Minecraft-style achievements.
+// Achievement system — tracks and unlocks BlockForge-style achievements.
 // Each achievement has an id, name, description, icon (block/item id), and
 // a check function that receives a stats snapshot and returns true if earned.
 

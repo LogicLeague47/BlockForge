@@ -187,6 +187,7 @@ export const BLOCK = {
   COMMAND_BLOCK: 172,
   JUKEBOX: 173,
   FLOWER_POT: 174,
+  ANVIL: 175,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -424,7 +425,7 @@ export const TILES = {
 // means neighbour faces behind it still render (leaves/glass/water/plants).
 //
 // Survival metadata (all optional):
-//   hardness  : seconds to break by hand (≈ Minecraft values). Default 0.
+//   hardness  : seconds to break by hand (≈ BlockForge values). Default 0.
 //   tool      : 'pickaxe' | 'axe' | 'shovel' | null — the tool that gives full
 //               speed and (for harvestable blocks) the block drop.
 //   harvest   : 0..4 — minimum tool tier needed for the drop to actually spawn.
@@ -524,7 +525,7 @@ export const BLOCKS = {
   [BLOCK.PRISMARINE]: { name: 'Prismarine', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'prismarine' },
   [BLOCK.PURPUR]:     { name: 'Purpur Block', solid: true, hardness: 1.5, tool: 'pickaxe', faces: { top: 'purpur', bottom: 'purpur', side: 'purpur_pillar_side' } },
   [BLOCK.BLACKSTONE_BRICKS]: { name: 'Blackstone Bricks', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'blackstone_bricks' },
-  [BLOCK.NETHER_WART]: { name: 'Nether Wart Block', solid: true, hardness: 1.0, faces: 'nether_wart' },
+  [BLOCK.NETHER_WART]: { name: 'Crimson Wart Block', solid: true, hardness: 1.0, faces: 'nether_wart' },
   [BLOCK.WARPED_WART]: { name: 'Warped Wart Block', solid: true, hardness: 1.0, faces: 'warped_wart' },
   // Wood type variant planks
   [BLOCK.JUNGLE_PLANKS]:  { name: 'Jungle Planks', solid: true, hardness: 2.0, tool: 'axe', faces: 'jungle_planks' },
@@ -614,6 +615,7 @@ export const BLOCKS = {
   [BLOCK.COMMAND_BLOCK]:    { name: 'Command Block', solid: true, hardness: -1, unbreakable: true, faces: { top: 'command_block_top', bottom: 'command_block_top', side: 'command_block_side' }, creativeOnly: true },
   [BLOCK.JUKEBOX]:          { name: 'Jukebox', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'jukebox_top', bottom: 'planks', side: 'jukebox_side' } },
   [BLOCK.FLOWER_POT]:       { name: 'Flower Pot', solid: true, hardness: 0.4, tool: 'pickaxe', faces: { top: 'flower_pot_top', bottom: 'flower_pot_bottom', side: 'flower_pot_side' } },
+  [BLOCK.ANVIL]:            { name: 'Anvil', solid: true, hardness: 5.0, tool: 'pickaxe', harvest: 2, faces: 'iron_block' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

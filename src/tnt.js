@@ -1,6 +1,6 @@
 // Lit TNT entity — a full-size animated TNT block that stays visible while its
 // fuse burns: it blinks brighter, hops faster and faster, and sparks at the top
-// before exploding (Minecraft-Java style), instead of vanishing instantly.
+// before exploding (BlockForge-Java style), instead of vanishing instantly.
 
 import * as THREE from 'three';
 import { BLOCK, TILES, tileNameFor } from './blocks.js';

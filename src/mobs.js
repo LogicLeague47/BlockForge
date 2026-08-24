@@ -18,7 +18,7 @@ function hexToRgb(hex) {
 
 // Texture cache per mob type to avoid creating duplicate textures
 const _texCache = {};
-// ── mob type definitions (Minecraft proportions) ─────────────────────
+// ── mob type definitions (BlockForge proportions) ─────────────────────
 // Dimensions are (width, height, depth) in blocks.  All mobs stand on the
 // ground plane with their feet at local y=0.
 export const MOB_TYPES = {
@@ -1649,7 +1649,7 @@ class Mob {
 
   _zombieTextures(def) {
     const s = 64;
-    // Classic Minecraft zombie: teal skin, blue shirt, dark blue pants
+    // Classic BlockForge zombie: teal skin, blue shirt, dark blue pants
     const SKIN = 0x5a9a7a;
     const SHIRT = 0x3a5a8a;
     const PANTS = 0x2a3a6a;
@@ -3041,7 +3041,7 @@ class Mob {
     if (this.dead) {
       this.deathTimer += dt;
       if (this.mesh) {
-        // Minecraft-style death: fall over sideways (0.35s), then sink into
+        // BlockForge-style death: fall over sideways (0.35s), then sink into
         // the ground while flashing and fading out.
         const FALL_T = 0.35;
         const SINK_T = 0.55;

@@ -61,7 +61,7 @@ export const IMP_BASE_SPOTS = [
 export const IMP_MID_SPOTS = [[30, 30], [-30, 30], [30, -30], [-30, -30]];
 
 // ─── Imported Treasure Island Map Loader ────────────────────────────────
-// Loads the actual Minecraft world data converted from .mca region files.
+// Loads the actual BlockForge world data converted from .mca region files.
 // Format: 36-byte BE header + LE block records (same as parkour imported maps).
 
 async function decompressGzip(buf) {

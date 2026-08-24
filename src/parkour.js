@@ -1,7 +1,7 @@
 import { BLOCK } from './blocks.js';
 import { assetBase } from './config.js';
 
-// ─── Parkour Physics Constants (Minecraft-accurate) ───────────────────
+// ─── Parkour Physics Constants (BlockForge-accurate) ───────────────────
 // Walking jump:  ~2.4b flat (no sprint)
 // Sprint jump:   ~3.4b flat (with sprint)
 // Sprint+1momentum: ~4.0b
@@ -26,7 +26,7 @@ export const PARKOUR_LEVELS = [
   { id: 9,  name: 'Mixed Challenge',   desc: 'Long jumps + bounce',       gap: 3, w: 2, d: 3, count: 8, block: BLOCK.STONE_BRICKS,   accent: BLOCK.VOID_STONE,    slimePads: true, theme: 'mixed'    },
   { id: 10, name: 'The Final Leap',    desc: 'Go big or go home',         gap: 4, w: 3, d: 3, count: 6, block: BLOCK.OBSIDIAN,      accent: BLOCK.GOLD_BLOCK,   theme: 'crown'    },
   // ── New MC-style parkour levels (11-20) ──
-  { id: 11, name: 'Nether Run',        desc: 'Hot nether jumps',          gap: 2, w: 2, d: 2, count: 8, block: BLOCK.NETHER_BRICK,  accent: BLOCK.EMBEROCK,     zigzag: true, theme: 'nether'   },
+  { id: 11, name: 'Brimstone Run',     desc: 'Hot brimstone jumps',       gap: 2, w: 2, d: 2, count: 8, block: BLOCK.NETHER_BRICK,  accent: BLOCK.EMBEROCK,     zigzag: true, theme: 'nether'   },
   { id: 12, name: 'Void Parkour',       desc: 'Void jumps over the void',   gap: 3, w: 2, d: 2, count: 7, block: BLOCK.VOIDSTONE,     accent: BLOCK.VOID_STONE,    theme: 'void'      },
   { id: 13, name: 'Ocean Climb',       desc: 'Underwater tower climb',    gap: 2, w: 2, d: 2, count: 8, block: BLOCK.QUARTZ_BLOCK,  accent: BLOCK.GLASS,        staircase: true, stepH: 2, theme: 'ocean'    },
   { id: 14, name: 'Jungle Heights',    desc: 'Vine-covered leaps',        gap: 3, w: 2, d: 3, count: 7, block: BLOCK.WOOD,          accent: BLOCK.LEAVES,       slimePads: true, theme: 'jungle'   },
@@ -403,7 +403,7 @@ export function setParkourLevel(lvl) {
 }
 
 // ─── Imported Parkour Map Loader ─────────────────────────────────────
-// Loads .bin.gz files produced by convert-parkour.cjs (Minecraft Anvil → binary)
+// Loads .bin.gz files produced by convert-parkour.cjs (BlockForge Anvil → binary)
 
 async function decompressGzip(buf) {
   if (typeof DecompressionStream !== 'undefined') {

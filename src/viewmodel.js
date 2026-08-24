@@ -18,7 +18,7 @@ export class ViewModel {
     this.hand = new THREE.Group();
     this.camera.add(this.hand);
 
-    // Build the visible arm mesh (blocky Minecraft-style forearm + hand)
+    // Build the visible arm mesh (blocky BlockForge-style forearm + hand)
     this._buildArmMesh();
 
     // Offhand group (mirrored on the left)
@@ -62,7 +62,7 @@ export class ViewModel {
 
     this._armGroup = new THREE.Group();
 
-    // Single forearm box: 4×12×4 pixels (Minecraft standard arm)
+    // Single forearm box: 4×12×4 pixels (BlockForge standard arm)
     const arm = new THREE.Mesh(
       new THREE.BoxGeometry(4 / 16, 12 / 16, 4 / 16),
       [matDark, mat, mat, mat, mat, matDark]
@@ -298,11 +298,11 @@ export class ViewModel {
     return wrap;
   }
 
-  // Food / materials / other items (id 256-511): flat sprite like Minecraft
+  // Food / materials / other items (id 256-511): flat sprite like BlockForge
   _buildItemMesh(itemId) {
     const canvas = makeItemIconCanvas(itemId);
     const mesh = this._planeFromCanvas(canvas, 0.4, true);
-    // Angle like Minecraft held item — tilted back, slightly right
+    // Angle like BlockForge held item — tilted back, slightly right
     mesh.rotation.set(-0.4, 0.3, 0.1);
     const wrap = new THREE.Group();
     wrap.add(mesh);

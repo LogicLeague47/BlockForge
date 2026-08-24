@@ -342,7 +342,7 @@ const PAINTERS = {
   leaves(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
 
-    // Minecraft oak leaves: ~#6ca84a base with small scattered transparent
+    // BlockForge oak leaves: ~#6ca84a base with small scattered transparent
     // holes (~10-15%) and subtle darker/lighter organic patches.
     const base = [100, 168, 60];
     const dark = [68, 128, 40];
@@ -399,7 +399,7 @@ const PAINTERS = {
   },
 
   sand(ctx, x0, y0, rng) {
-    // Minecraft sand: 219,211,160.
+    // BlockForge sand: 219,211,160.
     noisy(ctx, x0, y0, [219, 211, 160], 0.05, rng);
     // Faint ripple bands.
     for (let y = 3; y < TILE; y += 6) {
@@ -427,7 +427,7 @@ const PAINTERS = {
   },
 
   water(ctx, x0, y0, rng) {
-    // Minecraft water blue: 47,98,188 with wave highlights.
+    // BlockForge water blue: 47,98,188 with wave highlights.
     noisy(ctx, x0, y0, [47, 98, 188], 0.05, rng);
     // Paired wave lines for a soft ripple feel.
     for (let y = 3; y < TILE; y += 5) {
@@ -502,7 +502,7 @@ const PAINTERS = {
   },
 
   glass(ctx, x0, y0, rng) {
-    // Clear centre with a visible bordered pane (Minecraft style).
+    // Clear centre with a visible bordered pane (BlockForge style).
     ctx.clearRect(x0, y0, TILE, TILE);
     ctx.fillStyle = 'rgba(180,210,225,0.10)';
     ctx.fillRect(x0, y0, TILE, TILE);
@@ -1071,7 +1071,7 @@ const PAINTERS = {
   },
 
   // ── BED textures ──────────────────────────────────────────────────
-  // Red bedspread, white pillow, oak wood frame — Minecraft style.
+  // Red bedspread, white pillow, oak wood frame — BlockForge style.
   // The top texture shows the full bed from above (pillow at top, blanket below).
   // Both blocks use the same textures but orientation makes them look correct.
 

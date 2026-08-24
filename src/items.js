@@ -137,6 +137,9 @@ export const ITEM = {
   MUSIC_DISC_3: 832,
   MUSIC_DISC_4: 833,
   MUSIC_DISC_5: 834,
+  NIGHT_VISION_POTION: 840,
+  BOAT: 841,
+  MINECART: 842,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -318,6 +321,9 @@ const NONBLOCK_ITEMS = {
   [ITEM.MUSIC_DISC_3]:    { name: 'Music Disc - Ember', stack: 1 },
   [ITEM.MUSIC_DISC_4]:    { name: 'Music Disc - Void', stack: 1 },
   [ITEM.MUSIC_DISC_5]:    { name: 'Music Disc - Sky', stack: 1 },
+  [ITEM.NIGHT_VISION_POTION]: { name: 'Night Vision Potion', stack: 1 },
+  [ITEM.BOAT]:      { name: 'Boat', stack: 1 },
+  [ITEM.MINECART]:  { name: 'Minecart', stack: 1 },
 };
 
 // --- armor definitions -------------------------------------------------------
@@ -402,9 +408,13 @@ export function itemDef(id) {
   return NONBLOCK_ITEMS[id] || null;
 }
 
-export function itemName(id) {
+export function itemName(idOrSlot) {
+  const slot = (idOrSlot && typeof idOrSlot === 'object') ? idOrSlot : null;
+  const id = slot ? slot.item : idOrSlot;
   const d = itemDef(id);
-  return d ? d.name : '?';
+  const base = d ? d.name : '?';
+  if (slot && slot.customName) return slot.customName;
+  return base;
 }
 
 export function maxStack(id) {

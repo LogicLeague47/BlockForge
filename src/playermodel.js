@@ -198,7 +198,7 @@ function cutFace(skinCanvas, sx, sy, sw, sh) {
 }
 // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
 
-// ── Armor (Minecraft-style plate overlays) ─────────────────────────────
+// ── Armor (BlockForge-style plate overlays) ─────────────────────────────
 // Generates a 64x64 armor texture in the same layout as the skin, so the
 // existing part-slicing regions produce properly-mapped pixel-art armor.
 const ARMOR_PALETTES = {
@@ -211,7 +211,7 @@ const ARMOR_PALETTES = {
 };
 
 // Helmet front-face openings (0 = transparent, 1 = covered). Applied to the
-// -Z face so the player's skin shows through the visor like in Minecraft.
+// -Z face so the player's skin shows through the visor like in BlockForge.
 // Classic helmets leave the whole face open (brim + chin), netherite-style
 // prismite leaves only a narrow eye slit.
 const HELMET_FACE_MASK = [
@@ -602,7 +602,7 @@ export class PlayerModel {
 
       wrap.rotation.x = -Math.PI / 2;
     } else {
-      // Non-block, non-tool items: flat sprite like Minecraft
+      // Non-block, non-tool items: flat sprite like BlockForge
       const canvas = this._getItemCanvas(itemId);
       const tex = this._canvasTex(canvas);
       const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
@@ -675,7 +675,7 @@ export class PlayerModel {
     this.animData.velocityY = velocity.y;
     this.animData.pitch = headPitch;
 
-    // ── Minecraft head/body yaw split ────────────────────────────────
+    // ── BlockForge head/body yaw split ────────────────────────────────
     // The head follows your look direction immediately. The body lags behind,
     // snapping around while you move and only being dragged along once the
     // head has twisted more than ~50 degrees off-centre while standing still.

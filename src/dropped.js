@@ -60,7 +60,7 @@ export class DroppedItem {
         this.group.add(mesh);
       }
     } else {
-      // Non-block items: two crossed flat boxes (Minecraft-style, visible from all angles while spinning)
+      // Non-block items: two crossed flat boxes (BlockForge-style, visible from all angles while spinning)
       const canvas = makeItemIconCanvas(itemId);
       const tex = new THREE.CanvasTexture(canvas);
       tex.magFilter = THREE.NearestFilter;

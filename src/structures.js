@@ -898,7 +898,7 @@ function buildRuinedPortal(set, ox, y, oz, world) {
       }
     }
   }
-  // Portal frame: 4 wide, 5 tall (Nether-style). Kept complete and lit so it's
+  // Portal frame: 4 wide, 5 tall (Echo-style). Kept complete and lit so it's
   // a working gateway into the Shattered Echo dimension, discoverable in the wild.
   const frameMat = () => (rng() < 0.5 ? BLOCK.OBSIDIAN : BLOCK.COMPRESSED_VOIDSTONE);
   // Bottom row (frame base)

@@ -3,8 +3,8 @@ import { BLOCK } from './blocks.js';
 // ─── OneBlock ─────────────────────────────────────────────────────────
 // Classic sky-block grind: one single block in the void. Breaking it drops
 // resources and it regenerates as a random block from the current phase's
-// pool. The phases mirror Minecraft OneBlock's progression (Plains → Lush),
-// minus the Nether and End phases. Each block weight is a percentage of the
+// pool. The phases mirror BlockForge OneBlock's progression (Plains → Lush),
+// minus the Echo and Void phases. Each block weight is a percentage of the
 // phase's drop pool, tuned from the classic OneBlock block tables.
 
 export const ONEBLOCK_STAGES = [
@@ -178,7 +178,7 @@ export const ONEBLOCK_LOOT = [
     { item: 551, count: [1, 1], weight: 6 },   // diamond boots
     { item: 313, count: [1, 1], weight: 5 },   // trident
     { item: 311, count: [1, 1], weight: 3 },   // saddle
-    { item: 318, count: [1, 2], weight: 4 },   // eye of ender
+    { item: 318, count: [1, 2], weight: 4 },   // Rift Eye
   ]},
   // Phase 11 — Lush: prismite-rich final loot.
   { loot: [
@@ -190,7 +190,7 @@ export const ONEBLOCK_LOOT = [
     { item: 556, count: [1, 1], weight: 8 },   // prismite helmet
     { item: 557, count: [1, 1], weight: 6 },   // prismite chest
     { item: 296, count: [2, 3], weight: 8 },   // golden apple
-    { item: 318, count: [1, 3], weight: 4 },   // eye of ender
+    { item: 318, count: [1, 3], weight: 4 },   // Rift Eye
   ]},
 ];
 

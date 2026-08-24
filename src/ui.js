@@ -15,11 +15,11 @@ const HEART_COLS = '#b00', HEART_HALF_L = '#b00', HEART_HALF_R = '#633';
 const HEART_EMPTY = '#411';
 const DRUM_COLS = '#b87333', DRUM_HALF_L = '#b87333', DRUM_HALF_R = '#7a4a20';
 const DRUM_EMPTY = '#3a2210';
-// Minecraft armor bar — light-grey chestplate on a dark empty plate
+// BlockForge armor bar — light-grey chestplate on a dark empty plate
 const ARMOR_COLS = '#e0e0e0', ARMOR_HALF_L = '#e0e0e0', ARMOR_HALF_R = '#4a4a4a';
 const ARMOR_EMPTY = '#2b2b2b';
 
-// Minecraft Bedrock hunger drumstick — meat chunk with bone
+// BlockForge Bedrock hunger drumstick — meat chunk with bone
 const HEART_PIXELS = [
   [0,1,1,0,0,0,1,1,0],
   [1,1,1,1,0,1,1,1,1],
@@ -43,7 +43,7 @@ const DRUM_PIXELS = [
   [0,0,0,1,0,0,0,0,0],
 ];
 
-// Minecraft armor bar chestplate icon
+// BlockForge armor bar chestplate icon
 const ARMOR_PIXELS = [
   [0,0,1,1,0,1,1,0,0],
   [0,1,1,1,1,1,1,1,0],
@@ -125,7 +125,7 @@ function drawArmorUrl(full, half) {
 // Shared by the hotbar, inventory, furnace, creative browser and the 3D
 // first-person held-item view, so every UI surface shows the exact same art.
 //
-// Art is hand-built to match vanilla Minecraft item sprites: correct silhouettes,
+// Art is hand-built to match vanilla BlockForge item sprites: correct silhouettes,
 // multi-tone shading, specular highlights and per-material palettes for tools.
 export function makeItemIconCanvas(itemId) {
   const c = document.createElement('canvas');
@@ -384,7 +384,7 @@ function drawIngot(x, hi, mid, lo) {
 }
 
 function drawDiamond(x) {
-  // Classic Minecraft diamond gem: faceted rhombus.
+  // Classic BlockForge diamond gem: faceted rhombus.
   const cx = 8;
   // outline / dark facet edges
   const o = '#1f6e6a';
@@ -1349,7 +1349,7 @@ export function drawCrack(c, stage) {
   if (!stage || stage <= 0) return;
 
   const s = Math.min(1, stage);
-  // Minecraft uses 10 discrete stages; map 0-1 → 1-10
+  // BlockForge uses 10 discrete stages; map 0-1 → 1-10
   const stageIdx = Math.max(1, Math.ceil(s * 10));
 
   // Darken overlay increases with stage
@@ -1544,7 +1544,7 @@ export class UI {
       const s = inventory.slots[i];
       if (s) {
         const id = s.item;
-        slotEl.dataset.itemName = itemName(id);
+        slotEl.dataset.itemName = itemName(s);
         const icon = isBlockItem(id)
           ? makeIcon(id, this.atlas)
           : this.makeItemIcon(id);
@@ -1910,7 +1910,7 @@ export class UI {
       // Uncommon (1.0% each)
       { t: 'Also try the original game!', w: 10 },
       { t: "Wait, this isn't a 2D platformer!", w: 10 },
-      { t: 'Warning: Creeper sympathizer detected.', w: 10 },
+      { t: 'Warning: Blower sympathizer detected.', w: 10 },
       { t: 'Procedurally generated confusion!', w: 10 },
       { t: 'Code written at 3 AM!', w: 10 },
       { t: 'Your inventory is an extradimensional void.', w: 10 },
@@ -2160,7 +2160,7 @@ export class UI {
       const s = inventory.slots[i];
       if (s) {
         const id = s.item;
-        slotEl.dataset.itemName = itemName(id);
+        slotEl.dataset.itemName = itemName(s);
         const icon = isBlockItem(id)
           ? makeIcon(id, this.atlas)
           : this.makeItemIcon(id);

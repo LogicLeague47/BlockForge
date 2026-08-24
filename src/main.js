@@ -164,7 +164,7 @@ const VERY_LOW_END = LOW_END || WEAK_GPU;
 })();
 
 // Block reach / mining pace.
-// REACH = how far (in blocks) you can hit mobs and target blocks — Minecraft's
+// REACH = how far (in blocks) you can hit mobs and target blocks — BlockForge's
 // classic 3-block range. BASE_BREAK_TIME scales the break formula below.
 const REACH = 3;
 const BASE_BREAK_TIME = 1.0; // (hardness * BASE) / toolSpeed → seconds to break
@@ -509,7 +509,7 @@ scene.add(ambient);
 const hemi = new THREE.HemisphereLight(0x88bbff, 0x4a6a3a, 0.08);
 scene.add(hemi);
 // Moonlight: a dim cool light that takes over when the sun sets. Without it,
-// night scenes render pitch black — Minecraft keeps a faint blue cast so the
+// night scenes render pitch black — BlockForge keeps a faint blue cast so the
 // terrain stays readable. No shadows (moon shadows cost a second shadow pass
 // for almost no visual gain).
 const moonLight = new THREE.DirectionalLight(0x8899cc, 0);
@@ -867,7 +867,7 @@ let bwWinTeamKey = null;  // winning team
 let bwSpec = false;       // local player eliminated → spectator
 let bwHudEl = null;       // HUD element
 let _pendingRoomEdits = null; // block_batch edits buffered while the world loads
-let _isImportedParkour = false; // imported Minecraft parkour map
+let _isImportedParkour = false; // imported BlockForge parkour map
 let _parkourLevelEnds = null;
 let _parkourTimerEl = null;
 let _parkourLevelEl = null;
@@ -1162,7 +1162,7 @@ document.addEventListener('mousemove', (e) => {
       }
     }
   }
-  // F = swap selected hotbar item with offhand (Minecraft Java behavior)
+  // F = swap selected hotbar item with offhand (BlockForge Java behavior)
   if (e.code === kb.swapHands && !ui.inventoryOpen) {
     const sel = player.inventory.selected;
     const curSlot = player.inventory.slots[sel];
@@ -1633,6 +1633,22 @@ document.addEventListener('mousedown', (e) => {
       e.preventDefault();
       return;
     }
+    // Boats / Minecarts: mount a nearby one, or place one on the targeted block
+    if (held && (held.item === ITEM.BOAT || held.item === ITEM.MINECART)) {
+      const near = nearestVehicle(player.position, 2.6);
+      if (near) {
+        if (player.vehicle === near) dismountVehicle();
+        else if (!player.vehicle) mountVehicle(near);
+        e.preventDefault();
+        return;
+      }
+      if (hit) {
+        spawnVehicle(held.item, hit.x + 0.5, hit.y + 1.0, hit.z + 0.5);
+        if (player.isSurvival()) { held.count--; if (held.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+        e.preventDefault();
+        return;
+      }
+    }
     // Traveler trade: right-click while looking at a Traveler mob
     if (mobManager && player) {
       const tdir = _mobDirVec;
@@ -1662,6 +1678,12 @@ document.addEventListener('mousedown', (e) => {
       document.exitPointerLock?.();
     } else if (hit && (hit.block === BLOCK.BED || hit.block === BLOCK.BED_FOOT)) {
       trySleep();
+    } else if (hit && hit.block === BLOCK.ANVIL) {
+      openAnvilRename();
+      document.exitPointerLock?.();
+    } else if (hit && hit.block === BLOCK.JUKEBOX) {
+      useJukebox(hit.x, hit.y, hit.z);
+      document.exitPointerLock?.();
     } else if (hit && (hit.block === BLOCK.OAK_DOOR || hit.block === BLOCK.IRON_DOOR)) {
       const doorKey = `${hit.x},${hit.y},${hit.z}`;
       const state = doorStates.get(doorKey);
@@ -1695,7 +1717,7 @@ document.addEventListener('mousedown', (e) => {
         greenstoneSystem.setPower(hit.x, hit.y, hit.z, 15);
       }
     } else {
-      // Minecraft Java right-click: main hand first, then off-hand fallback
+      // BlockForge Java right-click: main hand first, then off-hand fallback
       let used = false;
       const slot = player.inventory.getSelected();
 
@@ -1752,27 +1774,37 @@ document.addEventListener('mousedown', (e) => {
 
       // Frost Wand: freeze water/lava, or chill a mob in the crosshair
       if (!used && slot && slot.item === ITEM.FROST_WAND) {
-        const hit = currentTarget();
-        if (hit) {
-          const b = world.getBlock(hit.x, hit.y, hit.z);
-          if (b === BLOCK.WATER) world.setBlock(hit.x, hit.y, hit.z, BLOCK.ICE);
-          else if (b === BLOCK.LAVA) world.setBlock(hit.x, hit.y, hit.z, BLOCK.OBSIDIAN);
-          else {
-            const mob = raycastMob(REACH);
-            if (mob) mob._frostSlow = performance.now() / 1000 + 3;
+        const now = performance.now();
+        if (now < _utilCooldownUntil) { used = true; }
+        else {
+          const hit = currentTarget();
+          if (hit) {
+            const b = world.getBlock(hit.x, hit.y, hit.z);
+            if (b === BLOCK.WATER) world.setBlock(hit.x, hit.y, hit.z, BLOCK.ICE);
+            else if (b === BLOCK.LAVA) world.setBlock(hit.x, hit.y, hit.z, BLOCK.OBSIDIAN);
+            else {
+              const mob = raycastMob(REACH);
+              if (mob) mob._frostSlow = performance.now() / 1000 + 3;
+            }
+            spawnFrostParticles(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+            if (audio && audio.frost) audio.frost();
+            if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+            _utilCooldownUntil = now + 800; _utilCooldownMax = 800;
+            used = true;
           }
-          spawnFrostParticles(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
-          if (audio && audio.frost) audio.frost();
-          if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
-          used = true;
         }
       }
 
       // Ember Launcher: shoot a fireball
       if (!used && slot && slot.item === ITEM.EMBER_LAUNCHER) {
-        throwFireball();
-        if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
-        used = true;
+        const now = performance.now();
+        if (now < _utilCooldownUntil) { used = true; }
+        else {
+          throwFireball();
+          if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+          _utilCooldownUntil = now + 1200; _utilCooldownMax = 1200;
+          used = true;
+        }
       }
 
       // Dimension Compass: point back to spawn / nearest portal
@@ -1784,6 +1816,15 @@ document.addEventListener('mousedown', (e) => {
         if (ang >= -45 && ang < 45) dir = 'East'; else if (ang >= 45 && ang < 135) dir = 'South';
         else if (ang >= 135 || ang < -135) dir = 'West'; else dir = 'North';
         addChatLine(`Dimension Compass → Spawn is to the ${dir} (${Math.round(sp.x)}, ${Math.round(sp.z)})`, '#7fd0ff');
+        used = true;
+      }
+
+      // Night Vision Potion: drink to see clearly in the dark for 3 minutes
+      if (!used && slot && slot.item === ITEM.NIGHT_VISION_POTION) {
+        player.nightVisionUntil = performance.now() + 3 * 60 * 1000;
+        if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+        addChatLine('Night Vision active — you can see in the dark for 3:00.', '#7fffd0');
+        if (audio && audio.eat) audio.eat();
         used = true;
       }
 
@@ -2268,6 +2309,43 @@ function spawnFrostParticles(x, y, z) {
 
 // Ember fireballs: glowing projectile that damages mobs on impact.
 const _fireballs = [];
+let _utilCooldownUntil = 0, _utilCooldownMax = 1;
+let _fireOverlayEl = null, _cooldownHudEl = null, _waterOverlayEl = null;
+function ensureHudOverlays() {
+  if (!_fireOverlayEl) {
+    _fireOverlayEl = document.createElement('div');
+    _fireOverlayEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:60;opacity:0;transition:opacity .2s;background:radial-gradient(ellipse at center, rgba(255,120,20,0) 35%, rgba(255,90,10,0.55) 100%);';
+    document.body.appendChild(_fireOverlayEl);
+  }
+  if (!_waterOverlayEl) {
+    _waterOverlayEl = document.createElement('div');
+    _waterOverlayEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:59;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at center, rgba(20,90,160,0) 40%, rgba(12,60,120,0.5) 100%);';
+    document.body.appendChild(_waterOverlayEl);
+  }
+  if (!_cooldownHudEl) {
+    _cooldownHudEl = document.createElement('div');
+    _cooldownHudEl.style.cssText = 'position:fixed;left:50%;top:54%;transform:translateX(-50%);width:90px;height:6px;background:rgba(0,0,0,0.5);border:1px solid rgba(255,255,255,0.2);border-radius:3px;overflow:hidden;pointer-events:none;z-index:60;display:none;';
+    _cooldownHudEl.innerHTML = '<div id="cooldown-fill" style="height:100%;width:0%;background:#ffcc55;"></div>';
+    document.body.appendChild(_cooldownHudEl);
+  }
+}
+function updateHudOverlays() {
+  ensureHudOverlays();
+  const burning = player && player._burning;
+  _fireOverlayEl.style.opacity = burning ? '0.4' : '0';
+  const underwater = player && player.inWater;
+  _waterOverlayEl.style.opacity = underwater ? '1' : '0';
+  const now = performance.now();
+  if (now < _utilCooldownUntil) {
+    const frac = (_utilCooldownUntil - now) / _utilCooldownMax;
+    _cooldownHudEl.style.display = 'block';
+    const fill = _cooldownHudEl.firstChild;
+    if (fill) fill.style.width = (frac * 100).toFixed(0) + '%';
+  } else {
+    _cooldownHudEl.style.display = 'none';
+  }
+}
+
 function throwFireball() {
   if (!player || !camera) return;
   camera.getWorldDirection(_rayDir);
@@ -2318,6 +2396,80 @@ function updateUtilityItems(dt) {
       player.velocity.x += (dx / d) * pull * dt;
       player.velocity.y += (dy / d) * pull * dt;
       player.velocity.z += (dz / d) * pull * dt;
+    }
+  }
+}
+
+// ===== Vehicles (Boat / Minecart) — simple rideable entities =====
+const vehicles = [];
+function nearestVehicle(pos, maxD) {
+  let best = null, bd = maxD * maxD;
+  for (const v of vehicles) {
+    const dx = v.x - pos.x, dy = v.y - pos.y, dz = v.z - pos.z;
+    const d = dx * dx + dy * dy + dz * dz;
+    if (d < bd) { bd = d; best = v; }
+  }
+  return best;
+}
+const _vehicleGeo = new THREE.BoxGeometry(0.9, 0.5, 0.9);
+function spawnVehicle(type, x, y, z) {
+  if (!scene || !world) return null;
+  const color = type === ITEM.MINECART ? 0x6b4a2b : 0x9c6b34;
+  const mesh = new THREE.Mesh(_vehicleGeo, new THREE.MeshLambertMaterial({ color }));
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+  const v = { type, mesh, x, y, z, vy: 0, rider: null };
+  vehicles.push(v);
+  addChatLine(type === ITEM.MINECART ? 'Placed a minecart.' : 'Placed a boat.', '#cfd2e8');
+  return v;
+}
+function mountVehicle(v) {
+  if (!v || player.vehicle) return;
+  player.vehicle = v; v.rider = player;
+  document.exitPointerLock?.();
+  addChatLine('Mounted. Move with WASD, right-click to dismount.', '#9fe');
+}
+function dismountVehicle() {
+  if (!player.vehicle) return;
+  const v = player.vehicle;
+  player.position.set(v.x, v.y + 1.1, v.z);
+  player.velocity.set(0, 0, 0);
+  player.vehicle = null; v.rider = null;
+}
+function _vehicleGroundY(x, z) {
+  let waterTop = -1;
+  for (let y = 255; y >= 0; y--) {
+    const b = world.getBlock(Math.floor(x), y, Math.floor(z));
+    if (b === BLOCK.WATER) { if (waterTop < 0) waterTop = y; continue; }
+    if (BLOCKS[b] && BLOCKS[b].solid) return y + 1;
+  }
+  return (waterTop >= 0 ? waterTop + 0.25 : 1);
+}
+function updateVehicles(dt) {
+  for (const v of vehicles) {
+    if (v.rider === player) {
+      const speed = v.type === ITEM.MINECART ? 8 : 6;
+      const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+      const rx = Math.cos(player.yaw), rz = -Math.sin(player.yaw);
+      let mx = 0, mz = 0;
+      if (input.keys[kb.forward]) { mx += fx; mz += fz; }
+      if (input.keys[kb.back]) { mx -= fx; mz -= fz; }
+      if (input.keys[kb.right]) { mx += rx; mz += rz; }
+      if (input.keys[kb.left]) { mx -= rx; mz -= rz; }
+      const len = Math.hypot(mx, mz);
+      if (len > 0) { mx = mx / len * speed * dt; mz = mz / len * speed * dt; }
+      v.x += mx; v.z += mz;
+    }
+    v.vy -= 22 * dt;
+    let gy = _vehicleGroundY(v.x, v.z);
+    gy += (v.type === ITEM.MINECART) ? 0.05 : 0.25;
+    v.y += v.vy * dt;
+    if (v.y <= gy) { v.y = gy; v.vy = 0; }
+    v.mesh.position.set(v.x, v.y, v.z);
+    if (v.rider === player) {
+      player.position.set(v.x, v.y + 1.0, v.z);
+      player.velocity.x = 0; player.velocity.z = 0; player.velocity.y = 0;
+      player.onGround = true;
     }
   }
 }
@@ -2943,6 +3095,71 @@ function openTravelerTrade(travelerMob) {
   if (closeBtn) closeBtn.addEventListener('click', () => { panel.style.display = 'none'; });
 }
 
+// Anvil: rename the currently-held item (store a customName on the slot).
+function openAnvilRename() {
+  const slot = player.inventory.slots[player.inventory.selected];
+  if (!slot) { addChatLine('Hold an item in your hand to rename it.', '#f88'); return; }
+
+  let panel = document.getElementById('anvil-panel');
+  if (!panel) {
+    panel = document.createElement('div');
+    panel.id = 'anvil-panel';
+    panel.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:rgba(20,20,30,0.96);border:2px solid rgba(180,180,200,0.5);border-radius:8px;padding:18px;min-width:320px;max-width:420px;pointer-events:auto;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,0.6);';
+    document.body.appendChild(panel);
+  }
+  const current = slot.customName || itemName(slot.item);
+  panel.innerHTML =
+    `<div style="font:bold 16px monospace;color:#cfd2e8;text-align:center;margin-bottom:6px;">⚒ Anvil</div>` +
+    `<div style="font:11px monospace;color:#aaa;margin-bottom:10px;text-align:center;">Rename the item in your hand</div>` +
+    `<input id="anvil-name" maxlength="30" value="${current.replace(/"/g, '&quot;')}" style="width:100%;box-sizing:border-box;padding:8px;font:14px monospace;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;" />` +
+    `<div style="display:flex;gap:8px;margin-top:12px;justify-content:center;">` +
+    `<button id="anvil-rename" style="padding:6px 18px;font:12px monospace;background:rgba(120,200,255,0.2);border:1px solid rgba(120,200,255,0.4);color:#cfe;cursor:pointer;border-radius:4px;">Rename</button>` +
+    `<button id="anvil-clear" style="padding:6px 14px;font:12px monospace;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#ccc;cursor:pointer;border-radius:4px;">Reset</button>` +
+    `<button id="anvil-close" style="padding:6px 14px;font:12px monospace;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.2);color:#ccc;cursor:pointer;border-radius:4px;">Close</button>` +
+    `</div>`;
+  panel.style.display = 'block';
+  const input = document.getElementById('anvil-name');
+  setTimeout(() => { input.focus(); input.select(); }, 30);
+
+  const apply = (val) => {
+    const name = (val || '').trim().slice(0, 30);
+    if (!name) delete slot.customName;
+    else slot.customName = name;
+    player.inventory.slots[player.inventory.selected] = slot;
+    syncUIMode();
+    addChatLine(name ? `Renamed to "${name}".` : 'Name reset.', '#9fe');
+  };
+  document.getElementById('anvil-rename').addEventListener('click', () => apply(input.value));
+  document.getElementById('anvil-clear').addEventListener('click', () => apply(''));
+  document.getElementById('anvil-close').addEventListener('click', () => { panel.style.display = 'none'; });
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') apply(input.value); if (e.key === 'Escape') panel.style.display = 'none'; });
+}
+
+// Jukebox: insert a music disc to play it, or eject the disc with an empty hand.
+const _jukeboxDiscs = new Map();
+function useJukebox(x, y, z) {
+  const key = `${x},${y},${z}`;
+  const slot = player.inventory.slots[player.inventory.selected];
+  const held = slot ? slot.item : 0;
+  const discTrack = (held >= ITEM.MUSIC_DISC_1 && held <= ITEM.MUSIC_DISC_5) ? (held - ITEM.MUSIC_DISC_1) : -1;
+  if (_jukeboxDiscs.has(key)) {
+    // Eject current disc
+    const d = _jukeboxDiscs.get(key);
+    _jukeboxDiscs.delete(key);
+    player.inventory.add(d, 1);
+    if (audio && audio.stopMusicDisc) audio.stopMusicDisc();
+    addChatLine('Ejected a music disc.', '#cfd2e8');
+    syncUIMode();
+  } else if (discTrack >= 0) {
+    _jukeboxDiscs.set(key, held);
+    if (player.isSurvival()) { slot.count--; if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null; syncUIMode(); }
+    if (audio && audio.musicDisc) audio.musicDisc(discTrack + 1);
+    addChatLine(`Now playing music disc ${discTrack + 1}.`, '#9fe');
+  } else {
+    addChatLine('Put a music disc in your hand to play it.', '#f88');
+  }
+}
+
 // Bucket: empty bucket fills from water/lava, water/lava bucket empties into air.
 // Returns true if an action was performed.
 function handleBucket(held, hit) {
@@ -3319,7 +3536,7 @@ function addChatLine(text, color, raw) {
   chatHistory.push({ text, color: color || '#fff', time: Date.now(), raw: !!raw });
   if (chatHistory.length > MAX_CHAT_LINES) chatHistory.shift();
   renderChatMessages();
-  // Auto-show chat-hud briefly when messages arrive (Minecraft-style)
+  // Auto-show chat-hud briefly when messages arrive (BlockForge-style)
   if (!chatOpen) {
     const hud = document.getElementById('chat-hud');
     if (hud) {
@@ -3965,9 +4182,9 @@ function renderRecentServers() {
 }
 
 // ── Live server directory (player-hosted + Official SMP) ───────────────
-// Minecraft-Java style multiplayer: the client keeps a list of servers LOCALLY
+// BlockForge-Java style multiplayer: the client keeps a list of servers LOCALLY
 // (added by the player with name + address) and pings each one directly for
-// live status (name / MOTD / players / version) — exactly like Minecraft's
+// live status (name / MOTD / players / version) — exactly like BlockForge's
 // Server List Ping. There is no central directory in the in-game list.
 const SAVED_SERVERS_KEY = 'bf_saved_servers';
 
@@ -3979,7 +4196,7 @@ function normalizeServerAddress(input) {
   if (m && !m[3]) {
     const host = m[2];
     const isLocal = host === 'localhost' || /^(\d{1,3}\.){3}\d{1,3}$/.test(host);
-    // Only assume the default port for bare IPs / localhost (like Minecraft
+    // Only assume the default port for bare IPs / localhost (like BlockForge
     // assumes 25565). Domains usually go through a tunnel on 443 already.
     if (isLocal) a = m[1] + host + ':4000' + (m[4] || '');
   }
@@ -4100,14 +4317,14 @@ async function renderSavedServers() {
     </div>`).join('');
   el.querySelectorAll('.sv-join').forEach(btn => btn.addEventListener('click', () => joinServerByAddress(btn.dataset.address)));
   el.querySelectorAll('.sv-del').forEach(btn => btn.addEventListener('click', () => { removeSavedServer(btn.dataset.address); renderSavedServers(); }));
-  // Ping each server directly (Minecraft-style Server List Ping)
+  // Ping each server directly (BlockForge-style Server List Ping)
   for (let i = 0; i < list.length; i++) {
     const status = await pingServerStatus(list[i].address);
     updateServerRowStatus(i, status);
   }
 }
 
-// Minecraft-style LAN auto-discovery (web edition): instead of typing an IP,
+// BlockForge-style LAN auto-discovery (web edition): instead of typing an IP,
 // the official backend's directory of online servers is fetched and shown here
 // automatically. Players join with one click — the address is filled in for them.
 function joinServerByAddress(address) {
@@ -4146,7 +4363,7 @@ function showWorldsView() {
   if (wp) wp.style.display = '';
 }
 
-// Minecraft-style: while the Multiplayer menu is open, keep pinging saved
+// BlockForge-style: while the Multiplayer menu is open, keep pinging saved
 // servers so their live status (name / MOTD / players) stays current.
 let _mpStatusTimer = null;
 function stopMpStatusTimer() { if (_mpStatusTimer) { clearInterval(_mpStatusTimer); _mpStatusTimer = null; } }
@@ -5115,7 +5332,7 @@ function closeTutorial() {
 }
 
 // --- sky ---
-// Full day/night cycle length in seconds (Minecraft-style: 20 minutes).
+// Full day/night cycle length in seconds (BlockForge-style: 20 minutes).
 // DAY_FRAC is the fraction of the cycle that counts as daytime (10/16 = 0.625).
 const DAY_LENGTH = 1200;
 const DAY_FRAC = 10 / 16;
@@ -5387,7 +5604,7 @@ function updateSky(dt) {
     const t = (sinA + 0.15) / 0.15;
     skyColor = lerpColor(NIGHT_COLOR, DUSK_COLOR, t);
   } else {
-    // Deep night — dark navy (never pure black, matching Minecraft's sky).
+    // Deep night — dark navy (never pure black, matching BlockForge's sky).
     skyColor = _nightColor.set(NIGHT_COLOR);
   }
 
@@ -5453,6 +5670,11 @@ function updateSky(dt) {
   // returns smoothly after a natural night.
   const targetAmbientI = 0.06 + dayAmt * 0.42 + nightAmt * 0.26;
   const targetHemiI = 0.04 + dayAmt * 0.18 + nightAmt * 0.12;
+  // Night-vision potion: lift ambient/hemisphere so the world stays readable at night.
+  if (player && player.nightVisionUntil && performance.now() < player.nightVisionUntil) {
+    targetAmbientI += 0.5;
+    targetHemiI += 0.35;
+  }
   ambient.intensity += (targetAmbientI - ambient.intensity) * Math.min(1, dt * 5);
   hemi.intensity += (targetHemiI - hemi.intensity) * Math.min(1, dt * 5);
 
@@ -5607,7 +5829,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   const saved = (!isParkour && !isOneBlock && !isBedwars && !isSkyblock) ? loadWorld(worldId) : (isOneBlock ? loadWorld(worldId) : null);
   if (saved) world.loadEdits(saved);
 
-  // The Shattered Echo dimension is part of every world (Nether-style), not a
+  // The Shattered Echo dimension is part of every world (Echo-style), not a
   // world type: the main world is always the overworld, and the dimension is
   // generated lazily the first time the player steps through a Void portal.
   // Parkour courses and multiplayer rooms keep the single-world behaviour.
@@ -6099,7 +6321,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 
     parkourLoadPromise = (async () => {
       if (_isImportedParkour) {
-        // Load imported Minecraft parkour map from binary
+        // Load imported BlockForge parkour map from binary
         try {
           const mapUrl = assetBase() + 'parkour-chunks.bin.gz';
           const data = await loadImportedParkourChunks(mapUrl);
@@ -7054,7 +7276,7 @@ function initMenu() {
   document.addEventListener('click', startMusicOnce);
   document.addEventListener('pointerlockchange', startMusicOnce);
 
-  // Global button click sound — Minecraft-style wooden "click" on every UI button.
+  // Global button click sound — BlockForge-style wooden "click" on every UI button.
   document.addEventListener('click', (e) => {
     const t = e.target;
     if (t.closest('button, .menu-btn, .slot, .mode-option, .inv-slot, .craft-slot, .setting-btn, .key-btn, .btn-badge, [role="button"]')) {
@@ -7169,7 +7391,7 @@ function initMenu() {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     startGame(id, Math.floor(Math.random() * 1e9), 'adventure', 'peaceful', { parkour: true });
   });
-  // Parkour 100 Levels — load imported Minecraft map
+  // Parkour 100 Levels — load imported BlockForge map
   document.getElementById('btn-pk-100-levels')?.addEventListener('click', () => {
     const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     startGame(id, 0, 'adventure', 'peaceful', { parkour: true, importedParkour: true });
@@ -7345,7 +7567,7 @@ function initMenu() {
     if (e.key === 'Enter') joinServerByAddress(e.target.value || '');
   });
 
-  // --- Add Server modal (Minecraft-style saved servers) ---
+  // --- Add Server modal (BlockForge-style saved servers) ---
   const addModal = document.getElementById('add-server-modal');
   const openAddModal = () => {
     const e = document.getElementById('add-server-error');
@@ -9578,6 +9800,8 @@ function _gameFrame() {
     player.update(dt, input);
 
     updateUtilityItems(dt);
+    updateVehicles(dt);
+    updateHudOverlays();
 
     // Flush room edits that arrived while the world was loading (bedwars beds,
     // builds, anything a late joiner would otherwise miss).
@@ -9794,7 +10018,7 @@ function _gameFrame() {
         player.velocity.set(0, 0, 0);
       }
 
-      // Random mob spawns while grinding (zombies, skeletons, creepers...).
+      // Random mob spawns while grinding (zombies, skeletons, blowers...).
       if (tickOneBlockMobTimer(dt)) {
         const pos = getOneBlockPos();
         const mobType = rollOneBlockMob();
@@ -10627,7 +10851,7 @@ function _gameFrame() {
       if (_portalTeleportCooldown <= 0) {
         _portalTeleportCooldown = 2.0;
         if (_isDimensionMode) {
-          // Minecraft-style: swap to the other world entirely
+          // BlockForge-style: swap to the other world entirely
           _portalTriggered = true;
           if (audio) audio.portalOpen?.();
         } else {
@@ -11271,7 +11495,7 @@ document.getElementById('btn-ai-portal')?.addEventListener('click', () => {
 })();
 
 // Deep link from the portal ("Add to BlockForge"): ?add=<ws://host:port> adds
-// the server to the player's local saved list (Minecraft-style) so they can
+// the server to the player's local saved list (BlockForge-style) so they can
 // join it from Multiplayer. The param is stripped so a refresh won't re-add.
 (function handleAddServerParam() {
   try {
@@ -11290,7 +11514,7 @@ document.getElementById('btn-ai-portal')?.addEventListener('click', () => {
   } catch (_) {}
 })();
 
-// Auto-connect to the official backend on launch — like Minecraft's always-online
+// Auto-connect to the official backend on launch — like BlockForge's always-online
 // main menu, so social (friends / DMs / accounts) is live immediately. Auth still
 // only happens on login; this is just the socket.
 if (!network.connected) {

@@ -3,7 +3,7 @@
 // Two recipe shapes:
 //   shaped   : a 2D pattern (array of strings, rows) with a key->item map.
 //              The pattern can sit anywhere in the grid (we normalize by
-//              trimming empty rows/cols before matching, like Minecraft).
+//              trimming empty rows/cols before matching, like BlockForge).
 //   shapeless: a multiset of ingredients, order-independent.
 //
 // `grid` passed to match() is an array of 4 (2x2) or 9 (3x3) item-id slots,
@@ -521,6 +521,21 @@ export const RECIPES = [
   // ---- Shattered Echo Dimension ----
   shapeless({ out: { id: B.COMPRESSED_VOIDSTONE, count: 1 }, ingredients: [B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, I.NULL_SHARD] }),
   shapeless({ out: { id: I.PARADOX_CORE, count: 1 }, ingredients: [I.MEMORY_SHARD, I.NULL_SHARD, I.VOID_PEARL, B.EMBEROCK] }),
+
+  // ---- Boat (rideable) ----
+  shaped({ out: { id: I.BOAT, count: 1 },
+    pattern: ['P P', 'PPP'], key: { P: B.PLANKS } }),
+
+  // ---- Minecart (rideable) ----
+  shaped({ out: { id: I.MINECART, count: 1 },
+    pattern: ['I I', 'III'], key: { I: I.IRON_INGOT } }),
+
+  // ---- Anvil ----
+  shaped({ out: { id: B.ANVIL, count: 1 },
+    pattern: ['III', ' I ', 'III'], key: { I: I.IRON_INGOT } }),
+
+  // ---- Night Vision Potion ----
+  shapeless({ out: { id: I.NIGHT_VISION_POTION, count: 1 }, ingredients: [B.GLOWSTONE, I.EMERALD] }),
 ];
 
 // Smelting recipes: input item id -> output item id.
@@ -599,7 +614,7 @@ export const SMELT_TIME = {
   [B.BIRCH_LEAVES]: 4,
   [B.SPRUCE_LEAVES]: 4,
   [B.ACACIA_LEAVES]: 4,
-  // Nether / special
+  // Echo / special
   [B.NETHERRACK]: 8,
   [B.NETHER_BRICK]: 8,
   [B.CACTUS]: 6,
