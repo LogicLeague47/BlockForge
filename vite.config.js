@@ -5,30 +5,39 @@ import { resolve } from 'path';
 // heavy assets (Music/Sounds/chunks) to our Render server instead of
 // bundling them. The full dist is still deployed to Render; only the
 // CG upload is stripped of those files (see scripts/strip-cg.mjs).
-export default defineConfig(({ mode }) => ({
-  base: '',
-  server: {
-    port: 5173,
-    open: true,
-  },
-  define: {
-    __CG__: JSON.stringify(mode === 'cg'),
-  },
-  build: {
-    target: 'es2020',
-    chunkSizeWarningLimit: 1500,
-    rollupOptions: {
-      // Keep three.js external so the runtime import map can choose the
-      // version per-device (modern r169, or an older WebGL1-capable r162 for
-      // legacy devices like old iPhones). This is what lets us "move old
-      // devices over to an older WebGL" without rewriting game code.
-      external: ['three', /^three\/examples\//, /^three\/addons\//],
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        debug: resolve(__dirname, 'debug.html'),
-        privacy: resolve(__dirname, 'privacy.html'),
-        terms: resolve(__dirname, 'terms.html'),
+//
+// LEGACY_BUILD=1 produces the old-device bundle: three.js is swapped to an
+// older WebGL1-capable build (r162) and the entry is emitted as
+// assets/main-legacy.js so index.html can load it for WebGL1-only devices.
+export default defineConfig(({ mode }) => {
+  const legacy = process.env.LEGACY_BUILD === '1';
+  return {
+    base: '',
+    server: {
+      port: 5173,
+      open: true,
+    },
+    define: {
+      __CG__: JSON.stringify(mode === 'cg'),
+    },
+    build: {
+      target: 'es2020',
+      chunkSizeWarningLimit: 1500,
+      rollupOptions: {
+        input: legacy
+          ? { legacy: resolve(__dirname, 'legacy.html') }
+          : {
+              main: resolve(__dirname, 'index.html'),
+              debug: resolve(__dirname, 'debug.html'),
+              privacy: resolve(__dirname, 'privacy.html'),
+              terms: resolve(__dirname, 'terms.html'),
+            },
+        output: {
+          entryFileNames: legacy ? 'assets/main-legacy.js' : 'assets/[name].js',
+          chunkFileNames: 'assets/[name]-[hash].js',
+          assetFileNames: 'assets/[name]-[hash][extname]',
+        },
       },
     },
-  },
-}));
+  };
+});

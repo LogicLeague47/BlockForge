@@ -6,7 +6,7 @@
   "main": "electron/main.cjs",
   "scripts": {
     "dev": "vite",
-    "build": "node scripts/build-server-package.mjs && vite build && node scripts/generate-downloads.mjs",
+    "build": "node scripts/build-server-package.mjs && vite build && node scripts/build-legacy.mjs && node scripts/generate-downloads.mjs",
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js",
