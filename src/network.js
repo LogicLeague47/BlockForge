@@ -254,6 +254,9 @@ export class Network {
       case 'block_update':
         if (this.onBlockUpdate) this.onBlockUpdate(msg.x, msg.y, msg.z, msg.block);
         break;
+      case 'chest_update':
+        if (this.onChestUpdate) this.onChestUpdate(msg.x, msg.y, msg.z, msg.slots);
+        break;
       case 'block_batch':
         if (this.onBlockBatch) this.onBlockBatch(msg.edits || []);
         break;
@@ -403,6 +406,11 @@ export class Network {
 
   sendBlockUpdate(x, y, z, block) {
     this._send({ type: 'block_update', x: x | 0, y: y | 0, z: z | 0, block: block | 0 });
+  }
+
+  // Sync a chest's contents to other players in the room (multiplayer).
+  sendChestUpdate(x, y, z, slots) {
+    this._send({ type: 'chest_update', x: x | 0, y: y | 0, z: z | 0, slots: slots ? slots.map(s => s ? { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) } : null) : [] });
   }
 
   listRooms() {

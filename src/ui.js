@@ -2756,6 +2756,21 @@ export class UI {
       slotEl.addEventListener('dblclick', () => this._onSlotDblClick('chest', idx));
       this.chestGrid.appendChild(slotEl);
     }
+    this._notifyChestChange();
+  }
+
+  // Notify (throttled + de-duplicated) when the open chest's contents change so
+  // multiplayer clients stay in sync. Wired up by main.js via onChestChange.
+  _notifyChestChange() {
+    if (!this.chestPos || !this.chestSlots || !this.onChestChange) return;
+    const now = performance.now();
+    if (now - (this._chestLastSend || 0) < 120) return;
+    let sig;
+    try { sig = JSON.stringify(this.chestSlots); } catch (e) { sig = ''; }
+    if (sig === this._chestLastSig) return;
+    this._chestLastSig = sig;
+    this._chestLastSend = now;
+    this.onChestChange(this.chestPos.x, this.chestPos.y, this.chestPos.z, this.chestSlots);
   }
 
   _onChestSlotClick(i, shiftKey) {

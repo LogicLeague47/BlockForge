@@ -1530,6 +1530,7 @@ function isRateLimited(ws) {
       case 'delete_room': handleDeleteRoom(ws, msg); break;
       case 'get_stats': handleGetStats(ws); break;
       case 'block_update': handleBlockUpdate(ws, msg); break;
+      case 'chest_update': handleChestUpdate(ws, msg); break;
       case 'friend_list': handleFriendList(ws); break;
       case 'friend_request': handleFriendRequest(ws, msg); break;
       case 'friend_accept': handleFriendAccept(ws, msg); break;
@@ -1863,6 +1864,28 @@ function handleBlockUpdate(ws, msg) {
   // Broadcast to everyone else in the room
   broadcast(room, { type: 'block_update', x, y, z, block }, ws);
   scheduleSaveRooms();
+}
+
+// ── Chest contents sync ───────────────────────────────────────────────
+function handleChestUpdate(ws, msg) {
+  const room = getRoom(ws._roomName);
+  if (!room) return;
+  const x = Math.floor(Number(msg.x)) || 0, y = Math.floor(Number(msg.y)) || 0, z = Math.floor(Number(msg.z)) || 0;
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+  if (y < 0 || y > 256) return;
+  // Sanitize slot array (max 27 slots), keep item/count/durability only.
+  let slots = Array.isArray(msg.slots) ? msg.slots.slice(0, 27) : [];
+  slots = slots.map(s => {
+    if (!s || s.item == null) return null;
+    const count = Math.max(1, Math.min(64, Math.floor(Number(s.count)) || 1));
+    const out = { item: Math.floor(Number(s.item)) || 0, count };
+    if (s.durability != null) out.durability = Math.floor(Number(s.durability)) || 0;
+    return out;
+  });
+  if (!room.chests) room.chests = new Map();
+  room.chests.set(`${x},${y},${z}`, slots);
+  // Relay to everyone else in the room so containers stay in sync.
+  broadcast(room, { type: 'chest_update', x, y, z, slots }, ws);
 }
 
 // ── Mob sync handlers ────────────────────────────────────────────────

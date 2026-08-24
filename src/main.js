@@ -660,11 +660,16 @@ ui.onSmelt = (inputItem, count) => {
 };
 
 // Overflowing items (crafting/inventory close with a full inventory) drop on the ground.
-ui.onItemOverflow = (stacks) => {
-  if (!gameRunning || !player || !droppedItemManager) return;
-  const px = player.position.x, py = player.position.y + 1, pz = player.position.z;
-  for (const s of stacks) droppedItemManager.drop(s.item, s.count, px, py, pz);
-};
+ ui.onItemOverflow = (stacks) => {
+   if (!gameRunning || !player || !droppedItemManager) return;
+   const px = player.position.x, py = player.position.y + 1, pz = player.position.z;
+   for (const s of stacks) droppedItemManager.drop(s.item, s.count, px, py, pz);
+ };
+
+ // Broadcast local chest edits to other players in the room.
+ ui.onChestChange = (x, y, z, slots) => {
+   if (network && network.isInRoom()) network.sendChestUpdate(x, y, z, slots);
+ };
 
 // --- sleep overlay ---
 const sleepOverlay = document.getElementById('sleep-overlay');
@@ -4326,6 +4331,19 @@ function setupNetworkHandlers() {
     world.setBlock(x, y, z, block);
     manager.refreshAround(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
     saveCurrentWorld();
+  };
+
+  // Chest contents sync: a remote player changed a chest — store it locally so
+  // the contents stay consistent across clients, and refresh the UI if we have
+  // that chest open.
+  network.onChestUpdate = (x, y, z, slots) => {
+    if (!world) return;
+    const k = x * 1000000 + y * 1000 + z;
+    world.chestInventories.set(k, Array.isArray(slots) ? slots.slice() : []);
+    if (ui.chestOpen && ui.chestPos && ui.chestPos.x === x && ui.chestPos.y === y && ui.chestPos.z === z) {
+      ui.chestSlots = world.getOrCreateChest(x, y, z);
+      ui._renderChestGrid();
+    }
   };
 
   network.onBlockBatch = (edits) => {
