@@ -357,6 +357,59 @@ export const MOB_TYPES = {
     soundChance: 0.0006,
   },
 
+  // ── Original BlockForge mobs ───────────────────────────────────────────
+  crystal_golem: {
+    name: 'Crystal Golem',
+    hp: 60,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.9, bodyH: 1.2, bodyD: 0.6,
+    headW: 0.7, headH: 0.7, headD: 0.7,
+    legW: 0.22, legH: 0.8, legD: 0.22,
+    headOffY: -0.55,
+    bodyColor: 0x7fd6ff, headColor: 0xaff0ff, legColor: 0x4aa6d6,
+    hasArms: true, armW: 0.24, armH: 0.9, armD: 0.24, armColor: 0x6fc6ef,
+    hasEyes: true, eyeColor: 0x33ddff,
+    attackDamage: 9,
+    drops: [{ item: 287, count: [2, 4] }, { item: 710, count: [0, 1] }],
+    soundChance: 0.0002,
+  },
+  shadow_stalker: {
+    name: 'Shadow Stalker',
+    hp: 18,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.5, bodyH: 1.0, bodyD: 0.3,
+    headW: 0.45, headH: 0.45, headD: 0.45,
+    legW: 0.13, legH: 0.7, legD: 0.13,
+    headOffY: -0.5,
+    bodyColor: 0x2a2440, headColor: 0x392b52, legColor: 0x1c1830,
+    hasEyes: true, eyeColor: 0x9b5cff,
+    attackDamage: 5,
+    drops: [{ item: 700, count: [1, 2] }, { item: 710, count: [0, 1] }],
+    soundChance: 0.00015,
+  },
+  wind_spirit: {
+    name: 'Wind Spirit',
+    hp: 14,
+    hostile: true,
+    hostileAtNight: true,
+    isFlying: true,
+    flyHeight: 6,
+    flySpeed: 6,
+    bodyW: 0.6, bodyH: 1.1, bodyD: 0.4,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0, legH: 0, legD: 0,
+    headOffY: -0.4,
+    bodyColor: 0xcfeaff, headColor: 0xeaf6ff, legColor: 0xcfeaff,
+    hasEyes: true, eyeColor: 0x66ccff,
+    attackDamage: 4,
+    drops: [{ item: 710, count: [0, 1] }, { item: 287, count: [0, 2] }],
+    soundChance: 0.0003,
+  },
+
 };
 
 const MOB_SPAWN_BIOMES = new Set([
@@ -3954,7 +4007,8 @@ export class MobManager {
     // Blower and PortalMan are rarer night spawns — added to the pool with
     // reduced weight so they appear occasionally but stay uncommon.
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman');
+      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman',
+        'crystal_golem', 'shadow_stalker', 'wind_spirit');
     }
     const placed = [];
 
