@@ -2570,6 +2570,7 @@ function placeBlock(slotOverride, targetHit) {
   if (!isPlaceableBlockItem(itemId)) return;
   const def = BLOCKS[itemId];
   if (!def || def.liquid) return;
+  if (def.creativeOnly && !(player && player.isCreative())) return;
 
   const { x, y, z } = hit.place;
   // don't place inside the player

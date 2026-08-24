@@ -2650,9 +2650,88 @@ const PAINTERS = {
       const radius = 1 + (rng() * 3) | 0;
       ctx.beginPath(); ctx.arc(x0 + cx, y0 + cy, radius, 0, Math.PI * 2); ctx.fill();
     }
-    ctx.restore();
+     ctx.restore();
   },
 };
+
+// ── New original-block painters (prisms + decorative/utility blocks) ────────
+function _prismPaint(ctx, x0, y0, rng, col) {
+  const [r, g, b] = col;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x0, y0, TILE, TILE);
+  // Inner glow gradient
+  ctx.fillStyle = 'rgba(255,255,255,0.22)';
+  ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 5);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fillRect(x0 + 2, y0 + TILE - 7, TILE - 4, 5);
+  // Sparkle facets
+  for (let i = 0; i < 46; i++) {
+    const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+    ctx.fillStyle = rng() < 0.5 ? 'rgba(255,255,255,0.5)' : `rgba(${r},${g},${b},0.5)`;
+    ctx.fillRect(x0 + x, y0 + y, 1, 1);
+  }
+}
+const PRISM_COLORS = [
+  [220, 40, 60], [230, 140, 30], [235, 205, 40], [120, 220, 60], [40, 180, 80],
+  [30, 200, 170], [40, 210, 220], [40, 130, 235], [70, 80, 220], [130, 60, 220],
+  [200, 50, 210], [235, 70, 150], [235, 235, 240], [90, 100, 120], [35, 30, 45], [120, 80, 50],
+];
+PRISM_COLORS.forEach((c, i) => { PAINTERS['crystal_prism_' + i] = (ctx, x0, y0, rng) => _prismPaint(ctx, x0, y0, rng, c); });
+
+function _bricks(ctx, x0, y0, rng, base, mortar) {
+  ctx.fillStyle = mortar;
+  ctx.fillRect(x0, y0, TILE, TILE);
+  const bw = 14, bh = 7;
+  for (let r = 0; r < TILE; r += bh) {
+    const off = (r / bh) % 2 ? bw / 2 : 0;
+    for (let c = -1; c < TILE; c += bw) {
+      const bx = x0 + c + off, by = y0 + r;
+      ctx.fillStyle = base;
+      ctx.fillRect(bx + 1, by + 1, bw - 2, bh - 2);
+    }
+  }
+}
+PAINTERS.obsidian_bricks = (ctx, x0, y0, rng) => _bricks(ctx, x0, y0, rng, 'rgb(20,16,34)', 'rgb(8,6,16)');
+PAINTERS.granite_bricks = (ctx, x0, y0, rng) => _bricks(ctx, x0, y0, rng, 'rgb(150,110,95)', 'rgb(95,70,60)');
+PAINTERS.mossy_stone_bricks = (ctx, x0, y0, rng) => {
+  _bricks(ctx, x0, y0, rng, 'rgb(120,120,125)', 'rgb(80,80,85)');
+  for (let i = 0; i < 40; i++) { const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0; ctx.fillStyle = 'rgba(70,130,45,0.6)'; ctx.fillRect(x0 + x, y0 + y, 2, 2); }
+};
+PAINTERS.glowstone_tiles = (ctx, x0, y0, rng) => {
+  ctx.fillStyle = 'rgb(210,180,70)'; ctx.fillRect(x0, y0, TILE, TILE);
+  for (let i = 0; i < 30; i++) { const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0; ctx.fillStyle = rng() < 0.5 ? 'rgba(255,240,150,0.8)' : 'rgba(150,120,40,0.8)'; ctx.fillRect(x0 + x, y0 + y, 2, 2); }
+  ctx.strokeStyle = 'rgba(120,90,20,0.6)'; ctx.strokeRect(x0 + 0.5, y0 + 0.5, TILE - 1, TILE - 1);
+};
+PAINTERS.marble = (ctx, x0, y0, rng) => {
+  ctx.fillStyle = 'rgb(232,230,224)'; ctx.fillRect(x0, y0, TILE, TILE);
+  ctx.strokeStyle = 'rgba(150,150,160,0.7)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 5; i++) { const y = (rng() * TILE) | 0; ctx.beginPath(); ctx.moveTo(x0, y0 + y); ctx.bezierCurveTo(x0 + 10, y0 + y - 3, x0 + 20, y0 + y + 3, x0 + TILE, y0 + y); ctx.stroke(); }
+};
+PAINTERS.lava_tiles = (ctx, x0, y0, rng) => {
+  ctx.fillStyle = 'rgb(120,30,10)'; ctx.fillRect(x0, y0, TILE, TILE);
+  for (let i = 0; i < 40; i++) { const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0; ctx.fillStyle = rng() < 0.5 ? 'rgb(255,140,30)' : 'rgb(230,80,20)'; ctx.fillRect(x0 + x, y0 + y, 2, 2); }
+};
+PAINTERS.crystal_ore = (ctx, x0, y0, rng) => {
+  noisy(ctx, x0, y0, [120, 120, 128], 0.08, rng);
+  for (let i = 0; i < 14; i++) { const x = 4 + (rng() * (TILE - 8) | 0), y = 4 + (rng() * (TILE - 8) | 0); ctx.fillStyle = 'rgba(120,230,255,0.9)'; ctx.fillRect(x0 + x, y0 + y, 3, 3); }
+};
+PAINTERS.bamboo_top = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(190,210,90)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.strokeStyle = 'rgba(120,150,50,0.8)'; ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, TILE / 3, 0, 7); ctx.stroke(); };
+PAINTERS.bamboo_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(150,190,70)'; ctx.fillRect(x0, y0, TILE, TILE); for (let y = 4; y < TILE; y += 8) { ctx.fillStyle = 'rgba(110,150,50,0.9)'; ctx.fillRect(x0, y0 + y, TILE, 2); } };
+PAINTERS.portal_pad_top = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(30,20,50)'; ctx.fillRect(x0, y0, TILE, TILE); for (let i = 0; i < 30; i++) { const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0; ctx.fillStyle = 'rgba(140,90,230,0.8)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); } };
+PAINTERS.portal_pad_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(25,16,42)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(140,90,230,0.5)'; ctx.fillRect(x0, y0, TILE, 4); };
+PAINTERS.skyglass = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(200,235,255)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.strokeStyle = 'rgba(150,200,230,0.7)'; ctx.strokeRect(x0 + 1.5, y0 + 1.5, TILE - 3, TILE - 3); };
+PAINTERS.magnetic_block = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(70,75,85)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.strokeStyle = 'rgba(220,80,80,0.9)'; ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, TILE / 3, 0, 7); ctx.stroke(); ctx.fillStyle = 'rgba(220,80,80,0.9)'; ctx.fillRect(x0 + TILE / 2 - 1, y0 + 4, 2, TILE - 8); ctx.fillRect(x0 + 4, y0 + TILE / 2 - 1, TILE - 8, 2); };
+PAINTERS.wardens_obelisk_top = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(40,20,30)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(200,60,90,0.9)'; ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, TILE / 4, 0, 7); ctx.fill(); };
+PAINTERS.wardens_obelisk_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(35,18,26)'; ctx.fillRect(x0, y0, TILE, TILE); for (let i = 0; i < 20; i++) { const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0; ctx.fillStyle = 'rgba(200,60,90,0.6)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); } };
+PAINTERS.structure_void = (ctx, x0, y0) => { ctx.fillStyle = 'rgba(10,10,12,0.6)'; ctx.fillRect(x0, y0, TILE, TILE); };
+PAINTERS.barrier = (ctx, x0, y0) => { ctx.clearRect(x0, y0, TILE, TILE); ctx.strokeStyle = 'rgba(200,220,255,0.25)'; ctx.strokeRect(x0 + 1, y0 + 1, TILE - 2, TILE - 2); };
+PAINTERS.command_block_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(90,60,120)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 3); };
+PAINTERS.command_block_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(70,45,100)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(40,20,60,0.9)'; ctx.font = 'bold 10px monospace'; ctx.fillText('!', x0 + TILE / 2 - 3, y0 + TILE / 2 + 4); };
+PAINTERS.jukebox_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,110,60)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgb(60,40,20)'; ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, TILE / 3, 0, 7); ctx.fill(); };
+PAINTERS.jukebox_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(130,90,50)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(80,50,25,0.9)'; ctx.fillRect(x0, y0 + TILE - 6, TILE, 6); };
+PAINTERS.flower_pot_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,95,60)'; ctx.fillRect(x0 + 4, y0 + 4, TILE - 8, TILE - 8); };
+PAINTERS.flower_pot_bottom = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,95,60)'; ctx.fillRect(x0, y0, TILE, TILE); };
+PAINTERS.flower_pot_side = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,95,60)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(110,65,40,0.7)'; ctx.fillRect(x0, y0 + TILE - 7, TILE, 7); };
 
 // Oak-planks body shared by planks, bookshelf_top, and the crafting-table faces.
 function planksBody(ctx, x0, y0, rng) {
