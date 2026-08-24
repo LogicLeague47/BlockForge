@@ -380,6 +380,17 @@ function computeAO(face, x, y, z, sample) {
 }
 
 function pushPlant(target, wx, y, wz, blockId) {
+  if (isFoliageBlock(blockId)) { pushFoliage3D(target, wx, y, wz, blockId); return; }
+  pushPlantBillboard(target, wx, y, wz, blockId);
+}
+
+function isFoliageBlock(b) {
+  return b === BLOCK.TALL_GRASS || b === BLOCK.FLOWER_RED || b === BLOCK.FLOWER_YELLOW ||
+    b === BLOCK.OAK_SAPLING || b === BLOCK.JUNGLE_SAPLING || b === BLOCK.BIRCH_SAPLING ||
+    b === BLOCK.SPRUCE_SAPLING || b === BLOCK.DARK_OAK_SAPLING || b === BLOCK.ACACIA_SAPLING;
+}
+
+function pushPlantBillboard(target, wx, y, wz, blockId) {
   const tile = tileNameFor(blockId, 'side');
   const uv = tileUVRect(tile);
   for (let q = 0; q < 2; q++) {
@@ -398,6 +409,53 @@ function pushPlant(target, wx, y, wz, blockId) {
     }
     target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
   }
+}
+
+// Push a solid 3D box (used for 3D plant models) into the target mesh.
+function pushBox(target, x0, y0, z0, x1, y1, z1, tile, tint) {
+  const uvRect = tileUVRect(tile);
+  const t = tint || _ONE3;
+  for (let f = 0; f < 6; f++) {
+    const face = FACES[f];
+    const start = target.pos.itemCount;
+    for (let c = 0; c < 4; c++) {
+      const co = face.corners[c];
+      const px = co[0] ? x1 : x0;
+      const py = co[1] ? y1 : y0;
+      const pz = co[2] ? z1 : z0;
+      target.pos.push3(px, py, pz);
+      const uvr = UV_CORNERS[c];
+      target.uv.push2(uvr[0] ? uvRect.u1 : uvRect.u0, uvr[1] ? uvRect.v1 : uvRect.v0);
+      const s = face.name === 'top' ? 1.0 : face.name === 'bottom' ? 0.5 : 0.8;
+      target.col.push3(s * t[0], s * t[1], s * t[2]);
+      target.nor.push3(face.dir[0], face.dir[1], face.dir[2]);
+    }
+    target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
+  }
+}
+
+// Real 3D foliage models instead of flat billboards.
+function pushFoliage3D(target, wx, y, wz, blockId) {
+  if (blockId === BLOCK.TALL_GRASS) {
+    const blades = [
+      [0.35, 0.85, 0.35], [0.6, 0.7, 0.5], [0.5, 0.92, 0.65],
+      [0.35, 0.75, 0.6], [0.66, 0.8, 0.35], [0.5, 0.96, 0.42],
+    ];
+    for (const [bx, bz, h] of blades) {
+      pushBox(target, wx + bx - 0.045, y, wz + bz - 0.045, wx + bx + 0.045, y + h, wz + bz + 0.045, 'tall_grass', _ONE3);
+    }
+    return;
+  }
+  if (blockId === BLOCK.FLOWER_RED || blockId === BLOCK.FLOWER_YELLOW) {
+    const bloom = blockId === BLOCK.FLOWER_RED ? 'flower_red' : 'flower_yellow';
+    pushBox(target, wx + 0.44, y, wz + 0.44, wx + 0.56, y + 0.5, wz + 0.56, 'tall_grass', _ONE3);
+    pushBox(target, wx + 0.3, y + 0.45, wz + 0.3, wx + 0.7, y + 0.92, wz + 0.7, bloom, _ONE3);
+    return;
+  }
+  // Saplings: stem + leafy crown
+  pushBox(target, wx + 0.44, y, wz + 0.44, wx + 0.56, y + 0.5, wz + 0.56, 'tall_grass', _ONE3);
+  pushBox(target, wx + 0.3, y + 0.45, wz + 0.3, wx + 0.7, y + 0.85, wz + 0.7, 'leaves', _ONE3);
+  pushBox(target, wx + 0.36, y + 0.72, wz + 0.36, wx + 0.64, y + 1.0, wz + 0.64, 'leaves', _ONE3);
 }
 
 function toGeometry(buf) {

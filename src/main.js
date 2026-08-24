@@ -10731,7 +10731,19 @@ function _gameFrame() {
 
       // Recreate world-dependent managers
       manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
-      loader = new ChunkLoader(world, manager, renderDist);
+  loader = new ChunkLoader(world, manager, renderDist);
+  // Guarantee the spawn area meshes immediately so the world is visible on load
+  // (don't wait for the streaming loader's per-frame budget to reach the player).
+  try {
+    const _pcx = Math.floor((player ? player.position.x : 0) / CHUNK_SIZE);
+    const _pcz = Math.floor((player ? player.position.z : 0) / CHUNK_SIZE);
+    for (let _dz = -1; _dz <= 1; _dz++)
+      for (let _dx = -1; _dx <= 1; _dx++) {
+        world.getChunk(_pcx + _dx, _pcz + _dz, true);
+        manager.markDirty(_pcx + _dx, _pcz + _dz);
+      }
+    manager.update();
+  } catch (e) { console.error('Initial spawn meshing failed:', e); }
       explosionManager = new ExplosionManager(scene, world, audio);
       mobManager = new MobManager(scene, world, audio, explosionManager);
       mobManager._refreshFn = (bx, by, bz) => {
