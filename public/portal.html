@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '44f6b84',
+          heading: 'Wall decor + torch variants + new sounds',
+          desc: 'Ladders, signs, paintings, buttons and levers now lie flat against the wall. Torches snap to floor / wall (per direction) / ceiling automatically. Added rustle-while-climbing and water-while-swimming sounds.',
+          date: 'Aug 24',
+          bugs: ['Wall decorations floated as free crosses instead of hugging the wall', 'No sound while climbing ladders or swimming'],
+          updates: ['Ladder/sign/painting/button/lever render as a single quad pressed to the supporting wall', 'Torch picks floor / wall-N-S-E-W / ceiling by the block it attaches to', 'climbTick() + swimTick() sound hooks wired into the game loop'],
+          features: ['Wall-mounted flat decorations', 'Directional + floor/ceiling torch variants', 'Climbing and swimming sound effects'],
+        },
+        {
           hash: '568b4e9',
           heading: 'Plants render upright like Minecraft',
           desc: 'Grass, flowers and saplings (and all other 2D decorations) now render as upright crossed billboards like Minecraft — never skewed or diagonal. Also the world meshes the spawn area immediately on load so it is visible right away.',
