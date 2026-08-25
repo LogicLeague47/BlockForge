@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'a7dd441',
+          heading: 'Spawn egg icons + iPhone login fix attempt',
+          desc: 'Spawn eggs now have coloured pixel-art icons (each mob type gets its own egg colour) instead of the generic grey placeholder. Also simplified the login overlay CSS to avoid old-Safari percentage-resolution bugs: removed the internal max-height/overflow from menu screens, dropped the extra overlay padding, and lowered the player-preview z-index so it can never stack above the login buttons.',
+          date: 'Aug 25',
+          bugs: ['spawn eggs showed a grey box instead of a proper icon', 'iPhone login buttons possibly hidden by z-index or max-height CSS on old Safari'],
+          updates: ['spawn egg icons drawn per mob type (cow=brown, zombie=green, etc.)', 'menu overlay simplified for old-Safari compatibility'],
+          features: ['coloured spawn egg icons for all 11 mob types'],
+        },
+        {
           hash: 'd0769cd',
           heading: 'Offline mode no longer reloads + debug banner removed',
           desc: 'Fixed the Play Offline button so it activates offline mode in-place (no page reload) — previously it reloaded to ?offline=1 which fails when there is no internet. Also removed the temporary red debug banner that was showing on every page load.',
