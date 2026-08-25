@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '10f0fda',
+          heading: 'Stone Furnace + old-iPhone parse fix',
+          desc: 'The Brick Furnace is now a Stone Furnace with a proper look — rough stone casing with a dark, fire-lit opening. Also fixed the black screen on old devices (iPhone 5 / old Safari): the WebGL1 legacy bundle is now transpiled all the way down to ES5 with Babel, so old JavaScript engines no longer hit a "unexpected ;" parse error on template literals. Previously the legacy bundle kept ES2015 syntax that those browsers cannot parse.',
+          date: 'Aug 25',
+          bugs: ['old Safari / iPhone 5 black screen (legacy bundle had ES2015 syntax)'],
+          updates: ['legacy bundle downleveled to ES5 via Babel', 'Brick Furnace → Stone Furnace with glowing fire opening'],
+          features: ['Stone Furnace visual redesign'],
+        },
+        {
           hash: '90ef7fe',
           heading: 'Play Offline menu + removed CrazyGames login',
           desc: 'Replaced the "Login with CrazyGames" button with a Play Offline button. Offline mode (?offline=1) now opens a restricted main menu with only Singleplayer and Minigames — no account, no multiplayer, and it never redirects to a player-specific link. Also fixed old devices (e.g. iPhone 5 / old Safari) that showed a black screen: the legacy WebGL1 bundle is now built and loaded as a classic script so browsers without ES-module support can run it.',
