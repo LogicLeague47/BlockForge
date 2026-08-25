@@ -43,7 +43,7 @@
     header{background:linear-gradient(135deg,#12121f 0%,#1c1230 50%,#12121f 100%);border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;gap:20px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,.4);position:sticky;top:0;backdrop-filter:blur(8px);flex-wrap:wrap}
     header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(120,160,255,.4),rgba(200,100,230,.4),transparent)}
     .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
-    .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,var(--accent),var(--accent2),var(--accent3),var(--accent));display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(120,160,255,.35);animation:spin 12s linear infinite}
+    .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,var(--accent),var(--accent2),var(--accent3),var(--accent));display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(120,160,255,.35)}
     @keyframes spin{to{transform:rotate(360deg)}}
     .brand h1{font-size:26px;background:linear-gradient(135deg,#fff 0%,var(--accent) 40%,var(--accent2) 70%,var(--accent3) 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:5px;font-weight:700}
     .brand .sub{font-size:10px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:3px;font-weight:600}
@@ -508,12 +508,13 @@
           <p class="hero-sub">Craft, fight and build with friends in a living voxel world — right in your browser, on any device.</p>
           <div class="hero-actions">
             <a class="hero-play" id="hero-play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
+            <a class="btn hero-alt" id="hero-offline-btn" href="https://blockforge-1.onrender.com/?offline=1" target="_blank" rel="noopener">📴 Play Offline</a>
             <button class="btn hero-alt" id="hero-servers-btn">🌐 Live Servers</button>
           </div>
           <div class="hero-stats">
             <div class="hero-stat"><b id="hero-online">—</b><span>Players Online</span></div>
             <div class="hero-stat"><b id="hero-rooms">—</b><span>Active Rooms</span></div>
-            <div class="hero-stat"><b id="hero-versions">5</b><span>Platforms</span></div>
+            <div class="hero-stat"><b id="hero-free">100%</b><span>Free to Play</span></div>
             <div class="hero-stat"><b id="hero-mods">15</b><span>Mods &amp; Addons</span></div>
           </div>
         </div>
@@ -579,10 +580,10 @@
             <div class="name">Live Servers</div>
             <div class="desc">Browse active multiplayer rooms</div>
           </div>
-          <a class="card" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
-            <div class="icon">🎮</div>
-            <div class="name">Play Now</div>
-            <div class="desc">Open BlockForge in your browser — no install needed</div>
+          <a class="card" href="https://blockforge-1.onrender.com/?offline=1" target="_blank" rel="noopener">
+            <div class="icon">📴</div>
+            <div class="name">Play Offline</div>
+            <div class="desc">Jump into a local singleplayer world — no account needed</div>
           </a>
         </div>
 
@@ -852,12 +853,6 @@
         <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
       </div>
 
-      <div id="page-downloads" class="page">
-        <h2>🎮 Play Now</h2>
-        <p>BlockForge is a browser game — open it below and start playing right away.</p>
-        <div class="dl-grid" id="downloads-grid"></div>
-        <div class="mt-20"><button class="btn go-home">← Back to Portal</button></div>
-      </div>
     </div>
 
     <div class="tc mb-30">
@@ -1259,7 +1254,6 @@
         if (page === 'updates') renderUpdates();
         if (page === 'news') fetchNews();
         if (page === 'servers') fetchServerList();
-        if (page === 'downloads') renderDownloads();
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
       // Dashboard feature cards that live inside the Community section.
@@ -1295,7 +1289,7 @@
       });
 
       function setNav(page) {
-        var map = { servers:'servers', updates:'updates', news:'news', downloads:'downloads', community:'community', howto:'howto' };
+        var map = { servers:'servers', updates:'updates', news:'news', community:'community', howto:'howto' };
         var target = map[page];
         document.querySelectorAll('.nav-tab').forEach(function(t) {
           t.classList.toggle('active', t.dataset.nav === target || (target === 'home' && !page));
@@ -2600,23 +2594,6 @@
         grid.dataset.rendered = '1';
       }
 
-      // ── Downloads page (web-only) ─────────────────────────────────────
-      var PORTAL_PLATFORMS = [
-        { icon:'🌐', name:'Play BlockForge in your browser', desc:'No install needed — works on desktop, tablet and phone.', url:'https://blockforge-1.onrender.com/', arrow:'▶' },
-      ];
-      function renderDownloads() {
-        var grid = document.getElementById('downloads-grid');
-        if (!grid) return;
-        if (grid.dataset.rendered) return;
-        grid.innerHTML = PORTAL_PLATFORMS.map(function(p) {
-          return '<a class="dl-card" href="' + p.url + '" target="_blank" rel="noopener">' +
-            '<div class="dl-icon">' + p.icon + '</div>' +
-            '<div class="dl-info"><div class="dl-name">' + p.name + '</div><div class="dl-desc">' + p.desc + '</div></div>' +
-            '<div class="dl-arrow">' + p.arrow + '</div></a>';
-        }).join('');
-        grid.dataset.rendered = '1';
-      }
-
       // ── Server browser ─────────────────────────────────────────────────
       function esc(s) {
         if (!s) return '';
@@ -3077,13 +3054,12 @@
         var track = document.getElementById('ticker-track');
         if (!track) return;
         var items = [
-          ['🆕', 'Items now render as thin 3D boxes instead of flat planes'],
-          ['🎮', 'Play now on Web, Mac, Windows, Android & iPhone'],
-          ['🌐', 'Live multiplayer with DMs, parties and global chat'],
-          ['🔧', '15 mods & addons — custom shaders, minimap, night vision'],
+          ['🆕', 'Items now render as thin 3D blocks instead of flat planes'],
+          ['🌐', 'Play free in your browser — no download or install'],
           ['⚡', 'Dynamic shadows, glass-morphism UI & river biomes'],
-          ['💬', 'Community chat is live — say hi!'],
-          ['🛍️', 'In-game Shop is coming soon'],
+          ['💬', 'Live community chat is up — come say hi!'],
+          ['🧊', 'An original voxel sandbox — build, mine & survive'],
+          ['🔧', '15 mods & addons — minimap, shaders, night vision & more'],
         ];
         var html = items.map(function(it) { return '<span><b>' + it[0] + '</b>' + it[1] + '<i>•</i></span>'; }).join('');
         track.innerHTML = html + html; // duplicated for a seamless -50% loop
@@ -3099,10 +3075,8 @@
 
       // ── Initial data load (must run AFTER all event handlers are bound) ──
       spawnHeroVoxels();
-      animateCount(document.getElementById('hero-versions'), PORTAL_PLATFORMS.length);
       animateCount(document.getElementById('hero-mods'), PORTAL_MODS.length);
       renderRecentUpdates();
-      renderDownloads();
       renderPortalMods();
       initNewsDevForm();
       fetchNews();
