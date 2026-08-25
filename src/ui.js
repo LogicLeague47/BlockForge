@@ -3486,10 +3486,10 @@ export class UI {
       if (id === 0 || id === 8) continue; // skip air and water
       if (def.name) this._creativeItems.push({ id, name: def.name, type: 'block' });
     }
-    // Non-block items
+    // Non-block items (256-511 only; 512+ handled by the tools loop)
     for (const [key, val] of Object.entries(ITEM)) {
       if (typeof val !== 'number') continue;
-      if (val < 256) continue; // block items already added
+      if (val < 256 || val >= 512) continue;
       const def = itemDef(val);
       if (def && def.name) {
         this._creativeItems.push({ id: val, name: def.name, type: 'item' });

@@ -1626,9 +1626,9 @@ document.addEventListener('mousedown', (e) => {
     const hit = currentTarget();
     const held = player.inventory.getSelected();
     if (held && SPAWN_EGG_MOBS[held.item]) {
-      if (hit && mobManager) {
+      if (hit && hit.place && mobManager) {
         const mobType = SPAWN_EGG_MOBS[held.item];
-        mobManager.spawnAt(mobType, hit.nx + 0.5, hit.ny, hit.nz + 0.5);
+        mobManager.spawnAt(mobType, hit.place.x + 0.5, hit.place.y, hit.place.z + 0.5);
         audio.play('place_stone', 0.5);
         if (!player.isCreative()) {
           held.count--;
@@ -5933,11 +5933,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
         const px = Math.floor(player.position.x);
         const py = Math.floor(player.position.y - 0.5);
         const pz = Math.floor(player.position.z);
-        for (let i = 0; i < 6; i++) {
-          const ox = (Math.random() - 0.5) * 1.2;
-          const oz = (Math.random() - 0.5) * 1.2;
-          breakParticles.spawn(px + ox + 0.5, py + 0.1, pz + oz + 0.5, 0x9e8e7a, 0.3 + Math.random() * 0.3);
-        }
+        breakParticles.emit(BLOCK.DIRT, px, py, pz, 6);
       }
     };
     player.onSplash = () => { if (audio) audio.splash(); };
@@ -5949,9 +5945,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     const target = hit || currentTarget();
     const held = player.inventory.getSelected();
     if (held && SPAWN_EGG_MOBS[held.item]) {
-      if (target && mobManager) {
+      if (target && target.place && mobManager) {
         const mobType = SPAWN_EGG_MOBS[held.item];
-        mobManager.spawnAt(mobType, target.nx + 0.5, target.ny, target.nz + 0.5);
+        mobManager.spawnAt(mobType, target.place.x + 0.5, target.place.y, target.place.z + 0.5);
         audio.play('place_stone', 0.5);
         if (!player.isCreative()) {
           held.count--;
