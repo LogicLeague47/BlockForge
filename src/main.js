@@ -8892,7 +8892,6 @@ function initMenu() {
     applyOfflineMenuRestrictions();
   } else {
     ui.showMenu('login');
-    window.__bfInitMenuDone = true;
   }
   showOneTimeMessages();
   showConsentNotice();
@@ -9087,9 +9086,13 @@ function initMenu() {
   const btnOffline = document.getElementById('btn-play-offline');
   if (btnOffline) btnOffline.addEventListener('click', () => {
     try {
-      // Reload into offline mode, which reveals the restricted
-      // Singleplayer + Minigames menu (no account / internet needed).
-      window.location.href = location.pathname + '?offline=1';
+      // Activate offline mode IN-PLACE (no reload). A reload would try to
+      // re-fetch the page, which fails when there is no internet ("you are not
+      // connected to the internet"), so the ?offline=1 boot path is mirrored
+      // here instead. Reveals the restricted Singleplayer + Minigames menu.
+      window.__OFFLINE_MODE = true;
+      ui.showMenu('main');
+      applyOfflineMenuRestrictions();
     } catch (_) { console.warn("operation failed"); }
   });
 

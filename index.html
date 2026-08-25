@@ -25,48 +25,12 @@
         }
         window.__bfErr = bfErr;
         window.addEventListener('error', function (e) {
-          var m = 'ERR: ' + (e.message || (e.error && e.error.message) || e) + (e.filename ? ('\n  @ ' + e.filename + ':' + e.lineno + ':' + e.colno) : '');
-          window.__bfLastErr = m;
-          bfErr(m);
+          bfErr('ERR: ' + (e.message || (e.error && e.error.message) || e) + (e.filename ? ('\n  @ ' + e.filename + ':' + e.lineno + ':' + e.colno) : ''));
         });
         window.addEventListener('unhandledrejection', function (e) {
           var r = e.reason;
           bfErr('PROMISE: ' + ((r && (r.stack || r.message)) || r));
         });
-      })();
-    </script>
-    <script>
-      // On-screen diagnostic — reports the actual menu state 3s after load so
-      // we can see (without a console) what the old device is actually rendering.
-      (function () {
-        function report() {
-          try {
-            var overlay = document.getElementById('overlay');
-            var hidden = overlay ? overlay.classList.contains('hidden') : 'no-overlay';
-            var active = document.querySelector('.menu-screen.active');
-            var id = active ? active.id : 'NONE';
-            var btns = active ? active.querySelectorAll('button,.btn').length : 0;
-            var sh = active ? active.scrollHeight : 0;
-            var ch = active ? active.clientHeight : 0;
-            var msg = 'DIAG: legacy=' + (!!window.__LEGACY_WEBGL) +
-              ' overlay=' + hidden + ' active=' + id +
-              ' initMenuDone=' + (!!window.__bfInitMenuDone) +
-              ' buttons=' + btns + ' scrollH=' + sh + ' clientH=' + ch +
-              ' err=' + (window.__bfLastErr || 'none');
-            var go = document.getElementById('btn-login-go');
-            if (go) {
-              var r = go.getBoundingClientRect();
-              var cs = getComputedStyle(go);
-              msg += ' | btn top=' + Math.round(r.top) + ' bottom=' + Math.round(r.bottom) +
-                ' h=' + Math.round(r.height) + ' disp=' + cs.display + ' vis=' + cs.visibility +
-                ' op=' + cs.opacity + ' bg=' + cs.backgroundColor;
-            }
-            if (window.__bfErr) window.__bfErr(msg);
-          } catch (e) {
-            if (window.__bfErr) window.__bfErr('DIAG-ERR: ' + (e && e.message));
-          }
-        }
-        window.addEventListener('load', function () { setTimeout(report, 3000); });
       })();
     </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
