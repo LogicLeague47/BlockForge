@@ -53,6 +53,14 @@
               ' initMenuDone=' + (!!window.__bfInitMenuDone) +
               ' buttons=' + btns + ' scrollH=' + sh + ' clientH=' + ch +
               ' err=' + (window.__bfLastErr || 'none');
+            var go = document.getElementById('btn-login-go');
+            if (go) {
+              var r = go.getBoundingClientRect();
+              var cs = getComputedStyle(go);
+              msg += ' | btn top=' + Math.round(r.top) + ' bottom=' + Math.round(r.bottom) +
+                ' h=' + Math.round(r.height) + ' disp=' + cs.display + ' vis=' + cs.visibility +
+                ' op=' + cs.opacity + ' bg=' + cs.backgroundColor;
+            }
             if (window.__bfErr) window.__bfErr(msg);
           } catch (e) {
             if (window.__bfErr) window.__bfErr('DIAG-ERR: ' + (e && e.message));
