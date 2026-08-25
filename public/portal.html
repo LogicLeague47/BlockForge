@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'db10e2a',
+          heading: 'Fix landing crash, spawn-egg coords, creative dupe',
+          desc: 'Fixed three bugs: (1) the It.spawn "not a function" error spamming every frame on iPhone — the onLand callback called breakParticles.spawn which does not exist, now uses breakParticles.emit; (2) spawn eggs placed mobs at NaN coordinates because hit.nx/ny/nz do not exist on the raycast result, now uses hit.place.x/y/z; (3) spawn eggs appeared twice in the creative inventory because IDs ≥512 passed both the items and tools loops.',
+          date: 'Aug 25',
+          bugs: ['It.spawn is not a function error spamming every frame on iPhone', 'spawn eggs placed mobs at (NaN, undefined, NaN) — invisible', 'spawn eggs appeared twice in the creative inventory'],
+          updates: ['onLand dust uses breakParticles.emit instead of nonexistent .spawn', 'spawn egg placement uses hit.place.x/y/z instead of undefined hit.nx/ny/nz', 'creative inventory deduplicates items ≥512'],
+          features: [],
+        },
+        {
           hash: 'a7dd441',
           heading: 'Spawn egg icons + iPhone login fix attempt',
           desc: 'Spawn eggs now have coloured pixel-art icons (each mob type gets its own egg colour) instead of the generic grey placeholder. Also simplified the login overlay CSS to avoid old-Safari percentage-resolution bugs: removed the internal max-height/overflow from menu screens, dropped the extra overlay padding, and lowered the player-preview z-index so it can never stack above the login buttons.',
