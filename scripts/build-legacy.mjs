@@ -15,7 +15,12 @@ function run(cmd, env) {
 
 try {
   console.log('[build-legacy] installing three@0.162.0 ...');
-  run('npm install three@0.162.0 --no-save --no-audit --no-fund');
+  // IMPORTANT: Render builds with NODE_ENV=production, which makes `npm install`
+  // PRUNE devDependencies (vite, esbuild, babel). The legacy build needs vite,
+  // so override NODE_ENV to development here or `npx vite build` fails with
+  // "Could not resolve 'vite'" and no legacy bundle gets deployed (old devices
+  // then get no working bundle at all).
+  run('npm install three@0.162.0 --no-save --no-audit --no-fund', { NODE_ENV: 'development' });
   console.log('[build-legacy] building legacy bundle (LEGACY_BUILD=1) ...');
   run('npx vite build --outDir dist-legacy', { LEGACY_BUILD: '1' });
   mkdirSync('dist/assets', { recursive: true });
@@ -53,7 +58,7 @@ try {
 } finally {
   try {
     console.log('[build-legacy] restoring three@0.169.0 ...');
-    run('npm install three@0.169.0 --no-save --no-audit --no-fund');
+    run('npm install three@0.169.0 --no-save --no-audit --no-fund', { NODE_ENV: 'development' });
   } catch (_) { /* ignore */ }
   try { rmSync('dist-legacy', { recursive: true, force: true }); } catch (_) { /* ignore */ }
 }
