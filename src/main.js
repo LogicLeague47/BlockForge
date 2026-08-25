@@ -7126,22 +7126,41 @@ function initMenu() {
     }
     } catch (_) { console.warn("operation failed"); }
 
-  // Offline singleplayer: ?offline=1 launches a fresh local world with no
-  // backend connection (no account / internet needed beyond loading the page).
+  // Offline mode: ?offline=1 shows a restricted main menu (Singleplayer +
+  // Minigames only) with no account, multiplayer, or player-specific link.
+  // The game never connects to the backend in this mode (see the
+  // !window.__OFFLINE_MODE guard around network.connect).
   try {
     const offline = params.get('offline');
     if (offline) {
       window.__OFFLINE_MODE = true;
       setTimeout(() => {
-        ui.showMenu(null);
-        const id = 'offline-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-        startGame(id, Math.floor(Math.random() * 1e9), 'survival', 'normal', {});
-        if (typeof addChatLine === 'function') {
-          addChatLine('Offline mode — playing a local world. No account or internet needed.', '#9cf', true);
-        }
+        ui.showMenu('main');
+        applyOfflineMenuRestrictions();
       }, 900);
     }
   } catch (_) { console.warn("operation failed"); }
+
+  // Hide every menu entry that needs an account / internet, leaving only
+  // Singleplayer (Play) and Minigames for offline play.
+  function applyOfflineMenuRestrictions() {
+    const hidden = ['btn-multiplayer', 'btn-mods', 'btn-achievements', 'btn-settings',
+      'btn-credits', 'btn-dev-panel', 'btn-dev-world', 'btn-menu-errors',
+      'btn-skin-customize', 'btn-blockforge-portal'];
+    hidden.forEach(function (id) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
+    const preview = document.querySelector('.menu-player-preview');
+    if (preview) preview.style.display = 'none';
+    if (!document.getElementById('offline-banner')) {
+      const b = document.createElement('div');
+      b.id = 'offline-banner';
+      b.textContent = 'Offline Mode — Singleplayer & Minigames only';
+      b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:200;background:rgba(20,30,50,0.92);color:#9cf;font:11px monospace;text-align:center;padding:6px;letter-spacing:1px;';
+      document.body.appendChild(b);
+    }
+  }
 
   // Load saved player name
   let hadSavedName = false;
@@ -8822,10 +8841,10 @@ function initMenu() {
     // Player-specific link / login reload that matches the saved account and
     // carries a fresh entry token → enter directly.
     if (entryToken && credsMatchTarget && (hasOauthCreds || hasSavedCreds) && !isUnder13Blocked()) autoLogin = true;
-    // Returning CrazyGames users are auto-logged-in via their saved identity.
-    if (isOnCrazyGames() && (hasOauthCreds || hasSavedCreds) && !isUnder13Blocked()) autoLogin = true;
   } catch (_) { console.warn("operation failed"); }
-  if (autoLogin) {
+  // Offline mode (?offline=1) never auto-logs-in or shows the login screen —
+  // the ?offline=1 handler reveals the restricted main menu instead.
+  if (autoLogin && !window.__OFFLINE_MODE) {
     // Skip login screen entirely — go straight to main menu after auth
     window._autoLoggingIn = true;
     _backgroundAuth = true;
@@ -8849,6 +8868,9 @@ function initMenu() {
         doLogin('login');
       }
     }, 100);
+  } else if (window.__OFFLINE_MODE) {
+    // Offline mode: leave the menu hidden; the ?offline=1 handler reveals the
+    // restricted main menu after this runs.
   } else {
     ui.showMenu('login');
   }
@@ -8862,16 +8884,9 @@ function initMenu() {
         const ni = document.getElementById('login-username');
         if (ni && !ni.value) ni.value = cgName;
       }
-      // Returning CrazyGames users are auto-logged-in (account integration
-      // requirement: "returning logged in CrazyGames users are automatically
-      // logged in within your game").
-      const cgId = sdk.user?.getId?.();
-      if (cgId && !autoLogin) {
-        window._autoLoggingIn = true;
-        _backgroundAuth = true;
-        ui.showMenu('main');
-        cgLoginFlow(cgId, cgName, true);
-      }
+      // NOTE: CrazyGames auto-login / "Login with CrazyGames" was removed in
+      // favour of our own account system plus a Play Offline option. We only
+      // pre-fill the username here; no automatic authentication happens.
     } catch (_) { console.warn("operation failed"); }
   });
 
@@ -9046,8 +9061,14 @@ function initMenu() {
     window.addEventListener('message', handler);
   }
 
-  const btnCg = document.getElementById('btn-login-crazygames');
-  if (btnCg) btnCg.addEventListener('click', doCgLogin);
+  const btnOffline = document.getElementById('btn-play-offline');
+  if (btnOffline) btnOffline.addEventListener('click', () => {
+    try {
+      // Reload into offline mode, which reveals the restricted
+      // Singleplayer + Minigames menu (no account / internet needed).
+      window.location.href = location.pathname + '?offline=1';
+    } catch (_) { console.warn("operation failed"); }
+  });
 
   const btnGh = document.getElementById('btn-login-github');
   if (btnGh) btnGh.addEventListener('click', () => { clearToast(); startOAuth('github'); });

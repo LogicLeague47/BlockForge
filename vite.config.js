@@ -21,7 +21,10 @@ export default defineConfig(({ mode }) => {
       __CG__: JSON.stringify(mode === 'cg'),
     },
     build: {
-      target: 'es2020',
+      // Old devices (e.g. iPhone 5 / old Safari < iOS 11) don't support ES
+      // modules at all, so the legacy bundle must be a classic IIFE script —
+      // loaded via a normal <script> tag, not type="module".
+      target: legacy ? 'es2015' : 'es2020',
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         input: legacy
@@ -36,6 +39,9 @@ export default defineConfig(({ mode }) => {
           entryFileNames: legacy ? 'assets/main-legacy.js' : 'assets/[name].js',
           chunkFileNames: 'assets/[name]-[hash].js',
           assetFileNames: 'assets/[name]-[hash][extname]',
+          // IIFE so it runs on browsers without module support.
+          format: legacy ? 'iife' : 'es',
+          name: legacy ? 'BlockForge' : undefined,
         },
       },
     },

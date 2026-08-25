@@ -2723,8 +2723,8 @@
             </div>
           </div>
           <div id="login-cg-section" style="display:none;">
-            <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin:14px 0 10px;text-shadow:1px 1px 0 #000;">PLATFORM LOGIN</div>
-            <button class="menu-btn" id="btn-login-crazygames" style="width:100%;min-width:0;padding:12px 0;font-size:13px;border-color:rgba(60,200,120,0.3);background:linear-gradient(180deg,rgba(40,140,90,0.7),rgba(30,120,75,0.8),rgba(20,100,60,0.85),rgba(15,80,50,0.9));">&#127918; Login with CrazyGames</button>
+            <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin:14px 0 10px;text-shadow:1px 1px 0 #000;">NO ACCOUNT NEEDED</div>
+            <button class="menu-btn" id="btn-play-offline" style="width:100%;min-width:0;padding:12px 0;font-size:13px;border-color:rgba(120,160,255,0.3);background:linear-gradient(180deg,rgba(60,90,140,0.7),rgba(40,70,120,0.8),rgba(30,60,100,0.85),rgba(20,50,80,0.9));">&#9881; Play Offline</button>
           </div>
           <div id="login-social-section">
             <div style="display:flex;align-items:center;gap:12px;margin:14px 0 12px;color:#555;font:11px monospace;">
@@ -3906,11 +3906,14 @@
     </script>
     <script type="module" id="game-entry" src="/src/main.js"></script>
     <script>
-      // WebGL capability selection. Newer three.js (r163+) requires WebGL2, so
-      // WebGL1-only devices (e.g. old iPhones) would crash on the modern bundle.
-      // We keep the modern bundle as the default entry (so the build can find
-      // it) and swap to the pre-built legacy bundle (three r162, WebGL1) only
-      // when WebGL2 is missing. No import maps — works on old Safari too.
+      // WebGL + module capability selection. Newer three.js (r163+) requires
+      // WebGL2, so WebGL1-only devices (e.g. old iPhones) crash on the modern
+      // bundle. And old Safari (< iOS 11) doesn't support ES modules *at all*,
+      // so a type="module" script never runs there. We keep the modern bundle
+      // as the default entry and swap to the pre-built legacy bundle (three
+      // r162, WebGL1, built as a classic IIFE) when WebGL2 OR module support is
+      // missing. The legacy script is loaded as a normal <script> (no modules),
+      // so it works on old Safari too.
       (function () {
         function supportsWebGL2() {
           try {
@@ -3918,19 +3921,21 @@
             return !!(window.WebGL2RenderingContext && c.getContext('webgl2'));
           } catch (e) { return false; }
         }
-        var legacy = !supportsWebGL2();
+        function supportsModules() {
+          try { return 'noModule' in document.createElement('script'); } catch (e) { return false; }
+        }
+        var legacy = !supportsWebGL2() || !supportsModules();
         window.__LEGACY_WEBGL = legacy;
         if (legacy) {
           var e = document.getElementById('game-entry');
           if (e) e.parentNode.removeChild(e);
           var s = document.createElement('script');
-          s.type = 'module';
+          // Classic script (no type="module") so old Safari can run it.
           s.src = './assets/main-legacy.js';
           s.onerror = function () {
-            var f = document.createElement('script');
-            f.type = 'module';
-            f.src = '/src/main.js';
-            document.body.appendChild(f);
+            document.body.insertAdjacentHTML('beforeend',
+              '<div style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#05070c;color:#ddd;font-family:monospace;text-align:center;padding:24px;">' +
+              'Your browser is too old to run BlockForge. Please update Safari or try a modern browser.</div>');
           };
           document.body.appendChild(s);
         }
