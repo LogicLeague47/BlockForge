@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '90ef7fe',
+          heading: 'Play Offline menu + removed CrazyGames login',
+          desc: 'Replaced the "Login with CrazyGames" button with a Play Offline button. Offline mode (?offline=1) now opens a restricted main menu with only Singleplayer and Minigames — no account, no multiplayer, and it never redirects to a player-specific link. Also fixed old devices (e.g. iPhone 5 / old Safari) that showed a black screen: the legacy WebGL1 bundle is now built and loaded as a classic script so browsers without ES-module support can run it.',
+          date: 'Aug 25',
+          bugs: ['black screen on old iPhones / old Safari (legacy bundle was an ES module)', 'CrazyGames login still present'],
+          updates: ['Play Offline button replaces "Login with CrazyGames"', 'offline mode shows only Singleplayer + Minigames', 'offline mode never redirects to a ?user= link', 'legacy bundle now a classic IIFE (no ES modules)'],
+          features: ['Play Offline — restricted Singleplayer + Minigames, no account'],
+        },
+        {
           hash: 'aa18ee6',
           heading: 'Portal redesign + Play Offline',
           desc: 'Polished the portal for a cleaner, more professional look: the ticker no longer implies downloads, the hero stat now reads "100% Free" (the "15 Mods & Addons" count is accurate), the old unreachable Downloads page was removed, and the brand logo no longer spins. Added a Play Offline button that launches a true local singleplayer world.',
