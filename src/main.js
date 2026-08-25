@@ -596,7 +596,7 @@ atlasTexture.generateMipmaps = false;
 atlasTexture.colorSpace = THREE.SRGBColorSpace;
 atlasTexture.wrapS = atlasTexture.wrapT = THREE.ClampToEdgeWrapping;
 setAtlasTexture(atlasTexture);
-buildMenuBackground();
+try { buildMenuBackground(); } catch (e) { if (window.__bfErr) window.__bfErr('buildMenuBackground threw: ' + (e && e.stack || e)); console.error(e); }
 
 // --- first-person held item (view model) ---
 // autoClear=false so we can render the world, then the held-item overlay on top.
@@ -9607,9 +9607,21 @@ document.getElementById('music-toggle')?.addEventListener('click', () => {
   updateMusicWidget();
 });
 
-initMenu();
-initMods();
-bindModsMenu(ui);
+ // Boot the UI. If anything inside initMenu() throws on a particular device
+ // (e.g. a WebGL1-only path), don't let it abort the whole boot — surface the
+ // error and still bring up the login screen so the game is usable.
+ try {
+   initMenu();
+ } catch (e) {
+   if (window.__bfErr) window.__bfErr('initMenu threw: ' + (e && e.stack || e));
+   console.error('initMenu threw', e);
+ }
+ try { initMods(); } catch (_) {}
+ try { bindModsMenu(ui); } catch (_) {}
+ // Safety net: if no menu is showing, force the login screen.
+ try {
+   if (ui && ui.overlayEl && ui.overlayEl.classList.contains('hidden')) ui.showMenu('login');
+ } catch (_) {}
 
 // --- render loop ---
 let lastTime = performance.now();

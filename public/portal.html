@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '08f9148',
+          heading: 'iPhone login buttons now visible',
+          desc: 'Fixed the old-device login screen being blank on iPhone 5 / old Safari. The overlay used flexbox justify-content:center, which on iOS clips the top and bottom of a form taller than the screen and makes it unscrollable — so the title and the Log In / Guest / Play buttons were pushed off-screen (only the middle 3D preview stayed visible). Vertical centering now uses the child margin:auto instead, which is scroll-safe. Also added an on-screen error catcher so any future device crash is shown in a red banner instead of a silent blank screen, and the boot now brings up the login menu even if a single UI init step throws.',
+          date: 'Aug 25',
+          bugs: ['old iPhone showed 3D preview + music but no login buttons (form clipped by flexbox justify-content:center)'],
+          updates: ['overlay vertical centering via child margin:auto (scroll-safe)', 'visible on-screen error catcher (red banner)', 'boot still shows login menu if a UI init throws'],
+          features: [],
+        },
+        {
           hash: 'b55d841',
           heading: 'Old-iPhone (WebGL1) now launches',
           desc: 'Fixed another old-device blocker: the WebGL1 legacy bundle was still demanding WebGL2 and aborting with "WebGL2 unavailable". It now skips that check in legacy mode (the older three.js build supports WebGL1) so devices like the iPhone 5 can actually start the game. Combined with the earlier ES5 + dynamic-import fixes, old Safari should now get past the black screen.',
