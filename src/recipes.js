@@ -407,12 +407,14 @@ export const RECIPES = [
   shaped({ out: { id: B.COAL_BLOCK, count: 1 }, pattern: ['CC', 'CC'], key: { C: I.COAL } }),
   shaped({ out: { id: B.IRON_BLOCK, count: 1 }, pattern: ['II', 'II'], key: { I: I.IRON_INGOT } }),
   shaped({ out: { id: B.GOLD_BLOCK, count: 1 }, pattern: ['GG', 'GG'], key: { G: I.GOLD_INGOT } }),
+  shaped({ out: { id: B.COPPER_BLOCK, count: 1 }, pattern: ['CC', 'CC'], key: { C: I.COPPER_INGOT } }),
   shaped({ out: { id: B.DIAMOND_BLOCK, count: 1 }, pattern: ['DD', 'DD'], key: { D: I.DIAMOND } }),
   shaped({ out: { id: B.TORCH, count: 4 }, pattern: ['C', 'S'], key: { C: I.COAL, S: I.STICK } }),
   // Reverse storage blocks -> 9 ingots
   shaped({ out: { id: I.COAL, count: 9 }, pattern: ['C'], key: { C: B.COAL_BLOCK } }),
   shaped({ out: { id: I.IRON_INGOT, count: 9 }, pattern: ['I'], key: { I: B.IRON_BLOCK } }),
   shaped({ out: { id: I.GOLD_INGOT, count: 9 }, pattern: ['G'], key: { G: B.GOLD_BLOCK } }),
+  shaped({ out: { id: I.COPPER_INGOT, count: 9 }, pattern: ['C'], key: { C: B.COPPER_BLOCK } }),
   shaped({ out: { id: I.DIAMOND, count: 9 }, pattern: ['D'], key: { D: B.DIAMOND_BLOCK } }),
   shaped({ out: { id: I.PRISMITE, count: 9 }, pattern: ['P'], key: { P: B.PRISMITE_BLOCK } }),
   // ---- Brick variants (stone / sandstone / quartz / prismarine / brimstone / blackstone) ----

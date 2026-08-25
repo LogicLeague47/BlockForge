@@ -1550,6 +1550,27 @@ const PAINTERS = {
     speckle(ctx, x0, y0, rng, 6, ['rgb(90,90,90)']);
   },
 
+  copper_block(ctx, x0, y0, rng) {
+    const S = TILE;
+    // Base copper metal.
+    noisy(ctx, x0, y0, [184, 115, 51], 0.05, rng);
+    // Soft vertical sheen.
+    const g = ctx.createLinearGradient(x0, y0, x0, y0 + S);
+    g.addColorStop(0, 'rgba(255,210,150,0.25)');
+    g.addColorStop(0.5, 'rgba(255,255,255,0.05)');
+    g.addColorStop(1, 'rgba(90,45,15,0.30)');
+    ctx.fillStyle = g;
+    ctx.fillRect(x0, y0, S, S);
+    // Bevel edges (light top/left, dark bottom/right).
+    ctx.fillStyle = 'rgba(255,225,180,0.35)';
+    ctx.fillRect(x0, y0, S, 2);
+    ctx.fillRect(x0, y0, 2, S);
+    ctx.fillStyle = 'rgba(80,40,12,0.45)';
+    ctx.fillRect(x0, y0 + S - 2, S, 2);
+    ctx.fillRect(x0 + S - 2, y0, 2, S);
+    // Faint rivets.
+    speckle(ctx, x0, y0, rng, 4, ['rgba(255,220,170,0.4)']);
+  },
   emerald_ore(ctx, x0, y0, rng) {
     const S = TILE;
     noisy(ctx, x0, y0, [127, 127, 127], 0.07, rng);
