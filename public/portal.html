@@ -1470,6 +1470,24 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'aa18ee6',
+          heading: 'Portal redesign + Play Offline',
+          desc: 'Polished the portal for a cleaner, more professional look: the ticker no longer implies downloads, the hero stat now reads "100% Free" (the "15 Mods & Addons" count is accurate), the old unreachable Downloads page was removed, and the brand logo no longer spins. Added a Play Offline button that launches a true local singleplayer world.',
+          date: 'Aug 24',
+          bugs: ['misleading "download for your platform" ticker line', 'inaccurate "5 Platforms" hero stat', 'vestigial unreachable Downloads page'],
+          updates: ['ticker rewritten to accurate copy', 'hero stat "Platforms 5" → "100% Free"', 'Downloads page + dead code removed', 'Play Offline button (hero + quick actions) → ?offline=1 mode', 'brand logo no longer spins'],
+          features: ['Play Offline — local singleplayer, no account/internet'],
+        },
+        {
+          hash: '3e13c09',
+          heading: 'Security: fixed offline account / dev impersonation',
+          desc: 'Closed a serious auth bypass. The client used to grant dev/owner UI from a hardcoded username list with no server check, and the offline fallback dropped you into the game as whatever name you typed — so going offline, entering any username (and a dev name), then reconnecting inherited that account and its role via cached credentials. Dev status now comes ONLY from the server-verified role, and the offline fallback no longer creates an unauthenticated session. A separate, legitimate ?offline=1 mode plays a local guest world with no privileges.',
+          date: 'Aug 24',
+          bugs: ['dev/gamedev/owner UI granted from client-side username list (no server check)', 'offline login impersonated any account and inherited its role on reconnect'],
+          updates: ['dev status requires server-verified playerRole', 'offline fallback stays on the login screen (no impersonation)', '?offline=1 is an unprivileged local guest'],
+          features: [],
+        },
+        {
           hash: 'dbbfc94',
           heading: 'Cleaner grass textures',
           desc: 'Reworked the grass block to read more like the classic blocky grass look: a flatter, tidier green top with light dithering instead of busy blades, and a neat stepped grass band over dirt on the sides — still using BlockForge\'s meadow-green palette.',
