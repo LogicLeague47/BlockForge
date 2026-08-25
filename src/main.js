@@ -145,6 +145,10 @@ const VERY_LOW_END = LOW_END || WEAK_GPU;
 // 0.169 requires WebGL2. Detect that early and show a clear message instead of a
 // silent black screen / crash on unsupported hardware.
 (function ensureWebGL2() {
+  // Legacy WebGL1 mode (old devices / iPhone 5): index.html loaded the r162
+  // bundle which still supports WebGL1, so do NOT require WebGL2 here — otherwise
+  // every WebGL1-only device would hit "WebGL2 unavailable" and never run.
+  if (window.__LEGACY_WEBGL) return;
   let ok = false;
   try {
     const c = document.createElement('canvas');
