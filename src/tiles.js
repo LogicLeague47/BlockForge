@@ -141,26 +141,22 @@ function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
 
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
-    // Meadow-green base with natural variation (similar games use ~95,159,53).
-    noisy(ctx, x0, y0, [95, 159, 53], 0.08, rng);
-    // Larger darker-green mottling patches (tufts of thicker grass).
-    for (let i = 0; i < 14; i++) {
-      const x = (rng() * (TILE - 6)) | 0, y = (rng() * (TILE - 6)) | 0;
-      ctx.fillStyle = 'rgba(70,120,38,0.45)';
-      ctx.fillRect(x0 + x, y0 + y, 4 + (rng() * 3 | 0), 4 + (rng() * 3 | 0));
+    // Flat, readable meadow-green base (Minecraft-style: mostly solid with
+    // subtle dithering rather than busy noise). BlockForge palette ~95,159,53.
+    noisy(ctx, x0, y0, [95, 159, 53], 0.045, rng);
+    // Sparse darker / lighter single-pixel dither for a hand-pixeled feel.
+    for (let y = 0; y < TILE; y++) {
+      for (let x = 0; x < TILE; x++) {
+        const r = rng();
+        if (r < 0.07) { ctx.fillStyle = 'rgb(82,140,46)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+        else if (r > 0.95) { ctx.fillStyle = 'rgb(122,184,74)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+      }
     }
-    // Short grass blades (vertical strokes).
-    for (let i = 0; i < 44; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      const tall = 1 + (rng() * 3 | 0);
-      ctx.fillStyle = rng() < 0.5 ? 'rgb(72,135,44)' : 'rgb(120,185,70)';
-      ctx.fillRect(x0 + x, y0 + y, 1, tall);
-    }
-    // Bright sun-lit tips.
-    for (let i = 0; i < 14; i++) {
-      const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
-      ctx.fillStyle = 'rgb(150,205,90)';
-      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    // A few small blocky tufts for organic variation (kept tidy).
+    for (let i = 0; i < 4; i++) {
+      const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
+      ctx.fillStyle = 'rgba(74,128,40,0.5)';
+      ctx.fillRect(x0 + x, y0 + y, 3, 3);
     }
   },
 
@@ -168,30 +164,28 @@ const PAINTERS = {
     // Dirt body (standard dirt: 134,96,67).
     noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
     // Dirt pebbles below the grass line.
-    for (let i = 0; i < 16; i++) {
-      const x = (rng() * TILE) | 0, y = 8 + (rng() * (TILE - 8)) | 0;
+    for (let i = 0; i < 14; i++) {
+      const x = (rng() * TILE) | 0, y = 9 + (rng() * (TILE - 9)) | 0;
       ctx.fillStyle = rng() < 0.5 ? 'rgb(104,72,48)' : 'rgb(150,110,78)';
       ctx.fillRect(x0 + x, y0 + y, 2, 2);
     }
-    // Grassy overhang on top ~8px with a jagged, dripping blade edge.
+    // Neat jagged grass band: a 1px-stepped lower edge (Minecraft-style) over
+    // a steady ~5px green layer, with a bright sunlit top row.
+    const GREEN = [104, 170, 58], GREEN_HI = [142, 202, 94], GREEN_DK = [80, 138, 44];
     for (let x = 0; x < TILE; x++) {
-      const h = 7 + ((rng() * 5) | 0); // 7..11
-      for (let y = 0; y < h; y++) {
-        const n = (rng() - 0.5) * 0.18;
-        const g = (y < 3 ? 1.02 : 0.93) * (1 + n);
-        ctx.fillStyle = `rgb(${clamp(95 * g)},${clamp(159 * g)},${clamp(53 * g)})`;
+      const edge = 4 + ((x * 7 + (x >> 1)) % 3); // deterministic 4..6, blocky
+      for (let y = 0; y < edge; y++) {
+        const g = y < 1 ? GREEN_HI : (y >= edge - 1 ? GREEN_DK : GREEN);
+        ctx.fillStyle = `rgb(${g[0]},${g[1]},${g[2]})`;
         ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
-      // Occasional longer dripping blade.
-      if (rng() < 0.3) {
-        const d = 1 + (rng() * 3 | 0);
-        ctx.fillStyle = 'rgb(72,130,42)';
-        ctx.fillRect(x0 + x, y0 + h, 1, d);
-      }
     }
-    // Bright grass highlight along the very top edge.
-    for (let x = 0; x < TILE; x++) {
-      if (rng() < 0.5) { ctx.fillStyle = 'rgb(132,196,82)'; ctx.fillRect(x0 + x, y0, 1, 1); }
+    // A few short blocky green drips hanging below the band.
+    for (let i = 0; i < 5; i++) {
+      const x = (rng() * TILE) | 0;
+      const d = 1 + (rng() * 2 | 0);
+      ctx.fillStyle = 'rgb(80,138,44)';
+      ctx.fillRect(x0 + x, y0 + 5, 1, d);
     }
   },
 
