@@ -1476,6 +1476,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'dbbfc94',
+          heading: 'Cleaner grass textures',
+          desc: 'Reworked the grass block to read more like the classic blocky grass look: a flatter, tidier green top with light dithering instead of busy blades, and a neat stepped grass band over dirt on the sides — still using BlockForge\'s meadow-green palette.',
+          date: 'Aug 24',
+          bugs: [],
+          updates: ['grass_top: flat green + subtle dither + a few small tufts', 'grass_side: steady green band with a blocky stepped edge + short drips'],
+          features: [],
+        },
+        {
           hash: '03bfa2f',
           heading: 'Fixed black screen + proper old-iPhone support',
           desc: 'The previous WebGL2-swap used import maps, which both broke the build (black screen) and aren\'t supported on old Safari. Replaced with two prebuilt bundles: a modern WebGL2 build and a WebGL1-compatible build (three r162). The game loads the modern one normally and only switches to the legacy bundle on devices without WebGL2.',
