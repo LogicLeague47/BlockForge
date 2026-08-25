@@ -1478,6 +1478,12 @@
         display: none; flex-direction: column; align-items: center; gap: 10px;
         position: relative; z-index: 2;
         width: 100%; max-width: 500px;
+        box-sizing: border-box;
+        /* Never exceed the viewport height; scroll internally if the form is
+           taller (e.g. the login form on a tiny iPhone 5). This guarantees the
+           buttons are always reachable regardless of flexbox quirks. */
+        max-height: 100%;
+        overflow-y: auto;
         /* margin:auto centres in the flex overlay AND keeps the top reachable
            when content is taller than the viewport (so the overlay scrollbar
            actually works instead of clipping). */
