@@ -33,6 +33,30 @@
         });
       })();
     </script>
+    <script>
+      // On-screen diagnostic — reports the actual menu state 3s after load so
+      // we can see (without a console) what the old device is actually rendering.
+      (function () {
+        function report() {
+          try {
+            var overlay = document.getElementById('overlay');
+            var hidden = overlay ? overlay.classList.contains('hidden') : 'no-overlay';
+            var active = document.querySelector('.menu-screen.active');
+            var id = active ? active.id : 'NONE';
+            var btns = active ? active.querySelectorAll('button,.btn').length : 0;
+            var sh = active ? active.scrollHeight : 0;
+            var ch = active ? active.clientHeight : 0;
+            var msg = 'DIAG: legacy=' + (!!window.__LEGACY_WEBGL) +
+              ' overlay=' + hidden + ' active=' + id +
+              ' buttons=' + btns + ' scrollH=' + sh + ' clientH=' + ch;
+            if (window.__bfErr) window.__bfErr(msg);
+          } catch (e) {
+            if (window.__bfErr) window.__bfErr('DIAG-ERR: ' + (e && e.message));
+          }
+        }
+        window.addEventListener('load', function () { setTimeout(report, 3000); });
+      })();
+    </script>
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
