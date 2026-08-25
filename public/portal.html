@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'f867f0f',
+          heading: 'Ruined Forge + procedural sounds + old-iPhone fix',
+          desc: 'Added the Ruined Forge — a small, partially-collapsed stone workshop (with two Stone Furnaces inside) that appears in Dev Worlds as a new structure. New procedural sound effects were added for clicks, XP, level-up, bats, portals, anvils and furnace hum, so the game has audio feedback even where no sample files exist. Also fixed another old-iPhone crash: the legacy bundle used dynamic import() (from the Mods feature) which is illegal inside a classic script — it is now rewritten to valid syntax so the whole game no longer fails to parse on iPhone 5 / old Safari.',
+          date: 'Aug 25',
+          bugs: ['old iPhone "unexpected keyword import" parse crash (dynamic import() in legacy bundle)'],
+          updates: ['Babel now rewrites dynamic import() to valid classic-script syntax', 'furnace UI plays a procedural furnace hum', 'dev-gated Ruined Forge structure (Dev Worlds only for now)'],
+          features: ['Ruined Forge structure (Dev World)', 'procedural sound effects (click/xp/levelup/bat/portal/anvil/furnace)'],
+        },
+        {
           hash: '10f0fda',
           heading: 'Stone Furnace + old-iPhone parse fix',
           desc: 'The Brick Furnace is now a Stone Furnace with a proper look — rough stone casing with a dark, fire-lit opening. Also fixed the black screen on old devices (iPhone 5 / old Safari): the WebGL1 legacy bundle is now transpiled all the way down to ES5 with Babel, so old JavaScript engines no longer hit a "unexpected ;" parse error on template literals. Previously the legacy bundle kept ES2015 syntax that those browsers cannot parse.',
