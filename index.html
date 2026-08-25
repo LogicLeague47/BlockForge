@@ -1448,7 +1448,6 @@
         color: var(--text-primary); font-family: 'Segoe UI', 'Helvetica Neue', Arial, monospace;
         text-align: center;
         overflow-y: auto; overflow-x: hidden;
-        padding: 16px 0;
         scrollbar-width: thin;
       }
       #overlay::-webkit-scrollbar { width: 8px; }
@@ -1479,11 +1478,6 @@
         position: relative; z-index: 2;
         width: 100%; max-width: 500px;
         box-sizing: border-box;
-        /* Never exceed the viewport height; scroll internally if the form is
-           taller (e.g. the login form on a tiny iPhone 5). This guarantees the
-           buttons are always reachable regardless of flexbox quirks. */
-        max-height: 100%;
-        overflow-y: auto;
         /* margin:auto centres in the flex overlay AND keeps the top reachable
            when content is taller than the viewport (so the overlay scrollbar
            actually works instead of clipping). */
@@ -1691,7 +1685,7 @@
       .menu-icon-btn svg { width: 28px; height: 28px; }
       /* Steve preview — fixed to right side of viewport */
       .menu-player-preview {
-        position: fixed; z-index: 3;
+        position: fixed; z-index: 2;
         right: 40px; top: 50%; transform: translateY(-50%);
         display: flex; flex-direction: column; align-items: center; gap: 6px;
       }

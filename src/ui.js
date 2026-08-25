@@ -215,6 +215,18 @@ export function makeItemIconCanvas(itemId) {
     case 700: drawNullShard(x); break;
     case 701: drawMemoryShard(x); break;
     case 702: drawParadoxCore(x); break;
+    // Spawn eggs (800+)
+    case 800: drawSpawnEgg(x, '#8B4513', '#f5f5dc'); break; // Cow
+    case 801: drawSpawnEgg(x, '#FFB6C1', '#e88898'); break; // Pig
+    case 802: drawSpawnEgg(x, '#F5F5DC', '#b0b0b0'); break; // Sheep
+    case 803: drawSpawnEgg(x, '#FFD700', '#8B6914'); break; // Chicken
+    case 804: drawSpawnEgg(x, '#228B22', '#0a3a0a'); break; // Zombie
+    case 805: drawSpawnEgg(x, '#E8E8E0', '#a0a0a0'); break; // Skeleton
+    case 806: drawSpawnEgg(x, '#333333', '#cc2222'); break; // Spider
+    case 807: drawSpawnEgg(x, '#00FF7F', '#006633'); break; // Slime
+    case 808: drawSpawnEgg(x, '#8B7355', '#d4c4a0'); break; // Villager
+    case 809: drawSpawnEgg(x, '#4169E1', '#88ccff'); break; // Blower
+    case 810: drawSpawnEgg(x, '#8A2BE2', '#ff88ff'); break; // Portalman
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
@@ -622,6 +634,22 @@ function drawEgg(x) {
   px(x, '#c8b890', 7, 10, 1, 1);
   // specular dot
   px(x, '#ffffff', 6, 5, 1, 1);
+}
+
+function drawSpawnEgg(x, base, spot) {
+  // Coloured oval egg shape with contrasting speckles (spawn-egg icon).
+  px(x, base, 6, 3, 4, 10);
+  px(x, base, 5, 5, 1, 6); px(x, base, 10, 5, 1, 6);
+  // lighter highlight
+  const hi = '#ffffff';
+  px(x, hi, 6, 4, 3, 5);
+  // shadow side
+  px(x, '#00000040', 9, 9, 1, 4);
+  px(x, '#00000040', 6, 12, 4, 1);
+  // coloured speckles
+  px(x, spot, 8, 7, 1, 1);
+  px(x, spot, 7, 10, 1, 1);
+  px(x, spot, 6, 8, 1, 1);
 }
 
 function drawBucket(x) {
