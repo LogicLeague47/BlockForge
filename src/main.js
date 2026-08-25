@@ -788,12 +788,13 @@ const greenstoneSystem = new GreenstoneSystem();
 
 // --- multiplayer / chat state ---
 let playerName = 'Player';
-const DEV_USERS = new Set(['logicleague', 'cdkide2']);
-const DEV_ACCOUNT = 'LogicLeague';
 let playerRole = 'player';
 
 function _refreshDevButtons() {
-  const isDev = DEV_USERS.has(playerName.toLowerCase()) || playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
+  // Dev/gamedev/owner status comes ONLY from the server-verified role in
+  // onAuthResult — never from the client-side username. Granting it from a
+  // hardcoded name list let anyone become a dev offline with no password.
+  const isDev = playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
   const bWorld = document.getElementById('btn-dev-world');
   if (bWorld) bWorld.style.display = isDev ? '' : 'none';
   const bPanel = document.getElementById('btn-dev-panel');
@@ -7005,7 +7006,7 @@ function renderStatsScreen() {
 // whenever the pause menu opens (not just once) so it appears after the dev
 // has logged in — the name/role only land after auth.
 function refreshDevPauseBtn() {
-  const isDev = DEV_USERS.has(playerName.toLowerCase()) || playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
+  const isDev = playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
   const btn = document.getElementById('btn-pause-errors');
   if (!btn) return;
   btn.style.display = isDev ? '' : 'none';
@@ -7122,6 +7123,23 @@ function initMenu() {
           }
         }, 1200);
       }
+    }
+    } catch (_) { console.warn("operation failed"); }
+
+  // Offline singleplayer: ?offline=1 launches a fresh local world with no
+  // backend connection (no account / internet needed beyond loading the page).
+  try {
+    const offline = params.get('offline');
+    if (offline) {
+      window.__OFFLINE_MODE = true;
+      setTimeout(() => {
+        ui.showMenu(null);
+        const id = 'offline-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+        startGame(id, Math.floor(Math.random() * 1e9), 'survival', 'normal', {});
+        if (typeof addChatLine === 'function') {
+          addChatLine('Offline mode — playing a local world. No account or internet needed.', '#9cf', true);
+        }
+      }, 900);
     }
   } catch (_) { console.warn("operation failed"); }
 
@@ -8727,9 +8745,15 @@ function initMenu() {
   }
 
   function showOfflineFallback() {
-    // Server unreachable — just go to main menu with the username set.
-    // Multiplayer/DMs will show a friendly "connect to WiFi" message when attempted.
-    ui.showMenu('main');
+    // SECURITY: never advance into the game as the typed username when the
+    // server is unreachable. That path let anyone impersonate any account —
+    // including a dev name — with zero authentication, then "go online" and
+    // inherit that account (and its role) via cached credentials.
+    // Stay on the login screen and require a real connection to authenticate.
+    if (loginHint) {
+      loginHint.style.color = '#f85';
+      loginHint.textContent = 'Cannot reach BlockForge servers — connect to the internet to log in.';
+    }
     setLoginDisabled(false);
   }
 
@@ -11545,7 +11569,7 @@ document.getElementById('btn-ai-portal')?.addEventListener('click', () => {
 // Auto-connect to the official backend on launch — like BlockForge's always-online
 // main menu, so social (friends / DMs / accounts) is live immediately. Auth still
 // only happens on login; this is just the socket.
-if (!network.connected) {
+if (!network.connected && !window.__OFFLINE_MODE) {
   try { network.connect(BACKEND_URL); } catch (_) { console.warn('auto-connect to backend failed'); }
 }
 
