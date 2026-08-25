@@ -2632,6 +2632,7 @@ export class UI {
   // --- furnace screen -------------------------------------------------------
   openFurnace(inventory, fx, fy, fz) {
     this.furnaceOpen = true;
+    if (this.audio) this.audio.play('furnace', 0.4);
     this._inventoryRef = inventory;
     this.furnacePos = (fx != null) ? { x: fx, y: fy, z: fz } : null;
     this.cursorItem = null;

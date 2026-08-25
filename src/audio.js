@@ -300,7 +300,7 @@ export class AudioManager {
       names = names[Math.floor(Math.random() * names.length)];
     }
     const buf = this.sfx[names];
-    if (!buf) return false;
+    if (!buf) { this._synth(Array.isArray(names) ? names[0] : names, vol); return true; }
     const src = this.ctx.createBufferSource();
     src.buffer = buf;
     // baseRate sets the species/material register; pitchVar adds per-hit jitter.
@@ -311,6 +311,60 @@ export class AudioManager {
     src.start();
     src.onended = () => { try { g.disconnect(); src.disconnect(); } catch (_) {} };
     return true;
+  }
+
+  // ── PROCEDURAL SYNTH (new SFX without binary samples) ─────────────────
+  // Called as a fallback by _sample() when a named sample isn't loaded, so
+  // `audio.play('furnace')` etc. produce real sound with zero asset files.
+  _synth(name, vol = 0.5) {
+    const ctx = this.ctx;
+    if (!ctx || !this.enabled || !this.master) return;
+    const now = ctx.currentTime;
+    const out = this._gain(Math.max(0.05, vol) * 0.5);
+    out.connect(this.master);
+    const tone = (type, f0, f1, dur, g = 0.4, when = 0, dest = out) => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      const t0 = now + when;
+      o.frequency.setValueAtTime(f0, t0);
+      if (f1 && f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(1, f1), t0 + dur);
+      const ga = ctx.createGain();
+      ga.gain.setValueAtTime(0.0001, t0);
+      ga.gain.exponentialRampToValueAtTime(g, t0 + 0.008);
+      ga.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(ga); ga.connect(dest);
+      o.start(t0); o.stop(t0 + dur + 0.02);
+    };
+    switch (name) {
+      case 'click':     tone('square', 320, 200, 0.05, 0.25); break;
+      case 'xp':        tone('sine', 660, 1320, 0.18, 0.4); break;
+      case 'levelup':   tone('triangle', 523, 523, 0.1, 0.4, 0);
+                        tone('triangle', 659, 659, 0.1, 0.4, 0.1);
+                        tone('triangle', 784, 784, 0.16, 0.4, 0.2); break;
+      case 'bat':       tone('sawtooth', 1800, 2800, 0.06, 0.22);
+                        tone('sawtooth', 2400, 1600, 0.05, 0.18, 0.08); break;
+      case 'portal':    tone('sine', 220, 520, 0.5, 0.3);
+                        tone('sine', 520, 220, 0.5, 0.2, 0.05); break;
+      case 'anvil':     tone('square', 200, 130, 0.14, 0.4);
+                        tone('triangle', 300, 200, 0.16, 0.3, 0.01); break;
+      case 'furnace':
+        tone('sawtooth', 70, 52, 0.6, 0.25);
+        for (let i = 0; i < 5; i++) {
+          const n = ctx.createBufferSource();
+          n.buffer = this._noise((0.05 * ctx.sampleRate) | 0, ctx.sampleRate);
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass'; bp.frequency.value = 900 + Math.random() * 1400;
+          const g = ctx.createGain();
+          const t0 = now + 0.05 + Math.random() * 0.5;
+          g.gain.setValueAtTime(0.0001, t0);
+          g.gain.exponentialRampToValueAtTime(0.12, t0 + 0.01);
+          g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+          n.connect(bp); bp.connect(g); g.connect(out);
+          n.start(t0); n.stop(t0 + 0.06);
+        }
+        break;
+      default:         tone('sine', 440, 440, 0.08, 0.3);
+    }
   }
 
   // ── NOISE GENERATORS ──────────────────────────────────────────────────

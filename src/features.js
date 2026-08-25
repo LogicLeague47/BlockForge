@@ -16,6 +16,11 @@ const FEATURES = {
   // New Dimension (to be implemented)
   dimension: { devOnly: true },
 
+  // New content (staged in Dev World first, flip devOnly:false to release).
+  copper: { devOnly: true },
+  ruined_forge: { devOnly: true },
+  cave_bat: { devOnly: true },
+
   // Reserved slots for future work — set devOnly as you add them.
   // example_feature: { devOnly: true },
 };
@@ -28,4 +33,12 @@ export function featureEnabled(name, isDevWorld) {
   const f = FEATURES[name];
   if (!f) return false;
   return isDevWorld || !f.devOnly;
+}
+
+// Convenience wrapper that resolves dev-world status from the global flag set
+// by main.js (window.__BF_IS_DEV). Use this in modules without direct access
+// to isDevWorld (worldgen, structures, recipes).
+export function feat(name) {
+  const isDev = (typeof window !== 'undefined') && window.__BF_IS_DEV === true;
+  return featureEnabled(name, isDev);
 }

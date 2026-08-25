@@ -31,7 +31,14 @@ try {
     // are injected (useBuiltIns defaults to off), so runtime globals (Map/Set/
     // Promise) are left as-is — fine on iOS 9/10 where they exist.
     const babeled = transformFileSync('dist/assets/main-legacy.js', {
-      presets: [['@babel/preset-env', { targets: { ie: '11' } }]],
+      // modules:'commonjs' ALSO rewrites dynamic import() (used by the Mods
+      // feature in src/mods.js) into a require()-based expression. Dynamic
+      // import() is illegal syntax inside a classic <script>, so leaving it in
+      // makes the whole legacy bundle fail to parse on old Safari ("unexpected
+      // keyword 'import'"). With commonjs it becomes valid classic-script
+      // syntax; mod loading just rejects at runtime on ancient devices (caught
+      // by the surrounding try/catch) instead of taking down the whole game.
+      presets: [['@babel/preset-env', { targets: { ie: '11' }, modules: 'commonjs' }]],
       compact: true,
       babelrc: false,
       configFile: false,

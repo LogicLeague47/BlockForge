@@ -5760,6 +5760,7 @@ const LOADING_TIPS = [
 
 function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   isDevWorld = !!opts.dev;
+  window.__BF_IS_DEV = isDevWorld; // exposed for feature-gated worldgen/structures/recipes
   // Tear down previous game (always, even if gameRunning=false from menu nav)
   if (manager || mobManager || playerModel || droppedItemManager || world) {
     const prevParkour = isParkour;
@@ -7129,15 +7130,13 @@ function initMenu() {
   // Offline mode: ?offline=1 shows a restricted main menu (Singleplayer +
   // Minigames only) with no account, multiplayer, or player-specific link.
   // The game never connects to the backend in this mode (see the
-  // !window.__OFFLINE_MODE guard around network.connect).
+  // !window.__OFFLINE_MODE guard around network.connect). The actual menu
+  // switch happens synchronously in the auth block's offline branch below, so
+  // there is no race with the login screen.
   try {
     const offline = params.get('offline');
     if (offline) {
       window.__OFFLINE_MODE = true;
-      setTimeout(() => {
-        ui.showMenu('main');
-        applyOfflineMenuRestrictions();
-      }, 900);
     }
   } catch (_) { console.warn("operation failed"); }
 
@@ -8869,8 +8868,10 @@ function initMenu() {
       }
     }, 100);
   } else if (window.__OFFLINE_MODE) {
-    // Offline mode: leave the menu hidden; the ?offline=1 handler reveals the
-    // restricted main menu after this runs.
+    // Offline mode (?offline=1): reveal the restricted main menu directly —
+    // no login screen, no auto-login, no player-specific link.
+    ui.showMenu('main');
+    applyOfflineMenuRestrictions();
   } else {
     ui.showMenu('login');
   }

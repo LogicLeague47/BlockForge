@@ -10,6 +10,7 @@
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcHeight, calcBiome } from './worldgen.js';
+import { feat } from './features.js';
 
 const REGION = 176;            // blocks per village region
 const VILLAGE_CHANCE = 0.42;   // chance a region contains a village
@@ -22,6 +23,8 @@ const ABANDONED_TOWER_REGION = 208;  // spacing between abandoned tower regions
 const ABANDONED_TOWER_CHANCE = 0.22;
 const MINESHAFT_REGION = 224;  // spacing between mineshaft regions
 const MINESHAFT_CHANCE = 0.34;
+const RUINED_FORGE_REGION = 64;    // spacing between ruined-forge regions
+const RUINED_FORGE_CHANCE = 0.04;  // chance a region contains a ruined forge
 
 // Deterministic hash → float in [0,1)
 function rnd(x, z, seed) {
@@ -176,6 +179,29 @@ export function generateVillages(chunk, baseX, baseZ, noise, seed, world) {
           chunk.set(wx - baseX, wy, wz - baseZ, b);
         };
         buildMineshaft(set, ms.cx, ms.tunnelY, ms.cz, ms.surfY, world, ms.rng);
+      }
+    }
+  }
+
+  // Ruined forges (dev-gated new structure)
+  if (feat('ruined_forge')) {
+    const rfReach = 10;
+    const rfMinRX = Math.floor((baseX - rfReach) / RUINED_FORGE_REGION);
+    const rfMaxRX = Math.floor((baseX + CHUNK_SIZE + rfReach) / RUINED_FORGE_REGION);
+    const rfMinRZ = Math.floor((baseZ - rfReach) / RUINED_FORGE_REGION);
+    const rfMaxRZ = Math.floor((baseZ + CHUNK_SIZE + rfReach) / RUINED_FORGE_REGION);
+    for (let rx = rfMinRX; rx <= rfMaxRX; rx++) {
+      for (let rz = rfMinRZ; rz <= rfMaxRZ; rz++) {
+        const rf = getRuinedForge(rx, rz, noise, seed);
+        if (rf) {
+          const set = (wx, wy, wz, b) => {
+            if (wx < baseX || wx >= baseX + CHUNK_SIZE) return;
+            if (wz < baseZ || wz >= baseZ + CHUNK_SIZE) return;
+            if (wy < 0 || wy >= WORLD_HEIGHT) return;
+            chunk.set(wx - baseX, wy, wz - baseZ, b);
+          };
+          buildRuinedForge(set, rf.cx, rf.baseY, rf.cz);
+        }
       }
     }
   }
@@ -772,6 +798,39 @@ function placeJungleTemple(t, chunk, baseX, baseZ, world) {
   buildJungleTemple(set, t.cx - 8, t.baseY, t.cz - 9, world);
 }
 
+// Ruined Forge — a small, partially-collapsed stone workshop that showcases
+// the new Stone Furnace. Staged behind the 'ruined_forge' feature flag.
+function getRuinedForge(rx, rz, noise, seed) {
+  if (rnd(rx, rz, seed ^ 0xF00D) > RUINED_FORGE_CHANCE) return null;
+  const cx = rx * RUINED_FORGE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xF11D) * RUINED_FORGE_REGION);
+  const cz = rz * RUINED_FORGE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xF22D) * RUINED_FORGE_REGION);
+  const baseY = calcHeight(noise, cx, cz);
+  if (baseY <= SEA_LEVEL + 1) return null;
+  const biome = calcBiome(noise, cx, cz, baseY);
+  if (GRASS_BIOMES.has(biome) === false && BIOMES.MOUNTAINS !== biome) return null;
+  return { cx, cz, baseY };
+}
+
+function buildRuinedForge(set, ox, oy, oz) {
+  const rng = makeRng(ox * 31 + oz * 17);
+  const W = 7, D = 7, H = 4;
+  for (let dx = 0; dx < W; dx++) for (let dz = 0; dz < D; dz++) {
+    const edge = dx === 0 || dz === 0 || dx === W - 1 || dz === D - 1;
+    for (let y = 0; y < H; y++) {
+      if (y === 0) { set(ox + dx, oy + y, oz + dz, BLOCK.COBBLESTONE); continue; }
+      if (!edge) continue; // hollow interior
+      // doorway on the south side
+      if (dz === D - 1 && dx === (W >> 1) && y <= 2) continue;
+      // upper rows look broken/ruined
+      if (y >= 3 && rng() < 0.32) continue;
+      set(ox + dx, oy + y, oz + dz, y >= 3 ? BLOCK.STONE_BRICKS : BLOCK.COBBLESTONE);
+    }
+  }
+  // Two Stone Furnaces inside (the building's purpose).
+  set(ox + 1, oy + 1, oz + 1, BLOCK.FURNACE);
+  set(ox + W - 2, oy + 1, oz + 1, BLOCK.FURNACE);
+}
+
 // Place a single structure at a world position (used by the dev tools).
 // Returns a bounding box { minX, maxX, minZ, maxZ } for chunk refresh.
 export function placeStructure(world, type, ox, oy, oz) {
@@ -822,12 +881,17 @@ export function placeStructure(world, type, ox, oy, oz) {
       bb = { minX: ox - 26, maxX: ox + 26, minZ: oz - 26, maxZ: oz + 26 };
       break;
     }
+    case 'ruined_forge': {
+      buildRuinedForge(set, ox, oy, oz);
+      bb = { minX: ox, maxX: ox + 7, minZ: oz, maxZ: oz + 7 };
+      break;
+    }
     default: return null;
   }
   return bb;
 }
 
-export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft'];
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft', 'ruined_forge'];
 
 function buildBossArena(set, ox, y, oz) {
   // Massive obsidian boss arena: 32x32 floor, 20-high walls, obsidian pillars
