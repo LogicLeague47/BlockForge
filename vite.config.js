@@ -24,7 +24,13 @@ export default defineConfig(({ mode }) => {
       // Old devices (e.g. iPhone 5 / old Safari < iOS 11) don't support ES
       // modules at all, so the legacy bundle must be a classic IIFE script —
       // loaded via a normal <script> tag, not type="module".
+      // We build at es2015 here (Vite's esbuild transform can't emit es5
+      // directly) and then DOWNLEVEL the finished bundle to es5 with esbuild
+      // in scripts/build-legacy.mjs. That strips every ES2015+ syntax feature
+      // (template literals, arrow fns, classes, const/let, optional chaining…)
+      // that old Safari (< iOS 9.3) chokes on ("unexpected ;" parse error).
       target: legacy ? 'es2015' : 'es2020',
+      minify: legacy ? 'esbuild' : 'esbuild',
       chunkSizeWarningLimit: 1500,
       rollupOptions: {
         input: legacy

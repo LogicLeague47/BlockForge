@@ -2722,6 +2722,55 @@ PAINTERS.barrier = (ctx, x0, y0) => { ctx.clearRect(x0, y0, TILE, TILE); ctx.str
 PAINTERS.command_block_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(90,60,120)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 3); };
 PAINTERS.command_block_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(70,45,100)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(40,20,60,0.9)'; ctx.font = 'bold 10px monospace'; ctx.fillText('!', x0 + TILE / 2 - 3, y0 + TILE / 2 + 4); };
 PAINTERS.jukebox_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,110,60)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgb(60,40,20)'; ctx.beginPath(); ctx.arc(x0 + TILE / 2, y0 + TILE / 2, TILE / 3, 0, 7); ctx.fill(); };
+
+// ── Stone Furnace (redo of the old Brick Furnace) ──────────────────────
+// A proper-looking furnace: rough stone casing with a dark arched opening
+// that glows with fire on the front (and all side faces).
+function _stoneFill(ctx, x0, y0, rng, base) {
+  const [r, g, b] = base;
+  ctx.fillStyle = `rgb(${r},${g},${b})`;
+  ctx.fillRect(x0, y0, TILE, TILE);
+  for (let i = 0; i < 80; i++) {
+    const x = (rng() * TILE) | 0, y = (rng() * TILE) | 0;
+    const v = (rng() * 46 - 23) | 0;
+    ctx.fillStyle = `rgb(${r + v},${g + v},${b + v})`;
+    ctx.fillRect(x0 + x, y0 + y, 1, 1);
+  }
+}
+PAINTERS.stone_furnace_top = (ctx, x0, y0, rng) => {
+  _stoneFill(ctx, x0, y0, rng, [122, 122, 122]);
+  // inset casing border so the top reads as a stone box
+  ctx.strokeStyle = 'rgba(60,60,60,0.55)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(x0 + 1.5, y0 + 1.5, TILE - 3, TILE - 3);
+  ctx.strokeStyle = 'rgba(160,160,160,0.35)';
+  ctx.strokeRect(x0 + 3.5, y0 + 3.5, TILE - 7, TILE - 7);
+};
+PAINTERS.stone_furnace_front = (ctx, x0, y0, rng) => {
+  _stoneFill(ctx, x0, y0, rng, [125, 125, 125]);
+  // dark arched opening
+  const ox = x0 + 6, oy = y0 + 4, ow = TILE - 12, oh = TILE - 8;
+  ctx.fillStyle = 'rgb(22,16,12)';
+  ctx.fillRect(ox, oy, ow, oh);
+  // fire glow inside the opening
+  const grad = ctx.createLinearGradient(x0 + TILE / 2, oy + oh, x0 + TILE / 2, oy);
+  grad.addColorStop(0, 'rgba(255,190,70,0.97)');
+  grad.addColorStop(0.55, 'rgba(232,120,30,0.82)');
+  grad.addColorStop(1, 'rgba(120,40,10,0.18)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(ox + 1, oy + 1, ow - 2, oh - 2);
+  // embers
+  for (let i = 0; i < 12; i++) {
+    const ex = (ox + 2 + (rng() * (ow - 4))) | 0;
+    const ey = (oy + 2 + (rng() * (oh - 4))) | 0;
+    ctx.fillStyle = `rgba(255,${(200 + (rng() * 40)) | 0},90,0.9)`;
+    ctx.fillRect(ex, ey, 1, 1);
+  }
+  // stone frame around the opening
+  ctx.strokeStyle = 'rgba(70,70,70,0.7)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(ox - 1.5, oy - 1.5, ow + 3, oh + 3);
+};
 PAINTERS.jukebox_side = (ctx, x0, y0, rng) => { ctx.fillStyle = 'rgb(130,90,50)'; ctx.fillRect(x0, y0, TILE, TILE); ctx.fillStyle = 'rgba(80,50,25,0.9)'; ctx.fillRect(x0, y0 + TILE - 6, TILE, 6); };
 PAINTERS.flower_pot_top = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,95,60)'; ctx.fillRect(x0 + 4, y0 + 4, TILE - 8, TILE - 8); };
 PAINTERS.flower_pot_bottom = (ctx, x0, y0) => { ctx.fillStyle = 'rgb(150,95,60)'; ctx.fillRect(x0, y0, TILE, TILE); };

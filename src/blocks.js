@@ -364,8 +364,10 @@ export const TILES = {
   acacia_crafting_top:   [15, 10],
   acacia_crafting_side:  [0, 11],
   ice:                   [1, 11],
-  short_grass:           [2, 11],
-  tall_grass:            [3, 11],
+   short_grass:            [2, 11],
+   tall_grass:             [3, 11],
+   stone_furnace_top:      [4, 11],
+   stone_furnace_front:    [5, 11],
 
   // Crystal prisms (16 colors) — light-emitting decorative blocks (row 12).
   crystal_prism_0:       [0, 12],
@@ -466,7 +468,7 @@ export const BLOCKS = {
   [BLOCK.RED_SAND]:   { name: 'Red Sand', solid: true, hardness: 0.5, tool: 'shovel', faces: 'red_sand' },
   [BLOCK.TERRACOTTA]: { name: 'Terracotta', solid: true, hardness: 1.25, tool: 'pickaxe', harvest: 1, faces: 'terracotta' },
   [BLOCK.SNOW_GRASS]: { name: 'Snowy Grass', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'snow', bottom: 'dirt', side: 'snow_side' } },
-  [BLOCK.FURNACE]:    { name: 'Brick Furnace', solid: true, hardness: 3.5, tool: 'pickaxe', harvest: 1, faces: { top: 'brick_furnace_top', bottom: 'brick_furnace_top', side: 'brick_furnace_front' } },
+  [BLOCK.FURNACE]:    { name: 'Stone Furnace', solid: true, hardness: 3.5, tool: 'pickaxe', harvest: 1, faces: { top: 'stone_furnace_top', bottom: 'stone_furnace_top', side: 'stone_furnace_front' } },
   [BLOCK.PODZOL]:     { name: 'Podzol', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'podzol_top', bottom: 'dirt', side: 'podzol_side' } },
   [BLOCK.MYCELIUM]:   { name: 'Mycelium', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: { top: 'mycelium_top', bottom: 'dirt', side: 'mycelium_side' } },
   [BLOCK.JUNGLE_WOOD]:{ name: 'Jungle Log', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'jungle_wood_top', bottom: 'jungle_wood_top', side: 'jungle_wood_side' } },

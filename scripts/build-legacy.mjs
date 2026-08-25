@@ -3,8 +3,9 @@
 // modern build is unaffected. Non-fatal: if anything fails the modern bundle
 // still deploys.
 import { execSync } from 'node:child_process';
-import { existsSync, copyFileSync, mkdirSync, rmSync } from 'node:fs';
+import { existsSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { transformFileSync } from '@babel/core';
 
 const root = resolve('.');
 
@@ -21,7 +22,22 @@ try {
   const out = 'dist-legacy/assets/main-legacy.js';
   if (existsSync(out)) {
     copyFileSync(out, 'dist/assets/main-legacy.js');
-    console.log('[build-legacy] ✓ wrote dist/assets/main-legacy.js');
+    console.log('[build-legacy] ✓ wrote dist/assets/main-legacy.js (es2015)');
+    // Vite's esbuild transform (and standalone esbuild) cannot lower const /
+    // for-of / class / template literals to ES5. So we post-process the
+    // finished IIFE bundle with Babel (@babel/preset-env, ie:11) which fully
+    // transpiles every ES2015+ feature down to ES5 — the syntax old Safari
+    // (< iOS 9.3) chokes on ("unexpected ;" parse error). No core-js polyfills
+    // are injected (useBuiltIns defaults to off), so runtime globals (Map/Set/
+    // Promise) are left as-is — fine on iOS 9/10 where they exist.
+    const babeled = transformFileSync('dist/assets/main-legacy.js', {
+      presets: [['@babel/preset-env', { targets: { ie: '11' } }]],
+      compact: true,
+      babelrc: false,
+      configFile: false,
+    });
+    writeFileSync('dist/assets/main-legacy.js', babeled.code);
+    console.log('[build-legacy] ✓ downleveled to es5 (old-Safari safe)');
   } else {
     console.warn('[build-legacy] ✗ main-legacy.js not found in dist-legacy');
   }
