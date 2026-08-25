@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'd0769cd',
+          heading: 'Offline mode no longer reloads + debug banner removed',
+          desc: 'Fixed the Play Offline button so it activates offline mode in-place (no page reload) — previously it reloaded to ?offline=1 which fails when there is no internet. Also removed the temporary red debug banner that was showing on every page load.',
+          date: 'Aug 25',
+          bugs: ['Play Offline button reloaded the page (fails with no internet)', 'red debug banner appeared on every page load'],
+          updates: ['offline mode activates in-place without reloading', 'removed auto-diag banner (error catcher still shows on actual crashes)'],
+          features: [],
+        },
+        {
           hash: 'e303b01',
           heading: 'Old-iPhone bundle now deploys',
           desc: 'Found why the old-device fixes never showed up: the WebGL1 legacy bundle was failing to build on Render (it could not resolve "vite" because the build runs with NODE_ENV=production, which pruned devDependencies). That meant dist/assets/main-legacy.js was never deployed, so old iPhones got no working bundle at all. The legacy build now keeps its devDependencies (NODE_ENV=development for the three swap) so the legacy bundle is actually built and shipped. Combined with the earlier menu-scroll fix, the iPhone login screen should now work.',
