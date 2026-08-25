@@ -8892,6 +8892,7 @@ function initMenu() {
     applyOfflineMenuRestrictions();
   } else {
     ui.showMenu('login');
+    window.__bfInitMenuDone = true;
   }
   showOneTimeMessages();
   showConsentNotice();
