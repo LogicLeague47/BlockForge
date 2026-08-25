@@ -1289,6 +1289,7 @@ function hidePlayerList() {
 let _friendState = { friends: [], incoming: [], outgoing: [] };
 let _backgroundAuth = false; // true when re-authing silently (not from login screen)
 let _autoRegisterFallback = false; // when true, retry auth with 'register' mode if account not found
+let _identityAuthPending = false; // true after an OAuth/CG identity auth is in flight (avoids the bot-gate reload)
 let _devPanelNeedsAccounts = false;
 let _pendingLinkProvider = ''; // used to track which OAuth provider is being linked
 
@@ -4846,13 +4847,24 @@ function setupNetworkHandlers() {
       } else {
         if (loginHint) { loginHint.style.color = '#5f5'; loginHint.textContent = msg.created ? 'Account created! Welcome, ' + playerName + '.' : 'Logged in! Welcome back, ' + playerName + '.'; }
         cloudSet('bf_role', playerRole);
-        // Bot gate (non-CG website): correct credentials issue a one-time entry
-        // token, then go straight into the game with the player link in the URL.
-        // Manual reloads and direct link opens have no token and land on the
-        // login screen. CrazyGames keeps its SDK account-integration flow.
         if (isOnCrazyGames()) {
+          _identityAuthPending = false;
+          ui.showMenu('main');
+        } else if (_identityAuthPending) {
+          // Identity (OAuth) login on the website: the session is already
+          // authenticated on this WS connection, so go straight to the game.
+          // Avoid the bot-gate reload + silent re-auth (which can fail and drop
+          // the user back to the login screen — the reported "OAuth reloads to
+          // login" bug).
+          _identityAuthPending = false;
+          window._autoLoggingIn = false;
+          showToast(msg.created ? 'Account created! Welcome, ' + playerName + '!' : 'Welcome, ' + playerName + '!', '#5f5', 3);
           ui.showMenu('main');
         } else {
+          // Bot gate (non-CG password login): issue a one-time entry token,
+          // then reload into the game with the player link in the URL. Manual
+          // reloads and direct link opens have no token and land on the login
+          // screen. CrazyGames keeps its SDK account-integration flow.
           try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
           window.location.href = '/?user=' + encodeURIComponent(playerName || '') + '&from=game';
         }
@@ -4860,6 +4872,7 @@ function setupNetworkHandlers() {
     } else {
       // Auto-register fallback: when a portal login uses a brand-new username,
       // the server has no account yet — retry once with 'register' mode.
+      _identityAuthPending = false;
       const reason = msg.reason || '';
       if (_autoRegisterFallback && (reason.includes('Account not found') || reason.includes('account not found') || reason.includes('Account does not exist'))) {
         _autoRegisterFallback = false;
@@ -5674,8 +5687,8 @@ function updateSky(dt) {
   // Ambient / hemisphere: always keep a moonlit floor on at night. These are
   // only ever lerped toward targets (never hard-clamped), so daylight always
   // returns smoothly after a natural night.
-  const targetAmbientI = 0.06 + dayAmt * 0.42 + nightAmt * 0.26;
-  const targetHemiI = 0.04 + dayAmt * 0.18 + nightAmt * 0.12;
+  let targetAmbientI = 0.06 + dayAmt * 0.42 + nightAmt * 0.26;
+  let targetHemiI = 0.04 + dayAmt * 0.18 + nightAmt * 0.12;
   // Night-vision potion: lift ambient/hemisphere so the world stays readable at night.
   if (player && player.nightVisionUntil && performance.now() < player.nightVisionUntil) {
     targetAmbientI += 0.5;
@@ -8777,6 +8790,7 @@ function initMenu() {
 
   function doLogin(mode) {
     clearToast();
+    _identityAuthPending = false; // a password login is never an identity auth
     if (isUnder13Blocked()) {
       loginHint.style.color = '#f85'; loginHint.textContent = 'Accounts require players to be 13 or older.';
       return;
@@ -8993,6 +9007,9 @@ function initMenu() {
           showToast('OAuth failed: ' + e.data.error, '#f44', 4);
           return;
         }
+        // Mark this as an identity (OAuth) auth so onAuthResult skips the
+        // bot-gate reload and drops the user straight into the game.
+        _identityAuthPending = true;
         const suggestedName = filterProfanity(e.data.username) || 'Player';
         const providerId = e.data.providerId || suggestedName;
 
