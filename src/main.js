@@ -2148,6 +2148,22 @@ const STEP_COLORS = {
   [BLOCK.CARPET]: [0.91, 0.88, 0.82],
 };
 
+function spawnSmokePuff(x, y, z) {
+  for (let i = 0; i < 5; i++) {
+    const m = new THREE.Mesh(_particleGeoSmall, new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 }));
+    m.position.set(x + (Math.random() - 0.5) * 0.4, y + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.4);
+    scene.add(m);
+    _particles.push({
+      mesh: m,
+      vx: (Math.random() - 0.5) * 1.5,
+      vy: 0.5 + Math.random() * 1.5,
+      vz: (Math.random() - 0.5) * 1.5,
+      life: 0.4 + Math.random() * 0.3,
+      maxLife: 0.6,
+    });
+  }
+}
+
 function spawnStepParticles(bx, by, bz, blockId) {
   const col = STEP_COLORS[blockId];
   if (!col) return;
@@ -3330,7 +3346,12 @@ function doBreak(hit, b) {
             if (network.isInRoom()) network.sendBlockUpdate(nx, ny, nz, 0);
             if (player.isSurvival()) {
               const drop = blockDrop(nb, 4);
-              if (drop) player.inventory.add(drop, 1);
+              if (drop && droppedItemManager) {
+                droppedItemManager.drop(drop, 1, nx + 0.5, ny + 0.6, nz + 0.5);
+                spawnSmokePuff(nx + 0.5, ny + 0.5, nz + 0.5);
+              } else if (drop) {
+                player.inventory.add(drop, 1);
+              }
             }
           }
         }
@@ -3371,7 +3392,11 @@ function doBreak(hit, b) {
         if (network.isInRoom()) network.sendBlockUpdate(tb.x, tb.y, tb.z, 0);
         if (player.isSurvival()) {
           const drop = blockDrop(tb.b, 4);
-          if (drop) player.inventory.add(drop, 1);
+          if (drop && droppedItemManager) {
+            droppedItemManager.drop(drop, 1, tb.x + 0.5, tb.y + 0.6, tb.z + 0.5);
+          } else if (drop) {
+            player.inventory.add(drop, 1);
+          }
         }
       }
       if (treeBlocks.length > 1) {
@@ -3412,11 +3437,18 @@ function doBreak(hit, b) {
     }
   }
 
-  // drop item
+  // drop item — spawn as a physical entity with a smoke puff
   if (player.isSurvival()) {
-    // Bedwars: beds drop nothing (and breaking one triggers the win check).
     const drop = isBedwars && (b === BLOCK.BED || b === BLOCK.BED_FOOT) ? 0 : blockDrop(b, toolHarvestLevel(toolId || 0));
-    if (drop) player.inventory.add(drop, 1);
+    if (drop && droppedItemManager) {
+      const ox = (Math.random() - 0.5) * 0.6;
+      const oz = (Math.random() - 0.5) * 0.6;
+      droppedItemManager.drop(drop, 1, hit.x + 0.5 + ox, hit.y + 0.6, hit.z + 0.5 + oz);
+      // small grey smoke puff
+      spawnSmokePuff(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
+    } else if (drop) {
+      player.inventory.add(drop, 1);
+    }
     syncUIMode();
   }
   // Achievement stats: block broken
