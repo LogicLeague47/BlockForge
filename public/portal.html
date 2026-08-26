@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '639e2e1',
+          heading: 'Torch light, grass retexture, mod system expansion',
+          desc: 'Three big features: (1) Torches, lava, and crystal prisms now emit real dynamic point lights (capped at 48 for performance) so caves and nights actually light up; (2) Grass side blocks retextured with asymmetric connected blades in 5 green shades with per-block variation — no two blocks look the same; short and tall grass also repainted with darker Minecraft-style greens; (3) Mod system massively expanded — mods can now register custom blocks, items, mobs, add menu buttons, set blocks, spawn mobs, and chat. Mods with gameplay features are automatically blocked from joining multiplayer to keep servers fair.',
+          date: 'Aug 25',
+          bugs: [],
+          updates: ['torches emit real PointLights (warm yellow, range scales with luminance)', 'grass side has asymmetric connected blades with 5-shade palette, per-block variation', 'short/tall grass repainted with darker muted greens + per-blade lightness variation', 'mod API: registerBlock, registerItem, registerMob, addButton, removeButton, spawnMob, chat, getWorld.setBlock', 'gameplay mods blocked from joining multiplayer', 'mod buttons appear in main menu'],
+          features: ['dynamic torch light emission', 'asymmetric per-block grass sides', 'expanded mod system with mobs/blocks/items/buttons', 'multiplayer mod gate'],
+        },
+        {
           hash: 'db10e2a',
           heading: 'Fix landing crash, spawn-egg coords, creative dupe',
           desc: 'Fixed three bugs: (1) the It.spawn "not a function" error spamming every frame on iPhone — the onLand callback called breakParticles.spawn which does not exist, now uses breakParticles.emit; (2) spawn eggs placed mobs at NaN coordinates because hit.nx/ny/nz do not exist on the raycast result, now uses hit.place.x/y/z; (3) spawn eggs appeared twice in the creative inventory because IDs ≥512 passed both the items and tools loops.',
