@@ -165,30 +165,42 @@ const PAINTERS = {
     noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
     // Dirt pebbles below the grass line.
     for (let i = 0; i < 14; i++) {
-      const x = (rng() * TILE) | 0, y = 9 + (rng() * (TILE - 9)) | 0;
+      const x = (rng() * TILE) | 0, y = 12 + (rng() * (TILE - 12)) | 0;
       ctx.fillStyle = rng() < 0.5 ? 'rgb(104,72,48)' : 'rgb(150,110,78)';
       ctx.fillRect(x0 + x, y0 + y, 2, 2);
     }
-    // Neat jagged grass band: a 1px-stepped lower edge (Minecraft-style) over
-    // a steady ~5px green layer, with a bright sunlit top row.
-    const GREEN = [104, 170, 58], GREEN_HI = [142, 202, 94], GREEN_DK = [80, 138, 44];
+    // Green palette — multiple shades for depth.
+    const shades = [
+      [70, 125, 38],
+      [85, 145, 48],
+      [100, 165, 55],
+      [115, 180, 65],
+      [60, 110, 32],
+    ];
+    // Per-column grass blades: each column gets its own height (2-10px),
+    // width pattern, and shade. Blades are connected to the top edge.
     for (let x = 0; x < TILE; x++) {
-      const edge = 4 + ((x * 7 + (x >> 1)) % 3); // deterministic 4..6, blocky
-      for (let y = 0; y < edge; y++) {
-        const g = y < 1 ? GREEN_HI : (y >= edge - 1 ? GREEN_DK : GREEN);
-        ctx.fillStyle = `rgb(${g[0]},${g[1]},${g[2]})`;
-        ctx.fillRect(x0 + x, y0 + y, 1, 1);
+      // How many columns this blade occupies (1 or 2px wide, connected).
+      const bladeW = rng() < 0.3 ? 2 : 1;
+      // Height: 2–10 px, deterministic per column.
+      const h = 2 + (((x * 7 + (x >> 2) + (rng() * 5) | 0)) % 9);
+      // Pick a shade — neighbours tend toward similar but not identical.
+      const baseIdx = (x * 3 + (rng() * 3) | 0) % shades.length;
+      const s = shades[baseIdx];
+      // Brighten tip (topmost pixel), darken base (lowest pixel).
+      for (let y = 0; y < h; y++) {
+        let r = s[0], g = s[1], b = s[2];
+        if (y === 0) { r += 18; g += 22; b += 8; }          // sunlit tip
+        else if (y >= h - 1) { r -= 12; g -= 14; b -= 6; }  // shadow base
+        else { r += ((rng() * 8) | 0) - 4; g += ((rng() * 10) | 0) - 5; }
+        r = Math.max(0, Math.min(255, r));
+        g = Math.max(0, Math.min(255, g));
+        b = Math.max(0, Math.min(255, b));
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        ctx.fillRect(x0 + x, y0 + y, bladeW, 1);
       }
     }
-    // A few short blocky green drips hanging below the band.
-    for (let i = 0; i < 5; i++) {
-      const x = (rng() * TILE) | 0;
-      const d = 1 + (rng() * 2 | 0);
-      ctx.fillStyle = 'rgb(80,138,44)';
-      ctx.fillRect(x0 + x, y0 + 5, 1, d);
-    }
   },
-
   snow_side(ctx, x0, y0, rng) {
     noisy(ctx, x0, y0, [134, 96, 67], 0.08, rng);
     for (let i = 0; i < 12; i++) {
@@ -669,19 +681,39 @@ const PAINTERS = {
   short_grass(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
     const cx = x0 + 16, cy = y0 + 20;
-    ctx.fillStyle = '#4da63b';
-    ctx.fillRect(cx - 6, cy - 4, 2, 8);
-    ctx.fillRect(cx - 2, cy - 8, 2, 12);
-    ctx.fillRect(cx + 3, cy - 6, 2, 10);
+    const blades = [
+      [cx - 6, cy - 4, 2, 8],
+      [cx - 2, cy - 8, 2, 12],
+      [cx + 3, cy - 6, 2, 10],
+    ];
+    const base = [74, 132, 48];
+    blades.forEach(([bx, by, bw, bh], i) => {
+      const v = ((rng() * 16) | 0) - 8;
+      const r = Math.max(0, Math.min(255, base[0] + v));
+      const g = Math.max(0, Math.min(255, base[1] + v));
+      const b = Math.max(0, Math.min(255, base[2] + v));
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(bx, by, bw, bh);
+    });
   },
   tall_grass(ctx, x0, y0, rng) {
     ctx.clearRect(x0, y0, TILE, TILE);
     const cx = x0 + 16, cy = y0 + 16;
-    ctx.fillStyle = '#3a8a2a';
-    ctx.fillRect(cx - 8, cy - 10, 2, 18);
-    ctx.fillRect(cx - 4, cy - 14, 3, 22);
-    ctx.fillRect(cx + 1, cy - 12, 2, 20);
-    ctx.fillRect(cx + 6, cy - 8, 2, 16);
+    const blades = [
+      [cx - 8, cy - 10, 2, 18],
+      [cx - 4, cy - 14, 3, 22],
+      [cx + 1, cy - 12, 2, 20],
+      [cx + 6, cy - 8, 2, 16],
+    ];
+    const base = [50, 100, 34];
+    blades.forEach(([bx, by, bw, bh], i) => {
+      const v = ((rng() * 16) | 0) - 8;
+      const r = Math.max(0, Math.min(255, base[0] + v));
+      const g = Math.max(0, Math.min(255, base[1] + v));
+      const b = Math.max(0, Math.min(255, base[2] + v));
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(bx, by, bw, bh);
+    });
   },
 
   sapling_oak(ctx, x0, y0, rng) { saplingPlant(ctx, x0, y0, rng, '#6a4a2a', '#3f9a3f'); },

@@ -3,16 +3,32 @@
 // `manifest` and optional `onLoad` / `onTick` / `onUnload` hooks. They are
 // downloaded from the BlockForge mods page, imported in-game through the
 // "Mods & Addons" menu, persisted to localStorage and re-loaded on boot.
-// Mods talk to the game through a read-only API and draw their own HUD via
+// Mods talk to the game through an API and draw their own HUD via
 // api.hud.*. Broken mods are sandboxed (try/catch) and auto-disabled.
+// Mods that register gameplay features (blocks, items, mobs) are blocked
+// from joining multiplayer to keep servers fair.
 
 import * as THREE from 'three';
+import { BLOCK, BLOCKS } from './blocks.js';
 
 const MODS_KEY = 'bf_mods';
 export const MODS_URL = 'mods.html';
 
 let _mods = [];   // { id,name,version,description,author,icon,code,enabled,module,api,errors }
 let _refs = null; // live game refs injected every frame by main.js
+
+// ── Mod-registered gameplay content ──────────────────────────────────────
+const _modBlocks = new Map();   // blockId -> def (custom blocks from mods)
+const _modItems = new Map();    // itemId -> def (custom items from mods)
+const _modMobs = new Map();     // mobId -> def (custom mobs from mods)
+const _modButtons = [];         // { id, label, onClick } (mod-added UI buttons)
+let _hasGameplayMods = false;
+
+export function hasGameplayMods() { return _hasGameplayMods; }
+export function getModBlocks() { return _modBlocks; }
+export function getModItems() { return _modItems; }
+export function getModMobs() { return _modMobs; }
+export function getModButtons() { return _modButtons; }
 
 // Each mod is stored under its own key so one oversized mod can't blow the
 // localStorage quota for the whole collection (which silently dropped mods on
@@ -93,10 +109,56 @@ function makeApi(modId) {
       if (!w) return null;
       return {
         getBlock: (x, y, z) => w.getBlock(x, y, z),
+        setBlock: (x, y, z, id) => { if (w) w.setBlock(x, y, z, id); },
         surfaceHeight: (x, z) => (typeof w.heightAt === 'function' ? w.heightAt(x, z) : 0),
       };
     },
     getTime: () => { const d = refs()?.dayTime ?? 0; return { dayTime: d, night: d > 0.625 }; },
+    // ── Gameplay registration (marks mod as gameplay — blocks multiplayer) ──
+    registerBlock(blockId, def) {
+      if (typeof blockId !== 'number' || blockId < 2000) {
+        console.warn('[Mod:' + modId + '] registerBlock requires id >= 2000');
+        return;
+      }
+      _modBlocks.set(blockId, { ...def, modId });
+      _hasGameplayMods = true;
+    },
+    registerItem(itemId, def) {
+      if (typeof itemId !== 'number' || itemId < 2000) {
+        console.warn('[Mod:' + modId + '] registerItem requires id >= 2000');
+        return;
+      }
+      _modItems.set(itemId, { ...def, modId });
+      _hasGameplayMods = true;
+    },
+    registerMob(mobId, def) {
+      if (typeof mobId !== 'string' || !mobId) {
+        console.warn('[Mod:' + modId + '] registerMob requires a string mobId');
+        return;
+      }
+      _modMobs.set(mobId, { ...def, modId });
+      _hasGameplayMods = true;
+    },
+    addButton(id, label, onClick) {
+      if (!id || !label || typeof onClick !== 'function') return;
+      _modButtons.push({ id: modId + '-' + id, label, onClick, modId });
+    },
+    removeButton(id) {
+      const fullId = modId + '-' + id;
+      const idx = _modButtons.findIndex(b => b.id === fullId);
+      if (idx >= 0) _modButtons.splice(idx, 1);
+    },
+    spawnMob(mobId, x, y, z) {
+      const r = refs();
+      if (!r || !r.mobManager) return null;
+      return r.mobManager.spawnAt(mobId, x, y, z);
+    },
+    chat(msg) {
+      if (typeof msg === 'string' && refs()) {
+        // Dispatch a custom event that main.js can pick up
+        window.dispatchEvent(new CustomEvent('bf-mod-chat', { detail: { modId, msg } }));
+      }
+    },
     hud: {
       upsert(id, html, style) {
         let el = document.getElementById(elId(id));

@@ -51,7 +51,7 @@ import { buildGunAffairMap, startGunAffair, tickGunAffair, gunFire, clearGunAffa
 import { buildSkyblockMap, clearSkyblock, SB_SPAWN, SB_VOID_BELOW, SB_STARTER_KIT } from './skyblock.js';
 import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged } from './liquid.js';
 import { GreenstoneSystem } from './greenstone.js';
-import { initMods, bindModsMenu, modsTick, setAtlasTexture } from './mods.js';
+import { initMods, bindModsMenu, modsTick, setAtlasTexture, hasGameplayMods, getModBlocks, getModItems, getModMobs, getModButtons } from './mods.js';
 import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -777,6 +777,40 @@ let droppedItemManager = null;
 let tntManager = null;
 let mpRenderer = null;
 let breakParticles = null, ambientParticles = null, cloudSystem = null;
+
+// --- dynamic block lights (torches, lava, etc.) ---
+const _blockLights = new Map(); // "x,y,z" -> THREE.PointLight
+const MAX_BLOCK_LIGHTS = 48;
+const _LIGHT_COLOR = { 41: 0xffe4b5, 76: 0x40e0ff, 134: 0xff8800 }; // torch=暖黄, greenstone=蓝, lava=橙
+function _defaultLightColor(blockId) { return 0xffe8c0; }
+function _lightRadius(lum) { return Math.max(3, Math.min(12, lum * 0.8)); }
+function _lightIntensity(lum) { return Math.max(0.3, Math.min(1.2, lum / 15 * 1.2)); }
+function addBlockLight(x, y, z, blockId) {
+  const def = BLOCKS[blockId];
+  if (!def || !def.luminance) return;
+  const key = `${x},${y},${z}`;
+  if (_blockLights.has(key)) return;
+  if (_blockLights.size >= MAX_BLOCK_LIGHTS) {
+    const oldest = _blockLights.keys().next().value;
+    const old = _blockLights.get(oldest);
+    if (old) { scene.remove(old); old.dispose(); }
+    _blockLights.delete(oldest);
+  }
+  const color = _LIGHT_COLOR[blockId] ?? _defaultLightColor(blockId);
+  const light = new THREE.PointLight(color, _lightIntensity(def.luminance), _lightRadius(def.luminance), 1.5);
+  light.position.set(x + 0.5, y + 0.5, z + 0.5);
+  scene.add(light);
+  _blockLights.set(key, light);
+}
+function removeBlockLight(x, y, z) {
+  const key = `${x},${y},${z}`;
+  const light = _blockLights.get(key);
+  if (light) { scene.remove(light); light.dispose(); _blockLights.delete(key); }
+}
+function clearBlockLights() {
+  for (const light of _blockLights.values()) { scene.remove(light); light.dispose(); }
+  _blockLights.clear();
+}
 
 // --- door open/close state ---
 const doorStates = new Map(); // key: "x,y,z" -> { blockId }
@@ -2901,6 +2935,7 @@ function placeBlock(slotOverride, targetHit) {
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
 
   world.setBlock(x, y, z, itemId);
+  if (BLOCKS[itemId]?.luminance) addBlockLight(x, y, z, itemId);
   if (isSkyblock) liquidBlockChanged(x, y, z);
   if (isSaplingBlock(itemId)) {
     _saplingGrowth.set(`${x},${y},${z}`, 0);
@@ -3347,6 +3382,7 @@ function doBreak(hit, b) {
 
   if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
+  removeBlockLight(hit.x, hit.y, hit.z);
   if (isSkyblock) liquidBlockChanged(hit.x, hit.y, hit.z);
   if (isLogBlock(b)) _leafDecayPositions.add(`${hit.x},${hit.y},${hit.z}`);
   if (isSaplingBlock(b)) _saplingGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
@@ -4435,6 +4471,10 @@ function showCreateServerMenu() {
 }
 
 function joinServer(name, seed) {
+  if (hasGameplayMods()) {
+    showToast('Cannot join multiplayer with gameplay mods enabled. Disable your mods first.', '#f88', 5);
+    return;
+  }
   // Connect to WebSocket server and join the room
   if (!network.connected) {
     addChatLine('Please connect to WiFi or Data to play online.', '#fa0', true);
@@ -4444,6 +4484,10 @@ function joinServer(name, seed) {
 }
 
 function _doNetworkJoin(name, seed) {
+  if (hasGameplayMods()) {
+    showToast('Cannot join multiplayer with gameplay mods enabled. Disable your mods first.', '#f88', 5);
+    return;
+  }
   if (playerName.startsWith('Guest')) {
     addChatLine('Create an account to play multiplayer!', '#fa0');
     return;
@@ -5817,7 +5861,13 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (voiceChat) { voiceChat.stop(); voiceChat = null; }
     if (breakParticles) { breakParticles.clear(); breakParticles = null; }
     if (ambientParticles) { ambientParticles.clear(); ambientParticles = null; }
-    if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+  if (cloudSystem) { cloudSystem.clear(); cloudSystem = null; }
+  clearBlockLights();
+  // Clear mod-registered gameplay content
+  getModBlocks()?.clear?.();
+  getModItems()?.clear?.();
+  getModMobs()?.clear?.();
+  getModButtons()?.splice?.(0);
   if (_portalOrbs.length) { _portalOrbs.forEach(o => o.dispose()); _portalOrbs = []; }
   if (_portalRings.length) { _portalRings.forEach(r => r.dispose()); _portalRings = []; }
   _clearPortalBeam();
@@ -7128,6 +7178,10 @@ function initMenu() {
       } else {
         joiningViaLink = true;
         setTimeout(() => {
+          if (hasGameplayMods()) {
+            addChatLine('Cannot join multiplayer with gameplay mods enabled.', '#f88');
+            return;
+          }
           addChatLine('Joining room from invite link...', '#5f5');
           ui.showMenu(null);
           if (network.connected) {
@@ -7392,6 +7446,28 @@ function initMenu() {
     ui.showMenu('worlds');
     renderWorldList();
   });
+
+  // --- Mod buttons in main menu ---
+  function renderModButtons() {
+    const container = document.getElementById('mod-buttons-container');
+    if (!container) return;
+    const buttons = getModButtons();
+    container.innerHTML = '';
+    if (!buttons.length) return;
+    for (const btn of buttons) {
+      const el = document.createElement('button');
+      el.className = 'menu-btn';
+      el.style.cssText = 'border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);';
+      el.textContent = btn.label;
+      el.addEventListener('click', () => { try { btn.onClick(); } catch (e) { console.warn('[Mod:' + btn.modId + '] button error:', e); } });
+      container.appendChild(el);
+    }
+  }
+  // Re-render mod buttons whenever the main menu is shown
+  const _origShowMenu = ui.showMenu?.bind(ui);
+  if (_origShowMenu) {
+    ui.showMenu = (screen) => { _origShowMenu(screen); if (screen === 'main') renderModButtons(); };
+  }
 
   // --- Minigames menu ---
   document.getElementById('btn-minigames')?.addEventListener('click', () => {
