@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '175d6df',
+          heading: 'World render fix, dark grass, Bedwars fix',
+          desc: 'Fixed the world not rendering on initial load (players had to break a block first). Darkened grass textures to match Minecraft-style muted greens. Fixed Bedwars preview kicking players when alone due to stale room edits.',
+          date: 'Aug 26',
+          bugs: ['world not rendering on load until a block was broken', 'grass textures too bright/lime green', 'Bedwars preview kicking player when alone'],
+          updates: ['chunk meshing now works on initial load (buildOrRefresh sets _dirty)', 'grass_side, short_grass, tall_grass darkened to muted greens', 'Bedwars bed integrity re-scanned after flushing pending room edits'],
+          features: [],
+        },
+        {
           hash: '4c6bf65',
           heading: '5 new advancements + stat tracking',
           desc: 'Added 5 new advancements: Bat Slayer (kill a Cave Bat), Sleep Tight (sleep through the night), Copper Collector (mine copper ore), Storage Master (craft a copper block), Dimension Hopper (travel to the Shattered Echo dimension). All stat tracking wired up.',
