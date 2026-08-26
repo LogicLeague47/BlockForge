@@ -125,6 +125,7 @@ export const ITEM = {
   VILLAGER_SPAWN_EGG: 808,
   BLOWER_SPAWN_EGG: 809,
   PORTALMAN_SPAWN_EGG: 810,
+  CAVE_BAT_SPAWN_EGG: 811,
   // Original utility / weapon items (820+)
   GRAPPLE_HOOK: 820,
   FROST_WAND: 821,
@@ -154,6 +155,7 @@ export const SPAWN_EGG_MOBS = {
   [ITEM.VILLAGER_SPAWN_EGG]: 'villager',
   [ITEM.BLOWER_SPAWN_EGG]: 'blower',
   [ITEM.PORTALMAN_SPAWN_EGG]: 'portalman',
+  [ITEM.CAVE_BAT_SPAWN_EGG]: 'cave_bat',
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -311,6 +313,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.VILLAGER_SPAWN_EGG]: { name: 'Villager Spawn Egg', stack: 64 },
   [ITEM.BLOWER_SPAWN_EGG]: { name: 'Blower Spawn Egg', stack: 64 },
   [ITEM.PORTALMAN_SPAWN_EGG]: { name: 'Portalman Spawn Egg', stack: 64 },
+  [ITEM.CAVE_BAT_SPAWN_EGG]: { name: 'Cave Bat Spawn Egg', stack: 64 },
   // Original utility / weapon items
   [ITEM.GRAPPLE_HOOK]:    { name: 'Grapple Hook', stack: 1 },
   [ITEM.FROST_WAND]:      { name: 'Frost Wand', stack: 1 },

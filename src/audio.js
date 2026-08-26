@@ -218,6 +218,7 @@ const MOB_VOICES = {
   blower:    { idle: ['mob_blower_1', 'animal_bat_1'], rate: 0.8 },
   portalman: { idle: ['mob_zombie_1', 'mob_snarl_1'], rate: 1.4 },
   dragon:    { idle: ['mob_dragon_1', 'mob_snarl_attack'], rate: 0.6 },
+  cave_bat:  { idle: ['animal_bat_1'], rate: 1.5 },
 };
 
 export class AudioManager {
@@ -343,6 +344,8 @@ export class AudioManager {
                         tone('triangle', 784, 784, 0.16, 0.4, 0.2); break;
       case 'bat':       tone('sawtooth', 1800, 2800, 0.06, 0.22);
                         tone('sawtooth', 2400, 1600, 0.05, 0.18, 0.08); break;
+      case 'cave_bat':  tone('sawtooth', 2200, 3200, 0.04, 0.15);
+                        tone('sawtooth', 2800, 2000, 0.03, 0.12, 0.06); break;
       case 'portal':    tone('sine', 220, 520, 0.5, 0.3);
                         tone('sine', 520, 220, 0.5, 0.2, 0.05); break;
       case 'anvil':     tone('square', 200, 130, 0.14, 0.4);

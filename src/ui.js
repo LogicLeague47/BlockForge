@@ -227,6 +227,7 @@ export function makeItemIconCanvas(itemId) {
     case 808: drawSpawnEgg(x, '#8B7355', '#d4c4a0'); break; // Villager
     case 809: drawSpawnEgg(x, '#4169E1', '#88ccff'); break; // Blower
     case 810: drawSpawnEgg(x, '#8A2BE2', '#ff88ff'); break; // Portalman
+    case 811: drawSpawnEgg(x, '#3a2a20', '#ff3333'); break; // Cave Bat
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);

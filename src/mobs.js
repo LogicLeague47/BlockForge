@@ -410,6 +410,31 @@ export const MOB_TYPES = {
     soundChance: 0.0003,
   },
 
+  cave_bat: {
+    name: 'Cave Bat',
+    hp: 4,
+    hostile: true,
+    isFlying: true,
+    flyHeight: 3,
+    flySpeed: 7,
+    bodyW: 0.4, bodyH: 0.3, bodyD: 0.35,
+    headW: 0.3, headH: 0.25, headD: 0.3,
+    legW: 0, legH: 0, legD: 0,
+    headOffZ: -0.25,
+    headOffY: 0.05,
+    bodyColor: 0x3a2a20, headColor: 0x4a3a2a, legColor: 0x3a2a20,
+    hasWings: true,
+    wingSpan: 1.2,
+    wingColor: 0x4a3828,
+    hasEyes: true, eyeColor: 0xff3333,
+    attackDamage: 2,
+    speed: 10,
+    attackRange: 1.5,
+    aggroRange: 12,
+    drops: [{ item: 281, count: [0, 1] }], // string (wing membrane)
+    soundChance: 0.001,
+  },
+
 };
 
 const MOB_SPAWN_BIOMES = new Set([
@@ -4008,7 +4033,7 @@ export class MobManager {
     // reduced weight so they appear occasionally but stay uncommon.
     if (isNight) {
       spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman',
-        'crystal_golem', 'shadow_stalker', 'wind_spirit');
+        'crystal_golem', 'shadow_stalker', 'wind_spirit', 'cave_bat', 'cave_bat');
     }
     const placed = [];
 
