@@ -3500,6 +3500,7 @@ function trySleep() {
   sleepTimer = 0;
   sleepOverlay.style.opacity = 0;
   document.exitPointerLock?.();
+  achievements.incrementStat('bedsSleptIn');
 }
 
 function showSleepMessage(text) {
@@ -9843,6 +9844,7 @@ function _gameFrame() {
             if (mobHit.type === 'skeleton') achievements.incrementStat('mobKillsSkeleton');
             if (mobHit.type === 'blower') achievements.incrementStat('mobKillsBlower');
             if (mobHit.type === 'portalman') achievements.incrementStat('mobKillsPortalman');
+            if (mobHit.type === 'cave_bat') achievements.incrementStat('mobKillsCaveBat');
             // Check distance for long-range kill
             const mobDist = camera.position.distanceTo(mobHit.position);
             if (mobDist >= 50) {
@@ -11068,6 +11070,7 @@ function _gameFrame() {
         if (_isDimensionMode) {
           // BlockForge-style: swap to the other world entirely
           _portalTriggered = true;
+          achievements.incrementStat('dimensionTraversals');
           if (audio) audio.portalOpen?.();
         } else {
           // Non-dimension world: legacy single-world teleport (unchanged)

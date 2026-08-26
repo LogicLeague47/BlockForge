@@ -367,6 +367,47 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.deaths >= 1,
   },
+  // ── New content advancements ──
+  {
+    id: 'cave_bat_hunter',
+    name: 'Bat Slayer',
+    desc: 'Defeat a Cave Bat',
+    icon: ITEM.STRING,
+    category: 'challenge',
+    check: s => s.mobKillsCaveBat >= 1,
+  },
+  {
+    id: 'sleep_tight',
+    name: 'Sleep Tight',
+    desc: 'Sleep in a bed through the night',
+    icon: BLOCK.BED,
+    category: 'husbandry',
+    check: s => s.bedsSleptIn >= 1,
+  },
+  {
+    id: 'copper_collector',
+    name: 'Copper Collector',
+    desc: 'Mine a copper ore',
+    icon: BLOCK.COPPER_ORE,
+    category: 'story',
+    check: s => (s.blocksBroken[`${BLOCK.COPPER_ORE}`] || 0) >= 1,
+  },
+  {
+    id: 'storage_master',
+    name: 'Storage Master',
+    desc: 'Craft a copper storage block',
+    icon: BLOCK.COPPER_BLOCK,
+    category: 'challenge',
+    check: s => (s.crafted[`${BLOCK.COPPER_BLOCK}`] || 0) >= 1,
+  },
+  {
+    id: 'dimension_hopper',
+    name: 'Dimension Hopper',
+    desc: 'Travel to the Shattered Echo dimension',
+    icon: ITEM.DIMENSION_COMPASS,
+    category: 'challenge',
+    check: s => s.dimensionTraversals >= 1,
+  },
 ];
 
 // Categories for display ordering
@@ -417,6 +458,9 @@ export function createStats() {
     portalTraversals: 0,
     torchesPlaced: 0,
     storageBlocksCrafted: 0,
+    mobKillsCaveBat: 0,
+    bedsSleptIn: 0,
+    dimensionTraversals: 0,
   };
 }
 
