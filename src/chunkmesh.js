@@ -207,6 +207,8 @@ export class ChunkMeshManager {
 
   // Immediate build — used by the loader for initial chunk generation only.
   buildOrRefresh(cx, cz) {
+    const chunk = this.world.getChunk(cx, cz);
+    if (chunk) chunk._dirty = true;
     this._buildChunk(cx, cz);
   }
 

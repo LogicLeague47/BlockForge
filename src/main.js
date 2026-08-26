@@ -6397,6 +6397,19 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     player.setGamemode(gamemode);
     if (!isParkour) player.spawn();
   }
+  // Mesh spawn area immediately so the world is visible before primeAsync completes.
+  if (manager) {
+    try {
+      const _pcx2 = Math.floor(player.position.x / CHUNK_SIZE);
+      const _pcz2 = Math.floor(player.position.z / CHUNK_SIZE);
+      for (let _dz = -2; _dz <= 2; _dz++)
+        for (let _dx = -2; _dx <= 2; _dx++) {
+          world.getChunk(_pcx2 + _dx, _pcz2 + _dz, true);
+          manager.markDirty(_pcx2 + _dx, _pcz2 + _dz);
+        }
+      for (let _i = 0; _i < 8; _i++) manager.update();
+    } catch (e) { console.error('Spawn meshing failed:', e); }
+  }
 
   // Dev world is always creative and spawns on the flat surface.
   if (isDevWorld) {
@@ -10007,6 +10020,13 @@ function _gameFrame() {
         world.setBlock(e.x, e.y, e.z, e.block);
         if (manager) manager.refreshAround(Math.floor(e.x / CHUNK_SIZE), Math.floor(e.z / CHUNK_SIZE));
       }
+      // Re-scan bed integrity so stale room edits don't falsely trigger game-over.
+      if (isBedwars && bwBeds) {
+        for (const team of BW_TEAMS) {
+          const bed = bwBeds[team.key];
+          if (bed) bed.intact = bed.cells.some(c => world.getBlock(c.x, c.y, c.z) !== BLOCK.AIR);
+        }
+      }
       saveCurrentWorld();
     }
 
@@ -10936,19 +10956,18 @@ function _gameFrame() {
 
       // Recreate world-dependent managers
       manager = new ChunkMeshManager(scene, world, atlasTexture, scene.fog.color);
-  loader = new ChunkLoader(world, manager, renderDist);
-  // Guarantee the spawn area meshes immediately so the world is visible on load
-  // (don't wait for the streaming loader's per-frame budget to reach the player).
-  try {
-    const _pcx = Math.floor((player ? player.position.x : 0) / CHUNK_SIZE);
-    const _pcz = Math.floor((player ? player.position.z : 0) / CHUNK_SIZE);
-    for (let _dz = -1; _dz <= 1; _dz++)
-      for (let _dx = -1; _dx <= 1; _dx++) {
-        world.getChunk(_pcx + _dx, _pcz + _dz, true);
-        manager.markDirty(_pcx + _dx, _pcz + _dz);
-      }
-    manager.update();
-  } catch (e) { console.error('Initial spawn meshing failed:', e); }
+      loader = new ChunkLoader(world, manager, renderDist);
+      // Mesh spawn area so the dimension is visible on first render.
+      try {
+        const _pcx = Math.floor((player ? player.position.x : 0) / CHUNK_SIZE);
+        const _pcz = Math.floor((player ? player.position.z : 0) / CHUNK_SIZE);
+        for (let _dz = -1; _dz <= 1; _dz++)
+          for (let _dx = -1; _dx <= 1; _dx++) {
+            world.getChunk(_pcx + _dx, _pcz + _dz, true);
+            manager.markDirty(_pcx + _dx, _pcz + _dz);
+          }
+        manager.update();
+      } catch (e) { console.error('Dimension spawn meshing failed:', e); }
       explosionManager = new ExplosionManager(scene, world, audio);
       mobManager = new MobManager(scene, world, audio, explosionManager);
       mobManager._refreshFn = (bx, by, bz) => {

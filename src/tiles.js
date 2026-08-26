@@ -169,13 +169,13 @@ const PAINTERS = {
       ctx.fillStyle = rng() < 0.5 ? 'rgb(104,72,48)' : 'rgb(150,110,78)';
       ctx.fillRect(x0 + x, y0 + y, 2, 2);
     }
-    // Green palette — multiple shades for depth.
+    // Green palette — dark muted Minecraft-style greens.
     const shades = [
-      [70, 125, 38],
-      [85, 145, 48],
-      [100, 165, 55],
-      [115, 180, 65],
-      [60, 110, 32],
+      [48, 95, 24],
+      [55, 110, 30],
+      [65, 125, 38],
+      [75, 140, 45],
+      [42, 85, 20],
     ];
     // Per-column grass blades: each column gets its own height (2-10px),
     // width pattern, and shade. Blades are connected to the top edge.
@@ -190,8 +190,8 @@ const PAINTERS = {
       // Brighten tip (topmost pixel), darken base (lowest pixel).
       for (let y = 0; y < h; y++) {
         let r = s[0], g = s[1], b = s[2];
-        if (y === 0) { r += 18; g += 22; b += 8; }          // sunlit tip
-        else if (y >= h - 1) { r -= 12; g -= 14; b -= 6; }  // shadow base
+        if (y === 0) { r += 10; g += 14; b += 4; }           // sunlit tip
+        else if (y >= h - 1) { r -= 10; g -= 12; b -= 5; }   // shadow base
         else { r += ((rng() * 8) | 0) - 4; g += ((rng() * 10) | 0) - 5; }
         r = Math.max(0, Math.min(255, r));
         g = Math.max(0, Math.min(255, g));
@@ -686,7 +686,7 @@ const PAINTERS = {
       [cx - 2, cy - 8, 2, 12],
       [cx + 3, cy - 6, 2, 10],
     ];
-    const base = [74, 132, 48];
+    const base = [55, 105, 35];
     blades.forEach(([bx, by, bw, bh], i) => {
       const v = ((rng() * 16) | 0) - 8;
       const r = Math.max(0, Math.min(255, base[0] + v));
@@ -705,7 +705,7 @@ const PAINTERS = {
       [cx + 1, cy - 12, 2, 20],
       [cx + 6, cy - 8, 2, 16],
     ];
-    const base = [50, 100, 34];
+    const base = [42, 82, 25];
     blades.forEach(([bx, by, bw, bh], i) => {
       const v = ((rng() * 16) | 0) - 8;
       const r = Math.max(0, Math.min(255, base[0] + v));
