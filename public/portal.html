@@ -1470,6 +1470,14 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '7f28e2e',
+          heading: 'Creative jump fix, item drops, grass color, render fix',
+          desc: 'Fixed creative mode not allowing ground jumps after stopping flight. Fixed item drops being silently consumed without spawning entities. Darkened grass_top texture to match Minecraft-style muted greens. Added spawn area force-mesh safety net for initial world render.',
+          date: 'Aug 26',
+          bugs: ['creative mode: no ground jump after stopping flight', 'Q-key item drops silently consumed without spawning entity', 'grass_top texture too bright/lime (missed in previous fix)', 'world still not rendering on initial load'],
+          updates: ['creative mode: single-space tap now jumps, double-tap still toggles flight', 'item drop slot decrement moved inside droppedItemManager guard', 'grass_top base darkened from [95,159,53] to [67,130,35]', 'post-primeAsync force-mesh ensures spawn area renders on first frame'],
+          features: [],
+        },
           hash: '175d6df',
           heading: 'World render fix, dark grass, Bedwars fix',
           desc: 'Fixed the world not rendering on initial load (players had to break a block first). Darkened grass textures to match Minecraft-style muted greens. Fixed Bedwars preview kicking players when alone due to stale room edits.',
