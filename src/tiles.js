@@ -141,21 +141,20 @@ function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
 
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
-    // Flat, readable meadow-green base (Minecraft-style: mostly solid with
-    // subtle dithering rather than busy noise). BlockForge palette ~95,159,53.
-    noisy(ctx, x0, y0, [95, 159, 53], 0.045, rng);
-    // Sparse darker / lighter single-pixel dither for a hand-pixeled feel.
+    // Dark muted Minecraft-style grass top. Base ~[67,130,35].
+    noisy(ctx, x0, y0, [67, 130, 35], 0.045, rng);
+    // Sparse darker / lighter single-pixel dither.
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const r = rng();
-        if (r < 0.07) { ctx.fillStyle = 'rgb(82,140,46)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
-        else if (r > 0.95) { ctx.fillStyle = 'rgb(122,184,74)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+        if (r < 0.07) { ctx.fillStyle = 'rgb(55,110,28)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+        else if (r > 0.95) { ctx.fillStyle = 'rgb(85,155,48)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
       }
     }
-    // A few small blocky tufts for organic variation (kept tidy).
+    // A few small blocky tufts for organic variation.
     for (let i = 0; i < 4; i++) {
       const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
-      ctx.fillStyle = 'rgba(74,128,40,0.5)';
+      ctx.fillStyle = 'rgba(50,105,25,0.5)';
       ctx.fillRect(x0 + x, y0 + y, 3, 3);
     }
   },

@@ -608,7 +608,7 @@ export class Player {
         if (input.keys[kb.crouch] || input.keys['KeyC']) this.velocity.y = Math.max(this.velocity.y, -1.5);
         else this.velocity.y = Math.max(this.velocity.y, -4.5);
       }
-      if (input.keys[kb.jump] && this.onGround && !this.isCreative()) {
+      if (input.keys[kb.jump] && this.onGround) {
         this.velocity.y = JUMP_VELOCITY;
         this.onGround = false;
         this.fallStartY = this.position.y;

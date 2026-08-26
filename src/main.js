@@ -1199,10 +1199,10 @@ document.addEventListener('mousemove', (e) => {
           const tvx = -Math.sin(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
           const tvz = -Math.cos(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
           droppedItemManager.drop(slot.item, 1, player.position.x, player.position.y + 1, player.position.z, tvx, tvz);
+          slot.count--;
+          if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+          syncUIMode();
         }
-        slot.count--;
-        if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
-        syncUIMode();
       }
     }
   }
@@ -6838,6 +6838,21 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
       dayTime = 0.3;
       stepTimer = 0;
       _prevPlayerPos.copy(player.position);
+      // Force-mesh the spawn area as a safety net: if primeAsync's
+      // buildOrRefresh didn't produce visible meshes, this ensures the
+      // player sees terrain on the very first frame.
+      if (manager && player) {
+        try {
+          const _pcx = Math.floor(player.position.x / CHUNK_SIZE);
+          const _pcz = Math.floor(player.position.z / CHUNK_SIZE);
+          for (let _dz = -2; _dz <= 2; _dz++)
+            for (let _dx = -2; _dx <= 2; _dx++) {
+              world.getChunk(_pcx + _dx, _pcz + _dz, true);
+              manager.markDirty(_pcx + _dx, _pcz + _dz);
+            }
+          for (let _i = 0; _i < 10; _i++) manager.update();
+        } catch (_) {}
+      }
       setTimeout(() => {
         ui.hideLoading();
         lockPointer();
