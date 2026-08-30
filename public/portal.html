@@ -1470,6 +1470,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '6a4d27d',
+          heading: 'Grass darker, item drops fixed, collision fix',
+          desc: 'Further darkened grass_top to muted Minecraft palette. Fixed item drops on all 3 branches (cursor, hovered, selected slot) so items are never silently consumed. Fixed collision underground launch when a block materializes inside the player.',
+          date: 'Aug 26',
+          bugs: ['grass_top still too bright after previous fix', 'item drops consumed items silently on all inventory branches', 'block regeneration pushed player underground with inverted controls'],
+          updates: ['grass_top darkened from [67,130,35] to [55,108,30]', 'item slot.count-- moved inside droppedItemManager guard on all 3 Q-key branches', 'collision: delta===0 case now pushes player up instead of underground', 'added head-stuck safety net to prevent player clipping into solid blocks'],
+          features: [],
+        },
+        {
           hash: '7f28e2e',
           heading: 'Creative jump fix, item drops, grass color, render fix',
           desc: 'Fixed creative mode not allowing ground jumps after stopping flight. Fixed item drops being silently consumed without spawning entities. Darkened grass_top texture to match Minecraft-style muted greens. Added spawn area force-mesh safety net for initial world render.',
