@@ -1825,8 +1825,8 @@ document.addEventListener('mousedown', (e) => {
           const hit = currentTarget();
           if (hit) {
             const b = world.getBlock(hit.x, hit.y, hit.z);
-            if (b === BLOCK.WATER) world.setBlock(hit.x, hit.y, hit.z, BLOCK.ICE);
-            else if (b === BLOCK.LAVA) world.setBlock(hit.x, hit.y, hit.z, BLOCK.OBSIDIAN);
+            if (b === BLOCK.WATER) { world.setBlock(hit.x, hit.y, hit.z, BLOCK.ICE); liquidBlockChanged(hit.x, hit.y, hit.z); }
+            else if (b === BLOCK.LAVA) { world.setBlock(hit.x, hit.y, hit.z, BLOCK.OBSIDIAN); liquidBlockChanged(hit.x, hit.y, hit.z); }
             else {
               const mob = raycastMob(REACH);
               if (mob) mob._frostSlow = performance.now() / 1000 + 3;
@@ -2952,7 +2952,7 @@ function placeBlock(slotOverride, targetHit) {
 
   world.setBlock(x, y, z, itemId);
   if (BLOCKS[itemId]?.luminance) addBlockLight(x, y, z, itemId);
-  if (isSkyblock) liquidBlockChanged(x, y, z);
+  liquidBlockChanged(x, y, z);
   if (isSaplingBlock(itemId)) {
     _saplingGrowth.set(`${x},${y},${z}`, 0);
   }
@@ -3246,7 +3246,7 @@ function handleBucket(held, hit) {
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
     world.setBlock(lq.x, lq.y, lq.z, BLOCK.AIR);
-    if (isSkyblock) liquidBlockChanged(lq.x, lq.y, lq.z);
+    liquidBlockChanged(lq.x, lq.y, lq.z);
     if (isWater) {
       player.inventory.add(ITEM.WATER_BUCKET, 1);
     } else {
@@ -3266,7 +3266,7 @@ function handleBucket(held, hit) {
     if ((x === px && z === pz) && (y === py || y === py + 1)) return false;
     if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
     world.setBlock(x, y, z, BLOCK.WATER);
-    if (isSkyblock) registerSource(x, y, z);
+    registerSource(x, y, z);
     if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.WATER);
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
@@ -3283,7 +3283,7 @@ function handleBucket(held, hit) {
     if ((x === px && z === pz) && (y === py || y === py + 1)) return false;
     if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
     world.setBlock(x, y, z, BLOCK.LAVA);
-    if (isSkyblock) registerSource(x, y, z);
+    registerSource(x, y, z);
     if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.LAVA);
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
@@ -3342,7 +3342,7 @@ function doBreak(hit, b) {
           if (nb !== BLOCK.AIR && nb !== BLOCK.BEDROCK) {
             if (breakParticles) breakParticles.emit(nb, nx, ny, nz, 8);
             world.setBlock(nx, ny, nz, BLOCK.AIR);
-            if (isSkyblock) liquidBlockChanged(nx, ny, nz);
+            liquidBlockChanged(nx, ny, nz);
             if (network.isInRoom()) network.sendBlockUpdate(nx, ny, nz, 0);
             if (player.isSurvival()) {
               const drop = blockDrop(nb, 4);
@@ -3388,7 +3388,7 @@ function doBreak(hit, b) {
       for (const tb of treeBlocks) {
         if (breakParticles) breakParticles.emit(tb.b, tb.x, tb.y, tb.z, 8);
         world.setBlock(tb.x, tb.y, tb.z, BLOCK.AIR);
-        if (isSkyblock) liquidBlockChanged(tb.x, tb.y, tb.z);
+        liquidBlockChanged(tb.x, tb.y, tb.z);
         if (network.isInRoom()) network.sendBlockUpdate(tb.x, tb.y, tb.z, 0);
         if (player.isSurvival()) {
           const drop = blockDrop(tb.b, 4);
@@ -3408,7 +3408,7 @@ function doBreak(hit, b) {
   if (breakParticles) breakParticles.emit(b, hit.x, hit.y, hit.z, 20);
   world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
   removeBlockLight(hit.x, hit.y, hit.z);
-  if (isSkyblock) liquidBlockChanged(hit.x, hit.y, hit.z);
+  liquidBlockChanged(hit.x, hit.y, hit.z);
   if (isLogBlock(b)) _leafDecayPositions.add(`${hit.x},${hit.y},${hit.z}`);
   if (isSaplingBlock(b)) _saplingGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
@@ -4849,15 +4849,23 @@ function setupNetworkHandlers() {
   network.onDisconnect = () => {
     if (gameRunning && isMultiplayer) {
       if (voiceChat) { voiceChat.stop(); voiceChat = null; }
-      addChatLine('Disconnected from server.', '#f55');
-      try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) { console.warn("CG SDK setRoom failed"); }
-      cgGameplayStop();
-      cgClearGameContext();
-      gameRunning = false;
-      isMultiplayer = false;
-      currentServer = null;
-      ui.showMenu('multiplayer');
-      showMultiplayerMenu();
+      addChatLine('Connection lost. Attempting to reconnect...', '#fa0');
+      // Don't immediately dump the player to menu — let the network reconnect
+      // logic in _scheduleReconnect handle rejoining. Only force-return to menu
+      // after the reconnection has already been abandoned (i.e. _lastJoinInfo is
+      // cleared by the network module after exhausting retries).
+      setTimeout(() => {
+        // If we are still running multiplayer after 8s, the reconnect succeeded.
+        if (gameRunning && isMultiplayer) return;
+        try { window.CrazyGames?.SDK?.game?.setRoom?.(null); } catch (_) {}
+        cgGameplayStop();
+        cgClearGameContext();
+        gameRunning = false;
+        isMultiplayer = false;
+        currentServer = null;
+        ui.showMenu('multiplayer');
+        showMultiplayerMenu();
+      }, 8000);
     }
   };
 
@@ -6023,6 +6031,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     player.onJump = () => { if (audio) audio.jump(); };
   }
 
+  // Initialize liquid flow simulation for ALL game modes (was skyblock-only).
+  initLiquid(world, (cx, cz) => { if (manager) manager.refreshAround(cx, cz); });
+
   // Shared place/interact logic. `hit` may be null (use crosshair center target).
   function mobilePlaceAt(hit) {
     const target = hit || currentTarget();
@@ -6772,7 +6783,6 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     dayTime = 0.3;
     if (weatherSystem) weatherSystem.setState('clear');
 
-    initLiquid(world, (cx, cz) => { if (manager) manager.refreshAround(cx, cz); });
     const sbMap = buildSkyblockMap(world);
 
     if (player.inventory) {
@@ -10418,8 +10428,8 @@ function _gameFrame() {
     }
   }
 
-  // Flowing water/lava simulation (SkyBlock uses it for the map's falls/lakes).
-  if (isSkyblock) tickLiquid(dt);
+  // Flowing water/lava simulation — runs in all modes when sources exist.
+  tickLiquid(dt);
 
   // ── Mods & Addons: hand live game references to every running mod ───
   if (world && player) {

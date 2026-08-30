@@ -18,6 +18,7 @@
 import { BLOCK, BLOCKS, tileNameFor } from './blocks.js';
 import { tileUVRect } from './tiles.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, BIOMES } from './world.js';
+import { getFlowLevel } from './liquid.js';
 import { getLampFaces } from './greenstone.js';
 import { acquireMeshBuffers, releaseMeshBuffers } from './chunkbuffer.js';
 
@@ -259,7 +260,12 @@ export function buildChunkGeometry(chunk, world) {
           if (!visible) continue;
 
           let yDrop = 0;
-          if (isWater && face.name === 'top') yDrop = -0.12;
+          if (isWater && face.name === 'top') {
+            // Flowing water: source (level 0) sits at normal height; flowing
+            // cells drop proportionally so the cascade is visible.
+            const fl = getFlowLevel(wx, y, wz);
+            yDrop = fl > 0 ? -(0.02 + fl * 0.025) : -0.12;
+          }
 
           let tile = tileNameFor(b, face.name);
           if (b === BLOCK.GREENSTONE_LAMP) {

@@ -3124,8 +3124,10 @@ let _hbInterval;
     }
   });
 
-  // Server-side WebSocket heartbeat — ping all clients every 30s, terminate dead ones
-  // This prevents Render's reverse proxy from closing idle WebSocket connections
+  // Server-side WebSocket heartbeat — ping all clients every 45s, terminate dead ones
+  // This prevents Render's reverse proxy from closing idle WebSocket connections.
+  // Increased from 30s to 45s so heavy game loads (Bedwars map gen) don't falsely
+  // trigger the timeout.
   _hbInterval = setInterval(() => {
     wss.clients.forEach((ws) => {
       if (ws.isAlive === false) {
@@ -3135,7 +3137,7 @@ let _hbInterval;
       ws.isAlive = false;
       ws.ping();
     });
-  }, 30000);
+  }, 45000);
 
   // Self-ping every 5 minutes to prevent Render free-tier from sleeping.
   // When no clients are connected the server has no traffic; this keeps it alive.
