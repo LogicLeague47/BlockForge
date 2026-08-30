@@ -1169,10 +1169,10 @@ document.addEventListener('mousemove', (e) => {
           const tvx = -Math.sin(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
           const tvz = -Math.cos(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
           droppedItemManager.drop(ui.cursorItem.item, 1, player.position.x, player.position.y + 1, player.position.z, tvx, tvz);
+          ui.cursorItem.count--;
+          if (ui.cursorItem.count <= 0) ui.cursorItem = null;
+          ui._updateCursorVisual();
         }
-        ui.cursorItem.count--;
-        if (ui.cursorItem.count <= 0) ui.cursorItem = null;
-        ui._updateCursorVisual();
       } else {
         const hovered = ui._hoveredSlot && ui._hoveredSlot();
         if (hovered) {
@@ -1183,11 +1183,11 @@ document.addEventListener('mousemove', (e) => {
               const tvx = -Math.sin(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
               const tvz = -Math.cos(player.yaw) * throwSpeed + (Math.random() - 0.5) * 0.6;
               droppedItemManager.drop(s.item, 1, player.position.x, player.position.y + 1, player.position.z, tvx, tvz);
+              s.count--;
+              if (s.count <= 0) ui._setSlot(hovered.kind, hovered.idx, null);
+              ui._refreshScreen();
+              ui._updateCursorVisual();
             }
-            s.count--;
-            if (s.count <= 0) ui._setSlot(hovered.kind, hovered.idx, null);
-            ui._refreshScreen();
-            ui._updateCursorVisual();
           }
         }
       }

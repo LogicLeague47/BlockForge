@@ -659,6 +659,14 @@ export class Player {
       } else {
         this.onGround = false;
       }
+      // Safety: if the player's head is stuck inside a solid block, pop them
+      // to the top. This catches cases where a block materialized on top of
+      // the player and the per-axis collision didn't fully resolve.
+      const headY = Math.floor(this.position.y + PLAYER_HEIGHT - 0.1);
+      if (BLOCKS[this.world.getBlock(gx, headY, gz)]?.solid) {
+        this.position.y = headY - PLAYER_HEIGHT + 0.0001;
+        this.velocity.y = Math.min(this.velocity.y, 0);
+      }
     }
 
     // respawn if we fall out of the world
@@ -885,9 +893,16 @@ export class Player {
                 this.onGround = true;
                 this.velocity.y = 0;
               }
-            } else {
+            } else if (delta > 0) {
               this.position.y = y - PLAYER_HEIGHT - 0.0001;
               this.velocity.y = 0;
+            } else {
+              // delta === 0: a block materialized inside the player (e.g. chunk
+              // regen, multiplayer sync). Push the player to the top of the block
+              // rather than underground.
+              this.position.y = y + 1 + 0.0001;
+              this.velocity.y = 0;
+              this.onGround = true;
             }
           }
           return true;

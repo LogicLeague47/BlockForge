@@ -141,20 +141,17 @@ function _leafCluster(ctx, x0, y0, cx, cy, radius, color, rng) {
 
 const PAINTERS = {
   grass_top(ctx, x0, y0, rng) {
-    // Dark muted Minecraft-style grass top. Base ~[67,130,35].
-    noisy(ctx, x0, y0, [67, 130, 35], 0.045, rng);
-    // Sparse darker / lighter single-pixel dither.
+    noisy(ctx, x0, y0, [55, 108, 30], 0.045, rng);
     for (let y = 0; y < TILE; y++) {
       for (let x = 0; x < TILE; x++) {
         const r = rng();
-        if (r < 0.07) { ctx.fillStyle = 'rgb(55,110,28)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
-        else if (r > 0.95) { ctx.fillStyle = 'rgb(85,155,48)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+        if (r < 0.07) { ctx.fillStyle = 'rgb(42,85,20)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
+        else if (r > 0.95) { ctx.fillStyle = 'rgb(75,140,45)'; ctx.fillRect(x0 + x, y0 + y, 1, 1); }
       }
     }
-    // A few small blocky tufts for organic variation.
     for (let i = 0; i < 4; i++) {
       const x = (rng() * (TILE - 3)) | 0, y = (rng() * (TILE - 3)) | 0;
-      ctx.fillStyle = 'rgba(50,105,25,0.5)';
+      ctx.fillStyle = 'rgba(42,85,20,0.5)';
       ctx.fillRect(x0 + x, y0 + y, 3, 3);
     }
   },
