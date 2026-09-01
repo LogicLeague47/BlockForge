@@ -206,6 +206,15 @@ export const BLOCK = {
   GREEN_WOOL: 189,
   RED_WOOL: 190,
   BLACK_WOOL: 191,
+  // Slabs (192-199)
+  STONE_SLAB: 192,
+  OAK_SLAB: 193,
+  COBBLESTONE_SLAB: 194,
+  BRICK_SLAB: 195,
+  QUARTZ_SLAB: 196,
+  SANDSTONE_SLAB: 197,
+  NETHER_BRICK_SLAB: 198,
+  DEEPSLATE_SLAB: 199,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -672,6 +681,15 @@ export const BLOCKS = {
   [BLOCK.GREEN_WOOL]:     { name: 'Green Wool', solid: true, hardness: 0.8, faces: 'green_wool' },
   [BLOCK.RED_WOOL]:       { name: 'Red Wool', solid: true, hardness: 0.8, faces: 'red_wool' },
   [BLOCK.BLACK_WOOL]:     { name: 'Black Wool', solid: true, hardness: 0.8, faces: 'black_wool' },
+  // Slabs (bottom-half only, height 0.5)
+  [BLOCK.STONE_SLAB]:        { name: 'Stone Slab', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', slab: true },
+  [BLOCK.OAK_SLAB]:          { name: 'Oak Slab', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', slab: true },
+  [BLOCK.COBBLESTONE_SLAB]:  { name: 'Cobblestone Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', slab: true },
+  [BLOCK.BRICK_SLAB]:        { name: 'Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', slab: true },
+  [BLOCK.QUARTZ_SLAB]:       { name: 'Quartz Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', slab: true },
+  [BLOCK.SANDSTONE_SLAB]:    { name: 'Sandstone Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', slab: true },
+  [BLOCK.NETHER_BRICK_SLAB]: { name: 'Nether Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', slab: true },
+  [BLOCK.DEEPSLATE_SLAB]:    { name: 'Deepslate Slab', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', slab: true },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

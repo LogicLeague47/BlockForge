@@ -863,6 +863,8 @@ export class Player {
         for (let x = x0; x <= x1; x++) {
           const b = this.world.getBlock(x, y, z);
           if (!BLOCKS[b]?.solid) continue;
+          // Slabs have half the collision height (0.5 instead of 1.0).
+          const blockMax = BLOCKS[b]?.slab ? 0.5 : 1;
           if (axis === 'x') {
             this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else if (axis === 'z') {
@@ -883,7 +885,7 @@ export class Player {
                 }
               }
               this.fallStartY = -1;
-              this.position.y = y + 1 + 0.0001;
+              this.position.y = y + blockMax + 0.0001;
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);

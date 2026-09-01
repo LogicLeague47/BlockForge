@@ -556,6 +556,24 @@ export const RECIPES = [
   shapeless({ out: { id: B.GREEN_WOOL, count: 1 }, ingredients: [B.WOOL, I.GREEN_DYE] }),
   shapeless({ out: { id: B.RED_WOOL, count: 1 }, ingredients: [B.WOOL, I.RED_DYE] }),
   shapeless({ out: { id: B.BLACK_WOOL, count: 1 }, ingredients: [B.WOOL, I.BLACK_DYE] }),
+
+  // ---- Slabs: 3 blocks → 6 slabs ----
+  shaped({ out: { id: B.STONE_SLAB, count: 6 },
+    pattern: ['SSS'], key: { S: B.STONE } }),
+  shaped({ out: { id: B.OAK_SLAB, count: 6 },
+    pattern: ['PPP'], key: { P: B.PLANKS } }),
+  shaped({ out: { id: B.COBBLESTONE_SLAB, count: 6 },
+    pattern: ['CCC'], key: { C: B.COBBLESTONE } }),
+  shaped({ out: { id: B.BRICK_SLAB, count: 6 },
+    pattern: ['BBB'], key: { B: B.BRICK } }),
+  shaped({ out: { id: B.QUARTZ_SLAB, count: 6 },
+    pattern: ['QQQ'], key: { Q: B.QUARTZ_BLOCK } }),
+  shaped({ out: { id: B.SANDSTONE_SLAB, count: 6 },
+    pattern: ['SSS'], key: { S: B.SANDSTONE } }),
+  shaped({ out: { id: B.NETHER_BRICK_SLAB, count: 6 },
+    pattern: ['NNN'], key: { N: B.NETHER_BRICK } }),
+  shaped({ out: { id: B.DEEPSLATE_SLAB, count: 6 },
+    pattern: ['DDD'], key: { D: B.DEEPSLATE } }),
 ];
 
 // Smelting recipes: input item id -> output item id.
