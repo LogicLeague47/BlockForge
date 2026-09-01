@@ -939,7 +939,7 @@ class Mob {
     if (def.hasCape) {
       const capeGeo = new THREE.BoxGeometry(def.bodyW * 0.9, def.bodyH * 0.8, 0.04);
       const capeMat = tex && tex.cape ? this._boxMats(tex.cape) : [new THREE.MeshLambertMaterial({ color: def.capeColor || 0x1e2e3e, side: THREE.DoubleSide })];
-      const cape = new THREE.Mesh(capeGeo, Array.isArray(capeMat) ? capeMat : capeMat);
+      const cape = new THREE.Mesh(capeGeo, capeMat);
       cape.position.set(0, def.legH + def.bodyH * 0.45, -def.bodyD / 2 - 0.03);
       cape.name = 'cape';
       group.add(cape);

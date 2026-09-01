@@ -2148,9 +2148,10 @@ const STEP_COLORS = {
   [BLOCK.CARPET]: [0.91, 0.88, 0.82],
 };
 
+const _smokeMat = new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 });
 function spawnSmokePuff(x, y, z) {
   for (let i = 0; i < 5; i++) {
-    const m = new THREE.Mesh(_particleGeoSmall, new THREE.MeshBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.6 }));
+    const m = new THREE.Mesh(_particleGeoSmall, _smokeMat);
     m.position.set(x + (Math.random() - 0.5) * 0.4, y + Math.random() * 0.3, z + (Math.random() - 0.5) * 0.4);
     scene.add(m);
     _particles.push({
