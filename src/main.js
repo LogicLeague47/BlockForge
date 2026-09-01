@@ -1704,6 +1704,24 @@ document.addEventListener('mousedown', (e) => {
         e.preventDefault();
         return;
       }
+      // Breeding: right-click cow/pig/sheep with wheat
+      if (mobHit && !mobHit.dead && (mobHit.type === 'cow' || mobHit.type === 'pig' || mobHit.type === 'sheep')) {
+        const heldSlot = player.inventory.getSelected();
+        if (heldSlot && heldSlot.item === ITEM.WHEAT) {
+          mobHit.loveMode = true;
+          mobHit.loveTimer = 30;
+          if (heldSlot.count > 1) heldSlot.count--; else { heldSlot.item = null; heldSlot.count = 0; }
+          // Spawn heart particles
+          for (let i = 0; i < 5; i++) {
+            const m = new THREE.Mesh(_particleGeoSmall, new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.8 }));
+            m.position.set(mobHit.position.x + (Math.random()-0.5)*0.5, mobHit.position.y + 0.5 + Math.random()*0.3, mobHit.position.z + (Math.random()-0.5)*0.5);
+            scene.add(m);
+            _particles.push({ mesh: m, vx: (Math.random()-0.5)*1.5, vy: 1.5+Math.random(), vz: (Math.random()-0.5)*1.5, life: 0.6, maxLife: 0.6 });
+          }
+          e.preventDefault();
+          return;
+        }
+      }
     }
     if (hit && isCraftingTable(hit.block)) {
       if (isBedwars) {

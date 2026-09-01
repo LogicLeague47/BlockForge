@@ -4417,6 +4417,31 @@ export class MobManager {
         }
       }
 
+      // Breeding: if this mob is in love mode, look for a nearby partner of same type
+      if (mob.loveMode && !mob._bred) {
+        for (let j = i - 1; j >= 0; j--) {
+          const partner = this.mobs[j];
+          if (partner.dead || partner.type !== mob.type || !partner.loveMode || partner._bred) continue;
+          const bx = mob.position.x - partner.position.x;
+          const bz = mob.position.z - partner.position.z;
+          if (bx * bx + bz * bz < 4) {
+            // Breed! Spawn a baby between them
+            const babyX = (mob.position.x + partner.position.x) / 2;
+            const babyZ = (mob.position.z + partner.position.z) / 2;
+            this.spawnAt(mob.type, babyX, mob.position.y, babyZ);
+            mob.loveMode = false; mob._bred = true;
+            partner.loveMode = false; partner._bred = true;
+            mob.loveTimer = 0; partner.loveTimer = 0;
+            break;
+          }
+        }
+      }
+      // Love mode timer countdown
+      if (mob.loveMode && mob.loveTimer != null) {
+        mob.loveTimer -= dt;
+        if (mob.loveTimer <= 0) { mob.loveMode = false; mob.loveTimer = 0; }
+      }
+
       mob.update(dt, this.world, this.world.noise, playerPos);
 
       // Idle sounds (passive + hostile) — only audible within ~11-15 blocks
