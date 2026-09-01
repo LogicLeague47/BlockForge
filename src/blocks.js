@@ -215,6 +215,12 @@ export const BLOCK = {
   SANDSTONE_SLAB: 197,
   NETHER_BRICK_SLAB: 198,
   DEEPSLATE_SLAB: 199,
+  // Farming (200-204)
+  FARMLAND: 200,
+  WHEAT_0: 201,
+  WHEAT_1: 202,
+  WHEAT_2: 203,
+  WHEAT_3: 204,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -465,6 +471,12 @@ export const TILES = {
   green_wool:            [11, 15],
   red_wool:              [12, 15],
   black_wool:            [13, 15],
+  // Farming tiles (row 11, cols 6-10)
+  farmland:              [6, 11],
+  wheat_0:               [7, 11],
+  wheat_1:               [8, 11],
+  wheat_2:               [9, 11],
+  wheat_3:               [10, 11],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -690,6 +702,12 @@ export const BLOCKS = {
   [BLOCK.SANDSTONE_SLAB]:    { name: 'Sandstone Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', slab: true },
   [BLOCK.NETHER_BRICK_SLAB]: { name: 'Nether Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', slab: true },
   [BLOCK.DEEPSLATE_SLAB]:    { name: 'Deepslate Slab', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', slab: true },
+  // Farming blocks
+  [BLOCK.FARMLAND]: { name: 'Farmland', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: 'farmland' },
+  [BLOCK.WHEAT_0]:  { name: 'Wheat Seeds', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_0' },
+  [BLOCK.WHEAT_1]:  { name: 'Wheat Sprouts', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_1' },
+  [BLOCK.WHEAT_2]:  { name: 'Wheat Growing', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_2' },
+  [BLOCK.WHEAT_3]:  { name: 'Wheat', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 262 /* WHEAT */, faces: 'wheat_3' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

@@ -3004,6 +3004,68 @@ function saplingPlant(ctx, x0, y0, rng, trunkColor, leafColor) {
   ctx.fillRect(cx - 2, cy - 5, 1, 1);
 }
 
+// --- farming tile painters ---
+PAINTERS.farmland = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  // Dirt base with darker tilled rows
+  noisy(ctx, x0, y0, [120, 84, 56], 0.08, rng);
+  // Tilled furrows
+  ctx.fillStyle = 'rgba(80,55,30,0.35)';
+  for (let y = 4; y < S; y += 6) ctx.fillRect(x0, y0 + y, S, 2);
+  // Moisture highlights
+  speckle(ctx, x0, y0, rng, 12, ['rgba(90,65,35,0.5)', 'rgba(140,100,65,0.3)']);
+};
+PAINTERS.wheat_0 = (ctx, x0, y0, rng) => {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  // Just a few scattered seed dots on the ground
+  ctx.fillStyle = '#8a7a40';
+  for (let i = 0; i < 6; i++) {
+    const x = 4 + (rng() * 24) | 0, y = 24 + (rng() * 6) | 0;
+    ctx.fillRect(x0 + x, y0 + y, 2, 2);
+  }
+};
+PAINTERS.wheat_1 = (ctx, x0, y0, rng) => {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  // Short green sprouts
+  const cx = x0 + 16, cy = y0 + 16;
+  ctx.fillStyle = '#5a8a28';
+  for (let i = 0; i < 4; i++) {
+    const bx = x0 + 6 + i * 6;
+    ctx.fillRect(bx, y0 + 20, 2, 8);
+    ctx.fillRect(bx - 1, y0 + 20, 1, 3);
+  }
+};
+PAINTERS.wheat_2 = (ctx, x0, y0, rng) => {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  // Taller green stalks
+  ctx.fillStyle = '#5a9a28';
+  for (let i = 0; i < 5; i++) {
+    const bx = x0 + 4 + i * 5;
+    ctx.fillRect(bx, y0 + 10, 2, 18);
+    ctx.fillRect(bx - 1, y0 + 12, 4, 2);
+  }
+};
+PAINTERS.wheat_3 = (ctx, x0, y0, rng) => {
+  ctx.clearRect(x0, y0, TILE, TILE);
+  // Fully grown golden wheat
+  ctx.fillStyle = '#6a9a28';
+  for (let i = 0; i < 5; i++) {
+    const bx = x0 + 4 + i * 5;
+    ctx.fillRect(bx, y0 + 6, 2, 22);
+  }
+  // Golden wheat heads
+  ctx.fillStyle = '#d4b030';
+  for (let i = 0; i < 5; i++) {
+    const bx = x0 + 3 + i * 5;
+    ctx.fillRect(bx, y0 + 4, 4, 6);
+  }
+  ctx.fillStyle = '#e8c840';
+  for (let i = 0; i < 5; i++) {
+    const bx = x0 + 4 + i * 5;
+    ctx.fillRect(bx, y0 + 3, 2, 2);
+  }
+};
+
 // --- colored wool painters ---
 const WOOL_COLORS = {
   white_wool:        [238, 236, 232],

@@ -156,6 +156,11 @@ export const ITEM = {
   GREEN_DYE: 853,
   RED_DYE: 854,
   BLACK_DYE: 855,
+  // Hoes (856+)
+  WOOD_HOE: 856,
+  STONE_HOE: 857,
+  IRON_HOE: 858,
+  DIAMOND_HOE: 859,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -245,6 +250,11 @@ const TOOLS = {};
   TOOLS[ITEM.DRAGON_BLADE] = { type: 'sword', material: 'DRAGON' };
   // Crystal pickaxe (original)
   TOOLS[ITEM.CRYSTAL_PICKAXE] = { type: 'pickaxe', material: 'CRYSTAL' };
+  // Hoes
+  TOOLS[ITEM.WOOD_HOE] = { type: 'hoe', material: 'WOOD' };
+  TOOLS[ITEM.STONE_HOE] = { type: 'hoe', material: 'STONE' };
+  TOOLS[ITEM.IRON_HOE] = { type: 'hoe', material: 'IRON' };
+  TOOLS[ITEM.DIAMOND_HOE] = { type: 'hoe', material: 'DIAMOND' };
 })();
 
 // --- master ITEMS table -----------------------------------------------------
@@ -358,6 +368,11 @@ const NONBLOCK_ITEMS = {
   [ITEM.GREEN_DYE]:       { name: 'Green Dye', stack: 64 },
   [ITEM.RED_DYE]:         { name: 'Red Dye', stack: 64 },
   [ITEM.BLACK_DYE]:       { name: 'Black Dye', stack: 64 },
+  // Hoes
+  [ITEM.WOOD_HOE]:   { name: 'Wood Hoe', stack: 1, tool: true },
+  [ITEM.STONE_HOE]:  { name: 'Stone Hoe', stack: 1, tool: true },
+  [ITEM.IRON_HOE]:   { name: 'Iron Hoe', stack: 1, tool: true },
+  [ITEM.DIAMOND_HOE]: { name: 'Diamond Hoe', stack: 1, tool: true },
 };
 
 // --- armor definitions -------------------------------------------------------

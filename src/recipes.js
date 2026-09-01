@@ -574,6 +574,20 @@ export const RECIPES = [
     pattern: ['NNN'], key: { N: B.NETHER_BRICK } }),
   shaped({ out: { id: B.DEEPSLATE_SLAB, count: 6 },
     pattern: ['DDD'], key: { D: B.DEEPSLATE } }),
+
+  // ---- Hoes ----
+  shaped({ out: { id: I.WOOD_HOE, count: 1 },
+    pattern: ['PP', ' S', ' S'], key: { P: B.PLANKS, S: I.STICK } }),
+  shaped({ out: { id: I.STONE_HOE, count: 1 },
+    pattern: ['CC', ' S', ' S'], key: { C: B.COBBLESTONE, S: I.STICK } }),
+  shaped({ out: { id: I.IRON_HOE, count: 1 },
+    pattern: ['II', ' S', ' S'], key: { I: I.IRON_INGOT, S: I.STICK } }),
+  shaped({ out: { id: I.DIAMOND_HOE, count: 1 },
+    pattern: ['DD', ' S', ' S'], key: { D: I.DIAMOND, S: I.STICK } }),
+
+  // ---- Wheat: 4 seeds from 1 wheat ----
+  shaped({ out: { id: I.SEEDS, count: 4 },
+    pattern: ['W'], key: { W: I.WHEAT } }),
 ];
 
 // Smelting recipes: input item id -> output item id.

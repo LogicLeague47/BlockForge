@@ -2936,6 +2936,33 @@ function placeBlock(slotOverride, targetHit) {
   let itemId = slot ? slot.item : null;
   if (itemId == null) return;
 
+  // ── Farming interactions (hoe, seeds, bone meal) ──
+  const bx = hit.x, by = hit.y, bz = hit.z;
+  const faceBlock = world.getBlock(bx, by, bz);
+  // Hoe: right-click dirt/grass to create farmland
+  if (itemId >= ITEM.WOOD_HOE && itemId <= ITEM.DIAMOND_HOE && (faceBlock === BLOCK.DIRT || faceBlock === BLOCK.GRASS || faceBlock === BLOCK.PODZOL || faceBlock === BLOCK.MYCELIUM)) {
+    world.setBlock(bx, by, bz, BLOCK.FARMLAND);
+    if (audio) audio.blockPlace(BLOCK.FARMLAND);
+    if (network.isInRoom()) network.sendBlockUpdate(bx, by, bz, BLOCK.FARMLAND);
+    return;
+  }
+  // Seeds: plant on farmland
+  if (itemId === ITEM.SEEDS && faceBlock === BLOCK.FARMLAND) {
+    world.setBlock(hit.place.x, hit.place.y, hit.place.z, BLOCK.WHEAT_0);
+    _wheatGrowth.set(`${hit.place.x},${hit.place.y},${hit.place.z}`, 0);
+    if (audio) audio.blockPlace(BLOCK.WHEAT_0);
+    if (network.isInRoom()) network.sendBlockUpdate(hit.place.x, hit.place.y, hit.place.z, BLOCK.WHEAT_0);
+    return;
+  }
+  // Bone meal: advance wheat growth stage
+  if (itemId === ITEM.BONE_MEAL && (faceBlock === BLOCK.WHEAT_0 || faceBlock === BLOCK.WHEAT_1 || faceBlock === BLOCK.WHEAT_2)) {
+    const nextStage = faceBlock === BLOCK.WHEAT_0 ? BLOCK.WHEAT_1 : faceBlock === BLOCK.WHEAT_1 ? BLOCK.WHEAT_2 : BLOCK.WHEAT_3;
+    world.setBlock(bx, by, bz, nextStage);
+    if (audio) audio.blockPlace(nextStage);
+    if (network.isInRoom()) network.sendBlockUpdate(bx, by, bz, nextStage);
+    return;
+  }
+
   // BED item places BED_FOOT at clicked block, BED (head) in facing direction
   if (itemId === ITEM.BED) itemId = BLOCK.BED_FOOT;
 
@@ -3092,6 +3119,37 @@ function tickSaplingGrowth(dt) {
           }
         }
       }
+    }
+  }
+}
+
+// Wheat growth: advance through growth stages over time.
+function tickWheatGrowth(dt) {
+  if (_wheatGrowth.size === 0) return;
+  _wheatTickTimer -= dt;
+  if (_wheatTickTimer > 0) return;
+  _wheatTickTimer = 0.5; // check every 0.5s
+
+  const stageMap = { [BLOCK.WHEAT_0]: BLOCK.WHEAT_1, [BLOCK.WHEAT_1]: BLOCK.WHEAT_2, [BLOCK.WHEAT_2]: BLOCK.WHEAT_3 };
+  for (const [key, elapsed] of _wheatGrowth) {
+    const [x, y, z] = key.split(',').map(Number);
+    const cur = world.getBlock(x, y, z);
+    // Stop tracking if the block changed (broken or harvested)
+    if (!stageMap[cur] && cur !== BLOCK.WHEAT_3) { _wheatGrowth.delete(key); continue; }
+    // Must be on farmland
+    if (world.getBlock(x, y - 1, z) !== BLOCK.FARMLAND) { _wheatGrowth.delete(key); continue; }
+    const newElapsed = elapsed + 0.5;
+    if (newElapsed >= WHEAT_GROWTH_TIME) {
+      _wheatGrowth.delete(key);
+      const next = stageMap[cur];
+      if (next) {
+        world.setBlock(x, y, z, next);
+        _wheatGrowth.set(`${x},${y},${z}`, 0); // restart timer for next stage
+        const cx = Math.floor(x / CHUNK_SIZE), cz = Math.floor(z / CHUNK_SIZE);
+        for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) manager.refreshAround(cx + dx, cz + dz);
+      }
+    } else {
+      _wheatGrowth.set(key, newElapsed);
     }
   }
 }
@@ -3412,6 +3470,7 @@ function doBreak(hit, b) {
   liquidBlockChanged(hit.x, hit.y, hit.z);
   if (isLogBlock(b)) _leafDecayPositions.add(`${hit.x},${hit.y},${hit.z}`);
   if (isSaplingBlock(b)) _saplingGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
+  if (b === BLOCK.WHEAT_0 || b === BLOCK.WHEAT_1 || b === BLOCK.WHEAT_2 || b === BLOCK.WHEAT_3) _wheatGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
   if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
 
   // OneBlock minigame: breaking the OneBlock schedules its regeneration.
@@ -5521,6 +5580,11 @@ function updateReplayCamera(dt) {
 const _saplingGrowth = new Map();
 let _saplingTickTimer = 0;
 const SAPLING_GROWTH_TIME = 45; // seconds for a naturally-grown tree
+
+// --- wheat growth ---
+const _wheatGrowth = new Map();
+let _wheatTickTimer = 0;
+const WHEAT_GROWTH_TIME = 15; // seconds per growth stage
 
 function isSaplingBlock(id) {
   return id === BLOCK.OAK_SAPLING || id === BLOCK.JUNGLE_SAPLING || id === BLOCK.BIRCH_SAPLING ||
@@ -10654,6 +10718,7 @@ function _gameFrame() {
   }
   greenstoneSystem.update(dt, world);
   tickSaplingGrowth(dt);
+  tickWheatGrowth(dt);
   _tickLeafDecay(dt);
   updateCoordsHud(dt);
   updateTimeHud();
