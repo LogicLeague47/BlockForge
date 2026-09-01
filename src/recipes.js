@@ -538,6 +538,24 @@ export const RECIPES = [
 
   // ---- Night Vision Potion ----
   shapeless({ out: { id: I.NIGHT_VISION_POTION, count: 1 }, ingredients: [B.GLOWSTONE, I.EMERALD] }),
+
+  // ---- Colored wool: white wool + dye ----
+  shapeless({ out: { id: B.WHITE_WOOL, count: 1 }, ingredients: [B.WOOL, I.BONE_MEAL] }),
+  shapeless({ out: { id: B.ORANGE_WOOL, count: 1 }, ingredients: [B.WOOL, I.ORANGE_DYE] }),
+  shapeless({ out: { id: B.MAGENTA_WOOL, count: 1 }, ingredients: [B.WOOL, I.MAGENTA_DYE] }),
+  shapeless({ out: { id: B.LIGHT_BLUE_WOOL, count: 1 }, ingredients: [B.WOOL, I.LIGHT_BLUE_DYE] }),
+  shapeless({ out: { id: B.YELLOW_WOOL, count: 1 }, ingredients: [B.WOOL, I.YELLOW_DYE] }),
+  shapeless({ out: { id: B.LIME_WOOL, count: 1 }, ingredients: [B.WOOL, I.LIME_DYE] }),
+  shapeless({ out: { id: B.PINK_WOOL, count: 1 }, ingredients: [B.WOOL, I.PINK_DYE] }),
+  shapeless({ out: { id: B.GRAY_WOOL, count: 1 }, ingredients: [B.WOOL, I.GRAY_DYE] }),
+  shapeless({ out: { id: B.LIGHT_GRAY_WOOL, count: 1 }, ingredients: [B.WOOL, I.LIGHT_GRAY_DYE] }),
+  shapeless({ out: { id: B.CYAN_WOOL, count: 1 }, ingredients: [B.WOOL, I.CYAN_DYE] }),
+  shapeless({ out: { id: B.PURPLE_WOOL, count: 1 }, ingredients: [B.WOOL, I.PURPLE_DYE] }),
+  shapeless({ out: { id: B.BLUE_WOOL, count: 1 }, ingredients: [B.WOOL, I.BLUE_DYE] }),
+  shapeless({ out: { id: B.BROWN_WOOL, count: 1 }, ingredients: [B.WOOL, I.BROWN_DYE] }),
+  shapeless({ out: { id: B.GREEN_WOOL, count: 1 }, ingredients: [B.WOOL, I.GREEN_DYE] }),
+  shapeless({ out: { id: B.RED_WOOL, count: 1 }, ingredients: [B.WOOL, I.RED_DYE] }),
+  shapeless({ out: { id: B.BLACK_WOOL, count: 1 }, ingredients: [B.WOOL, I.BLACK_DYE] }),
 ];
 
 // Smelting recipes: input item id -> output item id.

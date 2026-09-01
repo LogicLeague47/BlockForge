@@ -141,6 +141,20 @@ export const ITEM = {
   NIGHT_VISION_POTION: 840,
   BOAT: 841,
   MINECART: 842,
+  // Dyes (843+)
+  WHITE_DYE: 843,
+  ORANGE_DYE: 844,
+  MAGENTA_DYE: 845,
+  LIGHT_BLUE_DYE: 846,
+  YELLOW_DYE: 847,
+  GRAY_DYE: 848,
+  LIGHT_GRAY_DYE: 849,
+  CYAN_DYE: 850,
+  PURPLE_DYE: 851,
+  BROWN_DYE: 852,
+  GREEN_DYE: 853,
+  RED_DYE: 854,
+  BLACK_DYE: 855,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -327,6 +341,20 @@ const NONBLOCK_ITEMS = {
   [ITEM.NIGHT_VISION_POTION]: { name: 'Night Vision Potion', stack: 1 },
   [ITEM.BOAT]:      { name: 'Boat', stack: 1 },
   [ITEM.MINECART]:  { name: 'Minecart', stack: 1 },
+  // Dyes
+  [ITEM.WHITE_DYE]:       { name: 'White Dye', stack: 64 },
+  [ITEM.ORANGE_DYE]:      { name: 'Orange Dye', stack: 64 },
+  [ITEM.MAGENTA_DYE]:     { name: 'Magenta Dye', stack: 64 },
+  [ITEM.LIGHT_BLUE_DYE]:  { name: 'Light Blue Dye', stack: 64 },
+  [ITEM.YELLOW_DYE]:      { name: 'Yellow Dye', stack: 64 },
+  [ITEM.GRAY_DYE]:        { name: 'Gray Dye', stack: 64 },
+  [ITEM.LIGHT_GRAY_DYE]:  { name: 'Light Gray Dye', stack: 64 },
+  [ITEM.CYAN_DYE]:        { name: 'Cyan Dye', stack: 64 },
+  [ITEM.PURPLE_DYE]:      { name: 'Purple Dye', stack: 64 },
+  [ITEM.BROWN_DYE]:       { name: 'Brown Dye', stack: 64 },
+  [ITEM.GREEN_DYE]:       { name: 'Green Dye', stack: 64 },
+  [ITEM.RED_DYE]:         { name: 'Red Dye', stack: 64 },
+  [ITEM.BLACK_DYE]:       { name: 'Black Dye', stack: 64 },
 };
 
 // --- armor definitions -------------------------------------------------------

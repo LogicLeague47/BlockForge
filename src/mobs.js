@@ -344,7 +344,7 @@ export const MOB_TYPES = {
     headColor: 0x50e0c0,
     legColor: 0x50e0c0,
     hasWings: true,
-    wingSpan: 1.6,
+    wingSpan: 0.7,
     wingColor: 0x80e8d0,
     hasEyes: true,
     eyeColor: 0x000000,
@@ -424,7 +424,7 @@ export const MOB_TYPES = {
     headOffY: 0.05,
     bodyColor: 0x3a2a20, headColor: 0x4a3a2a, legColor: 0x3a2a20,
     hasWings: true,
-    wingSpan: 1.2,
+    wingSpan: 0.6,
     wingColor: 0x4a3828,
     hasEyes: true, eyeColor: 0xff3333,
     attackDamage: 2,
@@ -935,16 +935,17 @@ class Mob {
     // ── Dragon wings ──
     if (def.hasWings) {
       this.wings = [];
+      const wingDepth = Math.min(2.0, def.bodyD * 2 + 0.2);
       for (const side of [-1, 1]) {
         const wingGroup = new THREE.Group();
         // Wing membrane (flat box)
-        const wingGeo = new THREE.BoxGeometry(def.wingSpan * 0.5, 0.05, 2.0);
+        const wingGeo = new THREE.BoxGeometry(def.wingSpan * 0.5, 0.05, wingDepth);
         const wingMat = new THREE.MeshLambertMaterial({ color: def.wingColor, side: THREE.DoubleSide });
         const wing = new THREE.Mesh(wingGeo, wingMat);
         wing.position.set(side * def.wingSpan * 0.25, 0, 0);
         wingGroup.add(wing);
         // Wing bone
-        const boneGeo = new THREE.BoxGeometry(0.08, 0.08, 2.0);
+        const boneGeo = new THREE.BoxGeometry(0.08, 0.08, wingDepth);
         const boneMat = new THREE.MeshLambertMaterial({ color: def.headColor });
         const bone = new THREE.Mesh(boneGeo, boneMat);
         bone.position.set(0, 0.03, 0);

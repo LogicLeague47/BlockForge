@@ -189,6 +189,23 @@ export const BLOCK = {
   JUKEBOX: 173,
   FLOWER_POT: 174,
   ANVIL: 175,
+  // Colored wool (176-191)
+  WHITE_WOOL: 176,
+  ORANGE_WOOL: 177,
+  MAGENTA_WOOL: 178,
+  LIGHT_BLUE_WOOL: 179,
+  YELLOW_WOOL: 180,
+  LIME_WOOL: 181,
+  PINK_WOOL: 182,
+  GRAY_WOOL: 183,
+  LIGHT_GRAY_WOOL: 184,
+  CYAN_WOOL: 185,
+  PURPLE_WOOL: 186,
+  BLUE_WOOL: 187,
+  BROWN_WOOL: 188,
+  GREEN_WOOL: 189,
+  RED_WOOL: 190,
+  BLACK_WOOL: 191,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -422,6 +439,23 @@ export const TILES = {
   flower_pot_top:        [11, 14],
   flower_pot_bottom:     [12, 14],
   flower_pot_side:       [13, 14],
+  // Colored wool tiles (row 14 cols 14-15, row 15 cols 0-13)
+  white_wool:            [14, 14],
+  orange_wool:           [15, 14],
+  magenta_wool:          [0, 15],
+  light_blue_wool:       [1, 15],
+  yellow_wool:           [2, 15],
+  lime_wool:             [3, 15],
+  pink_wool:             [4, 15],
+  gray_wool:             [5, 15],
+  light_gray_wool:       [6, 15],
+  cyan_wool:             [7, 15],
+  purple_wool:           [8, 15],
+  blue_wool:             [9, 15],
+  brown_wool:            [10, 15],
+  green_wool:            [11, 15],
+  red_wool:              [12, 15],
+  black_wool:            [13, 15],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -621,6 +655,23 @@ export const BLOCKS = {
   [BLOCK.JUKEBOX]:          { name: 'Jukebox', solid: true, hardness: 2.0, tool: 'axe', faces: { top: 'jukebox_top', bottom: 'planks', side: 'jukebox_side' } },
   [BLOCK.FLOWER_POT]:       { name: 'Flower Pot', solid: true, hardness: 0.4, tool: 'pickaxe', faces: { top: 'flower_pot_top', bottom: 'flower_pot_bottom', side: 'flower_pot_side' } },
   [BLOCK.ANVIL]:            { name: 'Anvil', solid: true, hardness: 5.0, tool: 'pickaxe', harvest: 2, faces: 'iron_block' },
+  // Colored wool blocks
+  [BLOCK.WHITE_WOOL]:     { name: 'White Wool', solid: true, hardness: 0.8, faces: 'white_wool' },
+  [BLOCK.ORANGE_WOOL]:    { name: 'Orange Wool', solid: true, hardness: 0.8, faces: 'orange_wool' },
+  [BLOCK.MAGENTA_WOOL]:   { name: 'Magenta Wool', solid: true, hardness: 0.8, faces: 'magenta_wool' },
+  [BLOCK.LIGHT_BLUE_WOOL]:{ name: 'Light Blue Wool', solid: true, hardness: 0.8, faces: 'light_blue_wool' },
+  [BLOCK.YELLOW_WOOL]:    { name: 'Yellow Wool', solid: true, hardness: 0.8, faces: 'yellow_wool' },
+  [BLOCK.LIME_WOOL]:      { name: 'Lime Wool', solid: true, hardness: 0.8, faces: 'lime_wool' },
+  [BLOCK.PINK_WOOL]:      { name: 'Pink Wool', solid: true, hardness: 0.8, faces: 'pink_wool' },
+  [BLOCK.GRAY_WOOL]:      { name: 'Gray Wool', solid: true, hardness: 0.8, faces: 'gray_wool' },
+  [BLOCK.LIGHT_GRAY_WOOL]:{ name: 'Light Gray Wool', solid: true, hardness: 0.8, faces: 'light_gray_wool' },
+  [BLOCK.CYAN_WOOL]:      { name: 'Cyan Wool', solid: true, hardness: 0.8, faces: 'cyan_wool' },
+  [BLOCK.PURPLE_WOOL]:    { name: 'Purple Wool', solid: true, hardness: 0.8, faces: 'purple_wool' },
+  [BLOCK.BLUE_WOOL]:      { name: 'Blue Wool', solid: true, hardness: 0.8, faces: 'blue_wool' },
+  [BLOCK.BROWN_WOOL]:     { name: 'Brown Wool', solid: true, hardness: 0.8, faces: 'brown_wool' },
+  [BLOCK.GREEN_WOOL]:     { name: 'Green Wool', solid: true, hardness: 0.8, faces: 'green_wool' },
+  [BLOCK.RED_WOOL]:       { name: 'Red Wool', solid: true, hardness: 0.8, faces: 'red_wool' },
+  [BLOCK.BLACK_WOOL]:     { name: 'Black Wool', solid: true, hardness: 0.8, faces: 'black_wool' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

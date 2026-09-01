@@ -3004,6 +3004,44 @@ function saplingPlant(ctx, x0, y0, rng, trunkColor, leafColor) {
   ctx.fillRect(cx - 2, cy - 5, 1, 1);
 }
 
+// --- colored wool painters ---
+const WOOL_COLORS = {
+  white_wool:        [238, 236, 232],
+  orange_wool:       [240, 118, 19],
+  magenta_wool:      [191, 48, 163],
+  light_blue_wool:   [58, 139, 217],
+  yellow_wool:       [248, 198, 39],
+  lime_wool:         [112, 185, 50],
+  pink_wool:         [238, 141, 173],
+  gray_wool:         [74, 74, 74],
+  light_gray_wool:   [154, 154, 154],
+  cyan_wool:         [16, 131, 149],
+  purple_wool:       [117, 39, 173],
+  blue_wool:         [35, 51, 159],
+  brown_wool:         [114, 71, 39],
+  green_wool:        [65, 121, 28],
+  red_wool:          [160, 39, 32],
+  black_wool:        [20, 21, 25],
+};
+for (const [name, rgb] of Object.entries(WOOL_COLORS)) {
+  PAINTERS[name] = (ctx, x0, y0, rng) => {
+    const S = TILE;
+    noisy(ctx, x0, y0, rgb, 0.03, rng);
+    for (let i = 0; i < 20; i++) {
+      const x = (rng() * S) | 0, y = (rng() * S) | 0;
+      const bright = rng() < 0.5;
+      ctx.fillStyle = bright
+        ? `rgb(${Math.min(255, rgb[0]+14)},${Math.min(255, rgb[1]+14)},${Math.min(255, rgb[2]+14)})`
+        : `rgb(${Math.max(0, rgb[0]-14)},${Math.max(0, rgb[1]-14)},${Math.max(0, rgb[2]-14)})`;
+      ctx.fillRect(x0 + x, y0 + y, 1, 1);
+    }
+    ctx.fillStyle = `rgba(${Math.max(0, rgb[0]-30)},${Math.max(0, rgb[1]-30)},${Math.max(0, rgb[2]-30)},0.25)`;
+    for (let y = 3; y < S; y += 4) ctx.fillRect(x0, y0 + y, S, 1);
+    for (let x = 3; x < S; x += 4) ctx.fillRect(x0 + x, y0, 1, S);
+    speckle(ctx, x0, y0, rng, 8, ['rgba(255,255,255,0.3)']);
+  };
+}
+
 // --- atlas build -------------------------------------------------------------
 export function buildAtlas(seed = 1337) {
   const canvas = document.createElement('canvas');
