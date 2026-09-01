@@ -3826,7 +3826,57 @@ class ThrownTnt {
   }
 }
 
-// ── MobManager ───────────────────────────────────────────────────────
+// ── Arrow projectile (fired by Bow) ─────────────────────────────────
+export class Arrow {
+  constructor(scene, x, y, z, vx, vy, vz) {
+    this.scene = scene;
+    this.x = x; this.y = y; this.z = z;
+    this.vx = vx; this.vy = vy; this.vz = vz;
+    this.age = 0;
+    this.done = false;
+    this.damage = 6;
+
+    const geo = new THREE.BoxGeometry(0.06, 0.06, 0.5);
+    const mat = new THREE.MeshLambertMaterial({ color: 0x8b6914 });
+    this.mesh = new THREE.Mesh(geo, mat);
+    this.mesh.position.set(x, y, z);
+    this.scene.add(this.mesh);
+
+    // Fletching
+    const fletch = new THREE.BoxGeometry(0.14, 0.04, 0.08);
+    const fMat = new THREE.MeshLambertMaterial({ color: 0xcc3333 });
+    const f1 = new THREE.Mesh(fletch, fMat);
+    f1.position.set(0, 0, 0.2);
+    this.mesh.add(f1);
+  }
+
+  update(dt, world) {
+    if (this.done) return;
+    this.age += dt;
+    this.vy -= 9.8 * dt;
+    this.x += this.vx * dt;
+    this.y += this.vy * dt;
+    this.z += this.vz * dt;
+    this.mesh.position.set(this.x, this.y, this.z);
+    // Point arrow in velocity direction
+    this.mesh.lookAt(this.x + this.vx, this.y + this.vy, this.z + this.vz);
+
+    const bx = Math.floor(this.x), by = Math.floor(this.y), bz = Math.floor(this.z);
+    const blk = world.getBlock(bx, by, bz);
+    if (blk !== BLOCK.AIR && blk !== BLOCK.WATER && BLOCKS[blk]?.solid) {
+      this.done = true;
+      return;
+    }
+    if (this.age > 5) this.done = true;
+  }
+
+  dispose() {
+    this.scene.remove(this.mesh);
+    this.mesh.geometry.dispose();
+    this.mesh.material.dispose();
+  }
+}
+
 export class MobManager {
   constructor(scene, world, audio, explosionManager) {
     this.scene = scene;
@@ -3835,6 +3885,7 @@ export class MobManager {
     this.explosionManager = explosionManager;
     this.mobs = [];
     this._thrownTnts = []; // Blower-launched TNT projectiles
+    this._arrows = []; // Player-fired arrows
     this._spawnedChunks = new Set();
     this._nightSpawnTimer = 0;
     this._nextEntityId = 1;
@@ -4577,6 +4628,30 @@ export class MobManager {
         }
       }
       proj.dispose();
+    }
+
+    // Update player-fired arrows; damage mobs on hit.
+    for (let i = this._arrows.length - 1; i >= 0; i--) {
+      const arrow = this._arrows[i];
+      arrow.update(dt, this.world);
+      if (!arrow.done) {
+        // Check arrow-mob collision
+        for (const mob of this.mobs) {
+          if (mob.dead) continue;
+          const dx = mob.position.x - arrow.x;
+          const dy = (mob.position.y + 0.5) - arrow.y;
+          const dz = mob.position.z - arrow.z;
+          if (dx * dx + dy * dy + dz * dz < 1.0) {
+            mob.takeDamage(arrow.damage, { x: arrow.x, y: arrow.y, z: arrow.z });
+            arrow.done = true;
+            break;
+          }
+        }
+        if (!arrow.done) continue;
+      }
+      this._arrows[i] = this._arrows[this._arrows.length - 1];
+      this._arrows.length--;
+      arrow.dispose();
     }
 
     // Return the strongest attack this tick (backward-compatible with single-event callers)

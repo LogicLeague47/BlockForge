@@ -16,7 +16,7 @@ import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
-import { MobManager, MOB_TYPES } from './mobs.js';
+import { MobManager, MOB_TYPES, Arrow } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
 import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
@@ -2978,6 +2978,17 @@ function placeBlock(slotOverride, targetHit) {
     world.setBlock(bx, by, bz, nextStage);
     if (audio) audio.blockPlace(nextStage);
     if (network.isInRoom()) network.sendBlockUpdate(bx, by, bz, nextStage);
+    return;
+  }
+
+  // Bow: fire an arrow projectile
+  if (itemId === ITEM.BOW && mobManager) {
+    const dir = _mobDirVec;
+    camera.getWorldDirection(dir);
+    const speed = 32;
+    const arrow = new Arrow(scene, camera.position.x, camera.position.y + 0.3, camera.position.z, dir.x * speed, dir.y * speed, dir.z * speed);
+    mobManager._arrows.push(arrow);
+    if (audio) audio.throwProjectile();
     return;
   }
 

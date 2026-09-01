@@ -161,6 +161,8 @@ export const ITEM = {
   STONE_HOE: 857,
   IRON_HOE: 858,
   DIAMOND_HOE: 859,
+  // Bow (860)
+  BOW: 860,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -373,6 +375,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.STONE_HOE]:  { name: 'Stone Hoe', stack: 1, tool: true },
   [ITEM.IRON_HOE]:   { name: 'Iron Hoe', stack: 1, tool: true },
   [ITEM.DIAMOND_HOE]: { name: 'Diamond Hoe', stack: 1, tool: true },
+  [ITEM.BOW]:         { name: 'Bow', stack: 1 },
 };
 
 // --- armor definitions -------------------------------------------------------

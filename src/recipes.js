@@ -588,6 +588,14 @@ export const RECIPES = [
   // ---- Wheat: 4 seeds from 1 wheat ----
   shaped({ out: { id: I.SEEDS, count: 4 },
     pattern: ['W'], key: { W: I.WHEAT } }),
+
+  // ---- Bow ----
+  shaped({ out: { id: I.BOW, count: 1 },
+    pattern: [' ST', 'S T', ' ST'], key: { S: I.STRING, T: I.STICK } }),
+
+  // ---- Arrow: flint + stick + feather ----
+  shaped({ out: { id: I.ARROW, count: 4 },
+    pattern: ['F', 'S', 'E'], key: { F: I.FLINT, S: I.STICK, E: I.FEATHER } }),
 ];
 
 // Smelting recipes: input item id -> output item id.
