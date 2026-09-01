@@ -1477,13 +1477,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'pending',
-          heading: 'Colored wool, slabs, creeper mob',
-          desc: 'Added 16 colored wool blocks with dye crafting, 8 slab types with half-height collision, and the Creeper mob with fuse-and-explode AI. Env-driven host URLs for future Oracle Cloud migration.',
+          hash: '8ec2a55',
+          heading: 'Farming, breeding, bow & arrow, more',
+          desc: 'Added a complete farming system with farmland, wheat crops, and hoe tools. Animals can now be bred with wheat. Bow & arrow weapon for ranged combat. Multiple bug fixes and texture improvements.',
           date: 'Sep 1',
-          bugs: ['grass_side strands not random enough', 'host URLs hardcoded for single provider'],
-          updates: ['grass_side blades are now fully random height (3-14px) per column', 'host URLs in config.js/vite.config.js now read from env vars with Render fallback', 'portal.html host URLs configurable via window.BF_WEB/BF_WS globals'],
-          features: ['16 colored wool blocks (white, orange, magenta, light blue, yellow, lime, pink, gray, light gray, cyan, purple, blue, brown, green, red, black)', '13 dye items + shapeless wool dyeing recipes', '8 slab block types (stone, oak, cobblestone, brick, quartz, sandstone, nether brick, deepslate)', 'slab crafting: 3 blocks → 6 slabs', 'slab half-height collision', 'Creeper mob: hostile at night, approaches player, fuses and explodes at close range', 'Creeper drops gunpowder', 'Creeper spawn egg'],
+          bugs: ['grass_side strands not random enough', 'host URLs hardcoded for single provider', 'redundant ternary in mobs.js', 'spawnSmokePuff created 5 new materials per call'],
+          updates: ['grass_side blades are now fully random height (3-14px) per column', 'host URLs in config.js/vite.config.js now read from env vars with Render fallback', 'portal.html host URLs configurable via window.BF_WEB/BF_WS globals', 'spawnSmokePuff reuses shared material (no leak)', 'mobs.js cape material redundant ternary fixed'],
+          features: ['16 colored wool blocks (white, orange, magenta, light blue, yellow, lime, pink, gray, light gray, cyan, purple, blue, brown, green, red, black)', '13 dye items + shapeless wool dyeing recipes', '8 slab block types (stone, oak, cobblestone, brick, quartz, sandstone, nether brick, deepslate)', 'slab crafting: 3 blocks → 6 slabs', 'slab half-height collision', 'Creeper mob: hostile at night, approaches player, fuses and explodes at close range', 'Creeper drops gunpowder', 'Creeper spawn egg', 'Farmland block: hoe right-click on dirt/grass', 'Wheat crop: 4 growth stages, 15s per stage, bone meal accelerates', '4 hoe tools: wood, stone, iron, diamond', 'Animal breeding: right-click cow/pig/sheep with wheat', 'Heart particles on breeding', 'Bow weapon: fires arrow projectile with gravity', 'Arrow projectile: 6 damage, sticks in blocks', 'Arrow crafting: flint + stick + feather → 4 arrows', 'Bow crafting: 3 sticks + 3 string'],
         },
         {
           hash: 'ed5ba57',
