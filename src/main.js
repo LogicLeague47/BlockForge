@@ -967,7 +967,7 @@ function lockPointer() {
     if (p && typeof p.then === 'function') {
       p.catch(e => { e && e.preventDefault && e.preventDefault(); });
     }
-  } catch (_) { console.warn("operation failed"); }
+  } catch (_) { console.warn("pointer lock request failed"); }
 }
 
 renderer.domElement.addEventListener('click', () => {
@@ -4989,7 +4989,7 @@ function setupNetworkHandlers() {
         cloudSet('bf_login_user', playerName);
         const pass = document.getElementById('login-password');
         if (pass) localStorage.setItem('bf_login_pass', _xorEncode(pass.value));
-      } catch (_) { console.warn("operation failed"); }
+      } catch (_) { console.warn("save login credentials failed"); }
       sessionStorage.setItem('bf_authenticated', '1');
       setSkinUser(playerName);
       // Sync DM history to server for cross-device support
@@ -7109,7 +7109,7 @@ function renderAchievementScreen() {
       try {
         const ic = makeIcon(a.icon, atlasCanvas);
         iconHtml = ic.toDataURL ? `<img class="ach-card-icon" src="${ic.toDataURL()}" />` : '';
-      } catch (_) { console.warn("operation failed"); }
+      } catch (_) { console.warn("render achievement icon failed"); }
       card.innerHTML = `${iconHtml}<div class="ach-card-info"><div class="ach-card-name">${unlocked ? a.name : '???'}</div><div class="ach-card-desc">${unlocked ? a.desc : 'Locked'}</div></div>`;
       grid.appendChild(card);
     }
@@ -7398,7 +7398,7 @@ function initMenu() {
   try {
     const saved = localStorage.getItem('bf_player_name');
     if (saved) { playerName = filterProfanity(saved); hadSavedName = true; }
-  } catch (_) { console.warn("operation failed"); }
+  } catch (_) { console.warn("load player name failed"); }
   setSkinUser(playerName);
 
   // Load ALL settings from localStorage
@@ -7435,7 +7435,7 @@ function initMenu() {
     // Update the toggle UI to reflect the actual state
     const shEl = document.getElementById('set-shadows');
     if (shEl) shEl.value = shadowsOn ? '1' : '0';
-  } catch (_) { console.warn("operation failed"); }
+  } catch (_) { console.warn("load shadows setting failed"); }
 
   // CrazyGames-exclusive "Crazy Trail" setting (only shown on CG)
   try {
@@ -7472,7 +7472,7 @@ function initMenu() {
       mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(sens) / 100));
       window.__mouseSens = mouseSensitivity;
     }
-  } catch (_) { console.warn("operation failed"); }
+  } catch (_) { console.warn("load mouse sensitivity failed"); }
 
   // Load volume setting (applied to audio when audio is initialized)
   try {
@@ -7483,7 +7483,7 @@ function initMenu() {
       const volNum = Math.max(0, Math.min(100, parseInt(vol) || 50)) / 100;
       if (audio && audio.master) audio.master.gain.value = volNum;
     }
-  } catch (_) { console.warn("operation failed"); }
+  } catch (_) { console.warn("load master volume failed"); }
 
   // Load FPS setting into a module-level flag
   showFps = (document.getElementById('set-fps')?.value || '1') !== '0';
@@ -9330,7 +9330,7 @@ function initMenu() {
       window.__OFFLINE_MODE = true;
       ui.showMenu('main');
       applyOfflineMenuRestrictions();
-    } catch (_) { console.warn("operation failed"); }
+    } catch (_) { console.warn("play offline failed"); }
   });
 
   const btnGh = document.getElementById('btn-login-github');
@@ -9371,7 +9371,7 @@ function initMenu() {
       const privacy = document.getElementById('footer-privacy');
       if (terms) { terms.href = './terms.html'; terms.textContent = 'Terms'; }
       if (privacy) { privacy.href = './privacy.html'; privacy.textContent = 'Privacy Policy'; }
-    } catch (_) { console.warn("operation failed"); }
+    } catch (_) { console.warn("update footer links failed"); }
   }
 
   // CrazyGames account rules: "Logging out in the game and allowing login with
