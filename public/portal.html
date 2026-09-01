@@ -1352,7 +1352,7 @@
       });
 
       // ── Live dashboard stats ───────────────────────────────────────────
-      var SRV_WS = 'wss://blockforge-server.onrender.com';
+      var SRV_WS = window.BF_WS || 'wss://blockforge-server.onrender.com';
       function fmtUptime(sec) {
         if (!sec && sec !== 0) return '—';
         var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
@@ -1476,6 +1476,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'pending',
+          heading: 'Colored wool, slabs, creeper mob',
+          desc: 'Added 16 colored wool blocks with dye crafting, 8 slab types with half-height collision, and the Creeper mob with fuse-and-explode AI. Env-driven host URLs for future Oracle Cloud migration.',
+          date: 'Sep 1',
+          bugs: ['grass_side strands not random enough', 'host URLs hardcoded for single provider'],
+          updates: ['grass_side blades are now fully random height (3-14px) per column', 'host URLs in config.js/vite.config.js now read from env vars with Render fallback', 'portal.html host URLs configurable via window.BF_WEB/BF_WS globals'],
+          features: ['16 colored wool blocks (white, orange, magenta, light blue, yellow, lime, pink, gray, light gray, cyan, purple, blue, brown, green, red, black)', '13 dye items + shapeless wool dyeing recipes', '8 slab block types (stone, oak, cobblestone, brick, quartz, sandstone, nether brick, deepslate)', 'slab crafting: 3 blocks → 6 slabs', 'slab half-height collision', 'Creeper mob: hostile at night, approaches player, fuses and explodes at close range', 'Creeper drops gunpowder', 'Creeper spawn egg'],
+        },
         {
           hash: 'ed5ba57',
           heading: 'Mobile jump fix',

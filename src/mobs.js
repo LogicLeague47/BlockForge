@@ -271,6 +271,30 @@ export const MOB_TYPES = {
     soundChance: 0.0004,
   },
 
+  creeper: {
+    name: 'Creeper',
+    hp: 20,
+    hostile: true,
+    hostileAtNight: true,
+    bodyW: 0.6, bodyH: 0.8, bodyD: 0.6,
+    headW: 0.5, headH: 0.5, headD: 0.5,
+    legW: 0.18, legH: 0.5, legD: 0.18,
+    headOffY: -0.3,
+    headOffZ: 0,
+    hasEyes: true,
+    eyeColor: 0x000000,
+    bodyColor: 0x3cb34a,
+    headColor: 0x3cb34a,
+    legColor: 0x2a8a36,
+    attackDamage: 0,
+    isCreeper: true,
+    fuseRange: 4,
+    fuseTime: 2.0,
+    explosionPower: 3,
+    drops: [{ item: 279, count: [0, 2] }], // gunpowder
+    soundChance: 0.0005,
+  },
+
   dragon: {
     name: 'Prismite Dragon',
     hp: 200,
@@ -1015,6 +1039,7 @@ class Mob {
     if (this.type === 'traveler') return this._travelerTextures(def);
     if (this.type === 'blower') return this._blowerTextures(def);
     if (this.type === 'portalman') return this._portalmanTextures(def);
+    if (this.type === 'creeper') return this._creeperTextures(def);
     if (this.type === 'dragon') return this._dragonTextures(def);
     if (this.type === 'wanderer') return this._wandererTextures(def);
     if (this.type === 'pixie') return this._pixieTextures(def);
@@ -2639,6 +2664,93 @@ class Mob {
     return { body, head, leg };
   }
 
+  _creeperTextures(def) {
+    const s = 64;
+    const GREEN = 0x3cb34a, GREEN_DARK = 0x2a8a36, GREEN_LIGHT = 0x5ad468;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 14);
+      // Distinctive creeper spots/patches
+      ctx.fillStyle = '#2a8a36';
+      ctx.fillRect(8, 12, 10, 8);
+      ctx.fillRect(42, 20, 12, 6);
+      ctx.fillRect(18, 40, 8, 10);
+      ctx.fillRect(36, 8, 6, 12);
+      // Darker bottom edge
+      ctx.fillStyle = 'rgba(30,80,30,0.3)';
+      ctx.fillRect(0, s - 8, s, 8);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 10);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a8a36';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 12);
+      // The creeper "frown" marks on chest
+      ctx.fillStyle = '#2a8a36';
+      ctx.fillRect(12, 16, 8, 6);
+      ctx.fillRect(44, 16, 8, 6);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 12);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 10);
+    });
+    const headBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a8a36';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 10);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3cb34a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN, 12);
+      // Classic creeper face: sad frown + eyes
+      ctx.fillStyle = '#000000';
+      // Left eye
+      ctx.fillRect(10, 18, 10, 10);
+      // Right eye
+      ctx.fillRect(44, 18, 10, 10);
+      // Frown / mouth (T-shape)
+      ctx.fillRect(22, 34, 20, 6);
+      ctx.fillRect(16, 28, 8, 12);
+      ctx.fillRect(40, 28, 8, 12);
+      // White glint in eyes
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(12, 20, 4, 4);
+      ctx.fillRect(46, 20, 4, 4);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a8a36';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, GREEN_DARK, 10);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
   _dragonTextures(def) {
     const s = 64;
     const DARK = 0x1a0a2a, PURPLE = 0x2a1a4a, RED = 0xff3300, ORANGE = 0xff6600;
@@ -3830,7 +3942,7 @@ export class MobManager {
     const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
     const rng = mulberry32(seed);
     const attempts = 4;
-    const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman'];
+    const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman', 'creeper'];
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -4033,7 +4145,7 @@ export class MobManager {
     // Blower and PortalMan are rarer night spawns — added to the pool with
     // reduced weight so they appear occasionally but stay uncommon.
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman',
+      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman', 'creeper',
         'crystal_golem', 'shadow_stalker', 'wind_spirit', 'cave_bat', 'cave_bat');
     }
     const placed = [];
@@ -4230,6 +4342,54 @@ export class MobManager {
               mob.throwCooldown = def.throwCooldown || 3.0;
               mob.attackAnim = 1;
               this._launchTnt(mob, playerPos);
+            }
+          } else if (!isNight && !mob.aggro && mob.state === 'walking' && distSq < 400 && distSq < 16) {
+            mob.targetYaw = Math.atan2(dx, dz);
+            mob.stateTimer = 2;
+          }
+        } else if (def.isCreeper) {
+          // Creeper: approach player, start fuse when close, explode after fuse.
+          if (isNight || mob.aggro) {
+            const fuseRangeSq = (def.fuseRange || 4) * (def.fuseRange || 4);
+            mob.state = 'walking';
+            mob.targetYaw = Math.atan2(-dx, -dz);
+            mob.stateTimer = 0.5;
+
+            if (distSq < fuseRangeSq) {
+              // Close enough to start fuse — stop moving and hiss
+              mob.velocity.x = 0;
+              mob.velocity.z = 0;
+              mob.state = 'idle';
+              mob.fuseTimer = (mob.fuseTimer || 0) + dt;
+              mob.attackAnim = Math.min(1, mob.fuseTimer / (def.fuseTime || 2.0));
+              // Play hiss on fuse start
+              if (mob.fuseTimer < dt * 1.5 && this.audio) {
+                this.audio.mobHurt('creeper');
+              }
+              if (mob.fuseTimer >= (def.fuseTime || 2.0)) {
+                // Explode!
+                const ep = def.explosionPower || 3;
+                if (this.explosionManager) {
+                  this.explosionManager.explode(mob.position.x, mob.position.y + 0.5, mob.position.z, ep);
+                }
+                // Damage player
+                if (playerPos) {
+                  const pdx = playerPos.x - mob.position.x;
+                  const pdz = playerPos.z - mob.position.z;
+                  const pdistSq = pdx * pdx + pdz * pdz;
+                  const maxDist = ep * 2;
+                  if (pdistSq < maxDist * maxDist) {
+                    const factor = 1 - Math.sqrt(pdistSq) / maxDist;
+                    const dmg = Math.floor(factor * ep * 4);
+                    if (dmg > 0) attackEvents.push({ type: 'attack', damage: dmg, fromPos: { x: mob.position.x, y: mob.position.y, z: mob.position.z } });
+                  }
+                }
+                mob.hp = 0;
+                mob.dead = true;
+              }
+            } else {
+              mob.fuseTimer = 0;
+              mob.attackAnim = 0;
             }
           } else if (!isNight && !mob.aggro && mob.state === 'walking' && distSq < 400 && distSq < 16) {
             mob.targetYaw = Math.atan2(dx, dz);
