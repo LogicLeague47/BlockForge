@@ -1470,7 +1470,16 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: 'LIVE',
+          hash: 'ed5ba57',
+          heading: 'Mobile jump fix',
+          desc: 'Fixed mobile jump button not registering — touch events in the same frame were wiping the Space key before the player could read it. PC jump was already working.',
+          date: 'Aug 26',
+          bugs: ['mobile jump button not working'],
+          updates: ['mobile jump uses single-frame pulse so touchstart+touchend in same frame still registers', 'added postUpdate hook to clear jump key after player reads it'],
+          features: [],
+        },
+        {
+          hash: 'ef2c55f',
           heading: 'Bedwars stability, liquid flow, water levels, collision fixes',
           desc: 'Increased server heartbeat timeout to prevent Bedwars kicks during heavy map loads. Enabled water/lava flow simulation in all game modes (was skyblock-only). Water now shows different heights for source vs flowing states. Fixed Frost Wand not notifying the liquid sim. Added error handling to liquid simulation. More resilient disconnect/reconnect for multiplayer.',
           date: 'Aug 26',
