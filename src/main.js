@@ -10030,6 +10030,8 @@ function _gameFrame() {
   // player physics (skip during sleep / replay camera)
   if (!sleeping && !replayMode) {
     player.update(dt, input);
+    // Clear mobile jump pulse after player.update has read it.
+    if (mobile?.postUpdate) mobile.postUpdate();
 
     updateUtilityItems(dt);
     updateVehicles(dt);

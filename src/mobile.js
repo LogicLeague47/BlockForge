@@ -317,7 +317,9 @@ export function initMobileControls(playerRef, input, callbacks) {
     }
     if (action === 'jump') {
       state.jumpHeld = down;
-      input.keys['Space'] = down;
+      // Don't clear Space immediately on touchend — the player update may not
+      // have run yet. Instead, let the per-frame `update()` below clear it.
+      if (down) input.keys['Space'] = true;
     } else if (action === 'sprint') {
       if (down) {
         state.sprintOn = !state.sprintOn;
@@ -378,6 +380,11 @@ export function initMobileControls(playerRef, input, callbacks) {
     input.keys['KeyD'] = ax > 0.05;
     const mag = Math.hypot(ax, az);
     input.keys['ShiftLeft'] = state.sprintOn || mag > 0.9;
+  };
+
+  // Called AFTER player.update() so the jump key pulse is consumed.
+  state.postUpdate = function () {
+    if (!state.jumpHeld) input.keys['Space'] = false;
   };
 
   return state;
