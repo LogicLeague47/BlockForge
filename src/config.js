@@ -1,28 +1,17 @@
 // Shared config: multiplayer endpoint + runtime asset base.
 //
-// CrazyGames only hosts the client bundle (capped at 250MB total / 20MB
-// initial download). The heavy assets (Music, Sounds, parkour chunks) are
-// stripped from the CG build and streamed at runtime from our own always-on
-// Render server, which serves the full `dist/` statically. This keeps the
-// uploaded zip tiny while the real game data lives on our infrastructure
-// (the same "bloxd.io" trick: only the load->gameplaystart window is
-// measured against the size limits).
+// All host URLs are driven by build-time environment variables so switching
+// providers (Render → Oracle Cloud, etc.) requires zero code changes — just
+// set the env vars and rebuild.
 //
-// `IS_CG_BUILD` is injected at build time via Vite's `define` (see
-// vite.config.js, mode === 'cg'). It is true ONLY for the CG build, so
-// every other deployment (Render, localhost, tunnel) keeps
-// using relative asset paths and the correct multiplayer endpoint.
+// `IS_CG_BUILD` is injected at build time via esbuild's `define`.
 
-export const BACKEND_URL = 'wss://blockforge-server.onrender.com';
+export const BACKEND_URL = process.env.BF_BACKEND_WS || 'wss://blockforge-server.onrender.com';
 
-// Official SMP is the one server we (the dev) host. Players join it by default
-// and can host their own (see the "Create Server" page) which they connect to
-// by IP. The address is just our own backend over ws.
+// Official SMP is the one server we (the dev) host.
 export const OFFICIAL_SMP_URL = BACKEND_URL;
 
-// Live-server directory: the portal + client fetch this to list every server
-// that's currently up (Official SMP + player-hosted). Derived from the backend
-// so it works even when the game is embedded on another site (CORS-enabled).
+// Live-server directory: the portal + client fetch this to list every server.
 export const DIRECTORY_URL = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/api/servers';
 
 export const IS_CG_BUILD =
@@ -31,9 +20,7 @@ export const IS_CG_BUILD =
 // Where to fetch static assets (audio, chunks) from.
 export function assetBase() {
   if (IS_CG_BUILD) {
-    // Point at our Render server (serves the full dist/).
     return BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/';
   }
-  // Relative to the current page — works at the site root or any subpath.
   return (location.pathname || '/').replace(/[^/]*$/, '');
 }

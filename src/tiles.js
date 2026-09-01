@@ -165,7 +165,6 @@ const PAINTERS = {
       ctx.fillStyle = rng() < 0.5 ? 'rgb(104,72,48)' : 'rgb(150,110,78)';
       ctx.fillRect(x0 + x, y0 + y, 2, 2);
     }
-    // Green palette — dark muted Minecraft-style greens.
     const shades = [
       [48, 95, 24],
       [55, 110, 30],
@@ -173,27 +172,21 @@ const PAINTERS = {
       [75, 140, 45],
       [42, 85, 20],
     ];
-    // Per-column grass blades: each column gets its own height (2-10px),
-    // width pattern, and shade. Blades are connected to the top edge.
+    // Every column gets a single top-connected grass blade with a fully random
+    // height (3-14 px).  Blades are 1 px wide solid lines — no scattered pixels.
     for (let x = 0; x < TILE; x++) {
-      // How many columns this blade occupies (1 or 2px wide, connected).
-      const bladeW = rng() < 0.3 ? 2 : 1;
-      // Height: 2–10 px, deterministic per column.
-      const h = 2 + (((x * 7 + (x >> 2) + (rng() * 5) | 0)) % 9);
-      // Pick a shade — neighbours tend toward similar but not identical.
-      const baseIdx = (x * 3 + (rng() * 3) | 0) % shades.length;
-      const s = shades[baseIdx];
-      // Brighten tip (topmost pixel), darken base (lowest pixel).
+      const h = 3 + (rng() * 12 | 0);
+      const s = shades[(rng() * shades.length) | 0];
       for (let y = 0; y < h; y++) {
         let r = s[0], g = s[1], b = s[2];
-        if (y === 0) { r += 10; g += 14; b += 4; }           // sunlit tip
-        else if (y >= h - 1) { r -= 10; g -= 12; b -= 5; }   // shadow base
+        if (y === 0) { r += 12; g += 16; b += 5; }
+        else if (y >= h - 1) { r -= 10; g -= 12; b -= 5; }
         else { r += ((rng() * 8) | 0) - 4; g += ((rng() * 10) | 0) - 5; }
         r = Math.max(0, Math.min(255, r));
         g = Math.max(0, Math.min(255, g));
         b = Math.max(0, Math.min(255, b));
         ctx.fillStyle = `rgb(${r},${g},${b})`;
-        ctx.fillRect(x0 + x, y0 + y, bladeW, 1);
+        ctx.fillRect(x0 + x, y0 + y, 1, 1);
       }
     }
   },

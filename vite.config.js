@@ -19,6 +19,8 @@ export default defineConfig(({ mode }) => {
     },
     define: {
       __CG__: JSON.stringify(mode === 'cg'),
+      'process.env.BF_BACKEND_WS': JSON.stringify(process.env.BF_BACKEND_WS || ''),
+      'process.env.BF_WEB_HOST': JSON.stringify(process.env.BF_WEB_HOST || ''),
     },
     build: {
       // Old devices (e.g. iPhone 5 / old Safari < iOS 11) don't support ES
