@@ -3066,6 +3066,61 @@ PAINTERS.wheat_3 = (ctx, x0, y0, rng) => {
   }
 };
 
+// --- campfire & lantern painters ---
+PAINTERS.campfire = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  ctx.clearRect(x0, y0, S, S);
+  // Log base
+  ctx.fillStyle = '#5a3a1a';
+  ctx.fillRect(x0 + 4, y0 + S - 8, S - 8, 6);
+  ctx.fillStyle = '#4a2a10';
+  ctx.fillRect(x0 + 6, y0 + S - 6, S - 12, 2);
+  // Fire: bright orange/yellow flames
+  const flames = [[10, 6], [16, 2], [22, 8], [14, 4], [20, 3], [12, 10]];
+  for (const [fx, fy] of flames) {
+    const h = 6 + (rng() * 8 | 0);
+    ctx.fillStyle = rng() < 0.3 ? '#ffe030' : (rng() < 0.5 ? '#ff8820' : '#ff4400');
+    ctx.fillRect(x0 + fx, y0 + fy, 3, h);
+  }
+  // Sparks
+  ctx.fillStyle = '#fff080';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(x0 + 8 + (rng() * 16 | 0), y0 + (rng() * 8 | 0), 1, 1);
+  }
+};
+PAINTERS.lantern = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  ctx.clearRect(x0, y0, S, S);
+  // Metal frame
+  ctx.fillStyle = '#3a3a3a';
+  ctx.fillRect(x0 + 6, y0 + 4, S - 12, S - 6);
+  ctx.fillRect(x0 + 4, y0 + 6, S - 8, S - 10);
+  // Inner glow
+  ctx.fillStyle = '#ffcc30';
+  ctx.fillRect(x0 + 10, y0 + 10, S - 20, S - 18);
+  ctx.fillStyle = '#ffe880';
+  ctx.fillRect(x0 + 12, y0 + 12, S - 24, S - 22);
+  // Top ring
+  ctx.fillStyle = '#4a4a4a';
+  ctx.fillRect(x0 + 10, y0 + 2, S - 20, 4);
+};
+PAINTERS.soul_lantern = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  ctx.clearRect(x0, y0, S, S);
+  // Darker frame
+  ctx.fillStyle = '#2a2a3a';
+  ctx.fillRect(x0 + 6, y0 + 4, S - 12, S - 6);
+  ctx.fillRect(x0 + 4, y0 + 6, S - 8, S - 10);
+  // Blue-green soul glow
+  ctx.fillStyle = '#30a0c0';
+  ctx.fillRect(x0 + 10, y0 + 10, S - 20, S - 18);
+  ctx.fillStyle = '#60d0e0';
+  ctx.fillRect(x0 + 12, y0 + 12, S - 24, S - 22);
+  // Top ring
+  ctx.fillStyle = '#3a3a4a';
+  ctx.fillRect(x0 + 10, y0 + 2, S - 20, 4);
+};
+
 // --- colored wool painters ---
 const WOOL_COLORS = {
   white_wool:        [238, 236, 232],

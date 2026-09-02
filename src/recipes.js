@@ -596,6 +596,17 @@ export const RECIPES = [
   // ---- Arrow: flint + stick + feather ----
   shaped({ out: { id: I.ARROW, count: 4 },
     pattern: ['F', 'S', 'E'], key: { F: I.FLINT, S: I.STICK, E: I.FEATHER } }),
+
+  // ---- Campfire: 3 logs + 3 sticks + 1 coal ----
+  shaped({ out: { id: B.CAMPFIRE, count: 1 },
+    pattern: ['L', 'S', 'C'], key: { L: B.WOOD, S: I.STICK, C: I.COAL } }),
+
+  // ---- Lantern: 8 iron nuggets + 1 torch (we use iron ingot for now) ----
+  shaped({ out: { id: B.LANTERN, count: 1 },
+    pattern: ['III', 'ITI', 'III'], key: { I: I.IRON_INGOT, T: B.TORCH } }),
+
+  // ---- Soul Lantern: lantern + soul sand ----
+  shapeless({ out: { id: B.SOUL_LANTERN, count: 1 }, ingredients: [B.LANTERN, B.NETHER_WART] }),
 ];
 
 // Smelting recipes: input item id -> output item id.

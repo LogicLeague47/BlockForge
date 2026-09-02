@@ -221,6 +221,10 @@ export const BLOCK = {
   WHEAT_1: 202,
   WHEAT_2: 203,
   WHEAT_3: 204,
+  // Campfire & lanterns (205-207)
+  CAMPFIRE: 205,
+  LANTERN: 206,
+  SOUL_LANTERN: 207,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -477,6 +481,10 @@ export const TILES = {
   wheat_1:               [8, 11],
   wheat_2:               [9, 11],
   wheat_3:               [10, 11],
+  // Campfire & lanterns (row 11, cols 11-13)
+  campfire:              [11, 11],
+  lantern:               [12, 11],
+  soul_lantern:          [13, 11],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -708,6 +716,10 @@ export const BLOCKS = {
   [BLOCK.WHEAT_1]:  { name: 'Wheat Sprouts', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_1' },
   [BLOCK.WHEAT_2]:  { name: 'Wheat Growing', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_2' },
   [BLOCK.WHEAT_3]:  { name: 'Wheat', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 262 /* WHEAT */, faces: 'wheat_3' },
+  // Campfire & lanterns
+  [BLOCK.CAMPFIRE]:   { name: 'Campfire', solid: true, hardness: 2.0, luminance: 15, faces: 'campfire' },
+  [BLOCK.LANTERN]:    { name: 'Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 15, faces: 'lantern' },
+  [BLOCK.SOUL_LANTERN]: { name: 'Soul Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 10, faces: 'soul_lantern' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
