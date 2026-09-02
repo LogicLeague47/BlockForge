@@ -228,7 +228,6 @@ export function makeItemIconCanvas(itemId) {
     case 809: drawSpawnEgg(x, '#4169E1', '#88ccff'); break; // Blower
     case 810: drawSpawnEgg(x, '#8A2BE2', '#ff88ff'); break; // Portalman
     case 811: drawSpawnEgg(x, '#3a2a20', '#ff3333'); break; // Cave Bat
-    case 812: drawSpawnEgg(x, '#33aa33', '#226622'); break; // Creeper
     case 813: drawSpawnEgg(x, '#5a2a3a', '#80ff80'); break; // Witch
     case 860: drawBow(x); break;
     case 861: drawShield(x); break;

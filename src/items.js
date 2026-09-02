@@ -126,7 +126,6 @@ export const ITEM = {
   BLOWER_SPAWN_EGG: 809,
   PORTALMAN_SPAWN_EGG: 810,
   CAVE_BAT_SPAWN_EGG: 811,
-  CREEPER_SPAWN_EGG: 812,
   WITCH_SPAWN_EGG: 813,
   // Original utility / weapon items (820+)
   GRAPPLE_HOOK: 820,
@@ -182,7 +181,6 @@ export const SPAWN_EGG_MOBS = {
   [ITEM.BLOWER_SPAWN_EGG]: 'blower',
   [ITEM.PORTALMAN_SPAWN_EGG]: 'portalman',
   [ITEM.CAVE_BAT_SPAWN_EGG]: 'cave_bat',
-  [ITEM.CREEPER_SPAWN_EGG]: 'creeper',
   [ITEM.WITCH_SPAWN_EGG]: 'witch',
 };
 
@@ -347,8 +345,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.BLOWER_SPAWN_EGG]: { name: 'Blower Spawn Egg', stack: 64 },
   [ITEM.PORTALMAN_SPAWN_EGG]: { name: 'Portalman Spawn Egg', stack: 64 },
   [ITEM.CAVE_BAT_SPAWN_EGG]: { name: 'Cave Bat Spawn Egg', stack: 64 },
-  [ITEM.CREEPER_SPAWN_EGG]:  { name: 'Creeper Spawn Egg', stack: 64 },
-  [ITEM.WITCH_SPAWN_EGG]:   { name: 'Witch Spawn Egg', stack: 64 },
+  [ITEM.WITCH_SPAWN_EGG]:  { name: 'Witch Spawn Egg', stack: 64 },
   // Original utility / weapon items
   [ITEM.GRAPPLE_HOOK]:    { name: 'Grapple Hook', stack: 1 },
   [ITEM.FROST_WAND]:      { name: 'Frost Wand', stack: 1 },
