@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '20000f6',
+          heading: 'Bug fixes: bow, slabs, textures, inventory',
+          desc: 'Fixed multiple bugs: bow now consumes arrows, campfire is non-solid, same-type slabs merge into full blocks, block inventory icons are now isometric 3D, wood blocks guarantee drops, new items have proper textures.',
+          date: 'Sep 2',
+          bugs: ['bow fired unlimited arrows without consuming', 'campfire rendered as solid full block', 'slab inventory icons showed as full blocks', 'wood blocks sometimes dropped nothing', 'new items (shield, fishing rod, bow, spawn eggs) had no inventory icons'],
+          updates: ['bow now consumes 1 arrow per shot (checks inventory)', 'campfire made non-solid/transparent for proper rendering', 'same-type slab on slab merges into full block (stone+stone→stone, etc)', 'slab/stair inventory icons show half-height preview', 'block inventory icons now render as isometric 3D cubes', 'all wood log blocks have explicit drop property', 'added drawBow/drawShield/drawFishingRod item icon painters', 'added witch/creeper spawn egg icons'],
+          features: ['isometric 3D block inventory icons', 'slab vertical stacking'],
+        },
+        {
           hash: '8ec2a55',
           heading: 'Farming, breeding, bow & arrow, more',
           desc: 'Added a complete farming system with farmland, wheat crops, and hoe tools. Animals can now be bred with wheat. Bow & arrow weapon for ranged combat. Multiple bug fixes and texture improvements.',
