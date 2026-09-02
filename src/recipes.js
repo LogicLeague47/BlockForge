@@ -633,6 +633,10 @@ export const RECIPES = [
     pattern: ['N  ', 'NN ', 'NNN'], key: { N: B.NETHER_BRICK } }),
   shaped({ out: { id: B.DEEPSLATE_STAIRS, count: 4 },
     pattern: ['D  ', 'DD ', 'DDD'], key: { D: B.DEEPSLATE } }),
+
+  // ---- Barrel: 6 planks + 2 sticks ----
+  shaped({ out: { id: B.BARREL, count: 1 },
+    pattern: ['PSP', 'P P', 'PSP'], key: { P: B.PLANKS, S: I.STICK } }),
 ];
 
 // Smelting recipes: input item id -> output item id.

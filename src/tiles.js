@@ -3121,6 +3121,22 @@ PAINTERS.soul_lantern = (ctx, x0, y0, rng) => {
   ctx.fillRect(x0 + 10, y0 + 2, S - 20, 4);
 };
 
+// --- barrel painter ---
+PAINTERS.barrel = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  noisy(ctx, x0, y0, [140, 100, 50], 0.06, rng);
+  // Vertical planks
+  ctx.fillStyle = 'rgba(80,50,20,0.3)';
+  for (let x = 6; x < S; x += 8) ctx.fillRect(x0 + x, y0, 2, S);
+  // Horizontal metal bands
+  ctx.fillStyle = '#5a5a5a';
+  ctx.fillRect(x0, y0 + 6, S, 3);
+  ctx.fillRect(x0, y0 + S - 9, S, 3);
+  // Center latch
+  ctx.fillStyle = '#888';
+  ctx.fillRect(x0 + S/2 - 3, y0 + S/2 - 2, 6, 4);
+};
+
 // --- colored wool painters ---
 const WOOL_COLORS = {
   white_wool:        [238, 236, 232],

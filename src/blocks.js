@@ -234,6 +234,8 @@ export const BLOCK = {
   SANDSTONE_STAIRS: 213,
   NETHER_BRICK_STAIRS: 214,
   DEEPSLATE_STAIRS: 215,
+  // Barrel (216)
+  BARREL: 216,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -495,6 +497,7 @@ export const TILES = {
   lantern:               [12, 11],
   soul_lantern:          [13, 11],
   // Stairs reuse existing textures (no new tiles needed)
+  barrel:                [14, 11],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -739,6 +742,8 @@ export const BLOCKS = {
   [BLOCK.SANDSTONE_STAIRS]:    { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true },
   [BLOCK.NETHER_BRICK_STAIRS]: { name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true },
   [BLOCK.DEEPSLATE_STAIRS]:    { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true },
+  // Barrel
+  [BLOCK.BARREL]: { name: 'Barrel', solid: true, hardness: 2.5, tool: 'axe', faces: 'barrel' },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.
