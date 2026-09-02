@@ -607,6 +607,14 @@ export const RECIPES = [
 
   // ---- Soul Lantern: lantern + soul sand ----
   shapeless({ out: { id: B.SOUL_LANTERN, count: 1 }, ingredients: [B.LANTERN, B.NETHER_WART] }),
+
+  // ---- Shield: 6 planks + 1 iron ----
+  shaped({ out: { id: I.SHIELD, count: 1 },
+    pattern: ['PWP', 'PPP', ' P '], key: { P: B.PLANKS, W: I.IRON_INGOT } }),
+
+  // ---- Fishing Rod: 3 sticks + 2 string ----
+  shaped({ out: { id: I.FISHING_ROD, count: 1 },
+    pattern: ['  S', ' TS', 'T  '], key: { S: I.STICK, T: I.STRING } }),
 ];
 
 // Smelting recipes: input item id -> output item id.

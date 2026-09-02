@@ -330,6 +330,32 @@ export const MOB_TYPES = {
     soundChance: 0.001,
   },
 
+  witch: {
+    name: 'Witch',
+    hp: 26,
+    hostile: true,
+    hostileAtNight: true,
+    bipedalLegs: true,
+    bodyW: 0.6, bodyH: 0.95, bodyD: 0.4,
+    headW: 0.5, headH: 0.55, headD: 0.5,
+    legW: 0.14, legH: 0.7, legD: 0.14,
+    headOffY: -0.45,
+    headOffZ: -0.05,
+    hasHood: true,
+    hoodColor: 0x3a1a2a,
+    hasEyes: true,
+    eyeColor: 0x80ff80,
+    bodyColor: 0x5a2a3a,
+    headColor: 0x6a3a4a,
+    legColor: 0x3a1a2a,
+    attackDamage: 4,
+    isBlower: true,
+    throwRange: 14,
+    throwCooldown: 4.0,
+    drops: [{ item: 279, count: [0, 1] }, { item: 309, count: [0, 3] }],
+    soundChance: 0.0004,
+  },
+
   wanderer: {
     name: 'Glitched Wanderer',
     hp: 34,
@@ -1040,6 +1066,7 @@ class Mob {
     if (this.type === 'blower') return this._blowerTextures(def);
     if (this.type === 'portalman') return this._portalmanTextures(def);
     if (this.type === 'creeper') return this._creeperTextures(def);
+    if (this.type === 'witch') return this._witchTextures(def);
     if (this.type === 'dragon') return this._dragonTextures(def);
     if (this.type === 'wanderer') return this._wandererTextures(def);
     if (this.type === 'pixie') return this._pixieTextures(def);
@@ -2751,6 +2778,77 @@ class Mob {
     return { body, head, leg };
   }
 
+  _witchTextures(def) {
+    const s = 64;
+    const PURPLE = 0x5a2a3a, DARK = 0x3a1a2a;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a2a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PURPLE, 12);
+      // Belt
+      ctx.fillStyle = '#2a1018';
+      ctx.fillRect(0, s * 0.5, s, 6);
+      // Potion bottles on belt
+      ctx.fillStyle = '#80ff80';
+      ctx.fillRect(14, s * 0.5 - 4, 5, 5);
+      ctx.fillStyle = '#ff4040';
+      ctx.fillRect(40, s * 0.5 - 4, 5, 5);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a2a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PURPLE, 10);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#3a1a2a'; ctx.fillRect(0, 0, s, s); });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a2a3a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, PURPLE, 12);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#6a3a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x6a3a4a, 12);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a1a2a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#6a3a4a'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#6a3a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x6a3a4a, 10);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#6a3a4a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x6a3a4a, 12);
+      // Green glowing eyes
+      ctx.fillStyle = '#80ff80';
+      ctx.fillRect(12, 24, 10, 8);
+      ctx.fillRect(42, 24, 10, 8);
+      ctx.fillStyle = '#c0ffc0';
+      ctx.fillRect(14, 26, 4, 4);
+      ctx.fillRect(44, 26, 4, 4);
+      // Big nose
+      ctx.fillStyle = '#7a4a5a';
+      ctx.fillRect(28, 32, 8, 10);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a1a2a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, DARK, 10);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
   _dragonTextures(def) {
     const s = 64;
     const DARK = 0x1a0a2a, PURPLE = 0x2a1a4a, RED = 0xff3300, ORANGE = 0xff6600;
@@ -3993,7 +4091,7 @@ export class MobManager {
     const seed = (Date.now() ^ (playerPos.x | 0) ^ ((playerPos.z | 0) << 8)) >>> 0;
     const rng = mulberry32(seed);
     const attempts = 4;
-    const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman', 'creeper'];
+    const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman', 'creeper', 'witch'];
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -4196,7 +4294,7 @@ export class MobManager {
     // Blower and PortalMan are rarer night spawns — added to the pool with
     // reduced weight so they appear occasionally but stay uncommon.
     if (isNight) {
-      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman', 'creeper',
+      spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman', 'creeper', 'witch',
         'crystal_golem', 'shadow_stalker', 'wind_spirit', 'cave_bat', 'cave_bat');
     }
     const placed = [];

@@ -267,6 +267,16 @@ export class Player {
     if (this.isCreative() || this.isDead()) return;
     if (this.damageTimer > 0) return; // i-frames
 
+    // Shield: blocking (crouching) with a shield halves incoming damage
+    let shieldBlocked = false;
+    if (this.isCrouching && this.inventory) {
+      const held = this.inventory.getSelected();
+      if (held && held.item === 861 /* SHIELD */) {
+        amount = Math.max(1, Math.ceil(amount * 0.5));
+        shieldBlocked = true;
+      }
+    }
+
     // Knockback: push away from the damage source if it has a position.
     if (source && typeof source === 'object' && source.x !== undefined) {
       const dx = this.position.x - source.x;

@@ -127,6 +127,7 @@ export const ITEM = {
   PORTALMAN_SPAWN_EGG: 810,
   CAVE_BAT_SPAWN_EGG: 811,
   CREEPER_SPAWN_EGG: 812,
+  WITCH_SPAWN_EGG: 813,
   // Original utility / weapon items (820+)
   GRAPPLE_HOOK: 820,
   FROST_WAND: 821,
@@ -163,6 +164,9 @@ export const ITEM = {
   DIAMOND_HOE: 859,
   // Bow (860)
   BOW: 860,
+  // Shield & fishing (861-862)
+  SHIELD: 861,
+  FISHING_ROD: 862,
 };
 
 export const SPAWN_EGG_MOBS = {
@@ -179,6 +183,7 @@ export const SPAWN_EGG_MOBS = {
   [ITEM.PORTALMAN_SPAWN_EGG]: 'portalman',
   [ITEM.CAVE_BAT_SPAWN_EGG]: 'cave_bat',
   [ITEM.CREEPER_SPAWN_EGG]: 'creeper',
+  [ITEM.WITCH_SPAWN_EGG]: 'witch',
 };
 
 // --- food: how much hunger (in half-drumsticks, 0..20) it restores ----------
@@ -343,6 +348,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.PORTALMAN_SPAWN_EGG]: { name: 'Portalman Spawn Egg', stack: 64 },
   [ITEM.CAVE_BAT_SPAWN_EGG]: { name: 'Cave Bat Spawn Egg', stack: 64 },
   [ITEM.CREEPER_SPAWN_EGG]:  { name: 'Creeper Spawn Egg', stack: 64 },
+  [ITEM.WITCH_SPAWN_EGG]:   { name: 'Witch Spawn Egg', stack: 64 },
   // Original utility / weapon items
   [ITEM.GRAPPLE_HOOK]:    { name: 'Grapple Hook', stack: 1 },
   [ITEM.FROST_WAND]:      { name: 'Frost Wand', stack: 1 },
@@ -376,6 +382,8 @@ const NONBLOCK_ITEMS = {
   [ITEM.IRON_HOE]:   { name: 'Iron Hoe', stack: 1, tool: true },
   [ITEM.DIAMOND_HOE]: { name: 'Diamond Hoe', stack: 1, tool: true },
   [ITEM.BOW]:         { name: 'Bow', stack: 1 },
+  [ITEM.SHIELD]:      { name: 'Shield', stack: 1 },
+  [ITEM.FISHING_ROD]: { name: 'Fishing Rod', stack: 1 },
 };
 
 // --- armor definitions -------------------------------------------------------

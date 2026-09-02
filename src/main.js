@@ -2992,6 +2992,41 @@ function placeBlock(slotOverride, targetHit) {
     return;
   }
 
+  // Fishing Rod: cast near water to catch fish
+  if (itemId === ITEM.FISHING_ROD) {
+    // Check if looking at or near water
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    for (let t = 0.5; t < REACH; t += 0.5) {
+      const wx = Math.floor(camera.position.x + dir.x * t);
+      const wy = Math.floor(camera.position.y + dir.y * t);
+      const wz = Math.floor(camera.position.z + dir.z * t);
+      if (world.getBlock(wx, wy, wz) === BLOCK.WATER) {
+        // Fish! Give raw fish (using chicken_raw as placeholder) + sometimes treasure
+        const loot = Math.random();
+        let fishItem, fishCount;
+        if (loot < 0.6) { fishItem = ITEM.CHICKEN_RAW; fishCount = 1; } // "raw fish"
+        else if (loot < 0.85) { fishItem = ITEM.FLINT; fishCount = 1; } // "junk"
+        else { fishItem = ITEM.EMERALD; fishCount = 1; } // "treasure"
+        if (player) {
+          const added = player.inventory.addItem(fishItem, fishCount);
+          if (added && audio) audio.pickup();
+        }
+        // Splash particles
+        for (let i = 0; i < 6; i++) {
+          const m = new THREE.Mesh(_particleGeoSmall, new THREE.MeshBasicMaterial({ color: 0x4488ff, transparent: true, opacity: 0.6 }));
+          m.position.set(wx + 0.5 + (Math.random()-0.5), wy + 0.8, wz + 0.5 + (Math.random()-0.5));
+          scene.add(m);
+          _particles.push({ mesh: m, vx: (Math.random()-0.5)*2, vy: 2+Math.random()*2, vz: (Math.random()-0.5)*2, life: 0.5, maxLife: 0.5 });
+        }
+        return;
+      }
+    }
+    // No water found
+    if (audio) audio.buttonClick();
+    return;
+  }
+
   // BED item places BED_FOOT at clicked block, BED (head) in facing direction
   if (itemId === ITEM.BED) itemId = BLOCK.BED_FOOT;
 
