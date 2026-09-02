@@ -1477,13 +1477,13 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '20000f6',
-          heading: 'Bug fixes: bow, slabs, textures, inventory',
-          desc: 'Fixed multiple bugs: bow now consumes arrows, campfire is non-solid, same-type slabs merge into full blocks, block inventory icons are now isometric 3D, wood blocks guarantee drops, new items have proper textures.',
+          hash: '7897561',
+          heading: 'Bug fixes: sway, collisions, animations, copyright cleanup',
+          desc: 'Fixed multiple visual and gameplay bugs. Leaf sway now only affects plants/trees, not solid blocks. Stairs and slabs auto-step-up when walking into them. Campfire and void portal blocks have animated shader effects. Inventory icons fixed. Creeper and phantom mobs removed (Minecraft copyright).',
           date: 'Sep 2',
-          bugs: ['bow fired unlimited arrows without consuming', 'campfire rendered as solid full block', 'slab inventory icons showed as full blocks', 'wood blocks sometimes dropped nothing', 'new items (shield, fishing rod, bow, spawn eggs) had no inventory icons'],
-          updates: ['bow now consumes 1 arrow per shot (checks inventory)', 'campfire made non-solid/transparent for proper rendering', 'same-type slab on slab merges into full block (stone+stone→stone, etc)', 'slab/stair inventory icons show half-height preview', 'block inventory icons now render as isometric 3D cubes', 'all wood log blocks have explicit drop property', 'added drawBow/drawShield/drawFishingRod item icon painters', 'added witch/creeper spawn egg icons'],
-          features: ['isometric 3D block inventory icons', 'slab vertical stacking'],
+          bugs: ['all blocks had leaf sway animation (shader heuristic too permissive)', 'could not walk up stairs or slabs without jumping', '3D isometric inventory icons were glitched', 'campfire and void portal had no visual animation', 'creeper and phantom were Minecraft-copyrighted mobs'],
+          updates: ['leaf sway shader only applies to cutout/trans materials (leaves, plants), not opaque blocks', 'fixed vertex shader: pos.x was modified before Z displacement calculation', 'added auto-step-up for slabs and stairs (0.5 block step height)', 'inventory icons show flat texture with depth shading instead of glitched isometric', 'campfire has flickering glow + orange emission animation in shader', 'void portal has pulsing glow + swirling purple animation in shader', 'removed creeper mob, textures, AI, and spawn egg', 'removed phantom mob (already removed)', 'added terrainVertNoSway shader for opaque blocks'],
+          features: ['campfire shader animation (flicker + glow)', 'void portal shader animation (pulse + swirl)', 'auto-step-up for slabs and stairs'],
         },
         {
           hash: '8ec2a55',
