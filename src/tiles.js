@@ -3239,45 +3239,17 @@ export function makeIcon(blockId, atlasCanvas) {
       ctx.fillRect(0, TILE / 2, TILE, 1);
     }
   } else {
-    // Isometric 3D block: draw top face, left face, right face
     const sideName = tileNameFor(blockId, 'side');
     const topName = tileNameFor(blockId, 'top');
     const tSide = TILES[sideName];
     const tTop = TILES[topName];
-    if (tSide && tTop && atlasCanvas) {
-      const s = 16; // half tile = face size
-      // Create temp canvases for tile regions
-      const sideC = document.createElement('canvas'); sideC.width = TILE; sideC.height = TILE;
-      sideC.getContext('2d').drawImage(atlasCanvas, tSide[0] * TILE, tSide[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
-      const topC = document.createElement('canvas'); topC.width = TILE; topC.height = TILE;
-      topC.getContext('2d').drawImage(atlasCanvas, tTop[0] * TILE, tTop[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
-
-      ctx.save();
-      // Top face — isometric diamond at top
-      ctx.save();
-      ctx.translate(s + 8, 2);
-      ctx.transform(1, 0.5, -1, 0.5, 0, 0);
-      ctx.drawImage(topC, 0, 0, s, s);
-      ctx.restore();
-      // Left face — isometric left side
-      ctx.save();
-      ctx.translate(0, s + 2);
-      ctx.transform(1, 0.5, 0, 1, 0, 0);
-      // Darken for left side
-      ctx.globalAlpha = 0.85;
-      ctx.drawImage(sideC, 0, 0, s, s);
-      ctx.restore();
-      // Right face — isometric right side
-      ctx.save();
-      ctx.translate(s + 8, s - 6);
-      ctx.transform(1, 0.5, 0, 1, 0, 0);
-      ctx.globalAlpha = 0.7;
-      ctx.drawImage(sideC, 0, 0, s, s);
-      ctx.restore();
-      ctx.restore();
-    } else {
-      // Fallback: flat texture
-      if (tSide) ctx.drawImage(atlasCanvas, tSide[0] * TILE, tSide[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+    if (tSide && atlasCanvas) {
+      const t = tTop || tSide;
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+      ctx.fillStyle = 'rgba(0,0,0,0.18)';
+      ctx.fillRect(0, 0, TILE, TILE);
+      ctx.fillStyle = 'rgba(255,255,255,0.10)';
+      ctx.fillRect(0, 0, TILE, 2);
     }
   }
 

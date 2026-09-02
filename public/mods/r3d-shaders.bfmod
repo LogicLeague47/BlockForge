@@ -46,7 +46,7 @@ const terrainVert = /* glsl */ `
     float isPlant = step(0.15, greenTint);
     float wind = sin(time * 1.2 + pos.x * 3.0 + pos.z * 2.0) * windStrength * isPlant;
     pos.x += wind;
-    pos.z += sin(time * 0.9 + pos.x * 3.5 + pos.z * 2.5) * windStrength * isPlant;
+    pos.z += sin(time * 0.9 + position.x * 3.5 + pos.z * 2.5) * windStrength * isPlant;
 
     vec4 worldPos = modelMatrix * vec4(pos, 1.0);
     vWorldPos = worldPos.xyz;
@@ -56,6 +56,35 @@ const terrainVert = /* glsl */ `
     vShadowCoord = shadowMatrix * (worldPos + vec4(normal * shadowNormalBias, 0.0));
 
     vec4 mvPos = modelViewMatrix * vec4(pos, 1.0);
+    vFogDepth = -mvPos.z;
+    gl_Position = projectionMatrix * mvPos;
+  }
+`;
+
+// Non-swaying variant for opaque blocks (solid geometry should not sway)
+const terrainVertNoSway = /* glsl */ `
+  attribute vec3 color;
+
+  uniform vec3 sunDirection;
+  uniform mat4 shadowMatrix;
+  uniform float shadowNormalBias;
+
+  varying vec2 vUv;
+  varying vec3 vColor;
+  varying vec3 vNormal;
+  varying vec3 vWorldPos;
+  varying float vFogDepth;
+  varying vec4 vShadowCoord;
+
+  void main() {
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vWorldPos = worldPos.xyz;
+    vUv = uv;
+    vColor = color;
+    vNormal = normal;
+    vShadowCoord = shadowMatrix * (worldPos + vec4(normal * shadowNormalBias, 0.0));
+
+    vec4 mvPos = modelViewMatrix * vec4(position, 1.0);
     vFogDepth = -mvPos.z;
     gl_Position = projectionMatrix * mvPos;
   }
@@ -133,6 +162,8 @@ const fragHelpers = /* glsl */ `
 const opaqueFrag = /* glsl */ `
   ${fragHelpers}
 
+  uniform float time;
+
   void main() {
     vec4 tex = texture2D(atlas, vUv);
 
@@ -148,6 +179,24 @@ const opaqueFrag = /* glsl */ `
     lighting *= shadowTone(shadow);
 
     vec3 baseColor = tex.rgb * vColor;
+
+    // Animated tiles: campfire [11,11] and void portal [3,8]
+    vec2 tileUV = fract(vUv * 16.0);
+    vec2 tileID = floor(vUv * 16.0);
+    // Campfire: flicker glow
+    if (tileID.x == 11.0 && tileID.y == 11.0) {
+      float flicker = 0.8 + 0.2 * sin(time * 8.0 + tileUV.x * 12.0) * cos(time * 6.0 + tileUV.y * 10.0);
+      baseColor *= flicker;
+      baseColor += vec3(0.15, 0.06, 0.0) * (0.5 + 0.5 * sin(time * 4.0 + tileUV.y * 8.0));
+    }
+    // Void Portal: pulse + color shift
+    if (tileID.x == 3.0 && tileID.y == 8.0) {
+      float pulse = 0.7 + 0.3 * sin(time * 2.5);
+      float swirl = sin(tileUV.x * 6.28 + time * 3.0) * cos(tileUV.y * 6.28 + time * 2.0);
+      baseColor *= pulse;
+      baseColor += vec3(0.05, 0.0, 0.12) * (0.5 + 0.5 * swirl);
+    }
+
     vec3 finalColor = baseColor * (sunColor * lighting + ambientColor * 0.25);
 
     float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
@@ -159,6 +208,8 @@ const opaqueFrag = /* glsl */ `
 
 const transFrag = /* glsl */ `
   ${fragHelpers}
+
+  uniform float time;
 
   void main() {
     vec4 tex = texture2D(atlas, vUv);
@@ -176,6 +227,22 @@ const transFrag = /* glsl */ `
     lighting *= shadowTone(shadow);
 
     vec3 baseColor = tex.rgb * vColor;
+
+    // Animated tiles: campfire [11,11] and void portal [3,8]
+    vec2 tileUV = fract(vUv * 16.0);
+    vec2 tileID = floor(vUv * 16.0);
+    if (tileID.x == 11.0 && tileID.y == 11.0) {
+      float flicker = 0.8 + 0.2 * sin(time * 8.0 + tileUV.x * 12.0) * cos(time * 6.0 + tileUV.y * 10.0);
+      baseColor *= flicker;
+      baseColor += vec3(0.15, 0.06, 0.0) * (0.5 + 0.5 * sin(time * 4.0 + tileUV.y * 8.0));
+    }
+    if (tileID.x == 3.0 && tileID.y == 8.0) {
+      float pulse = 0.7 + 0.3 * sin(time * 2.5);
+      float swirl = sin(tileUV.x * 6.28 + time * 3.0) * cos(tileUV.y * 6.28 + time * 2.0);
+      baseColor *= pulse;
+      baseColor += vec3(0.05, 0.0, 0.12) * (0.5 + 0.5 * swirl);
+    }
+
     vec3 finalColor = baseColor * (sunColor * lighting + ambientColor * 0.25);
 
     float fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
@@ -320,7 +387,7 @@ export function onLoad(api) {
 
   const mats = {
     opaque: new THREE.ShaderMaterial({
-      vertexShader: terrainVert,
+      vertexShader: terrainVertNoSway,
       fragmentShader: opaqueFrag,
       uniforms: makeTerrainUniforms(atlas),
       side: THREE.FrontSide,

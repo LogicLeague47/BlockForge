@@ -873,11 +873,31 @@ export class Player {
         for (let x = x0; x <= x1; x++) {
           const b = this.world.getBlock(x, y, z);
           if (!BLOCKS[b]?.solid) continue;
-          // Slabs have half the collision height (0.5 instead of 1.0).
-          const blockMax = BLOCKS[b]?.slab ? 0.5 : 1;
+          // Slabs and stairs: half collision height (0.5), auto-step-up
+          const isStepBlock = BLOCKS[b]?.slab || BLOCKS[b]?.stair;
+          const blockMax = isStepBlock ? 0.5 : 1;
           if (axis === 'x') {
+            // Step-up: if the block is short (slab/stair) and there's room above, climb it
+            if (isStepBlock && delta !== 0) {
+              const above = this.world.getBlock(x, y + 1, z);
+              if (!BLOCKS[above]?.solid) {
+                this.position.y = y + blockMax + 0.0001;
+                this.onGround = true;
+                this.velocity.y = 0;
+                continue;
+              }
+            }
             this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else if (axis === 'z') {
+            if (isStepBlock && delta !== 0) {
+              const above = this.world.getBlock(x, y + 1, z);
+              if (!BLOCKS[above]?.solid) {
+                this.position.y = y + blockMax + 0.0001;
+                this.onGround = true;
+                this.velocity.y = 0;
+                continue;
+              }
+            }
             this.position.z = delta > 0 ? z - PLAYER_HALF_WIDTH - 0.0001 : z + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else {
             if (delta < 0) {
