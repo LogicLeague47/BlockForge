@@ -10,7 +10,7 @@ import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
-import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor } from './blocks.js';
+import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
@@ -2981,14 +2981,19 @@ function placeBlock(slotOverride, targetHit) {
     return;
   }
 
-  // Bow: fire an arrow projectile
+  // Bow: fire an arrow projectile (consumes 1 arrow from inventory)
   if (itemId === ITEM.BOW && mobManager) {
+    if (player && player.inventory) {
+      if (!player.inventory.has(ITEM.ARROW, 1)) { if (audio) audio.buttonClick(); return; }
+      player.inventory.remove(ITEM.ARROW, 1);
+    }
     const dir = _mobDirVec;
     camera.getWorldDirection(dir);
     const speed = 32;
     const arrow = new Arrow(scene, camera.position.x, camera.position.y + 0.3, camera.position.z, dir.x * speed, dir.y * speed, dir.z * speed);
     mobManager._arrows.push(arrow);
     if (audio) audio.throwProjectile();
+    syncUIMode();
     return;
   }
 
@@ -3041,6 +3046,21 @@ function placeBlock(slotOverride, targetHit) {
   const py = Math.floor(player.position.y);
   const pz = Math.floor(player.position.z);
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
+
+  // Slab stacking: same-type slab on slab → merge into full block
+  if (hit.block && BLOCKS[itemId]?.slab) {
+    const existingSlab = hit.block;
+    const fullBlock = SLAB_TO_FULL[itemId];
+    if (fullBlock && existingSlab === itemId) {
+      world.setBlock(hit.x, hit.y, hit.z, fullBlock);
+      if (BLOCKS[fullBlock]?.luminance) addBlockLight(hit.x, hit.y, hit.z, fullBlock);
+      liquidBlockChanged(hit.x, hit.y, hit.z);
+      if (audio) audio.blockPlace(fullBlock);
+      if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, fullBlock);
+      manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+      return;
+    }
+  }
 
   world.setBlock(x, y, z, itemId);
   if (BLOCKS[itemId]?.luminance) addBlockLight(x, y, z, itemId);

@@ -356,6 +356,33 @@ export const MOB_TYPES = {
     soundChance: 0.0004,
   },
 
+  phantom: {
+    name: 'Phantom',
+    hp: 20,
+    hostile: true,
+    hostileAtNight: true,
+    bodyW: 0.8, bodyH: 0.6, bodyD: 0.6,
+    headW: 0.5, headH: 0.4, headD: 0.5,
+    legW: 0, legH: 0, legD: 0,
+    headOffY: -0.3,
+    headOffZ: -0.2,
+    hasEyes: true,
+    eyeColor: 0x80ffff,
+    hasWings: true,
+    wingSpan: 2.5,
+    wingColor: 0x2a3a4a,
+    bodyColor: 0x3a4a5a,
+    headColor: 0x4a5a6a,
+    attackDamage: 6,
+    isFlying: true,
+    flyHeight: 4,
+    aggroRange: 64,
+    attackRange: 2.5,
+    speed: 12,
+    drops: [{ item: 281, count: [0, 2] }], // phantom membrane (arrows for now)
+    soundChance: 0.0006,
+  },
+
   wanderer: {
     name: 'Glitched Wanderer',
     hp: 34,
@@ -1067,6 +1094,7 @@ class Mob {
     if (this.type === 'portalman') return this._portalmanTextures(def);
     if (this.type === 'creeper') return this._creeperTextures(def);
     if (this.type === 'witch') return this._witchTextures(def);
+    if (this.type === 'phantom') return this._phantomTextures(def);
     if (this.type === 'dragon') return this._dragonTextures(def);
     if (this.type === 'wanderer') return this._wandererTextures(def);
     if (this.type === 'pixie') return this._pixieTextures(def);
@@ -2847,6 +2875,64 @@ class Mob {
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
+  }
+
+  _phantomTextures(def) {
+    const s = 64;
+    const BLUE = 0x3a4a5a, DARK = 0x2a3a4a;
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a4a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BLUE, 14);
+      // Ghostly wisps
+      ctx.fillStyle = 'rgba(120,255,255,0.15)';
+      for (let i = 0; i < 6; i++) {
+        ctx.fillRect(rng(s) * s | 0, rng(s) * s | 0, 4 + (rng(s)*8|0), 2);
+      }
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a4a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BLUE, 10);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#2a3a4a'; ctx.fillRect(0, 0, s, s); });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a4a5a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, BLUE, 12);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a5a6a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x4a5a6a, 12);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a5a6a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#3a4a5a'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a4a5a';
+      ctx.fillRect(0, 0, s, s);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a5a6a';
+      ctx.fillRect(0, 0, s, s);
+      this._noiseTex(ctx, s, s, 0x4a5a6a, 12);
+      // Glowing cyan eyes
+      ctx.fillStyle = '#00e0ff';
+      ctx.fillRect(10, 22, 12, 8);
+      ctx.fillRect(42, 22, 12, 8);
+      ctx.fillStyle = '#80ffff';
+      ctx.fillRect(12, 24, 6, 4);
+      ctx.fillRect(44, 24, 6, 4);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    return { body, head };
   }
 
   _dragonTextures(def) {

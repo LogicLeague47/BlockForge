@@ -228,6 +228,11 @@ export function makeItemIconCanvas(itemId) {
     case 809: drawSpawnEgg(x, '#4169E1', '#88ccff'); break; // Blower
     case 810: drawSpawnEgg(x, '#8A2BE2', '#ff88ff'); break; // Portalman
     case 811: drawSpawnEgg(x, '#3a2a20', '#ff3333'); break; // Cave Bat
+    case 812: drawSpawnEgg(x, '#33aa33', '#226622'); break; // Creeper
+    case 813: drawSpawnEgg(x, '#5a2a3a', '#80ff80'); break; // Witch
+    case 860: drawBow(x); break;
+    case 861: drawShield(x); break;
+    case 862: drawFishingRod(x); break;
     default: {
       x.fillStyle = '#888';
       x.fillRect(3, 3, 10, 10);
@@ -621,6 +626,58 @@ function drawArrow(x) {
   px(x, '#a8a840', 2, 12, 1, 1);
   // metal/iron band
   px(x, '#9a9a9a', 11, 4, 1, 1);
+}
+
+function drawBow(x) {
+  // Curved bow with string
+  px(x, '#8B6914', 5, 2, 2, 12); // handle
+  px(x, '#a07840', 4, 3, 1, 10);
+  px(x, '#7a5a28', 6, 3, 1, 10);
+  // Upper limb
+  px(x, '#8B6914', 3, 2, 2, 1);
+  px(x, '#a07840', 2, 3, 1, 1);
+  // Lower limb
+  px(x, '#8B6914', 3, 13, 2, 1);
+  px(x, '#a07840', 2, 12, 1, 1);
+  // String
+  px(x, '#c8c8c8', 2, 4, 1, 8);
+  // Arrow nocked
+  px(x, '#a07840', 7, 6, 1, 6);
+  px(x, '#3a3a40', 8, 5, 1, 1);
+}
+
+function drawShield(x) {
+  // Shield: pointed bottom, metal boss
+  px(x, '#8B6914', 4, 2, 8, 1); // top edge
+  px(x, '#a07840', 3, 3, 10, 1);
+  px(x, '#8B6914', 3, 4, 10, 6);
+  px(x, '#a07840', 3, 10, 10, 2);
+  px(x, '#8B6914', 4, 12, 8, 1);
+  px(x, '#a07840', 5, 13, 6, 1);
+  px(x, '#8B6914', 6, 14, 4, 1);
+  // Metal boss (center circle)
+  px(x, '#9a9a9a', 6, 5, 4, 4);
+  px(x, '#c8c8c8', 7, 6, 2, 2);
+  // Metal rim
+  px(x, '#7a7a7a', 3, 3, 10, 1);
+  px(x, '#7a7a7a', 3, 3, 1, 9);
+}
+
+function drawFishingRod(x) {
+  // Rod: stick + line + hook
+  px(x, '#8B6914', 6, 2, 2, 12);
+  px(x, '#a07840', 7, 3, 1, 10);
+  // Line
+  px(x, '#c8c8c8', 5, 2, 1, 1);
+  px(x, '#c8c8c8', 4, 1, 1, 1);
+  px(x, '#c8c8c8', 3, 2, 1, 1);
+  // Hook
+  px(x, '#9a9a9a', 3, 3, 1, 1);
+  px(x, '#9a9a9a', 2, 4, 1, 2);
+  px(x, '#9a9a9a', 3, 5, 1, 1);
+  // Bobber
+  px(x, '#ff4444', 2, 1, 2, 1);
+  px(x, '#ffffff', 2, 0, 2, 1);
 }
 
 function drawEgg(x) {

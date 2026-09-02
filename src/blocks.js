@@ -730,7 +730,7 @@ export const BLOCKS = {
   [BLOCK.WHEAT_2]:  { name: 'Wheat Growing', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_2' },
   [BLOCK.WHEAT_3]:  { name: 'Wheat', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 262 /* WHEAT */, faces: 'wheat_3' },
   // Campfire & lanterns
-  [BLOCK.CAMPFIRE]:   { name: 'Campfire', solid: true, hardness: 2.0, luminance: 15, faces: 'campfire' },
+  [BLOCK.CAMPFIRE]:   { name: 'Campfire', solid: false, transparent: true, cutout: true, hardness: 2.0, luminance: 15, faces: 'campfire' },
   [BLOCK.LANTERN]:    { name: 'Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 15, faces: 'lantern' },
   [BLOCK.SOUL_LANTERN]: { name: 'Soul Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 10, faces: 'soul_lantern' },
   // Stairs
@@ -814,6 +814,24 @@ export function isCraftingTable(blockId) {
     || blockId === BLOCK.SPRUCE_CRAFTING
     || blockId === BLOCK.DARK_OAK_CRAFTING
     || blockId === BLOCK.ACACIA_CRAFTING;
+}
+
+// Slab stacking: same-type slab on slab → full block
+export const SLAB_TO_FULL = {
+  [BLOCK.STONE_SLAB]: BLOCK.STONE,
+  [BLOCK.OAK_SLAB]: BLOCK.PLANKS,
+  [BLOCK.COBBLESTONE_SLAB]: BLOCK.COBBLESTONE,
+  [BLOCK.BRICK_SLAB]: BLOCK.BRICK,
+  [BLOCK.QUARTZ_SLAB]: BLOCK.QUARTZ_BLOCK,
+  [BLOCK.SANDSTONE_SLAB]: BLOCK.SANDSTONE,
+  [BLOCK.NETHER_BRICK_SLAB]: BLOCK.NETHER_BRICK,
+  [BLOCK.DEEPSLATE_SLAB]: BLOCK.DEEPSLATE,
+};
+
+// Is this a stair block? (for collision)
+export function isStairBlock(blockId) {
+  const d = BLOCKS[blockId];
+  return d && d.stair;
 }
 
 // Wire the meta lookups into items.js (avoids a circular import at module load).

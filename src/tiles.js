@@ -16,7 +16,7 @@
 //   tileUVRect(name)            -> {u0,v0,u1,v1}
 //   TILE                        -> pixels per tile (exported for atlas consumers)
 
-import { TILES, tileNameFor } from './blocks.js';
+import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 
 const _makeIconCache = new Map();
 const _MAKE_ICON_CACHE_MAX = 200;
@@ -3232,7 +3232,16 @@ export function makeIcon(blockId, atlasCanvas) {
   const name = tileNameFor(blockId, 'side');
   const t = TILES[name];
   if (t) {
-    ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+    const def = BLOCKS[blockId];
+    if (def && (def.slab || def.stair)) {
+      // Half-block: draw the tile scaled to bottom half of the icon
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, TILE / 2, TILE, TILE / 2);
+      // Subtle top edge highlight
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(0, TILE / 2, TILE, 1);
+    } else {
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+    }
   }
   if (_makeIconCache.size >= _MAKE_ICON_CACHE_MAX) {
     const firstKey = _makeIconCache.keys().next().value;
