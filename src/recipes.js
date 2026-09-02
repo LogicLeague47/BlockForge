@@ -615,6 +615,24 @@ export const RECIPES = [
   // ---- Fishing Rod: 3 sticks + 2 string ----
   shaped({ out: { id: I.FISHING_ROD, count: 1 },
     pattern: ['  S', ' TS', 'T  '], key: { S: I.STICK, T: I.STRING } }),
+
+  // ---- Stairs: 6 blocks → 4 stairs ----
+  shaped({ out: { id: B.STONE_STAIRS, count: 4 },
+    pattern: ['S  ', 'SS ', 'SSS'], key: { S: B.STONE } }),
+  shaped({ out: { id: B.OAK_STAIRS, count: 4 },
+    pattern: ['P  ', 'PP ', 'PPP'], key: { P: B.PLANKS } }),
+  shaped({ out: { id: B.COBBLESTONE_STAIRS, count: 4 },
+    pattern: ['C  ', 'CC ', 'CCC'], key: { C: B.COBBLESTONE } }),
+  shaped({ out: { id: B.BRICK_STAIRS, count: 4 },
+    pattern: ['B  ', 'BB ', 'BBB'], key: { B: B.BRICK } }),
+  shaped({ out: { id: B.QUARTZ_STAIRS, count: 4 },
+    pattern: ['Q  ', 'QQ ', 'QQQ'], key: { Q: B.QUARTZ_BLOCK } }),
+  shaped({ out: { id: B.SANDSTONE_STAIRS, count: 4 },
+    pattern: ['S  ', 'SS ', 'SSS'], key: { S: B.SANDSTONE } }),
+  shaped({ out: { id: B.NETHER_BRICK_STAIRS, count: 4 },
+    pattern: ['N  ', 'NN ', 'NNN'], key: { N: B.NETHER_BRICK } }),
+  shaped({ out: { id: B.DEEPSLATE_STAIRS, count: 4 },
+    pattern: ['D  ', 'DD ', 'DDD'], key: { D: B.DEEPSLATE } }),
 ];
 
 // Smelting recipes: input item id -> output item id.

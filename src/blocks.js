@@ -225,6 +225,15 @@ export const BLOCK = {
   CAMPFIRE: 205,
   LANTERN: 206,
   SOUL_LANTERN: 207,
+  // Stairs (208-215)
+  STONE_STAIRS: 208,
+  OAK_STAIRS: 209,
+  COBBLESTONE_STAIRS: 210,
+  BRICK_STAIRS: 211,
+  QUARTZ_STAIRS: 212,
+  SANDSTONE_STAIRS: 213,
+  NETHER_BRICK_STAIRS: 214,
+  DEEPSLATE_STAIRS: 215,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -485,6 +494,7 @@ export const TILES = {
   campfire:              [11, 11],
   lantern:               [12, 11],
   soul_lantern:          [13, 11],
+  // Stairs reuse existing textures (no new tiles needed)
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -720,6 +730,15 @@ export const BLOCKS = {
   [BLOCK.CAMPFIRE]:   { name: 'Campfire', solid: true, hardness: 2.0, luminance: 15, faces: 'campfire' },
   [BLOCK.LANTERN]:    { name: 'Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 15, faces: 'lantern' },
   [BLOCK.SOUL_LANTERN]: { name: 'Soul Lantern', solid: true, transparent: true, hardness: 3.0, luminance: 10, faces: 'soul_lantern' },
+  // Stairs
+  [BLOCK.STONE_STAIRS]:        { name: 'Stone Stairs', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', stair: true },
+  [BLOCK.OAK_STAIRS]:          { name: 'Oak Stairs', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', stair: true },
+  [BLOCK.COBBLESTONE_STAIRS]:  { name: 'Cobblestone Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', stair: true },
+  [BLOCK.BRICK_STAIRS]:        { name: 'Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', stair: true },
+  [BLOCK.QUARTZ_STAIRS]:       { name: 'Quartz Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', stair: true },
+  [BLOCK.SANDSTONE_STAIRS]:    { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true },
+  [BLOCK.NETHER_BRICK_STAIRS]: { name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true },
+  [BLOCK.DEEPSLATE_STAIRS]:    { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true },
 };
 
 // Resolve the tile name for a given block face. dir is 'top'|'bottom'|'side'.

@@ -251,6 +251,15 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
+        // Stairs: L-shape (bottom slab + upper back half, faces toward +Z)
+        if (def.stair) {
+          const tile = typeof def.faces === 'string' ? def.faces : (def.faces?.side || 'stone');
+          const stairTiles = [tile, tile, tile, tile, tile, tile];
+          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], stairTiles, 0, sample);
+          pushBedBox(opaque, wx, y, wz, [0, 0.5, 0.5, 1, 1, 1], stairTiles, 0, sample);
+          continue;
+        }
+
         for (let f = 0; f < 6; f++) {
           const face = FACES[f];
           const nx = wx + face.dir[0], ny = y + face.dir[1], nz = wz + face.dir[2];
