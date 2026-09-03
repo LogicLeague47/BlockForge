@@ -220,43 +220,65 @@ export async function cgHasAdblock() {
 
 // ── user module ─────────────────────────────────────────────────────────
 
-export function cgGetUser() {
-  const u = sdkUser();
-  if (!u) return null;
-  try {
-    if (typeof u.getUser === 'function') return u.getUser();
-  } catch (_) {}
-  return null;
-}
-
-export function cgIsAuthenticated() {
+// v3: isUserAccountAvailable is a boolean PROPERTY (not a function).
+// False on embeds — gate every user-module call on this.
+export function cgIsAccountAvailable() {
   const u = sdkUser();
   if (!u) return false;
   try {
-    if (typeof u.isUserAccountAvailable === 'function') return u.isUserAccountAvailable();
-  } catch (_) {}
-  return false;
+    const v = u.isUserAccountAvailable;
+    return typeof v === 'function' ? !!v() : !!v;
+  } catch (_) { return false; }
+}
+
+// Legacy alias (was checking the property as a function — always false).
+export function cgIsAuthenticated() {
+  return cgIsAccountAvailable();
+}
+
+// v3: getUser() is ASYNC — returns the user object or null (logged out).
+export async function cgGetUser() {
+  const u = sdkUser();
+  if (!u || typeof u.getUser !== 'function') return null;
+  try { return await u.getUser(); } catch (_) { return null; }
 }
 
 // Get user token for server-side auth. Auto-available.
+// NEVER use for client-side identity — send it to the server, which verifies
+// the RS256 signature before trusting the userId (CG ToS).
 export async function cgGetUserToken() {
   const u = sdkUser();
   if (!u || typeof u.getUserToken !== 'function') return null;
   try { return await u.getUserToken(); } catch (_) { return null; }
 }
 
-// Show the CG login/register popup. Auto-available.
+// Show the CG login/register popup. MUST only run on user click — never
+// auto-trigger (CG ToS). Resolves { ok, user?, code? } with raw error codes
+// (showAuthPromptInProgress | userAlreadySignedIn | userCancelled).
 export async function cgShowAuthPrompt() {
   const u = sdkUser();
-  if (!u || typeof u.showAuthPrompt !== 'function') return false;
-  try { await u.showAuthPrompt(); return true; } catch (_) { return false; }
+  if (!u || typeof u.showAuthPrompt !== 'function') return { ok: false, code: 'unavailable' };
+  try {
+    const user = await u.showAuthPrompt();
+    return { ok: true, user };
+  } catch (e) {
+    return { ok: false, code: (e && e.code) || 'unknown' };
+  }
 }
 
-// Show the official CG account linking modal. Auto-available.
+// Show the official CG account-linking modal (ToS: use this, never build your
+// own link prompt). Resolves { ok, answer: 'yes'|'no'|null, code? } with raw
+// codes (showAccountLinkPromptInProgress | userNotAuthenticated).
 export async function cgShowAccountLinkPrompt() {
   const u = sdkUser();
-  if (!u || typeof u.showAccountLinkPrompt !== 'function') return false;
-  try { await u.showAccountLinkPrompt(); return true; } catch (_) { return false; }
+  if (!u || typeof u.showAccountLinkPrompt !== 'function') return { ok: false, answer: null, code: 'unavailable' };
+  try {
+    const res = await u.showAccountLinkPrompt();
+    const answer = res && res.response;
+    return { ok: answer === 'yes', answer: answer || null };
+  } catch (e) {
+    return { ok: false, answer: null, code: (e && e.code) || 'unknown' };
+  }
 }
 
 // Register auth state change listener. Returns a dispose function.

@@ -151,6 +151,24 @@ const BOSS = {
   bossArena:{x:2150,y:200,w:1000,h:280}
 };
 
+const L10 = {
+  name:'10 · Soda Swamp', sub:'the GREAT MOLD wakes',
+  W:3600, H:620, start:{x:80,y:300}, checkpoint:{x:1150,y:300},
+  jams:['berry','mint','choco'], dash:true, dark:false, soda:true,
+  solids:[
+    S(-100,480,600,140), S(700,420,180,20), S(1000,480,600,140),
+    S(1600,480,900,140), S(2600,480,1000,140),
+  ],
+  moldWalls:[],
+  sprinkles:[ P(760,380),P(1200,420),P(1400,420),P(1800,420),P(2000,420),P(2200,420),P(2800,420),P(3000,420) ],
+  enemies:[ E('crawler',1150,440), E('bat',2000,250) ],
+  npcs:[ N('pretzel',1150,480,'The GREAT MOLD ahead feeds on spores! Stomp 20 of them — they come 2 at a time — and it CRUMBLES! Full jam, baby!') ],
+  signs:[ G(1650,400,'Stomp the spores! 20 total! Watch the 👁 counter!') ],
+  hint:'Stomp 20 gate spores to crumble the GREAT MOLD!',
+  sporeGate:{x:2500,w:100,top:180,total:20,batch:2,spawnX:[1950,2250],nearX:1500}
+};
+
 const __gen=[];
-for(let n=4;n<=19;n++) __gen.push(genLevel(n));
+for(let n=4;n<=19;n++){ if(n===10) continue; __gen.push(genLevel(n)); }
+__gen.splice(6,0,L10); // gen order 4,5,6,7,8,9,11… → slot 10 back in place
 window.STALE_LEVELS = [L1,L2,L3].concat(__gen,[BOSS]);

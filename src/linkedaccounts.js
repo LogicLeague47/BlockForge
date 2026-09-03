@@ -45,41 +45,91 @@ export class AccountLinker {
     return sdk;
   }
 
-  // Initialize user registration/continuation with CrazyGames
-  async initCrazyGamesUser(playerName, password) {
-    const sdk = await this.getSDK();
-    if (!sdk) {
-      console.warn('Cannot register user without CrazyGames SDK');
-      return this._initLocalUser(playerName, password);
-    }
-
+  // Is the CG account system usable here? (False on embeds — gate everything.)
+  async cgAvailable() {
     try {
-      const userModule = sdk.user;
+      const sdk = await this.getSDK();
+      const u = sdk && sdk.user;
+      if (!u) return false;
+      const v = u.isUserAccountAvailable;
+      return typeof v === 'function' ? !!v() : !!v;
+    } catch (_) {
+      return false;
+    }
+  }
 
-      // Check if user is already logged in to CrazyGames
-      const cgUser = userModule.getUser?.();
+  // v3 getUser (async). Normalized to { id, username, avatar } where id is
+  // the display-only __dangerousUserId — NEVER used for authentication
+  // (ToS: auth decisions require a server-verified getUserToken() JWT).
+  async cgGetUser() {
+    try {
+      const sdk = await this.getSDK();
+      const u = sdk && sdk.user;
+      if (!u || typeof u.getUser !== 'function') return null;
+      const me = await u.getUser();
+      if (!me) return null;
+      return {
+        id: me.__dangerousUserId || me.userId || null,
+        username: me.username || null,
+        avatar: me.profilePictureUrl || me.avatar || null,
+      };
+    } catch (_) {
+      return null;
+    }
+  }
 
-      if (cgUser && cgUser.id) {
-        // Returning user - automatically sign in with their CrazyGames ID
-        console.log('Returning CrazyGames user:', cgUser.username || cgUser.id);
+  // Raw JWT for server-side auth (verified by our backend, never decoded here).
+  async cgGetUserToken() {
+    try {
+      const sdk = await this.getSDK();
+      const u = sdk && sdk.user;
+      if (!u || typeof u.getUserToken !== 'function') return null;
+      return await u.getUserToken();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Standard CG account-link modal (ToS: use this, never build your own).
+  // Resolves { ok, answer: 'yes'|'no'|null, code? }.
+  async requestAccountLink() {
+    try {
+      const sdk = await this.getSDK();
+      const u = sdk && sdk.user;
+      if (!u || typeof u.showAccountLinkPrompt !== 'function') {
+        return { ok: false, answer: null, code: 'unavailable' };
+      }
+      const res = await u.showAccountLinkPrompt();
+      const answer = res && res.response;
+      return { ok: answer === 'yes', answer: answer || null };
+    } catch (e) {
+      return { ok: false, answer: null, code: (e && e.code) || 'unknown' };
+    }
+  }
+
+  // ToS launch flow: availability gate → logged-in users auto-register/login
+  // via the backend (verified token); logged-out users play as guests with NO
+  // auto-created DB account and NO auth modal (both forbidden).
+  async initCrazyGamesUser(playerName, password) {
+    try {
+      if (!(await this.cgAvailable())) {
+        return this._initLocalUser(playerName, password);
+      }
+      const cgUser = await this.cgGetUser();
+      if (cgUser && cgUser.username) {
+        console.log('Returning CrazyGames user:', cgUser.username);
         return await this._syncExistingAccount(cgUser, playerName);
       }
-
-      // New user who is logged into CrazyGames - auto-register
-      if (userModule.isAuthenticated?.()) {
-        // Try to create a new game account linked to their CrazyGames account
-        const result = await this._createLinkedAccount(cgUser, playerName, password);
-        if (result.success) {
-          console.log('Auto-registered new CrazyGames user:', result.username);
-          return result;
-        } else {
-          console.error('Failed to auto-register:', result.error);
-        }
-      } else {
-        // User browsing as guest - auto-register as guest
-        console.log('Guest user detected - auto-registering as guest');
-        return await this._createGuestAccount(playerName, password);
-      }
+      // Logged-out visitor: guest session, no popups, no DB account.
+      console.log('CrazyGames guest — continuing without an account');
+      return {
+        success: true,
+        username: playerName,
+        userId: null,
+        isGuest: true,
+        created: false,
+        linked: false,
+      };
     } catch (error) {
       console.error('Error initializing CrazyGames user:', error);
       return this._initLocalUser(playerName, password);
@@ -317,12 +367,14 @@ export class AccountLinker {
       }
 
       const userModule = sdk.user;
-      const cgUser = userModule.getUser?.();
-      if (!cgUser || !cgUser.id) {
+      if (!userModule || typeof userModule.getUser !== 'function') {
         throw new Error('No CrazyGames user logged in');
       }
-
-      const cgId = cgUser.id;
+      const me = await userModule.getUser();
+      const cgId = me && (me.__dangerousUserId || me.userId);
+      if (!cgId) {
+        throw new Error('No CrazyGames user logged in');
+      }
 
       // Store external account linkage
       const linkData = {
@@ -431,12 +483,24 @@ export class AccountLinker {
     }
   }
 
-  // Complete the linking of a game account to CrazyGames
+  // Complete the linking of a game account to CrazyGames.
+  // ToS: consent goes through CG's standard account-link modal, never a
+  // custom prompt. Aborts unless the player answers "yes".
   async completeGameAccountLinking(gameAccountId, cgId) {
     try {
       const sdk = await this.getSDK();
       if (!sdk) {
         throw new Error('CrazyGames SDK not available');
+      }
+      const consent = await this.requestAccountLink();
+      if (!consent.ok) {
+        return {
+          success: false,
+          error: consent.code === 'userNotAuthenticated'
+            ? 'Log in to CrazyGames first.'
+            : 'Linking cancelled.',
+          code: consent.code,
+        };
       }
 
       // Fetch the game account data

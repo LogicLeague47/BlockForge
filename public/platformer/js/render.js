@@ -24,30 +24,43 @@ window.STALE_Render = {
       ctx.restore();
     }
   },
-  solids(ctx,list,cam){
+  solids(ctx,list,cam,t){
     for(const s of list){
       const x=s.x-cam.x, y=s.y-cam.y;
       if(x+s.w<-50||x>1010||y+s.h<-50||y>590) continue;
       let fill='#e8c47a';
       if(s.kind==='soda') fill='#7ce7f4';
       if(s.kind==='spawn') fill='#ffd23f';
+      if(s.kind==='gate') fill='#6f7d5f';
       this.rrect(ctx,x,y,s.w,s.h,fill);
+      if(s.kind==='gate'){ this.moldEyes(ctx,x,y,s.w,s.h,t||0); return; }
       if(s.kind==='spawn'){ ctx.font='bold 11px cursive'; ctx.fillStyle='#3a2c1c'; ctx.textAlign='center'; ctx.fillText('⭐ SPAWN',x+s.w/2,y+13); continue; }
       ctx.fillStyle='#c8321e';
       for(let sx=s.x+10;sx<s.x+s.w-6;sx+=26){ ctx.fillRect(sx-cam.x, y+4+Math.sin(sx*0.3)*1.5, 4,4); }
+    }
+  },
+  // creepy watching eyes scattered over a moldy rect (world-space x,y top-left)
+  moldEyes(ctx,x,y,w,h,t){
+    const n=Math.max(2,Math.floor(w*h/1500));
+    for(let i=0;i<n;i++){
+      const ex=x+12+((i*53)%Math.max(1,w-24)), ey=y+13+((i*37)%Math.max(1,h-24));
+      const r=3.5+((i*7)%4);
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.ellipse(ex,ey,r+2.2,r+1,0,0,7); ctx.fill();
+      ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=1.5; ctx.stroke();
+      const px=Math.sin(t*2+i*1.7)*1.6, py=Math.cos(t*1.6+i*2.3)*1.6;
+      ctx.fillStyle='#c00';
+      ctx.beginPath(); ctx.arc(ex+px,ey+py,Math.max(1.5,r*0.45),0,7); ctx.fill();
+      ctx.fillStyle='#fff';
+      ctx.beginPath(); ctx.arc(ex+px-0.8,ey+py-0.8,0.8,0,7); ctx.fill();
     }
   },
   mold(ctx,list,cam,t){
     for(const m of list){
       const x=m.x-cam.x,y=m.y-cam.y;
       this.rrect(ctx,x,y,m.w,m.h,'#8d9187');
-      ctx.save(); ctx.fillStyle='#5b5e55';
-      for(let i=0;i<m.w*m.h/300;i++){
-        const fx=x+((i*37+t*20)%m.w), fy=y+((i*53)%m.h);
-        ctx.beginPath(); ctx.arc(fx,fy,4+Math.sin(t*3+i)*1.5,0,7); ctx.fill();
-      }
+      this.moldEyes(ctx,x,y,m.w,m.h,t);
       ctx.fillStyle='#fff'; ctx.font='bold 13px cursive'; ctx.fillText('MOLD ✖',x+6,y+18);
-      ctx.restore();
     }
   },
   paint(ctx,g){

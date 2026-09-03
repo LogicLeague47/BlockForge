@@ -6,7 +6,7 @@ import http from 'http';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
-import { randomBytes, scrypt, timingSafeEqual, createHash } from 'crypto';
+import { randomBytes, scrypt, timingSafeEqual, createHash, webcrypto } from 'crypto';
 import { promisify } from 'util';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
@@ -554,6 +554,53 @@ setInterval(() => {
 
 // Returns { ok, reason } — verifies or creates the account
 // If identity is provided (e.g. { provider: 'github', id: '12345' }), password is optional
+// --- CrazyGames token verification (per CG ToS: never trust the client-supplied
+// userId — verify the RS256 JWT against CrazyGames' public key server-side) ---
+let _cgPublicKey = null;
+let _cgPublicKeyAt = 0;
+async function cgPublicKey() {
+  // Refresh hourly (docs recommend re-fetching; keys may rotate).
+  if (_cgPublicKey && Date.now() - _cgPublicKeyAt < 3600000) return _cgPublicKey;
+  const r = await fetch('https://sdk.crazygames.com/publicKey.json');
+  if (!r.ok) throw new Error('public key fetch failed');
+  const j = await r.json();
+  if (!j || !j.publicKey) throw new Error('no publicKey in response');
+  _cgPublicKey = await webcrypto.subtle.importKey(
+    'jwk', j.publicKey, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['verify']
+  );
+  _cgPublicKeyAt = Date.now();
+  return _cgPublicKey;
+}
+function b64urlToBytes(s) {
+  s = s.replace(/-/g, '+').replace(/_/g, '/');
+  while (s.length % 4) s += '=';
+  return Buffer.from(s, 'base64');
+}
+// Returns { userId, username, profilePictureUrl } or null. Fail closed.
+async function verifyCgToken(token) {
+  try {
+    if (!token || typeof token !== 'string' || token.split('.').length !== 3) return null;
+    const parts = token.split('.');
+    const h = parts[0], p = parts[1], s = parts[2];
+    const data = Buffer.from(h + '.' + p, 'utf8');
+    const sig = b64urlToBytes(s);
+    const key = await cgPublicKey();
+    const ok = await webcrypto.subtle.verify('RSASSA-PKCS1-v1_5', key, sig, data);
+    if (!ok) {
+      // Possible key rotation — refetch once and retry per CG docs.
+      _cgPublicKey = null;
+      const key2 = await cgPublicKey();
+      if (!(await webcrypto.subtle.verify('RSASSA-PKCS1-v1_5', key2, sig, data))) return null;
+    }
+    const payload = JSON.parse(Buffer.from(p.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+    if (!payload || !payload.userId) return null;
+    if (payload.exp && Date.now() / 1000 > payload.exp + 60) return null; // expired (+60s leeway)
+    return { userId: String(payload.userId), username: payload.username || '', profilePictureUrl: payload.profilePictureUrl || '' };
+  } catch (_) {
+    return null;
+  }
+}
+
 async function authAccount(username, password, mode, identity) {
   // Identity-based auth (OAuth / CrazyGames / etc.)
   if (identity && identity.provider && identity.id) {
@@ -1143,12 +1190,18 @@ const server = http.createServer((req, res) => {
     });
     let body = '';
     let bodyBytes = 0;
-    req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 4096) { req.destroy(); } });
-    req.on('end', () => {
+    req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 8192) { req.destroy(); } });
+    req.on('end', async () => {
       try {
-        const { cgUserId, cgUsername } = JSON.parse(body);
-        if (!cgUserId) { res.end(JSON.stringify({ ok: false, reason: 'Missing cgUserId' })); return; }
-        let username = findAccountByIdentity('crazygames', cgUserId);
+        const { cgUserId, cgUsername, cgToken } = JSON.parse(body);
+        // ToS: the CG userId must come from a server-verified JWT, never from
+        // the client directly. Fail closed when verification is unavailable.
+        let verified = null;
+        if (cgToken) verified = await verifyCgToken(cgToken);
+        if (!verified) { res.end(JSON.stringify({ ok: false, reason: 'CG verification failed. Refresh and try again.' })); return; }
+        const cgId = verified.userId;
+        const cgName = verified.username || cgUsername;
+        let username = findAccountByIdentity('crazygames', cgId);
         if (!username) {
           const safeName = filterProfanity(cgUsername || 'Player').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || 'Player';
           let finalName = safeName;
@@ -1184,10 +1237,14 @@ const server = http.createServer((req, res) => {
     let body = '';
     let bodyBytes = 0;
     req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 4096) { req.destroy(); } });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
-        const { cgUserId, cgUsername } = JSON.parse(body);
-        if (!cgUserId) { res.end(JSON.stringify({ ok: false, reason: 'Missing cgUserId' })); return; }
+        const { cgToken } = JSON.parse(body);
+        // Fail closed: only a server-verified JWT yields a CG identity.
+        const verified = cgToken ? await verifyCgToken(cgToken) : null;
+        if (!verified) { res.end(JSON.stringify({ ok: false, reason: 'CG verification failed. Refresh and try again.' })); return; }
+        const cgUserId = verified.userId;
+        const cgUsername = verified.username;
         const existingName = findAccountByIdentity('crazygames', cgUserId);
         if (existingName) {
           res.end(JSON.stringify({ ok: true, username: existingName, linked: true, provider: 'crazygames', providerId: cgUserId }));
@@ -1610,14 +1667,25 @@ function isRateLimited(ws) {
 // Authenticate a username+password without joining a room (used by login screen)
 // Also supports identity-based auth (OAuth / CrazyGames) via identityType + identityId
 async function handleAuth(ws, msg) {
-  const { playerName: rawName, password, mode, identityType, identityId } = msg;
+  const { playerName: rawName, password, mode, identityType, identityId, cgToken } = msg;
   const playerName = filterProfanity(rawName);
   // In LAN mode, skip auth and always succeed
   if (IS_LAN) {
     safeSend(ws, JSON.stringify({ type: 'auth_result', ok: true, created: false, reason: '', username: playerName }));
     return;
   }
-  const identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
+  // CrazyGames identities must arrive with a server-verified JWT (ToS: never
+  // trust client-supplied user IDs). Other providers complete server-side
+  // OAuth, so their ids are already verified by the token exchange.
+  let identity = (identityType && identityId) ? { provider: identityType, id: identityId } : null;
+  if (identityType === 'crazygames') {
+    const verified = cgToken ? await verifyCgToken(cgToken) : null;
+    if (!verified) {
+      safeSend(ws, JSON.stringify({ type: 'auth_result', ok: false, reason: 'CG verification failed. Refresh and try again.' }));
+      return;
+    }
+    identity = { provider: 'crazygames', id: verified.userId };
+  }
   const auth = await authAccount(playerName, password, mode, identity);
   const resolvedUsername = auth.username || playerName;
   // Portal chat tracking — always allow, even if auth fails (portal handles login)

@@ -380,8 +380,12 @@ export class Network {
     this._send({ type: 'auth', playerName, password, mode });
   }
 
-  sendIdentityAuth(identityType, identityId, playerName) {
-    this._send({ type: 'auth', identityType, identityId, playerName });
+  sendIdentityAuth(identityType, identityId, playerName, cgToken) {
+    // cgToken: CrazyGames JWT for provider 'crazygames' — the server verifies
+    // it and ignores any client-supplied id (ToS: never trust user IDs).
+    const msg = { type: 'auth', identityType, identityId, playerName };
+    if (cgToken) msg.cgToken = cgToken;
+    this._send(msg);
   }
 
   linkIdentity(identityType, identityId) {

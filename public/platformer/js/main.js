@@ -24,8 +24,16 @@ window.STALE_Game = {
   dialog(who,text,dur){ document.getElementById('dlg-who').textContent=who; document.getElementById('dlg-text').textContent=text; document.getElementById('dialog').classList.remove('hidden'); this.dlgT=dur||4; },
 
   // ---------- level ----------
+  clearKeys(){
+    this.keys.left=this.keys.right=this.keys.up=false;
+    this.keys.jump=false; this.keys.dash=false;
+    this.keys.j1=this.keys.j2=this.keys.j3=false;
+    this.eraseHeld=false;
+    const te=document.getElementById('t-erase'); if(te) te.classList.remove('on');
+  },
   loadLevel(i){
     this.levelI=i; this.level=STALE_LEVELS[i];
+    this.clearKeys(); // never carry held buttons/keys into a fresh level
     this.moldWalls=this.level.moldWalls.map(m=>({...m}));
     this.sprinkles=this.level.sprinkles.map(s=>({...s}));
     this.exit={x:this.level.W-220,y:410,w:50,h:70};
@@ -39,6 +47,13 @@ window.STALE_Game = {
     this.extraSolids=[pad(this.level.start), pad(this.level.checkpoint)];
     this.checkpoint={x:this.level.start.x,y:this.level.start.y};
     this.cpGiven=false;
+    // GREAT MOLD spore gate (Level 10): giant mold wall, crumbles after 20 spore stomps
+    this.gate=null;
+    if(this.level.sporeGate){
+      const sg=this.level.sporeGate;
+      this.extraSolids.push({x:sg.x, y:sg.top, w:sg.w, h:480-sg.top, kind:'gate'});
+      this.gate={def:sg, total:sg.total, batch:sg.batch, defeated:0, spawned:0, spawnT:1.5, open:false};
+    }
     // boss?
     window._BOSS=null;
     if(this.level.boss) window._BOSS={type:'boss',x:this.level.W-600,y:300,w:90,h:80,vx:0,vy:0,t:0,dead:false,ph:0,hp:5,cool:2,onG:false,tired:0};
@@ -69,6 +84,28 @@ window.STALE_Game = {
     }
     STALE_Player.x=this.checkpoint.x; STALE_Player.y=this.checkpoint.y;
     STALE_Player.vx=0; STALE_Player.vy=0; STALE_Player.dead=false; STALE_Player.inv=2;
+  },
+  onSporeDown(e,quiet){
+    if(e.counted) return; e.counted=true;
+    STALE_Paint.ink=Math.min(100,STALE_Paint.ink+4);
+    const gt=this.gate;
+    if(gt && !gt.open){
+      gt.defeated++;
+      this.spawnFloat(e.x+e.w/2, e.y-10, gt.defeated+'/'+gt.total+' 👁', '#ff9ebc');
+      if(gt.defeated>=gt.total){
+        gt.open=true;
+        this.extraSolids=this.extraSolids.filter(s=>s.kind!=='gate');
+        this.shake(16);
+        for(let i=0;i<24;i++) this.spawnPoof(gt.def.x+Math.random()*gt.def.w, gt.def.top+Math.random()*200, '#8d9187');
+        STALE_Audio.play('door');
+        this.toast('The GREAT MOLD CRUMBLES! GO GO GO!');
+        this.spawnFloat(gt.def.x+50, gt.def.top-20, 'WAY OPEN!', '#7bd389');
+      } else if(gt.defeated===Math.floor(gt.total/2)){
+        this.toast('Halfway! ' + gt.defeated + '/' + gt.total + ' spores!');
+      }
+    } else if(!quiet){
+      this.spawnFloat(e.x+e.w/2, e.y-10, 'SPLAT!', '#ff9ebc');
+    }
   },
   onStomp(e){
     const P=STALE_Player;
@@ -184,7 +221,10 @@ window.STALE_Game = {
   },
   updateTouchUI(){
     const tc=document.getElementById('touch');
-    if(tc) tc.style.display=(this.touchMode() && this.state==='play' && !this.paused)?'flex':'none';
+    const mob=this.touchMode();
+    if(tc) tc.style.display=(mob && this.state==='play' && !this.paused)?'flex':'none';
+    // lets CSS move the dialogue box out of the way on touch layouts
+    document.getElementById('stage').classList.toggle('touch',mob);
   },
   cycleJam(){
     const jams=(this.level&&this.level.jams)||['berry'];
@@ -204,8 +244,11 @@ window.STALE_Game = {
       const el=document.getElementById(id);
       el.addEventListener('touchstart',e=>{e.preventDefault();STALE_Audio.init();down();},{passive:false});
       el.addEventListener('touchend',e=>{e.preventDefault();if(up)up();});
+      el.addEventListener('touchcancel',()=>{if(up)up();});
+      el.addEventListener('pointercancel',()=>{if(up)up();});
       el.addEventListener('mousedown',e=>{e.preventDefault();STALE_Audio.init();down();});
       el.addEventListener('mouseup',e=>{e.preventDefault();if(up)up();});
+      el.addEventListener('mouseleave',()=>{if(up)up();});
     };
     on('t-l',()=>this.keys.left=true,()=>this.keys.left=false);
     on('t-r',()=>this.keys.right=true,()=>this.keys.right=false);
@@ -263,6 +306,7 @@ window.STALE_Game = {
       if(e.code==='Digit1')k.j1=false; if(e.code==='Digit2')k.j2=false; if(e.code==='Digit3')k.j3=false;
       if(e.code==='KeyE')this.eraseHeld=false;
     });
+    addEventListener('blur',()=>this.clearKeys()); // alt-tab can strand held keys
     const cv=this.canvas;
     const pos=e=>{
       const r=cv.getBoundingClientRect();
@@ -288,21 +332,23 @@ window.STALE_Game = {
     });
     addEventListener('mouseup',()=>{ window._MOUSE.down=false; STALE_Paint.finish(); });
     cv.addEventListener('contextmenu',e=>e.preventDefault());
-    // touch paint
+    // touch paint / erase (🧽 toggle puts the finger into scrub mode)
     cv.addEventListener('touchstart',e=>{
       if(this.state!=='play')return;
       const p=pos(e);
       e.preventDefault();
       const w=wpos(p.x,p.y);
       window._MOUSE={...p,down:true};
-      if(!STALE_Paint.start(w.x,w.y,STALE_Player.jamSel)) this.toast('Out of jam! Grab ✨ sprinkles!');
+      if(this.eraseHeld) STALE_Paint.erase(w.x,w.y,this);
+      else if(!STALE_Paint.start(w.x,w.y,STALE_Player.jamSel)) this.toast('Out of jam! Grab ✨ sprinkles!');
     },{passive:false});
     cv.addEventListener('touchmove',e=>{
       if(this.state!=='play')return;
       e.preventDefault();
       const p=pos(e); const w=wpos(p.x,p.y);
       window._MOUSE={...p,down:true};
-      STALE_Paint.drag(w.x,w.y);
+      if(this.eraseHeld) STALE_Paint.erase(w.x,w.y,this);
+      else STALE_Paint.drag(w.x,w.y);
     },{passive:false});
     cv.addEventListener('touchend',()=>{window._MOUSE.down=false;STALE_Paint.finish();});
     addEventListener('pointerdown',()=>{ if(this.state==='logo'||this.state==='title')this.advanceBoot(); });
@@ -370,6 +416,25 @@ window.STALE_Game = {
     for(const g of this.level.signs){
       if(Math.abs(P.x-g.x)<70 && Math.abs(P.y-g.y)<90 && this.dlgT<=0) this.dialog('Splat 💦',g.text,3.5);
     }
+    // GREAT MOLD spore gate: 2 at a time, 20 total, only near the arena
+    if(this.gate && !this.gate.open){
+      const gt=this.gate;
+      // safety: a gate spore that somehow falls out of the world still counts (no soft-locks)
+      for(const e of STALE_Enemies.list){
+        if(e.type==='spore' && e.gate && !e.dead && e.y>800){ e.dead=true; this.onSporeDown(e,true); }
+      }
+      const alive=STALE_Enemies.list.filter(e=>e.type==='spore' && !e.dead).length;
+      gt.spawnT-=dt;
+      if(gt.spawned<gt.total && alive<gt.batch && gt.spawnT<=0 && P.x>gt.def.nearX){
+        gt.spawnT=0.8;
+        while(gt.spawned<gt.total && STALE_Enemies.list.filter(e=>e.type==='spore' && !e.dead).length<gt.batch){
+          const sx=gt.def.spawnX[gt.spawned%gt.def.spawnX.length];
+          STALE_Enemies.list.push({type:'spore',x:sx,y:250,w:18,h:18,vx:(gt.spawned%2?120:-120),vy:-200,t:0,dead:false,ph:Math.random()*6,gate:true});
+          gt.spawned++;
+        }
+        if(gt.spawned===gt.batch) this.toast('Spores incoming! Stomp them! 👁');
+      }
+    }
     // checkpoint (fixed safe spot per level — never over a gap)
     if(!this.cpGiven && P.x>this.level.W/2){
       this.checkpoint={x:this.level.checkpoint.x,y:this.level.checkpoint.y};
@@ -409,7 +474,7 @@ window.STALE_Game = {
     STALE_Render.bg(ctx,960,540,t,this.level.dark);
     // soda
     if(this.level.soda){ ctx.fillStyle='#7ce7f488'; ctx.fillRect(0,500-this.cam.y,960,60); ctx.fillStyle='#2aa'; ctx.font='bold 14px cursive'; ctx.fillText('~~~ SODA (bouncy Mint helps!) ~~~',330,522); }
-    STALE_Render.solids(ctx,this.level.solids,this.cam);
+    STALE_Render.solids(ctx,this.solids(),this.cam,t);
     STALE_Render.mold(ctx,this.moldWalls,this.cam,t);
     STALE_Render.paint(ctx,this);
     STALE_Render.sprinkles(ctx,this.sprinkles,this.cam,t);
@@ -418,6 +483,15 @@ window.STALE_Game = {
     for(const g of this.level.signs){ ctx.fillText('🪧',g.x-this.cam.x,g.y-this.cam.y); }
     STALE_Render.exitDoor(ctx,this.exit,this.cam,t);
     STALE_Render.enemies(ctx,STALE_Enemies.list,this.cam,t);
+    // GREAT MOLD counter above the gate
+    if(this.gate && !this.gate.open){
+      const gx=this.gate.def.x+this.gate.def.w/2-this.cam.x;
+      ctx.font='bold 18px "Comic Sans MS",cursive'; ctx.textAlign='center';
+      ctx.lineWidth=4; ctx.strokeStyle='#3a2c1c';
+      ctx.strokeText('👁 '+this.gate.defeated+'/'+this.gate.total, gx, this.gate.def.top-this.cam.y-12);
+      ctx.fillStyle='#ffd23f';
+      ctx.fillText('👁 '+this.gate.defeated+'/'+this.gate.total, gx, this.gate.def.top-this.cam.y-12);
+    }
     STALE_Render.npcs(ctx,this.npcs,this.cam,t,P);
     STALE_Render.player(ctx,P,this.cam,t);
     STALE_Render.floats(ctx,this.floats,this.cam);

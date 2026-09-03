@@ -33,7 +33,7 @@ window.STALE_Enemies = {
         for(const s of g.solids()){ if(P.overlap(e,s)){ if(e.vy>0){e.y=s.y-e.h;e.vy=0; if(e.t>1.6){e.vy=-650;e.t=0;STALE_Audio.play('jump');}} } }
       } else if(e.type==='spore'){
         e.x+=e.vx*dt; e.y+=e.vy*dt; e.vy+=300*dt;
-        if(e.t>6) e.dead=true;
+        if(e.t>6 && !e.gate) e.dead=true; // gate spores never fizzle (they must be stomped)
       } else if(e.type==='boss'){
         this.bossUpdate(e,dt,g);
       }
@@ -45,9 +45,9 @@ window.STALE_Enemies = {
           else P.hurt(g);
         }
       }
-      if(e.type==='spore' && !e.dead && P.overlap(P,e)){ P.hurt(g); e.dead=true; }
+      if(e.type==='spore' && !e.dead && P.overlap(P,e)){ P.hurt(g); e.dead=true; g.onSporeDown(e,true); }
       // spore vs boss bounce-back? stomping spore kills it
-      if(e.type==='spore' && P.vy>150 && P.overlap(P,e)){ e.dead=true; P.vy=-500; }
+      if(e.type==='spore' && !e.dead && P.vy>150 && P.overlap(P,e)){ e.dead=true; P.vy=-500; g.onSporeDown(e); }
     }
     this.list=this.list.filter(e=>!e.dead||e.type==='boss');
   },

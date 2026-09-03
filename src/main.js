@@ -19,7 +19,7 @@ import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js'
 import { MobManager, MOB_TYPES, Arrow } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
-import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
+import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowAccountLinkPrompt, cgGetUser, cgGetUserToken, cgIsAccountAvailable, cgOnAuthChange, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
 
 // XOR obfuscation for locally-stored passwords (matching linkedaccounts.js)
 function _xorEncode(str) {
@@ -904,27 +904,36 @@ try {
     if (settings && settings.muteAudio !== undefined) { if (audio) audio.setMuted(!!settings.muteAudio); }
   });
 } catch (_) {}
-// Listen for CG auth state changes (guest logs in while playing)
-// Use addAuthListener (v3 API) with fallback to onAuthStateChange (legacy).
-try {
-  const _cgUser = window.CrazyGames?.SDK?.user;
-  const _authCb = (user) => {
-    if (user && user.id) {
-      const newName = user.username || playerName;
-      if (newName !== playerName) {
-        playerName = filterProfanity(newName);
-        cloudSet('bf_player_name', playerName);
-        const nameEl = document.getElementById('menu-player-name');
-        if (nameEl) nameEl.textContent = playerName;
-      }
+// CG auth state listener is registered once the SDK is ready (see the
+// crazyGamesSDK().then() block in the login setup below) — module scope is
+// too early because the SDK script still loads at that point.
+async function handleCgAuthChange(user) {
+  // Guest logs in while playing (ToS flow): verify the token server-side and
+  // adopt the linked identity. Logout refreshes the page (nothing to do).
+  try {
+    if (!user || !user.username) return;
+    const token = await cgGetUserToken();
+    if (!token) return;
+    const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
+    const r = await fetch(`${serverUrl}/auth/crazygames`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ cgToken: token }),
+    });
+    const data = await r.json().catch(() => null);
+    if (!data || !data.ok) return;
+    const newName = filterProfanity(data.username) || playerName;
+    if (newName !== playerName) {
+      playerName = newName;
+      setSkinUser(playerName);
+      cloudSet('bf_player_name', playerName);
+      try { localStorage.setItem('bf_oauth_provider', 'crazygames'); localStorage.setItem('bf_oauth_provider_id', data.providerId || playerName); } catch (_) { console.warn("localStorage write failed"); }
+      const nameEl = document.getElementById('menu-player-name');
+      if (nameEl) nameEl.textContent = playerName;
+      showToast('CrazyGames account linked — progress will sync.', '#4af', 4);
     }
-  };
-  if (_cgUser && typeof _cgUser.addAuthListener === 'function') {
-    _cgUser.addAuthListener(_authCb);
-  } else if (_cgUser && typeof _cgUser.onAuthStateChange === 'function') {
-    _cgUser.onAuthStateChange(_authCb);
-  }
-} catch (_) {}
+  } catch (_) {}
+}
 
 // --- sleep state ---
 let sleeping = false;
@@ -4768,7 +4777,7 @@ function joinServer(name, seed) {
   _doNetworkJoin(name, seed);
 }
 
-function _doNetworkJoin(name, seed) {
+async function _doNetworkJoin(name, seed) {
   if (hasGameplayMods()) {
     showToast('Cannot join multiplayer with gameplay mods enabled. Disable your mods first.', '#f88', 5);
     return;
@@ -4778,7 +4787,7 @@ function _doNetworkJoin(name, seed) {
     return;
   }
   let cgUsername = '';
-  try { cgUsername = window.CrazyGames?.SDK?.user?.getUsername?.() || ''; } catch {}
+  try { cgUsername = (await cgGetUser())?.username || ''; } catch {}
   let skinIdx = getStoredSkinIndex();
 
   // If we have a local server entry, create it on the network
@@ -7435,14 +7444,14 @@ function initMenu() {
     if (blocked) window._cgAdblockDetected = true;
   }).catch(() => {});
 
-  // Prompt guest users to create a CG account for cloud saves (one-time).
+  // Passive one-time nudge about cloud saves for guests. The auth modal itself
+  // is NEVER auto-triggered (CG ToS) — it only opens from the login button.
   if (cgEnvironment() === 'crazygames' && !localStorage.getItem('bf_cg_linked')) {
-    setTimeout(() => {
-      const me = window.CrazyGames?.SDK?.user?.getUser?.();
-      if (!me || !me.id) {
-        showToast('Create a CrazyGames account to save progress across devices!', '#4af');
-        setTimeout(() => cgShowAuthPrompt(), 3000);
-      }
+    setTimeout(async () => {
+      try {
+        const me = await cgGetUser();
+        if (!me) showToast('Create a CrazyGames account to save progress across devices!', '#4af');
+      } catch (_) {}
     }, 15000);
   }
 
@@ -9324,17 +9333,20 @@ function initMenu() {
   }
   showOneTimeMessages();
   showConsentNotice();
-  crazyGamesSDK().then((sdk) => {
+  crazyGamesSDK().then(async (sdk) => {
     if (!sdk) return;
     try {
-      const cgName = sdk.user?.getUsername?.();
-      if (cgName) {
-        const ni = document.getElementById('login-username');
-        if (ni && !ni.value) ni.value = cgName;
+      // Register the ToS auth listener (guest logs in mid-session).
+      cgOnAuthChange(handleCgAuthChange);
+      // Pre-fill the username from the CG profile when logged in. No
+      // automatic authentication ever happens here (CG ToS).
+      if (cgIsAccountAvailable()) {
+        const me = await cgGetUser();
+        if (me && me.username) {
+          const ni = document.getElementById('login-username');
+          if (ni && !ni.value) ni.value = me.username;
+        }
       }
-      // NOTE: CrazyGames auto-login / "Login with CrazyGames" was removed in
-      // favour of our own account system plus a Play Offline option. We only
-      // pre-fill the username here; no automatic authentication happens.
     } catch (_) { console.warn("operation failed"); }
   });
 
@@ -9347,62 +9359,93 @@ function initMenu() {
   // Social login buttons always visible (GitHub/Google work everywhere).
 
   // --- Social + CG login handlers ---
-  // Shared CrazyGames auth flow. `silent` suppresses error toasts so it can run
-  // automatically at boot (no confusing popups for auto-logged-in users).
-  function cgLoginFlow(cgId, cgName, silent) {
+  // Shared CrazyGames auth flow (ToS): the server verifies the JWT and maps
+  // it to a backend account (auto-created). `silent` only suppresses toasts;
+  // this function never opens a modal by itself.
+  function cgLoginFlow(silent) {
     const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
-    fetch(`${serverUrl}/auth/crazygames`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cgUserId: cgId || cgName, cgUsername: cgName || 'Player' }),
-    })
-      .then(r => r.json())
-      .then(data => {
-        if (!data.ok) { if (!silent) showToast('CG auth failed: ' + (data.reason || ''), '#f44', 4); return; }
-        playerName = filterProfanity(data.username) || 'Player';
-        setSkinUser(playerName);
-        cloudSet('bf_player_name', playerName);
-        try { localStorage.setItem('bf_oauth_provider', 'crazygames'); localStorage.setItem('bf_oauth_provider_id', data.providerId || playerName); } catch (_) { console.warn("localStorage write failed"); }
-        const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName);
-        if (!network.connected) {
-          network.connect(BACKEND_URL);
-          network.onConnectedOnce(attempt);
-          setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
-        } else {
-          attempt();
+    (async () => {
+      let token = null;
+      try { token = await cgGetUserToken(); } catch (_) {}
+      if (!token) {
+        if (!silent) showToast('Could not reach CrazyGames. Make sure you are logged in there.', '#f85', 5);
+        return;
+      }
+      let data = null;
+      try {
+        const r = await fetch(`${serverUrl}/auth/crazygames`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cgToken: token }),
+        });
+        data = await r.json();
+      } catch (_) { if (!silent) showToast('CG auth network error', '#f44', 4); return; }
+      if (!data || !data.ok) { if (!silent) showToast('CG auth failed: ' + ((data && data.reason) || ''), '#f44', 4); return; }
+      playerName = filterProfanity(data.username) || 'Player';
+      setSkinUser(playerName);
+      cloudSet('bf_player_name', playerName);
+      // Refresh avatar/username from the CG profile (they can change).
+      try {
+        const me = await cgGetUser();
+        if (me && me.profilePictureUrl) setSkinUser(playerName);
+        if (me && me.username) {
+          try { localStorage.setItem('bf_cg_username', filterProfanity(me.username)); } catch (_) {}
         }
-      })
-      .catch(() => { if (!silent) showToast('CG auth network error', '#f44', 4); });
+      } catch (_) {}
+      try { localStorage.setItem('bf_oauth_provider', 'crazygames'); localStorage.setItem('bf_oauth_provider_id', data.providerId || playerName); } catch (_) { console.warn("localStorage write failed"); }
+      try { localStorage.setItem('bf_cg_linked', '1'); } catch (_) {}
+      _identityAuthPending = true;
+      const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName, token);
+      if (!network.connected) {
+        network.connect(BACKEND_URL);
+        network.onConnectedOnce(attempt);
+        setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+      } else {
+        attempt();
+      }
+    })();
   }
 
+  // "Login with CrazyGames" — click-triggered ONLY (auto-prompting violates
+  // CG ToS). Opens the standard auth modal, then runs the token flow above.
   function doCgLogin() {
     clearToast();
-    crazyGamesSDK().then((sdk) => {
-      if (!sdk) { showToast('Sorry, you\'re not on CrazyGames. This button is for CrazyGames users only.', '#fa0', 5); return; }
-      try {
-        const cgName = sdk.user?.getUsername?.();
-        const cgId = sdk.user?.getId?.();
-        if (!cgId && !cgName) { showToast('CrazyGames: could not get user info. Make sure you are logged into CrazyGames.', '#f85', 5); return; }
-        cgLoginFlow(cgId, cgName, false);
-      } catch (_) { console.warn("operation failed"); }
-    });
+    if (!cgIsAccountAvailable()) {
+      showToast('Sorry, you\'re not on CrazyGames. This button is for CrazyGames users only.', '#fa0', 5);
+      return;
+    }
+    (async () => {
+      let res;
+      try { res = await cgShowAuthPrompt(); }
+      catch (_) { showToast('Login failed. Try again.', '#f44', 4); return; }
+      if (res.ok || res.code === 'userAlreadySignedIn') {
+        cgLoginFlow(false);
+      } else if (res.code === 'showAuthPromptInProgress') {
+        showToast('Login window already open.', '#fa0', 4);
+      } else if (res.code !== 'userCancelled') {
+        showToast('Login failed. Try again.', '#f44', 4);
+      }
+      // userCancelled: silent, the user just closed the modal.
+    })();
   }
+  document.getElementById('btn-cg-login')?.addEventListener('click', () => { clearToast(); doCgLogin(); });
 
   function startOAuth(provider) {
     const serverUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://');
     const origin = window.location.origin;
 
-    // On CrazyGames: auto-link OAuth identity with the CG account
+    // On CrazyGames: auto-link OAuth identity with the CG account. The CG
+    // userId comes from a server-verified token, never from the client.
     if (isOnCrazyGames()) {
-      crazyGamesSDK().then(sdk => {
+      crazyGamesSDK().then(async (sdk) => {
         if (!sdk) { openOAuthPopup(provider, serverUrl, origin); return; }
-        const cgId = sdk.user?.getId?.();
-        const cgName = sdk.user?.getUsername?.();
-        if (!cgId) { openOAuthPopup(provider, serverUrl, origin); return; }
+        let token = null;
+        try { token = await cgGetUserToken(); } catch (_) {}
+        if (!token) { openOAuthPopup(provider, serverUrl, origin); return; }
         fetch(`${serverUrl}/auth/cg-link`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cgUserId: cgId, cgUsername: cgName || 'Player' }),
+          body: JSON.stringify({ cgToken: token }),
         })
           .then(r => r.json())
           .then(data => {
