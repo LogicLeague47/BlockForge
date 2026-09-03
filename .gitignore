@@ -22,3 +22,5 @@ scripts/oracle/id_ed25519
 scripts/oracle/.ssh-config
 uploads/
 recordings/
+
+BlockForge-ads/
