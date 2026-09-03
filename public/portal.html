@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '421e2a4',
+          heading: 'Item icons, MC held items, top slabs, chunk states',
+          desc: 'Filled the missing inventory textures (13 dyes, echo shard, grapple, frost/ember gear, compass, 5 discs, potion, boat, minecart, hoe), fixed blank offhand-slot blocks, restyled held items Minecraft-style (diagonal 3D tools, extruded sprites, hoe/trident builders), added top-half slabs with face-based placement and full collision/UI support, and formalized loaded/lazy/unloaded chunk states with HUD counts.',
+          date: 'Sep 3',
+          bugs: ['13 dyes and 9 gear items showed the gray placeholder icon', 'blocks in the offhand HUD slot rendered blank', 'held items were flat or edge-on planes', 'no top-half slabs', 'chunk eviction decoded negative coordinates wrong, leaking memory'],
+          updates: ['9 new icon painters + 24 switch cases + hoe tool head', 'offhand icons use the block painter for blocks', 'MC diagonal pose, extruded-sprite items, 3D hoe and trident', '8 top-slab blocks (IDs 242-249), MC placement/merge rules, range collision, top-half outline/ghost/crack/icons', 'loaded/lazy/unloaded states, mesh hold +1, data hold +4, HUD shows lazy count'],
+          features: ['top-half slabs', 'chunk state system with lazy ring', 'Minecraft-style held items'],
+        },
+        {
           hash: 'c31f789',
           heading: 'Crash fix: $i init error',
           desc: 'Fixed a startup crash (Cannot access $i before initialization) where the new canvas fitter ran before the menu camera existed. The game failed to load at all on the fresh build.',
