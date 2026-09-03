@@ -195,6 +195,7 @@ export function initMobileControls(playerRef, input, callbacks) {
   joystickZone.addEventListener('touchstart', (e) => {
     e.stopPropagation();
     e.preventDefault(); // no ghost mousedown/click — this touch is a joystick input
+    if (state.chatOpen) return; // typing has focus — don't walk
     const t = e.changedTouches[0];
     state._joystickActive = true;
     state._joystickTouchId = t.identifier;
@@ -216,6 +217,7 @@ export function initMobileControls(playerRef, input, callbacks) {
   cameraZone.addEventListener('touchstart', (e) => {
     e.stopPropagation();
     e.preventDefault(); // no ghost mousedown/click — a tap must place, not break
+    if (state.chatOpen) return; // typing has focus — don't look/break/place
     const t = e.changedTouches[0];
     // Double-tap to equip item
     const now = Date.now();
@@ -315,6 +317,10 @@ export function initMobileControls(playerRef, input, callbacks) {
       root.classList.toggle('bf-open');
       return;
     }
+    // While chat is open the keyboard has focus: game-action buttons stay
+    // dead so typing can't walk/place/attack. Chat/command still fire so the
+    // user can toggle-close or switch to a command.
+    if (state.chatOpen && action !== 'chat' && action !== 'command') return;
     if (action === 'jump') {
       state.jumpHeld = down;
       // Don't clear Space immediately on touchend — the player update may not
@@ -340,11 +346,16 @@ export function initMobileControls(playerRef, input, callbacks) {
       if (callbacks.onSwapHands) callbacks.onSwapHands();
     } else if (action === 'perspective' && down) {
       if (callbacks.onPerspective) callbacks.onPerspective();
-    } else if (action === 'command' && down) {
+    } else if (action === 'command' && !down) {
+      // Fire on release: openChat() focuses the text field, and mobile
+      // browsers (esp. iOS Safari) only show the keyboard for focus that
+      // happens inside a tap gesture — not a preventDefault'd touchstart.
       if (callbacks.onCommand) callbacks.onCommand();
     } else if (down && action === 'menu') {
       if (callbacks.onPause) callbacks.onPause();
-    } else if (down && action === 'chat') {
+    } else if (action === 'chat' && !down) {
+      // Fire on release (see command button above): focus must land inside
+      // the tap gesture or iOS Safari won't show the keyboard.
       if (callbacks.onChat) callbacks.onChat();
     } else if (down && action === 'inventory') {
       if (callbacks.onInventory) callbacks.onInventory();
@@ -367,6 +378,14 @@ export function initMobileControls(playerRef, input, callbacks) {
   // --- Update: map joystick to analog movement ---
   state.update = function () {
     input.keys = input.keys || {};
+    if (state.chatOpen) {
+      // Typing has focus: a held joystick must not keep walking the player.
+      input.keys['KeyW'] = false;
+      input.keys['KeyS'] = false;
+      input.keys['KeyA'] = false;
+      input.keys['KeyD'] = false;
+      return;
+    }
     const dx = state.joystickDx;
     const dy = state.joystickDy;
     const ax = Math.abs(dx) < DEAD_ZONE ? 0 : dx;

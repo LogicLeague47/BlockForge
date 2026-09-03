@@ -1055,10 +1055,12 @@ document.addEventListener('mousemove', (e) => {
   if (sleeping) return;
   // Chat input: T opens chat, / opens chat with / prefix
   if (chatOpen) {
-    if (e.code === 'Enter') {
+    // e.key fallback: mobile soft keyboards (Gboard/Samsung) often report an
+    // empty e.code, so match e.key too or the Send key does nothing.
+    if (e.code === 'Enter' || e.key === 'Enter') {
       e.preventDefault();
       submitChat();
-    } else if (e.code === 'Escape') {
+    } else if (e.code === 'Escape' || e.key === 'Escape') {
       e.preventDefault();
       closeChat();
     }
@@ -3959,8 +3961,9 @@ function openChat(prefix) {
   const hud = document.getElementById('chat-hud');
   if (hud) { hud.style.display = ''; hud.style.opacity = '1'; }
   clearTimeout(_chatAutoHideTimer);
-  if (wrap) wrap.style.display = '';
+  if (wrap) wrap.style.display = 'flex';
   if (inp) { inp.value = prefix || ''; inp.focus(); }
+  if (mobile) mobile.chatOpen = true;
   // Release pointer lock so WASD/camera controls stop
   if (document.pointerLockElement) {
     document.exitPointerLock?.();
@@ -3977,6 +3980,7 @@ function closeChat() {
   if (wrap) wrap.style.display = 'none';
   const inp = document.getElementById('chat-input');
   if (inp) { inp.blur(); inp.value = ''; }
+  if (mobile) mobile.chatOpen = false;
   lockPointer();
   // Start auto-hide timer so recent messages remain visible briefly
   const hud = document.getElementById('chat-hud');
@@ -6428,7 +6432,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     },
     onChat() {
       if (!gameRunning || chatDisabled) return;
-      try { openChat(''); } catch (e) { console.warn("onChat error", e); }
+      // No Escape key on mobile: tapping chat while open closes it (discards
+      // text, same as Escape) instead of wiping what was typed.
+      try { if (chatOpen) closeChat(); else openChat(''); } catch (e) { console.warn("onChat error", e); }
     },
     onInventory() {
       if (!gameRunning || !player || !ui) return;
@@ -6481,7 +6487,16 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     },
     onCommand() {
       if (!gameRunning || chatDisabled) return;
-      try { openChat('/'); } catch (e) { console.warn("onCommand error", e); }
+      // If chat is already open, just refocus (don't wipe typed text).
+      try {
+        if (chatOpen) {
+          const inp = document.getElementById('chat-input');
+          if (inp) {
+            if (!inp.value.startsWith('/')) inp.value = '/' + inp.value;
+            inp.focus();
+          }
+        } else openChat('/');
+      } catch (e) { console.warn("onCommand error", e); }
     },
     onVoice() {
       if (!gameRunning || !voiceChat || isOnCrazyGames()) return;
