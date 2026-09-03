@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'a76972a',
+          heading: 'Slab merge rewards, X-ray fix, iOS black bars, 2x icons',
+          desc: 'Merging slabs now consumes the held slab and breaking the merged block drops both slabs back (mixed pairs included, validated so explosions can not duplicate). Fixed the X-ray hole next to slabs/stairs, the permanent black bars on iOS, joystick auto-sprint, and doubled block icon resolution.',
+          date: 'Sep 3',
+          bugs: ['slab merging was free (held slab never consumed)', 'merged block dropped a full block instead of the 2 slabs', 'see-through X-ray gap beside slabs and stairs', 'canvas black bars on iOS after toolbar show/hide, black around hotbar on join', 'joystick auto-sprinted at full tilt, sprint button useless', 'block icons pixelated at 32px'],
+          updates: ['merge consumes one held slab in survival', 'merged pairs recorded per-position and drop both slabs on break (stale-entry guarded)', 'full-cube and glass faces no longer culled by slab/stair neighbors', 'canvas sizes from visualViewport with change-only updates', 'sprint only from the toggle button', 'block icons render at 64px with full-detail faces'],
+          features: [],
+        },
+        {
           hash: '1e2ca54',
           heading: 'Mobile controls: tap fix + Minecraft layout',
           desc: 'Fixed the root cause of glitchy mobile UI: the full-screen camera touch layer sat above the chat box, so taps on chat (and emoji panels) triggered look/place instead. Chat and emoji now sit above it. Layout is Minecraft-style: persistent chat + pause buttons top-right, sneak next to the big jump button, and opening chat kills any mining hold and freezes the joystick.',
