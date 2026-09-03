@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '833852f',
+          heading: 'Critical bug fixes: duplicate block IDs, dropped items, recipe fix',
+          desc: 'Fixed several critical data-corruption bugs and a gameplay-breaking drop issue. Copper Block was lost due to ID collision with Yellow Wool. Mossy Stone Bricks and Flower Pot had duplicate enum keys overwriting earlier IDs. Night Vision Potion recipe referenced undefined GLOWSTONE. Dropped items from tree logs were landing on top of the tree canopy instead of the ground.',
+          date: 'Sep 3',
+          bugs: ['COPPER_BLOCK and YELLOW_WOOL both had ID 180 — Copper Block was lost entirely', 'MOSSY_STONE_BRICKS had duplicate key (112 overwritten by 165) — old saves with ID 112 broke', 'FLOWER_POT had duplicate key (65 overwritten by 174) — old saves with ID 65 broke', 'Night Vision Potion recipe used undefined B.GLOWSTONE (should be B.GLOWSTONE_TILES)', 'dropped items from tree logs landed on top of the tree canopy, unreachable by the player', 'orphan BLOCK enum entries (BOOK/CLOCK/COMPASS IDs 70-72) had no definitions'],
+          updates: ['COPPER_BLOCK reassigned to ID 217 to avoid collision with YELLOW_WOOL', 'removed duplicate MOSSY_STONE_BRICKS entry (kept ID 165)', 'removed duplicate FLOWER_POT entry (kept ID 174)', 'fixed Night Vision Potion recipe to use B.GLOWSTONE_TILES', 'dropped item _findSurfaceY now scans downward from spawn position instead of world top', 'removed orphan BOOK/CLOCK/COMPASS BLOCK enum entries'],
+          features: [],
+        },
+        {
           hash: '7897561',
           heading: 'Bug fixes: sway, collisions, animations, copyright cleanup',
           desc: 'Fixed multiple visual and gameplay bugs. Leaf sway now only affects plants/trees, not solid blocks. Stairs and slabs auto-step-up when walking into them. Campfire and void portal blocks have animated shader effects. Inventory icons fixed. Creeper and phantom mobs removed (Minecraft copyright).',
