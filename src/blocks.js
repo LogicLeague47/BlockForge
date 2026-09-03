@@ -231,6 +231,17 @@ export const BLOCK = {
   DEEPSLATE_STAIRS: 215,
   // Barrel (216)
   BARREL: 216,
+  // Stair facings (218-241). Base IDs 208-215 face south (+Z, legacy); the
+  // _N/_E/_W variants face north/-Z, east/+X, west/-X. Placement picks the
+  // variant facing away from the player; breaking any variant drops the base.
+  STONE_STAIRS_N: 218, STONE_STAIRS_E: 219, STONE_STAIRS_W: 220,
+  OAK_STAIRS_N: 221, OAK_STAIRS_E: 222, OAK_STAIRS_W: 223,
+  COBBLESTONE_STAIRS_N: 224, COBBLESTONE_STAIRS_E: 225, COBBLESTONE_STAIRS_W: 226,
+  BRICK_STAIRS_N: 227, BRICK_STAIRS_E: 228, BRICK_STAIRS_W: 229,
+  QUARTZ_STAIRS_N: 230, QUARTZ_STAIRS_E: 231, QUARTZ_STAIRS_W: 232,
+  SANDSTONE_STAIRS_N: 233, SANDSTONE_STAIRS_E: 234, SANDSTONE_STAIRS_W: 235,
+  NETHER_BRICK_STAIRS_N: 236, NETHER_BRICK_STAIRS_E: 237, NETHER_BRICK_STAIRS_W: 238,
+  DEEPSLATE_STAIRS_N: 239, DEEPSLATE_STAIRS_E: 240, DEEPSLATE_STAIRS_W: 241,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -737,6 +748,32 @@ export const BLOCKS = {
   [BLOCK.SANDSTONE_STAIRS]:    { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true },
   [BLOCK.NETHER_BRICK_STAIRS]: { name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true },
   [BLOCK.DEEPSLATE_STAIRS]:    { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true },
+  // Stair facing variants — same stats as their base, tall back on stairDir
+  // side, always drop the base stair so the inventory holds one item each.
+  [BLOCK.STONE_STAIRS_N]:       { name: 'Stone Stairs', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', stair: true, stairDir: 'north', drop: BLOCK.STONE_STAIRS },
+  [BLOCK.STONE_STAIRS_E]:       { name: 'Stone Stairs', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', stair: true, stairDir: 'east', drop: BLOCK.STONE_STAIRS },
+  [BLOCK.STONE_STAIRS_W]:       { name: 'Stone Stairs', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', stair: true, stairDir: 'west', drop: BLOCK.STONE_STAIRS },
+  [BLOCK.OAK_STAIRS_N]:         { name: 'Oak Stairs', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', stair: true, stairDir: 'north', drop: BLOCK.OAK_STAIRS },
+  [BLOCK.OAK_STAIRS_E]:         { name: 'Oak Stairs', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', stair: true, stairDir: 'east', drop: BLOCK.OAK_STAIRS },
+  [BLOCK.OAK_STAIRS_W]:         { name: 'Oak Stairs', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', stair: true, stairDir: 'west', drop: BLOCK.OAK_STAIRS },
+  [BLOCK.COBBLESTONE_STAIRS_N]: { name: 'Cobblestone Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', stair: true, stairDir: 'north', drop: BLOCK.COBBLESTONE_STAIRS },
+  [BLOCK.COBBLESTONE_STAIRS_E]: { name: 'Cobblestone Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', stair: true, stairDir: 'east', drop: BLOCK.COBBLESTONE_STAIRS },
+  [BLOCK.COBBLESTONE_STAIRS_W]: { name: 'Cobblestone Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', stair: true, stairDir: 'west', drop: BLOCK.COBBLESTONE_STAIRS },
+  [BLOCK.BRICK_STAIRS_N]:       { name: 'Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', stair: true, stairDir: 'north', drop: BLOCK.BRICK_STAIRS },
+  [BLOCK.BRICK_STAIRS_E]:       { name: 'Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', stair: true, stairDir: 'east', drop: BLOCK.BRICK_STAIRS },
+  [BLOCK.BRICK_STAIRS_W]:       { name: 'Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', stair: true, stairDir: 'west', drop: BLOCK.BRICK_STAIRS },
+  [BLOCK.QUARTZ_STAIRS_N]:      { name: 'Quartz Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', stair: true, stairDir: 'north', drop: BLOCK.QUARTZ_STAIRS },
+  [BLOCK.QUARTZ_STAIRS_E]:      { name: 'Quartz Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', stair: true, stairDir: 'east', drop: BLOCK.QUARTZ_STAIRS },
+  [BLOCK.QUARTZ_STAIRS_W]:      { name: 'Quartz Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', stair: true, stairDir: 'west', drop: BLOCK.QUARTZ_STAIRS },
+  [BLOCK.SANDSTONE_STAIRS_N]:   { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true, stairDir: 'north', drop: BLOCK.SANDSTONE_STAIRS },
+  [BLOCK.SANDSTONE_STAIRS_E]:   { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true, stairDir: 'east', drop: BLOCK.SANDSTONE_STAIRS },
+  [BLOCK.SANDSTONE_STAIRS_W]:   { name: 'Sandstone Stairs', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', stair: true, stairDir: 'west', drop: BLOCK.SANDSTONE_STAIRS },
+  [BLOCK.NETHER_BRICK_STAIRS_N]:{ name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true, stairDir: 'north', drop: BLOCK.NETHER_BRICK_STAIRS },
+  [BLOCK.NETHER_BRICK_STAIRS_E]:{ name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true, stairDir: 'east', drop: BLOCK.NETHER_BRICK_STAIRS },
+  [BLOCK.NETHER_BRICK_STAIRS_W]:{ name: 'Nether Brick Stairs', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', stair: true, stairDir: 'west', drop: BLOCK.NETHER_BRICK_STAIRS },
+  [BLOCK.DEEPSLATE_STAIRS_N]:   { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true, stairDir: 'north', drop: BLOCK.DEEPSLATE_STAIRS },
+  [BLOCK.DEEPSLATE_STAIRS_E]:   { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true, stairDir: 'east', drop: BLOCK.DEEPSLATE_STAIRS },
+  [BLOCK.DEEPSLATE_STAIRS_W]:   { name: 'Deepslate Stairs', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', stair: true, stairDir: 'west', drop: BLOCK.DEEPSLATE_STAIRS },
   // Barrel
   [BLOCK.BARREL]: { name: 'Barrel', solid: true, hardness: 2.5, tool: 'axe', faces: 'barrel' },
 };
@@ -827,6 +864,30 @@ export const SLAB_TO_FULL = {
 export function isStairBlock(blockId) {
   const d = BLOCKS[blockId];
   return d && d.stair;
+}
+
+// Stair facing variants per base stair id. Base ids (208-215) face south.
+// Placement picks the variant facing away from the player.
+export const STAIR_FACING = {
+  [BLOCK.STONE_STAIRS]:        { south: BLOCK.STONE_STAIRS, north: BLOCK.STONE_STAIRS_N, east: BLOCK.STONE_STAIRS_E, west: BLOCK.STONE_STAIRS_W },
+  [BLOCK.OAK_STAIRS]:          { south: BLOCK.OAK_STAIRS, north: BLOCK.OAK_STAIRS_N, east: BLOCK.OAK_STAIRS_E, west: BLOCK.OAK_STAIRS_W },
+  [BLOCK.COBBLESTONE_STAIRS]:  { south: BLOCK.COBBLESTONE_STAIRS, north: BLOCK.COBBLESTONE_STAIRS_N, east: BLOCK.COBBLESTONE_STAIRS_E, west: BLOCK.COBBLESTONE_STAIRS_W },
+  [BLOCK.BRICK_STAIRS]:        { south: BLOCK.BRICK_STAIRS, north: BLOCK.BRICK_STAIRS_N, east: BLOCK.BRICK_STAIRS_E, west: BLOCK.BRICK_STAIRS_W },
+  [BLOCK.QUARTZ_STAIRS]:       { south: BLOCK.QUARTZ_STAIRS, north: BLOCK.QUARTZ_STAIRS_N, east: BLOCK.QUARTZ_STAIRS_E, west: BLOCK.QUARTZ_STAIRS_W },
+  [BLOCK.SANDSTONE_STAIRS]:    { south: BLOCK.SANDSTONE_STAIRS, north: BLOCK.SANDSTONE_STAIRS_N, east: BLOCK.SANDSTONE_STAIRS_E, west: BLOCK.SANDSTONE_STAIRS_W },
+  [BLOCK.NETHER_BRICK_STAIRS]: { south: BLOCK.NETHER_BRICK_STAIRS, north: BLOCK.NETHER_BRICK_STAIRS_N, east: BLOCK.NETHER_BRICK_STAIRS_E, west: BLOCK.NETHER_BRICK_STAIRS_W },
+  [BLOCK.DEEPSLATE_STAIRS]:    { south: BLOCK.DEEPSLATE_STAIRS, north: BLOCK.DEEPSLATE_STAIRS_N, east: BLOCK.DEEPSLATE_STAIRS_E, west: BLOCK.DEEPSLATE_STAIRS_W },
+};
+
+// Resolve a held stair item to the placed variant for a look direction.
+// dir is 'north'|'south'|'east'|'west'; non-stairs pass through unchanged.
+export function stairVariantFor(itemId, dir) {
+  const v = STAIR_FACING[itemId];
+  // Variants themselves map back through their base drop entry.
+  const base = v ? itemId : (BLOCKS[itemId]?.drop && STAIR_FACING[BLOCKS[itemId].drop] ? BLOCKS[itemId].drop : null);
+  const map = v || (base ? STAIR_FACING[base] : null);
+  if (!map) return itemId;
+  return map[dir] || map.south;
 }
 
 // Wire the meta lookups into items.js (avoids a circular import at module load).

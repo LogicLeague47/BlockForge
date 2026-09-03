@@ -850,16 +850,20 @@ export class Player {
   }
 
   // Collision height of a block's real shape (0 = no collision).
-  // Slabs are a bottom half-slab (0.5). Stairs are an L facing +Z, so the
-  // height depends on where the player stands: 1.0 on the tall back half
-  // (local z >= 0.5), 0.5 on the low front half.
+  // Slabs are a bottom half-slab (0.5). Stairs are an L whose tall back half
+  // sits on the stairDir side: 1.0 when the player stands on that half,
+  // 0.5 on the low front half.
   _blockHitHeight(b, px, pz) {
     const d = BLOCKS[b];
     if (!d || !d.solid) return 0;
     if (d.slab) return 0.5;
     if (d.stair) {
-      const fz = pz - Math.floor(pz);
-      return fz >= 0.5 ? 1 : 0.5;
+      const fx = px - Math.floor(px), fz = pz - Math.floor(pz);
+      const dir = d.stairDir || 'south';
+      if (dir === 'north') return fz < 0.5 ? 1 : 0.5;
+      if (dir === 'east') return fx >= 0.5 ? 1 : 0.5;
+      if (dir === 'west') return fx < 0.5 ? 1 : 0.5;
+      return fz >= 0.5 ? 1 : 0.5; // south
     }
     return 1;
   }

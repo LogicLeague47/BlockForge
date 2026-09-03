@@ -262,13 +262,19 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
-        // Stairs: L-shape (bottom slab + upper back half, faces toward +Z).
+        // Stairs: L-shape (bottom slab + upper tall half on the stairDir
+        // side; base stairs face south/+Z for legacy saves).
         // Each step samples its matching texture half (bottom / top).
         if (def.stair) {
           const tile = typeof def.faces === 'string' ? def.faces : (def.faces?.side || 'stone');
           const stairTiles = [tile, tile, tile, tile, tile, tile];
+          const dir = def.stairDir || 'south';
+          const topBox = dir === 'north' ? [0, 0.5, 0, 1, 1, 0.5]
+                       : dir === 'east'  ? [0.5, 0.5, 0, 1, 1, 1]
+                       : dir === 'west'  ? [0, 0.5, 0, 0.5, 1, 1]
+                       :                   [0, 0.5, 0.5, 1, 1, 1];
           pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], stairTiles, 0, sample, [0, 0.5]);
-          pushBedBox(opaque, wx, y, wz, [0, 0.5, 0.5, 1, 1, 1], stairTiles, 0, sample, [0.5, 1]);
+          pushBedBox(opaque, wx, y, wz, topBox, stairTiles, 0, sample, [0.5, 1]);
           continue;
         }
 

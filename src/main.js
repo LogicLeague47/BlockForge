@@ -10,7 +10,7 @@ import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
-import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL } from './blocks.js';
+import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
@@ -3067,6 +3067,14 @@ function placeBlock(slotOverride, targetHit) {
 
   // BED item places BED_FOOT at clicked block, BED (head) in facing direction
   if (itemId === ITEM.BED) itemId = BLOCK.BED_FOOT;
+
+  // Stairs face away from the player: tall back on the far side so you climb
+  // toward where you're looking. Non-stairs pass through unchanged.
+  if (BLOCKS[itemId]?.stair && player) {
+    const fx = -Math.sin(player.yaw), fz = -Math.cos(player.yaw);
+    const dir = Math.abs(fx) >= Math.abs(fz) ? (fx > 0 ? 'east' : 'west') : (fz > 0 ? 'south' : 'north');
+    itemId = stairVariantFor(itemId, dir);
+  }
 
   if (!isPlaceableBlockItem(itemId)) return;
   const def = BLOCKS[itemId];
@@ -10754,11 +10762,25 @@ function _gameFrame() {
       highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
       highlightStep.visible = false;
     } else if (BLOCKS[tb]?.stair) {
-      // L-shape: bottom-slab outline + top-step outline (upper back half, +Z)
+      // L-shape: bottom-slab outline + top-step outline on the tall side.
+      // (Step box geometry is Z-long; squash/rotate it for east/west stairs.)
+      const sdir = BLOCKS[tb].stairDir || 'south';
       highlight.scale.set(1, 0.5, 1);
       highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
       highlightStep.visible = true;
-      highlightStep.position.set(target.x + 0.5, target.y + 0.75, target.z + 0.75);
+      if (sdir === 'north') {
+        highlightStep.scale.set(1, 1, 1);
+        highlightStep.position.set(target.x + 0.5, target.y + 0.75, target.z + 0.25);
+      } else if (sdir === 'east') {
+        highlightStep.scale.set(0.5, 1, 2);
+        highlightStep.position.set(target.x + 0.75, target.y + 0.75, target.z + 0.5);
+      } else if (sdir === 'west') {
+        highlightStep.scale.set(0.5, 1, 2);
+        highlightStep.position.set(target.x + 0.25, target.y + 0.75, target.z + 0.5);
+      } else {
+        highlightStep.scale.set(1, 1, 1);
+        highlightStep.position.set(target.x + 0.5, target.y + 0.75, target.z + 0.75);
+      }
     } else {
       highlight.scale.set(1, 1, 1);
       highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
