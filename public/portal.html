@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'c31f789',
+          heading: 'Crash fix: $i init error',
+          desc: 'Fixed a startup crash (Cannot access $i before initialization) where the new canvas fitter ran before the menu camera existed. The game failed to load at all on the fresh build.',
+          date: 'Sep 3',
+          bugs: ['eager fitCanvas() call read menuBgCamera while still in temporal dead zone, killing module load'],
+          updates: ['removed the module-scope fitCanvas() call; resize listeners cover all later changes'],
+          features: [],
+        },
+        {
           hash: '60ca70f',
           heading: 'Directional stairs',
           desc: 'Stairs now face away from where you are looking when placed — tall back on the far side so you climb toward your view. All 8 stair types get north/east/west variants (24 new blocks, IDs 218-241); meshing, collision heights, and the L-shaped selection outline all follow the facing. Breaking any stair drops the base item so the inventory stays clean.',
