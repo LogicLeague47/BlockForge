@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '1213de6',
+          heading: 'Uploads that survive refresh + skin checker',
+          desc: 'Uploads (skins, mods) no longer vanish on refresh: mods are LZ-compressed past quota failures with a visible error, skins fall back across login states and mirror to shared storage. The skin editor now validates PNG format (64x64/64x32, non-blank) on import and save. Also synced the latest Pip and the Mold King.',
+          date: 'Sep 3',
+          bugs: ['oversized mods silently failed quota and vanished on refresh', 'skins saved under one username invisible under another', 'invalid/blank skin files imported without complaint'],
+          updates: ['mod store compresses + surfaces save errors in menu', 'skin library cross-account fallback and mirror', 'skin format validator on import and save'],
+          features: ['Pip and the Mold King latest sync (Other Games page)'],
+        },
+        {
           hash: 'd6ca155',
           heading: 'Freeze fixes, Other Games, bold mobs, mixed slabs',
           desc: 'Killed the 2s mobile freeze (border-aware remesh, cached creative catalog, cheap UI updates), added the Other Games button + LL games page with the platformer, repainted all 9 mobs with bold visible designs, and made mixed double slabs show both textures with save persistence.',
