@@ -304,9 +304,12 @@ export class World {
   }
 
   evictFar(pcx, pcz, limit) {
+    // Edits live in edits/_chunkEdits (reapplied by generateChunk), so evicting
+    // raw data is safe — player builds come back on regen.
     for (const k of this.chunks.keys()) {
-      const cz = k % 32768;
-      const cx = (k - cz) / 32768;
+      // Floor-div decode: JS % keeps the sign, which broke for negative cx.
+      const cx = Math.floor(k / 32768);
+      const cz = k - cx * 32768;
       if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
         this.chunks.delete(k);
       }

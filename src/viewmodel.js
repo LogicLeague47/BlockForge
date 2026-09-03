@@ -195,6 +195,34 @@ export class ViewModel {
     return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   }
 
+  // Minecraft-style held pose: big, diagonal across the view, blade up-right.
+  _mcPose(wrap, s = 1.25) {
+    wrap.rotation.set(-0.3, -0.75, -0.5);
+    wrap.scale.setScalar(s);
+    wrap.position.set(0.05, -0.04, 0.02);
+    return wrap;
+  }
+
+  // Extruded 2D sprite (Minecraft item-model look): icon texture on the two
+  // broad faces, dark edge material on the thin sides.
+  _extrudedSprite(itemId, w = 0.5, h = 0.5, depth = 0.07) {
+    const canvas = makeItemIconCanvas(itemId);
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const face = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, fog: false });
+    const edge = new THREE.MeshLambertMaterial({ color: 0x241c12, fog: false });
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, h, depth),
+      [edge, edge, edge, edge, face, face]
+    );
+    const wrap = new THREE.Group();
+    wrap.add(mesh);
+    return this._mcPose(wrap, 1.15);
+  }
+
   // Tools / weapons (id >= 512): proper 3D shape with head + handle
   _buildToolMesh(itemId) {
     const def = itemDef(itemId);
@@ -229,7 +257,7 @@ export class ViewModel {
       const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.05), darkMat);
       pommel.position.y = -0.095;
       wrap.add(pommel);
-      wrap.rotation.set(-0.18, -0.55, 0.05);
+      return this._mcPose(wrap);
 
     } else if (type === 'pickaxe') {
       // Handle
@@ -252,7 +280,7 @@ export class ViewModel {
       const binding = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.05), darkMat);
       binding.position.y = 0.14;
       wrap.add(binding);
-      wrap.rotation.set(-0.15, -0.5, 0.05);
+      return this._mcPose(wrap);
 
     } else if (type === 'axe') {
       // Handle
@@ -271,7 +299,7 @@ export class ViewModel {
       const binding = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.025, 0.05), darkMat);
       binding.position.y = 0.09;
       wrap.add(binding);
-      wrap.rotation.set(-0.15, -0.5, 0.05);
+      return this._mcPose(wrap);
 
     } else if (type === 'shovel') {
       // Handle
@@ -286,28 +314,52 @@ export class ViewModel {
       const socket = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.045), midMat);
       socket.position.y = 0.15;
       wrap.add(socket);
-      wrap.rotation.set(-0.18, -0.55, 0.05);
+      return this._mcPose(wrap);
+
+    } else if (type === 'hoe') {
+      // Handle
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.50, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      handle.position.y = -0.10;
+      wrap.add(handle);
+      // Hoe blade: horizontal plate jutting left at the top
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.06, 0.045), [headMat, darkMat, litMat, midMat, headMat, headMat]);
+      blade.position.set(-0.09, 0.19, 0);
+      wrap.add(blade);
+      // Socket
+      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.05), midMat);
+      socket.position.set(0.0, 0.16, 0);
+      wrap.add(socket);
+      return this._mcPose(wrap);
+
+    } else if (type === 'trident') {
+      // Shaft
+      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.56, 0.04), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
+      shaft.position.y = -0.08;
+      wrap.add(shaft);
+      // Crossbar
+      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.035, 0.04), midMat);
+      bar.position.y = 0.20;
+      wrap.add(bar);
+      // Three prongs
+      for (const px of [-0.09, 0, 0.09]) {
+        const prong = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.22, 0.035), [litMat, midMat, headMat, headMat, litMat, midMat]);
+        prong.position.set(px, 0.30, 0);
+        wrap.add(prong);
+        const tip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.035), litMat);
+        tip.position.set(px, 0.43, 0);
+        wrap.add(tip);
+      }
+      return this._mcPose(wrap);
 
     } else {
-      // Fallback: flat plane (trident, etc.)
-      const canvas = makeItemIconCanvas(itemId);
-      const mesh = this._planeFromCanvas(canvas, 0.66, true);
-      wrap.add(mesh);
-      wrap.rotation.set(-1.3, 0.5, 0.15);
+      // Anything else with a tool record: extruded sprite in MC pose.
+      return this._extrudedSprite(itemId, 0.55, 0.55);
     }
-    return wrap;
   }
 
-  // Food / materials / other items (id 256-511): flat sprite like BlockForge
+  // Food / materials / other items: extruded sprite, Minecraft held-item look.
   _buildItemMesh(itemId) {
-    const canvas = makeItemIconCanvas(itemId);
-    const mesh = this._planeFromCanvas(canvas, 0.4, true);
-    // Angle like BlockForge held item — tilted back, slightly right
-    mesh.rotation.set(-0.4, 0.3, 0.1);
-    const wrap = new THREE.Group();
-    wrap.add(mesh);
-    wrap.position.set(0.02, 0.08, -0.02);
-    return wrap;
+    return this._extrudedSprite(itemId, 0.45, 0.45);
   }
 
   // Block items: a small bevelled cube textured from the atlas.

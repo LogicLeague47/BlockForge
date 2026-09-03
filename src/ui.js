@@ -229,6 +229,32 @@ export function makeItemIconCanvas(itemId) {
     case 810: drawSpawnEgg(x, '#8A2BE2', '#ff88ff'); break; // Portalman
     case 811: drawSpawnEgg(x, '#3a2a20', '#ff3333'); break; // Cave Bat
     case 813: drawSpawnEgg(x, '#5a2a3a', '#80ff80'); break; // Witch
+    case 710: drawEchoShard(x); break;
+    case 820: drawGrappleHook(x); break;
+    case 821: drawFrostWand(x); break;
+    case 822: drawEmberLauncher(x); break;
+    case 823: drawDimensionCompass(x); break;
+    case 830: drawMusicDisc(x, '#28b838'); break;
+    case 831: drawMusicDisc(x, '#c03030'); break;
+    case 832: drawMusicDisc(x, '#3060d0'); break;
+    case 833: drawMusicDisc(x, '#b87818'); break;
+    case 834: drawMusicDisc(x, '#9020a0'); break;
+    case 840: drawNightVisionPotion(x); break;
+    case 841: drawBoat(x); break;
+    case 842: drawMinecart(x); break;
+    case 843: drawDye(x, '#f0f0f0'); break; // White
+    case 844: drawDye(x, '#f07613'); break; // Orange
+    case 845: drawDye(x, '#bd44b3'); break; // Magenta
+    case 846: drawDye(x, '#3babd7'); break; // Light Blue
+    case 847: drawDye(x, '#f8c828'); break; // Yellow
+    case 848: drawDye(x, '#5a5a5a'); break; // Gray
+    case 849: drawDye(x, '#9a9a9a'); break; // Light Gray
+    case 850: drawDye(x, '#158991'); break; // Cyan
+    case 851: drawDye(x, '#7527ad'); break; // Purple
+    case 852: drawDye(x, '#72471f'); break; // Brown
+    case 853: drawDye(x, '#41791c'); break; // Green
+    case 854: drawDye(x, '#a02722'); break; // Red
+    case 855: drawDye(x, '#1a1a1a'); break; // Black
     case 860: drawBow(x); break;
     case 861: drawShield(x); break;
     case 862: drawFishingRod(x); break;
@@ -677,6 +703,111 @@ function drawFishingRod(x) {
   // Bobber
   px(x, '#ff4444', 2, 1, 2, 1);
   px(x, '#ffffff', 2, 0, 2, 1);
+}
+
+function drawEchoShard(x) {
+  // Teal crystal shard
+  px(x, '#0a3a3a', 6, 2, 4, 12);   // dark base
+  px(x, '#148080', 6, 3, 4, 10);   // body
+  px(x, '#28c0c0', 7, 4, 2, 8);    // inner glow
+  px(x, '#60f0f0', 7, 4, 2, 2);    // facet highlight
+  px(x, '#a0ffff', 8, 5, 1, 1);    // sparkle
+  px(x, '#062828', 6, 13, 4, 1);   // shadow
+}
+
+function drawGrappleHook(x) {
+  // Rope handle + steel hook
+  px(x, '#8a6a3c', 7, 1, 2, 6);    // grip
+  px(x, '#5a4a28', 7, 5, 2, 2);    // wrap
+  px(x, '#b8b8c0', 7, 7, 2, 2);    // collar
+  px(x, '#d8d8e0', 6, 9, 4, 4);    // hook head
+  px(x, '#909098', 6, 9, 4, 1);    // head top shade
+  px(x, '#d8d8e0', 5, 10, 1, 3);   // left barb
+  px(x, '#d8d8e0', 10, 10, 1, 3);  // right barb
+  px(x, '#f0f0f8', 6, 9, 1, 1);    // glint
+  px(x, '#707078', 6, 13, 4, 1);   // shadow
+}
+
+function drawFrostWand(x) {
+  // Icy staff with frost orb
+  px(x, '#5a4632', 7, 6, 2, 9);    // shaft
+  px(x, '#7a6248', 8, 7, 1, 7);    // shaft highlight
+  px(x, '#8a6a3c', 6, 5, 4, 2);    // socket
+  px(x, '#103858', 5, 1, 6, 5);    // orb base
+  px(x, '#2a7ab8', 6, 1, 4, 4);    // orb body
+  px(x, '#7ac8f0', 6, 2, 3, 2);    // frost glow
+  px(x, '#d0f0ff', 7, 2, 1, 1);    // sparkle
+  px(x, '#5a4632', 7, 15, 2, 1);   // butt
+}
+
+function drawEmberLauncher(x) {
+  // Dark launcher with ember core
+  px(x, '#3a2a20', 6, 6, 4, 9);    // body
+  px(x, '#5a4430', 7, 7, 2, 7);    // body highlight
+  px(x, '#222222', 5, 5, 6, 2);    // muzzle ring
+  px(x, '#701808', 5, 1, 6, 5);    // ember chamber
+  px(x, '#d83808', 6, 1, 4, 4);    // ember glow
+  px(x, '#ff8020', 6, 2, 3, 2);    // hot core
+  px(x, '#ffd080', 7, 2, 1, 1);    // spark
+  px(x, '#ff5020', 10, 6, 1, 1);   // side ember
+  px(x, '#1a0f08', 6, 15, 4, 1);   // shadow
+}
+
+function drawDimensionCompass(x) {
+  // Gold-cased compass with red/blue needle
+  px(x, '#8a6a20', 4, 4, 8, 8);    // brass case
+  px(x, '#c8a030', 4, 4, 8, 1);    // case top light
+  px(x, '#f0f0f0', 5, 5, 6, 6);    // face
+  px(x, '#c82828', 7, 6, 2, 4);    // needle north (red)
+  px(x, '#2850c8', 7, 10, 2, 2);   // needle south (blue)
+  px(x, '#404040', 7, 7, 2, 2);    // pin
+  px(x, '#202020', 5, 11, 6, 1);   // shadow
+}
+
+function drawMusicDisc(x, label) {
+  // Black disc with colored label ring
+  px(x, '#101010', 3, 3, 10, 10);  // disc
+  px(x, '#282828', 3, 3, 10, 1);   // top edge light
+  px(x, '#000000', 4, 4, 8, 8);    // groove dark
+  px(x, label, 6, 6, 4, 4);        // label
+  px(x, '#888888', 7, 7, 2, 2);    // spindle hole
+  px(x, '#000000', 7, 7, 2, 2);    // hole dark
+  px(x, '#000000', 3, 13, 10, 1);  // shadow
+}
+
+function drawNightVisionPotion(x) {
+  // Glass bottle, purple brew, cork
+  px(x, '#8a6a3c', 7, 1, 2, 2);    // cork
+  px(x, '#c8d8e0', 6, 3, 4, 2);    // neck glass
+  px(x, '#e8f0f4', 5, 5, 6, 7);    // bottle glass
+  px(x, '#7020a0', 6, 8, 4, 4);    // brew
+  px(x, '#a040e0', 6, 8, 4, 1);    // brew top light
+  px(x, '#d080ff', 7, 9, 1, 1);    // glint
+  px(x, '#ffffff', 5, 5, 1, 2);    // glass shine
+  px(x, '#401060', 5, 12, 6, 1);   // shadow
+}
+
+function drawBoat(x) {
+  // Oak hull seen from the side
+  px(x, '#6e5230', 2, 8, 12, 4);   // hull
+  px(x, '#8a6a3c', 2, 8, 12, 1);   // rim light
+  px(x, '#4a3820', 3, 11, 10, 1);  // hull shade
+  px(x, '#6e5230', 2, 6, 2, 2);    // bow up
+  px(x, '#6e5230', 12, 6, 2, 2);   // stern up
+  px(x, '#3a2c18', 4, 9, 8, 1);    // inner shadow
+  px(x, '#8a6a3c', 7, 9, 2, 1);    // bench
+}
+
+function drawMinecart(x) {
+  // Iron tub on wheels
+  px(x, '#3a3a40', 3, 5, 10, 5);   // tub
+  px(x, '#5a5a64', 3, 5, 10, 1);   // rim light
+  px(x, '#6a6a74', 4, 6, 2, 3);    // tub highlight
+  px(x, '#222226', 3, 10, 10, 1);  // under shade
+  px(x, '#1a1a1a', 4, 11, 2, 2);   // wheel L
+  px(x, '#1a1a1a', 10, 11, 2, 2);  // wheel R
+  px(x, '#888890', 4, 11, 1, 1);   // hub glint
+  px(x, '#888890', 10, 11, 1, 1);  // hub glint
 }
 
 function drawEgg(x) {
@@ -1368,6 +1499,17 @@ function drawToolIcon(x, type, material) {
       // shine
       px(x, p.lit, 6, 2, 2, 1);
     }
+  } else if (type === 'hoe') {
+    drawHandle(x, 8, 6, 9);
+    // Hoe head: horizontal blade jutting left at the top
+    px(x, p.head, 3, 2, 7, 3);
+    px(x, p.lit,  3, 2, 7, 1);
+    px(x, p.dark, 3, 4, 7, 1);
+    // Socket joining head to handle
+    px(x, p.mid, 8, 4, 2, 2);
+    px(x, p.dark, 8, 5, 2, 1);
+    // Tine tip
+    px(x, p.lit, 3, 3, 1, 1);
   } else if (type === 'sword') {
     drawHandle(x, 7, 11, 3);            // grip
     // guard
@@ -1678,7 +1820,9 @@ export class UI {
 
   _getCachedIconUrl(itemId) {
     if (this._iconUrlCache.has(itemId)) return this._iconUrlCache.get(itemId);
-    const c = this.makeItemIcon(itemId);
+    // Blocks need the block icon painter — the 16px item painter returns a
+    // blank canvas for them (this was the invisible offhand-slot bug).
+    const c = isBlockItem(itemId) ? makeIcon(itemId, this.atlas) : this.makeItemIcon(itemId);
     const url = c.toDataURL();
     this._iconUrlCache.set(itemId, url);
     return url;
@@ -2084,7 +2228,7 @@ export class UI {
   }
 
   // --- HUD ------------------------------------------------------------------
-  updateHud({ fps, pos, biome, loadedChunks, facing, gamemode, showFps }) {
+  updateHud({ fps, pos, biome, loadedChunks, lazyChunks, facing, gamemode, showFps }) {
     const mode = gamemode || (this.creative ? 'Creative' : 'Survival');
     if (!this._hudLine1) {
       this._hudLine1 = document.createElement('div');
@@ -2121,7 +2265,7 @@ export class UI {
     this._hudCoordDiv.textContent = 'XYZ: ' + pos.x.toFixed(1) + ' / ' + pos.y.toFixed(1) + ' / ' + pos.z.toFixed(1);
     this._hudBiomeSpan.textContent = biome;
     this._hudFacingNode.textContent = facing;
-    this._hudChunksNode.textContent = loadedChunks + ' chunks';
+    this._hudChunksNode.textContent = loadedChunks + ' chunks' + (lazyChunks > 0 ? ' +' + lazyChunks + ' lazy' : '');
   }
 
   // --- water overlay --------------------------------------------------------

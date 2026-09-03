@@ -3288,9 +3288,11 @@ export function makeIcon(blockId, atlasCanvas) {
     const name = tileNameFor(blockId, 'side');
     const t = TILES[name];
     if (t) {
-      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, ICON_SIZE / 2, ICON_SIZE, ICON_SIZE / 2);
+      // Top slabs draw in the upper half of the icon, bottom slabs/stairs low.
+      const dy = def.slabTop ? 0 : ICON_SIZE / 2;
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, dy, ICON_SIZE, ICON_SIZE / 2);
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(0, ICON_SIZE / 2, ICON_SIZE, 2);
+      ctx.fillRect(0, dy, ICON_SIZE, 2);
     }
   } else if (def && def.solid && !def.transparent && !def.cutout && !def.plant && !def.liquid && !def.stair && !def.bed && atlasCanvas) {
     // Full cubes get a 3D isometric icon (top rhombus + two side faces).

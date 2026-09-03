@@ -9,6 +9,15 @@ import { CHUNK_SIZE } from './world.js';
 const _IS_MOBILE = ('ontouchstart' in window && navigator.maxTouchPoints > 0);
 const _LOW_END = _IS_MOBILE || (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 4) <= 4;
 
+// Minecraft-style chunk states:
+//   loaded   — within radius: generated + meshed + ticked (rendered world)
+//   lazy     — ring past radius: data cached (instant re-entry, edits safe)
+//              but no mesh and no ticks
+//   unloaded — evicted entirely; regenerates (with edits) on approach
+export const CHUNK_STATE = { LOADED: 'loaded', LAZY: 'lazy', UNLOADED: 'unloaded' };
+const MESH_HOLD = 1;  // meshes survive this far past radius (hides border pop)
+const DATA_HOLD = 4;  // chunk data survives this far past radius (lazy ring)
+
 export class ChunkLoader {
   constructor(world, manager, radius = 6) {
     this.world = world;
@@ -74,17 +83,28 @@ export class ChunkLoader {
     this.queue = list.map(l => ({ key: l.cx + ',' + l.cz, cx: l.cx, cz: l.cz }));
   }
 
+  // State of one chunk column relative to the player (Minecraft-style).
+  chunkState(cx, cz) {
+    const dx = Math.abs(cx - this.lastPCX), dz = Math.abs(cz - this.lastPCZ);
+    const d = Math.max(dx, dz);
+    if (d <= this.radius) return CHUNK_STATE.LOADED;
+    if (d <= this.radius + DATA_HOLD) return CHUNK_STATE.LAZY;
+    return CHUNK_STATE.UNLOADED;
+  }
+
   unloadFar(pcx, pcz) {
-    const limit = this.radius + 3;
+    // Meshes: drop anything past the visible radius (+1 hold against popping).
+    const meshLimit = this.radius + MESH_HOLD;
     for (const k of this.manager.meshes.keys()) {
       const [cx, cz] = k.split(',').map(Number);
-      if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
+      if (Math.abs(cx - pcx) > meshLimit || Math.abs(cz - pcz) > meshLimit) {
         this.manager.remove(cx, cz);
       }
     }
-    // Also evict the underlying chunk data (kept a bit further out than meshes
-    // so nearby back-and-forth movement doesn't thrash regeneration).
-    if (this.world.evictFar) this.world.evictFar(pcx, pcz, this.radius + 5);
+    // Data: evict past the lazy ring. Edits live separately and reapply on
+    // regen, so nearby back-and-forth movement just re-meshes cached data
+    // instead of regenerating terrain.
+    if (this.world.evictFar) this.world.evictFar(pcx, pcz, this.radius + DATA_HOLD);
   }
 
   // Async prime: yields to the browser between chunks so loading screen can update.
@@ -121,4 +141,15 @@ export class ChunkLoader {
 
   // Total loaded chunks (for HUD).
   loadedCount() { return this.manager.meshes.size; }
+
+  // Lazy chunks: generated data cached without a mesh (instant re-entry ring).
+  lazyCount() {
+    let n = 0;
+    for (const k of this.world.chunks.keys()) {
+      const cx = Math.floor(k / 32768), cz = k - cx * 32768;
+      if (this.chunkState(cx, cz) !== CHUNK_STATE.LAZY) continue;
+      if (!this.manager.meshes.has(cx + ',' + cz)) n++;
+    }
+    return n;
+  }
 }

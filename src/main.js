@@ -10,7 +10,7 @@ import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
-import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor } from './blocks.js';
+import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor, slabVariantFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
@@ -663,8 +663,11 @@ function updateBreaking(progress, hit) {
   crackTexture.needsUpdate = true;
   // Position crack flush on the face that was hit
   const nx = hit.normal.x, ny = hit.normal.y, nz = hit.normal.z;
-  const isSlab = BLOCKS[world.getBlock(hit.x, hit.y, hit.z)]?.slab;
-  const slabTopY = hit.y + 0.5;
+  const slabDef = BLOCKS[world.getBlock(hit.x, hit.y, hit.z)];
+  const isSlab = slabDef?.slab;
+  const isTopSlab = isSlab && slabDef.slabTop;
+  // Slab surface heights: bottom slab top at +0.5, top slab top at +1.
+  const slabTopY = hit.y + (isTopSlab ? 1 : 0.5);
   crackPlane.position.set(
     hit.x + 0.5 + nx * 0.505,
     ny > 0.5 && isSlab ? slabTopY + 0.005 : hit.y + 0.5 + ny * 0.505,
@@ -673,7 +676,7 @@ function updateBreaking(progress, hit) {
   // Slab sides are only half-height — squash the crack so it hugs the slab
   if (isSlab && Math.abs(ny) <= 0.5) {
     crackPlane.scale.set(1, 0.5, 1);
-    crackPlane.position.y = hit.y + 0.25;
+    crackPlane.position.y = hit.y + (isTopSlab ? 0.75 : 0.25);
   } else {
     crackPlane.scale.set(1, 1, 1);
   }
@@ -3090,10 +3093,24 @@ function placeBlock(slotOverride, targetHit) {
   const pz = Math.floor(player.position.z);
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
 
-  // Slab stacking: any slab placed on any slab → merge into a full block.
-  // Result uses the existing slab's full-block mapping (falling back to the
-  // held slab's), so mixed types still merge instead of floating. The pair is
-  // recorded so breaking the block drops both slabs back.
+  // Slabs: pick top/bottom half by clicked face (Minecraft rules) — top face
+  // stacks upward, underside hangs a top slab, side faces split upper/lower.
+  if (BLOCKS[itemId]?.slab) {
+    const ny = hit.normal ? hit.normal.y : 0;
+    let wantTop;
+    if (ny > 0) wantTop = false;
+    else if (ny < 0) wantTop = true;
+    else {
+      const frac = (hit.hitY ?? 0.5) - Math.floor(hit.hitY ?? 0.5);
+      wantTop = frac > 0.5;
+    }
+    itemId = slabVariantFor(itemId, wantTop);
+  }
+
+  // Slab stacking: a slab used on any slab cell merges into a full block
+  // (any mix of types — classic double-slab behavior). Result uses the
+  // existing slab's full-block mapping. The pair is recorded so breaking the
+  // block drops both slabs back.
   if (hit.block && BLOCKS[itemId]?.slab && BLOCKS[hit.block]?.slab) {
     const fullBlock = SLAB_TO_FULL[hit.block] || SLAB_TO_FULL[itemId];
     if (fullBlock) {
@@ -3649,6 +3666,8 @@ function doBreak(hit, b) {
     if (merged) {
       mergedSlabs.delete(`${hit.x},${hit.y},${hit.z}`);
       if (b !== SLAB_TO_FULL[merged[0]] && b !== SLAB_TO_FULL[merged[1]]) merged = null;
+      // Normalize to base slabs (top variants drop their base item).
+      else merged = merged.map(id => BLOCKS[id]?.drop ?? id);
     }
     const drops = merged ? merged
       : [isBedwars && (b === BLOCK.BED || b === BLOCK.BED_FOOT) ? 0 : blockDrop(b, toolHarvestLevel(toolId || 0))];
@@ -10761,7 +10780,8 @@ function _gameFrame() {
     const tb = world.getBlock(target.x, target.y, target.z);
     if (BLOCKS[tb]?.slab) {
       highlight.scale.set(1, 0.5, 1);
-      highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
+      const slabY = BLOCKS[tb].slabTop ? target.y + 0.75 : target.y + 0.25;
+      highlight.position.set(target.x + 0.5, slabY, target.z + 0.5);
       highlightStep.visible = false;
     } else if (BLOCKS[tb]?.stair) {
       // L-shape: bottom-slab outline + top-step outline on the tall side.
@@ -11212,8 +11232,17 @@ function _gameFrame() {
       const placePos = hit.place;
       const existing = world.getBlock(placePos.x, placePos.y, placePos.z);
       if (BLOCKS[itemId]?.slab) {
+        // Preview the half that would actually place (same rule as placeBlock).
+        const gny = hit.normal ? hit.normal.y : 0;
+        let gTop;
+        if (gny > 0) gTop = false;
+        else if (gny < 0) gTop = true;
+        else {
+          const gfrac = (hit.hitY ?? 0.5) - Math.floor(hit.hitY ?? 0.5);
+          gTop = gfrac > 0.5;
+        }
         ghostMesh.scale.set(1, 0.5, 1);
-        ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.25, placePos.z + 0.5);
+        ghostMesh.position.set(placePos.x + 0.5, placePos.y + (gTop ? 0.75 : 0.25), placePos.z + 0.5);
       } else {
         ghostMesh.scale.set(1, 1, 1);
         ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.5, placePos.z + 0.5);
@@ -11581,6 +11610,7 @@ function _gameFrame() {
       Math.floor(player.position.y)
     ),
     loadedChunks: loader.loadedCount(),
+    lazyChunks: loader.lazyCount ? loader.lazyCount() : 0,
     facing: facingName(player.yaw),
     gamemode: player.gamemode,
     showFps,

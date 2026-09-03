@@ -253,12 +253,17 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
-        // Slabs: half-height cube (bottom half only). Sides sample the
-        // bottom half of the texture so the pattern keeps world scale.
+        // Slabs: half-height cube. Bottom slabs sit on y..y+0.5 and sample
+        // the texture's bottom half on the sides; top slabs hang at
+        // y+0.5..y+1 and sample the top half so patterns keep world scale.
         if (def.slab) {
           const tile = typeof def.faces === 'string' ? def.faces : (def.faces?.side || 'stone');
           const slabTiles = [tile, tile, tile, tile, tile, tile];
-          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], slabTiles, 0, sample, [0, 0.5]);
+          if (def.slabTop) {
+            pushBedBox(opaque, wx, y, wz, [0, 0.5, 0, 1, 1, 1], slabTiles, 0, sample, [0.5, 1]);
+          } else {
+            pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], slabTiles, 0, sample, [0, 0.5]);
+          }
           continue;
         }
 

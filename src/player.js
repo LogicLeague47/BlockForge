@@ -849,23 +849,24 @@ export class Player {
     }
   }
 
-  // Collision height of a block's real shape (0 = no collision).
-  // Slabs are a bottom half-slab (0.5). Stairs are an L whose tall back half
-  // sits on the stairDir side: 1.0 when the player stands on that half,
-  // 0.5 on the low front half.
-  _blockHitHeight(b, px, pz) {
+  // Collision span of a block's real shape as [lo, hi] cell offsets
+  // (null = no collision). Bottom slabs sit at [0, 0.5], top slabs hang at
+  // [0.5, 1]. Stairs are an L: full height on the tall stairDir half,
+  // half height on the low front half.
+  _blockHitRange(b, px, pz) {
     const d = BLOCKS[b];
-    if (!d || !d.solid) return 0;
-    if (d.slab) return 0.5;
+    if (!d || !d.solid) return null;
+    if (d.slab) return d.slabTop ? [0.5, 1] : [0, 0.5];
     if (d.stair) {
       const fx = px - Math.floor(px), fz = pz - Math.floor(pz);
       const dir = d.stairDir || 'south';
-      if (dir === 'north') return fz < 0.5 ? 1 : 0.5;
-      if (dir === 'east') return fx >= 0.5 ? 1 : 0.5;
-      if (dir === 'west') return fx < 0.5 ? 1 : 0.5;
-      return fz >= 0.5 ? 1 : 0.5; // south
+      const tall = dir === 'north' ? fz < 0.5
+                 : dir === 'east' ? fx >= 0.5
+                 : dir === 'west' ? fx < 0.5
+                 : fz >= 0.5; // south
+      return tall ? [0, 1] : [0, 0.5];
     }
-    return 1;
+    return [0, 1];
   }
 
   _collideAxis(axis, delta) {
@@ -891,20 +892,21 @@ export class Player {
       for (let z = z0; z <= z1; z++) {
         for (let x = x0; x <= x1; x++) {
           const b = this.world.getBlock(x, y, z);
-          const h = this._blockHitHeight(b, this.position.x, this.position.z);
-          if (h <= 0) continue;
+          const r = this._blockHitRange(b, this.position.x, this.position.z);
+          if (!r) continue;
+          const lo = r[0], hi = r[1];
           // No vertical overlap with the block's real shape → ignore it.
-          // (This is what lets you stand ON slabs and jump clean OVER them
-          // instead of getting yanked down mid-jump.)
-          if (max.y <= y || min.y >= y + h) continue;
+          // (This is what lets you stand ON slabs, walk UNDER top slabs,
+          // and jump clean OVER them instead of getting yanked down mid-jump.)
+          if (max.y <= y + lo || min.y >= y + hi) continue;
           if (axis === 'x') {
             // Auto-step: climb shapes whose top is near/below our feet when
             // there's headroom (slabs, stair steps — smooth stair climbing).
-            if (delta !== 0 && (y + h) - min.y <= 0.6001) {
+            if (delta !== 0 && (y + hi) - min.y <= 0.6001) {
               const above = this.world.getBlock(x, y + 1, z);
               const above2 = this.world.getBlock(x, y + 2, z);
-              if (!BLOCKS[above]?.solid && (y + h <= y + 0.51 || !BLOCKS[above2]?.solid)) {
-                this.position.y = y + h + 0.0001;
+              if (!BLOCKS[above]?.solid && (y + hi <= y + 0.51 || !BLOCKS[above2]?.solid)) {
+                this.position.y = y + hi + 0.0001;
                 this.onGround = true;
                 this.velocity.y = 0;
                 continue;
@@ -912,11 +914,11 @@ export class Player {
             }
             this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else if (axis === 'z') {
-            if (delta !== 0 && (y + h) - min.y <= 0.6001) {
+            if (delta !== 0 && (y + hi) - min.y <= 0.6001) {
               const above = this.world.getBlock(x, y + 1, z);
               const above2 = this.world.getBlock(x, y + 2, z);
-              if (!BLOCKS[above]?.solid && (y + h <= y + 0.51 || !BLOCKS[above2]?.solid)) {
-                this.position.y = y + h + 0.0001;
+              if (!BLOCKS[above]?.solid && (y + hi <= y + 0.51 || !BLOCKS[above2]?.solid)) {
+                this.position.y = y + hi + 0.0001;
                 this.onGround = true;
                 this.velocity.y = 0;
                 continue;
@@ -939,7 +941,7 @@ export class Player {
                 }
               }
               this.fallStartY = -1;
-              this.position.y = y + h + 0.0001;
+              this.position.y = y + hi + 0.0001;
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);
@@ -950,13 +952,14 @@ export class Player {
                 this.velocity.y = 0;
               }
             } else if (delta > 0) {
-              this.position.y = y - PLAYER_HEIGHT - 0.0001;
+              // Bump into the shape's underside (top slabs hang lower).
+              this.position.y = y + lo - PLAYER_HEIGHT - 0.0001;
               this.velocity.y = 0;
             } else {
               // delta === 0: a block materialized inside the player (e.g. chunk
               // regen, multiplayer sync). Push the player to the top of the
               // block's real shape rather than underground.
-              this.position.y = y + h + 0.0001;
+              this.position.y = y + hi + 0.0001;
               this.velocity.y = 0;
               this.onGround = true;
             }
