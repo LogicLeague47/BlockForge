@@ -47,16 +47,18 @@ export async function initCrazyGamesUser(playerName = 'Player', password = '') {
   
   if (isCG && sdkReady) {
     try {
+      // v3: no isAuthenticated() — a non-null getUser() means logged in.
+      // Never auto-prompt here (ToS); just adopt a logged-in session silently.
       const userModule = window.CrazyGames?.SDK?.user;
-      if (userModule?.isAuthenticated?.()) {
-        const cgUser = userModule.getUser?.();
-        if (cgUser?.id) {
-          // Auto-register or sync existing CrazyGames user
-          const result = await accountManager.initCrazyGamesUser(playerName, password);
-          if (result.success) {
-            console.log('CrazyGames user initialized:', result.username);
-            return result;
-          }
+      const me = userModule && typeof userModule.getUser === 'function'
+        ? await userModule.getUser().catch(() => null)
+        : null;
+      if (me && me.username) {
+        // Auto-register or sync existing CrazyGames user
+        const result = await accountManager.initCrazyGamesUser(playerName, password);
+        if (result.success) {
+          console.log('CrazyGames user initialized:', result.username);
+          return result;
         }
       }
     } catch (error) {
@@ -87,42 +89,41 @@ async function waitForSDK(timeoutMs = 5000) {
   return false;
 }
 
-// Handle CrazyGames auth state changes
+// Handle CrazyGames auth state changes (v3 addAuthListener; logout refreshes
+// the page per ToS, so only the login direction needs handling here).
 export function setupCrazyGamesAuthHandlers() {
   const isCG = /crazygames/i.test(location.hostname);
-  
+
   if (!isCG) return;
-  
+
   try {
-    window.CrazyGames?.SDK?.user?.onAuthStateChange?.((user) => {
-      if (user && user.id) {
-        console.log('CrazyGames user auth state changed:', user.username || user.id);
-        
+    const userModule = window.CrazyGames?.SDK?.user;
+    const onAuth = (user) => {
+      if (user && user.username) {
+        console.log('CrazyGames user auth state changed:', user.username);
+
         // Update player name from CrazyGames username
-        const newName = filterProfanity(user.username || `cg_${user.id}`);
+        const newName = filterProfanity(user.username);
         if (window.playerName !== newName) {
           window.playerName = newName;
-          
+
           // Update UI elements
           const nameEl = document.getElementById('menu-player-name');
           if (nameEl) nameEl.textContent = newName;
-          
+
           // Save to localStorage
           try { localStorage.setItem('bf_player_name', newName); } catch (_) {}
-          
-          // Set skin from CrazyGames avatar if available
-          if (user.avatar) {
-            setSkinUser(newName, user.avatar);
-          }
-          
-          // Store CrazyGames ID for account linking
-          localStorage.setItem('bf_cg_user_id', user.id);
-          localStorage.setItem('bf_cg_username', newName);
-          
-          // Sync game progress from CrazyGames ID
-          syncGameProgressFromCg(user.id);
+
+          // Set skin user (avatar comes from the CG profile via getUser)
+          setSkinUser(newName);
+
+          // Store CrazyGames username for account linking flows
+          try { localStorage.setItem('bf_cg_username', newName); } catch (_) {}
+
+          // Sync game progress for this CG user
+          syncGameProgressFromCg(user.__dangerousUserId || user.userId || newName);
         }
-        
+
         // Trigger gameplay start if CG is available
         cgGameplayStart();
       } else {
@@ -130,7 +131,10 @@ export function setupCrazyGamesAuthHandlers() {
         window.playerName = window.playerName || 'Player';
         cgGameplayStart();
       }
-    });
+    };
+    if (userModule && typeof userModule.addAuthListener === 'function') {
+      userModule.addAuthListener(onAuth);
+    }
   } catch (error) {
     console.warn('Failed to setup CrazyGames auth handlers:', error);
   }
@@ -230,11 +234,11 @@ export async function startExternalAccountLinking(provider) {
     }
     
     const userModule = sdk.user;
-    const cgUser = userModule.getUser?.();
-    if (!cgUser || !cgUser.id) {
+    const me = userModule && typeof userModule.getUser === 'function' ? await userModule.getUser() : null;
+    if (!me) {
       return { success: false, error: 'No CrazyGames user logged in' };
     }
-    
+
     // Initiate OAuth flow for external account linking
     // Note: This follows CrazyGames rules - no visible OAuth buttons,
     // only internal linking process
@@ -249,7 +253,7 @@ export async function startExternalAccountLinking(provider) {
         resolve({
           success: true,
           provider,
-          cgId: cgUser.id,
+          cgId: (me && (me.__dangerousUserId || me.userId)) || null,
           message: `OAuth link flow initiated for ${provider}`
         });
       }, 500);
@@ -284,11 +288,11 @@ export async function createGameAccountForLinking(username, password, displayNam
     }
     
     const userModule = sdk.user;
-    const cgUser = userModule.getUser?.();
-    if (!cgUser || !cgUser.id) {
+    const me = userModule && typeof userModule.getUser === 'function' ? await userModule.getUser() : null;
+    if (!me) {
       return { success: false, error: 'No CrazyGames user logged in' };
     }
-    
+
     // Create a new game account
     const result = await cgAccountManager.createGameAccountForLinking(username, password, displayName);
     
@@ -318,13 +322,14 @@ export async function completeGameAccountLinking(gameAccountId) {
     }
     
     const userModule = sdk.user;
-    const cgUser = userModule.getUser?.();
-    if (!cgUser || !cgUser.id) {
+    const me = userModule && typeof userModule.getUser === 'function' ? await userModule.getUser() : null;
+    const cgId = me && (me.__dangerousUserId || me.userId);
+    if (!cgId) {
       return { success: false, error: 'No CrazyGames user logged in' };
     }
-    
-    // Complete the linking process
-    const result = await cgAccountManager.completeGameAccountLinking(gameAccountId, cgUser.id);
+
+    // Complete the linking process (standard CG modal first, inside)
+    const result = await cgAccountManager.completeGameAccountLinking(gameAccountId, cgId);
     
     if (result.success) {
       console.log('Successfully linked game account to CrazyGames:', result.gameId);

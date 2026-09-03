@@ -7677,7 +7677,7 @@ function initMenu() {
 
   // First-time name prompt (standalone / non-CG users)
   try {
-    const launchedFromCG = window.CrazyGames?.SDK?.user?.getUsername?.();
+    const launchedFromCG = isOnCrazyGames();
     // Name prompt only needed for CrazyGames users (login screen handles others)
     if (!hadSavedName && launchedFromCG && !joiningViaLink) {
       setTimeout(() => showNamePrompt(), 1200);
@@ -8619,12 +8619,14 @@ function initMenu() {
         if (links2[prov]) return;
         _pendingLinkProvider = prov;
         if (prov === 'crazygames') {
-          crazyGamesSDK().then(sdk => {
-            if (!sdk) { showToast('Not on CrazyGames', '#ff0', 3); return; }
-            const cgId = sdk.user?.getId?.() || sdk.user?.getUsername?.();
-            if (cgId) network.linkIdentity('crazygames', cgId);
-            else showToast('No CG identity found', '#f44', 3);
-          });
+          // Verified-token link: the server ignores any client-supplied id.
+          (async () => {
+            if (!cgIsAccountAvailable()) { showToast('Not on CrazyGames', '#ff0', 3); return; }
+            let token = null;
+            try { token = await cgGetUserToken(); } catch (_) {}
+            if (token) network.linkIdentity('crazygames', 'token', token);
+            else showToast('Log in to CrazyGames first.', '#f44', 3);
+          })();
         } else if (isOnCrazyGames()) {
           // On CG: use the official account link prompt before OAuth linking
           crazyGamesSDK().then(sdk => {

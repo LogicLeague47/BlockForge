@@ -388,8 +388,10 @@ export class Network {
     this._send(msg);
   }
 
-  linkIdentity(identityType, identityId) {
-    this._send({ type: 'link_identity', identityType, identityId });
+  linkIdentity(identityType, identityId, cgToken) {
+    const msg = { type: 'link_identity', identityType, identityId };
+    if (cgToken) msg.cgToken = cgToken;
+    this._send(msg);
   }
 
   startOAuthLink(provider) {

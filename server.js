@@ -1094,15 +1094,23 @@ function handleOAuth(provider, isCallback, params, baseUrl, res) {
 // ── Identity linking handlers (WebSocket) ────────────────────────────
 
 async function handleLinkIdentity(ws, msg) {
-  const { identityType, identityId } = msg;
+  const { identityType, identityId, cgToken } = msg;
   if (!ws._playerData) return sendError(ws, 'Not authenticated');
   const username = ws._playerData.name;
   if (!identityType || !identityId) return sendError(ws, 'Missing identity type or ID');
-  const existing = findAccountByIdentity(identityType, identityId);
+  // CrazyGames links require a verified JWT — a client-supplied id would let
+  // anyone attach someone else's CG account to their own login.
+  let finalId = identityId;
+  if (identityType === 'crazygames') {
+    const verified = cgToken ? await verifyCgToken(cgToken) : null;
+    if (!verified) return sendError(ws, 'CG verification failed. Refresh and try again.');
+    finalId = verified.userId;
+  }
+  const existing = findAccountByIdentity(identityType, finalId);
   if (existing && existing !== username) return sendError(ws, `Identity already linked to "${existing}"`);
   if (!accounts[username]) return sendError(ws, 'Account not found');
   if (!accounts[username].identities) accounts[username].identities = {};
-  accounts[username].identities[identityType] = identityId;
+  accounts[username].identities[identityType] = finalId;
   saveAccounts();
   safeSend(ws, JSON.stringify({ type: 'link_identity_result', ok: true }));
 }
