@@ -140,11 +140,63 @@ let _skinUser = '';
 export function setSkinUser(username) { _skinUser = username || ''; }
 function _p(key) { return _skinUser ? key + '_' + encodeURIComponent(_skinUser) : key; }
 
+// --- Skin format validator ("bot") ------------------------------------------
+// Checks an image is a usable skin: right dimensions (64x64, or legacy
+// 64x32), actually readable, and not blank/fully transparent.
+export function validateSkinImage(img) {
+  const errors = [], warnings = [];
+  if (!img) { errors.push('No image provided.'); return { ok: false, errors, warnings }; }
+  const w = img.naturalWidth || img.width || 0;
+  const h = img.naturalHeight || img.height || 0;
+  if (!w || !h) { errors.push('Unreadable image file.'); return { ok: false, errors, warnings }; }
+  if (!((w === 64 && h === 64) || (w === 64 && h === 32))) {
+    errors.push('Wrong size: ' + w + 'x' + h + '. Skins must be 64x64 (or legacy 64x32).');
+  }
+  try {
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    const g = c.getContext('2d', { willReadFrequently: true });
+    g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, w, h).data;
+    let opaque = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 10) opaque++;
+    if (opaque === 0) errors.push('Image is fully transparent — nothing to wear.');
+    else if (opaque < 64) warnings.push('Almost empty: only a few visible pixels.');
+  } catch (_) { warnings.push('Could not scan pixels; size check only.'); }
+  return { ok: errors.length === 0, errors, warnings };
+}
+
+// Blank check for a paint canvas (used before saving from the editor).
+export function skinCanvasIsBlank(canvas) {
+  try {
+    const w = canvas.width, h = canvas.height;
+    const g = canvas.getContext('2d', { willReadFrequently: true });
+    const d = g.getImageData(0, 0, w, h).data;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 10) return false;
+    return true;
+  } catch (_) { return false; }
+}
+
 // --- Saved custom skins library -------------------------------------------
 export function getCustomSkins() {
   try {
     const raw = localStorage.getItem(_p(STORAGE_KEY_CUSTOM_LIST));
-    if (raw) { const list = JSON.parse(raw); if (Array.isArray(list)) return list; }
+    if (raw) { const list = JSON.parse(raw); if (Array.isArray(list) && list.length) return list; }
+  } catch {}
+  // Cross-account fallback: skins saved under a different username (or as a
+  // guest) used to vanish after refresh. Adopt the unprefixed library so
+  // uploads are never lost when the login state changes.
+  try {
+    if (_p(STORAGE_KEY_CUSTOM_LIST) !== STORAGE_KEY_CUSTOM_LIST) {
+      const shared = localStorage.getItem(STORAGE_KEY_CUSTOM_LIST);
+      if (shared) {
+        const list = JSON.parse(shared);
+        if (Array.isArray(list) && list.length) {
+          cloudSet(_p(STORAGE_KEY_CUSTOM_LIST), JSON.stringify(list));
+          return list;
+        }
+      }
+    }
   } catch {}
   // Migrate a legacy single custom skin into the list.
   try {
@@ -159,7 +211,15 @@ export function getCustomSkins() {
 }
 
 function _saveCustomSkins(list) {
-  cloudSet(_p(STORAGE_KEY_CUSTOM_LIST), JSON.stringify(list));
+  const json = JSON.stringify(list);
+  cloudSet(_p(STORAGE_KEY_CUSTOM_LIST), json);
+  // Mirror to the shared (unprefixed) library so uploads survive username
+  // changes and guest/login switches (small PNGs — cheap insurance).
+  try {
+    if (_p(STORAGE_KEY_CUSTOM_LIST) !== STORAGE_KEY_CUSTOM_LIST) {
+      cloudSet(STORAGE_KEY_CUSTOM_LIST, json);
+    }
+  } catch (_) {}
 }
 
 // Add a new custom skin to the library and select it. Returns its index.

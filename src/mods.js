@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { BLOCK, BLOCKS } from './blocks.js';
+import LZString from 'lz-string';
 
 const MODS_KEY = 'bf_mods';
 export const MODS_URL = 'mods.html';
@@ -35,6 +36,24 @@ export function getModButtons() { return _modButtons; }
 // refresh before).
 function modKey(id) { return 'bf_mod:' + id; }
 
+function unpackMod(raw) {
+  if (!raw) return null;
+  // New format: LZ-compressed JSON. Legacy: plain JSON.
+  try {
+    if (raw.charAt(0) === '{') {
+      const m = JSON.parse(raw);
+      if (m && m.id) return m;
+    }
+  } catch (_) {}
+  try {
+    const dec = LZString.decompressFromUTF16(raw);
+    if (dec) {
+      const m = JSON.parse(dec);
+      if (m && m.id) return m;
+    }
+  } catch (_) {}
+  return null;
+}
 function loadStore() {
   // Migrate the legacy single-blob format to per-mod keys.
   try {
@@ -53,20 +72,34 @@ function loadStore() {
       const k = localStorage.key(i);
       if (k && k.indexOf('bf_mod:') === 0) {
         try {
-          const m = JSON.parse(localStorage.getItem(k));
-          if (m && m.id) out.push(m);
+          const m = unpackMod(localStorage.getItem(k));
+          if (m) out.push(m);
         } catch (_) {}
       }
     }
   } catch (_) {}
   return out;
 }
+// Last save failure message (surfaced in the Mods menu so oversized mods
+// fail loudly instead of vanishing on refresh).
+export let modSaveError = '';
 function saveStore() {
+  modSaveError = '';
   const data = _mods.map(({ module, api, errors, ...m }) => m);
-  // Save each mod independently — a single failure can't wipe the others.
+  // Save each mod independently, LZ-compressed (mod code is very repetitive
+  // text — typically 3-5x smaller, dodging the 5MB localStorage quota).
   for (const m of data) {
-    try { localStorage.setItem(modKey(m.id), JSON.stringify(m)); }
-    catch (_) { console.warn('[Mods] localStorage write failed for ' + m.id); }
+    try {
+      const packed = LZString.compressToUTF16(JSON.stringify(m));
+      localStorage.setItem(modKey(m.id), packed);
+    } catch (_) {
+      try { localStorage.setItem(modKey(m.id), JSON.stringify(m)); }
+      catch (e2) {
+        modSaveError = 'Could not save "' + (m.name || m.id) + '" (storage full) — it will be gone after refresh.';
+        console.warn('[Mods] localStorage write failed for ' + m.id);
+        try { window.dispatchEvent(new CustomEvent('bf-mod-save-error', { detail: { id: m.id } })); } catch (_) {}
+      }
+    }
   }
   // Prune keys for mods that were removed.
   try {
@@ -311,7 +344,14 @@ function status(msg, color) {
 export function renderModsList() {
   const list = document.getElementById('mods-list');
   if (!list) return;
+  const saveErr = modSaveError
+    ? '<div style="background:rgba(200,60,60,0.15);border:1px solid rgba(255,100,100,0.5);border-radius:8px;padding:8px 12px;margin-bottom:8px;font:11px monospace;color:#f88;">⚠ ' + esc(modSaveError) + '</div>'
+    : '';
   if (!_mods.length) {
+    list.innerHTML = saveErr + '<div style="text-align:center;padding:22px 12px;color:#888;font:13px monospace;line-height:1.7;">No mods installed yet.<br>Download <b>.bfmod</b> files from the BlockForge website,<br>then tap "Import Mod" (or drag the file here).</div>';
+    return;
+  }
+  list.innerHTML = saveErr + _mods.map((m) => {
     list.innerHTML = '<div style="text-align:center;padding:22px 12px;color:#888;font:13px monospace;line-height:1.7;">No mods installed yet.<br>Download <b>.bfmod</b> files from the BlockForge website,<br>then tap "Import Mod" (or drag the file here).</div>';
     return;
   }
@@ -397,6 +437,8 @@ export function bindModsMenu(ui) {
       });
     });
   }
+  // Re-render if a save fails while the menu is open (quota error surfaced).
+  window.addEventListener('bf-mod-save-error', () => { try { renderModsList(); } catch (_) {} });
   // Toggle / remove buttons (event delegation).
   const list = document.getElementById('mods-list');
   if (list) list.addEventListener('click', (e) => {

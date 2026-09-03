@@ -37,20 +37,15 @@ window.STALE_Enemies = {
       } else if(e.type==='boss'){
         this.bossUpdate(e,dt,g);
       }
-      // interact with player
+      // interact with player (crawlers, bats AND gulpers are all stompable!)
       if(!e.dead && e.type!=='spore' && e.type!=='boss'){
         if(P.overlap(P,e)){
-          const stomp = P.vy>150 && (P.y+P.h)-e.y < 22;
-          if(stomp){ e.dead=true; P.vy=-620; STALE_Audio.play('stomp'); g.spawnPoof(e.x,e.y,'#9f9'); STALE_Paint.ink=Math.min(100,STALE_Paint.ink+18); g.toast('+jam!'); }
+          const stomp = P.vy>150 && (P.y+P.h)-e.y < 24;
+          if(stomp){ e.dead=true; P.vy=-620; g.onStomp(e); }
           else P.hurt(g);
         }
       }
       if(e.type==='spore' && !e.dead && P.overlap(P,e)){ P.hurt(g); e.dead=true; }
-      // bat stomp
-      if(e.type==='bat' && !e.dead && P.overlap(P,e)){
-        const stomp=P.vy>100&&(P.y+P.h)-e.y<24;
-        if(stomp){e.dead=true;P.vy=-620;STALE_Audio.play('stomp');g.spawnPoof(e.x,e.y,'#9f9');}
-      }
       // spore vs boss bounce-back? stomping spore kills it
       if(e.type==='spore' && P.vy>150 && P.overlap(P,e)){ e.dead=true; P.vy=-500; }
     }
@@ -78,6 +73,7 @@ window.STALE_Enemies = {
       if(STALE_Player.overlap(P,b)){
         const stomp=P.vy>100&&(P.y+P.h)-b.y<30;
         if(stomp){ b.hp--; P.vy=-750; STALE_Audio.play('stomp'); g.shake(14); g.spawnPoof(b.x+40,b.y,'#ff0');
+          g.spawnFloat(b.x+b.w/2,b.y-14, b.hp>0?('OUCH! '+b.hp+' left!'):'KING DOWN!','#ffd23f');
           g.toast(b.hp>0?('KING OUCH! '+b.hp+' left!'):'KING DOWN!');
           b.inv=1; if(b.hp<=0){ b.dead=true; g.onBossDown(); } }
         else if((b.inv||0)<=0) P.hurt(g);

@@ -2,7 +2,8 @@ window.STALE_Player = {
   x:80,y:300,w:30,h:38, vx:0,vy:0, face:1, onGround:false, coyote:0, buffer:0,
   hearts:3, inv:0, dashCD:0, dashT:0, jamSel:'berry', dead:false,
   sprGot:0, time:0, deaths:0, sticky:false,
-  reset(sx,sy){ this.x=sx;this.y=sy;this.vx=0;this.vy=0;this.hearts=3;this.inv=0;this.dashCD=0;this.dashT=0;this.dead=false;this.sprGot=0;this.time=0; this.jamSel='berry'; },
+  blinkT:2, landT:0, stepT:0, splatHappy:0, combo:0, comboT:0, wasAir:false,
+  reset(sx,sy){ this.x=sx;this.y=sy;this.vx=0;this.vy=0;this.hearts=3;this.inv=0;this.dashCD=0;this.dashT=0;this.dead=false;this.sprGot=0;this.time=0; this.jamSel='berry'; this.blinkT=2;this.landT=0;this.stepT=0;this.splatHappy=0;this.combo=0;this.comboT=0;this.wasAir=false; },
   hurt(g){
     if(this.inv>0||this.dead) return;
     this.hearts--; this.inv=1.4; STALE_Audio.play('hurt'); g.shake(10);
@@ -10,6 +11,8 @@ window.STALE_Player = {
     if(this.hearts<=0){ this.dead=true; g.onDeath(); }
   },
   update(dt, g){
+    // NaN guard: a non-finite position would make Pip invisible + immobile
+    if(!isFinite(this.x+this.y+this.vx+this.vy)){ this.x=g.checkpoint.x; this.y=g.checkpoint.y; this.vx=0; this.vy=0; }
     const k=g.keys;
     const ACC=2600, MAX=265, GRAV=2300, JUMP=760;
     let move=0;
@@ -39,7 +42,15 @@ window.STALE_Player = {
     if(!k.up && this.vy<-300 && this.dashT<=0) this.vy+=GRAV*2.2*dt;
     // integrate + collide solids
     this.sticky=false;
+    const wasGrounded=this.onGround;
     this.moveCollide(dt, g);
+    if(!wasGrounded && this.onGround){ this.landT=0.18; g.spawnPoof(this.x+this.w/2,this.y+this.h,'#fff'); }
+    this.wasAir=!this.onGround;
+    // animation clocks
+    this.landT-=dt; this.splatHappy-=dt; this.comboT-=dt;
+    if(this.comboT<=0) this.combo=0;
+    this.stepT+=dt*(0.4+Math.abs(this.vx)/160);
+    this.blinkT-=dt; if(this.blinkT<=0) this.blinkT=2+Math.random()*2.5;
     this.time+=dt;
     // fall
     if(this.y>760){ this.dead=true; g.onDeath(); }

@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { PlayerModel } from './playermodel.js';
 import { createSkinCanvas } from './playermodel.js';
-import { getSelectedSkin, addCustomSkin, reloadCustomSkin } from './skins.js';
+import { getSelectedSkin, addCustomSkin, reloadCustomSkin, validateSkinImage, skinCanvasIsBlank } from './skins.js';
 
 const SIZE = 64;          // skin canvas is 64x64
 const VIEW = 384;         // on-screen paint area size (px)
@@ -395,6 +395,12 @@ export class SkinEditor {
       reader.onload = () => {
         const img = new Image();
         img.onload = () => {
+          // Format bot: reject wrong-size/blank files before they touch canvas.
+          const v = validateSkinImage(img);
+          if (!v.ok) {
+            this._flash('Bad skin: ' + v.errors.join(' '), true);
+            return;
+          }
           this._pushUndo();
           this.sctx.clearRect(0, 0, SIZE, SIZE);
           // 64x64 direct; legacy 64x32 stretched to top half only.
@@ -404,7 +410,9 @@ export class SkinEditor {
             this.sctx.drawImage(img, 0, 0, SIZE, SIZE);
           }
           this._afterEdit();
-          this._flash('Imported! Press Save to use it.');
+          this._flash(v.warnings.length
+            ? 'Imported with warnings: ' + v.warnings.join(' ')
+            : 'Imported! Press Save to use it.');
         };
         img.onerror = () => this._flash('Could not read that image.', true);
         img.src = reader.result;
@@ -424,12 +432,16 @@ export class SkinEditor {
 
   _save() {
     try {
+      if (skinCanvasIsBlank(this.skin)) {
+        this._flash('Canvas is empty — paint something first.', true);
+        return;
+      }
       const url = this.skin.toDataURL('image/png');
       addCustomSkin(url); // adds to the Custom Skins library and selects it
       reloadCustomSkin();
       this._flash('Saved to Custom Skins! Now equipped.');
     } catch (_) {
-      this._flash('Save failed.', true);
+      this._flash('Save failed (storage full?).', true);
     }
   }
 

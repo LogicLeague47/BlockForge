@@ -3,6 +3,7 @@ window.STALE_Game = {
   canvas:null, ctx:null, keys:{}, cam:{x:0,y:0}, parts:[], shakeT:0, shakeM:0,
   levelI:0, level:null, moldWalls:[], sprinkles:[], exit:{x:0,y:410,w:50,h:70},
   state:'logo', stateT:0, toastT:0, dlgT:0, eraseHeld:false, checkpoint:null, paused:false,
+  floats:[], npcs:[], cpGiven:false, cutLock:0, _lastJam:'berry', _dashHeld:false,
 
   init(){
     this.canvas=document.getElementById('game'); this.ctx=this.canvas.getContext('2d');
@@ -30,6 +31,8 @@ window.STALE_Game = {
     this.exit={x:this.level.W-220,y:410,w:50,h:70};
     STALE_Player.reset(this.level.start.x,this.level.start.y);
     STALE_Paint.reset();
+    this.floats=[];
+    this.npcs=(this.level.npcs||[]).map(n=>({type:n.type,x:n.x,y:n.y,text:n.text,talked:false,t:Math.random()*5}));
     // tiny spawn pads: guaranteed safe ground under start + checkpoint
     // (no more spawning mid-air over a gap and instantly falling)
     const pad=(p)=>({x:p.x-50, y:p.y+72, w:130, h:18, kind:'spawn'});
@@ -51,6 +54,7 @@ window.STALE_Game = {
     if(!STALE_Settings.data.particles && Math.random()<0.7) return;
     for(let i=0;i<8;i++) this.parts.push({x,y,vx:(Math.random()-0.5)*300,vy:-Math.random()*300-50,t:0.6,c:c||'#fff'});
   },
+  spawnFloat(x,y,txt,c){ this.floats.push({x,y,txt,c:c||'#ffd23f',t:0,life:1.1}); },
   shake(m){ if(STALE_Settings.data.shake && !STALE_Settings.data.flash) {this.shakeT=0.3; this.shakeM=m||6;} },
 
   onDeath(){
@@ -66,6 +70,15 @@ window.STALE_Game = {
     STALE_Player.x=this.checkpoint.x; STALE_Player.y=this.checkpoint.y;
     STALE_Player.vx=0; STALE_Player.vy=0; STALE_Player.dead=false; STALE_Player.inv=2;
   },
+  onStomp(e){
+    const P=STALE_Player;
+    P.combo=(P.comboT>0)?(P.combo||1)+1:1; P.comboT=1.4;
+    const bonus=18+(P.combo-1)*6;
+    STALE_Paint.ink=Math.min(100,STALE_Paint.ink+bonus);
+    P.splatHappy=0.6;
+    STALE_Audio.play('stomp'); this.spawnPoof(e.x+e.w/2,e.y+e.h,'#9f9');
+    this.spawnFloat(e.x+e.w/2,e.y-8, P.combo>1?('POW x'+P.combo+'!'):'POW!','#7bd389');
+  },
   onBossDown(){
     STALE_Audio.play('win');
     this.state='win'; window._STATE='win';
@@ -73,12 +86,12 @@ window.STALE_Game = {
     document.getElementById('final-stats').textContent=`Time ${STALE_Board.fmt(t)} · Deaths ${d} · ✨ ${s}`;
     this.show('screen-name');
     this._pendingScore={level:'Mold Heart',time:t,deaths:d,spr:s};
-    STALE_Settings.data.unlocked=4; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
+    STALE_Settings.data.unlocked=20; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
   },
   levelComplete(){
     STALE_Audio.play('door');
     const li=this.levelI;
-    STALE_Settings.data.unlocked=Math.max(STALE_Settings.data.unlocked, Math.min(4,li+2));
+    STALE_Settings.data.unlocked=Math.max(STALE_Settings.data.unlocked, Math.min(STALE_LEVELS.length,li+2));
     STALE_Settings.data.sprinklesTotal+=STALE_Player.sprGot; STALE_Settings.save();
     this.renderLevelDots();
     if(li>=STALE_LEVELS.length-1){ return; }
@@ -126,7 +139,7 @@ window.STALE_Game = {
     const click=(id,fn)=>document.getElementById(id).addEventListener('click',()=>{STALE_Audio.init();STALE_Audio.play('ui');blur();fn();});
     click('btn-skip',()=>STALE_Cutscene.skip());
     click('btn-play',()=>this.startPlay(0));
-    click('btn-continue',()=>this.startPlay(Math.min(3,STALE_Settings.data.unlocked-1)));
+    click('btn-continue',()=>this.startPlay(Math.min(STALE_LEVELS.length-1,STALE_Settings.data.unlocked-1)));
     click('btn-how',()=>{this.state='how';this.show('screen-how');});
     click('btn-how-back',()=>this.toMenu());
     click('btn-settings',()=>{this.state='settings';this.show('screen-settings');});
@@ -180,11 +193,13 @@ window.STALE_Game = {
     STALE_Audio.play('ui');
   },
   bindTouch(){
-    // full touch controls: move | jam, erase-toggle, dash, jump. Paint by dragging canvas.
+    // touch controls live UNDER the game box (never covering gameplay).
+    // Move: ◀ ▶ | jam, erase-toggle, dash, jump. Paint by dragging the canvas.
     const tc=document.createElement('div'); tc.id='touch';
     tc.innerHTML='<div class="tcluster"><button id="t-l">◀</button><button id="t-r">▶</button></div>'+
       '<div class="tcluster"><button id="t-jam" title="swap jam">🍓</button><button id="t-erase" title="erase toggle">🧽</button><button id="t-dash" title="dash">⚡</button><button id="t-j">⤒</button></div>';
-    document.getElementById('stage').appendChild(tc);
+    const st=document.getElementById('stage');
+    if(st.after) st.after(tc); else st.appendChild(tc);
     const on=(id,down,up)=>{
       const el=document.getElementById(id);
       el.addEventListener('touchstart',e=>{e.preventDefault();STALE_Audio.init();down();},{passive:false});
@@ -236,7 +251,7 @@ window.STALE_Game = {
       // boot skipping
       if(this.state==='logo'||this.state==='title'){this.advanceBoot();}
       // intro: mashing ANY game key skips to menu (keys do nothing during the cartoon)
-      if(this.state==='cutscene'&&(e.code==='KeyS'||e.code==='Enter'||e.code==='Space'||e.code==='ArrowRight'||e.code==='ArrowLeft'||e.code==='KeyA'||e.code==='KeyD'||e.code==='KeyW'||e.code==='ArrowUp'))STALE_Cutscene.skip();
+      if(this.state==='cutscene' && (this.cutLock||0)<=0 && (e.code==='KeyS'||e.code==='Enter'||e.code==='Space'||e.code==='ArrowRight'||e.code==='ArrowLeft'||e.code==='KeyA'||e.code==='KeyD'||e.code==='KeyW'||e.code==='ArrowUp'))STALE_Cutscene.skip();
       if(e.repeat)return;
     });
     addEventListener('keyup',e=>{
@@ -276,8 +291,7 @@ window.STALE_Game = {
     // touch paint
     cv.addEventListener('touchstart',e=>{
       if(this.state!=='play')return;
-      const t=e.touches[0]; const p=pos(e);
-      if(p.y>440) return; // leave room for dpad
+      const p=pos(e);
       e.preventDefault();
       const w=wpos(p.x,p.y);
       window._MOUSE={...p,down:true};
@@ -303,6 +317,7 @@ window.STALE_Game = {
     else if(this.state==='title'){
       this.state='cutscene'; window._STATE='cutscene'; this.stateT=0;
       this.show('screen-cut'); STALE_Cutscene.sceneI=0; STALE_Cutscene.start();
+      this.cutLock=0.8; // same keypress that entered must not instantly skip
     }
   },
 
@@ -315,7 +330,7 @@ window.STALE_Game = {
     // state timers
     if(this.state==='logo'){ this.stateT+=dt; if(this.stateT>2.6) this.advanceBoot(); return; }
     if(this.state==='title'){ this.stateT+=dt; if(this.stateT>4) this.advanceBoot(); return; }
-    if(this.state==='cutscene'){ STALE_Cutscene.update(dt); STALE_Cutscene.draw(ctx,W,H); return; }
+    if(this.state==='cutscene'){ this.cutLock=Math.max(0,(this.cutLock||0)-dt); STALE_Cutscene.update(dt); STALE_Cutscene.draw(ctx,W,H); return; }
     if(this.state!=='play'||this.paused){
       if(this.state==='play'&&this.paused) this.drawPlay(ctx,t);
       return;
@@ -337,7 +352,19 @@ window.STALE_Game = {
     this.keys.jump=this.keys.jump; // consumed in player
     // sprinkles
     for(const s of this.sprinkles){
-      if(!s.taken && Math.hypot(P.x-s.x,P.y-s.y)<34){ s.taken=true; P.sprGot++; STALE_Paint.ink=Math.min(100,STALE_Paint.ink+22); STALE_Audio.play('pickup'); this.spawnPoof(s.x,s.y,'#ffd23f'); }
+      if(!s.taken && Math.hypot(P.x-s.x,P.y-s.y)<34){ s.taken=true; P.sprGot++; P.splatHappy=0.6; STALE_Paint.ink=Math.min(100,STALE_Paint.ink+22); STALE_Audio.play('pickup'); this.spawnPoof(s.x,s.y,'#ffd23f'); this.spawnFloat(s.x,s.y-10,'+JAM','#ff9ebc'); }
+    }
+    // NPCs: walk up for a chat + gift
+    for(const n of this.npcs){
+      n.t+=dt;
+      if(!n.talked && Math.abs(P.x-n.x)<90 && Math.abs(P.y-n.y)<110 && this.dlgT<=0){
+        n.talked=true;
+        this.dialog(n.type==='pretzel'?'Auntie Pretzel 🥨':(n.type==='berryBlue'?'Blue 🫐':'Razz 🍓'), n.text, 6);
+        STALE_Paint.ink=STALE_Paint.max; P.hearts=3; P.splatHappy=1;
+        STALE_Audio.play('pickup');
+        this.spawnFloat(n.x,n.y-70,'FULL JAM! ❤','#7bd389');
+        this.toast('NPC gift: jam refilled + hearts restored!');
+      }
     }
     // signs
     for(const g of this.level.signs){
@@ -356,9 +383,11 @@ window.STALE_Game = {
     }
     // soda death
     if(this.level.soda && P.y>500 && P.onGround===false){}
-    // particles
+    // particles + floats
     for(const p of this.parts){ p.t-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=900*dt; }
     this.parts=this.parts.filter(p=>p.t>0);
+    for(const f of this.floats) f.t+=dt;
+    this.floats=this.floats.filter(f=>f.t<f.life);
     // toast/dialog timers
     this.toastT-=dt; if(this.toastT<=0) document.getElementById('toast').classList.add('hidden');
     this.dlgT-=dt; if(this.dlgT<=0) document.getElementById('dialog').classList.add('hidden');
@@ -389,7 +418,9 @@ window.STALE_Game = {
     for(const g of this.level.signs){ ctx.fillText('🪧',g.x-this.cam.x,g.y-this.cam.y); }
     STALE_Render.exitDoor(ctx,this.exit,this.cam,t);
     STALE_Render.enemies(ctx,STALE_Enemies.list,this.cam,t);
+    STALE_Render.npcs(ctx,this.npcs,this.cam,t,P);
     STALE_Render.player(ctx,P,this.cam,t);
+    STALE_Render.floats(ctx,this.floats,this.cam);
     // particles
     for(const p of this.parts){ ctx.globalAlpha=Math.max(0,p.t*2); ctx.fillStyle=p.c; ctx.fillRect(p.x-this.cam.x,p.y-this.cam.y,4,4); ctx.globalAlpha=1; }
     // darkness mask
