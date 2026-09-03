@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '11a5f10',
+          heading: 'CrazyGames account linking, done right',
+          desc: 'Rebuilt CG account linking per the official ToS/docs: server-verified JWT auth (RS256), the standard CG link modal, no auto login popups, guests always playable, and username/avatar refresh. This also closes an account-takeover hole where anyone could claim any CG user ID.',
+          date: 'Sep 3',
+          bugs: ['client used non-existent SDK calls (getId/getUsername/isAuthenticated) so CG linking never worked', 'server trusted client-supplied CG user IDs with zero verification', 'auth modal auto-fired on a timer against ToS', 'no Login with CrazyGames button existed'],
+          updates: ['server verifies getUserToken JWT via CG public key, fail-closed on /auth/crazygames, /auth/cg-link, WS auth and link_identity', 'v3 wrappers fixed (availability property, async user, response codes)', 'Login with CrazyGames button + token flow; auth listener adopts linked identity', 'AccountLinker rewritten to ToS launch/link/guest flows'],
+          features: ['server-side CG token verification', 'standard CG account-link modal in linking flow'],
+        },
+        {
           hash: '1213de6',
           heading: 'Uploads that survive refresh + skin checker',
           desc: 'Uploads (skins, mods) no longer vanish on refresh: mods are LZ-compressed past quota failures with a visible error, skins fall back across login states and mirror to shared storage. The skin editor now validates PNG format (64x64/64x32, non-blank) on import and save. Also synced the latest Pip and the Mold King.',
