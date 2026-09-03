@@ -242,6 +242,16 @@ export const BLOCK = {
   SANDSTONE_STAIRS_N: 233, SANDSTONE_STAIRS_E: 234, SANDSTONE_STAIRS_W: 235,
   NETHER_BRICK_STAIRS_N: 236, NETHER_BRICK_STAIRS_E: 237, NETHER_BRICK_STAIRS_W: 238,
   DEEPSLATE_STAIRS_N: 239, DEEPSLATE_STAIRS_E: 240, DEEPSLATE_STAIRS_W: 241,
+  // Top-half slabs (242-249): same stats as their base, occupy y+0.5..y+1.
+  // Placement picks top/bottom by clicked face; breaking drops the base slab.
+  STONE_SLAB_TOP: 242,
+  OAK_SLAB_TOP: 243,
+  COBBLESTONE_SLAB_TOP: 244,
+  BRICK_SLAB_TOP: 245,
+  QUARTZ_SLAB_TOP: 246,
+  SANDSTONE_SLAB_TOP: 247,
+  NETHER_BRICK_SLAB_TOP: 248,
+  DEEPSLATE_SLAB_TOP: 249,
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -729,6 +739,16 @@ export const BLOCKS = {
   [BLOCK.SANDSTONE_SLAB]:    { name: 'Sandstone Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', slab: true },
   [BLOCK.NETHER_BRICK_SLAB]: { name: 'Nether Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', slab: true },
   [BLOCK.DEEPSLATE_SLAB]:    { name: 'Deepslate Slab', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', slab: true },
+  // Top-half slab variants — same stats, hang from the ceiling half.
+  // Always drop the base slab so the inventory holds one item per type.
+  [BLOCK.STONE_SLAB_TOP]:       { name: 'Stone Slab', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'stone', slab: true, slabTop: true, drop: BLOCK.STONE_SLAB },
+  [BLOCK.OAK_SLAB_TOP]:         { name: 'Oak Slab', solid: true, hardness: 2.0, tool: 'axe', faces: 'planks', slab: true, slabTop: true, drop: BLOCK.OAK_SLAB },
+  [BLOCK.COBBLESTONE_SLAB_TOP]: { name: 'Cobblestone Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'cobblestone', slab: true, slabTop: true, drop: BLOCK.COBBLESTONE_SLAB },
+  [BLOCK.BRICK_SLAB_TOP]:       { name: 'Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'brick', slab: true, slabTop: true, drop: BLOCK.BRICK_SLAB },
+  [BLOCK.QUARTZ_SLAB_TOP]:      { name: 'Quartz Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'quartz_block', slab: true, slabTop: true, drop: BLOCK.QUARTZ_SLAB },
+  [BLOCK.SANDSTONE_SLAB_TOP]:   { name: 'Sandstone Slab', solid: true, hardness: 0.8, tool: 'pickaxe', harvest: 1, faces: 'sandstone', slab: true, slabTop: true, drop: BLOCK.SANDSTONE_SLAB },
+  [BLOCK.NETHER_BRICK_SLAB_TOP]:{ name: 'Nether Brick Slab', solid: true, hardness: 2.0, tool: 'pickaxe', harvest: 1, faces: 'nether_brick', slab: true, slabTop: true, drop: BLOCK.NETHER_BRICK_SLAB },
+  [BLOCK.DEEPSLATE_SLAB_TOP]:   { name: 'Deepslate Slab', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'deepslate', slab: true, slabTop: true, drop: BLOCK.DEEPSLATE_SLAB },
   // Farming blocks
   [BLOCK.FARMLAND]: { name: 'Farmland', solid: true, hardness: 0.6, tool: 'shovel', drop: BLOCK.DIRT, faces: 'farmland' },
   [BLOCK.WHEAT_0]:  { name: 'Wheat Seeds', solid: false, transparent: true, cutout: true, plant: true, hardness: 0, drop: 263 /* SEEDS */, faces: 'wheat_0' },
@@ -858,7 +878,38 @@ export const SLAB_TO_FULL = {
   [BLOCK.SANDSTONE_SLAB]: BLOCK.SANDSTONE,
   [BLOCK.NETHER_BRICK_SLAB]: BLOCK.NETHER_BRICK,
   [BLOCK.DEEPSLATE_SLAB]: BLOCK.DEEPSLATE,
+  // Top-half variants merge into the same full blocks.
+  [BLOCK.STONE_SLAB_TOP]: BLOCK.STONE,
+  [BLOCK.OAK_SLAB_TOP]: BLOCK.PLANKS,
+  [BLOCK.COBBLESTONE_SLAB_TOP]: BLOCK.COBBLESTONE,
+  [BLOCK.BRICK_SLAB_TOP]: BLOCK.BRICK,
+  [BLOCK.QUARTZ_SLAB_TOP]: BLOCK.QUARTZ_BLOCK,
+  [BLOCK.SANDSTONE_SLAB_TOP]: BLOCK.SANDSTONE,
+  [BLOCK.NETHER_BRICK_SLAB_TOP]: BLOCK.NETHER_BRICK,
+  [BLOCK.DEEPSLATE_SLAB_TOP]: BLOCK.DEEPSLATE,
 };
+
+// Top-half slab variant per base slab id.
+export const SLAB_TOP_VARIANT = {
+  [BLOCK.STONE_SLAB]: BLOCK.STONE_SLAB_TOP,
+  [BLOCK.OAK_SLAB]: BLOCK.OAK_SLAB_TOP,
+  [BLOCK.COBBLESTONE_SLAB]: BLOCK.COBBLESTONE_SLAB_TOP,
+  [BLOCK.BRICK_SLAB]: BLOCK.BRICK_SLAB_TOP,
+  [BLOCK.QUARTZ_SLAB]: BLOCK.QUARTZ_SLAB_TOP,
+  [BLOCK.SANDSTONE_SLAB]: BLOCK.SANDSTONE_SLAB_TOP,
+  [BLOCK.NETHER_BRICK_SLAB]: BLOCK.NETHER_BRICK_SLAB_TOP,
+  [BLOCK.DEEPSLATE_SLAB]: BLOCK.DEEPSLATE_SLAB_TOP,
+};
+
+// Resolve a held slab item to its bottom/top variant. Non-slabs pass
+// through unchanged; top variants normalize through their base drop entry.
+export function slabVariantFor(itemId, top) {
+  const def = BLOCKS[itemId];
+  if (!def || !def.slab) return itemId;
+  const base = def.slabTop ? (def.drop ?? itemId) : itemId;
+  if (!SLAB_TOP_VARIANT[base]) return itemId;
+  return top ? SLAB_TOP_VARIANT[base] : base;
+}
 
 // Is this a stair block? (for collision)
 export function isStairBlock(blockId) {

@@ -287,7 +287,9 @@ function fitCanvas() {
 window.addEventListener('resize', fitCanvas);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas);
 window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
-fitCanvas();
+// NOTE: do NOT call fitCanvas() here at module scope — menuBgCamera (same
+// scope const, declared below) is still in TDZ and even `typeof` throws.
+// Initial sizing is already done by renderer.setSize at creation.
 
 // --- Menu Background 3D Scene (real rotating terrain) ---
 import { Noise, hashSeed } from './noise.js';

@@ -8,8 +8,8 @@
 import { BLOCK, BLOCKS } from './blocks.js';
 
 // Pre-allocated result objects to avoid per-call allocation
-const _rcResult = { block: 0, x: 0, y: 0, z: 0, normal: { x: 0, y: 0, z: 0 }, place: { x: 0, y: 0, z: 0 }, distance: 0 };
-const _cbResult = { block: 0, x: 0, y: 0, z: 0, normal: { x: 0, y: 0, z: 0 }, place: { x: 0, y: 0, z: 0 }, distance: 0 };
+const _rcResult = { block: 0, x: 0, y: 0, z: 0, normal: { x: 0, y: 0, z: 0 }, place: { x: 0, y: 0, z: 0 }, distance: 0, hitY: 0 };
+const _cbResult = { block: 0, x: 0, y: 0, z: 0, normal: { x: 0, y: 0, z: 0 }, place: { x: 0, y: 0, z: 0 }, distance: 0, hitY: 0.5 };
 
 export function raycastVoxel(world, origin, dir, maxDist = 6, opts = {}) {
   let x = Math.floor(origin.x);
@@ -47,6 +47,8 @@ export function raycastVoxel(world, origin, dir, maxDist = 6, opts = {}) {
       _rcResult.normal.x = nx; _rcResult.normal.y = ny; _rcResult.normal.z = nz;
       _rcResult.place.x = x + nx; _rcResult.place.y = y + ny; _rcResult.place.z = z + nz;
       _rcResult.distance = t;
+      // Exact intersection height (for slab top/bottom choice on side faces).
+      _rcResult.hitY = origin.y + dir.y * t;
       return _rcResult;
     }
 
