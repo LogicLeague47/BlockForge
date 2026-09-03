@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'd6ca155',
+          heading: 'Freeze fixes, Other Games, bold mobs, mixed slabs',
+          desc: 'Killed the 2s mobile freeze (border-aware remesh, cached creative catalog, cheap UI updates), added the Other Games button + LL games page with the platformer, repainted all 9 mobs with bold visible designs, and made mixed double slabs show both textures with save persistence.',
+          date: 'Sep 3',
+          bugs: ['block edits remeshed 5 chunks instead of 1', 'creative catalog rebuilt hundreds of icons per open', 'hotbar/offhand DOM churned every frame and edit', 'mobs looked unchanged (touch-ups too subtle)'],
+          updates: ['refreshAroundCell only dirties touched neighbours', 'creative grid builds once, filters toggle', 'hotbar/offhand skip unchanged updates', 'zombie bog-rotter, skeleton chalk-warden, violet spider, speckled chicken, gel slime, teal trader, ash traveler, copper blower, void herald', 'mixed doubles persist, transfer via pistons, clear on explosion'],
+          features: ['Other Games button + games page (link only, hidden on CrazyGames)', 'vendored platformer game', 'mixed-texture double slabs'],
+        },
+        {
           hash: '421e2a4',
           heading: 'Item icons, MC held items, top slabs, chunk states',
           desc: 'Filled the missing inventory textures (13 dyes, echo shard, grapple, frost/ember gear, compass, 5 discs, potion, boat, minecart, hoe), fixed blank offhand-slot blocks, restyled held items Minecraft-style (diagonal 3D tools, extruded sprites, hoe/trident builders), added top-half slabs with face-based placement and full collision/UI support, and formalized loaded/lazy/unloaded chunk states with HUD counts.',
