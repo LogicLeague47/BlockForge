@@ -37,11 +37,11 @@ button.big{font-size:22px;background:#7bd389}
 #jam{height:100%;width:100%;background:linear-gradient(90deg,#ff5d8f,#ff9ebc);transition:width .1s}
 #jam-label{position:absolute;inset:0;font-size:12px;display:flex;align-items:center;justify-content:center;color:#3a2c1c}
 #spr,#timer{background:#fff;border:2px solid #3a2c1c;border-radius:10px;padding:2px 8px;font-size:14px}
-#toast{position:absolute;top:46px;left:50%;transform:translateX(-50%) rotate(-2deg);background:#3a2c1c;color:#ffd23f;padding:6px 14px;border-radius:10px;font-weight:900;z-index:6}
-#dialog{position:absolute;bottom:12px;left:12px;right:12px;background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 12px;z-index:6;font-size:15px;text-align:left;box-shadow:4px 4px 0 #3a2c1c}
-/* touch layout: dialogue goes top (below HUD) so it never covers Pip; toast drops to the free bottom */
-#stage.touch #dialog{top:46px;bottom:auto;font-size:13px;padding:6px 10px}
-#stage.touch #toast{top:auto;bottom:12px;font-size:12px;max-width:92%;padding:5px 10px}
+#toast{position:absolute;top:auto;bottom:12px;left:50%;transform:translateX(-50%) rotate(-2deg);background:#3a2c1c;color:#ffd23f;padding:6px 14px;border-radius:10px;font-weight:900;z-index:6;max-width:94%}
+#dialog{position:absolute;top:46px;left:12px;right:12px;background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 12px;z-index:6;font-size:15px;text-align:left;box-shadow:4px 4px 0 #3a2c1c}
+/* touch layout: slightly smaller text so banners stay compact */
+#stage.touch #dialog{font-size:13px;padding:6px 10px}
+#stage.touch #toast{font-size:12px;max-width:92%;padding:5px 10px}
 #cut-cap{font-size:30px;font-weight:900;margin-bottom:8px}
 #cut-sub{font-size:17px;max-width:640px;min-height:60px;background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 12px}
 /* cutscene overlay lets the animated canvas show through: compact bottom bar */
@@ -56,7 +56,7 @@ button.big{font-size:22px;background:#7bd389}
 #btn-skip{margin-top:10px;background:#c8321e;color:#fff}
 #board-list{text-align:left;min-width:320px}
 #board-list div{border-bottom:2px dotted #3a2c1c;padding:3px;font-weight:700}
-#name-input{font-size:28px;width:110px;text-align:center;border:3px solid #3a2c1c;border-radius:10px;font-family:inherit}
+#name-input{font-size:22px;width:210px;text-align:center;border:3px solid #3a2c1c;border-radius:10px;font-family:inherit}
 #helpline{text-align:center;color:#f5e9c9;opacity:.85;font-size:13px;margin:6px 4px;max-width:96vw}
 #rotate-hint{display:none;text-align:center;color:#ffd23f;font-size:13px;margin:2px 4px}
 @media (max-width:700px) and (orientation:portrait){#rotate-hint{display:block}}

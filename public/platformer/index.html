@@ -49,6 +49,7 @@
         <button id="btn-how">🖌 How to Paint</button>
         <button id="btn-settings">⚙ Settings</button>
         <button id="btn-board">🏆 Leaderboard</button>
+        <button id="btn-back-bf" title="Back to BlockForge">🧱 BlockForge</button>
       </div>
       <p class="foot">v1.0 · doodled live on canvas · Music: Kevin MacLeod – Monkeys Spinning Monkeys / Fluffing a Duck / Volatile Reaction (CC-BY 4.0, incompetech.com)</p>
     </div>
@@ -92,6 +93,7 @@
         <li>Paint costs <b>jam</b> (pink bar). Jam does <b>NOT</b> regrow — every round refills it full. Mid-round, only <b>✨ sprinkles, stomps &amp; mold-scrubs</b> earn jam.</li>
         <li>Keys <b>1</b> strawberry=solid, <b>2</b> mint=<b>bouncy</b>, <b>3</b> choco=<b>sticky climb</b>.</li>
         <li><b>E / right-click</b> erases your strokes + grey Mold walls.</li>
+        <li>Grey <b>MOLD burns!</b> Don't touch it — scrub it with <b>E</b> from a safe distance.</li>
         <li>Stomp Fuzzies! Don't touch spores. Bounce on Mint to reach high jam!</li>
       </ol>
       <button id="btn-how-back" class="big">✔ Got it!</button>
@@ -101,8 +103,9 @@
     <div id="screen-name" class="screen hidden panel">
       <h2>👑 You un-staled the world!</h2>
       <p id="final-stats"></p>
-      <p>Enter your snacklord initials:</p>
-      <input id="name-input" maxlength="3" value="PIP">
+      <p>Enter your snacklord name (BlockForge heroes auto-filled!):</p>
+      <p id="bf-hint" class="keys"></p>
+      <input id="name-input" maxlength="12" value="PIP">
       <button id="btn-name-ok" class="big">Save 🏆</button>
     </div>
 

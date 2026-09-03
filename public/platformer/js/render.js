@@ -301,6 +301,9 @@ window.STALE_Render = {
   },
   exitDoor(ctx,ex,cam,t){
     const x=ex.x-cam.x,y=ex.y-cam.y;
+    // glow pulse
+    ctx.save(); ctx.globalAlpha=0.22+0.13*Math.sin(t*4); ctx.fillStyle='#7bd389';
+    ctx.beginPath(); ctx.ellipse(x+25,y+35,46,54,0,0,7); ctx.fill(); ctx.restore();
     this.rrect(ctx,x,y,ex.w||50,ex.h||70,'#7bd389');
     ctx.font='30px serif'; ctx.fillText('🚪',x+25,y+42);
     ctx.font='bold 12px cursive'; ctx.fillStyle='#3a2c1c'; ctx.fillText('EXIT ↓',x+25,y+66+Math.sin(t*4)*2);

@@ -33,6 +33,10 @@ window.STALE_Enemies = {
         for(const s of g.solids()){ if(P.overlap(e,s)){ if(e.vy>0){e.y=s.y-e.h;e.vy=0; if(e.t>1.6){e.vy=-650;e.t=0;STALE_Audio.play('jump');}} } }
       } else if(e.type==='spore'){
         e.x+=e.vx*dt; e.y+=e.vy*dt; e.vy+=300*dt;
+        // spores land on the world (no more falling through floors)
+        for(const s of g.solids()){
+          if(P.overlap(e,s)){ if(e.vy>0){ e.y=s.y-e.h; e.vy=0; } if(e.vy===0) e.vx*=Math.max(0,1-3*dt); }
+        }
         if(e.t>6 && !e.gate) e.dead=true; // gate spores never fizzle (they must be stomped)
       } else if(e.type==='boss'){
         this.bossUpdate(e,dt,g);
@@ -73,7 +77,7 @@ window.STALE_Enemies = {
       if(STALE_Player.overlap(P,b)){
         const stomp=P.vy>100&&(P.y+P.h)-b.y<30;
         if(stomp){ b.hp--; P.vy=-750; STALE_Audio.play('stomp'); g.shake(14); g.spawnPoof(b.x+40,b.y,'#ff0');
-          g.spawnFloat(b.x+b.w/2,b.y-14, b.hp>0?('OUCH! '+b.hp+' left!'):'KING DOWN!','#ffd23f');
+          g.spawnFloat(b.x+b.w/2,b.y-28, b.hp>0?('OUCH! '+b.hp+' left!'):'KING DOWN!','#ffd23f');
           g.toast(b.hp>0?('KING OUCH! '+b.hp+' left!'):'KING DOWN!');
           b.inv=1; if(b.hp<=0){ b.dead=true; g.onBossDown(); } }
         else if((b.inv||0)<=0) P.hurt(g);

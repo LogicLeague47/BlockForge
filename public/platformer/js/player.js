@@ -2,8 +2,8 @@ window.STALE_Player = {
   x:80,y:300,w:30,h:38, vx:0,vy:0, face:1, onGround:false, coyote:0, buffer:0,
   hearts:3, inv:0, dashCD:0, dashT:0, jamSel:'berry', dead:false,
   sprGot:0, time:0, deaths:0, sticky:false,
-  blinkT:2, landT:0, stepT:0, splatHappy:0, combo:0, comboT:0, wasAir:false,
-  reset(sx,sy){ this.x=sx;this.y=sy;this.vx=0;this.vy=0;this.hearts=3;this.inv=0;this.dashCD=0;this.dashT=0;this.dead=false;this.sprGot=0;this.time=0; this.jamSel='berry'; this.blinkT=2;this.landT=0;this.stepT=0;this.splatHappy=0;this.combo=0;this.comboT=0;this.wasAir=false; },
+  blinkT:2, landT:0, stepT:0, splatHappy:0, combo:0, comboT:0, wasAir:false, dustT:0,
+  reset(sx,sy){ this.x=sx;this.y=sy;this.vx=0;this.vy=0;this.hearts=3;this.inv=0;this.dashCD=0;this.dashT=0;this.dead=false;this.sprGot=0;this.time=0; this.jamSel='berry'; this.blinkT=2;this.landT=0;this.stepT=0;this.splatHappy=0;this.combo=0;this.comboT=0;this.wasAir=false;this.dustT=0; },
   hurt(g){
     if(this.inv>0||this.dead) return;
     this.hearts--; this.inv=1.4; STALE_Audio.play('hurt'); g.shake(10);
@@ -44,13 +44,33 @@ window.STALE_Player = {
     this.sticky=false;
     const wasGrounded=this.onGround;
     this.moveCollide(dt, g);
-    if(!wasGrounded && this.onGround){ this.landT=0.18; g.spawnPoof(this.x+this.w/2,this.y+this.h,'#fff'); }
+    if(!wasGrounded && this.onGround){
+      this.landT=0.18;
+      g.spawnPoof(this.x+this.w/2,this.y+this.h,'#fff');
+      if(g.spawnRing) g.spawnRing(this.x+this.w/2,this.y+this.h,'#fff');
+    }
     this.wasAir=!this.onGround;
+    // mold burns! side/head contact hurts (standing on top is safe)
+    if(this.inv<=0 && !this.dead){
+      const touch={x:this.x-2,y:this.y-2,w:this.w+4,h:this.h+4};
+      for(const m of g.moldWalls){
+        if(this.overlap(touch,m) && (this.y+this.h) > m.y+14){
+          this.face = (this.x+this.w/2 < m.x+m.w/2) ? 1 : -1; // face it, hurt() knocks us away
+          this.hurt(g);
+          break;
+        }
+      }
+    }
     // animation clocks
     this.landT-=dt; this.splatHappy-=dt; this.comboT-=dt;
     if(this.comboT<=0) this.combo=0;
     this.stepT+=dt*(0.4+Math.abs(this.vx)/160);
     this.blinkT-=dt; if(this.blinkT<=0) this.blinkT=2+Math.random()*2.5;
+    // run dust puffs
+    if(this.onGround && Math.abs(this.vx)>180){
+      this.dustT-=dt;
+      if(this.dustT<=0){ this.dustT=0.12; g.spawnPoof(this.x+this.w/2-this.face*10,this.y+this.h,'#cbb98f'); }
+    } else this.dustT=0;
     this.time+=dt;
     // fall
     if(this.y>760){ this.dead=true; g.onDeath(); }

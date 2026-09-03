@@ -46,7 +46,7 @@ window.STALE_Game = {
     const pad=(p)=>({x:p.x-50, y:p.y+72, w:130, h:18, kind:'spawn'});
     this.extraSolids=[pad(this.level.start), pad(this.level.checkpoint)];
     this.checkpoint={x:this.level.start.x,y:this.level.start.y};
-    this.cpGiven=false;
+    this.cpGiven=false; this.roared=false;
     // GREAT MOLD spore gate (Level 10): giant mold wall, crumbles after 20 spore stomps
     this.gate=null;
     if(this.level.sporeGate){
@@ -63,13 +63,19 @@ window.STALE_Game = {
     this.toast(this.level.name+' — '+this.level.hint);
     this.dialog('Splat 💦', this.level.signs[0]?this.level.signs[0].text:this.level.hint, 5);
   },
-  solids(){ return this.level.solids.concat(this.extraSolids||[]); },
+  solids(){ return this.level.solids.concat(this.extraSolids||[]).concat(this.moldWalls); },
   paintSolids(){ return []; }, // dabs handle their own collision
   spawnPoof(x,y,c){
     if(!STALE_Settings.data.particles && Math.random()<0.7) return;
     for(let i=0;i<8;i++) this.parts.push({x,y,vx:(Math.random()-0.5)*300,vy:-Math.random()*300-50,t:0.6,c:c||'#fff'});
   },
   spawnFloat(x,y,txt,c){ this.floats.push({x,y,txt,c:c||'#ffd23f',t:0,life:1.1}); },
+  spawnRing(x,y,c){ this.parts.push({x,y,vx:0,vy:0,ring:true,r:8,vr:340,t:0.4,life:0.4,c:c||'#fff'}); },
+  spawnConfetti(x,y,n){
+    const cols=['#ff5d8f','#ffd23f','#2ee6a8','#4b7de1','#ffffff'];
+    for(let i=0;i<(n||40);i++) this.parts.push({x:x+(Math.random()-0.5)*220,y:y-Math.random()*80,
+      vx:(Math.random()-0.5)*380,vy:-Math.random()*430-60,t:1.4+Math.random()*0.8,life:2.2,conf:true,c:cols[i%cols.length],ph:Math.random()*6});
+  },
   shake(m){ if(STALE_Settings.data.shake && !STALE_Settings.data.flash) {this.shakeT=0.3; this.shakeM=m||6;} },
 
   onDeath(){
@@ -114,13 +120,19 @@ window.STALE_Game = {
     STALE_Paint.ink=Math.min(100,STALE_Paint.ink+bonus);
     P.splatHappy=0.6;
     STALE_Audio.play('stomp'); this.spawnPoof(e.x+e.w/2,e.y+e.h,'#9f9');
-    this.spawnFloat(e.x+e.w/2,e.y-8, P.combo>1?('POW x'+P.combo+'!'):'POW!','#7bd389');
+    this.spawnRing(e.x+e.w/2,e.y+e.h,'#9f9');
+    this.spawnFloat(e.x+e.w/2,e.y-24, P.combo>1?('POW x'+P.combo+'!'):'POW!','#7bd389');
   },
   onBossDown(){
     STALE_Audio.play('win');
     this.state='win'; window._STATE='win';
     const t=STALE_Player.time, d=STALE_Player.deaths, s=STALE_Player.sprGot;
     document.getElementById('final-stats').textContent=`Time ${STALE_Board.fmt(t)} · Deaths ${d} · ✨ ${s}`;
+    // hero name: remembered pilot → BlockForge name → PIP
+    const bf=this.bfName();
+    document.getElementById('name-input').value=(STALE_Settings.data.pilotName||bf||'PIP').toUpperCase().slice(0,12);
+    const hint=document.getElementById('bf-hint');
+    if(hint) hint.textContent=bf?('🔗 BlockForge hero detected: '+bf.toUpperCase().slice(0,12)+(this.isDevName(bf)?' 👑DEV — all levels open!':'')+' — keep it or type your own!'):'Tip: set a name in BlockForge and we’ll fill it in next time!';
     this.show('screen-name');
     this._pendingScore={level:'Mold Heart',time:t,deaths:d,spr:s};
     STALE_Settings.data.unlocked=20; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
@@ -128,6 +140,8 @@ window.STALE_Game = {
   levelComplete(){
     STALE_Audio.play('door');
     const li=this.levelI;
+    this.spawnConfetti(this.exit.x+25,this.exit.y,50);
+    this.spawnRing(this.exit.x+25,this.exit.y+35,'#7bd389');
     STALE_Settings.data.unlocked=Math.max(STALE_Settings.data.unlocked, Math.min(STALE_LEVELS.length,li+2));
     STALE_Settings.data.sprinklesTotal+=STALE_Player.sprGot; STALE_Settings.save();
     this.renderLevelDots();
@@ -136,10 +150,29 @@ window.STALE_Game = {
     this.loadLevel(li+1);
   },
 
+  // ---------- BlockForge offshoot identity ----------
+  // Your BlockForge hero name (localStorage bf_player_name) is reused here.
+  bfName(){
+    try{
+      return localStorage.getItem('bf_player_name')
+        || localStorage.getItem('bf_login_user')
+        || localStorage.getItem('bf_cg_username') || '';
+    }catch(e){ return ''; }
+  },
+  // BlockForge convention: the LogicLeague account is the gamedev account.
+  isDevName(n){ return (n||'').trim().toLowerCase()==='logicleague'; },
+  devUnlock(){
+    if(this.isDevName(STALE_Settings.data.pilotName||this.bfName())){
+      if(STALE_Settings.data.unlocked<20){ STALE_Settings.data.unlocked=20; STALE_Settings.save(); }
+      return true;
+    }
+    return false;
+  },
   toMenu(){ this.state='menu'; window._STATE='menu'; this.show('screen-menu'); this.renderLevelDots(); STALE_Audio.playTrack('menu'); },
 
   // ---------- UI ----------
   renderLevelDots(){
+    const dev=this.devUnlock();
     const d=document.getElementById('level-dots'); d.innerHTML='';
     const un=STALE_Settings.data.unlocked;
     STALE_LEVELS.forEach((L,i)=>{
@@ -151,13 +184,15 @@ window.STALE_Game = {
     });
     const c=document.getElementById('btn-continue');
     if(un>1){ c.classList.remove('hidden'); c.textContent='↻ CONTINUE · Level '+un; } else c.classList.add('hidden');
+    const ms=document.querySelector?document.querySelector('.menu-sub'):null;
+    if(ms) ms.innerHTML='Pip &amp; the Mold King · by <b>LogicLeague</b>'+(dev?' · 👑 <b>DEV MODE</b> — all levels open!':'');
   },
   renderBoard(){
     const el=document.getElementById('board-list'); el.innerHTML='';
     if(!STALE_Board.entries.length) el.innerHTML='<div>No legends yet. Be the first crumb!</div>';
     STALE_Board.entries.forEach((e,i)=>{
       const div=document.createElement('div');
-      div.textContent=`${i+1}. ${e.name} — ${e.level} · ${STALE_Board.fmt(e.time)} · 💀${e.deaths} · ✨${e.spr}`;
+      div.textContent=`${i+1}. ${e.dev?'★DEV ':''}${e.name} — ${e.level} · ${STALE_Board.fmt(e.time)} · 💀${e.deaths} · ✨${e.spr}`;
       el.appendChild(div);
     });
   },
@@ -182,6 +217,7 @@ window.STALE_Game = {
     click('btn-settings',()=>{this.state='settings';this.show('screen-settings');});
     click('btn-set-back',()=>{STALE_Settings.save();this.toMenu();});
     click('btn-board',()=>{this.renderBoard();this.state='board';this.show('screen-board');});
+    click('btn-back-bf',()=>{ try{ window.location.href='../games.html'; }catch(e){} });
     click('btn-board-back',()=>this.toMenu());
     click('btn-board-clear',()=>{STALE_Board.clear();this.renderBoard();});
     click('btn-resume',()=>{this.paused=false;this.state='play';window._STATE='play';this.show(null);document.getElementById('hud').classList.remove('hidden');});
@@ -190,8 +226,12 @@ window.STALE_Game = {
     click('btn-full',()=>{ const el=document.documentElement; if(el.requestFullscreen)el.requestFullscreen(); });
     click('btn-wipe',()=>{localStorage.clear();location.reload();});
     click('btn-name-ok',()=>{
-      const n=(document.getElementById('name-input').value||'PIP').toUpperCase().slice(0,3);
-      STALE_Board.add({name:n,...this._pendingScore}); this.toMenu();
+      const n=(document.getElementById('name-input').value||'PIP').toUpperCase().slice(0,12);
+      STALE_Settings.data.pilotName=n; STALE_Settings.save();
+      const dev=this.isDevName(n);
+      STALE_Board.add({name:n,dev:dev,...this._pendingScore});
+      if(dev){ STALE_Settings.data.unlocked=20; STALE_Settings.save(); this.toast('DEV MODE 👑 — all 20 levels open!'); }
+      this.toMenu();
     });
     const S=STALE_Settings.data;
     const bind=(id,vid,key)=>document.getElementById(id).addEventListener('input',e=>{S[key]=+e.target.value;document.getElementById(vid).textContent=e.target.value;STALE_Audio.applyVolumes();STALE_Audio.play('ui');STALE_Settings.save();});
@@ -398,7 +438,7 @@ window.STALE_Game = {
     this.keys.jump=this.keys.jump; // consumed in player
     // sprinkles
     for(const s of this.sprinkles){
-      if(!s.taken && Math.hypot(P.x-s.x,P.y-s.y)<34){ s.taken=true; P.sprGot++; P.splatHappy=0.6; STALE_Paint.ink=Math.min(100,STALE_Paint.ink+22); STALE_Audio.play('pickup'); this.spawnPoof(s.x,s.y,'#ffd23f'); this.spawnFloat(s.x,s.y-10,'+JAM','#ff9ebc'); }
+      if(!s.taken && Math.hypot(P.x-s.x,P.y-s.y)<34){ s.taken=true; P.sprGot++; P.splatHappy=0.6; STALE_Paint.ink=Math.min(100,STALE_Paint.ink+22); STALE_Audio.play('pickup'); this.spawnPoof(s.x,s.y,'#ffd23f'); this.spawnFloat(s.x,s.y-26,'+JAM','#ff9ebc'); }
     }
     // NPCs: walk up for a chat + gift
     for(const n of this.npcs){
@@ -440,6 +480,13 @@ window.STALE_Game = {
       this.checkpoint={x:this.level.checkpoint.x,y:this.level.checkpoint.y};
       this.cpGiven=true; this.toast('Checkpoint! ✨');
     }
+    // boss roar when Pip first enters the arena
+    if(this.level.boss && !this.roared && P.x>this.level.bossArena.x-350){
+      this.roared=true; this.shake(12); STALE_Audio.play('boss');
+      this.toast('KING MOLD: WHO DARES ENTER MY HEART?! 👑');
+      const b=STALE_Enemies.list.find(e=>e.type==='boss');
+      if(b && b.onG){ b.vy=-520; b.onG=false; }
+    }
     // exit (boss level locked until KING dead)
     if(P.overlap(P,this.exit)){
       if(this.level.boss && STALE_Enemies.list.some(e=>e.type==='boss'&&!e.dead)){ this.toast('The ROAR holds the door! Kill KING MOLD! 👑'); P.x-=60; }
@@ -449,7 +496,7 @@ window.STALE_Game = {
     // soda death
     if(this.level.soda && P.y>500 && P.onGround===false){}
     // particles + floats
-    for(const p of this.parts){ p.t-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=900*dt; }
+    for(const p of this.parts){ p.t-=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=(p.conf?500:900)*dt; if(p.ring) p.r+=p.vr*dt; }
     this.parts=this.parts.filter(p=>p.t>0);
     for(const f of this.floats) f.t+=dt;
     this.floats=this.floats.filter(f=>f.t<f.life);
@@ -496,7 +543,19 @@ window.STALE_Game = {
     STALE_Render.player(ctx,P,this.cam,t);
     STALE_Render.floats(ctx,this.floats,this.cam);
     // particles
-    for(const p of this.parts){ ctx.globalAlpha=Math.max(0,p.t*2); ctx.fillStyle=p.c; ctx.fillRect(p.x-this.cam.x,p.y-this.cam.y,4,4); ctx.globalAlpha=1; }
+    for(const p of this.parts){
+      const px=p.x-this.cam.x, py=p.y-this.cam.y;
+      if(p.ring){
+        const k=1-p.t/p.life;
+        ctx.globalAlpha=Math.max(0,p.t/p.life); ctx.strokeStyle=p.c; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.arc(px,py,p.r,0,7); ctx.stroke(); ctx.globalAlpha=1; continue;
+      }
+      if(p.conf){
+        ctx.globalAlpha=Math.min(1,p.t); ctx.fillStyle=p.c;
+        ctx.fillRect(px+Math.sin(p.t*12+p.ph)*9,py,5,3); ctx.globalAlpha=1; continue;
+      }
+      ctx.globalAlpha=Math.max(0,p.t*2); ctx.fillStyle=p.c; ctx.fillRect(px,py,4,4); ctx.globalAlpha=1;
+    }
     // darkness mask
     if(this.level.dark){
       const gx=P.x-this.cam.x+15, gy=P.y-this.cam.y+19;
