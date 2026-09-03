@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '1e2ca54',
+          heading: 'Mobile controls: tap fix + Minecraft layout',
+          desc: 'Fixed the root cause of glitchy mobile UI: the full-screen camera touch layer sat above the chat box, so taps on chat (and emoji panels) triggered look/place instead. Chat and emoji now sit above it. Layout is Minecraft-style: persistent chat + pause buttons top-right, sneak next to the big jump button, and opening chat kills any mining hold and freezes the joystick.',
+          date: 'Sep 3',
+          bugs: ['taps on the chat field hit the camera layer (looked around / placed blocks instead of typing)', 'emoji panels tied with the controls layer for taps', 'chat/command buried behind the gear toggle', 'sneak + sprint floated center-screen over the hotbar', 'mining hold kept breaking blocks while typing'],
+          updates: ['chat HUD and emoji panels render above the mobile controls layer', 'persistent top-right chat + pause buttons, always visible', 'sneak moved next to jump, bottom-right cluster', 'opening chat stops mining holds and ignores joystick/camera/buttons until closed'],
+          features: ['Minecraft-style mobile button layout'],
+        },
+        {
           hash: '86e1562',
           heading: '3D inventory icons + real slab hitboxes',
           desc: 'Block inventory icons are 3D isometric again (rewritten with verified projection math after the glitched attempt was reverted). Slabs and stairs got real shape-aware hitboxes: stand on slabs, jump clean over them, smooth stair climbing, and the stair top step lands at full height. Slab sides sample half the texture so bricks keep world scale, any slab merges with any slab, and stairs get a two-box L-shaped selection outline.',
