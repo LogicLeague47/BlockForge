@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '86e1562',
+          heading: '3D inventory icons + real slab hitboxes',
+          desc: 'Block inventory icons are 3D isometric again (rewritten with verified projection math after the glitched attempt was reverted). Slabs and stairs got real shape-aware hitboxes: stand on slabs, jump clean over them, smooth stair climbing, and the stair top step lands at full height. Slab sides sample half the texture so bricks keep world scale, any slab merges with any slab, and stairs get a two-box L-shaped selection outline.',
+          date: 'Sep 3',
+          bugs: ['inventory 3D preview was removed with the glitched isometric revert', 'slab sides squished the full texture into half height', 'jumping over a slab yanked you down onto it mid-jump', 'landing on a stair top step sank you into it', 'stairs selection was a full cube around an L-shape'],
+          updates: ['isometric 3D icons for all full-cube blocks (top rhombus + shaded sides)', 'slab/stair side faces sample matching texture halves', 'shape-aware collision heights: slab 0.5, stairs 0.5/1.0 by position', 'auto-step climbs slabs and stair steps with headroom checks', 'stairs get bottom-slab + top-step wireframe boxes'],
+          features: ['any-type slab merging (any slab on any slab becomes a full block)', 'stair L-shape selection outline'],
+        },
+        {
           hash: 'd804657',
           heading: 'Mobile chat typing fixed',
           desc: 'Fixed glitchy chat and command typing on mobile. The keyboard now opens reliably, tapping chat while open closes it (there is no Escape key on mobile), screen taps and held joystick no longer walk/place/attack while typing, and the Send key submits on soft keyboards that report empty key codes.',
