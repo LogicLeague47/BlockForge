@@ -352,10 +352,6 @@ export function renderModsList() {
     return;
   }
   list.innerHTML = saveErr + _mods.map((m) => {
-    list.innerHTML = '<div style="text-align:center;padding:22px 12px;color:#888;font:13px monospace;line-height:1.7;">No mods installed yet.<br>Download <b>.bfmod</b> files from the BlockForge website,<br>then tap "Import Mod" (or drag the file here).</div>';
-    return;
-  }
-  list.innerHTML = _mods.map((m) => {
     const on = m.enabled;
     const official = m.author === 'BlockForge Dev';
     const tag = official
