@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '37ff7f0',
+          heading: 'Mob retexture + slab outline fix',
+          desc: 'Retextured 9 mobs with BlockForge-original detail (zombie amber glow + scar, skeleton soul-glow pupils + skull crack, spider violet eyes + carapace fuzz, chicken eye shine + beak highlight, slime inner core + gloss, villager trade badge, traveler clasp glow, blower rust streaks, portalman void veins). Fixed slab selection wireframe, ghost preview, and crack overlay rendering as full blocks — they now hug the half-height slab.',
+          date: 'Sep 3',
+          bugs: ['slab selection wireframe drew a full cube around half-slabs', 'slab ghost preview showed a full cube', 'crack overlay floated above slab tops and covered full side height'],
+          updates: ['selection outline scales to 0.5 height on slabs', 'ghost preview scales to 0.5 height when holding a slab', 'crack overlay sits on slab top face and squashes on slab sides'],
+          features: ['9 mob retextures: zombie, skeleton, spider, chicken, slime, villager, traveler, blower, portalman'],
+        },
+        {
           hash: '833852f',
           heading: 'Critical bug fixes: duplicate block IDs, dropped items, recipe fix',
           desc: 'Fixed several critical data-corruption bugs and a gameplay-breaking drop issue. Copper Block was lost due to ID collision with Yellow Wool. Mossy Stone Bricks and Flower Pot had duplicate enum keys overwriting earlier IDs. Night Vision Potion recipe referenced undefined GLOWSTONE. Dropped items from tree logs were landing on top of the tree canopy instead of the ground.',
