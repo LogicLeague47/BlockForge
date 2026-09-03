@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'd804657',
+          heading: 'Mobile chat typing fixed',
+          desc: 'Fixed glitchy chat and command typing on mobile. The keyboard now opens reliably, tapping chat while open closes it (there is no Escape key on mobile), screen taps and held joystick no longer walk/place/attack while typing, and the Send key submits on soft keyboards that report empty key codes.',
+          date: 'Sep 3',
+          bugs: ['keyboard often refused to open from the chat/command buttons on iOS', 'no way to close chat on mobile (no Escape key); re-tapping chat wiped typed text', 'tapping the screen while typing placed blocks / attacked mobs', 'a held joystick kept walking the player while typing', 'soft-keyboard Send key did nothing on some Android keyboards', 'chat box lost its flex layout and overflowed narrow screens'],
+          updates: ['chat/command buttons fire on tap-release so focus lands inside the tap gesture (keyboard opens)', 'tapping chat while open closes it (discards text, like Escape); command button refocuses without wiping', 'joystick, camera, and action buttons ignore input while chat is open', 'Enter/Escape matched via e.key as well as e.code', 'chat input uses enterkeyhint=send with autocorrect/autocapitalize off', 'chat HUD capped to viewport width'],
+          features: [],
+        },
+        {
           hash: '37ff7f0',
           heading: 'Mob retexture + slab outline fix',
           desc: 'Retextured 9 mobs with BlockForge-original detail (zombie amber glow + scar, skeleton soul-glow pupils + skull crack, spider violet eyes + carapace fuzz, chicken eye shine + beak highlight, slime inner core + gloss, villager trade badge, traveler clasp glow, blower rust streaks, portalman void veins). Fixed slab selection wireframe, ghost preview, and crack overlay rendering as full blocks — they now hug the half-height slab.',
