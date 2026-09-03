@@ -2329,13 +2329,27 @@
       }
       .mc-btn:active { background: rgba(255,255,255,0.4); transform: scale(0.9); }
 
-      /* Side buttons — sprint, crouch, inventory — between joystick and jump (above the hotbar) */
+      /* Side buttons — inventory, sprint, sneak — right side next to jump,
+         Minecraft-style (sneak sits left of the big jump button) */
       .bf-side-btns {
-        position: absolute; left: 50%; bottom: 68px;
-        transform: translateX(-50%);
-        display: flex; gap: 10px;
+        position: absolute; right: 88px; bottom: 76px;
+        display: flex; gap: 10px; align-items: flex-end;
         pointer-events: auto; z-index: 40;
       }
+      /* Persistent top buttons — chat + pause, always visible like Minecraft */
+      .bf-top-btns {
+        position: absolute; right: 52px; top: 8px;
+        display: flex; gap: 8px;
+        pointer-events: auto; z-index: 5;
+      }
+      .bf-btn-top {
+        width: 36px; height: 36px; border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.3);
+        background: rgba(0,0,0,0.5); color: #fff; font-size: 16px;
+        display: flex; align-items: center; justify-content: center;
+        backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+      }
+      .bf-btn-top:active { background: rgba(255,255,255,0.3); }
       .bf-btn-mid {
         width: 48px; height: 48px;
         border-radius: 50%;
@@ -2466,6 +2480,9 @@
         .bf-side-btns { gap: 6px; bottom: 56px; }
         .bf-btn-mid { width: 40px; height: 40px; font-size: 14px; }
         .bf-toggle { right: 5px; top: 5px; width: 30px; height: 30px; font-size: 14px; }
+        .bf-top-btns { right: 40px; top: 5px; gap: 6px; }
+        .bf-btn-top { width: 30px; height: 30px; font-size: 13px; }
+        .bf-side-btns { right: 68px; bottom: 64px; }
         .bf-action-panel { right: 5px; top: 38px; gap: 2px; flex-direction: row; flex-wrap: wrap; justify-content: flex-end; max-width: calc(100vw - 10px); }
         .bf-btn-ap { width: 32px; height: 32px; font-size: 12px; }
         .bf-btn-ap.bf-btn-f3 { font-size: 10px; }
@@ -2492,8 +2509,10 @@
         .bf-toggle { width: 30px !important; height: 30px !important; font-size: 13px !important; }
         .bf-action-panel { flex-direction: row !important; flex-wrap: wrap !important; justify-content: flex-end !important; gap: 2px !important; top: 36px !important; right: 4px !important; max-width: calc(100vw - 8px) !important; }
         .bf-btn-ap { width: 30px !important; height: 30px !important; font-size: 11px !important; }
-        .bf-side-btns { gap: 6px !important; bottom: 12px !important; }
+        .bf-side-btns { gap: 6px !important; bottom: 12px !important; right: 72px !important; }
         .bf-main-btns { right: 10px !important; bottom: 12px !important; }
+        .bf-top-btns { right: 40px !important; top: 5px !important; gap: 6px !important; }
+        .bf-btn-top { width: 30px !important; height: 30px !important; font-size: 13px !important; }
         /* Inventory grid: shrink slots so all 9 columns fit the viewport width */
         #inventory-screen h2 { font-size: 14px; padding: 8px 10px; }
         #inventory-screen h2 .menu-btn { font-size: 10px !important; padding: 4px 8px !important; }
@@ -3595,7 +3614,7 @@
     </div>
 
     <!-- Chat HUD -->
-    <div id="chat-hud" style="display:none;position:fixed;bottom:52px;left:8px;z-index:15;width:400px;max-width:calc(100vw - 16px);max-height:250px;pointer-events:none;transition:opacity 0.5s;">
+    <div id="chat-hud" style="display:none;position:fixed;bottom:52px;left:8px;z-index:25;width:400px;max-width:calc(100vw - 16px);max-height:250px;pointer-events:none;transition:opacity 0.5s;">
       <div id="chat-messages" style="max-height:200px;overflow-y:auto;font:12px/1.4 monospace;color:#fff;text-shadow:1px 1px 0 #000;padding:4px;scrollbar-width:none;"></div>
       <div id="chat-input-wrap" style="display:none;pointer-events:auto;background:rgba(0,0,0,0.65);border:1px solid rgba(100,100,100,0.5);border-radius:3px;padding:4px 8px;align-items:center;gap:4px;">
         <input id="chat-input" type="text" maxlength="100" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="send" inputmode="text" style="flex:1;background:transparent;color:#fff;border:none;outline:none;font:13px monospace;min-width:0;"/>

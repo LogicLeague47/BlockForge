@@ -3823,7 +3823,7 @@ function _initEmojiPicker() {
   if (!btn || !inp || _emojiPanel) return;
   const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
   const panel = document.createElement('div');
-  panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:20;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:27;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
   // GIF search
   const search = document.createElement('input');
   search.placeholder = 'Search GIFs...';
@@ -3885,7 +3885,7 @@ _initEmojiPicker();
   if (!btn || !inp) return;
   const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
   const panel = document.createElement('div');
-  panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:25;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
+  panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:27;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
   // GIF search
   const search = document.createElement('input');
   search.placeholder = 'Search GIFs...';
@@ -3970,7 +3970,12 @@ function openChat(prefix) {
   clearTimeout(_chatAutoHideTimer);
   if (wrap) wrap.style.display = 'flex';
   if (inp) { inp.value = prefix || ''; inp.focus(); }
-  if (mobile) mobile.chatOpen = true;
+  if (mobile) {
+    mobile.chatOpen = true;
+    // Kill any in-progress mining hold so it can't keep breaking blocks
+    // (or lock the breaker on) while the keyboard has focus.
+    if (mobile._breaking) mobile._breaking = false;
+  }
   // Release pointer lock so WASD/camera controls stop
   if (document.pointerLockElement) {
     document.exitPointerLock?.();

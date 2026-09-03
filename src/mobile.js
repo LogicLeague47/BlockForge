@@ -130,6 +130,10 @@ export function initMobileControls(playerRef, input, callbacks) {
       <button class="bf-btn-mid bf-btn-crouch" data-action="crouch">&#9660;</button>
       <button class="bf-btn-mid bf-btn-inv" data-action="inventory">&#127890;</button>
     </div>
+    <div class="bf-top-btns">
+      <button class="bf-btn-top bf-btn-chat-top" data-action="chat" aria-label="Chat">&#128172;</button>
+      <button class="bf-btn-top bf-btn-pause-top" data-action="menu" aria-label="Pause">&#9208;</button>
+    </div>
     <button class="bf-toggle" data-action="toggle" aria-label="Actions">&#9881;</button>
     <div class="bf-action-panel">
       <button class="bf-btn-ap bf-btn-place" data-action="place">&#9995;</button>
