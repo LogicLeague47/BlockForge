@@ -46,6 +46,7 @@ export class ExplosionManager {
           const dist = Math.sqrt(dxyy + dz * dz);
           if (dist <= power - resistance) {
             this.world.setBlock(bx, by, bz, BLOCK.AIR, false);
+            if (this.world.doubleSlabs) this.world.doubleSlabs.delete(bx + ',' + by + ',' + bz);
             destroyed.push({ x: bx, y: by, z: bz, block });
           }
         }

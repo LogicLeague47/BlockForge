@@ -1,0 +1,66 @@
+*{box-sizing:border-box}
+body{margin:0;background:#2b2118 url('');font-family:"Comic Sans MS","Chalkboard SE","Segoe Print",cursive;color:#3a2c1c;display:flex;justify-content:center;min-height:100vh}
+#wrap{width:1000px;max-width:98vw;padding:10px}
+#topbar{display:flex;justify-content:space-between;align-items:center;color:#f5e9c9;font-size:14px;margin:4px 2px}
+#logo-small em{opacity:.7;font-style:normal}
+#btn-mute{background:#f5e9c9;border:2px solid #3a2c1c;border-radius:8px;cursor:pointer}
+#stage{position:relative;width:960px;max-width:96vw;aspect-ratio:16/9;margin:0 auto}
+canvas#game{width:100%;height:100%;background:#f7f0d8;border:4px solid #3a2c1c;border-radius:14px;box-shadow:0 10px 0 #3a2c1c,0 18px 40px rgba(0,0,0,.4);cursor:crosshair;display:block;touch-action:none}
+#stage{touch-action:none}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(247,240,216,.97);border-radius:10px;padding:18px;z-index:5}
+.hidden{display:none!important}
+#screen-logo,#screen-title{background:#14100b;color:#f5e9c9}
+.draw-logo{font-size:64px;font-weight:900;letter-spacing:2px;border:4px dashed #f5e9c9;padding:10px 26px;border-radius:18px;transform:rotate(-3deg);animation:wob 1s infinite alternate}
+@keyframes wob{from{transform:rotate(-3deg) scale(1)}to{transform:rotate(-1deg) scale(1.03)}}
+.game-title .stale{display:block;font-size:92px;font-weight:900;letter-spacing:8px;color:#c8321e;text-shadow:4px 4px 0 #3a2c1c,-2px -2px 0 #ffd23f;transform:rotate(-4deg)}
+.game-title.small .stale{font-size:64px}
+.tagline{display:block;font-size:22px;color:#3a2c1c;background:#ffd23f;border:3px solid #3a2c1c;border-radius:12px;padding:2px 14px;margin-top:6px;transform:rotate(2deg)}
+.sub{opacity:.8;margin-top:12px}
+.blink{animation:bl 1s infinite}
+@keyframes bl{50%{opacity:.2}}
+.menu-btns{display:flex;flex-direction:column;gap:8px;min-width:280px}
+button{background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 16px;font-family:inherit;font-weight:700;cursor:pointer;box-shadow:3px 3px 0 #3a2c1c;transform:rotate(-.5deg)}
+button:hover{transform:rotate(.5deg) scale(1.04);background:#ffd23f}
+button.big{font-size:22px;background:#7bd389}
+#level-dots{display:flex;gap:6px;justify-content:center;margin:4px}
+#level-dots span{border:2px solid #3a2c1c;border-radius:50%;width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:#eee;cursor:pointer;font-weight:900}
+#level-dots span.locked{opacity:.35;cursor:not-allowed}
+#level-dots span.done{background:#7bd389}
+.panel{background:#f7f0d8;border:4px dashed #3a2c1c}
+.panel label{display:block;margin:6px;font-size:15px}
+.panel .row{display:flex;gap:8px;align-items:center;justify-content:center;margin:6px}
+.btnrow{flex-wrap:wrap}
+.keys{font-size:12px;max-width:520px}
+#hud{position:absolute;top:8px;left:10px;right:10px;display:flex;gap:10px;align-items:center;z-index:4;pointer-events:none;font-weight:900}
+#hearts{font-size:20px;text-shadow:1px 1px 0 #fff}
+#jamwrap{flex:1;height:22px;background:#00000022;border:3px solid #3a2c1c;border-radius:12px;position:relative;overflow:hidden}
+#jam{height:100%;width:100%;background:linear-gradient(90deg,#ff5d8f,#ff9ebc);transition:width .1s}
+#jam-label{position:absolute;inset:0;font-size:12px;display:flex;align-items:center;justify-content:center;color:#3a2c1c}
+#spr,#timer{background:#fff;border:2px solid #3a2c1c;border-radius:10px;padding:2px 8px;font-size:14px}
+#toast{position:absolute;top:46px;left:50%;transform:translateX(-50%) rotate(-2deg);background:#3a2c1c;color:#ffd23f;padding:6px 14px;border-radius:10px;font-weight:900;z-index:6}
+#dialog{position:absolute;bottom:12px;left:12px;right:12px;background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 12px;z-index:6;font-size:15px;text-align:left;box-shadow:4px 4px 0 #3a2c1c}
+#cut-cap{font-size:30px;font-weight:900;margin-bottom:8px}
+#cut-sub{font-size:17px;max-width:640px;min-height:60px;background:#fff;border:3px solid #3a2c1c;border-radius:12px;padding:8px 12px}
+#cut-progress{width:60%;height:10px;border:2px solid #f5e9c9;border-radius:6px;margin-top:12px}
+#cut-fill{height:100%;width:0;background:#ffd23f}
+#btn-skip{margin-top:10px;background:#c8321e;color:#fff}
+#board-list{text-align:left;min-width:320px}
+#board-list div{border-bottom:2px dotted #3a2c1c;padding:3px;font-weight:700}
+#name-input{font-size:28px;width:110px;text-align:center;border:3px solid #3a2c1c;border-radius:10px;font-family:inherit}
+#helpline{text-align:center;color:#f5e9c9;opacity:.85;font-size:13px}
+#touch{position:absolute;bottom:10px;left:10px;right:10px;display:none;justify-content:space-between;align-items:flex-end;z-index:7;pointer-events:none}
+#touch .tcluster{display:flex;gap:10px}
+#touch button{pointer-events:auto;opacity:.88;font-size:24px;width:66px;height:58px;border-radius:16px;touch-action:none;-webkit-user-select:none;user-select:none}
+#touch button.on{background:#ff9f1c;opacity:1}
+@media (max-width:700px){
+  #hearts{font-size:15px}
+  #spr,#timer{font-size:11px;padding:1px 6px}
+  #jam-label{font-size:10px}
+  .game-title .stale{font-size:54px;letter-spacing:4px}
+  .draw-logo{font-size:38px}
+  .screen{padding:10px}
+  #dialog{font-size:13px}
+}
+.doodle-pip{font-size:54px;animation:wob 1s infinite alternate}
+.menu-sub{margin:0 0 10px}
+.foot{font-size:11px;opacity:.6}

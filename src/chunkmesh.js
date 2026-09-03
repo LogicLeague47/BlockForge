@@ -236,6 +236,17 @@ export class ChunkMeshManager {
     }
   }
 
+  // Border-aware variant for single-cell edits: an interior edit can't change
+  // neighbour meshes, so only dirty the neighbours the cell touches. This
+  // turns most block breaks/places from 5 remeshes into 1 (mobile freeze fix).
+  refreshAroundCell(cx, cz, lx, lz) {
+    this._markDirty(cx, cz);
+    if (lx === 0) this._markDirty(cx - 1, cz);
+    if (lx === CHUNK_SIZE - 1) this._markDirty(cx + 1, cz);
+    if (lz === 0) this._markDirty(cx, cz - 1);
+    if (lz === CHUNK_SIZE - 1) this._markDirty(cx, cz + 1);
+  }
+
   // Process deferred rebuilds (called each frame with a time budget).
   update() {
     const t0 = performance.now();

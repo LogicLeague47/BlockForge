@@ -28,6 +28,7 @@ export class World {
     this.chunks = new Map();
     this.edits = new Map();
     this._chunkEdits = new Map(); // numKey(cx,cz) -> Map<numBlockKey, blockId>
+    this.doubleSlabs = new Map(); // "x,y,z" -> [bottomSlabId, topSlabId] mixed doubles
     this.chestInventories = new Map(); // numBlockKey -> Array(27) of {item, count} or null
     this.furnaceEntities = new Map(); // numBlockKey -> { input, fuel, output, burnTime, maxBurnTime, smeltTime }
     this.editSeq = 0;
@@ -147,6 +148,7 @@ export class World {
   clearEdits() {
     this.edits.clear();
     this._chunkEdits.clear();
+    this.doubleSlabs.clear();
     this.chunks.clear();
   }
 
@@ -336,8 +338,13 @@ export class World {
     return calcBiome(this.noise, wx, wz, y);
   }
 
-  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests(), furnaces: this.serializeFurnaces() }; }
+  serializeEdits() { return { seed: this.seed, edits: Array.from(this.edits.entries()), chests: this.serializeChests(), furnaces: this.serializeFurnaces(), doubleslabs: Array.from(this.doubleSlabs.entries()) }; }
   loadEdits(obj) {
+    if (obj && obj.doubleslabs) {
+      for (const [k, v] of obj.doubleslabs) {
+        if (Array.isArray(v) && v.length === 2) this.doubleSlabs.set(k, [v[0], v[1]]);
+      }
+    }
     if (!obj || obj.edits == null) return;
     for (const [k, v] of obj.edits) {
       let bx, by, bz, bk;

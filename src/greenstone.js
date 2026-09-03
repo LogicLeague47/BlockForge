@@ -285,6 +285,14 @@ export class GreenstoneSystem {
       const newZ = bz + faceOff[2];
       world.setBlock(newX, newY, newZ, bId);
       world.setBlock(bx, by, bz, BLOCK.AIR);
+      // Carry any mixed double-slab dressing along with the moved block.
+      if (world.doubleSlabs) {
+        const pair = world.doubleSlabs.get(bx + ',' + by + ',' + bz);
+        if (pair) {
+          world.doubleSlabs.delete(bx + ',' + by + ',' + bz);
+          world.doubleSlabs.set(newX + ',' + newY + ',' + newZ, pair);
+        }
+      }
 
       if (bId === BLOCK.PISTON || bId === BLOCK.STICKY_PISTON) {
         const oldKey = bx + ',' + by + ',' + bz;
@@ -351,6 +359,13 @@ export class GreenstoneSystem {
         const destZ = z + faceOff[2];
         world.setBlock(destX, destY, destZ, pullBlock);
         world.setBlock(pullX, pullY, pullZ, BLOCK.AIR);
+        if (world.doubleSlabs) {
+          const pair = world.doubleSlabs.get(pullX + ',' + pullY + ',' + pullZ);
+          if (pair) {
+            world.doubleSlabs.delete(pullX + ',' + pullY + ',' + pullZ);
+            world.doubleSlabs.set(destX + ',' + destY + ',' + destZ, pair);
+          }
+        }
       }
     }
 

@@ -846,6 +846,8 @@ function clearBlockLights() {
 
 // --- door open/close state ---
 const doorStates = new Map(); // key: "x,y,z" -> { blockId }
+// NOTE: merged double-slab pairs live per-world at world.doubleSlabs
+// ("x,y,z" -> [bottomSlabId, topSlabId]) so dimensions/minigames stay isolated.
 
 // --- redstone states (buttons, levers, pressure plates) ---
 const redstoneStates = new Map(); // key: "x,y,z" -> { blockId, expiresAt }
@@ -855,7 +857,7 @@ const pistonFacings = new Map(); // key: "x,y,z" -> 'north'|'south'|'east'|'west
 
 // --- merged double-slabs: full blocks made from two slabs (any mix) ---
 // key: "x,y,z" -> [slabIdA, slabIdB]. Breaking one drops both slabs back.
-const mergedSlabs = new Map();
+
 
 // --- greenstone system ---
 const greenstoneSystem = new GreenstoneSystem();
@@ -1797,7 +1799,8 @@ document.addEventListener('mousedown', (e) => {
         doorStates.set(doorKey, { blockId: hit.block });
         world.setBlock(hit.x, hit.y, hit.z, BLOCK.AIR);
       }
-      manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+      { const _rcx = Math.floor(hit.x / CHUNK_SIZE), _rcz = Math.floor(hit.z / CHUNK_SIZE);
+        manager.refreshAroundCell(_rcx, _rcz, hit.x - (_rcx << 4), hit.z - (_rcz << 4)); }
     } else if (hit && hit.block === BLOCK.LEVER) {
       const leverKey = `${hit.x},${hit.y},${hit.z}`;
       const existing = redstoneStates.get(leverKey);
@@ -3107,20 +3110,24 @@ function placeBlock(slotOverride, targetHit) {
     itemId = slabVariantFor(itemId, wantTop);
   }
 
-  // Slab stacking: a slab used on any slab cell merges into a full block
-  // (any mix of types — classic double-slab behavior). Result uses the
-  // existing slab's full-block mapping. The pair is recorded so breaking the
-  // block drops both slabs back.
+  // Slab stacking: a slab used on any slab cell merges into a mixed double
+  // slab (any mix of types). The stored id is the existing slab's full block
+  // (correct height/culling); the bottom/top slab textures are recorded per
+  // world so the mesher dresses each half — and breaking drops both back.
   if (hit.block && BLOCKS[itemId]?.slab && BLOCKS[hit.block]?.slab) {
     const fullBlock = SLAB_TO_FULL[hit.block] || SLAB_TO_FULL[itemId];
     if (fullBlock) {
       world.setBlock(hit.x, hit.y, hit.z, fullBlock);
-      mergedSlabs.set(`${hit.x},${hit.y},${hit.z}`, [hit.block, itemId]);
+      const existTop = !!BLOCKS[hit.block].slabTop;
+      const bottomId = existTop ? itemId : hit.block;
+      const topId = existTop ? hit.block : itemId;
+      world.doubleSlabs.set(`${hit.x},${hit.y},${hit.z}`, [bottomId, topId]);
       if (BLOCKS[fullBlock]?.luminance) addBlockLight(hit.x, hit.y, hit.z, fullBlock);
       liquidBlockChanged(hit.x, hit.y, hit.z);
       if (audio) audio.blockPlace(fullBlock);
       if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, fullBlock);
-      manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+      { const _rcx = Math.floor(hit.x / CHUNK_SIZE), _rcz = Math.floor(hit.z / CHUNK_SIZE);
+        manager.refreshAroundCell(_rcx, _rcz, hit.x - (_rcx << 4), hit.z - (_rcz << 4)); }
       // Consume the held slab in survival (the early return skips the shared
       // consume step at the end of placeBlock).
       if (slot && player.isSurvival()) {
@@ -3214,7 +3221,8 @@ function placeBlock(slotOverride, targetHit) {
     }
     syncUIMode();
   }
-  manager.refreshAround(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
+  { const _rcx = Math.floor(x / CHUNK_SIZE), _rcz = Math.floor(z / CHUNK_SIZE);
+    manager.refreshAroundCell(_rcx, _rcz, x - (_rcx << 4), z - (_rcz << 4)); }
   // place sfx removed
   // Achievement stats: block placed
   achievements.incrementMapStat('blocksPlaced', `${itemId}`);
@@ -3659,12 +3667,12 @@ function doBreak(hit, b) {
 
   // drop item — spawn as a physical entity with a smoke puff
   if (player.isSurvival()) {
-    // Merged double-slab: drop both slabs back instead of a full block.
+    // Mixed double-slab: drop both slabs back instead of a full block.
     // (Validated against the recorded pair so a stale entry left by an
     // explosion can't trigger on an unrelated block placed there later.)
-    let merged = mergedSlabs.get(`${hit.x},${hit.y},${hit.z}`);
+    let merged = world.doubleSlabs.get(`${hit.x},${hit.y},${hit.z}`);
     if (merged) {
-      mergedSlabs.delete(`${hit.x},${hit.y},${hit.z}`);
+      world.doubleSlabs.delete(`${hit.x},${hit.y},${hit.z}`);
       if (b !== SLAB_TO_FULL[merged[0]] && b !== SLAB_TO_FULL[merged[1]]) merged = null;
       // Normalize to base slabs (top variants drop their base item).
       else merged = merged.map(id => BLOCKS[id]?.drop ?? id);
@@ -3690,7 +3698,8 @@ function doBreak(hit, b) {
   // Achievement stats: block broken
   achievements.incrementMapStat('blocksBroken', `${b}`);
   achievements.incrementStat('totalBlocksBroken');
-  manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+  { const _rcx = Math.floor(hit.x / CHUNK_SIZE), _rcz = Math.floor(hit.z / CHUNK_SIZE);
+    manager.refreshAroundCell(_rcx, _rcz, hit.x - (_rcx << 4), hit.z - (_rcz << 4)); }
   audio?.blockBreak(b);
 
   if (player.isSurvival()) player.addExhaustion(0.005);
@@ -7961,6 +7970,24 @@ function initMenu() {
       if (statEl) statEl.style.display = 'none';
     }
   }
+  // Other Games (link builds only — hidden on CrazyGames, which forbids
+  // promoting off-platform products through the game).
+  (function initOtherGames() {
+    const btn = document.getElementById('btn-other-games');
+    const popup = document.getElementById('other-games-popup');
+    const ok = document.getElementById('other-games-ok');
+    const cancel = document.getElementById('other-games-cancel');
+    if (!btn || !popup) return;
+    if (isOnCrazyGames() || new URLSearchParams(location.search).has('cg')) {
+      btn.style.display = 'none';
+      return;
+    }
+    const hide = () => { popup.style.display = 'none'; };
+    btn.addEventListener('click', () => { popup.style.display = 'flex'; });
+    if (cancel) cancel.addEventListener('click', hide);
+    if (ok) ok.addEventListener('click', () => { hide(); location.href = 'games.html'; });
+    popup.addEventListener('click', (e) => { if (e.target === popup) hide(); });
+  })();
   document.getElementById('btn-achievements').addEventListener('click', () => {
     _showAdvTab('achievements');
     document.getElementById('achievement-screen').classList.add('open');

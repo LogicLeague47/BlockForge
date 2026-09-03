@@ -126,14 +126,14 @@ export const MOB_TYPES = {
     headW: 0.5, headH: 0.5, headD: 0.5,
     legW: 0.15, legH: 0.75, legD: 0.15,
     headOffY: -0.25,
-    bodyColor: 0x7C6A4B,
+    bodyColor: 0x2a7a6a,
     headColor: 0xD9A57A,
     legColor: 0x5A4632,
     hasArms: true,
     armW: 0.15, armH: 0.75, armD: 0.15,
-    armColor: 0x6B5A3B,
+    armColor: 0x206a5c,
     hasHood: true,
-    hoodColor: 0x5D503D,
+    hoodColor: 0x1a5a4e,
     hasSatchel: true,
     satchelColor: 0x71563A,
     hasBelt: true,
@@ -157,17 +157,17 @@ export const MOB_TYPES = {
     headOffY: -0.25,
     hasArms: true,
     armW: 0.15, armH: 0.75, armD: 0.15,
-    armColor: 0x2a3a4a,
+    armColor: 0x35302a,
     hasHood: true,
-    hoodColor: 0x1a2a3a,
+    hoodColor: 0x242019,
     hasBelt: true,
     beltColor: 0x2a1a0a,
     hasCape: true,
-    capeColor: 0x1e2e3e,
+    capeColor: 0x2a2521,
     hasStaff: true,
     staffColor: 0x5a4a3a,
     headColor: 0xc8a882,
-    bodyColor: 0x2a3a4a,
+    bodyColor: 0x35302a,
     legColor: 0x1a2a3a,
     hasTrades: true,
     trades: [
@@ -1596,25 +1596,40 @@ class Mob {
 
   _spiderTextures(def) {
     const s = 64;
-    const BODY = 0x333333, BODY_DARK = 0x222222, LEG = 0x2a2a2a;
+    // Violet weaver: deep purple carapace, ember-orange bands, dark joints
+    const BODY = 0x4a2a5a, BODY_DARK = 0x2a1030, LEG = 0x33222a;
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = '#4a2a5a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, BODY, 12);
-      // Stripe pattern
+      // Ember band stripes
       for (let i = 0; i < 4; i++) {
         const y = 8 + i * 14;
-        ctx.fillStyle = 'rgba(60,20,20,0.3)';
-        ctx.fillRect(0, y, s, 4);
+        ctx.fillStyle = 'rgba(230,120,30,0.55)';
+        ctx.fillRect(0, y, s, 3);
+        ctx.fillStyle = 'rgba(20,8,20,0.5)';
+        ctx.fillRect(0, y + 3, s, 2);
       }
+      // Pale fuzz speckles
+      ctx.fillStyle = 'rgba(220,180,230,0.35)';
+      ctx.fillRect(6, 6, 2, 2);
+      ctx.fillRect(50, 22, 2, 2);
+      ctx.fillRect(20, 46, 2, 2);
+      ctx.fillRect(40, 56, 2, 2);
     });
 
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a3a3a';
+      ctx.fillStyle = '#522e62';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, BODY, 10);
-      // Red hourglass marking
+      // Big ember hourglass marking
+      ctx.fillStyle = '#e07818';
+      ctx.fillRect(26, 12, 12, 6);
+      ctx.fillRect(29, 18, 6, 12);
+      ctx.fillRect(26, 30, 12, 6);
+      ctx.fillStyle = '#ffB040';
+      ctx.fillRect(29, 12, 6, 2);
       ctx.fillStyle = '#8b2020';
       ctx.beginPath();
       ctx.moveTo(28, 16); ctx.lineTo(36, 16); ctx.lineTo(32, 24);
@@ -1638,9 +1653,12 @@ class Mob {
     });
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = '#4a2a5a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, BODY, 12);
+      // Chelicerae ridges
+      ctx.fillStyle = 'rgba(230,120,30,0.4)';
+      ctx.fillRect(0, 40, s, 3);
     });
 
     const headTop = this._tex(s, s, (ctx) => {
@@ -1655,7 +1673,7 @@ class Mob {
     });
 
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = '#4a2a5a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, BODY, 10);
       // 8 red eyes (4 per side)
@@ -1685,19 +1703,23 @@ class Mob {
     });
 
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#333';
+      ctx.fillStyle = '#4a2a5a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, BODY, 10);
     });
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a2a2a';
+      ctx.fillStyle = '#3a2430';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, LEG, 10);
-      // Leg segments
-      ctx.fillStyle = 'rgba(80,40,40,0.3)';
-      ctx.fillRect(0, 16, s, 2);
-      ctx.fillRect(0, 32, s, 2);
+      // Banded leg segments (ember + dark)
+      ctx.fillStyle = 'rgba(230,120,30,0.5)';
+      ctx.fillRect(0, 14, s, 4);
+      ctx.fillRect(0, 36, s, 4);
+      ctx.fillStyle = 'rgba(15,5,15,0.6)';
+      ctx.fillRect(0, 18, s, 2);
+      ctx.fillRect(0, 40, s, 2);
+      ctx.fillRect(0, 30, s, 2);
     });
 
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
@@ -1707,14 +1729,14 @@ class Mob {
 
   _zombieTextures(def) {
     const s = 64;
-    // Classic BlockForge zombie: teal skin, blue shirt, dark blue pants
-    const SKIN = 0x5a9a7a;
-    const SHIRT = 0x3a5a8a;
-    const PANTS = 0x2a3a6a;
+    // BlockForge bog rotter: sickly moss-green skin, ragged brown shirt, torn pants
+    const SKIN = 0x7fa03c;
+    const SHIRT = 0x6a4a2a;
+    const PANTS = 0x3a3230;
 
     // ── HEAD ──
     const skinSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SKIN, 12);
       // Hair strands on sides
@@ -1730,12 +1752,12 @@ class Mob {
       this._noiseTex(ctx, s, s, 0x3a2515, 10);
     });
     const skinBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(0, 0, s, s);
     });
     const skinFront = this._tex(s, s, (ctx) => {
       // Face: teal skin
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SKIN, 10);
       // Hair fringe on top
@@ -1778,14 +1800,14 @@ class Mob {
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, 0x3a2515, 10);
       // Neck exposed at bottom
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(18, s - 12, 28, 12);
     });
     const head = [skinSide, skinSide, skinTop, skinBot, skinBack, skinFront];
 
     // ── BODY (blue shirt) ──
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a5a8a';
+      ctx.fillStyle = '#6a4a2a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SHIRT, 14);
       // Torn shirt edges
@@ -1796,39 +1818,51 @@ class Mob {
       ctx.fillRect(s / 2 - 1, 0, 2, s);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a5a8a';
+      ctx.fillStyle = '#6a4a2a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SHIRT, 10);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a3a6a';
+      ctx.fillStyle = '#3a3230';
       ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a5a8a';
+      ctx.fillStyle = '#6a4a2a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SHIRT, 12);
       // Collar / neckline
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(20, 0, 24, 6);
       // Shirt buttons / center line
       ctx.fillStyle = 'rgba(30,50,80,0.4)';
       ctx.fillRect(30, 10, 4, 50);
+      // Torn holes showing rotted skin beneath
+      ctx.fillStyle = '#7fa03c';
+      ctx.fillRect(8, 18, 10, 8);
+      ctx.fillRect(46, 34, 10, 8);
+      ctx.fillStyle = 'rgba(40,60,20,0.6)';
+      ctx.fillRect(8, 24, 10, 2);
+      ctx.fillRect(46, 40, 10, 2);
+      // Moss patches on shoulders
+      ctx.fillStyle = 'rgba(70,130,40,0.75)';
+      ctx.fillRect(4, 6, 12, 5);
+      ctx.fillRect(48, 8, 12, 5);
+      ctx.fillRect(24, 52, 16, 6);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     // ── LEGS (dark blue pants) ──
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a3a6a';
+      ctx.fillStyle = '#3a3230';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, PANTS, 10);
       // Shoe at bottom (darker)
-      ctx.fillStyle = '#1a2a4a';
+      ctx.fillStyle = '#241f1c';
       ctx.fillRect(0, s - 10, s, 10);
     });
     // Arms use same skin color as head
     const armTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a9a7a';
+      ctx.fillStyle = '#7fa03c';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, SKIN, 10);
     });
@@ -1856,6 +1890,12 @@ class Mob {
       // Jaw line
       ctx.fillStyle = 'rgba(160,155,145,0.5)';
       ctx.fillRect(4, s - 18, s - 8, 3);
+      // Moss creeping over the temple
+      ctx.fillStyle = 'rgba(70,130,40,0.8)';
+      ctx.fillRect(8, 16, 12, 6);
+      ctx.fillRect(s - 20, 36, 12, 6);
+      ctx.fillStyle = 'rgba(50,100,30,0.8)';
+      ctx.fillRect(10, 18, 8, 2);
     });
     const boneTop = this._tex(s, s, (ctx) => {
       // Top of skull — smooth bone
@@ -1885,6 +1925,13 @@ class Mob {
       // Forehead / brow ridge
       ctx.fillStyle = 'rgba(200,195,185,0.5)';
       ctx.fillRect(0, 8, s, 6);
+      // Lightning crack across the skull
+      ctx.fillStyle = 'rgba(110,105,95,0.9)';
+      ctx.fillRect(20, 0, 2, 12);
+      ctx.fillRect(22, 10, 8, 2);
+      ctx.fillRect(28, 4, 2, 8);
+      ctx.fillStyle = 'rgba(70,130,40,0.7)';
+      ctx.fillRect(44, 2, 14, 6);
 
       // Eye sockets (deep, dark)
       ctx.fillStyle = '#1a1a1a';
@@ -1982,6 +2029,14 @@ class Mob {
         ctx.fillRect(2, y, 4, 2);
         ctx.fillRect(58, y, 4, 2);
       }
+      // Moss growing between ribs
+      ctx.fillStyle = 'rgba(70,130,40,0.75)';
+      ctx.fillRect(6, 14, 8, 5);
+      ctx.fillRect(50, 28, 8, 5);
+      ctx.fillRect(8, 42, 8, 5);
+      ctx.fillStyle = 'rgba(140,180,80,0.6)';
+      ctx.fillRect(7, 15, 3, 2);
+      ctx.fillRect(51, 29, 3, 2);
     });
     const bodySide = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#e8e4d8';
@@ -2049,7 +2104,7 @@ class Mob {
     const RED = 0xcc2222;
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f8f8f8';
+      ctx.fillStyle = '#f2e4c8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 12);
       // Wing detail — layered feather strokes
@@ -2061,9 +2116,18 @@ class Mob {
       for (let i = 0; i < 4; i++) {
         ctx.fillRect(8, 12 + i * 9, 20, 4);
       }
+      // Amber wing band + brown speckles
+      ctx.fillStyle = 'rgba(220,140,40,0.65)';
+      ctx.fillRect(6, 34, 24, 5);
+      ctx.fillStyle = 'rgba(140,95,50,0.7)';
+      ctx.fillRect(12, 8, 3, 3);
+      ctx.fillRect(40, 14, 3, 3);
+      ctx.fillRect(24, 48, 3, 3);
+      ctx.fillRect(50, 40, 3, 3);
+      ctx.fillRect(32, 22, 3, 3);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f8f8f8';
+      ctx.fillStyle = '#f2e4c8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 10);
       // Chest feather patch
@@ -2073,7 +2137,7 @@ class Mob {
       ctx.fill();
     });
     const bodyTail = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f8f8f8';
+      ctx.fillStyle = '#f2e4c8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 12);
       // Tail feathers fanning up
@@ -2086,7 +2150,7 @@ class Mob {
       }
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f8f8f8';
+      ctx.fillStyle = '#f2e4c8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 8);
     });
@@ -2095,7 +2159,7 @@ class Mob {
       ctx.fillRect(0, 0, s, s);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f8f8f8';
+      ctx.fillStyle = '#f2e4c8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 10);
       // Eyes with shine
@@ -2131,8 +2195,11 @@ class Mob {
     const legTex = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#e8a020';
       ctx.fillRect(0, 0, s, s);
-      // Toe darkening
+      // Scaled shank stripes
       ctx.fillStyle = '#c08020';
+      for (let y = 4; y < s - 8; y += 8) ctx.fillRect(0, y, s, 3);
+      // Toe darkening
+      ctx.fillStyle = '#a06818';
       ctx.fillRect(0, s - 8, s, 8);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
@@ -2162,6 +2229,14 @@ class Mob {
       // Glossy highlight streak
       ctx.fillStyle = 'rgba(220,255,220,0.55)';
       ctx.fillRect(8, 8, 6, 22);
+      // Trapped bubbles
+      ctx.fillStyle = 'rgba(220,255,220,0.7)';
+      ctx.fillRect(44, 12, 4, 4);
+      ctx.fillRect(14, 44, 3, 3);
+      ctx.fillRect(48, 46, 5, 5);
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.fillRect(44, 12, 2, 2);
+      ctx.fillRect(48, 46, 2, 2);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = 'rgba(80,220,80,0.8)';
@@ -2239,6 +2314,13 @@ class Mob {
       // Mouth
       ctx.fillStyle = '#8b6340';
       ctx.fillRect(24, 40, 16, 4);
+      // Beard (was defined but never painted)
+      ctx.fillStyle = '#8B7355';
+      ctx.fillRect(22, 44, 20, 4);
+      ctx.fillRect(24, 48, 16, 4);
+      ctx.fillRect(26, 52, 12, 4);
+      ctx.fillStyle = '#a88f6a';
+      ctx.fillRect(24, 44, 4, 8);
     });
 
     const skinBack = this._tex(s, s, (ctx) => {
@@ -2262,9 +2344,21 @@ class Mob {
       ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, TUNIC, 15);
-      // Lighter apron panel down the front
+      // Lighter apron panel down the front with gold trader trim
       ctx.fillStyle = 'rgba(240,238,230,0.35)';
       ctx.fillRect(14, 14, 36, 36);
+      ctx.fillStyle = '#d8a830';
+      ctx.fillRect(14, 14, 36, 2);
+      ctx.fillRect(14, 48, 36, 2);
+      ctx.fillRect(14, 14, 2, 36);
+      ctx.fillRect(48, 14, 2, 36);
+      // Satchel pouch on the hip
+      ctx.fillStyle = '#6a4a2a';
+      ctx.fillRect(40, 34, 12, 10);
+      ctx.fillStyle = '#8a6238';
+      ctx.fillRect(40, 34, 12, 2);
+      ctx.fillStyle = '#d8a830';
+      ctx.fillRect(44, 38, 4, 4);
       // Apron cross straps
       ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
       ctx.fillRect(14, 14, 36, 6);
@@ -2406,6 +2500,13 @@ class Mob {
       ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
       ctx.fillRect(14, 14, 36, 4);
       ctx.fillRect(26, 14, 6, 36);
+      // Teal travel scarf across the chest
+      ctx.fillStyle = '#2a8a7a';
+      ctx.fillRect(10, 6, 44, 7);
+      ctx.fillStyle = '#55ddbb';
+      ctx.fillRect(10, 6, 44, 2);
+      ctx.fillStyle = '#1a5a50';
+      ctx.fillRect(38, 6, 6, 12);
       // Echo shard pendant (glowing)
       ctx.fillStyle = '#33aa88';
       ctx.fillRect(27, 20, 6, 8);
@@ -2484,12 +2585,12 @@ class Mob {
 
   _blowerTextures(def) {
     const s = 64;
-    // Industrial TNT-blower: charcoal metal body with orange hazard bands,
+    // Copper boiler blower: patina-streaked copper hull, orange hazard bands,
     // and a cannon-barrel snout that lobs lit TNT at the player.
-    const IRON = 0x4a4a4a, IRON_DARK = 0x303030, ORANGE = 0xd86820;
+    const IRON = 0xb0703a, IRON_DARK = 0x6a4526, ORANGE = 0xd86820;
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = '#b0703a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 14);
       // Metal panel rivets
@@ -2507,23 +2608,31 @@ class Mob {
       ctx.restore();
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = '#b0703a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 10);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#303030';
+      ctx.fillStyle = '#6a4526';
       ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = '#b0703a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 12);
-      // Glowing TNT-core window
+      // Glowing TNT-core window (bigger, hotter)
+      ctx.fillStyle = '#7a2a10';
+      ctx.fillRect(16, 12, 32, 30);
       ctx.fillStyle = '#ff5a20';
       ctx.fillRect(20, 16, 24, 22);
       ctx.fillStyle = '#ffb020';
       ctx.fillRect(24, 20, 16, 14);
+      ctx.fillStyle = '#ffe080';
+      ctx.fillRect(28, 22, 8, 6);
+      // Verdigris patina streaks on copper
+      ctx.fillStyle = 'rgba(60,160,130,0.5)';
+      ctx.fillRect(6, 8, 4, 40);
+      ctx.fillRect(54, 12, 4, 36);
       // Core cracks
       ctx.fillStyle = '#c84000';
       ctx.fillRect(30, 20, 3, 14);
@@ -2540,7 +2649,7 @@ class Mob {
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a5a5a';
+      ctx.fillStyle = '#c08048';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 12);
       // Ear bolts
@@ -2549,7 +2658,7 @@ class Mob {
       ctx.fillRect(50, 10, 8, 8);
     });
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a5a5a';
+      ctx.fillStyle = '#c08048';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 10);
     });
@@ -2558,12 +2667,12 @@ class Mob {
       ctx.fillRect(0, 0, s, s);
     });
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = '#b0703a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 10);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a5a5a';
+      ctx.fillStyle = '#c08048';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 10);
       // Dark goggles over the eyes
@@ -2577,23 +2686,28 @@ class Mob {
     });
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
 
-    // Cannon barrel snout — dark with an orange muzzle
+    // Cannon barrel snout — dark bronze with a glowing orange muzzle
     const snoutTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2e2e2e';
+      ctx.fillStyle = '#4a3020';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON_DARK, 10);
       // Muzzle ring
       ctx.fillStyle = '#d86820';
       ctx.fillRect(0, 0, s, 14);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(0, 0, s, 4);
       // Barrel bands
       ctx.fillStyle = '#1a1a1a';
       ctx.fillRect(0, 30, s, 4);
       ctx.fillRect(0, 46, s, 4);
+      // Heat glow near the muzzle
+      ctx.fillStyle = 'rgba(255,120,30,0.5)';
+      ctx.fillRect(0, 14, s, 6);
     });
     const snout = [snoutTex, snoutTex, snoutTex, snoutTex, snoutTex, snoutTex];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#303030';
+      ctx.fillStyle = '#6a4526';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON_DARK, 10);
       // Metal feet
@@ -2603,7 +2717,7 @@ class Mob {
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     // Arms use the same iron skin as the body (for the throw swing animation)
     const armTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a4a4a';
+      ctx.fillStyle = '#b0703a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, IRON, 10);
     });
@@ -2613,46 +2727,64 @@ class Mob {
 
   _portalmanTextures(def) {
     const s = 64;
-    // Portal guardian: pale void robes with a swirling portal core and
-    // glowing cyan eyes. Drops Portal Orbs.
-    const VOID = 0x2a1a4a, VOID_DARK = 0x1a0a2a, CYAN = 0x40e0ff;
+    // Void herald: near-black indigo robes traced with live cyan circuits,
+    // a ringed portal core, crown-spiked hood and burning cyan eyes.
+    const VOID = 0x160a26, VOID_DARK = 0x0d0518, CYAN = 0x40e0ff;
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 14);
-      // Runic marks + void veins
-      ctx.fillStyle = 'rgba(64,224,255,0.25)';
+      // Live circuit traces (bright cyan)
+      ctx.fillStyle = 'rgba(64,224,255,0.7)';
       ctx.fillRect(10, 20, 3, 18);
       ctx.fillRect(50, 28, 3, 14);
-      ctx.fillStyle = 'rgba(180,120,255,0.35)';
+      ctx.fillStyle = 'rgba(150,240,255,0.9)';
+      ctx.fillRect(10, 20, 3, 3);
+      ctx.fillRect(50, 28, 3, 3);
+      ctx.fillStyle = 'rgba(180,120,255,0.55)';
       ctx.fillRect(20, 8, 2, 30);
       ctx.fillRect(42, 26, 2, 24);
+      // Hem glow
+      ctx.fillStyle = 'rgba(64,224,255,0.35)';
+      ctx.fillRect(0, s - 4, s, 4);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 10);
+      // Collar circuit ring
+      ctx.fillStyle = 'rgba(64,224,255,0.6)';
+      ctx.fillRect(8, 8, 48, 3);
+      ctx.fillRect(8, 53, 48, 3);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#1a0a2a';
       ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 12);
-      // Swirling portal core on the chest
-      const g = ctx.createRadialGradient(32, 34, 2, 32, 34, 18);
-      g.addColorStop(0, '#80f0ff');
-      g.addColorStop(0.5, '#20a0d0');
+      // Ringed portal core on the chest (bigger, hotter)
+      ctx.fillStyle = '#0e2a3a';
+      ctx.fillRect(10, 12, 44, 44);
+      const g = ctx.createRadialGradient(32, 34, 2, 32, 34, 20);
+      g.addColorStop(0, '#c0f8ff');
+      g.addColorStop(0.45, '#40d0f0');
       g.addColorStop(1, 'rgba(30,80,120,0)');
       ctx.fillStyle = g;
       ctx.beginPath();
-      ctx.arc(32, 34, 18, 0, Math.PI * 2);
+      ctx.arc(32, 34, 20, 0, Math.PI * 2);
       ctx.fill();
+      // Outer containment ring
+      ctx.strokeStyle = 'rgba(120,240,255,0.85)';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(32, 34, 21, 0, Math.PI * 2);
+      ctx.stroke();
       // Swirl streak
-      ctx.strokeStyle = 'rgba(200,255,255,0.6)';
+      ctx.strokeStyle = 'rgba(230,255,255,0.8)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(32, 34, 10, 0, Math.PI * 1.3);
@@ -2661,14 +2793,27 @@ class Mob {
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 12);
+      // Temple circuit
+      ctx.fillStyle = 'rgba(64,224,255,0.65)';
+      ctx.fillRect(20, 24, 24, 3);
+      ctx.fillRect(30, 14, 3, 12);
     });
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 10);
+      // Crown spikes with cyan tips
+      ctx.fillStyle = '#0d0518';
+      ctx.fillRect(8, 20, 8, 24);
+      ctx.fillRect(28, 14, 8, 30);
+      ctx.fillRect(48, 20, 8, 24);
+      ctx.fillStyle = '#40e0ff';
+      ctx.fillRect(8, 20, 8, 4);
+      ctx.fillRect(28, 14, 8, 4);
+      ctx.fillRect(48, 20, 8, 4);
     });
     const headBot = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#1a0a2a';
@@ -2679,18 +2824,26 @@ class Mob {
       ctx.fillRect(0, 0, s, s);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
+      ctx.fillStyle = '#160a26';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 10);
-      // Void face — dark, with glowing cyan eyes
-      ctx.fillStyle = '#0e0620';
-      ctx.fillRect(8, 18, 48, 34);
+      // Void face — pitch dark, with big burning cyan eyes
+      ctx.fillStyle = '#05030c';
+      ctx.fillRect(6, 16, 52, 38);
       ctx.fillStyle = '#40e0ff';
-      ctx.fillRect(12, 26, 14, 10);
-      ctx.fillRect(38, 26, 14, 10);
-      ctx.fillStyle = '#a0f8ff';
-      ctx.fillRect(14, 28, 5, 5);
-      ctx.fillRect(40, 28, 5, 5);
+      ctx.fillRect(10, 24, 18, 14);
+      ctx.fillRect(36, 24, 18, 14);
+      ctx.fillStyle = '#c0f8ff';
+      ctx.fillRect(13, 27, 7, 7);
+      ctx.fillRect(39, 27, 7, 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(15, 29, 3, 3);
+      ctx.fillRect(41, 29, 3, 3);
+      // Jagged void grin
+      ctx.fillStyle = '#40e0ff';
+      for (let x = 16; x < 48; x += 8) {
+        ctx.fillRect(x, 44, 4, 4);
+      }
     });
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
 
@@ -3943,6 +4096,13 @@ export class MobManager {
       if (this.world.getBlock(tx, ty, tz) === BLOCK.AIR) {
         this.world.setBlock(tx, ty, tz, src);
         this.world.setBlock(bx, by, bz, BLOCK.AIR);
+        if (this.world.doubleSlabs) {
+          const pair = this.world.doubleSlabs.get(bx + ',' + by + ',' + bz);
+          if (pair) {
+            this.world.doubleSlabs.delete(bx + ',' + by + ',' + bz);
+            this.world.doubleSlabs.set(tx + ',' + ty + ',' + tz, pair);
+          }
+        }
         if (this._refreshFn) this._refreshFn(bx, by, bz);
         if (this._refreshFn) this._refreshFn(tx, ty, tz);
         return;

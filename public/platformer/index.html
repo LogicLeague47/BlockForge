@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>STALE: Pip &amp; the Mold King — a LogicLeague game</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="wrap">
+  <div id="topbar">
+    <span id="logo-small">🍞 STALE <em>by LogicLeague</em></span>
+    <span id="hud-level">Countertop</span>
+    <button id="btn-mute" title="mute">🔊</button>
+  </div>
+  <div id="stage">
+    <canvas id="game" width="960" height="540"></canvas>
+
+    <!-- BOOT / LOGO overlay -->
+    <div id="screen-logo" class="screen">
+      <div class="draw-logo" id="logic-logo">LogicLeague</div>
+      <div class="sub">presents… <span class="blink">(press any key to skip)</span></div>
+    </div>
+
+    <!-- TITLE overlay -->
+    <div id="screen-title" class="screen hidden">
+      <h1 class="game-title"><span class="stale">STALE</span><span class="tagline">Pip &amp; the Mold King</span></h1>
+      <div class="doodle-pip">🍞💦</div>
+      <div class="sub">a snacklands doodle-adventure <span class="blink">(press any key)</span></div>
+    </div>
+
+    <!-- CUTSCENE overlay -->
+    <div id="screen-cut" class="screen hidden">
+      <div id="cut-cap"></div>
+      <div id="cut-sub"></div>
+      <div id="cut-progress"><div id="cut-fill"></div></div>
+      <button id="btn-skip">SKIP ⏩ <small>(2-min story)</small></button>
+      <div id="cut-hint">mash any key or click SKIP — keys don't move Pip during the cartoon!</div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="screen-menu" class="screen hidden">
+      <h1 class="game-title small"><span class="stale">STALE</span></h1>
+      <p class="menu-sub">Pip &amp; the Mold King · by <b>LogicLeague</b></p>
+      <div class="menu-btns">
+        <button id="btn-play" class="big">▶ PLAY</button>
+        <button id="btn-continue" class="hidden">↻ CONTINUE</button>
+        <div id="level-dots"></div>
+        <button id="btn-how">🖌 How to Paint</button>
+        <button id="btn-settings">⚙ Settings</button>
+        <button id="btn-board">🏆 Leaderboard</button>
+      </div>
+      <p class="foot">v1.0 · doodled live on canvas · Music: Kevin MacLeod – Monkeys Spinning Monkeys / Fluffing a Duck / Volatile Reaction (CC-BY 4.0, incompetech.com)</p>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="screen-settings" class="screen hidden panel">
+      <h2>⚙ Settings</h2>
+      <label>Master <input id="s-master" type="range" min="0" max="100" value="80"><span id="v-master">80</span></label>
+      <label>Music <input id="s-music" type="range" min="0" max="100" value="60"><span id="v-music">60</span></label>
+      <label>SFX <input id="s-sfx" type="range" min="0" max="100" value="90"><span id="v-sfx">90</span></label>
+      <label class="row"><input id="s-shake" type="checkbox" checked> Screen shake</label>
+      <label class="row"><input id="s-particles" type="checkbox" checked> Extra crumbs (particles)</label>
+      <label class="row"><input id="s-timer" type="checkbox" checked> Speedrun timer</label>
+      <label class="row"><input id="s-flash" type="checkbox"> Reduced flashing</label>
+      <label class="row">Mode
+        <select id="s-mode"><option value="normal">Normal jam</option><option value="chill">Chill (more jam!)</option></select>
+      </label>
+      <label class="row">Controls
+        <select id="s-controls"><option value="auto">Auto-detect 📱/⌨️</option><option value="mobile">Mobile (touch buttons)</option><option value="pc">PC (keyboard+mouse)</option></select>
+      </label>
+      <div class="row btnrow">
+        <button id="btn-full">⛶ Fullscreen</button>
+        <button id="btn-wipe">🗑 Wipe save</button>
+        <button id="btn-set-back" class="big">✔ Done</button>
+      </div>
+      <p class="keys">Move <b>A/D or ←/→</b> · Jump <b>Space/W/↑</b> · Dash <b>Shift/K</b> · Paint <b>mouse drag</b> · Jams <b>1/2/3</b> · Erase <b>E or right-click</b> · Pause <b>P</b></p>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div id="screen-board" class="screen hidden panel">
+      <h2>🏆 Snacklords</h2>
+      <div id="board-list"></div>
+      <div class="row btnrow"><button id="btn-board-clear">clear</button><button id="btn-board-back" class="big">✔ Back</button></div>
+    </div>
+
+    <!-- HOW TO -->
+    <div id="screen-how" class="screen hidden panel">
+      <h2>🖌 How to Paint</h2>
+      <ol>
+        <li><b>Drag with mouse / finger</b> to paint. Release = solid!</li>
+        <li>Paint costs <b>jam</b> (pink bar). Jam does <b>NOT</b> regrow — every round refills it full. Mid-round, only <b>✨ sprinkles, stomps &amp; mold-scrubs</b> earn jam.</li>
+        <li>Keys <b>1</b> strawberry=solid, <b>2</b> mint=<b>bouncy</b>, <b>3</b> choco=<b>sticky climb</b>.</li>
+        <li><b>E / right-click</b> erases your strokes + grey Mold walls.</li>
+        <li>Stomp Fuzzies! Don't touch spores. Bounce on Mint to reach high jam!</li>
+      </ol>
+      <button id="btn-how-back" class="big">✔ Got it!</button>
+    </div>
+
+    <!-- NAME ENTRY -->
+    <div id="screen-name" class="screen hidden panel">
+      <h2>👑 You un-staled the world!</h2>
+      <p id="final-stats"></p>
+      <p>Enter your snacklord initials:</p>
+      <input id="name-input" maxlength="3" value="PIP">
+      <button id="btn-name-ok" class="big">Save 🏆</button>
+    </div>
+
+    <!-- PAUSE -->
+    <div id="screen-pause" class="screen hidden">
+      <h2>⏸ Paused</h2>
+      <button id="btn-resume" class="big">Resume</button>
+      <button id="btn-quit">Quit to menu</button>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud" class="hidden">
+      <div id="hearts">❤❤❤</div>
+      <div id="jamwrap" title="jam ink"><div id="jam"></div><span id="jam-label">🍓 1·2·3</span></div>
+      <div id="spr">✨ 0</div>
+      <div id="timer">0:00.0</div>
+    </div>
+    <div id="toast" class="hidden"></div>
+    <div id="dialog" class="hidden"><b id="dlg-who">Splat:</b> <span id="dlg-text"></span></div>
+  </div>
+  <p id="helpline">Draw platforms with your mouse. <b>1/2/3</b> switch jam · <b>E</b> erase · <b>Space</b> jump · <b>Shift</b> dash</p>
+</div>
+<script src="js/settings.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/leaderboard.js"></script>
+<script src="js/levels.js"></script>
+<script src="js/player.js"></script>
+<script src="js/paint.js"></script>
+<script src="js/enemies.js"></script>
+<script src="js/render.js"></script>
+<script src="js/cutscene.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

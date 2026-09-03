@@ -2799,6 +2799,7 @@
         <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
         <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
         <button class="menu-btn" id="btn-mods" style="border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);">🧩 Mods & Addons</button>
+        <button class="menu-btn" id="btn-other-games" style="border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#152a4a 60%,#0a1a35 100%);">🎲 Other Games</button>
         <button class="menu-btn" id="btn-achievements">Advancements</button>
         <button class="menu-btn" id="btn-settings">Settings</button>
         <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
@@ -2806,6 +2807,16 @@
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
         <div id="mod-buttons-container"></div>
         <button class="menu-btn" id="btn-menu-errors" style="display:none;font-size:11px;padding:6px 20px;border-color:#f88;background:linear-gradient(180deg,#4a2a2a 0%,#3a1a1a 40%,#301515 60%,#200a0a 100%);">⚠ View Errors</button>
+        <div id="other-games-popup" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+          <div style="width:min(420px,92vw);background:#14141f;border:2px solid rgba(90,160,255,0.4);border-radius:10px;padding:22px 24px;text-align:center;font-family:monospace;color:#ddd;box-shadow:0 0 40px rgba(0,0,0,0.6);">
+            <div style="font:bold 17px monospace;color:#fff;margin-bottom:10px;">🎲 Other Games</div>
+            <div style="font:12px/1.6 monospace;color:#bbb;margin-bottom:16px;">These are offbranch games made by this creator.</div>
+            <div style="display:flex;gap:10px;justify-content:center;">
+              <button class="menu-btn" id="other-games-ok" style="min-width:110px;font-size:13px;">OK</button>
+              <button class="menu-btn secondary" id="other-games-cancel" style="min-width:110px;font-size:13px;">Cancel</button>
+            </div>
+          </div>
+        </div>
         <div style="font:10px monospace;color:rgba(255,255,255,0.35);margin-top:20px;text-align:center;max-width:400px;line-height:1.5;">
           Music: CC0 tracks by The Cynic Project, Kistol, Adiutorium &amp; Tozan (opengameart.org).<br>Sound effects by Kenney.nl (CC0).<br><br>
           <span style="font-size:9px;color:rgba(255,255,255,0.25);">By playing you agree to our <a id="footer-terms" href="terms.html" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Terms</a> and <a id="footer-privacy" href="privacy.html" style="color:rgba(255,255,255,0.4);text-decoration:underline;" target="_blank" rel="noopener">Privacy Policy</a>. Account and multiplayer data are stored on our servers as described in the Privacy Policy.</span>

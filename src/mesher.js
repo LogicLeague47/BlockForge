@@ -253,6 +253,23 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
+        // Mixed double slab: full-height cell dressed with two slab textures
+        // (bottom half = pair[0], top half = pair[1]). The stored id stays a
+        // real full block so physics/culling are correct; only the skin mixes.
+        if (world.doubleSlabs && world.doubleSlabs.size) {
+          const pair = world.doubleSlabs.get(wx + ',' + y + ',' + wz);
+          if (pair && BLOCKS[pair[0]]?.slab && BLOCKS[pair[1]]?.slab) {
+            const bDef = BLOCKS[pair[0]], tDef = BLOCKS[pair[1]];
+            const bTile = typeof bDef.faces === 'string' ? bDef.faces : (bDef.faces?.side || 'stone');
+            const tTile = typeof tDef.faces === 'string' ? tDef.faces : (tDef.faces?.side || 'stone');
+            pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1],
+              [bTile, bTile, null, tileNameFor(pair[0], 'bottom'), bTile, bTile], 0, sample, [0, 0.5]);
+            pushBedBox(opaque, wx, y, wz, [0, 0.5, 0, 1, 1, 1],
+              [tTile, tTile, tileNameFor(pair[1], 'top'), null, tTile, tTile], 0, sample, [0.5, 1]);
+            continue;
+          }
+        }
+
         // Slabs: half-height cube. Bottom slabs sit on y..y+0.5 and sample
         // the texture's bottom half on the sides; top slabs hang at
         // y+0.5..y+1 and sample the top half so patterns keep world scale.

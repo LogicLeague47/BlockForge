@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Other Games — Made by LL</title>
+<link rel="icon" type="image/png" href="BlockForge.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#07070f;color:#e6e6f0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 0,rgba(70,80,180,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(180,60,160,.12) 0,transparent 50%);pointer-events:none}
+h1{font-size:26px;letter-spacing:2px;margin-bottom:6px;z-index:1}
+.sub{color:#9a9ac0;font-size:12px;margin-bottom:28px;z-index:1}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;width:min(860px,94vw);z-index:1}
+.card{background:rgba(24,24,48,.72);border:1px solid rgba(90,90,140,.28);border-radius:12px;padding:20px;text-align:center;transition:transform .15s,box-shadow .15s}
+a.card{display:block;text-decoration:none;color:inherit;cursor:pointer}
+a.card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(100,140,255,.18);border-color:rgba(130,160,255,.5)}
+.card .emoji{font-size:40px;margin-bottom:10px}
+.card .name{font-size:15px;font-weight:bold;color:#fff;margin-bottom:6px}
+.card .desc{font-size:11px;color:#9a9ac0;line-height:1.5}
+.card.soon{opacity:.55}
+.back{margin-top:28px;color:#8af;font:12px monospace;text-decoration:none;z-index:1}
+.back:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<h1>🎲 Other Games</h1>
+<div class="sub">Offbranch games made by LL (LogicLeague).</div>
+<div class="grid" id="games-grid"></div>
+<a class="back" href="portal.html">← Back to BlockForge Portal</a>
+<script>
+// To add a game: push { name, emoji, desc, url } here.
+var GAMES = [
+  { name: 'Platformer', emoji: '🏃', desc: 'Run, jump and dodge through hand-made levels.', url: 'platformer/index.html' },
+];
+var grid = document.getElementById('games-grid');
+GAMES.forEach(function(g) {
+  var a = document.createElement('a');
+  a.className = 'card';
+  a.href = g.url;
+  var e = document.createElement('div'); e.className = 'emoji'; e.textContent = g.emoji;
+  var n = document.createElement('div'); n.className = 'name'; n.textContent = g.name;
+  var d = document.createElement('div'); d.className = 'desc'; d.textContent = g.desc;
+  a.appendChild(e); a.appendChild(n); a.appendChild(d);
+  grid.appendChild(a);
+});
+var soon = document.createElement('div');
+soon.className = 'card soon';
+soon.innerHTML = '<div class="emoji">🔜</div><div class="name">More coming soon</div><div class="desc">New offbranch games will appear here.</div>';
+grid.appendChild(soon);
+</script>
+</body>
+</html>

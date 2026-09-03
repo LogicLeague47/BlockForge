@@ -1760,6 +1760,12 @@ export class UI {
   }
 
   buildHotbarFromInventory(inventory) {
+    // Skip the full DOM rebuild when nothing changed (this runs on every
+    // block break/place via syncUIMode — a 9-slot DOM+icon rebuild per edit
+    // janks mobile). Selection is part of the signature, so highlight stays right.
+    const sig = inventory.selected + '|' + inventory.slots.map(s => s ? s.item + 'x' + s.count + (s.durability != null ? 'd' + Math.round(s.durability) : '') : '').join(',');
+    if (sig === this._hotbarSig) return;
+    this._hotbarSig = sig;
     this.hotbarEl.innerHTML = '';
     this.slots = [];
     for (let i = 0; i < HOTBAR_SLOTS; i++) {
@@ -1975,16 +1981,21 @@ export class UI {
         cnt.style.cssText = 'position:absolute;bottom:1px;right:2px;font:bold 9px monospace;color:#fff;text-shadow:1px 1px 0 #000;';
         offhandEl.appendChild(cnt);
       }
-      if (equipped) {
-        offImg.src = this._getCachedIconUrl(equipped.item);
-        offImg.style.display = '';
-        if (label) label.style.display = 'none';
-        cnt.textContent = equipped.count;
-        cnt.style.display = equipped.count > 1 ? '' : 'none';
-      } else {
-        offImg.style.display = 'none';
-        cnt.style.display = 'none';
-        if (label) label.style.display = '';
+      // Per-frame caller: only touch the DOM when the offhand actually changed.
+      const ohSig = equipped ? equipped.item + 'x' + equipped.count : '';
+      if (ohSig !== this._offhandSig) {
+        this._offhandSig = ohSig;
+        if (equipped) {
+          offImg.src = this._getCachedIconUrl(equipped.item);
+          offImg.style.display = '';
+          if (label) label.style.display = 'none';
+          cnt.textContent = equipped.count;
+          cnt.style.display = equipped.count > 1 ? '' : 'none';
+        } else {
+          offImg.style.display = 'none';
+          cnt.style.display = 'none';
+          if (label) label.style.display = '';
+        }
       }
     }
   }
@@ -3710,14 +3721,25 @@ export class UI {
 
   _populateCreativeGrid(filter = '') {
     if (!this.creativeGrid) return;
-    this.creativeGrid.innerHTML = '';
+    // Build the full catalog ONCE (hundreds of icons = the mobile open-inv
+    // freeze); filtering just toggles visibility afterwards.
+    if (!this._creativeGridBuilt) {
+      this._creativeGridBuilt = true;
+      this.creativeGrid.innerHTML = '';
+      for (const ci of this._creativeItems) {
+        this.creativeGrid.appendChild(this._creativeSlotEl(ci));
+      }
+    }
     const lf = filter.toLowerCase();
-    const items = lf
-      ? this._creativeItems.filter(c => c.name.toLowerCase().includes(lf))
-      : this._creativeItems;
-    for (const ci of items) {
+    for (const el of this.creativeGrid.children) {
+      el.style.display = !lf || (el.dataset.name || '').includes(lf) ? '' : 'none';
+    }
+  }
+
+  _creativeSlotEl(ci) {
       const slotEl = document.createElement('div');
       slotEl.className = 'inv-slot';
+      slotEl.dataset.name = ci.name.toLowerCase();
       const icon = isBlockItem(ci.id)
         ? makeIcon(ci.id, this.atlas)
         : this.makeItemIcon(ci.id);
@@ -3761,8 +3783,7 @@ export class UI {
           inv.add(ci.id, ci.type === 'block' ? 64 : 1);
         }
       });
-      this.creativeGrid.appendChild(slotEl);
-    }
+      return slotEl;
   }
 
   _filterCreativeGrid() {
