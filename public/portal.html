@@ -1477,6 +1477,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '60ca70f',
+          heading: 'Directional stairs',
+          desc: 'Stairs now face away from where you are looking when placed — tall back on the far side so you climb toward your view. All 8 stair types get north/east/west variants (24 new blocks, IDs 218-241); meshing, collision heights, and the L-shaped selection outline all follow the facing. Breaking any stair drops the base item so the inventory stays clean.',
+          date: 'Sep 3',
+          bugs: ['stairs always faced south regardless of look direction'],
+          updates: ['placement picks N/E/S/W variant from player yaw', 'mesher builds the top step on the facing side', 'collision tall-half follows facing', 'selection step-box follows facing'],
+          features: ['24 directional stair blocks', 'stairs climb toward the placed direction from any side'],
+        },
+        {
           hash: 'a76972a',
           heading: 'Slab merge rewards, X-ray fix, iOS black bars, 2x icons',
           desc: 'Merging slabs now consumes the held slab and breaking the merged block drops both slabs back (mixed pairs included, validated so explosions can not duplicate). Fixed the X-ray hole next to slabs/stairs, the permanent black bars on iOS, joystick auto-sprint, and doubled block icon resolution.',
