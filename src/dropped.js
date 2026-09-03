@@ -90,7 +90,8 @@ export class DroppedItem {
   _findSurfaceY(x, z) {
     if (!this.world) return this.y - FLOAT_HEIGHT;
     const wx = Math.floor(x), wz = Math.floor(z);
-    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+    const startY = Math.min(Math.floor(this.y), WORLD_HEIGHT - 1);
+    for (let y = startY; y >= 0; y--) {
       const b = this.world.getBlock(wx, y, wz);
       const def = BLOCKS[b];
       if (def && def.solid && !def.plant) return y + 1;

@@ -69,17 +69,13 @@ export const BLOCK = {
   OAK_SIGN: 61,
   STONE_PRESSURE_PLATE: 62,
   COPPER_ORE: 63,
-  COPPER_BLOCK: 180,
+  COPPER_BLOCK: 217,
   EMERALD_ORE: 64,
-  FLOWER_POT: 65,
   CARPET: 66,
   PAINTING: 67,
   IRON_DOOR: 68,
   WOOL: 69,
   // Items that share block IDs for legacy mapping / historical reasons
-  BOOK: 70,
-  CLOCK: 71,
-  COMPASS: 72,
   GREENSTONE_ORE: 73,
   GREENSTONE_BLOCK: 74,
   GREENSTONE_DUST: 75,
@@ -123,7 +119,6 @@ export const BLOCK = {
   ECHO_ORE: 110,            // dimension ore — drops echo shards, found in ruined portals
   // New building-block variants
   CRACKED_STONE_BRICKS: 111,
-  MOSSY_STONE_BRICKS: 112,
   CHISELED_STONE_BRICKS: 113,
   SMOOTH_STONE: 114,
   POLISHED_BLACKSTONE: 115,

@@ -537,7 +537,7 @@ export const RECIPES = [
     pattern: ['III', ' I ', 'III'], key: { I: I.IRON_INGOT } }),
 
   // ---- Night Vision Potion ----
-  shapeless({ out: { id: I.NIGHT_VISION_POTION, count: 1 }, ingredients: [B.GLOWSTONE, I.EMERALD] }),
+  shapeless({ out: { id: I.NIGHT_VISION_POTION, count: 1 }, ingredients: [B.GLOWSTONE_TILES, I.EMERALD] }),
 
   // ---- Colored wool: white wool + dye ----
   shapeless({ out: { id: B.WHITE_WOOL, count: 1 }, ingredients: [B.WOOL, I.BONE_MEAL] }),
