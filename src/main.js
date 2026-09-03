@@ -609,6 +609,12 @@ const hlEdges = new THREE.EdgesGeometry(hlGeo);
 const highlight = new THREE.LineSegments(hlEdges, new THREE.LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 }));
 highlight.visible = false;
 scene.add(highlight);
+// Second wire box for the stair top step (stairs are an L: bottom slab +
+// upper back half toward +Z, matching the mesher). Hidden unless stairs targeted.
+const hlStepGeo = new THREE.BoxGeometry(1.002, 0.502, 0.502);
+const highlightStep = new THREE.LineSegments(new THREE.EdgesGeometry(hlStepGeo), highlight.material);
+highlightStep.visible = false;
+scene.add(highlightStep);
 
 // --- 3D breaking crack overlay ---
 const crackCanvas = document.createElement('canvas');
@@ -3058,11 +3064,12 @@ function placeBlock(slotOverride, targetHit) {
   const pz = Math.floor(player.position.z);
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
 
-  // Slab stacking: same-type slab on slab → merge into full block
-  if (hit.block && BLOCKS[itemId]?.slab) {
-    const existingSlab = hit.block;
-    const fullBlock = SLAB_TO_FULL[itemId];
-    if (fullBlock && existingSlab === itemId) {
+  // Slab stacking: any slab placed on any slab → merge into a full block.
+  // Result uses the existing slab's full-block mapping (falling back to the
+  // held slab's), so mixed types still merge instead of floating.
+  if (hit.block && BLOCKS[itemId]?.slab && BLOCKS[hit.block]?.slab) {
+    const fullBlock = SLAB_TO_FULL[hit.block] || SLAB_TO_FULL[itemId];
+    if (fullBlock) {
       world.setBlock(hit.x, hit.y, hit.z, fullBlock);
       if (BLOCKS[fullBlock]?.luminance) addBlockLight(hit.x, hit.y, hit.z, fullBlock);
       liquidBlockChanged(hit.x, hit.y, hit.z);
@@ -10695,12 +10702,21 @@ function _gameFrame() {
     if (BLOCKS[tb]?.slab) {
       highlight.scale.set(1, 0.5, 1);
       highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
+      highlightStep.visible = false;
+    } else if (BLOCKS[tb]?.stair) {
+      // L-shape: bottom-slab outline + top-step outline (upper back half, +Z)
+      highlight.scale.set(1, 0.5, 1);
+      highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
+      highlightStep.visible = true;
+      highlightStep.position.set(target.x + 0.5, target.y + 0.75, target.z + 0.75);
     } else {
       highlight.scale.set(1, 1, 1);
       highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
+      highlightStep.visible = false;
     }
   } else {
     highlight.visible = false;
+    highlightStep.visible = false;
   }
 
   // camera already synced by player.update()

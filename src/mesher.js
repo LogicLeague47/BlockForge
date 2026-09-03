@@ -243,20 +243,22 @@ export function buildChunkGeometry(chunk, world) {
           continue;
         }
 
-        // Slabs: half-height cube (bottom half only).
+        // Slabs: half-height cube (bottom half only). Sides sample the
+        // bottom half of the texture so the pattern keeps world scale.
         if (def.slab) {
           const tile = typeof def.faces === 'string' ? def.faces : (def.faces?.side || 'stone');
           const slabTiles = [tile, tile, tile, tile, tile, tile];
-          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], slabTiles, 0, sample);
+          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], slabTiles, 0, sample, [0, 0.5]);
           continue;
         }
 
-        // Stairs: L-shape (bottom slab + upper back half, faces toward +Z)
+        // Stairs: L-shape (bottom slab + upper back half, faces toward +Z).
+        // Each step samples its matching texture half (bottom / top).
         if (def.stair) {
           const tile = typeof def.faces === 'string' ? def.faces : (def.faces?.side || 'stone');
           const stairTiles = [tile, tile, tile, tile, tile, tile];
-          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], stairTiles, 0, sample);
-          pushBedBox(opaque, wx, y, wz, [0, 0.5, 0.5, 1, 1, 1], stairTiles, 0, sample);
+          pushBedBox(opaque, wx, y, wz, [0, 0, 0, 1, 0.5, 1], stairTiles, 0, sample, [0, 0.5]);
+          pushBedBox(opaque, wx, y, wz, [0, 0.5, 0.5, 1, 1, 1], stairTiles, 0, sample, [0.5, 1]);
           continue;
         }
 
@@ -517,7 +519,7 @@ function bedRotFromDir(dx, dz) {
 // tile names in FACES order (null = skip that face). `uvRotate` rotates the
 // texture on the top face only (0-3). Faces that lie flush on a block boundary
 // are culled when the neighbouring block is opaque (avoids z-fighting).
-function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample) {
+function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample, sideVCrop = null) {
   for (let f = 0; f < 6; f++) {
     const tile = faceTiles[f];
     if (!tile) continue;
@@ -534,6 +536,15 @@ function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample) {
     const shade = face.name === 'top' ? FACE_SHADE.top
                 : face.name === 'bottom' ? FACE_SHADE.bottom
                 : (SIDE_SHADE_AXIS[f] || FACE_SHADE.side);
+    // Half-height boxes (slabs, stair steps): sample a matching half of the
+    // texture on side faces so bricks/planks keep world scale instead of
+    // squishing the full tile into half the height.
+    let vv0 = uv.v0, vv1 = uv.v1;
+    if (sideVCrop && face.name === 'side') {
+      const span = uv.v1 - uv.v0;
+      vv0 = uv.v0 + span * sideVCrop[0];
+      vv1 = uv.v0 + span * sideVCrop[1];
+    }
     const start = target.pos.itemCount;
     for (let c = 0; c < 4; c++) {
       const co = face.corners[c];
@@ -543,7 +554,7 @@ function pushBedBox(target, wx, y, wz, box, faceTiles, uvRotate = 0, sample) {
         wz + box[2] + co[2] * (box[5] - box[2])
       );
       const uvr = UV_CORNERS[(c + uvRotate) % 4];
-      target.uv.push2(uvr[0] ? uv.u1 : uv.u0, uvr[1] ? uv.v1 : uv.v0);
+      target.uv.push2(uvr[0] ? uv.u1 : uv.u0, uvr[1] ? vv1 : vv0);
       target.col.push3(shade, shade, shade);
       target.nor.push3(face.dir[0], face.dir[1], face.dir[2]);
     }

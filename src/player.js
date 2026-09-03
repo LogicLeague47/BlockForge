@@ -849,6 +849,21 @@ export class Player {
     }
   }
 
+  // Collision height of a block's real shape (0 = no collision).
+  // Slabs are a bottom half-slab (0.5). Stairs are an L facing +Z, so the
+  // height depends on where the player stands: 1.0 on the tall back half
+  // (local z >= 0.5), 0.5 on the low front half.
+  _blockHitHeight(b, px, pz) {
+    const d = BLOCKS[b];
+    if (!d || !d.solid) return 0;
+    if (d.slab) return 0.5;
+    if (d.stair) {
+      const fz = pz - Math.floor(pz);
+      return fz >= 0.5 ? 1 : 0.5;
+    }
+    return 1;
+  }
+
   _collideAxis(axis, delta) {
     // Capture position for landBlock lookup (may change during axis sweeps)
     const _posX = this.position.x;
@@ -872,16 +887,20 @@ export class Player {
       for (let z = z0; z <= z1; z++) {
         for (let x = x0; x <= x1; x++) {
           const b = this.world.getBlock(x, y, z);
-          if (!BLOCKS[b]?.solid) continue;
-          // Slabs and stairs: half collision height (0.5), auto-step-up
-          const isStepBlock = BLOCKS[b]?.slab || BLOCKS[b]?.stair;
-          const blockMax = isStepBlock ? 0.5 : 1;
+          const h = this._blockHitHeight(b, this.position.x, this.position.z);
+          if (h <= 0) continue;
+          // No vertical overlap with the block's real shape → ignore it.
+          // (This is what lets you stand ON slabs and jump clean OVER them
+          // instead of getting yanked down mid-jump.)
+          if (max.y <= y || min.y >= y + h) continue;
           if (axis === 'x') {
-            // Step-up: if the block is short (slab/stair) and there's room above, climb it
-            if (isStepBlock && delta !== 0) {
+            // Auto-step: climb shapes whose top is near/below our feet when
+            // there's headroom (slabs, stair steps — smooth stair climbing).
+            if (delta !== 0 && (y + h) - min.y <= 0.6001) {
               const above = this.world.getBlock(x, y + 1, z);
-              if (!BLOCKS[above]?.solid) {
-                this.position.y = y + blockMax + 0.0001;
+              const above2 = this.world.getBlock(x, y + 2, z);
+              if (!BLOCKS[above]?.solid && (y + h <= y + 0.51 || !BLOCKS[above2]?.solid)) {
+                this.position.y = y + h + 0.0001;
                 this.onGround = true;
                 this.velocity.y = 0;
                 continue;
@@ -889,10 +908,11 @@ export class Player {
             }
             this.position.x = delta > 0 ? x - PLAYER_HALF_WIDTH - 0.0001 : x + 1 + PLAYER_HALF_WIDTH + 0.0001;
           } else if (axis === 'z') {
-            if (isStepBlock && delta !== 0) {
+            if (delta !== 0 && (y + h) - min.y <= 0.6001) {
               const above = this.world.getBlock(x, y + 1, z);
-              if (!BLOCKS[above]?.solid) {
-                this.position.y = y + blockMax + 0.0001;
+              const above2 = this.world.getBlock(x, y + 2, z);
+              if (!BLOCKS[above]?.solid && (y + h <= y + 0.51 || !BLOCKS[above2]?.solid)) {
+                this.position.y = y + h + 0.0001;
                 this.onGround = true;
                 this.velocity.y = 0;
                 continue;
@@ -915,7 +935,7 @@ export class Player {
                 }
               }
               this.fallStartY = -1;
-              this.position.y = y + blockMax + 0.0001;
+              this.position.y = y + h + 0.0001;
               // Slime block bounce
               if (landBlock === BLOCK.SLIME_BLOCK) {
                 const fallSpeed = Math.abs(this.velocity.y);
@@ -930,9 +950,9 @@ export class Player {
               this.velocity.y = 0;
             } else {
               // delta === 0: a block materialized inside the player (e.g. chunk
-              // regen, multiplayer sync). Push the player to the top of the block
-              // rather than underground.
-              this.position.y = y + 1 + 0.0001;
+              // regen, multiplayer sync). Push the player to the top of the
+              // block's real shape rather than underground.
+              this.position.y = y + h + 0.0001;
               this.velocity.y = 0;
               this.onGround = true;
             }

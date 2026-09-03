@@ -3214,6 +3214,57 @@ export function tileUVRect(name) {
   };
 }
 
+// Extract one 32x32 tile as its own canvas (for icon compositing).
+function _tileCanvas(atlasCanvas, name) {
+  const t = TILES[name];
+  if (!t || !atlasCanvas) return null;
+  const c = document.createElement('canvas');
+  c.width = TILE; c.height = TILE;
+  c.getContext('2d').drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+  return c;
+}
+
+// 3D isometric block icon on a 32x32 canvas: top rhombus + left/right faces.
+// Verified mapping (source 32x32 tile -> destination quads):
+//   top:   (0,0)->(16,1)   (32,0)->(31,8)  (0,32)->(1,8)   (32,32)->(16,15)
+//   left:  (0,0)->(1,8)    (32,0)->(16,15) (0,32)->(1,24)  (32,32)->(16,31)
+//   right: (0,0)->(16,15)  (32,0)->(31,8)  (0,32)->(16,31) (32,32)->(31,24)
+function drawIsoBlockIcon(ctx, blockId, atlasCanvas) {
+  const S = TILE;
+  const topTex = _tileCanvas(atlasCanvas, tileNameFor(blockId, 'top'));
+  const sideTex = _tileCanvas(atlasCanvas, tileNameFor(blockId, 'side'));
+  if (!sideTex) return;
+  const top = topTex || sideTex;
+  const k = 15 / 32, h = 7 / 32, q = 16 / 32;
+  ctx.clearRect(0, 0, S, S);
+  // Top rhombus
+  ctx.setTransform(k, h, -k, h, 16, 1);
+  ctx.drawImage(top, 0, 0);
+  // Left face
+  ctx.setTransform(k, h, 0, q, 1, 8);
+  ctx.drawImage(sideTex, 0, 0);
+  // Right face
+  ctx.setTransform(k, -h, 0, q, 16, 15);
+  ctx.drawImage(sideTex, 0, 0);
+  // Restore identity before shading fills
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // Top sheen
+  ctx.fillStyle = 'rgba(255,255,255,0.06)';
+  ctx.beginPath();
+  ctx.moveTo(16, 1); ctx.lineTo(31, 8); ctx.lineTo(16, 15); ctx.lineTo(1, 8);
+  ctx.closePath(); ctx.fill();
+  // Left shade
+  ctx.fillStyle = 'rgba(0,0,0,0.22)';
+  ctx.beginPath();
+  ctx.moveTo(1, 8); ctx.lineTo(16, 15); ctx.lineTo(16, 31); ctx.lineTo(1, 24);
+  ctx.closePath(); ctx.fill();
+  // Right shade (darkest)
+  ctx.fillStyle = 'rgba(0,0,0,0.38)';
+  ctx.beginPath();
+  ctx.moveTo(31, 8); ctx.lineTo(16, 15); ctx.lineTo(16, 31); ctx.lineTo(31, 24);
+  ctx.closePath(); ctx.fill();
+}
+
 // Render a single block's "icon" (its side texture, or top for plants) for UI.
 export function makeIcon(blockId, atlasCanvas) {
   const key = blockId + '_' + (atlasCanvas ? '1' : '0');
@@ -3238,6 +3289,9 @@ export function makeIcon(blockId, atlasCanvas) {
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
       ctx.fillRect(0, TILE / 2, TILE, 1);
     }
+  } else if (def && def.solid && !def.transparent && !def.cutout && !def.plant && !def.liquid && !def.stair && !def.bed && atlasCanvas) {
+    // Full cubes get a 3D isometric icon (top rhombus + two side faces).
+    drawIsoBlockIcon(ctx, blockId, atlasCanvas);
   } else {
     const sideName = tileNameFor(blockId, 'side');
     const topName = tileNameFor(blockId, 'top');
