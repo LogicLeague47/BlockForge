@@ -17,6 +17,7 @@ window.STALE_Game = {
     document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
     if(id) document.getElementById(id).classList.remove('hidden');
     document.getElementById('hud').classList.toggle('hidden', !(this.state==='play'));
+    this.updateTouchUI();
   },
   toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.remove('hidden'); this.toastT=2.2; },
   dialog(who,text,dur){ document.getElementById('dlg-who').textContent=who; document.getElementById('dlg-text').textContent=text; document.getElementById('dialog').classList.remove('hidden'); this.dlgT=dur||4; },
@@ -170,7 +171,7 @@ window.STALE_Game = {
   },
   updateTouchUI(){
     const tc=document.getElementById('touch');
-    if(tc) tc.style.display=this.touchMode()?'flex':'none';
+    if(tc) tc.style.display=(this.touchMode() && this.state==='play' && !this.paused)?'flex':'none';
   },
   cycleJam(){
     const jams=(this.level&&this.level.jams)||['berry'];
