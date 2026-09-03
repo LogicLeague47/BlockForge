@@ -266,8 +266,16 @@ scene.background = skyColor.clone();
 scene.fog = new THREE.Fog(skyColor.getHex(), 16 * 5, 16 * 9);
 
 // --- Handle window resize (critical for CrazyGames iframe) ---
-window.addEventListener('resize', () => {
-  const w = window.innerWidth, h = window.innerHeight;
+// Size from visualViewport when available: on iOS Safari window.innerHeight
+// doesn't track the toolbar showing/hiding, which left permanent black bars
+// (canvas smaller than the visible area) until refresh.
+let _lastCanvasW = 0, _lastCanvasH = 0;
+function fitCanvas() {
+  const vv = window.visualViewport;
+  const w = Math.max(1, Math.round(vv ? vv.width : window.innerWidth));
+  const h = Math.max(1, Math.round(vv ? vv.height : window.innerHeight));
+  if (w === _lastCanvasW && h === _lastCanvasH) return;
+  _lastCanvasW = w; _lastCanvasH = h;
   renderer.setSize(w, h);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -275,7 +283,11 @@ window.addEventListener('resize', () => {
     menuBgCamera.aspect = w / h;
     menuBgCamera.updateProjectionMatrix();
   }
-});
+}
+window.addEventListener('resize', fitCanvas);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas);
+window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
+fitCanvas();
 
 // --- Menu Background 3D Scene (real rotating terrain) ---
 import { Noise, hashSeed } from './noise.js';
@@ -835,6 +847,10 @@ const redstoneStates = new Map(); // key: "x,y,z" -> { blockId, expiresAt }
 
 // --- piston facing directions ---
 const pistonFacings = new Map(); // key: "x,y,z" -> 'north'|'south'|'east'|'west'
+
+// --- merged double-slabs: full blocks made from two slabs (any mix) ---
+// key: "x,y,z" -> [slabIdA, slabIdB]. Breaking one drops both slabs back.
+const mergedSlabs = new Map();
 
 // --- greenstone system ---
 const greenstoneSystem = new GreenstoneSystem();
@@ -3066,16 +3082,31 @@ function placeBlock(slotOverride, targetHit) {
 
   // Slab stacking: any slab placed on any slab → merge into a full block.
   // Result uses the existing slab's full-block mapping (falling back to the
-  // held slab's), so mixed types still merge instead of floating.
+  // held slab's), so mixed types still merge instead of floating. The pair is
+  // recorded so breaking the block drops both slabs back.
   if (hit.block && BLOCKS[itemId]?.slab && BLOCKS[hit.block]?.slab) {
     const fullBlock = SLAB_TO_FULL[hit.block] || SLAB_TO_FULL[itemId];
     if (fullBlock) {
       world.setBlock(hit.x, hit.y, hit.z, fullBlock);
+      mergedSlabs.set(`${hit.x},${hit.y},${hit.z}`, [hit.block, itemId]);
       if (BLOCKS[fullBlock]?.luminance) addBlockLight(hit.x, hit.y, hit.z, fullBlock);
       liquidBlockChanged(hit.x, hit.y, hit.z);
       if (audio) audio.blockPlace(fullBlock);
       if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, fullBlock);
       manager.refreshAround(Math.floor(hit.x / CHUNK_SIZE), Math.floor(hit.z / CHUNK_SIZE));
+      // Consume the held slab in survival (the early return skips the shared
+      // consume step at the end of placeBlock).
+      if (slot && player.isSurvival()) {
+        slot.count--;
+        if (slot.count <= 0) {
+          const idx = player.inventory.slots.indexOf(slot);
+          if (idx !== -1) player.inventory.slots[idx] = null;
+          else player.inventory.slots[player.inventory.selected] = null;
+        }
+        syncUIMode();
+      }
+      achievements.incrementMapStat('blocksPlaced', `${fullBlock}`);
+      achievements.incrementStat('blocksPlacedAny');
       return;
     }
   }
@@ -3601,15 +3632,29 @@ function doBreak(hit, b) {
 
   // drop item — spawn as a physical entity with a smoke puff
   if (player.isSurvival()) {
-    const drop = isBedwars && (b === BLOCK.BED || b === BLOCK.BED_FOOT) ? 0 : blockDrop(b, toolHarvestLevel(toolId || 0));
-    if (drop && droppedItemManager) {
-      const ox = (Math.random() - 0.5) * 0.6;
-      const oz = (Math.random() - 0.5) * 0.6;
-      droppedItemManager.drop(drop, 1, hit.x + 0.5 + ox, hit.y + 0.6, hit.z + 0.5 + oz);
+    // Merged double-slab: drop both slabs back instead of a full block.
+    // (Validated against the recorded pair so a stale entry left by an
+    // explosion can't trigger on an unrelated block placed there later.)
+    let merged = mergedSlabs.get(`${hit.x},${hit.y},${hit.z}`);
+    if (merged) {
+      mergedSlabs.delete(`${hit.x},${hit.y},${hit.z}`);
+      if (b !== SLAB_TO_FULL[merged[0]] && b !== SLAB_TO_FULL[merged[1]]) merged = null;
+    }
+    const drops = merged ? merged
+      : [isBedwars && (b === BLOCK.BED || b === BLOCK.BED_FOOT) ? 0 : blockDrop(b, toolHarvestLevel(toolId || 0))];
+    for (const drop of drops) {
+      if (!drop) continue;
+      if (droppedItemManager) {
+        const ox = (Math.random() - 0.5) * 0.6;
+        const oz = (Math.random() - 0.5) * 0.6;
+        droppedItemManager.drop(drop, 1, hit.x + 0.5 + ox, hit.y + 0.6, hit.z + 0.5 + oz);
+      } else {
+        player.inventory.add(drop, 1);
+      }
+    }
+    if (drops.some(d => d)) {
       // small grey smoke puff
       spawnSmokePuff(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
-    } else if (drop) {
-      player.inventory.add(drop, 1);
     }
     syncUIMode();
   }

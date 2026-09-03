@@ -22,6 +22,7 @@ const _makeIconCache = new Map();
 const _MAKE_ICON_CACHE_MAX = 200;
 
 export const TILE = 32;
+export const ICON_SIZE = 64;       // block icon canvas (2x supersampled iso)
 export const _TILES_VER = 4;       // pixels per tile
 const COLS = 16;              // tiles per row
 const ROWS = 16;
@@ -3224,59 +3225,61 @@ function _tileCanvas(atlasCanvas, name) {
   return c;
 }
 
-// 3D isometric block icon on a 32x32 canvas: top rhombus + left/right faces.
-// Verified mapping (source 32x32 tile -> destination quads):
-//   top:   (0,0)->(16,1)   (32,0)->(31,8)  (0,32)->(1,8)   (32,32)->(16,15)
-//   left:  (0,0)->(1,8)    (32,0)->(16,15) (0,32)->(1,24)  (32,32)->(16,31)
-//   right: (0,0)->(16,15)  (32,0)->(31,8)  (0,32)->(16,31) (32,32)->(31,24)
+// 3D isometric block icon on a 64x64 canvas (2x supersampled silhouette +
+// full-detail 32px faces, Minecraft-style crispness): top rhombus + 2 faces.
+// Verified mapping (32x32 tile upscaled 2x -> destination quads):
+//   top:   (0,0)->(32,2)   (64,0)->(62,16) (0,64)->(2,16)  (64,64)->(32,30)
+//   left:  (0,0)->(2,16)   (64,0)->(32,30) (0,64)->(2,48)  (64,64)->(32,62)
+//   right: (0,0)->(32,30)  (64,0)->(62,16) (0,64)->(32,62) (64,64)->(62,48)
 function drawIsoBlockIcon(ctx, blockId, atlasCanvas) {
-  const S = TILE;
+  const S = ICON_SIZE;
   const topTex = _tileCanvas(atlasCanvas, tileNameFor(blockId, 'top'));
   const sideTex = _tileCanvas(atlasCanvas, tileNameFor(blockId, 'side'));
   if (!sideTex) return;
   const top = topTex || sideTex;
-  const k = 15 / 32, h = 7 / 32, q = 16 / 32;
+  const k = 30 / 64, h = 14 / 64, q = 32 / 64;
   ctx.clearRect(0, 0, S, S);
   // Top rhombus
-  ctx.setTransform(k, h, -k, h, 16, 1);
-  ctx.drawImage(top, 0, 0);
+  ctx.setTransform(k, h, -k, h, 32, 2);
+  ctx.drawImage(top, 0, 0, 64, 64);
   // Left face
-  ctx.setTransform(k, h, 0, q, 1, 8);
-  ctx.drawImage(sideTex, 0, 0);
+  ctx.setTransform(k, h, 0, q, 2, 16);
+  ctx.drawImage(sideTex, 0, 0, 64, 64);
   // Right face
-  ctx.setTransform(k, -h, 0, q, 16, 15);
-  ctx.drawImage(sideTex, 0, 0);
+  ctx.setTransform(k, -h, 0, q, 32, 30);
+  ctx.drawImage(sideTex, 0, 0, 64, 64);
   // Restore identity before shading fills
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   // Top sheen
   ctx.fillStyle = 'rgba(255,255,255,0.06)';
   ctx.beginPath();
-  ctx.moveTo(16, 1); ctx.lineTo(31, 8); ctx.lineTo(16, 15); ctx.lineTo(1, 8);
+  ctx.moveTo(32, 2); ctx.lineTo(62, 16); ctx.lineTo(32, 30); ctx.lineTo(2, 16);
   ctx.closePath(); ctx.fill();
   // Left shade
   ctx.fillStyle = 'rgba(0,0,0,0.22)';
   ctx.beginPath();
-  ctx.moveTo(1, 8); ctx.lineTo(16, 15); ctx.lineTo(16, 31); ctx.lineTo(1, 24);
+  ctx.moveTo(2, 16); ctx.lineTo(32, 30); ctx.lineTo(32, 62); ctx.lineTo(2, 48);
   ctx.closePath(); ctx.fill();
   // Right shade (darkest)
   ctx.fillStyle = 'rgba(0,0,0,0.38)';
   ctx.beginPath();
-  ctx.moveTo(31, 8); ctx.lineTo(16, 15); ctx.lineTo(16, 31); ctx.lineTo(31, 24);
+  ctx.moveTo(62, 16); ctx.lineTo(32, 30); ctx.lineTo(32, 62); ctx.lineTo(62, 48);
   ctx.closePath(); ctx.fill();
 }
 
-// Render a single block's "icon" (its side texture, or top for plants) for UI.
+// Render a single block's "icon" for UI (64x64 canvas; callers scale it
+// into slots, so the 2x resolution just makes edges/details crisper).
 export function makeIcon(blockId, atlasCanvas) {
   const key = blockId + '_' + (atlasCanvas ? '1' : '0');
   const cached = _makeIconCache.get(key);
   if (cached) {
     const c2 = document.createElement('canvas');
-    c2.width = TILE; c2.height = TILE;
+    c2.width = ICON_SIZE; c2.height = ICON_SIZE;
     c2.getContext('2d').drawImage(cached, 0, 0);
     return c2;
   }
   const c = document.createElement('canvas');
-  c.width = TILE; c.height = TILE;
+  c.width = ICON_SIZE; c.height = ICON_SIZE;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
   const def = BLOCKS[blockId];
@@ -3285,9 +3288,9 @@ export function makeIcon(blockId, atlasCanvas) {
     const name = tileNameFor(blockId, 'side');
     const t = TILES[name];
     if (t) {
-      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, TILE / 2, TILE, TILE / 2);
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, ICON_SIZE / 2, ICON_SIZE, ICON_SIZE / 2);
       ctx.fillStyle = 'rgba(255,255,255,0.12)';
-      ctx.fillRect(0, TILE / 2, TILE, 1);
+      ctx.fillRect(0, ICON_SIZE / 2, ICON_SIZE, 2);
     }
   } else if (def && def.solid && !def.transparent && !def.cutout && !def.plant && !def.liquid && !def.stair && !def.bed && atlasCanvas) {
     // Full cubes get a 3D isometric icon (top rhombus + two side faces).
@@ -3299,11 +3302,11 @@ export function makeIcon(blockId, atlasCanvas) {
     const tTop = TILES[topName];
     if (tSide && atlasCanvas) {
       const t = tTop || tSide;
-      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+      ctx.drawImage(atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, ICON_SIZE, ICON_SIZE);
       ctx.fillStyle = 'rgba(0,0,0,0.18)';
-      ctx.fillRect(0, 0, TILE, TILE);
+      ctx.fillRect(0, 0, ICON_SIZE, ICON_SIZE);
       ctx.fillStyle = 'rgba(255,255,255,0.10)';
-      ctx.fillRect(0, 0, TILE, 2);
+      ctx.fillRect(0, 0, ICON_SIZE, 3);
     }
   }
 
@@ -3313,7 +3316,7 @@ export function makeIcon(blockId, atlasCanvas) {
   }
   _makeIconCache.set(key, c);
   const c2 = document.createElement('canvas');
-  c2.width = TILE; c2.height = TILE;
+  c2.width = ICON_SIZE; c2.height = ICON_SIZE;
   c2.getContext('2d').drawImage(c, 0, 0);
   return c2;
 }

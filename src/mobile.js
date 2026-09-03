@@ -401,8 +401,9 @@ export function initMobileControls(playerRef, input, callbacks) {
     input.keys['KeyS'] = az < -0.05;
     input.keys['KeyA'] = ax < -0.05;
     input.keys['KeyD'] = ax > 0.05;
-    const mag = Math.hypot(ax, az);
-    input.keys['ShiftLeft'] = state.sprintOn || mag > 0.9;
+    // Sprint ONLY from the toggle button: full-tilt auto-sprint made the
+    // button useless and forced sprinting whenever you pushed the stick far.
+    input.keys['ShiftLeft'] = state.sprintOn;
   };
 
   // Called AFTER player.update() so the jump key pulse is consumed.

@@ -154,6 +154,16 @@ function isOpaque(blockId) {
   return d && !d.transparent && !d.bed;
 }
 
+// Full face-culling occlusion: slabs/stairs only fill half their cell, so a
+// full cube next to one must still draw its side face — otherwise the
+// half-block air gap above/beside the slab becomes a see-through X-ray hole.
+// (pushBedBox keeps using isOpaque so coplanar slab-vs-slab faces still cull.)
+function occludes(blockId) {
+  if (!isOpaque(blockId)) return false;
+  const d = BLOCKS[blockId];
+  return d && !d.slab && !d.stair;
+}
+
 function isAirLike(blockId) {
   if (blockId === BLOCK.AIR) return true;
   const d = BLOCKS[blockId];
@@ -268,10 +278,10 @@ export function buildChunkGeometry(chunk, world) {
           const neighbour = sample(nx, ny, nz);
 
           let visible;
-          if (isOpaque(neighbour)) {
+          if (occludes(neighbour)) {
             visible = false;
           } else if (def.transparent) {
-            visible = neighbour !== b && !isOpaque(neighbour);
+            visible = neighbour !== b && !occludes(neighbour);
             if (isWater && neighbour === BLOCK.WATER) visible = false;
           } else {
             visible = true;
