@@ -643,11 +643,20 @@ function updateBreaking(progress, hit) {
   crackTexture.needsUpdate = true;
   // Position crack flush on the face that was hit
   const nx = hit.normal.x, ny = hit.normal.y, nz = hit.normal.z;
+  const isSlab = BLOCKS[world.getBlock(hit.x, hit.y, hit.z)]?.slab;
+  const slabTopY = hit.y + 0.5;
   crackPlane.position.set(
     hit.x + 0.5 + nx * 0.505,
-    hit.y + 0.5 + ny * 0.505,
+    ny > 0.5 && isSlab ? slabTopY + 0.005 : hit.y + 0.5 + ny * 0.505,
     hit.z + 0.5 + nz * 0.505
   );
+  // Slab sides are only half-height — squash the crack so it hugs the slab
+  if (isSlab && Math.abs(ny) <= 0.5) {
+    crackPlane.scale.set(1, 0.5, 1);
+    crackPlane.position.y = hit.y + 0.25;
+  } else {
+    crackPlane.scale.set(1, 1, 1);
+  }
   // Orient the crack plane to match the block face, then billboard toward camera
   if (Math.abs(ny) > 0.5) {
     // Top/bottom face: rotate around X to be horizontal
@@ -10667,7 +10676,14 @@ function _gameFrame() {
   const mobInWay = mobManager?.hitTest(camera.position, _mobDir, REACH);
   if (target && !mobInWay && !replayMode) {
     highlight.visible = true;
-    highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
+    const tb = world.getBlock(target.x, target.y, target.z);
+    if (BLOCKS[tb]?.slab) {
+      highlight.scale.set(1, 0.5, 1);
+      highlight.position.set(target.x + 0.5, target.y + 0.25, target.z + 0.5);
+    } else {
+      highlight.scale.set(1, 1, 1);
+      highlight.position.set(target.x + 0.5, target.y + 0.5, target.z + 0.5);
+    }
   } else {
     highlight.visible = false;
   }
@@ -11090,7 +11106,13 @@ function _gameFrame() {
     if (hit && itemId != null && isPlaceableBlockItem(itemId) && !(player && player.isAdventure()) && !(isBedwars && bwSpec)) {
       const placePos = hit.place;
       const existing = world.getBlock(placePos.x, placePos.y, placePos.z);
-      ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.5, placePos.z + 0.5);
+      if (BLOCKS[itemId]?.slab) {
+        ghostMesh.scale.set(1, 0.5, 1);
+        ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.25, placePos.z + 0.5);
+      } else {
+        ghostMesh.scale.set(1, 1, 1);
+        ghostMesh.position.set(placePos.x + 0.5, placePos.y + 0.5, placePos.z + 0.5);
+      }
       ghostMesh.visible = true;
       ghostMesh.material.color.setHex(existing !== 0 ? 0xff4444 : 0x44ff44);
       ghostMesh.material.opacity = existing !== 0 ? 0.25 : 0.35;

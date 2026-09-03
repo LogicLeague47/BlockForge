@@ -1664,15 +1664,20 @@ class Mob {
         [38, 14], [42, 10], [48, 10], [52, 14]
       ];
       for (const [ex, ey] of eyes) {
-        ctx.fillStyle = '#cc2020';
+        ctx.fillStyle = '#7a1a6a';
         ctx.beginPath();
         ctx.ellipse(ex, ey, 3, 3, 0, 0, Math.PI * 2);
         ctx.fill();
-        ctx.fillStyle = '#ff4040';
+        ctx.fillStyle = '#e05aff';
         ctx.beginPath();
         ctx.ellipse(ex - 0.5, ey - 0.5, 1.5, 1.5, 0, 0, Math.PI * 2);
         ctx.fill();
       }
+      // Carapace fuzz speckles
+      ctx.fillStyle = 'rgba(200,150,220,0.25)';
+      ctx.fillRect(6, 24, 2, 2);
+      ctx.fillRect(56, 20, 2, 2);
+      ctx.fillRect(30, 52, 2, 2);
       // Fangs
       ctx.fillStyle = '#eee';
       ctx.fillRect(18, 44, 3, 6);
@@ -1743,10 +1748,16 @@ class Mob {
       ctx.fillStyle = '#fff';
       ctx.fillRect(8, eyeY, 18, 12);
       ctx.fillRect(38, eyeY, 18, 12);
-      // Pupils (dark, staring)
+      // Pupils (amber undead glow)
       ctx.fillStyle = '#111';
       ctx.fillRect(14, eyeY + 3, 8, 7);
       ctx.fillRect(44, eyeY + 3, 8, 7);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(16, eyeY + 5, 4, 3);
+      ctx.fillRect(46, eyeY + 5, 4, 3);
+      // Cheek scar
+      ctx.fillStyle = 'rgba(30,60,45,0.7)';
+      ctx.fillRect(8, 36, 10, 2);
       // Eye bags (sunken, undead look)
       ctx.fillStyle = 'rgba(40,70,55,0.5)';
       ctx.fillRect(8, eyeY + 10, 18, 4);
@@ -1883,10 +1894,14 @@ class Mob {
       ctx.fillStyle = '#2a2a2a';
       ctx.fillRect(10, 20, 14, 12);
       ctx.fillRect(40, 20, 14, 12);
-      // Tiny glowing pupils
-      ctx.fillStyle = '#666';
+      // Soul-glow pupils (BlockForge void theme)
+      ctx.fillStyle = '#6ef3ff';
       ctx.fillRect(16, 24, 4, 4);
       ctx.fillRect(46, 24, 4, 4);
+      // Skull crack
+      ctx.fillStyle = 'rgba(120,115,105,0.8)';
+      ctx.fillRect(52, 8, 2, 14);
+      ctx.fillRect(48, 20, 6, 2);
 
       // Nose cavity (inverted triangle)
       ctx.fillStyle = '#1a1a1a';
@@ -2083,15 +2098,20 @@ class Mob {
       ctx.fillStyle = '#f8f8f8';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, WHITE, 10);
-      // Eyes
+      // Eyes with shine
       ctx.fillStyle = '#111';
       ctx.fillRect(12, 20, 6, 6);
       ctx.fillRect(46, 20, 6, 6);
-      // Beak — pointed
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(13, 21, 2, 2);
+      ctx.fillRect(47, 21, 2, 2);
+      // Beak — pointed with highlight
       ctx.fillStyle = '#e8a020';
       ctx.fillRect(24, 32, 16, 8);
       ctx.fillStyle = '#d09018';
       ctx.fillRect(26, 34, 12, 4);
+      ctx.fillStyle = '#ffe0a0';
+      ctx.fillRect(26, 32, 12, 2);
       // Wattle (dewlap)
       ctx.fillStyle = '#cc2222';
       ctx.beginPath();
@@ -2134,9 +2154,14 @@ class Mob {
       ctx.fillStyle = grad;
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, GREEN, 20);
-      // Inner body visible through slime
-      ctx.fillStyle = 'rgba(30,80,30,0.3)';
-      ctx.fillRect(16, 16, 32, 32);
+      // Inner core visible through slime
+      ctx.fillStyle = 'rgba(20,70,20,0.45)';
+      ctx.fillRect(20, 20, 24, 24);
+      ctx.fillStyle = 'rgba(140,255,140,0.5)';
+      ctx.fillRect(22, 22, 8, 8);
+      // Glossy highlight streak
+      ctx.fillStyle = 'rgba(220,255,220,0.55)';
+      ctx.fillRect(8, 8, 6, 22);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = 'rgba(80,220,80,0.8)';
@@ -2248,6 +2273,11 @@ class Mob {
       // Belt stripe
       ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
       ctx.fillRect(0, s - 8, s, 8);
+      // Emerald trade badge
+      ctx.fillStyle = '#2fae5a';
+      ctx.fillRect(s - 16, 18, 8, 10);
+      ctx.fillStyle = '#7dffab';
+      ctx.fillRect(s - 14, 20, 4, 4);
     });
 
     const bodyTop = this._tex(s, s, (ctx) => {
@@ -2389,11 +2419,14 @@ class Mob {
       // Bottom hem
       ctx.fillStyle = 'rgba(0,0,0,0.12)';
       ctx.fillRect(0, s - 12, s, 12);
-      // Belt with buckle
+      // Belt with buckle + teal cloak clasp glow
       ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
       ctx.fillRect(0, s - 12, s, 4);
       ctx.fillStyle = '#aa8844';
       ctx.fillRect(s/2 - 3, s - 13, 6, 6);
+      ctx.fillStyle = 'rgba(85,221,187,0.8)';
+      ctx.fillRect(10, 8, 4, 10);
+      ctx.fillRect(50, 8, 4, 10);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#' + CLOAK.toString(16).padStart(6,'0');
@@ -2499,6 +2532,10 @@ class Mob {
       ctx.fillStyle = '#222';
       ctx.fillRect(24, 42, 16, 3);
       ctx.fillRect(24, 50, 16, 3);
+      // Rust streaks
+      ctx.fillStyle = 'rgba(150,80,30,0.4)';
+      ctx.fillRect(8, 10, 3, 30);
+      ctx.fillRect(53, 12, 3, 26);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
@@ -2584,10 +2621,13 @@ class Mob {
       ctx.fillStyle = '#2a1a4a';
       ctx.fillRect(0, 0, s, s);
       this._noiseTex(ctx, s, s, VOID, 14);
-      // Runic marks
+      // Runic marks + void veins
       ctx.fillStyle = 'rgba(64,224,255,0.25)';
       ctx.fillRect(10, 20, 3, 18);
       ctx.fillRect(50, 28, 3, 14);
+      ctx.fillStyle = 'rgba(180,120,255,0.35)';
+      ctx.fillRect(20, 8, 2, 30);
+      ctx.fillRect(42, 26, 2, 24);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
       ctx.fillStyle = '#2a1a4a';
