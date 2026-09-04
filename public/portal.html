@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '79beb99',
+          heading: 'PaperForge collision + seams fix',
+          desc: 'Fixed walking through walls (step-up now needs real penetration and checks the full head column), tile seam hairlines (pixel-snapped camera), caves showing sky (depth darkness), and off-center mobile buttons.',
+          date: 'Sep 4',
+          bugs: ['step-up teleports chained up tall walls and yanked passers-by on top of slabs', 'fractional camera left 1px seams between tiles', 'unlit caves rendered as sky', 'mobile button glyphs off-center'],
+          updates: ['penetration-depth + headroom-column step rules with early-out', 'integer camera', 'depth darkness underground', 'flex-centered buttons'],
+          features: [],
+        },
+        {
           hash: 'ac2d9f8',
           heading: 'PaperForge actually runs now',
           desc: 'Fixed the black screen: the frame loop was never started, gravity pointed skyward, tile blits had NaN regions, and landings phased through ground. Verified with headless browser screenshots — world renders with exact BlockForge textures.',
