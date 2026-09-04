@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'ac2d9f8',
+          heading: 'PaperForge actually runs now',
+          desc: 'Fixed the black screen: the frame loop was never started, gravity pointed skyward, tile blits had NaN regions, and landings phased through ground. Verified with headless browser screenshots — world renders with exact BlockForge textures.',
+          date: 'Sep 4',
+          bugs: ['frame loop defined but never kicked off (black canvas)', 'inverted Y gravity floated everything skyward', 'tile UV rects undefined (silent no-draw)', 'exact-boundary landings sank one row at a time'],
+          updates: ['rAF kickoff + on-screen error reporter', 'correct down-positive gravity everywhere', 'default full-tile UVs', 'snap-back landing window'],
+          features: [],
+        },
+        {
           hash: '9795b9c',
           heading: 'New offbranch game: PaperForge',
           desc: '2D BlockForge is live on the games page: same blocks, items, textures, mobs and crafting recipes as BlockForge, playable in 2D side view. Mine, build, craft with the real 3x3 grid, survive nights with torches, eat to heal — progress saves automatically. PC + mobile.',
