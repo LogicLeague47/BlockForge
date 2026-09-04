@@ -307,7 +307,8 @@ function moveBody(e, dt, stepUp) {
   for (let s = 0; s < steps; s++) {
     e.py = e.y;
     e.x += e.vx * sdt;
-    collideAxis(e, 'x', stepUp);
+    // true = teleported by step-up; stale bounds, stop this substep
+    if (collideAxis(e, 'x', stepUp)) break;
     // +y is DOWN-screen: gravity pulls down, jump pushes up (negative)
     e.vy = Math.min(e.vy + GRAV * sdt, 22);
     e.y += e.vy * sdt;
@@ -332,15 +333,20 @@ function collideAxis(e, axis, stepUp) {
       const top = cy + hi, bot = cy + lo;
       if (axis === 'x') {
         if (minY >= top - 0.001 || maxY <= bot + 0.001) continue;
-        // step-up assist for slabs/stairs
-        if (stepUp && (top - minY) <= 0.55) {
+        // step-up assist for slabs/stairs: only on genuine penetration
+        // (more than push-margin slop, so merely touching a slab beside you
+        // doesn't yank you on top of it), with a full headroom column check.
+        const overlapX = Math.min(maxX, cx + 1) - Math.max(minX, cx);
+        if (stepUp && overlapX > 0.08 && (top - minY) <= 0.55) {
           let headroom = true;
-          const cy2 = Math.floor(top + e.h);
-          for (let ccx = Math.floor(e.x - e.w / 2); ccx <= Math.floor(e.x + e.w / 2); ccx++) {
-            const bb = tileAt(ccx, cy2);
-            if (isSolid(bb)) { headroom = false; break; }
+          for (let cy2 = Math.floor(top); cy2 <= Math.floor(top + e.h); cy2++) {
+            for (let ccx = Math.floor(e.x - e.w / 2); ccx <= Math.floor(e.x + e.w / 2); ccx++) {
+              if (cy2 === Math.floor(minY) && ccx === cx) continue;
+              if (isSolid(tileAt(ccx, cy2))) { headroom = false; break; }
+            }
+            if (!headroom) break;
           }
-          if (headroom) { e.y = top + 0.001; e.onGround = true; continue; }
+          if (headroom) { e.y = top + 0.001; e.onGround = true; return true; }
         }
         if (e.vx > 0) e.x = cx - e.w / 2 - 0.001;
         else if (e.vx < 0) e.x = cx + 1 + e.w / 2 + 0.001;
@@ -1077,9 +1083,9 @@ function update(dt) {
 
   tickMobs(dt, night);
 
-  // camera
-  camX += ((player.x * TS - W / 2) - camX) * Math.min(1, dt * 6);
-  camY += ((player.y * TS - H / 2) - camY) * Math.min(1, dt * 6);
+  // camera (pixel-snapped: fractional offsets leave hairline seams between tiles)
+  camX = Math.round(camX + ((player.x * TS - W / 2) - camX) * Math.min(1, dt * 6));
+  camY = Math.round(camY + ((player.y * TS - H / 2) - camY) * Math.min(1, dt * 6));
   camX = clamp(camX, 0, WW * TS - W);
   camY = clamp(camY, -40, WH * TS - H + 40);
   if (shake > 0) shake = Math.max(0, shake - dt * 30);
