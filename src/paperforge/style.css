@@ -13,9 +13,9 @@ html,body{position:fixed;width:100%;height:100dvh;overscroll-behavior:none}
 .slot canvas{width:30px;height:30px;image-rendering:pixelated}
 .slot .count{position:absolute;bottom:0;right:2px;font:bold 10px monospace;color:#fff;text-shadow:1px 1px 0 #000;pointer-events:none}
 #hud-btns{position:absolute;top:8px;right:8px;display:flex;gap:6px;pointer-events:auto}
-#hud-btns button{width:40px;height:40px;border-radius:8px;font-size:17px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.3);color:#fff;cursor:pointer}
+#hud-btns button{width:40px;height:40px;border-radius:8px;font-size:17px;background:rgba(0,0,0,.5);border:2px solid rgba(255,255,255,.3);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1;padding:0}
 #move-btns{position:absolute;bottom:56px;left:10px;display:none;gap:10px;pointer-events:auto}
-#move-btns button{width:58px;height:58px;border-radius:50%;font-size:20px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);color:#fff}
+#move-btns button{width:58px;height:58px;border-radius:50%;font-size:20px;background:rgba(255,255,255,.12);border:2px solid rgba(255,255,255,.35);color:#fff;display:flex;align-items:center;justify-content:center;line-height:1;padding:0;text-align:center}
 #btn-jump{position:fixed;right:14px;bottom:56px}
 body.touch #move-btns{display:flex}
 body.touch #btn-jump{display:block}

@@ -218,6 +218,10 @@ function genWorld(s) {
 function drawTileFace(b, face, dx, dy, dw, dh, sx, sy, sw, sh) {
   const t = TILES[typeof face === 'string' ? face : 'stone'];
   if (!t) return;
+  if (sx === undefined) sx = 0;
+  if (sy === undefined) sy = 0;
+  if (sw === undefined) sw = 1;
+  if (sh === undefined) sh = 1;
   ctx.drawImage(atlas, (t[0] + sx) * TILE, (t[1] + sy) * TILE, TILE * sw, TILE * sh, dx, dy, dw, dh);
 }
 function tileFaceName(b, which) { return tileNameFor(b, which); }
@@ -286,7 +290,8 @@ function newPlayer(x, y) {
 function findSpawn() {
   const cx = WW >> 1;
   const h = surfaceH(cx);
-  return { x: cx + 0.5, y: h + 1 }; // feet above the surface cell, not inside it
+  // Feet must be strictly ABOVE the surface top (smaller y = higher up).
+  return { x: cx + 0.5, y: h + 0.9 };
 }
 
 // ---------- physics (axis-separated AABB vs shape-aware tiles) ----------
@@ -300,9 +305,11 @@ function moveBody(e, dt, stepUp) {
   const steps = Math.max(1, Math.ceil((Math.abs(e.vy) * dt) / 0.35));
   const sdt = dt / steps;
   for (let s = 0; s < steps; s++) {
+    e.py = e.y;
     e.x += e.vx * sdt;
     collideAxis(e, 'x', stepUp);
-    e.vy = Math.max(e.vy - GRAV * sdt, -22);
+    // +y is DOWN-screen: gravity pulls down, jump pushes up (negative)
+    e.vy = Math.min(e.vy + GRAV * sdt, 22);
     e.y += e.vy * sdt;
     e.onGround = false;
     collideAxis(e, 'y', stepUp);
@@ -312,7 +319,10 @@ function collideAxis(e, axis, stepUp) {
   const minX = e.x - e.w / 2, maxX = e.x + e.w / 2;
   const minY = e.y, maxY = e.y + e.h;
   const x0 = Math.floor(minX), x1 = Math.floor(maxX);
-  const y0 = Math.floor(minY), y1 = Math.floor(maxY);
+  // Include the cell below the feet for vertical sweeps: feet landing exactly
+  // on an integer top would otherwise exclude the ground cell next frame and
+  // sink one row at a time.
+  const y0 = Math.floor(minY) - (axis === 'y' ? 1 : 0), y1 = Math.floor(maxY);
   for (let cy = y0; cy <= y1; cy++) {
     for (let cx = x0; cx <= x1; cx++) {
       const b = tileAt(cx, cy);
@@ -336,18 +346,23 @@ function collideAxis(e, axis, stepUp) {
         else if (e.vx < 0) e.x = cx + 1 + e.w / 2 + 0.001;
         e.vx = 0;
         e.bumped = true;
-      } else {
-        if (maxX <= cx || minX >= cx + 1) continue;
-        if (e.vy <= 0) {
-          if (e.py >= top - 0.05 && e.y < top) {
-            e.y = top; e.vy = 0; e.onGround = true;
+          } else {
+            if (maxX <= cx || minX >= cx + 1) continue;
+            if (e.vy >= 0) {
+              // falling down: land on the shape top. The window extends
+              // slightly below the top so exact-boundary stands re-snap every
+              // frame instead of sinking (walking off still works: once the
+              // cell leaves horizontal overlap, gravity takes over).
+              if (e.py >= top - 0.45 && e.y <= top + 0.4) {
+                e.y = top; e.vy = 0; e.onGround = true;
+              }
+            } else {
+              // rising: bump head on the shape underside
+              if (e.py + e.h <= bot + 0.45 && e.y + e.h > bot) {
+                e.y = bot - e.h - 0.001; e.vy = 0;
+              }
+            }
           }
-        } else {
-          if (e.py + e.h <= bot + 0.05 && e.y + e.h > bot) {
-            e.y = bot - e.h - 0.001; e.vy = 0;
-          }
-        }
-      }
     }
   }
 }
@@ -636,19 +651,19 @@ function tickMobs(dt, night) {
       m.vx *= 0.9;
       if (m.onGround && m.hopT <= 0) {
         m.hopT = 0.8 + Math.random() * 1.2;
-        m.vy = 7;
+        m.vy = -7;
         m.vx = (aggro ? Math.sign(dx) : m.dir) * d.spd;
         if (!aggro && Math.random() < 0.3) m.dir *= -1;
       }
     } else if (aggro) {
       m.dir = Math.sign(dx) || 1;
       m.vx = m.dir * d.spd;
-      if (m.bumped) { m.vy = 8; m.bumped = false; }
-      if (d.jumpy && m.onGround && Math.random() < dt * 1.5) m.vy = 8;
+      if (m.bumped) { m.vy = -8; m.bumped = false; }
+      if (d.jumpy && m.onGround && Math.random() < dt * 1.5) m.vy = -8;
     } else if (!d.hostile) {
       if (Math.random() < dt * 0.25) m.dir *= -1;
       m.vx = m.dir * d.spd * 0.5;
-      if (m.bumped) { m.vy = 7; m.dir *= -1; m.bumped = false; }
+      if (m.bumped) { m.vy = -7; m.dir *= -1; m.bumped = false; }
     } else {
       m.vx *= 0.9;
     }
@@ -660,7 +675,7 @@ function tickMobs(dt, night) {
       hurtPlayer(d.dmg);
       m.atkT = 1.2;
       player.vx = (player.x < m.x ? -1 : 1) * 6;
-      player.vy = 5;
+      player.vy = -5;
     }
   }
 }
@@ -1052,7 +1067,7 @@ function update(dt) {
   if (want !== 0) { player.face = want; player.walkPh += dt * 10; }
   player.py = player.y;
   moveBody(player, dt, true);
-  if (J && player.onGround) { player.vy = 10.5; player.onGround = false; Sfx.click(); }
+  if (J && player.onGround) { player.vy = -10.5; player.onGround = false; Sfx.click(); }
   if (player.y < -2) { player.y = 2; player.vy = 0; }
   if (player.y > WH - 1) { player.y = WH - 2; player.vy = 0; }
   player.x = clamp(player.x, 1, WW - 1);
@@ -1072,7 +1087,7 @@ function update(dt) {
   // particles
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i];
-    p.x += p.vx * dt; p.y += p.vy * dt; p.vy -= 6 * dt; p.life -= dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.vy += 6 * dt; p.life -= dt;
     if (p.life <= 0) parts.splice(i, 1);
   }
   for (let i = floats.length - 1; i >= 0; i--) {
@@ -1100,6 +1115,7 @@ function draw() {
   g.addColorStop(1, skyBot);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
+  window.__skyN = (window.__skyN || 0) + 1;
   // sun/moon
   const sunA = dayT * Math.PI * 2;
   const sx = W * 0.5 + Math.cos(sunA) * W * 0.4;
@@ -1135,6 +1151,7 @@ function draw() {
       const px = x * TS + ox, py = y * TS + oy;
       const pair = doubles[x + ',' + y];
       if (pair) { drawDoubleSlab(pair, px, py); continue; }
+      window.__tileN = (window.__tileN || 0) + 1;
       drawBlockTile(b, px, py);
     }
   }
@@ -1171,8 +1188,10 @@ function draw() {
     ctx.fillText(f.txt, f.x * TS + ox, f.y * TS + oy);
   }
   ctx.globalAlpha = 1;
-  // night darkness + torch light
-  const dark = clamp((0.42 - bright) * 1.6, 0, 0.72);
+  // night darkness + torch light (+ depth darkness underground)
+  let dark = clamp((0.42 - bright) * 1.6, 0, 0.72);
+  const depthDark = clamp((camY / TS - 46) / 34, 0, 0.82);
+  if (depthDark > dark) dark = depthDark;
   if (dark > 0.01) {
     ctx.fillStyle = `rgba(4,4,26,${dark.toFixed(2)})`;
     ctx.fillRect(0, 0, W, H);
@@ -1440,3 +1459,7 @@ document.getElementById('btn-how-back').addEventListener('click', () => { hide('
 document.getElementById('btn-back-bf').addEventListener('click', () => { try { window.location.href = '../games.html?v=2'; } catch (e) {} });
 document.getElementById('btn-respawn').addEventListener('click', () => { respawn(); Sfx.click(); });
 document.getElementById('btn-dead-menu').addEventListener('click', () => { toMenu(true); Sfx.click(); });
+
+// boot: menu content + the frame loop kickoff (without this, nothing renders)
+refreshMenu();
+requestAnimationFrame(frame);
