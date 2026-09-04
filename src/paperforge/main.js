@@ -39,6 +39,19 @@ function mulberry(seed) {
 const el = (id) => document.getElementById(id);
 function show(id) { el(id).classList.remove('hidden'); }
 function hide(id) { el(id).classList.add('hidden'); }
+// On-screen error reporter: if anything throws at runtime, show it instead
+// of failing silently behind a black canvas.
+function pfError(where, err) {
+  try {
+    const box = el('pf-errors');
+    if (!box) return;
+    box.style.display = 'block';
+    const msg = String((err && err.message) || err);
+    box.textContent = 'ERR [' + where + ']: ' + msg.slice(0, 300);
+  } catch (_) {}
+}
+window.addEventListener('error', (e) => pfError('window', e.error || e.message));
+window.addEventListener('unhandledrejection', (e) => pfError('promise', e.reason));
 
 // ---------- audio (tiny local synth) ----------
 const Sfx = (() => {
@@ -273,7 +286,7 @@ function newPlayer(x, y) {
 function findSpawn() {
   const cx = WW >> 1;
   const h = surfaceH(cx);
-  return { x: cx + 0.5, y: h };
+  return { x: cx + 0.5, y: h + 1 }; // feet above the surface cell, not inside it
 }
 
 // ---------- physics (axis-separated AABB vs shape-aware tiles) ----------
@@ -847,8 +860,9 @@ function renderInv() {
   }
 }
 function updateHearts() {
+  // NOTE: full heart uses U+2764 U+FE0F — bare ❤ renders BLACK on Apple.
   let s = '';
-  for (let i = 0; i < 10; i++) s += (player.hp > i * 2 + 1) ? '❤' : (player.hp > i * 2 ? '💔' : '🖤');
+  for (let i = 0; i < 10; i++) s += (player.hp > i * 2 + 1) ? '❤️' : (player.hp > i * 2 ? '💔' : '🖤');
   el('hud-hearts').innerHTML = s;
 }
 
@@ -1005,8 +1019,12 @@ function frame(t) {
   const dt = Math.min(0.05, (t - lastT) / 1000 || 0.016);
   lastT = t;
   if (state !== 'play' || modalOpen) { drawMenuBg(); return; }
-  update(dt);
-  draw();
+  try {
+    update(dt);
+  } catch (e) { pfError('update', e); return; }
+  try {
+    draw();
+  } catch (e) { pfError('draw', e); }
 }
 function drawMenuBg() {
   // gentle starfield behind menus using last world (or plain gradient)
@@ -1419,6 +1437,6 @@ document.getElementById('btn-continue').addEventListener('click', () => {
 });
 document.getElementById('btn-how').addEventListener('click', () => { hide('screen-menu'); show('screen-how'); Sfx.click(); });
 document.getElementById('btn-how-back').addEventListener('click', () => { hide('screen-how'); show('screen-menu'); Sfx.click(); });
-document.getElementById('btn-back-bf').addEventListener('click', () => { try { window.location.href = '../games.html'; } catch (e) {} });
+document.getElementById('btn-back-bf').addEventListener('click', () => { try { window.location.href = '../games.html?v=2'; } catch (e) {} });
 document.getElementById('btn-respawn').addEventListener('click', () => { respawn(); Sfx.click(); });
 document.getElementById('btn-dead-menu').addEventListener('click', () => { toMenu(true); Sfx.click(); });

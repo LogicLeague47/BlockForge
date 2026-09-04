@@ -7994,7 +7994,7 @@ function initMenu() {
     const hide = () => { popup.style.display = 'none'; };
     btn.addEventListener('click', () => { popup.style.display = 'flex'; });
     if (cancel) cancel.addEventListener('click', hide);
-    if (ok) ok.addEventListener('click', () => { hide(); location.href = 'games.html'; });
+    if (ok) ok.addEventListener('click', () => { hide(); location.href = 'games.html?v=2'; });
     popup.addEventListener('click', (e) => { if (e.target === popup) hide(); });
   })();
   document.getElementById('btn-achievements').addEventListener('click', () => {

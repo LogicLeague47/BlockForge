@@ -248,7 +248,7 @@ window.STALE_Game = {
     click('btn-settings',()=>{this.state='settings';this.show('screen-settings');});
     click('btn-set-back',()=>{STALE_Settings.save();this.toMenu();});
     click('btn-board',()=>{this.renderBoard();this.state='board';this.show('screen-board');});
-    click('btn-back-bf',()=>{ try{ window.location.href='../BlockForge-main/index.html'; }catch(e){} });
+    click('btn-back-bf',()=>{ try{ window.location.href='../games.html?v=2'; }catch(e){} });
     click('btn-board-back',()=>this.toMenu());
     click('btn-board-clear',()=>{STALE_Board.clear();this.renderBoard();});
     click('btn-resume',()=>{this.paused=false;this.state='play';window._STATE='play';this.show(null);document.getElementById('hud').classList.remove('hidden');});

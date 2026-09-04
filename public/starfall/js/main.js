@@ -1403,7 +1403,7 @@ el('btn-resume').onclick = function() { STAR_Audio.click(); togglePause(); };
 el('btn-quit').onclick = function() { STAR_Audio.click(); hide('screen-pause'); toMenu(); };
 el('btn-retry').onclick = function() { STAR_Audio.click(); startRun(); };
 el('btn-menu').onclick = function() { STAR_Audio.click(); toMenu(); };
-el('btn-back-bf').onclick = function() { try { window.location.href = '../games.html'; } catch (e) {} };
+el('btn-back-bf').onclick = function() { try { window.location.href = '../games.html?v=2'; } catch (e) {} };
 function toMenu() {
   state = 'menu';
   ['screen-over', 'screen-pause', 'screen-levelup', 'screen-how'].forEach(hide);
