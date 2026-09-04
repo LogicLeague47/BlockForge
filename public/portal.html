@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '57e2c4d',
+          heading: 'Offbranch updates actually arrive now',
+          desc: 'Fixed stale caching: Starfall and Mold Kingdom files kept the same names forever, so browsers kept playing old versions. All game assets are now version-tagged, and the games page links force fresh loads.',
+          date: 'Sep 4',
+          bugs: ['offbranch games never showed updates without manually clearing cache'],
+          updates: ['?v= cache tags on all Starfall/Mold Kingdom assets and game links'],
+          features: [],
+        },
+        {
           hash: '374fcec',
           heading: 'Mold Kingdom rename + latest sync',
           desc: 'Pip and the Mold King is now Mold Kingdom everywhere: games list, portal card, tab title, and in-game headers. Includes the latest gameplay sync.',
