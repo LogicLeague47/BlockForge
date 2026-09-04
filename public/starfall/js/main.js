@@ -133,17 +133,17 @@ function newRun() {
   camX = 0; camY = 0; shake = 0;
   elapsed = 0; kills = 0; spawnT = 1.2; eliteT = 45; pendingLevels = 0;
 }
-function xpFor(lv) { return Math.floor(5 + lv * 3 + lv * lv * 0.45); }
+function xpFor(lv) { return Math.floor(5 + lv * 3.6 + lv * lv * 0.55); }
 
 // ---------- enemy types ----------
 var ETYPES = {
-  drifter:  { hp: 4,  spd: 55, r: 12, dmg: 8,  xp: 1, col: '#8a8f9a' },
-  dart:     { hp: 3,  spd: 120, r: 9, dmg: 10, xp: 1, col: '#f08018' },
-  splitter: { hp: 14, spd: 45, r: 16, dmg: 12, xp: 3, col: '#3ec850' },
-  mite:     { hp: 2,  spd: 95, r: 7,  dmg: 6,  xp: 1, col: '#7fe880' },
-  brute:    { hp: 90, spd: 38, r: 26, dmg: 22, xp: 8, col: '#a04ae0' },
+  drifter:  { hp: 5,  spd: 58, r: 12, dmg: 10, xp: 1, col: '#8a8f9a' },
+  dart:     { hp: 4,  spd: 138, r: 9, dmg: 12, xp: 1, col: '#f08018' },
+  splitter: { hp: 16, spd: 48, r: 16, dmg: 14, xp: 3, col: '#3ec850' },
+  mite:     { hp: 2,  spd: 100, r: 7,  dmg: 7,  xp: 1, col: '#7fe880' },
+  brute:    { hp: 110, spd: 42, r: 26, dmg: 26, xp: 8, col: '#a04ae0' },
 };
-function difficulty() { return 1 + elapsed / 150; }
+function difficulty() { return 1 + elapsed / 85; }
 
 function spawnEnemy(forceType) {
   if (enemies.length > 140) return;
@@ -153,8 +153,8 @@ function spawnEnemy(forceType) {
   var type = forceType;
   if (!type) {
     var r = Math.random(), t = elapsed;
-    if (t > 150 && r < 0.14) type = 'splitter';
-    else if (t > 60 && r < 0.34) type = 'dart';
+    if (t > 110 && r < 0.16) type = 'splitter';
+    else if (t > 40 && r < 0.38) type = 'dart';
     else type = 'drifter';
   }
   var base = ETYPES[type];
@@ -190,8 +190,8 @@ function damageEnemy(e, dmg, kx, ky) {
       }
     }
     if (e.type === 'brute') {
-      player.hp = Math.min(player.maxhp, player.hp + 20);
-      addFloat(e.x, e.y, '+20 HULL', '#7dff8a');
+      player.hp = Math.min(player.maxhp, player.hp + 10);
+      addFloat(player.x, player.y, '+10 HULL', '#7dff8a');
     }
   }
 }
@@ -262,7 +262,7 @@ function cardInfo(c) {
     speed:  { emoji: '⚡', name: 'Ion Thrusters', desc: '+12% flight speed.' },
     magnet: { emoji: '🧲', name: 'Tractor Web', desc: '+40% pickup range.' },
     armor:  { emoji: '🔩', name: 'Ablative Armor', desc: 'Block +2 damage per hit.' },
-    repair: { emoji: '🔧', name: 'Field Repairs', desc: 'Restore 50 hull now.' },
+    repair: { emoji: '🔧', name: 'Field Repairs', desc: 'Restore 30 hull now.' },
     regen:  { emoji: '💚', name: 'Nanobots', desc: 'Regenerate 0.8 hull/sec.' },
   };
   return map[c.s];
@@ -274,7 +274,7 @@ function applyCard(c) {
   else if (c.s === 'speed') player.speed *= 1.12;
   else if (c.s === 'magnet') player.magnet *= 1.4;
   else if (c.s === 'armor') player.armor += 2;
-  else if (c.s === 'repair') player.hp = Math.min(player.maxhp, player.hp + 50);
+  else if (c.s === 'repair') player.hp = Math.min(player.maxhp, player.hp + 30);
   else if (c.s === 'regen') player.regen += 0.8;
   refreshWeaponHUD();
 }
@@ -376,12 +376,17 @@ function update(dt) {
   // spawn director
   spawnT -= dt;
   if (spawnT <= 0) {
-    spawnT = Math.max(0.25, 1.4 - elapsed / 120);
-    var batch = 1 + Math.floor(elapsed / 90);
+    spawnT = Math.max(0.32, 1.15 - elapsed / 100);
+    var batch = 1 + Math.floor(elapsed / 70);
     for (var i = 0; i < batch; i++) spawnEnemy();
   }
   eliteT -= dt;
-  if (eliteT <= 0) { eliteT = 60; spawnEnemy('brute'); addFloat(player.x, player.y - 40, '⚠ BRUTE INBOUND', '#f88'); }
+  if (eliteT <= 0) {
+    eliteT = 45;
+    spawnEnemy('brute');
+    if (elapsed > 300) spawnEnemy('brute');
+    addFloat(player.x, player.y - 40, '⚠ BRUTE INBOUND', '#f88');
+  }
 
   // weapons
   var W = player.weapons, might = player.might;
@@ -414,9 +419,9 @@ function update(dt) {
         if (e.dead || e.spawnT > 0) continue;
         var dd = (e.x - bx) * (e.x - bx) + (e.y - by) * (e.y - by);
         if (dd < (e.r + 10) * (e.r + 10)) {
-          if (!e._orbT || elapsed - e._orbT > 0.35) {
+          if (!e._orbT || elapsed - e._orbT > 0.45) {
             e._orbT = elapsed;
-            damageEnemy(e, (8 + W.orbit * 5) * might, (e.x - player.x) * 0.02, (e.y - player.y) * 0.02);
+            damageEnemy(e, (7 + W.orbit * 4) * might, (e.x - player.x) * 0.02, (e.y - player.y) * 0.02);
           }
         }
       }
