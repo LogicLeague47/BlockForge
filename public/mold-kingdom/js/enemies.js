@@ -2,9 +2,10 @@ window.STALE_Enemies = {
   list:[],
   reset(spawns){
     this.list = spawns.map(s=>({
-      type:s.type, x:s.x, y:s.y, w:s.type==='gulper'?44:32, h:s.type==='gulper'?40:28,
-      vx:s.type==='crawler'?70:0, vy:0, t:Math.random()*5, dead:false, ph:Math.random()*6,
-      hp: s.type==='boss'?5:1
+      type:s.type, x:s.x, y:s.y,
+      w:s.type==='gulper'?44:(s.type==='shroom'?30:32), h:s.type==='gulper'?40:(s.type==='shroom'?32:28),
+      vx:s.type==='crawler'?70:(s.type==='shroom'?60:0), vy:0, t:Math.random()*5, dead:false, ph:Math.random()*6,
+      hp: s.type==='boss'?5:1, hop:1+Math.random()
     }));
     if(window._BOSS){ this.list.push(window._BOSS); window._BOSS=null; }
   },
@@ -31,6 +32,20 @@ window.STALE_Enemies = {
       } else if(e.type==='gulper'){
         e.vy=(e.vy||0)+2000*dt; e.y+=e.vy*dt;
         for(const s of g.solids()){ if(P.overlap(e,s)){ if(e.vy>0){e.y=s.y-e.h;e.vy=0; if(e.t>1.6){e.vy=-650;e.t=0;STALE_Audio.play('jump');}} } }
+      } else if(e.type==='shroom'){
+        // mushroom hopper: wanders like a crawler, then BOINGs high
+        e.x+=e.vx*dt;
+        const ahead={x:e.x+(e.vx>0?e.w+4:-4),y:e.y+e.h+6,w:4,h:10};
+        let ground=false;
+        for(const s of g.solids()){ if(P.overlap(ahead,s)){ground=true;break;} }
+        if(!ground) e.vx*=-1;
+        if(e.x<20||e.x>g.level.W-40) e.vx*=-1;
+        e.vy=(e.vy||0)+1800*dt;
+        e.y+=e.vy*dt;
+        let grounded=false;
+        for(const s of g.solids()){ if(P.overlap(e,s)){ if(e.vy>0){e.y=s.y-e.h;e.vy=0;grounded=true;} } }
+        e.hop-=dt;
+        if(grounded && e.hop<=0){ e.vy=-620; e.hop=1.6+Math.random(); }
       } else if(e.type==='spore'){
         e.x+=e.vx*dt; e.y+=e.vy*dt; e.vy+=300*dt;
         // spores land on the world (no more falling through floors)
@@ -66,9 +81,22 @@ window.STALE_Enemies = {
     b.vy=(b.vy||0)+1800*dt;
     b.x+= (b.vx||0)*dt; b.y+=b.vy*dt;
     for(const s of g.solids()){ if(STALE_Player.overlap(b,s)){ if(b.vy>0){b.y=s.y-b.h;b.vy=0;
-      if(!b.onG){ b.onG=true; b.tired=1.4; g.shake(12); g.spawnPoof(b.x+b.w/2,b.y+b.h,'#555'); // slam: spawn spores + erase
-        for(let i=0;i<3;i++) this.list.push({type:'spore',x:b.x+b.w/2,y:b.y,w:18,h:18,vx:(Math.random()-0.5)*360,vy:-350,t:0,dead:false,ph:0});
-        if(Math.random()<0.6 && STALE_Paint.eraseStroke()) g.toast('King Mold ERASED your jam!!');
+      if(!b.onG){ b.onG=true; b.tired=1.4; g.shake(12); g.spawnPoof(b.x+b.w/2,b.y+b.h,'#555');
+        const A=g.level.bossArena;
+        if(b.king==='shroom'){
+          // Mushroom King: summons 2 hoppers + every 3rd slam calls SPORE RAIN
+          for(let i=0;i<2;i++) this.list.push({type:'shroom',x:b.x+b.w/2+(i?40:-40),y:b.y-10,w:30,h:32,vx:(i?130:-130),vy:-320,t:0,dead:false,ph:Math.random()*6,hop:1});
+          b.rains=(b.rains||0)+1;
+          if(b.rains%3===0 && A){
+            for(let i=0;i<6;i++) this.list.push({type:'spore',x:A.x+60+Math.random()*(A.w-120),y:70,w:18,h:18,vx:(Math.random()-0.5)*120,vy:60,t:0,dead:false,ph:Math.random()*6});
+            g.toast('☔ SPORE RAIN! Keep moving!');
+          }
+          if(Math.random()<0.6 && STALE_Paint.eraseStroke()) g.toast('The King composted your jam!!');
+        } else {
+          // Mold King: classic spore burst + jam eraser
+          for(let i=0;i<3;i++) this.list.push({type:'spore',x:b.x+b.w/2,y:b.y,w:18,h:18,vx:(Math.random()-0.5)*360,vy:-350,t:0,dead:false,ph:0});
+          if(Math.random()<0.6 && STALE_Paint.eraseStroke()) g.toast('King Mold ERASED your jam!!');
+        }
       }
     }}}
     if(b.tired>0){
@@ -77,8 +105,9 @@ window.STALE_Enemies = {
       if(STALE_Player.overlap(P,b)){
         const stomp=P.vy>100&&(P.y+P.h)-b.y<30;
         if(stomp){ b.hp--; P.vy=-750; STALE_Audio.play('stomp'); g.shake(14); g.spawnPoof(b.x+40,b.y,'#ff0');
+          const title=b.title||'KING';
           g.spawnFloat(b.x+b.w/2,b.y-28, b.hp>0?('OUCH! '+b.hp+' left!'):'KING DOWN!','#ffd23f');
-          g.toast(b.hp>0?('KING OUCH! '+b.hp+' left!'):'KING DOWN!');
+          g.toast(b.hp>0?(title+' OUCH! '+b.hp+' left!'):(title+' DOWN!'));
           b.inv=1; if(b.hp<=0){ b.dead=true; g.onBossDown(); } }
         else if((b.inv||0)<=0) P.hurt(g);
       }

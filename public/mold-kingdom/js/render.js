@@ -195,18 +195,41 @@ window.STALE_Render = {
         ctx.save(); ctx.translate(x+e.w/2,y+e.h/2); ctx.rotate(t*6+e.ph); ctx.scale(1+Math.sin(t*9)*0.06,1+Math.sin(t*9)*0.06);
         ctx.font='18px serif'; ctx.fillText('💩',0,6); ctx.restore();
       }
+      else if(e.type==='shroom'){
+        const stretch=e.vy<0?1.15:(e.vy>200?0.88:1);
+        ctx.save(); this.aboutFeet(ctx,x,y,e.w,e.h,1,stretch);
+        // stem
+        this.rrect(ctx,9,12,12,e.h-14,'#f2e3c8');
+        // red cap
+        ctx.fillStyle='#d33f3f'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.ellipse(15,12,e.w/2,10,0,Math.PI,0); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='#fff';
+        ctx.beginPath(); ctx.arc(8,8,2.5,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(16,5,3,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(23,9,2,0,7); ctx.fill();
+        // feet + face
+        ctx.fillStyle='#7a4a1f';
+        const f=Math.sin(t*12+e.ph)>0;
+        ctx.fillRect(8,e.h-4,5,4); ctx.fillRect(17,e.h-4,5,4);
+        if(f){ ctx.fillRect(11,e.h-3,4,3); }
+        ctx.fillStyle='#222'; ctx.fillRect(11,17,4,5); ctx.fillRect(17,17,4,5);
+        ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=2; ctx.beginPath();
+        ctx.moveTo(12,e.h-6); ctx.lineTo(20,e.h-6); ctx.stroke();
+        ctx.restore();
+      }
       else if(e.type==='boss'){ this.boss(ctx,e,x,y,t); }
     }
     ctx.textAlign='center';
   },
   boss(ctx,b,x,y,t){
+    if(b.king==='shroom'){ this.shroomKing(ctx,b,x,y,t); return; }
     const W=b.w, H=b.h;
     // hp bar
     ctx.fillStyle='#3a2c1c'; ctx.fillRect(x-10,y-34,W+20,12);
     ctx.fillStyle='#c8321e'; ctx.fillRect(x-8,y-32,W+16,8);
-    ctx.fillStyle='#7bd389'; ctx.fillRect(x-8,y-32,(W+16)*Math.max(0,b.hp)/5,8);
+    ctx.fillStyle='#7bd389'; ctx.fillRect(x-8,y-32,(W+16)*Math.max(0,b.hp)/(b.maxhp||5),8);
     ctx.fillStyle='#3a2c1c'; ctx.font='bold 13px cursive';
-    ctx.fillText('👑 KING MOLD',x+W/2,y-40);
+    ctx.fillText('👑 '+(b.title||'KING MOLD'),x+W/2,y-40);
     ctx.save();
     const sy=b.onG?(b.tired>0?0.82:1):1.14;
     this.aboutFeet(ctx,x,y,W,H,1/Math.sqrt(sy),sy);
@@ -246,6 +269,53 @@ window.STALE_Render = {
     if((b.inv||0)>0){ ctx.globalAlpha=0.45; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
     ctx.restore();
   },
+  shroomKing(ctx,b,x,y,t){
+    const W=b.w, H=b.h;
+    ctx.fillStyle='#3a2c1c'; ctx.fillRect(x-10,y-34,W+20,12);
+    ctx.fillStyle='#c8321e'; ctx.fillRect(x-8,y-32,W+16,8);
+    ctx.fillStyle='#7bd389'; ctx.fillRect(x-8,y-32,(W+16)*Math.max(0,b.hp)/(b.maxhp||6),8);
+    ctx.fillStyle='#3a2c1c'; ctx.font='bold 13px cursive';
+    ctx.fillText('🍄 '+(b.title||'MUSHROOM KING'),x+W/2,y-40);
+    ctx.save();
+    const sy=b.onG?(b.tired>0?0.82:1):1.14;
+    this.aboutFeet(ctx,x,y,W,H,1/Math.sqrt(sy),sy);
+    // stem body
+    this.rrect(ctx,14,26,W-28,H-26,'#f2e3c8');
+    ctx.fillStyle='#cbb98f';
+    for(let i=0;i<3;i++){ ctx.fillRect(20+i*22,40+((i*13)%20),8,5); }
+    // giant red cap
+    ctx.fillStyle='#d33f3f'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.ellipse(W/2,28,W/2+4,24,0,Math.PI,0); ctx.fill(); ctx.stroke();
+    ctx.fillStyle='#fff';
+    for(const s of [[18,16],[W/2-4,8],[W-24,18],[W/2+16,20]]){ ctx.beginPath(); ctx.arc(s[0],s[1],5,0,7); ctx.fill(); }
+    // copper crown (younger brother, smaller crown)
+    ctx.fillStyle='#e8933f'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=2.5;
+    ctx.beginPath();
+    ctx.moveTo(W/2-20,6); ctx.lineTo(W/2-20,-10); ctx.lineTo(W/2-8,-2); ctx.lineTo(W/2,-13); ctx.lineTo(W/2+8,-2); ctx.lineTo(W/2+20,-10); ctx.lineTo(W/2+20,6);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // arms
+    ctx.fillStyle='#f2e3c8'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=2;
+    const wave=Math.sin(t*6)*6;
+    ctx.beginPath(); ctx.arc(6,52+wave,9,0,7); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.arc(W-6,52-wave,9,0,7); ctx.fill(); ctx.stroke();
+    // face
+    if(b.tired>0){
+      ctx.fillStyle='#222'; ctx.fillRect(28,52,12,4); ctx.fillRect(W-40,52,12,4);
+      ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(W/2,70,8,0,7); ctx.stroke();
+      ctx.fillStyle='#ffd23f'; ctx.font='16px serif';
+      for(let i=0;i<3;i++){ const a=t*4+i*2.1; ctx.fillText('⭐',W/2+Math.cos(a)*34-8,30+Math.sin(a)*10); }
+      ctx.fillStyle='#c8321e'; ctx.font='bold 14px cursive'; ctx.fillText('TIRED! STOMP!',W/2,H+16);
+    } else {
+      ctx.fillStyle='#fff'; ctx.fillRect(26,48,16,14); ctx.fillRect(W-42,48,16,14);
+      ctx.fillStyle='#3a2c1c'; ctx.fillRect(31,52,7,7); ctx.fillRect(W-38,52,7,7);
+      ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=3; ctx.beginPath();
+      ctx.moveTo(24,44); ctx.lineTo(44,50); ctx.moveTo(W-24,44); ctx.lineTo(W-44,50); ctx.stroke();
+      ctx.fillStyle='#3a2c1c';
+      ctx.fillRect(34,70,8,8); ctx.fillRect(46,70,8,8); ctx.fillRect(58,70,8,8);
+    }
+    if((b.inv||0)>0){ ctx.globalAlpha=0.45; ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H); ctx.globalAlpha=1; }
+    ctx.restore();
+  },
   npcs(ctx,list,cam,t,P){
     for(const n of list){
       const fx=n.x-cam.x, fy=n.y-cam.y;
@@ -265,6 +335,28 @@ window.STALE_Render = {
         ctx.moveTo(fx+8,fy-30); ctx.lineTo(fx+20,fy-44+sway*3); ctx.stroke();
         ctx.font='bold 11px cursive'; ctx.fillStyle='#3a2c1c'; ctx.textAlign='center';
         ctx.fillText('AUNTIE PRETZEL',fx,fy-62);
+      } else if(n.type==='sage'){
+        const sway=Math.sin(t*1.8+n.t)*2;
+        ctx.fillStyle='rgba(0,0,0,0.12)';
+        ctx.beginPath(); ctx.ellipse(fx,fy+2,13,3.5,0,0,7); ctx.fill();
+        // robe
+        ctx.fillStyle='#5a4a6a'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.moveTo(fx-11,fy); ctx.lineTo(fx-5,fy-30); ctx.lineTo(fx+5,fy-30); ctx.lineTo(fx+11,fy); ctx.closePath(); ctx.fill(); ctx.stroke();
+        // wise old cap
+        ctx.fillStyle='#cbb98f'; ctx.strokeStyle='#3a2c1c'; ctx.lineWidth=3;
+        ctx.beginPath(); ctx.ellipse(fx,fy-32,17,10,0,Math.PI,0); ctx.fill(); ctx.stroke();
+        ctx.fillStyle='#8a5a2b'; ctx.beginPath(); ctx.arc(fx-6,fy-36,2,0,7); ctx.fill();
+        ctx.beginPath(); ctx.arc(fx+5,fy-38,2.5,0,7); ctx.fill();
+        // beard + eyes
+        ctx.fillStyle='#fff'; ctx.fillRect(fx-6,fy-28,12,10);
+        ctx.fillStyle='#222'; ctx.fillRect(fx-5,fy-30,3,3); ctx.fillRect(fx+2,fy-30,3,3);
+        // staff with glowing spore
+        ctx.strokeStyle='#8a5a2b'; ctx.lineWidth=4; ctx.beginPath();
+        ctx.moveTo(fx+12,fy); ctx.lineTo(fx+16,fy-52+sway); ctx.stroke();
+        ctx.fillStyle='#2ee6a8';
+        ctx.beginPath(); ctx.arc(fx+16,fy-56+sway,5+Math.sin(t*5)*1,0,7); ctx.fill();
+        ctx.font='bold 11px cursive'; ctx.fillStyle='#3a2c1c'; ctx.textAlign='center';
+        ctx.fillText('SAGE SHROOM',fx,fy-66);
       } else {
         const col=n.type==='berryBlue'?'#4b7de1':'#e14b7d';
         const bnc=Math.abs(Math.sin(t*3+n.t))*6;

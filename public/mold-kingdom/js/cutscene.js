@@ -1,4 +1,4 @@
-// STALE intro cartoon: ~2 minutes, 8 animated scenes. Vector actors + emoji crowds.
+// Mold Kingdom intro cartoon: ~2 minutes, 8 animated scenes. Vector actors + emoji crowds.
 function CS_pip(ctx,x,y,s,t,o){
   o=o||{};
   ctx.save(); ctx.translate(x,y); ctx.scale(s*(o.face||1),s);
@@ -84,8 +84,8 @@ window.STALE_Cutscene = {
     {d:16, cap:'🥨 Auntie Pretzel’s training',
      sub:'“Watch, baby!” Strawberry holds you. Mint goes BOING. Choco sticks — climb it! “Now scrub that mold, baby! Paint BRAVE!”'},
     {d:12, cap:'👑 To the Mold Heart!',
-     sub:'Pip gulps. “I’m literally garbage… but garbage can be BRAVE.” Twenty lands to cross. One King to stomp. “Let’s UN-STALE the world!”'},
-    {d:14, cap:'🍞 STALE — Pip & the Mold King',
+     sub:'Pip gulps. “I’m literally garbage… but garbage can be BRAVE.” Forty lands to cross. Two Kings to stomp. “Let’s UN-STALE the world!”'},
+    {d:14, cap:'🍞 Mold Kingdom',
      sub:'A LogicLeague doodle-adventure. Paint platforms. Stomp Fuzzies. Befriend snacks. See you at PLAY!'},
   ],
   start(){ this.t=0; this.active=true; this.charI=0; this.sceneI=0; },
@@ -210,19 +210,21 @@ window.STALE_Cutscene = {
       const army=['🦠','🦇','🥤','🦠','🦇'];
       army.forEach((e,k)=>{ ctx.font='34px serif'; ctx.fillText(e,120+st*30-k*70,412); });
       ctx.font='bold 22px cursive'; ctx.fillStyle='#ffd23f';
-      ctx.fillText('20 lands. 1 King. Paint BRAVE.',W/2,60);
+      ctx.fillText('40 lands. 2 Kings. Paint BRAVE.',W/2,60);
     } else { // title drop
       ctx.fillStyle='#14100b'; ctx.fillRect(0,0,W,H);
       const pop=Math.min(1,st/1.5);
-      ctx.save(); ctx.translate(W/2,220); ctx.scale(pop,pop); ctx.rotate(-0.06);
-      ctx.font='900 110px "Comic Sans MS",cursive'; ctx.textAlign='center';
+      ctx.save(); ctx.translate(W/2,215); ctx.scale(pop,pop); ctx.rotate(-0.06);
+      ctx.font='900 30px "Comic Sans MS",cursive'; ctx.textAlign='center';
+      ctx.fillStyle='#f5e9c9';
+      ctx.font='900 62px "Comic Sans MS",cursive';
       ctx.fillStyle='#c8321e'; ctx.strokeStyle='#ffd23f'; ctx.lineWidth=3;
-      ctx.strokeText('STALE',0,0); ctx.fillText('STALE',0,0);
+      ctx.strokeText('MOLD KINGDOM',0,0); ctx.fillText('MOLD KINGDOM',0,0);
       ctx.restore();
       CS_pip(ctx,W/2-120,382,1.6,st,{pack:true});
       CS_splat(ctx,W/2+120,392,1.3,st);
       ctx.font='bold 24px cursive'; ctx.fillStyle='#ffd23f';
-      ctx.fillText('Pip & the Mold King · by LogicLeague',W/2,330);
+      ctx.fillText('A LogicLeague doodle-adventure',W/2,330);
     }
     // scene dots + countdown (top so the subtitle bar never covers them)
     ctx.font='16px serif'; ctx.fillStyle='#3a2c1c';

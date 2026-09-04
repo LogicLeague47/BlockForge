@@ -56,7 +56,11 @@ window.STALE_Game = {
     }
     // boss?
     window._BOSS=null;
-    if(this.level.boss) window._BOSS={type:'boss',x:this.level.W-600,y:300,w:90,h:80,vx:0,vy:0,t:0,dead:false,ph:0,hp:5,cool:2,onG:false,tired:0};
+    if(this.level.boss){
+      const shroom=this.level.bossKing==='shroom';
+      window._BOSS={type:'boss',x:this.level.W-600,y:300,w:90,h:80,vx:0,vy:0,t:0,dead:false,ph:0,
+        hp:shroom?6:5,maxhp:shroom?6:5,king:shroom?'shroom':'mold',title:this.level.bossName||'KING MOLD',cool:2,onG:false,tired:0};
+    }
     STALE_Enemies.reset(this.level.enemies);
     this.cam.x=0; this.cam.y=0;
     document.getElementById('hud-level').textContent=this.level.name;
@@ -125,8 +129,21 @@ window.STALE_Game = {
   },
   onBossDown(){
     STALE_Audio.play('win');
+    const P=STALE_Player;
+    this.spawnConfetti(P.x+P.w/2,P.y-40,60); this.shake(10);
+    // mid-game boss (Mold King): celebrate, then march into World 2!
+    if(this.levelI<STALE_LEVELS.length-1){
+      const li=this.levelI, beaten=this.level.bossName||'KING';
+      STALE_Settings.data.unlocked=Math.max(STALE_Settings.data.unlocked,Math.min(STALE_LEVELS.length,li+2));
+      STALE_Settings.data.seenIntro=true; STALE_Settings.save();
+      this.loadLevel(li+1); this.renderLevelDots();
+      this.toast(beaten+' DEFEATED! Onward to '+STALE_LEVELS[li+1].name+'!');
+      this.dialog('Splat 💦','We did it!! Did you see that crown FLY? World 2 smells… mushroomy. Stay brave, crumb!',6);
+      return;
+    }
+    // final boss (Mushroom King): the real win screen
     this.state='win'; window._STATE='win';
-    const t=STALE_Player.time, d=STALE_Player.deaths, s=STALE_Player.sprGot;
+    const t=P.time, d=P.deaths, s=P.sprGot;
     document.getElementById('final-stats').textContent=`Time ${STALE_Board.fmt(t)} · Deaths ${d} · ✨ ${s}`;
     // hero name: remembered pilot → BlockForge name → PIP
     const bf=this.bfName();
@@ -134,8 +151,8 @@ window.STALE_Game = {
     const hint=document.getElementById('bf-hint');
     if(hint) hint.textContent=bf?('🔗 BlockForge hero detected: '+bf.toUpperCase().slice(0,12)+(this.isDevName(bf)?' 👑DEV — all levels open!':'')+' — keep it or type your own!'):'Tip: set a name in BlockForge and we’ll fill it in next time!';
     this.show('screen-name');
-    this._pendingScore={level:'Mold Heart',time:t,deaths:d,spr:s};
-    STALE_Settings.data.unlocked=20; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
+    this._pendingScore={level:'Mushroom Hollow',time:t,deaths:d,spr:s};
+    STALE_Settings.data.unlocked=STALE_LEVELS.length; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
   },
   levelComplete(){
     STALE_Audio.play('door');
@@ -163,7 +180,7 @@ window.STALE_Game = {
   isDevName(n){ return (n||'').trim().toLowerCase()==='logicleague'; },
   devUnlock(){
     if(this.isDevName(STALE_Settings.data.pilotName||this.bfName())){
-      if(STALE_Settings.data.unlocked<20){ STALE_Settings.data.unlocked=20; STALE_Settings.save(); }
+      if(STALE_Settings.data.unlocked<STALE_LEVELS.length){ STALE_Settings.data.unlocked=STALE_LEVELS.length; STALE_Settings.save(); }
       return true;
     }
     return false;
@@ -175,7 +192,15 @@ window.STALE_Game = {
     const dev=this.devUnlock();
     const d=document.getElementById('level-dots'); d.innerHTML='';
     const un=STALE_Settings.data.unlocked;
+    let lastW=0;
     STALE_LEVELS.forEach((L,i)=>{
+      if(L.world!==lastW){
+        lastW=L.world;
+        const lab=document.createElement('span');
+        lab.className='wdot'; lab.title=L.world===1?'World 1: Mold King':'World 2: Mushroom King';
+        lab.textContent=L.world===1?'🍞W1':'🍄W2';
+        d.appendChild(lab);
+      }
       const s=document.createElement('span');
       s.textContent=i+1; if(i+1>un)s.classList.add('locked'); if(i+1<un)s.classList.add('done');
       s.title=L.name;
@@ -185,7 +210,7 @@ window.STALE_Game = {
     const c=document.getElementById('btn-continue');
     if(un>1){ c.classList.remove('hidden'); c.textContent='↻ CONTINUE · Level '+un; } else c.classList.add('hidden');
     const ms=document.querySelector?document.querySelector('.menu-sub'):null;
-    if(ms) ms.innerHTML='Pip &amp; the Mold King · by <b>LogicLeague</b>'+(dev?' · 👑 <b>DEV MODE</b> — all levels open!':'');
+    if(ms) ms.innerHTML='Mold Kingdom · by <b>LogicLeague</b>'+(dev?' · 👑 <b>DEV MODE</b> — all levels open!':'');
   },
   renderBoard(){
     const el=document.getElementById('board-list'); el.innerHTML='';
@@ -217,7 +242,7 @@ window.STALE_Game = {
     click('btn-settings',()=>{this.state='settings';this.show('screen-settings');});
     click('btn-set-back',()=>{STALE_Settings.save();this.toMenu();});
     click('btn-board',()=>{this.renderBoard();this.state='board';this.show('screen-board');});
-    click('btn-back-bf',()=>{ try{ window.location.href='../games.html'; }catch(e){} });
+    click('btn-back-bf',()=>{ try{ window.location.href='../BlockForge-main/index.html'; }catch(e){} });
     click('btn-board-back',()=>this.toMenu());
     click('btn-board-clear',()=>{STALE_Board.clear();this.renderBoard();});
     click('btn-resume',()=>{this.paused=false;this.state='play';window._STATE='play';this.show(null);document.getElementById('hud').classList.remove('hidden');});
@@ -230,7 +255,7 @@ window.STALE_Game = {
       STALE_Settings.data.pilotName=n; STALE_Settings.save();
       const dev=this.isDevName(n);
       STALE_Board.add({name:n,dev:dev,...this._pendingScore});
-      if(dev){ STALE_Settings.data.unlocked=20; STALE_Settings.save(); this.toast('DEV MODE 👑 — all 20 levels open!'); }
+      if(dev){ STALE_Settings.data.unlocked=STALE_LEVELS.length; STALE_Settings.save(); this.toast('DEV MODE 👑 — all levels open!'); }
       this.toMenu();
     });
     const S=STALE_Settings.data;
@@ -447,7 +472,7 @@ window.STALE_Game = {
       n.t+=dt;
       if(!n.talked && Math.abs(P.x-n.x)<90 && Math.abs(P.y-n.y)<110 && this.dlgT<=0){
         n.talked=true;
-        this.dialog(n.type==='pretzel'?'Auntie Pretzel 🥨':(n.type==='berryBlue'?'Blue 🫐':'Razz 🍓'), n.text, 6);
+        this.dialog(n.type==='pretzel'?'Auntie Pretzel 🥨':(n.type==='sage'?'Sage Shroom 🍄':(n.type==='berryBlue'?'Blue 🫐':'Razz 🍓')), n.text, 6);
         STALE_Paint.ink=STALE_Paint.max; P.hearts=3; P.splatHappy=1;
         STALE_Audio.play('pickup');
         this.spawnFloat(n.x,n.y-70,'FULL JAM! ❤','#7bd389');
@@ -485,7 +510,7 @@ window.STALE_Game = {
     // boss roar when Pip first enters the arena
     if(this.level.boss && !this.roared && P.x>this.level.bossArena.x-350){
       this.roared=true; this.shake(12); STALE_Audio.play('boss');
-      this.toast('KING MOLD: WHO DARES ENTER MY HEART?! 👑');
+      this.toast((this.level.bossName||'KING MOLD')+': WHO DARES ENTER?! 👑');
       const b=STALE_Enemies.list.find(e=>e.type==='boss');
       if(b && b.onG){ b.vy=-520; b.onG=false; }
     }
