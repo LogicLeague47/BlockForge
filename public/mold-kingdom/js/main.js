@@ -11,6 +11,12 @@ window.STALE_Game = {
     STALE_Audio.init();
     this.bindInput(); this.bindUI(); this.applySettingsToUI();
     this.renderLevelDots();
+    // re-fit on rotation / resize / browser-chrome show-hide (debounced)
+    let fitT=null;
+    const refit=()=>{ clearTimeout(fitT); fitT=setTimeout(()=>this.fitStage(),60); };
+    addEventListener('resize',refit);
+    addEventListener('orientationchange',refit);
+    try{ if(window.visualViewport) window.visualViewport.addEventListener('resize',refit); }catch(e){}
     this.show('screen-logo'); window._STATE='logo'; this.state='logo'; this.stateT=0;
     requestAnimationFrame(t=>this.loop(t));
   },
@@ -290,6 +296,27 @@ window.STALE_Game = {
     if(tc) tc.style.display=(mob && this.state==='play' && !this.paused)?'flex':'none';
     // lets CSS move the dialogue box out of the way on touch layouts
     document.getElementById('stage').classList.toggle('touch',mob);
+    this.fitStage();
+  },
+  // Scale-to-fit done in JS (CSS dvh units glitch during mobile rotation).
+  // Measures the real chrome (topbar/help/buttons) so the stage is always
+  // as big as possible without scrolling, in any orientation.
+  fitStage(){
+    try{
+      const vw=window.innerWidth||960;
+      const vh=((window.visualViewport&&window.visualViewport.height)||window.innerHeight||640);
+      let used=24; // wrap padding + margins
+      for(const id of ['topbar','helpline','rotate-hint']){
+        const el=document.getElementById(id);
+        if(el){ const r=el.getBoundingClientRect(); if(r.height>0) used+=r.height+8; }
+      }
+      const tc=document.getElementById('touch');
+      if(tc && tc.style.display==='flex'){ const r=tc.getBoundingClientRect(); if(r.height>0) used+=r.height+8; }
+      const availW=Math.min(960,vw*0.96);
+      const availH=Math.max(180,vh-used);
+      const w=Math.max(200,Math.min(availW,availH*16/9));
+      document.getElementById('stage').style.width=w+'px';
+    }catch(e){}
   },
   cycleJam(){
     const jams=(this.level&&this.level.jams)||['berry'];

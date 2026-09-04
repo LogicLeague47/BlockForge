@@ -66,6 +66,7 @@ button.big{font-size:22px;background:#7bd389}
 #helpline{text-align:center;color:#f5e9c9;opacity:.85;font-size:13px;margin:6px 4px;max-width:96vw}
 #rotate-hint{display:none;text-align:center;color:#ffd23f;font-size:13px;margin:2px 4px}
 @media (max-width:700px) and (orientation:portrait){#rotate-hint{display:block}}
+@media (orientation:landscape) and (max-height:500px){#helpline{display:none}}
 #touch{display:none;width:min(960px,96vw);margin:8px auto 0;justify-content:space-between;align-items:center;z-index:7}
 #touch .tcluster{display:flex;gap:10px}
 #touch button{opacity:.92;font-size:24px;width:66px;height:58px;border-radius:16px;touch-action:none;-webkit-user-select:none;user-select:none}

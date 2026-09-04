@@ -39,6 +39,7 @@ export default defineConfig(({ mode }) => {
           ? { legacy: resolve(__dirname, 'legacy.html') }
           : {
               main: resolve(__dirname, 'index.html'),
+              paperforge: resolve(__dirname, 'paperforge.html'),
               debug: resolve(__dirname, 'debug.html'),
               privacy: resolve(__dirname, 'privacy.html'),
               terms: resolve(__dirname, 'terms.html'),

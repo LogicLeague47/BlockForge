@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>PaperForge — a LogicLeague game</title>
+<link rel="stylesheet" href="/src/paperforge/style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- HUD -->
+<div id="hud" class="hidden">
+  <div id="hud-hearts"></div>
+  <div id="hud-clock" title="Time of day">☀</div>
+  <div id="hotbar"></div>
+  <div id="hud-btns">
+    <button id="btn-inv" aria-label="Inventory">🎒</button>
+    <button id="btn-craft" aria-label="Crafting">🔨</button>
+    <button id="btn-mode" aria-label="Mine or place">⛏</button>
+    <button id="btn-pause" aria-label="Pause">⏸</button>
+  </div>
+  <div id="move-btns">
+    <button id="btn-left" aria-label="Left">◀</button>
+    <button id="btn-right" aria-label="Right">▶</button>
+    <button id="btn-jump" aria-label="Jump">▲</button>
+  </div>
+</div>
+
+<!-- Crafting panel -->
+<div id="screen-craft" class="screen hidden panel">
+  <h2>🔨 Crafting</h2>
+  <div id="craft-wrap">
+    <div id="craft-grid"></div>
+    <div id="craft-arrow">➡</div>
+    <div id="craft-out"></div>
+  </div>
+  <div class="hint">Click a grid cell to move the held stack · click output to craft</div>
+  <button id="btn-craft-close">Close</button>
+</div>
+
+<!-- Inventory panel -->
+<div id="screen-inv" class="screen hidden panel">
+  <h2>🎒 Inventory</h2>
+  <div id="inv-grid"></div>
+  <div class="hint">Click food to eat one</div>
+  <button id="btn-inv-close">Close</button>
+</div>
+
+<!-- Main menu -->
+<div id="screen-menu" class="screen">
+  <h1 class="game-title">PAPER<span>FORGE</span></h1>
+  <p class="menu-sub">2D BlockForge · a LogicLeague game</p>
+  <p id="hero-line" class="hero-line"></p>
+  <div class="menu-btns">
+    <button id="btn-play" class="big">▶ New World</button>
+    <button id="btn-continue" class="hidden">↻ Continue</button>
+    <button id="btn-how">✦ How to play</button>
+    <button id="btn-back-bf">🧱 BlockForge</button>
+  </div>
+  <p class="foot" id="best-line"></p>
+  <p class="foot" style="margin-top:4px">v1.0 · same blocks, items &amp; recipes as BlockForge · progress saves automatically</p>
+</div>
+
+<!-- How to -->
+<div id="screen-how" class="screen hidden panel">
+  <h2>✦ How to play</h2>
+  <p><b>PC:</b> A/D or ◀/▶ move · Space/W jump · 1-9 select · <b>hold Left-click</b> to mine/attack · <b>Right-click</b> to place · E eats held food.</p>
+  <p><b>Mobile:</b> ◀ ▶ ▲ buttons · tap ⛏/🧱 to switch mine/place · touch &amp; hold blocks.</p>
+  <p>Chop wood → planks → sticks → pickaxes. Stone and ores need a pickaxe or they drop nothing. Coal + sticks = torches. Crafting uses the real 3×3 recipes. Click food in your inventory to eat. Zombies burn at sunrise — light up your base!</p>
+  <button id="btn-how-back">← Back</button>
+</div>
+
+<!-- Pause -->
+<div id="screen-pause" class="screen hidden panel">
+  <h2>⏸ Paused</h2>
+  <div id="pause-stats"></div>
+  <button id="btn-resume">Resume</button>
+  <button id="btn-save-quit">Save &amp; Menu</button>
+</div>
+
+<!-- Dead -->
+<div id="screen-dead" class="screen hidden panel">
+  <h2 id="dead-title">YOU DIED</h2>
+  <div id="dead-stats"></div>
+  <button id="btn-respawn">Respawn</button>
+  <button id="btn-dead-menu">Menu</button>
+</div>
+
+<script type="module" src="/src/paperforge/main.js"></script>
+</body>
+</html>

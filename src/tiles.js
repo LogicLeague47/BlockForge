@@ -3122,6 +3122,30 @@ PAINTERS.soul_lantern = (ctx, x0, y0, rng) => {
   ctx.fillRect(x0 + 10, y0 + 2, S - 20, 4);
 };
 
+// --- torch painters (also fixes the torch inventory icon) ---
+PAINTERS.torch = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  ctx.clearRect(x0, y0, S, S);
+  ctx.fillStyle = '#6e5230';
+  ctx.fillRect(x0 + 14, y0 + 12, 4, 18);
+  ctx.fillStyle = '#8a6a3c';
+  ctx.fillRect(x0 + 14, y0 + 12, 1, 18);
+  ctx.fillStyle = '#ff9a20';
+  ctx.beginPath(); ctx.arc(x0 + 16, y0 + 9, 6, 0, 6.283); ctx.fill();
+  ctx.fillStyle = '#ffe080';
+  ctx.beginPath(); ctx.arc(x0 + 16, y0 + 9, 3, 0, 6.283); ctx.fill();
+};
+PAINTERS.greenstone_torch = (ctx, x0, y0, rng) => {
+  const S = TILE;
+  ctx.clearRect(x0, y0, S, S);
+  ctx.fillStyle = '#5a4632';
+  ctx.fillRect(x0 + 14, y0 + 12, 4, 18);
+  ctx.fillStyle = '#3ec850';
+  ctx.beginPath(); ctx.arc(x0 + 16, y0 + 9, 6, 0, 6.283); ctx.fill();
+  ctx.fillStyle = '#b0ffb0';
+  ctx.beginPath(); ctx.arc(x0 + 16, y0 + 9, 3, 0, 6.283); ctx.fill();
+};
+
 // --- barrel painter ---
 PAINTERS.barrel = (ctx, x0, y0, rng) => {
   const S = TILE;
