@@ -152,9 +152,24 @@ function shapeOf(b, fx) {
   return [0, 1];
 }
 
+const SPAWN_X = WW >> 1;
+function surfaceRaw(x) {
+  let n = Math.sin(x * 0.045) * 4 + Math.sin(x * 0.11 + 1.7) * 3
+        + Math.sin(x * 0.016 + 3.1) * 6 + (hash2(x, 7) - 0.5) * 3;
+  // occasional craggy outcrops
+  if (hash2(x >> 2, 31) < 0.12) n += 5;
+  return n;
+}
 function surfaceH(x) {
-  const n = Math.sin(x * 0.045) * 4 + Math.sin(x * 0.11 + 1.7) * 3 + (hash2(x, 7) - 0.5) * 4;
-  return Math.round(38 + n);
+  const h = Math.round(38 + surfaceRaw(x));
+  // flatten a pad around spawn so you don't start on a cliff
+  const d = Math.abs(x - SPAWN_X);
+  if (d < 12) {
+    const base = Math.round(38 + surfaceRaw(SPAWN_X));
+    const t = d / 12, s = t * t * (3 - 2 * t);
+    return Math.round(base + (h - base) * s);
+  }
+  return h;
 }
 function genWorld(s) {
   tiles = new Uint8Array(WW * WH);
@@ -170,9 +185,9 @@ function genWorld(s) {
       const depth = y - h;
       const r = hash2(x * 3 + 1, y * 5 + 2);
       if (b === BLOCK.STONE) {
-        if (depth > 4 && r < 0.022) b = BLOCK.COAL_ORE;
-        else if (depth > 12 && r < 0.016) b = BLOCK.IRON_ORE;
-        else if (depth > 24 && r < 0.009) b = BLOCK.GOLD_ORE;
+        if (depth > 3 && r < 0.028) b = BLOCK.COAL_ORE;
+        else if (depth > 10 && r < 0.018) b = BLOCK.IRON_ORE;
+        else if (depth > 22 && r < 0.009) b = BLOCK.GOLD_ORE;
         else if (y > WH - 18 && r < 0.012) b = BLOCK.DIAMOND_ORE;
       }
       // sand pockets near low surface
@@ -196,21 +211,35 @@ function genWorld(s) {
       }
     }
   }
-  // trees
+  // trees (oak + birch, varied heights and canopies)
   for (let x = 4; x < WW - 4; x++) {
-    if (hash2(x, 1234) < 0.09) {
+    if (hash2(x, 1234) < 0.11) {
       const h = surfaceH(x);
       if (tiles[tidx(x, h)] !== BLOCK.GRASS) continue;
-      const th = 4 + Math.floor(hash2(x, 55) * 2);
-      for (let i = 1; i <= th; i++) tiles[tidx(x, h - i)] = BLOCK.WOOD;
-      for (let ax = -2; ax <= 2; ax++) for (let ay = -2; ay <= 1; ay++) {
-        if (Math.abs(ax) === 2 && ay === -2) continue;
-        if (Math.abs(ax) === 2 && ay === 1 && hash2(x + ax, ay) < 0.5) continue;
+      if (Math.abs(x - SPAWN_X) < 6) continue; // keep spawn pad clear
+      const birch = hash2(x, 4321) < 0.35;
+      const wood = birch ? BLOCK.BIRCH_WOOD : BLOCK.WOOD;
+      const leaf = birch ? BLOCK.BIRCH_LEAVES : BLOCK.LEAVES;
+      const th = 4 + Math.floor(hash2(x, 55) * 3);
+      for (let i = 1; i <= th; i++) tiles[tidx(x, h - i)] = wood;
+      const cr = hash2(x, 77) < 0.4 ? 3 : 2;
+      for (let ax = -cr; ax <= cr; ax++) for (let ay = -2; ay <= 1; ay++) {
+        if (Math.abs(ax) === cr && (ay === -2 || (ay === 1 && hash2(x + ax, ay) < 0.5))) continue;
         const bx = x + ax, by = h - th + ay;
         if (bx < 0 || bx >= WW || by < 0) continue;
-        if (tiles[tidx(bx, by)] === AIR) tiles[tidx(bx, by)] = BLOCK.LEAVES;
+        if (tiles[tidx(bx, by)] === AIR) tiles[tidx(bx, by)] = leaf;
       }
     }
+  }
+  // surface dressing: grass tufts + flowers on open grass
+  for (let x = 2; x < WW - 2; x++) {
+    const h = surfaceH(x);
+    if (tiles[tidx(x, h)] !== BLOCK.GRASS || tiles[tidx(x, h - 1)] !== AIR) continue;
+    const r = hash2(x, 777);
+    if (r < 0.10) tiles[tidx(x, h - 1)] = BLOCK.SHORT_GRASS;
+    else if (r < 0.16) tiles[tidx(x, h - 1)] = BLOCK.TALL_GRASS;
+    else if (r < 0.185) tiles[tidx(x, h - 1)] = BLOCK.FLOWER_RED;
+    else if (r < 0.21) tiles[tidx(x, h - 1)] = BLOCK.FLOWER_YELLOW;
   }
 }
 
@@ -288,7 +317,7 @@ function newPlayer(x, y) {
   };
 }
 function findSpawn() {
-  const cx = WW >> 1;
+  const cx = SPAWN_X;
   const h = surfaceH(cx);
   // Feet must be strictly ABOVE the surface top (smaller y = higher up).
   return { x: cx + 0.5, y: h + 0.9 };
@@ -325,13 +354,20 @@ function collideAxis(e, axis, stepUp) {
   // sink one row at a time.
   const y0 = Math.floor(minY) - (axis === 'y' ? 1 : 0), y1 = Math.floor(maxY);
   for (let cy = y0; cy <= y1; cy++) {
-    for (let cx = x0; cx <= x1; cx++) {
+    // Scan X in the direction of motion so wall pushes resolve against the
+    // contact cell — ascending order ejected movers backward through 2-thick
+    // walls (full-cell march-through bug).
+    const xFrom = (axis === 'x' && e.vx < 0) ? x1 : x0;
+    const xTo = (axis === 'x' && e.vx < 0) ? x0 : x1;
+    const xStep = xFrom <= xTo ? 1 : -1;
+    for (let cx = xFrom; (xStep > 0 ? cx <= xTo : cx >= xTo); cx += xStep) {
       const b = tileAt(cx, cy);
       const r = shapeOf(b, clamp((e.x - cx), 0, 0.999));
       if (!r) continue;
       const lo = r[0], hi = r[1];
       const top = cy + hi, bot = cy + lo;
       if (axis === 'x') {
+        if (e.vx === 0) continue; // resting contact: nothing to resolve
         if (minY >= top - 0.001 || maxY <= bot + 0.001) continue;
         // step-up assist for slabs/stairs: only on genuine penetration
         // (more than push-margin slop, so merely touching a slab beside you
@@ -352,6 +388,7 @@ function collideAxis(e, axis, stepUp) {
         else if (e.vx < 0) e.x = cx + 1 + e.w / 2 + 0.001;
         e.vx = 0;
         e.bumped = true;
+        return true; // resolved against contact cell: stop, bounds are stale
           } else {
             if (maxX <= cx || minX >= cx + 1) continue;
             if (e.vy >= 0) {
@@ -371,6 +408,7 @@ function collideAxis(e, axis, stepUp) {
           }
     }
   }
+  return false;
 }
 
 // ---------- input ----------
@@ -1121,7 +1159,6 @@ function draw() {
   g.addColorStop(1, skyBot);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
-  window.__skyN = (window.__skyN || 0) + 1;
   // sun/moon
   const sunA = dayT * Math.PI * 2;
   const sx = W * 0.5 + Math.cos(sunA) * W * 0.4;
@@ -1157,7 +1194,6 @@ function draw() {
       const px = x * TS + ox, py = y * TS + oy;
       const pair = doubles[x + ',' + y];
       if (pair) { drawDoubleSlab(pair, px, py); continue; }
-      window.__tileN = (window.__tileN || 0) + 1;
       drawBlockTile(b, px, py);
     }
   }
@@ -1267,7 +1303,9 @@ function drawPlayer(ox, oy) {
   ctx.fillRect(bx + (f > 0 ? 1 : -5), by - 56, 4, 4);
 }
 function drawMob(m, ox, oy) {
-  const px = m.x * TS + ox, py = m.y * TS + oy;
+  let px = m.x * TS + ox, py = m.y * TS + oy;
+  // idle life: passives breathe (visual only — hitbox untouched)
+  if (!MOB_DEFS[m.type].hostile) py += Math.sin(m.t * 3 + m.x * 1.7) * 1.5;
   const blink = m.flash > 0 && Math.floor(elapsed * 20) % 2 === 0;
   const X = (lx, w) => px + (m.dir >= 0 ? lx : -lx - w);
   const PXS = 32; // pixels per tile for sprite scale (1 tile = 32px)
@@ -1312,10 +1350,14 @@ function drawMob(m, ox, oy) {
     ctx.fillStyle = '#f5f0e5';
     ctx.fillRect(px - 5, py - 50, 10, 2); // teeth
   } else if (m.type === 'spider') {
-    // violet #4a2a5a, magenta eyes, fangs
-    ctx.fillStyle = '#2a2a2a';
+    // violet #4a2a5a, magenta eyes, fangs — 3 long jointed legs per side
+    ctx.strokeStyle = '#2a1630';
+    ctx.lineWidth = 3;
     for (let li = -1; li <= 1; li++) {
-      ctx.fillRect(px - 18, py - 22 + li * 8, 36, 2);
+      const hx = px + m.dir * 2, hy = py - 16 + li * 8;
+      const kx = px - m.dir * 10, ky = py - 26 + li * 9;
+      const fx = px - m.dir * 20, fy = py - 6 + li * 6;
+      ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
     }
     ctx.fillStyle = '#4a2a5a';
     ctx.beginPath(); ctx.ellipse(px, py - 14, 16, 10, 0, 0, 6.283); ctx.fill();
@@ -1398,6 +1440,11 @@ function drawMob(m, ox, oy) {
     ctx.beginPath(); ctx.arc(px + (m.dir >= 0 ? 12 : -12), py - 20, 3, 0, 6.283); ctx.fill(); // wattle
     ctx.fillStyle = '#111';
     ctx.fillRect(px + (m.dir >= 0 ? 8 : -14), py - 29, 3, 3); // eye
+  }
+  // soft contact shadow grounds every mob (only when standing on something)
+  if (m.onGround && !m.dead) {
+    ctx.fillStyle = 'rgba(0,0,0,0.28)';
+    ctx.beginPath(); ctx.ellipse(px, py + 1, m.w * 16, 4, 0, 0, 6.283); ctx.fill();
   }
   ctx.restore();
   void PXS;

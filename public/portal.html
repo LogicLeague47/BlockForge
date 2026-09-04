@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: 'ec43395',
+          heading: 'PaperForge models, worldgen + Safari sound',
+          desc: 'Grounded every mob with contact shadows, gave the spider long jointed legs, passives breathe at idle; worldgen adds hills, birch/oak, flowers, richer ores and a flat spawn; all 494 SFX now ship MP3 twins so Safari/Apple devices hear real samples instead of synth.',
+          date: 'Sep 4',
+          bugs: ['spider read as a purple blob (stub legs)', 'mobs looked floaty/unplanted', 'spawn could start you on a cliff edge', 'Safari cannot decode Vorbis so SFX silently failed'],
+          updates: ['contact shadows + idle breathing + jointed spider legs', 'hills/outcrops, birch + oak, tufts/flowers, richer ores, spawn pad', 'ogg decode failure falls back to mp3 twin'],
+          features: [],
+        },
+        {
           hash: '79beb99',
           heading: 'PaperForge collision + seams fix',
           desc: 'Fixed walking through walls (step-up now needs real penetration and checks the full head column), tile seam hairlines (pixel-snapped camera), caves showing sky (depth darkness), and off-center mobile buttons.',

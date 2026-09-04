@@ -284,11 +284,19 @@ export class AudioManager {
         || f.startsWith('interface_scroll') || f.startsWith('interface_error')
         || f.startsWith('interface_glass'))) continue;
       loaded++;
+      // Safari cannot decode Vorbis: fall back to the MP3 twin on decode
+      // failure so Apple devices get real samples, not just synth.
       fetch(`Sounds/${f}.ogg`)
         .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
         .then((buf) => this.ctx.decodeAudioData(buf))
         .then((ab) => { this.sfx[f] = ab; })
-        .catch(() => {});
+        .catch(() => {
+          fetch(`Sounds/${f}.mp3`)
+            .then((r) => (r.ok ? r.arrayBuffer() : Promise.reject()))
+            .then((buf) => this.ctx.decodeAudioData(buf))
+            .then((ab) => { this.sfx[f] = ab; })
+            .catch(() => {});
+        });
     }
   }
 
