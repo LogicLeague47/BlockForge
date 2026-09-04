@@ -25,10 +25,10 @@ var STAR_Audio = (function() {
   try { musicOn = localStorage.getItem('starfall_mute') !== '1'; } catch (e) {}
   function track(name) {
     if (name === 'menu') {
-      if (!musicMenu) { musicMenu = new Audio('assets/music/menu.mp3'); musicMenu.loop = true; musicMenu.volume = 0.5; }
+      if (!musicMenu) { musicMenu = new Audio('assets/music/menu.mp3?v=4'); musicMenu.loop = true; musicMenu.volume = 0.5; }
       return musicMenu;
     }
-    if (!musicGame) { musicGame = new Audio('assets/music/game.mp3'); musicGame.loop = true; musicGame.volume = 0.45; }
+    if (!musicGame) { musicGame = new Audio('assets/music/game.mp3?v=4'); musicGame.loop = true; musicGame.volume = 0.45; }
     return musicGame;
   }
   function playMusic(name) {
