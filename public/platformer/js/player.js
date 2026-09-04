@@ -50,11 +50,11 @@ window.STALE_Player = {
       if(g.spawnRing) g.spawnRing(this.x+this.w/2,this.y+this.h,'#fff');
     }
     this.wasAir=!this.onGround;
-    // mold burns! side/head contact hurts (standing on top is safe)
+    // mold burns! ANY contact hurts — scrub it, don't hug it
     if(this.inv<=0 && !this.dead){
       const touch={x:this.x-2,y:this.y-2,w:this.w+4,h:this.h+4};
       for(const m of g.moldWalls){
-        if(this.overlap(touch,m) && (this.y+this.h) > m.y+14){
+        if(this.overlap(touch,m)){
           this.face = (this.x+this.w/2 < m.x+m.w/2) ? 1 : -1; // face it, hurt() knocks us away
           this.hurt(g);
           break;

@@ -282,12 +282,14 @@ window.STALE_Game = {
     if(st.after) st.after(tc); else st.appendChild(tc);
     const on=(id,down,up)=>{
       const el=document.getElementById(id);
-      el.addEventListener('touchstart',e=>{e.preventDefault();STALE_Audio.init();down();},{passive:false});
-      el.addEventListener('touchend',e=>{e.preventDefault();if(up)up();});
+      // mobile browsers fire a synthetic mousedown after touchend — ignore mouse
+      // input for a beat after any touch so one tap never triggers twice
+      el.addEventListener('touchstart',e=>{e.preventDefault();this._lastTouch=Date.now();STALE_Audio.init();down();},{passive:false});
+      el.addEventListener('touchend',e=>{e.preventDefault();this._lastTouch=Date.now();if(up)up();});
       el.addEventListener('touchcancel',()=>{if(up)up();});
       el.addEventListener('pointercancel',()=>{if(up)up();});
-      el.addEventListener('mousedown',e=>{e.preventDefault();STALE_Audio.init();down();});
-      el.addEventListener('mouseup',e=>{e.preventDefault();if(up)up();});
+      el.addEventListener('mousedown',e=>{if(Date.now()-(this._lastTouch||0)<600)return;e.preventDefault();STALE_Audio.init();down();});
+      el.addEventListener('mouseup',e=>{if(Date.now()-(this._lastTouch||0)<600)return;e.preventDefault();if(up)up();});
       el.addEventListener('mouseleave',()=>{if(up)up();});
     };
     on('t-l',()=>this.keys.left=true,()=>this.keys.left=false);
