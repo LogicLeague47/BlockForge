@@ -334,22 +334,24 @@ function cellsOverlap(e) {
   const y0 = Math.floor(e.y), y1 = Math.floor(e.y + e.h);
   return { x0, x1, y0, y1 };
 }
-function moveBody(e, dt, stepUp) {
+function moveBody(e, dt, stepMax) {
+  // stepMax = highest ledge this body auto-steps onto: player 0.55 (slabs),
+  // mobs 1.01 (exactly one block, like the OG game — never higher).
   const steps = Math.max(1, Math.ceil((Math.abs(e.vy) * dt) / 0.35));
   const sdt = dt / steps;
   for (let s = 0; s < steps; s++) {
     e.py = e.y;
     e.x += e.vx * sdt;
     // true = teleported by step-up; stale bounds, stop this substep
-    if (collideAxis(e, 'x', stepUp)) break;
+    if (collideAxis(e, 'x', stepMax)) break;
     // +y is DOWN-screen: gravity pulls down, jump pushes up (negative)
     e.vy = Math.min(e.vy + GRAV * sdt, 22);
     e.y += e.vy * sdt;
     e.onGround = false;
-    collideAxis(e, 'y', stepUp);
+    collideAxis(e, 'y', stepMax);
   }
 }
-function collideAxis(e, axis, stepUp) {
+function collideAxis(e, axis, stepMax) {
   // One convention everywhere: e.y = TOP of hitbox, +y = down-screen.
   // A solid shape in cell (cx,cy) spans [cy+lo, cy+hi] from the cell's top
   // edge. Stand surface = up-screen edge (cy+lo); head-bump = down edge.
@@ -379,7 +381,7 @@ function collideAxis(e, axis, stepUp) {
         // but only with free headroom at the destination.
         const overlapX = Math.min(maxX, cx + 1) - Math.max(minX, cx);
         const stepH = maxY - surf;
-        if (stepUp && overlapX > 0.08 && stepH > 0 && stepH <= 0.55) {
+        if (stepMax > 0 && overlapX > 0.08 && stepH > 0 && stepH <= stepMax) {
           const ny = surf - e.h - 0.001;
           let free = true;
           for (let ry = Math.floor(ny); ry <= Math.floor(ny + e.h); ry++) {
@@ -747,16 +749,17 @@ function tickMobs(dt, night) {
     } else if (aggro) {
       m.dir = Math.sign(dx) || 1;
       m.vx = m.dir * d.spd;
-      if (m.bumped) { m.vy = -8; m.bumped = false; }
-      if (d.jumpy && m.onGround && Math.random() < dt * 1.5) m.vy = -8;
+      // OG parity: NO bump-jumps. Mobs step exactly one block via moveBody
+      // and stay stopped at taller walls instead of chaining up them.
     } else if (!d.hostile) {
       if (Math.random() < dt * 0.25) m.dir *= -1;
       m.vx = m.dir * d.spd * 0.5;
-      if (m.bumped) { m.vy = -7; m.dir *= -1; m.bumped = false; }
+      if (m.bumped) { m.dir *= -1; m.bumped = false; }
     } else {
       m.vx *= 0.9;
     }
-    moveBody(m, dt, false);
+    m.bumped = false; // fresh each frame; set by X-collision inside moveBody
+    moveBody(m, dt, 1.01);
     // touch damage
     if (d.dmg > 0 && aggro && m.atkT <= 0 &&
         Math.abs(m.x - player.x) < (m.w + player.w) / 2 + 0.1 &&
@@ -1340,7 +1343,7 @@ function update(dt) {
   player.vx += ((want * SP) - player.vx) * Math.min(1, dt * 12);
   if (want !== 0) { player.face = want; player.walkPh += dt * 10; }
   player.py = player.y;
-  moveBody(player, dt, true);
+    moveBody(player, dt, 0.55);
   if (J && player.onGround) { player.vy = -10.5; player.onGround = false; Sfx.click(); }
   if (player.y < -2) { player.y = 2; player.vy = 0; }
   if (player.y > WH - 1) { player.y = WH - 2; player.vy = 0; }
@@ -1493,56 +1496,68 @@ function draw() {
 
 // ---------- entity drawing (BlockForge mob palettes, 2D side view) ----------
 function drawPlayer(ox, oy) {
-  // py = FEET (hitbox top + height); the sprite hangs up-screen from there.
+  // py = FEET; true Steve proportions scaled to the 1.75-tile hitbox:
+  // 21px legs + 21px torso + 14px head = 56px (OG HEAD/BODY/LEG = 8/12/12).
   const px = player.x * TS + ox, py = (player.y + player.h) * TS + oy;
   const blink = player.hurtT > 0 && Math.floor(elapsed * 12) % 2 === 0;
   if (blink) return;
-  const f = player.face;
-  const legSwing = (Math.abs(player.vx) > 0.5 && player.onGround) ? Math.sin(player.walkPh) * 6 : 0;
-  const bx = px, by = py; // feet
-  // legs (pants #2d3364) + shoes (#493828) — BlockForge Steve defaults
-  ctx.fillStyle = '#2d3364';
-  ctx.fillRect(bx - 7, by - 26 + Math.max(0, legSwing), 6, 22 - Math.max(0, legSwing));
-  ctx.fillRect(bx + 1, by - 26 + Math.max(0, -legSwing), 6, 22 - Math.max(0, -legSwing));
+  const f = player.face >= 0 ? 1 : -1;
+  const walking = Math.abs(player.vx) > 0.5 && player.onGround;
+  const stride = walking ? Math.sin(player.walkPh) * 6 : 0;
+  const mineSw = player.mineAnim > 0 ? Math.sin(player.mineAnim * 30) * 8 : 0;
+  const LEGH = 21, TORH = 21, HEADH = 14;
+  const legTop = py - LEGH, torTop = legTop - TORH, headTop = torTop - HEADH;
+  ctx.save();
+  ctx.translate(px, 0);
+  ctx.scale(f, 1); // draw facing right; mirror handles left
+  const limb = (x, y, w, h, dx, col) => {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.moveTo(x, y); ctx.lineTo(x + w, y);
+    ctx.lineTo(x + w + dx, y + h); ctx.lineTo(x + dx, y + h);
+    ctx.closePath(); ctx.fill();
+  };
+  // far leg (darker, opposite phase, set back)
+  limb(-7, legTop, 5, LEGH, -stride, '#23294f');
+  ctx.fillStyle = '#3a2c1e';
+  ctx.fillRect(-8 - stride, py - 4, 7, 4); // far shoe
+  // far arm (dark sleeve, swings with the near leg)
+  limb(1, torTop + 3, 5, 15, -stride * 0.7, '#17708f');
+  // near leg + shoe (feet stay flat while the leg slants)
+  limb(-4, legTop, 5, LEGH, stride, '#2d3364');
   ctx.fillStyle = '#493828';
-  ctx.fillRect(bx - 7, by - 4 + Math.max(0, legSwing), 6, 4 - Math.max(0, Math.min(4, legSwing)));
-  ctx.fillRect(bx + 1, by - 4 + Math.max(0, -legSwing), 6, 4 - Math.max(0, Math.min(4, -legSwing)));
-  // shirt (#1d8db5)
+  ctx.fillRect(-5 + stride, py - 4, 7, 4); // near shoe
+  // torso + back shade + collar
   ctx.fillStyle = '#1d8db5';
-  ctx.fillRect(bx - 9, by - 48, 18, 24);
+  ctx.fillRect(-7, torTop, 14, TORH);
   ctx.fillStyle = '#17708f';
-  ctx.fillRect(bx - 9, by - 48, 18, 3);
-  // armor tint
-  try {
-    const am = armorInfo;
-    void am;
-  } catch (e) {}
-  // arm (swings while mining)
-  const sw = player.mineAnim > 0 ? Math.sin(player.mineAnim * 30) * 8 : (Math.abs(player.vx) > 0.5 ? -Math.sin(player.walkPh) * 5 : 0);
-  ctx.fillStyle = '#1d8db5';
-  ctx.fillRect(bx + f * 9 - 3, by - 46 + sw, 6, 18);
+  ctx.fillRect(-7, torTop, 2, TORH);
+  ctx.fillRect(-7, torTop, 14, 2);
+  // near arm: sleeve + skin hand (mining swing overrides the walk swing)
+  const aSw = mineSw !== 0 ? mineSw : -stride;
+  limb(2, torTop + 3, 5, 11, aSw * 0.8, '#1d8db5');
+  const handX = 4.5 + aSw * 0.8, handY = torTop + 14;
   ctx.fillStyle = '#c0906a';
-  ctx.fillRect(bx + f * 9 - 3, by - 32 + sw, 6, 4); // hand
-  // held item icon
+  ctx.fillRect(handX - 2.5 + aSw * 0.2, handY, 5, 4);
+  // held item at the hand
   const slot = inv.slots[inv.selected];
   if (slot) {
     const ic = iconFor(slot.item);
-    ctx.drawImage(ic, bx + f * 12 - 8, by - 44 + sw * 1.4, 16, 16);
+    ctx.drawImage(ic, handX - 8 + aSw * 0.2, handY - 10, 16, 16);
   }
   // head + hair + face (skin #c0906a, hair #3b2210)
   ctx.fillStyle = '#c0906a';
-  ctx.fillRect(bx - 7, by - 62, 14, 14);
+  ctx.fillRect(-7, headTop, 14, HEADH);
   ctx.fillStyle = '#3b2210';
-  ctx.fillRect(bx - 7, by - 62, 14, 5);
-  ctx.fillRect(bx - 7, by - 62, 3, 14);
-  // white eye + blue pupil (side view: near-side eye only)
-  const ex = bx + (f > 0 ? 0 : -6);
+  ctx.fillRect(-7, headTop, 14, 5);
+  ctx.fillRect(-7, headTop, 3, HEADH); // back hair
   ctx.fillStyle = '#fff';
-  ctx.fillRect(ex, by - 56, 5, 4);
+  ctx.fillRect(0, headTop + 6, 5, 4); // eye white
   ctx.fillStyle = '#263694';
-  ctx.fillRect(ex + (f > 0 ? 2 : 1), by - 55, 2, 3);
+  ctx.fillRect(2, headTop + 7, 2, 3); // pupil
   ctx.fillStyle = '#6b4330';
-  ctx.fillRect(bx + (f > 0 ? 0 : -4), by - 50, 4, 1); // mouth
+  ctx.fillRect(0, headTop + 11, 4, 1); // mouth
+  ctx.restore();
 }
 function drawMob(m, ox, oy) {
   // py = FEET (hitbox top + height); the sprite hangs up-screen from there.
