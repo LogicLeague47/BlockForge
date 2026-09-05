@@ -17,7 +17,6 @@
   <div id="hotbar"></div>
   <div id="hud-btns">
     <button id="btn-inv" aria-label="Inventory">🎒</button>
-    <button id="btn-craft" aria-label="Crafting">🔨</button>
     <button id="btn-mode" aria-label="Mine or place">⛏</button>
     <button id="btn-pause" aria-label="Pause">⏸</button>
   </div>
@@ -28,24 +27,33 @@
   </div>
 </div>
 
-<!-- Crafting panel -->
-<div id="screen-craft" class="screen hidden panel">
-  <h2>🔨 Crafting</h2>
-  <div id="craft-wrap">
-    <div id="craft-grid"></div>
-    <div id="craft-arrow">➡</div>
-    <div id="craft-out"></div>
+<!-- Inventory (OG BlockForge layout: armor + crafting + 36 slots) -->
+<div id="screen-inv" class="screen hidden">
+  <div id="inv-panel">
+    <div id="inv-head">
+      <span id="inv-title">INVENTORY</span>
+      <span id="inv-grid-label">CRAFTING 2×2</span>
+      <button id="btn-sort-inv">SORT</button>
+      <button id="btn-inv-close">✕ CLOSE</button>
+    </div>
+    <div id="inv-layout">
+      <div id="inv-left">
+        <div class="inv-label">ARMOR</div>
+        <div id="inv-armor"></div>
+        <div class="inv-label">OFF HAND</div>
+        <div id="inv-offhand"></div>
+      </div>
+      <div id="inv-right">
+        <div id="inv-craft-area">
+          <div id="craft-grid"></div>
+          <div id="craft-arrow">➡</div>
+          <div id="craft-out"></div>
+        </div>
+        <div id="inv-grid"></div>
+      </div>
+    </div>
+    <div class="hint">Left-click: pick up / place · Right-click: place 1 / take half · Shift-click: quick move · Double-click: collect · TAB closes</div>
   </div>
-  <div class="hint">Click a grid cell to move the held stack · click output to craft</div>
-  <button id="btn-craft-close">Close</button>
-</div>
-
-<!-- Inventory panel -->
-<div id="screen-inv" class="screen hidden panel">
-  <h2>🎒 Inventory</h2>
-  <div id="inv-grid"></div>
-  <div class="hint">Click food to eat one</div>
-  <button id="btn-inv-close">Close</button>
 </div>
 
 <!-- Main menu -->
@@ -66,9 +74,9 @@
 <!-- How to -->
 <div id="screen-how" class="screen hidden panel">
   <h2>✦ How to play</h2>
-  <p><b>PC:</b> A/D or ◀/▶ move · Space/W jump · 1-9 select · <b>hold Left-click</b> to mine/attack · <b>Right-click</b> to place · E eats held food.</p>
-  <p><b>Mobile:</b> ◀ ▶ ▲ buttons · tap ⛏/🧱 to switch mine/place · touch &amp; hold blocks.</p>
-  <p>Chop wood → planks → sticks → pickaxes. Stone and ores need a pickaxe or they drop nothing. Coal + sticks = torches. Crafting uses the real 3×3 recipes. Click food in your inventory to eat. Zombies burn at sunrise — light up your base!</p>
+  <p><b>PC:</b> A/D or ◀/▶ move · Space/W jump · 1-9 select · <b>hold Left-click</b> to mine/attack · <b>Right-click</b> to place / eat held food · <b>Right-click a workbench</b> for 3×3 crafting · E inventory · F offhand · TAB closes panels.</p>
+  <p><b>Mobile:</b> ◀ ▶ ▲ buttons · tap ⛏/🧱 to switch mine/place · touch &amp; hold blocks · tap a workbench in 🧱 mode for 3×3 crafting.</p>
+  <p>Chop wood → planks → sticks → pickaxes. 4 planks = workbench for 3×3 recipes. Stone and ores need a pickaxe or they drop nothing. Coal + sticks = torches. Zombies burn at sunrise — light up your base!</p>
   <button id="btn-how-back">← Back</button>
 </div>
 

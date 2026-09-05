@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '971c0ef',
+          heading: 'PaperForge inventory works like the OG now',
+          desc: 'Rebuilt the inventory screen to mirror BlockForge: MC-grey panels, armor + offhand column, 36 slots with hotbar numbers, cursor stack with count, and full OG mouse rules. The crafting button is gone — craft 4 planks into a workbench in the 2×2 grid, place it, right-click it for 3×3, right-click food to eat.',
+          date: 'Sep 5',
+          bugs: ['inventory looked and behaved nothing like the OG game', 'crafting lived behind a magic button instead of a workbench', 'clicking food in a menu ate it (not OG)', 'no offhand, no quick-move, no place-1/take-half'],
+          updates: ['left/right/shift/double-click slot rules, cursor stack, SORT, tooltips, hotbar numbers, F offhand swap'],
+          features: ['workbench block craftable (2×2) and placeable, right-click opens 3×3', 'right-click eats held/offhand food when hungry'],
+        },
+        {
           hash: '7603707',
           heading: 'PaperForge collision rewrite + true 3D textures',
           desc: 'Root-caused the sinking: physics buried everything exactly 1 tile (landing forgot to subtract body height, sprites anchored at the wrong end, slabs/stairs collision was vertically flipped). Rewrote to one consistent convention, matched every mob and Steve to the exact 3D-game palette and features.',

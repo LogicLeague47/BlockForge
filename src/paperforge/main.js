@@ -4,7 +4,7 @@
 // tiles.js (atlas painters), blocks.js (ids/defs/drops), items.js,
 // recipes.js + crafting.js (CraftingGrid), inventory.js (Inventory),
 // ui.js (makeItemIconCanvas for non-block items).
-import { BLOCK, BLOCKS, blockDrop, blockHardness, TILES, tileNameFor, SLAB_TO_FULL, slabVariantFor, stairVariantFor } from '../blocks.js';
+import { BLOCK, BLOCKS, blockDrop, blockHardness, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, slabVariantFor, stairVariantFor } from '../blocks.js';
 import { ITEM, itemDef, itemName, maxStack, isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, foodValue, ARMOR, armorInfo, totalArmorDefense } from '../items.js';
 import { buildAtlas, makeIcon, TILE } from '../tiles.js';
 import { makeItemIconCanvas } from '../ui.js';
@@ -304,7 +304,8 @@ let camX = 0, camY = 0;
 let dayT = 0.15, elapsed = 0, daysSurvived = 0, wasNight = false;
 let torches = [];
 let inv = new Inventory();
-let craft = new CraftingGrid(3);
+let craft = new CraftingGrid(2);
+let craftSize = 2; // 2 = inventory grid, 3 = crafting-table grid (like the OG game)
 let cursor = null;
 let selectedBeforeCraft = 0;
 let mineTarget = null, mineProg = 0, mineCooldown = 0;
@@ -424,9 +425,17 @@ window.addEventListener('keydown', (e) => {
   keys[e.code] = true;
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
+  if (e.code === 'Tab' && state === 'play') { e.preventDefault(); if (modalOpen) closeModals(); }
+  if (e.code === 'KeyF' && state === 'play' && !modalOpen) {
+    // OG swap: selected hotbar slot <-> offhand
+    const s = inv.slots[inv.selected];
+    inv.slots[inv.selected] = inv.offhand;
+    inv.offhand = s;
+    buildHotbar(); Sfx.click();
+  }
   if ((e.code === 'KeyE' || e.code === 'KeyI') && state === 'play') {
     if (modalOpen) closeModals();
-    else openInv();
+    else openInv(2);
   }
   if (e.code >= 'Digit1' && e.code <= 'Digit9') { inv.selected = +e.code.slice(5) - 1; buildHotbar(); }
 });
@@ -525,10 +534,38 @@ function breakBlock(x, y) {
   Sfx.break();
   burst(x + 0.5, y + 0.5, BLOCKS[b] ? [0.5, 0.5, 0.5] : [0.5, 0.5, 0.5]);
 }
+function tryEat(stack) {
+  // OG rule: right-click with food eats it, but only when hungry.
+  if (!stack || foodValue(stack.item) <= 0) return false;
+  if (player.hp >= player.maxhp) return false;
+  player.hp = Math.min(player.maxhp, player.hp + foodValue(stack.item));
+  stack.count--;
+  Sfx.eat(); updateHearts();
+  return true;
+}
 function tryPlaceAt(sx, sy) {
-  const slot = inv.slots[inv.selected];
-  if (!slot) return;
+  if (modalOpen) return;
   const c = screenToCell(sx, sy);
+  const tb = tileAt(c.x, c.y);
+  // OG: right-clicking a workbench opens the 3x3 crafting screen.
+  if (isCraftingTable(tb)) {
+    if (Math.hypot(c.x + 0.5 - player.x, c.y + 0.5 - player.y) <= 7) openInv(3);
+    return;
+  }
+  const slot = inv.slots[inv.selected];
+  if (!slot) {
+    // empty hand: offhand food still eats (like the OG game)
+    if (inv.offhand && tryEat(inv.offhand)) {
+      if (inv.offhand.count <= 0) inv.offhand = null;
+      buildHotbar();
+    }
+    return;
+  }
+  if (tryEat(slot)) {
+    if (slot.count <= 0) inv.slots[inv.selected] = null;
+    buildHotbar();
+    return;
+  }
   if (tileAt(c.x, c.y) !== AIR) {
     // slab merge: used on a slab cell?
     const tb = tileAt(c.x, c.y);
@@ -774,6 +811,26 @@ function iconInto(parent, id, size) {
 function buildHotbar() {
   const hb = el('hotbar');
   hb.innerHTML = '';
+  // offhand mini-slot beside the hotbar (OG shows it too)
+  const oh = document.createElement('div');
+  oh.className = 'slot';
+  oh.id = 'offhand-hud';
+  oh.title = 'Off Hand (F to swap)';
+  if (inv.offhand) {
+    iconInto(oh, inv.offhand.item, 22);
+    if (inv.offhand.count > 1) {
+      const c = document.createElement('div');
+      c.className = 'count'; c.textContent = inv.offhand.count;
+      oh.appendChild(c);
+    }
+  }
+  oh.addEventListener('click', () => {
+    const s = inv.slots[inv.selected];
+    inv.slots[inv.selected] = inv.offhand;
+    inv.offhand = s;
+    buildHotbar(); Sfx.click();
+  });
+  hb.appendChild(oh);
   for (let i = 0; i < 9; i++) {
     const s = inv.slots[i];
     const d = document.createElement('div');
@@ -797,134 +854,313 @@ function buildHotbar() {
       }
     }
     d.addEventListener('click', () => { inv.selected = i; buildHotbar(); Sfx.click(); });
+    const n = document.createElement('div');
+    n.className = 'num'; n.textContent = i + 1;
+    d.appendChild(n);
     hb.appendChild(d);
   }
 }
 let cursorEl = null;
 function cursorIcon() {
   if (!cursorEl) {
-    cursorEl = document.createElement('canvas');
+    cursorEl = document.createElement('div');
     cursorEl.id = 'cursor-stack';
-    cursorEl.width = 32; cursorEl.height = 32;
     document.body.appendChild(cursorEl);
   }
-  const g = cursorEl.getContext('2d');
-  g.clearRect(0, 0, 32, 32);
+  cursorEl.innerHTML = '';
   if (cursor) {
     const ic = iconFor(cursor.item);
-    g.drawImage(ic, 0, 0, 32, 32);
+    ic.style.width = '32px'; ic.style.height = '32px';
+    ic.style.imageRendering = 'pixelated';
+    cursorEl.appendChild(ic);
+    if (cursor.count > 1) {
+      const c = document.createElement('div');
+      c.className = 'cur-count'; c.textContent = cursor.count;
+      cursorEl.appendChild(c);
+    }
     cursorEl.style.display = 'block';
   } else cursorEl.style.display = 'none';
 }
 window.addEventListener('mousemove', (e) => {
   if (cursorEl) { cursorEl.style.left = (e.clientX + 12) + 'px'; cursorEl.style.top = (e.clientY + 12) + 'px'; }
 });
-function renderCraft() {
-  const grid = el('craft-grid');
-  grid.innerHTML = '';
-  for (let i = 0; i < 9; i++) {
-    const d = document.createElement('div');
-    d.className = 'inv-slot craft-cell';
-    const s = craft.grid[i];
-    if (s) {
-      iconInto(d, s.item, 34);
-      if (s.count > 1) {
-        const c = document.createElement('div');
-        c.className = 'count'; c.textContent = s.count;
-        d.appendChild(c);
-      }
-    }
-    d.addEventListener('click', () => {
-      if (!cursor) cursor = craft.takeCell(i);
-      else cursor = craft.putCell(i, cursor);
-      cursorIcon(); renderCraft(); Sfx.click();
-    });
-    grid.appendChild(d);
-  }
-  const out = el('craft-out');
-  out.innerHTML = '';
-  out.className = 'inv-slot craft-out';
-  const o = craft.output;
-  if (o) {
-    iconInto(out, o.id, 40);
-    const c = document.createElement('div');
-    c.className = 'count'; c.textContent = '×' + o.count;
-    out.appendChild(c);
-  }
-  out.onclick = () => {
-    const oo = craft.output;
-    if (!oo) return;
-    const cap = maxStack(oo.id);
-    if (!cursor) { cursor = { item: oo.id, count: 0 }; }
-    if (cursor.item !== oo.id || cursor.count + oo.count > cap) { Sfx.click(); return; }
-    // crafted tools/armor start at full durability, like the main game
-    if (cursor.count === 0) {
-      const od = itemDef(oo.id);
-      const maxD = od && (od.tool ? od.tool.maxDurability : od.armor ? od.armor.maxDurability : null);
-      if (maxD) cursor.durability = maxD;
-    }
-    cursor.count += oo.count;
-    craft.consumeIngredients();
-    cursorIcon(); renderCraft(); Sfx.craft();
-  };
+// ---------- inventory + crafting screen (mirrors the OG BlockForge UI) ----------
+// One screen: armor + offhand on the left, crafting grid + 36 slots right.
+// 2x2 grid from inventory, 3x3 at a workbench. Left-click moves stacks,
+// right-click places 1 / takes half, shift-click quick-moves, double-click
+// collects. Cursor stack follows the mouse, like the OG game.
+let lastClick = null;
+function freshStack(id, count) {
+  const def = itemDef(id);
+  const maxD = def && (def.tool ? def.tool.maxDurability : def.armor ? def.armor.maxDurability : null);
+  return { item: id, count, ...(maxD != null && maxD > 0 ? { durability: maxD } : {}) };
 }
-function renderInv() {
-  const grid = el('inv-grid');
-  grid.innerHTML = '';
-  // armor row (4) + main 36
+function afterSlotAction() { cursorIcon(); renderInvScreen(); buildHotbar(); }
+function mergeStacks(dst, src) {
+  // merge src into dst (same item); returns nothing, mutates both
+  const cap = maxStack(dst.item);
+  const add = Math.min(cap - dst.count, src.count);
+  dst.count += add; src.count -= add;
+}
+function renderInvScreen() {
+  // armor (left column, validated like the OG)
+  const names = ['Helmet', 'Chestplate', 'Leggings', 'Boots'];
+  const armorBox = el('inv-armor');
+  armorBox.innerHTML = '';
   for (let a = 0; a < 4; a++) {
     const d = document.createElement('div');
     d.className = 'inv-slot';
-    d.title = ['Helmet', 'Chestplate', 'Leggings', 'Boots'][a];
+    d.title = names[a];
     const s = inv.armor[a];
-    if (s) iconInto(d, s.item, 34);
-    d.addEventListener('click', () => {
-      const cur = inv.armor[a];
-      if (!cursor && cur) { cursor = cur; inv.armor[a] = null; }
-      else if (cursor && !cur) {
-        const ai = armorInfo(cursor.item);
-        if (ai && ai.slotIdx === a) { inv.armor[a] = { item: cursor.item, count: 1 }; cursor.count--; if (cursor.count <= 0) cursor = null; }
-        else { inv.armor[a] = cursor; cursor = cur; }
-      } else if (cursor && cur) { inv.armor[a] = cursor; cursor = cur; }
-      cursorIcon(); renderInv(); buildHotbar(); Sfx.click();
-    });
+    if (s) { iconInto(d, s.item, 32); }
+    else { const n = document.createElement('div'); n.className = 'armor-name'; n.textContent = names[a]; d.appendChild(n); }
+    d.addEventListener('click', () => armorClick(a));
+    d.addEventListener('contextmenu', (e) => e.preventDefault());
+    armorBox.appendChild(d);
+  }
+  // offhand (accepts anything, like the OG)
+  const ohBox = el('inv-offhand');
+  ohBox.innerHTML = '';
+  {
+    const d = document.createElement('div');
+    d.className = 'inv-slot';
+    d.title = 'Off Hand';
+    if (inv.offhand) { iconInto(d, inv.offhand.item, 32); slotBadge(d, inv.offhand); }
+    else { const n = document.createElement('div'); n.className = 'armor-name'; n.textContent = 'Off Hand'; d.appendChild(n); }
+    d.addEventListener('click', () => offhandClick());
+    d.addEventListener('contextmenu', (e) => e.preventDefault());
+    ohBox.appendChild(d);
+  }
+  // crafting grid
+  el('inv-grid-label').textContent = craftSize > 2 ? 'CRAFTING 3×3' : 'CRAFTING 2×2';
+  const grid = el('craft-grid');
+  grid.style.gridTemplateColumns = `repeat(${craftSize},44px)`;
+  grid.innerHTML = '';
+  for (let i = 0; i < craftSize * craftSize; i++) {
+    const d = document.createElement('div');
+    d.className = 'inv-slot';
+    const s = craft.grid[i];
+    if (s) { iconInto(d, s.item, 32); slotBadge(d, s); d.title = itemName(s); }
+    d.addEventListener('click', (e) => clickSlot('craft', i, e.shiftKey));
+    d.addEventListener('contextmenu', (e) => { e.preventDefault(); craftRight(i); afterSlotAction(); Sfx.click(); });
     grid.appendChild(d);
   }
+  // output
+  const out = el('craft-out');
+  out.innerHTML = '';
+  out.className = 'inv-slot';
+  const o = craft.output;
+  if (o) { iconInto(out, o.id, 40); slotBadge(out, { count: o.count }); out.title = itemName(o.id); }
+  out.onclick = (e) => outputClick(e.shiftKey);
+  // 36 slots: 0-8 hotbar (numbered), separator, 9-35 main
+  const g = el('inv-grid');
+  g.innerHTML = '';
   for (let i = 0; i < 36; i++) {
+    if (i === 9) { const sep = document.createElement('div'); sep.className = 'sep'; g.appendChild(sep); }
     const d = document.createElement('div');
     d.className = 'inv-slot';
     const s = inv.slots[i];
-    if (s) {
-      iconInto(d, s.item, 34);
-      if (s.count > 1) {
-        const c = document.createElement('div');
-        c.className = 'count'; c.textContent = s.count;
-        d.appendChild(c);
-      }
-    }
-    d.addEventListener('click', () => {
-      const st = inv.slots[i];
-      // eat food on click
-      if (!cursor && st && foodValue(st.item) > 0) {
-        player.hp = Math.min(player.maxhp, player.hp + foodValue(st.item));
-        st.count--;
-        if (st.count <= 0) inv.slots[i] = null;
-        Sfx.eat(); renderInv(); buildHotbar(); updateHearts();
-        return;
-      }
-      if (!cursor && st) { cursor = st; inv.slots[i] = null; }
-      else if (cursor && !st) { inv.slots[i] = cursor; cursor = null; }
-      else if (cursor && st) {
-        if (st.item === cursor.item && st.count < maxStack(st.item)) {
-          const add = Math.min(maxStack(st.item) - st.count, cursor.count);
-          st.count += add; cursor.count -= add;
-          if (cursor.count <= 0) cursor = null;
-        } else { inv.slots[i] = cursor; cursor = st; }
-      }
-      cursorIcon(); renderInv(); buildHotbar(); Sfx.click();
-    });
-    grid.appendChild(d);
+    if (s) { iconInto(d, s.item, 32); slotBadge(d, s); d.title = itemName(s); }
+    if (i < 9) { const n = document.createElement('div'); n.className = 'num'; n.textContent = i + 1; d.appendChild(n); }
+    d.addEventListener('click', (e) => clickSlot('inv', i, e.shiftKey));
+    d.addEventListener('contextmenu', (e) => { e.preventDefault(); invRight(i); afterSlotAction(); Sfx.click(); });
+    g.appendChild(d);
   }
+}
+function slotBadge(d, s) {
+  if (s.count > 1) {
+    const c = document.createElement('div');
+    c.className = 'count'; c.textContent = s.count;
+    d.appendChild(c);
+  }
+}
+function copyStack(s) {
+  return s ? { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) } : null;
+}
+function clickSlot(kind, i, shift) {
+  // manual double-click detect: second fast click also collects (OG parity)
+  const now = performance.now();
+  const isDbl = lastClick && lastClick.kind === kind && lastClick.idx === i && now - lastClick.t < 350 && !shift;
+  lastClick = { kind, idx: i, t: now };
+  if (kind === 'inv') invLeft(i, shift);
+  else craftLeft(i);
+  if (isDbl) collectToCursor();
+  afterSlotAction(); Sfx.click();
+}
+function invLeft(i, shift) {
+  if (shift) { shiftMove(i); return; }
+  const st = inv.slots[i];
+  if (!cursor && st) { cursor = st; inv.slots[i] = null; }
+  else if (cursor && !st) { inv.slots[i] = cursor; cursor = null; }
+  else if (cursor && st) {
+    if (st.item === cursor.item && st.count < maxStack(st.item)) {
+      mergeStacks(st, cursor);
+      if (cursor.count <= 0) cursor = null;
+    } else { inv.slots[i] = cursor; cursor = st; }
+  }
+}
+function invRight(i) {
+  // OG: place 1 from cursor, or pick up half from the slot
+  if (cursor) {
+    const cur = inv.slots[i];
+    if (!cur) {
+      inv.slots[i] = { item: cursor.item, count: 1, ...(cursor.durability != null ? { durability: cursor.durability } : {}) };
+      cursor.count--;
+      if (cursor.count <= 0) cursor = null;
+    } else if (cur.item === cursor.item) {
+      if (cur.count < maxStack(cur.item)) {
+        cur.count++;
+        cursor.count--;
+        if (cursor.count <= 0) cursor = null;
+      }
+    } else {
+      const tmp = copyStack(cur);
+      inv.slots[i] = copyStack(cursor);
+      cursor = tmp;
+    }
+  } else {
+    const s = inv.slots[i];
+    if (!s) return;
+    const half = Math.ceil(s.count / 2);
+    cursor = { item: s.item, count: half, ...(s.durability != null ? { durability: s.durability } : {}) };
+    s.count -= half;
+    if (s.count <= 0) inv.slots[i] = null;
+  }
+}
+function craftLeft(i) {
+  if (!cursor) { const s = craft.takeCell(i); if (s) cursor = copyStack(s); }
+  else cursor = craft.putCell(i, cursor);
+  craft.refreshOutput();
+}
+function craftRight(i) {
+  // OG: place 1 from cursor, or pick up half from the cell
+  const cell = craft.grid[i];
+  if (!cursor) {
+    if (!cell) return;
+    const half = Math.ceil(cell.count / 2);
+    cursor = { item: cell.item, count: half, ...(cell.durability != null ? { durability: cell.durability } : {}) };
+    cell.count -= half;
+    if (cell.count <= 0) craft.grid[i] = null;
+  } else if (!cell) {
+    craft.grid[i] = { item: cursor.item, count: 1, ...(cursor.durability != null ? { durability: cursor.durability } : {}) };
+    cursor.count--;
+    if (cursor.count <= 0) cursor = null;
+  } else if (cell.item === cursor.item) {
+    if (cell.count < maxStack(cell.item)) {
+      cell.count++;
+      cursor.count--;
+      if (cursor.count <= 0) cursor = null;
+    }
+  } else {
+    const tmp = copyStack(cell);
+    craft.grid[i] = copyStack(cursor);
+    cursor = tmp;
+  }
+  craft.refreshOutput();
+}
+function outputClick(shift) {
+  const oo = craft.output;
+  if (!oo) return;
+  // OG: shift-click crafts straight into the inventory
+  if (shift) {
+    const left = inv.add(oo.id, oo.count);
+    if (left > 0) { Sfx.click(); return; }
+    craft.consumeIngredients();
+    afterSlotAction(); Sfx.craft();
+    return;
+  }
+  const cap = maxStack(oo.id);
+  if (cursor && (cursor.item !== oo.id || cursor.count + oo.count > cap)) { Sfx.click(); return; }
+  if (!cursor) cursor = freshStack(oo.id, oo.count);
+  else cursor.count += oo.count;
+  craft.consumeIngredients();
+  afterSlotAction(); Sfx.craft();
+}
+function collectToCursor() {
+  // OG double-click: gather same-type stacks from inventory + grid to cursor
+  if (!cursor) return;
+  const cap = maxStack(cursor.item);
+  for (let i = 0; i < 36 && cursor.count < cap; i++) {
+    const s = inv.slots[i];
+    if (s && s.item === cursor.item) {
+      const mv = Math.min(s.count, cap - cursor.count);
+      cursor.count += mv; s.count -= mv;
+      if (s.count <= 0) inv.slots[i] = null;
+    }
+  }
+  for (let i = 0; i < craft.grid.length && cursor.count < cap; i++) {
+    const s = craft.grid[i];
+    if (s && s.item === cursor.item) {
+      const mv = Math.min(s.count, cap - cursor.count);
+      cursor.count += mv; s.count -= mv;
+      if (s.count <= 0) craft.grid[i] = null;
+    }
+  }
+  craft.refreshOutput();
+}
+function shiftMove(i) {
+  // OG shift-click: armor auto-equips, else hotbar <-> main quick move
+  const s = inv.slots[i];
+  if (!s) return;
+  const def = itemDef(s.item);
+  if (def && def.armor) {
+    const idx = def.armor.slotIdx;
+    const prev = inv.armor[idx];
+    const equipDur = s.durability != null ? { durability: s.durability } : {};
+    inv.armor[idx] = { item: s.item, count: 1, ...equipDur };
+    if (prev) inv.slots[i] = { item: prev.item, count: 1, ...(prev.durability != null ? { durability: prev.durability } : {}) };
+    else if (s.count > 1) inv.slots[i] = { item: s.item, count: s.count - 1, ...equipDur };
+    else inv.slots[i] = null;
+    return;
+  }
+  const lo = i < 9 ? 9 : 0, hi = i < 9 ? 36 : 9;
+  let target = -1;
+  for (let j = lo; j < hi; j++) {
+    const d = inv.slots[j];
+    if (d && d.item === s.item && d.count < maxStack(s.item)) { target = j; break; }
+  }
+  if (target === -1) for (let j = lo; j < hi; j++) { if (!inv.slots[j]) { target = j; break; } }
+  if (target === -1) return;
+  const dest = inv.slots[target];
+  if (dest) {
+    mergeStacks(dest, s);
+    if (s.count <= 0) inv.slots[i] = null;
+  } else {
+    inv.slots[target] = copyStack(s);
+    inv.slots[i] = null;
+  }
+}
+function armorClick(a) {
+  // OG: only the matching armor piece equips; otherwise swap with equipped
+  const equipped = inv.armor[a];
+  if (cursor) {
+    const def = itemDef(cursor.item);
+    if (def && def.armor && def.armor.slotIdx === a) {
+      inv.armor[a] = { item: cursor.item, count: 1, ...(cursor.durability != null ? { durability: cursor.durability } : {}) };
+      if (equipped) cursor = { item: equipped.item, count: 1, ...(equipped.durability != null ? { durability: equipped.durability } : {}) };
+      else { cursor.count--; if (cursor.count <= 0) cursor = null; }
+    } else if (equipped) {
+      const tmp = copyStack(equipped);
+      inv.armor[a] = copyStack(cursor);
+      cursor = tmp;
+    }
+  } else if (equipped) {
+    cursor = copyStack(equipped);
+    inv.armor[a] = null;
+  }
+  afterSlotAction(); Sfx.click();
+}
+function offhandClick() {
+  // OG: anything goes in the offhand
+  if (cursor) {
+    const tmp = copyStack(inv.offhand);
+    inv.offhand = copyStack(cursor);
+    cursor = tmp;
+  } else if (inv.offhand) {
+    cursor = copyStack(inv.offhand);
+    inv.offhand = null;
+  }
+  afterSlotAction(); Sfx.click();
 }
 function updateHearts() {
   // NOTE: full heart uses U+2764 U+FE0F — bare ❤ renders BLACK on Apple.
@@ -993,7 +1229,8 @@ function startNew() {
     inv.add(ITEM.STONE_PICKAXE || 516, 1);
     inv.add(BLOCK.TORCH, 16);
   }
-  craft = new CraftingGrid(3);
+  craft = new CraftingGrid(2);
+  craftSize = 2;
   cursor = null;
   mobs = []; parts = []; floats = [];
   dayT = 0.1; elapsed = 0; daysSurvived = 0; wasNight = false;
@@ -1004,7 +1241,7 @@ function startNew() {
   enterPlay();
 }
 function enterPlay() {
-  ['screen-menu', 'screen-how', 'screen-dead', 'screen-pause', 'screen-craft', 'screen-inv'].forEach(hide);
+  ['screen-menu', 'screen-how', 'screen-dead', 'screen-pause', 'screen-inv'].forEach(hide);
   show('hud');
   state = 'play';
   Sfx.unlock();
@@ -1012,7 +1249,7 @@ function enterPlay() {
 function toMenu(save) {
   if (save && state === 'play') saveGame();
   state = 'menu';
-  ['screen-pause', 'screen-craft', 'screen-inv', 'screen-dead'].forEach(hide);
+  ['screen-pause', 'screen-inv', 'screen-dead'].forEach(hide);
   hide('hud');
   show('screen-menu');
   refreshMenu();
@@ -1040,22 +1277,7 @@ function respawn() {
   enterPlay();
 }
 function closeModals() {
-  let any = false;
-  for (const id of ['screen-craft', 'screen-inv']) {
-    if (!el(id).classList.contains('hidden')) { hide(id); any = true; }
-  }
-  if (any) {
-    // return crafting grid contents before dropping the flag
-    const left = craft.returnAll(inv);
-    if (cursor) {
-      const l = inv.add(cursor.item, cursor.count);
-      cursor = null;
-    }
-    cursorIcon();
-    buildHotbar();
-    modalOpen = false;
-  }
-  return any;
+  return closeInv();
 }
 function togglePause() {
   if (state !== 'play') return;
@@ -1533,48 +1755,47 @@ function drawMob(m, ox, oy) {
 
 // ---------- main loop ----------
 function modalAnyOpen() {
-  return !el('screen-craft').classList.contains('hidden')
-    || !el('screen-inv').classList.contains('hidden')
+  return !el('screen-inv').classList.contains('hidden')
     || state !== 'play';
 }
 
-function openCraft() {
+function openInv(size) {
+  // OG flow: E opens the inventory with a 2x2 grid; right-clicking a
+  // workbench opens the same screen with the 3x3 grid.
   if (state !== 'play') return;
+  size = size === 3 ? 3 : 2;
+  if (size !== craftSize) {
+    craft.returnAll(inv);
+    craft = new CraftingGrid(size);
+    craftSize = size;
+  }
   Sfx.click();
-  hide('screen-inv');
-  cursor = null; cursorIcon();
-  renderCraft();
-  show('screen-craft');
-  modalOpen = true;
-}
-function openInv() {
-  if (state !== 'play') return;
-  Sfx.click();
-  hide('screen-craft');
-  renderInv();
+  cursorIcon();
+  renderInvScreen();
   show('screen-inv');
   modalOpen = true;
 }
-document.getElementById('btn-craft').addEventListener('click', openCraft);
-document.getElementById('btn-inv').addEventListener('click', openInv);
-document.getElementById('btn-inv-close').addEventListener('click', () => {
+function closeInv() {
+  if (el('screen-inv').classList.contains('hidden')) return false;
+  hide('screen-inv');
+  // stow grid + cursor back into the inventory (like the OG)
+  craft.returnAll(inv);
   if (cursor) {
     inv.add(cursor.item, cursor.count);
-    cursor = null; cursorIcon();
+    cursor = null;
   }
+  cursorIcon();
   buildHotbar();
-  hide('screen-inv');
   modalOpen = false;
   Sfx.click();
+  return true;
+}
+document.getElementById('btn-inv').addEventListener('click', () => openInv(2));
+document.getElementById('btn-sort-inv').addEventListener('click', () => {
+  inv.sort();
+  renderInvScreen(); buildHotbar(); Sfx.click();
 });
-document.getElementById('btn-craft-close').addEventListener('click', () => {
-  const left = craft.returnAll(inv);
-  cursor = null; cursorIcon();
-  buildHotbar();
-  hide('screen-craft');
-  modalOpen = false;
-  Sfx.click();
-});
+document.getElementById('btn-inv-close').addEventListener('click', () => closeInv());
 document.getElementById('btn-mode').addEventListener('click', (e) => {
   placeMode = !placeMode;
   e.target.textContent = placeMode ? '🧱' : '⛏';
