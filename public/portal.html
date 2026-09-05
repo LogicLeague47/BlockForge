@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '7603707',
+          heading: 'PaperForge collision rewrite + true 3D textures',
+          desc: 'Root-caused the sinking: physics buried everything exactly 1 tile (landing forgot to subtract body height, sprites anchored at the wrong end, slabs/stairs collision was vertically flipped). Rewrote to one consistent convention, matched every mob and Steve to the exact 3D-game palette and features.',
+          date: 'Sep 5',
+          bugs: ['every entity stood buried exactly 1 tile deep', 'mobs spawned inside the ground', 'slab/stair collision flipped vs their rendering', 'head-bumps triggered from adjacent cells', 'cow head pink instead of TAN, sheep face tan instead of grey', 'skeleton had invented glow eyes', 'Steve shirt/pants/teal wrong, no shoes/eyes/mouth'],
+          updates: ['landing/head-bump/step-up rewritten around correct stand surfaces', 'spawns scan down from sky, land on top', 'cow spots + muzzle + horns, pig ears + snout, grey sheep face, red spider-eye cluster, dark skeleton sockets', 'Steve: #1d8db5 shirt, #2d3364 pants, shoes, white/blue eyes, mouth'],
+          features: [],
+        },
+        {
           hash: 'ec43395',
           heading: 'PaperForge models, worldgen + Safari sound',
           desc: 'Grounded every mob with contact shadows, gave the spider long jointed legs, passives breathe at idle; worldgen adds hills, birch/oak, flowers, richer ores and a flat spawn; all 494 SFX now ship MP3 twins so Safari/Apple devices hear real samples instead of synth.',

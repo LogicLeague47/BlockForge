@@ -138,15 +138,18 @@ function isSolid(b) {
   const d = BLOCKS[b];
   return !!(d && d.solid);
 }
-// Collision span [lo, hi] within a cell (mirrors the 3D hitbox rules).
+// Collision span [lo, hi] within a cell, measured from the TOP edge of the
+// cell (+y is down-screen, e.y is the TOP of a hitbox). Matches the 2D
+// renderer: top slabs draw in the up-screen half, bottom slabs down-screen;
+// stairs are full-height on their high side, bottom-half on the low side.
 function shapeOf(b, fx) {
   const d = BLOCKS[b];
   if (!d || !d.solid) return null;
-  if (d.slab) return d.slabTop ? [0.5, 1] : [0, 0.5];
+  if (d.slab) return d.slabTop ? [0, 0.5] : [0.5, 1];
   if (d.stair) {
     const dir = d.stairDir || 'south';
-    if (dir === 'east') return fx >= 0.5 ? [0, 1] : [0, 0.5];
-    if (dir === 'west') return fx < 0.5 ? [0, 1] : [0, 0.5];
+    if (dir === 'east') return fx >= 0.5 ? [0, 1] : [0.5, 1];
+    if (dir === 'west') return fx < 0.5 ? [0, 1] : [0.5, 1];
     return [0, 1];
   }
   return [0, 1];
@@ -319,8 +322,8 @@ function newPlayer(x, y) {
 function findSpawn() {
   const cx = SPAWN_X;
   const h = surfaceH(cx);
-  // Feet must be strictly ABOVE the surface top (smaller y = higher up).
-  return { x: cx + 0.5, y: h + 0.9 };
+  // e.y = TOP of hitbox: feet (y + 1.75) rest just above the surface row h.
+  return { x: cx + 0.5, y: h - 1.75 - 0.05 };
 }
 
 // ---------- physics (axis-separated AABB vs shape-aware tiles) ----------
@@ -346,12 +349,14 @@ function moveBody(e, dt, stepUp) {
   }
 }
 function collideAxis(e, axis, stepUp) {
+  // One convention everywhere: e.y = TOP of hitbox, +y = down-screen.
+  // A solid shape in cell (cx,cy) spans [cy+lo, cy+hi] from the cell's top
+  // edge. Stand surface = up-screen edge (cy+lo); head-bump = down edge.
   const minX = e.x - e.w / 2, maxX = e.x + e.w / 2;
   const minY = e.y, maxY = e.y + e.h;
   const x0 = Math.floor(minX), x1 = Math.floor(maxX);
-  // Include the cell below the feet for vertical sweeps: feet landing exactly
-  // on an integer top would otherwise exclude the ground cell next frame and
-  // sink one row at a time.
+  // Include the cell above the head for vertical sweeps so rising head-bumps
+  // register even when the head sits exactly on a cell boundary.
   const y0 = Math.floor(minY) - (axis === 'y' ? 1 : 0), y1 = Math.floor(maxY);
   for (let cy = y0; cy <= y1; cy++) {
     // Scan X in the direction of motion so wall pushes resolve against the
@@ -364,48 +369,48 @@ function collideAxis(e, axis, stepUp) {
       const b = tileAt(cx, cy);
       const r = shapeOf(b, clamp((e.x - cx), 0, 0.999));
       if (!r) continue;
-      const lo = r[0], hi = r[1];
-      const top = cy + hi, bot = cy + lo;
+      const surf = cy + r[0], base = cy + r[1];
       if (axis === 'x') {
         if (e.vx === 0) continue; // resting contact: nothing to resolve
-        if (minY >= top - 0.001 || maxY <= bot + 0.001) continue;
-        // step-up assist for slabs/stairs: only on genuine penetration
-        // (more than push-margin slop, so merely touching a slab beside you
-        // doesn't yank you on top of it), with a full headroom column check.
+        // skip when vertically clear (touching exactly doesn't collide)
+        if (minY >= base - 0.001 || maxY <= surf + 0.001) continue;
+        // step-up assist: feet slightly below a low stand surface -> pop up,
+        // but only with free headroom at the destination.
         const overlapX = Math.min(maxX, cx + 1) - Math.max(minX, cx);
-        if (stepUp && overlapX > 0.08 && (top - minY) <= 0.55) {
-          let headroom = true;
-          for (let cy2 = Math.floor(top); cy2 <= Math.floor(top + e.h); cy2++) {
-            for (let ccx = Math.floor(e.x - e.w / 2); ccx <= Math.floor(e.x + e.w / 2); ccx++) {
-              if (cy2 === Math.floor(minY) && ccx === cx) continue;
-              if (isSolid(tileAt(ccx, cy2))) { headroom = false; break; }
+        const stepH = maxY - surf;
+        if (stepUp && overlapX > 0.08 && stepH > 0 && stepH <= 0.55) {
+          const ny = surf - e.h - 0.001;
+          let free = true;
+          for (let ry = Math.floor(ny); ry <= Math.floor(ny + e.h); ry++) {
+            for (let ccx = Math.floor(minX); ccx <= Math.floor(maxX); ccx++) {
+              if (ccx === cx && ry === cy) continue; // the step itself
+              if (isSolid(tileAt(ccx, ry))) { free = false; break; }
             }
-            if (!headroom) break;
+            if (!free) break;
           }
-          if (headroom) { e.y = top + 0.001; e.onGround = true; return true; }
+          if (free) { e.y = ny; e.onGround = true; return true; }
         }
         if (e.vx > 0) e.x = cx - e.w / 2 - 0.001;
         else if (e.vx < 0) e.x = cx + 1 + e.w / 2 + 0.001;
         e.vx = 0;
         e.bumped = true;
         return true; // resolved against contact cell: stop, bounds are stale
-          } else {
-            if (maxX <= cx || minX >= cx + 1) continue;
-            if (e.vy >= 0) {
-              // falling down: land on the shape top. The window extends
-              // slightly below the top so exact-boundary stands re-snap every
-              // frame instead of sinking (walking off still works: once the
-              // cell leaves horizontal overlap, gravity takes over).
-              if (e.py >= top - 0.45 && e.y <= top + 0.4) {
-                e.y = top; e.vy = 0; e.onGround = true;
-              }
-            } else {
-              // rising: bump head on the shape underside
-              if (e.py + e.h <= bot + 0.45 && e.y + e.h > bot) {
-                e.y = bot - e.h - 0.001; e.vy = 0;
-              }
-            }
+      } else {
+        if (maxX <= cx || minX >= cx + 1) continue;
+        if (e.vy >= 0) {
+          // falling: feet must cross the stand surface this substep.
+          const prevB = e.py + e.h, newB = e.y + e.h;
+          if (prevB >= surf - 0.45 && newB >= surf && newB <= surf + 0.6) {
+            e.y = surf - e.h; e.vy = 0; e.onGround = true;
           }
+        } else {
+          // rising: head must cross the shape underside this substep.
+          const prevH = e.py, newH = e.y;
+          if (prevH <= base + 0.45 && newH < base && newH > base - 0.6) {
+            e.y = base + 0.001; e.vy = 0;
+          }
+        }
+      }
     }
   }
   return false;
@@ -635,6 +640,7 @@ function spawnMob(type, x, y) {
     type, x, y, vx: 0, vy: 0, w: d.w, h: d.h, hp: d.hp * (1 + elapsed / 900),
     maxhp: d.hp, dir: Math.random() < 0.5 ? -1 : 1, t: Math.random() * 4,
     flash: 0, atkT: 0, dead: false, hopT: 1 + Math.random() * 2,
+    py: y, onGround: false, bumped: false,
   });
 }
 function killMob(m) {
@@ -669,9 +675,11 @@ function tickMobs(dt, night) {
     for (const t of want) {
       const sx = player.x + (Math.random() < 0.5 ? -1 : 1) * (14 + Math.random() * 10);
       const xi = clamp(Math.round(sx), 1, WW - 2);
-      let gy = Math.floor(player.y) + 4;
-      while (gy > 0 && !isSolid(tileAt(xi, gy))) gy--;
-      if (isSolid(tileAt(xi, gy))) spawnMob(t, xi + 0.5, gy + 1);
+      // scan DOWN from the sky to the first solid cell, spawn standing on it
+      // (e.y = TOP of hitbox, so top = surface row - height).
+      let gy = Math.floor(player.y) - 8;
+      while (gy < WH - 1 && !isSolid(tileAt(xi, gy))) gy++;
+      if (isSolid(tileAt(xi, gy))) spawnMob(t, xi + 0.5, gy - MOB_DEFS[t].h - 0.05);
     }
   }
   for (let i = mobs.length - 1; i >= 0; i--) {
@@ -1263,20 +1271,24 @@ function draw() {
 
 // ---------- entity drawing (BlockForge mob palettes, 2D side view) ----------
 function drawPlayer(ox, oy) {
-  const px = player.x * TS + ox, py = player.y * TS + oy;
+  // py = FEET (hitbox top + height); the sprite hangs up-screen from there.
+  const px = player.x * TS + ox, py = (player.y + player.h) * TS + oy;
   const blink = player.hurtT > 0 && Math.floor(elapsed * 12) % 2 === 0;
   if (blink) return;
   const f = player.face;
   const legSwing = (Math.abs(player.vx) > 0.5 && player.onGround) ? Math.sin(player.walkPh) * 6 : 0;
   const bx = px, by = py; // feet
-  // legs (pants #3535b0 classic)
-  ctx.fillStyle = '#3535b0';
-  ctx.fillRect(bx - 7, by - 26 + Math.max(0, legSwing), 6, 26 - Math.max(0, legSwing));
-  ctx.fillRect(bx + 1, by - 26 + Math.max(0, -legSwing), 6, 26 - Math.max(0, -legSwing));
-  // shirt (classic teal)
-  ctx.fillStyle = '#00a8a8';
+  // legs (pants #2d3364) + shoes (#493828) — BlockForge Steve defaults
+  ctx.fillStyle = '#2d3364';
+  ctx.fillRect(bx - 7, by - 26 + Math.max(0, legSwing), 6, 22 - Math.max(0, legSwing));
+  ctx.fillRect(bx + 1, by - 26 + Math.max(0, -legSwing), 6, 22 - Math.max(0, -legSwing));
+  ctx.fillStyle = '#493828';
+  ctx.fillRect(bx - 7, by - 4 + Math.max(0, legSwing), 6, 4 - Math.max(0, Math.min(4, legSwing)));
+  ctx.fillRect(bx + 1, by - 4 + Math.max(0, -legSwing), 6, 4 - Math.max(0, Math.min(4, -legSwing)));
+  // shirt (#1d8db5)
+  ctx.fillStyle = '#1d8db5';
   ctx.fillRect(bx - 9, by - 48, 18, 24);
-  ctx.fillStyle = '#008888';
+  ctx.fillStyle = '#17708f';
   ctx.fillRect(bx - 9, by - 48, 18, 3);
   // armor tint
   try {
@@ -1285,25 +1297,34 @@ function drawPlayer(ox, oy) {
   } catch (e) {}
   // arm (swings while mining)
   const sw = player.mineAnim > 0 ? Math.sin(player.mineAnim * 30) * 8 : (Math.abs(player.vx) > 0.5 ? -Math.sin(player.walkPh) * 5 : 0);
-  ctx.fillStyle = '#00a8a8';
+  ctx.fillStyle = '#1d8db5';
   ctx.fillRect(bx + f * 9 - 3, by - 46 + sw, 6, 18);
+  ctx.fillStyle = '#c0906a';
+  ctx.fillRect(bx + f * 9 - 3, by - 32 + sw, 6, 4); // hand
   // held item icon
   const slot = inv.slots[inv.selected];
   if (slot) {
     const ic = iconFor(slot.item);
     ctx.drawImage(ic, bx + f * 12 - 8, by - 44 + sw * 1.4, 16, 16);
   }
-  // head + hair + face
+  // head + hair + face (skin #c0906a, hair #3b2210)
   ctx.fillStyle = '#c0906a';
   ctx.fillRect(bx - 7, by - 62, 14, 14);
-  ctx.fillStyle = '#4a3018';
+  ctx.fillStyle = '#3b2210';
   ctx.fillRect(bx - 7, by - 62, 14, 5);
   ctx.fillRect(bx - 7, by - 62, 3, 14);
-  ctx.fillStyle = '#222';
-  ctx.fillRect(bx + (f > 0 ? 1 : -5), by - 56, 4, 4);
+  // white eye + blue pupil (side view: near-side eye only)
+  const ex = bx + (f > 0 ? 0 : -6);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(ex, by - 56, 5, 4);
+  ctx.fillStyle = '#263694';
+  ctx.fillRect(ex + (f > 0 ? 2 : 1), by - 55, 2, 3);
+  ctx.fillStyle = '#6b4330';
+  ctx.fillRect(bx + (f > 0 ? 0 : -4), by - 50, 4, 1); // mouth
 }
 function drawMob(m, ox, oy) {
-  let px = m.x * TS + ox, py = m.y * TS + oy;
+  // py = FEET (hitbox top + height); the sprite hangs up-screen from there.
+  let px = m.x * TS + ox, py = (m.y + m.h) * TS + oy;
   // idle life: passives breathe (visual only — hitbox untouched)
   if (!MOB_DEFS[m.type].hostile) py += Math.sin(m.t * 3 + m.x * 1.7) * 1.5;
   const blink = m.flash > 0 && Math.floor(elapsed * 20) % 2 === 0;
@@ -1330,8 +1351,8 @@ function drawMob(m, ox, oy) {
     ctx.fillStyle = '#ffb020';
     ctx.fillRect(X(-2, 4), py - 56, 4, 4);
   } else if (m.type === 'skeleton') {
-    // bone #e8e4d8, soul eyes #6ef3ff
-    ctx.fillStyle = '#d8d4c8';
+    // bone #e8e4d8, dark leg bones #e0dcd0, deep dark eye sockets (no glow)
+    ctx.fillStyle = '#e0dcd0';
     ctx.fillRect(px - 5, py - 24, 4, 24);
     ctx.fillRect(px + 1, py - 24, 4, 24);
     ctx.fillStyle = '#e8e4d8';
@@ -1344,28 +1365,34 @@ function drawMob(m, ox, oy) {
     ctx.fillStyle = '#f0ece0';
     ctx.fillRect(px - 7, py - 62, 14, 14);
     ctx.fillStyle = '#1a1a1a';
-    ctx.fillRect(X(-3, 5), py - 57, 5, 6); // socket
-    ctx.fillStyle = '#6ef3ff';
-    ctx.fillRect(X(-2, 3), py - 56, 3, 3); // soul glow
+    ctx.fillRect(X(-3, 5), py - 57, 5, 6); // deep dark socket (no glow)
     ctx.fillStyle = '#f5f0e5';
     ctx.fillRect(px - 5, py - 50, 10, 2); // teeth
   } else if (m.type === 'spider') {
-    // violet #4a2a5a, magenta eyes, fangs — 3 long jointed legs per side
-    ctx.strokeStyle = '#2a1630';
+    // BlockForge spider: body #4a2a5a, head #522e62, banded dark legs with
+    // ember joints, red eye cluster (#7a1a6a + #e05aff glow), pale fangs
+    ctx.strokeStyle = '#33222a';
     ctx.lineWidth = 3;
     for (let li = -1; li <= 1; li++) {
       const hx = px + m.dir * 2, hy = py - 16 + li * 8;
       const kx = px - m.dir * 10, ky = py - 26 + li * 9;
       const fx = px - m.dir * 20, fy = py - 6 + li * 6;
       ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(kx, ky); ctx.lineTo(fx, fy); ctx.stroke();
+      ctx.fillStyle = '#e07818'; // ember knee joint
+      ctx.fillRect(kx - 1, ky - 1, 3, 3);
     }
     ctx.fillStyle = '#4a2a5a';
     ctx.beginPath(); ctx.ellipse(px, py - 14, 16, 10, 0, 0, 6.283); ctx.fill();
-    ctx.fillStyle = '#5a3270';
+    ctx.fillStyle = '#522e62';
     ctx.beginPath(); ctx.ellipse(px + m.dir * 10, py - 16, 8, 7, 0, 0, 6.283); ctx.fill(); // head
-    ctx.fillStyle = '#e05aff';
-    ctx.fillRect(px + m.dir * 12 - 4, py - 20, 3, 3);
-    ctx.fillRect(px + m.dir * 12 + 1, py - 20, 3, 3);
+    // red eye cluster: dark sockets + magenta-red glow
+    for (let ei = 0; ei < 3; ei++) {
+      const exx = px + m.dir * (9 + ei * 3) - 1, eyy = py - 21 + (ei % 2) * 3;
+      ctx.fillStyle = '#7a1a6a';
+      ctx.fillRect(exx, eyy, 3, 3);
+      ctx.fillStyle = '#e05aff';
+      ctx.fillRect(exx + 1, eyy + 1, 1, 1);
+    }
     ctx.fillStyle = '#eee';
     ctx.fillRect(px + m.dir * 8 - 1, py - 8, 2, 5); // fang
   } else if (m.type === 'slime') {
@@ -1385,45 +1412,99 @@ function drawMob(m, ox, oy) {
     ctx.fillRect(px - 6, py - hpx + 9, 2, 2);
     ctx.fillRect(px + 3, py - hpx + 9, 2, 2);
   } else if (m.type === 'cow') {
-    ctx.fillStyle = '#6b4226';
+    // BlockForge cow: body #7a4a2e + white spots, TAN head, dark muzzle,
+    // detailed eyes, cream horns, hooves, tail
+    const D = m.dir >= 0 ? 1 : -1;
+    ctx.fillStyle = '#7a4a2e';
     ctx.fillRect(px - 18, py - 30, 36, 20); // body
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(px - 8, py - 28, 12, 10); // patch
+    ctx.fillStyle = '#f8f0e8';
+    ctx.fillRect(px - 12, py - 28, 10, 8); // white spots
+    ctx.fillRect(px + 4, py - 22, 9, 7);
+    ctx.fillStyle = '#5a3520';
+    ctx.fillRect(px - 15, py - 10, 6, 8); // legs
+    ctx.fillRect(px + 9, py - 10, 6, 8);
+    ctx.fillStyle = '#2a1a10';
+    ctx.fillRect(px - 15, py - 3, 6, 3); // hooves
+    ctx.fillRect(px + 9, py - 3, 6, 3);
     ctx.fillStyle = '#6b4226';
-    ctx.fillRect(px - 15, py - 10, 6, 10);
-    ctx.fillRect(px + 9, py - 10, 6, 10); // legs
-    ctx.fillStyle = '#7a5230';
-    ctx.fillRect(px + (m.dir >= 0 ? 14 : -26), py - 32, 12, 12); // head
-    ctx.fillStyle = '#e8b8a0';
-    ctx.fillRect(px + (m.dir >= 0 ? 20 : -26), py - 26, 8, 5); // snout
-    ctx.fillStyle = '#d8d8d8';
-    ctx.fillRect(px + (m.dir >= 0 ? 8 : -14), py - 38, 3, 6); // horn
+    ctx.fillRect(px - D * 20 - 1, py - 24, 2, 8); // tail
+    ctx.fillStyle = '#9c6f52';
+    ctx.fillRect(px + (D > 0 ? 12 : -26), py - 34, 14, 13); // TAN head
+    ctx.fillStyle = '#9c6f52';
+    ctx.fillRect(px + (D > 0 ? 6 : -22), py - 38, 5, 6); // ear
+    ctx.fillRect(px + (D > 0 ? 19 : -13), py - 38, 5, 6);
+    ctx.fillStyle = '#f5f0e0';
+    ctx.fillRect(px + (D > 0 ? 8 : -16), py - 40, 3, 5); // horns
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + (D > 0 ? 14 : -24), py - 31, 5, 5); // eye white
+    ctx.fillStyle = '#111';
+    ctx.fillRect(px + (D > 0 ? 16 : -23), py - 30, 3, 4); // pupil
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + (D > 0 ? 16 : -23), py - 30, 1, 1); // highlight
+    ctx.fillStyle = '#5a3520';
+    ctx.fillRect(px + (D > 0 ? 20 : -28), py - 26, 8, 6); // muzzle
+    ctx.fillStyle = '#1a1a1a';
+    ctx.fillRect(px + (D > 0 ? 22 : -28), py - 25, 2, 2); // nostrils
+    ctx.fillRect(px + (D > 0 ? 25 : -25), py - 25, 2, 2);
   } else if (m.type === 'pig') {
-    ctx.fillStyle = '#f0a0a0';
+    // BlockForge pig: pink #f5b5b5, darker shading, snout + nostrils,
+    // #e08888 ears, detailed eye, curly tail
+    const D = m.dir >= 0 ? 1 : -1;
+    ctx.fillStyle = '#f5b5b5';
     ctx.fillRect(px - 15, py - 26, 30, 16); // body
-    ctx.fillStyle = '#f0a0a0';
+    ctx.fillStyle = '#e8a0a0';
+    ctx.fillRect(px - 15, py - 14, 30, 4); // low shading
+    ctx.fillStyle = '#f5b5b5';
     ctx.fillRect(px - 12, py - 10, 5, 10);
-    ctx.fillRect(px + 7, py - 10, 5, 10);
-    ctx.fillStyle = '#f4b8b8';
-    ctx.fillRect(px + (m.dir >= 0 ? 11 : -23), py - 30, 12, 12); // head
-    ctx.fillStyle = '#e08080';
-    ctx.fillRect(px + (m.dir >= 0 ? 17 : -25), py - 25, 7, 5); // snout
+    ctx.fillRect(px + 7, py - 10, 5, 10); // legs
+    ctx.fillStyle = '#d89090';
+    ctx.fillRect(px - 12, py - 3, 5, 3);
+    ctx.fillRect(px + 7, py - 3, 5, 3); // hooves
+    ctx.fillStyle = '#e08888';
+    ctx.fillRect(px + (D > 0 ? 12 : -26), py - 36, 5, 6); // ears
+    ctx.fillRect(px + (D > 0 ? 20 : -18), py - 36, 5, 6);
+    ctx.fillStyle = '#f8c4c4';
+    ctx.fillRect(px + (D > 0 ? 9 : -23), py - 30, 14, 12); // head
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + (D > 0 ? 12 : -22), py - 28, 4, 4); // eye white
     ctx.fillStyle = '#111';
-    ctx.fillRect(px + (m.dir >= 0 ? 14 : -22), py - 28, 2, 2); // eye
-    ctx.fillStyle = '#f0a0a0';
-    ctx.fillRect(px - 20, py - 22, 6, 2); // curly tail
+    ctx.fillRect(px + (D > 0 ? 13 : -21), py - 27, 2, 3); // pupil
+    ctx.fillStyle = '#f0c0c0';
+    ctx.fillRect(px + (D > 0 ? 17 : -25), py - 24, 8, 6); // snout
+    ctx.fillStyle = '#d89090';
+    ctx.fillRect(px + (D > 0 ? 19 : -25), py - 22, 2, 2); // nostrils
+    ctx.fillRect(px + (D > 0 ? 22 : -22), py - 22, 2, 2);
+    ctx.fillStyle = '#e8a0a0';
+    ctx.fillRect(px - D * 19 - 2, py - 22, 5, 2); // curly tail
+    ctx.fillRect(px - D * 22 - 2, py - 24, 2, 4);
   } else if (m.type === 'sheep') {
-    ctx.fillStyle = '#f0f0f0';
+    // BlockForge sheep: wool #f5f5f5 + shadow curls, GREY face #8a8a8a,
+    // expressive eyes (white + pupil + highlights), grey legs
+    const D = m.dir >= 0 ? 1 : -1;
+    ctx.fillStyle = '#f5f5f5';
     ctx.fillRect(px - 16, py - 32, 32, 20); // wool
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(px - 14, py - 32, 8, 4); // wool highlights
+    ctx.fillRect(px - 2, py - 30, 7, 4);
+    ctx.fillRect(px + 8, py - 32, 6, 4);
     ctx.fillStyle = '#d8d8d8';
-    ctx.fillRect(px - 16, py - 14, 32, 2);
-    ctx.fillStyle = '#5a4632';
+    ctx.fillRect(px - 16, py - 16, 32, 4); // low shading
+    ctx.fillRect(px - 10, py - 26, 5, 5); // curls
+    ctx.fillRect(px + 2, py - 24, 5, 5);
+    ctx.fillRect(px - 4, py - 18, 5, 4);
+    ctx.fillStyle = '#6a6a6a';
     ctx.fillRect(px - 12, py - 10, 5, 10);
-    ctx.fillRect(px + 7, py - 10, 5, 10);
-    ctx.fillStyle = '#c8a882';
-    ctx.fillRect(px + (m.dir >= 0 ? 12 : -24), py - 30, 12, 10); // face
+    ctx.fillRect(px + 7, py - 10, 5, 10); // legs
+    ctx.fillStyle = '#8a8a8a';
+    ctx.fillRect(px + (D > 0 ? 10 : -24), py - 30, 14, 11); // grey face
+    ctx.fillStyle = '#6a6a6a';
+    ctx.fillRect(px + (D > 0 ? 10 : -24), py - 21, 14, 2); // muzzle shade
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + (D > 0 ? 13 : -23), py - 28, 5, 5); // eye white
     ctx.fillStyle = '#111';
-    ctx.fillRect(px + (m.dir >= 0 ? 16 : -22), py - 27, 2, 2);
+    ctx.fillRect(px + (D > 0 ? 15 : -22), py - 27, 3, 4); // pupil
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(px + (D > 0 ? 15 : -22), py - 27, 1, 2); // highlight
   } else if (m.type === 'chicken') {
     // cream #f2e4c8, comb/wattle red, beak orange
     ctx.fillStyle = '#f2e4c8';
