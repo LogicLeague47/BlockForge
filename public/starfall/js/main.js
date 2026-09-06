@@ -1289,7 +1289,8 @@ function draw() {
     });
     ctx.save();
     ctx.translate(pp[0], pp[1]);
-    ctx.rotate(player.face + bank * 0.45);
+    ctx.rotate(player.face + bank * 0.45 + Math.PI / 2);
+    // proper model: Kenney player ship (PNG faces UP, hence +90°)
     // proper model: Kenney player ship, banks into turns like the old hull
     var pflash = player.iframes > 0;
     var ps = SPRITES.player;
@@ -1307,11 +1308,11 @@ function draw() {
       ctx.moveTo(18, 0); ctx.lineTo(8, -3); ctx.lineTo(8, 3);
       ctx.closePath(); ctx.fill();
     }
-    // wingtip lights
+    // wingtip lights (sprite wingtips sit low-left / low-right)
     ctx.fillStyle = (Math.floor(elapsed * 4) % 2) ? '#ff4040' : '#40ff70';
-    ctx.fillRect(-12, -16, 3, 3);
+    ctx.fillRect(-22, 8, 3, 3);
     ctx.fillStyle = (Math.floor(elapsed * 4) % 2) ? '#40ff70' : '#ff4040';
-    ctx.fillRect(-12, 13, 3, 3);
+    ctx.fillRect(19, 8, 3, 3);
     ctx.restore();
     if (player.armor > 0) {
       ctx.strokeStyle = 'rgba(140,220,255,' + (0.4 + 0.2 * Math.sin(elapsed * 5)).toFixed(2) + ')';

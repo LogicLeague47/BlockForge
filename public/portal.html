@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '2e60303',
+          heading: 'Starfall: ship faces travel direction',
+          desc: 'The new sprite kept the old rotation math and flew sideways — added the missing 90° so the nose leads, and moved the wingtip strobes onto the sprite wingtips.',
+          date: 'Sep 6',
+          bugs: ['player ship flew sideways after the sprite swap'],
+          updates: ['+90° sprite rotation', 'wingtip lights repositioned'],
+          features: [],
+        },
+        {
           hash: '303b544',
           heading: 'Starfall: proper ship models',
           desc: 'Replaced the vector-drawn ships with real sprite models (Kenney Space Shooter, CC0): player interceptor, red dart/stinger gunships, green splitter/mite gunships, tumbling meteors — with pre-rendered white hit-flash variants and banking.',
