@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Skyhawk Flight Sim (BlockForge offshoot)</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { width:100%; height:100%; overflow:hidden; background:#06090f; color:#fff;
+      font-family:"Avenir Next","Segoe UI",system-ui,sans-serif;
+      touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+    #app { width:100vw; height:100vh; }
+    #app canvas { display:block; }
+    /* ---------- HUD ---------- */
+    #hud { position:fixed; inset:0; pointer-events:none; z-index:10; color:#fff; font-family:monospace; }
+    #hud-top { position:absolute; top:12px; left:0; right:0; display:flex; justify-content:center; gap:10px;
+      font:bold 15px monospace; text-shadow:0 1px 3px #000; flex-wrap:wrap; }
+    .hud-box { background:rgba(8,12,20,.55); border:1px solid rgba(140,180,255,.25); border-radius:8px;
+      padding:5px 14px; backdrop-filter:blur(6px); }
+    .hud-box span { color:#9cf; }
+    #horizon-wrap { position:absolute; left:14px; top:14px; width:150px; height:150px; }
+    #horizon { width:150px; height:150px; border-radius:50%; border:2px solid rgba(160,200,255,.55); background:#000;
+      box-shadow:0 4px 18px rgba(0,0,0,.5); }
+    #hud-left { position:absolute; left:14px; top:172px; font:bold 13px/1.75 monospace; text-shadow:0 1px 3px #000;
+      background:rgba(8,12,20,.55); border:1px solid rgba(140,180,255,.2); border-radius:8px; padding:8px 12px;
+      backdrop-filter:blur(6px); }
+    #hud-right { position:absolute; right:14px; top:14px; text-align:right; font:bold 13px/1.75 monospace;
+      text-shadow:0 1px 3px #000; background:rgba(8,12,20,.55); border:1px solid rgba(140,180,255,.2);
+      border-radius:8px; padding:8px 12px; backdrop-filter:blur(6px); }
+    #hud-left span, #hud-right span { color:#9cf; }
+    #warn { position:absolute; top:66px; left:0; right:0; text-align:center; font:bold 20px monospace; }
+    #warn .stall { color:#ff5252; animation:blink .5s steps(2) infinite; display:none; text-shadow:0 2px 6px #000; }
+    #warn .gear { color:#ffcc44; display:none; text-shadow:0 2px 6px #000; }
+    #warn .over { color:#ff9a3c; display:none; text-shadow:0 2px 6px #000; }
+    @keyframes blink { 50% { opacity:.2; } }
+    #hint { position:absolute; top:118px; left:0; right:0; text-align:center; display:none; }
+    #hint span { display:inline-block; font:bold 15px monospace; color:#ffd97a; background:rgba(8,12,20,.65);
+      border:1px solid rgba(255,210,110,.4); border-radius:20px; padding:7px 22px; backdrop-filter:blur(6px); }
+    /* ---------- Instructor / help / toast ---------- */
+    #instructor { position:fixed; left:50%; bottom:16px; transform:translateX(-50%); z-index:14; width:min(640px,92vw);
+      background:rgba(8,14,28,.88); border:1px solid rgba(120,180,255,.45); border-radius:12px; color:#e8f0ff;
+      font:13px/1.6 monospace; padding:13px 17px; backdrop-filter:blur(8px);
+      box-shadow:0 8px 30px rgba(0,0,0,.5); }
+    #instructor.hidden { display:none; }
+    #instructor b { color:#9cf; }
+    #help { position:fixed; right:14px; bottom:14px; z-index:16; width:300px; background:rgba(8,14,28,.92);
+      border:1px solid rgba(120,180,255,.4); border-radius:10px; color:#dfe8ff; font:12px/1.65 monospace;
+      padding:12px 14px; backdrop-filter:blur(8px); }
+    #help.hidden { display:none; }
+    #help td.k { color:#8af; font-weight:bold; white-space:nowrap; padding-right:8px; }
+    #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); z-index:15; color:#fff;
+      background:rgba(8,12,20,.75); border:1px solid rgba(140,180,255,.3); padding:8px 20px; border-radius:20px;
+      font:13px monospace; display:none; max-width:90vw; text-align:center; backdrop-filter:blur(6px); }
+    /* quest tracker */
+    #quest-tracker { position:fixed; top:64px; right:14px; z-index:11; width:250px;
+      background:rgba(8,14,28,.78); border:1px solid rgba(255,210,110,.4); border-radius:10px; color:#ffe9b8;
+      font:12px/1.5 monospace; padding:9px 12px; backdrop-filter:blur(6px); }
+    #quest-tracker.hidden { display:none; }
+    #quest-tracker small { color:#b9a86f; }
+    /* shop + dialogue overlays */
+    .overlay-panel { position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+      background:rgba(3,5,10,.72); padding:18px; }
+    .overlay-panel.hidden { display:none; }
+    .shop-card { width:min(620px,94vw); max-height:88vh; overflow-y:auto; background:rgba(10,16,28,.96);
+      border:1px solid rgba(255,200,100,.35); border-radius:16px; padding:24px 26px; color:#fff;
+      box-shadow:0 20px 60px rgba(0,0,0,.6); }
+    .shop-card h1 { font-size:22px; letter-spacing:1px; }
+    .shop-card h1 span { color:#ffd97a; }
+    .shop-card p.sub { font:12px monospace; color:#a9b8d2; margin:4px 0 12px; }
+    .shop-row { display:flex; align-items:center; justify-content:space-between; gap:12px;
+      background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08); border-radius:10px;
+      padding:10px 14px; margin:8px 0; font:13px/1.45 monospace; }
+    .shop-row small { color:#8d99ae; }
+    .shop-row .btn { padding:8px 16px; font-size:12px; white-space:nowrap; }
+    .shop-row .btn:disabled { opacity:.45; cursor:default; }
+    .qrow { background:rgba(255,255,255,.04); border-radius:8px; padding:8px 12px; margin:6px 0;
+      font:12px/1.5 monospace; color:#dfe8ff; }
+    .qrow small { color:#8d99ae; }
+    .qrow.qdone { opacity:.55; }
+    .vtag { display:inline-block; background:rgba(140,180,255,.15); border:1px solid rgba(140,180,255,.35);
+      border-radius:4px; padding:1px 7px; margin:1px 2px; font-size:11px; color:#bcd6ff; }
+    /* ---------- MENU (live 3D scene behind) ---------- */
+    .screen { position:fixed; inset:0; z-index:20; display:none; overflow-y:auto; }
+    .screen.hidden { display:none; }
+    #menu:not(.hidden) { display:block; }
+    #menu { background:linear-gradient(100deg, rgba(4,7,14,.93) 0%, rgba(4,7,14,.82) 38%, rgba(4,7,14,.25) 70%, rgba(4,7,14,0) 100%); }
+    .mwrap { min-height:100%; display:flex; align-items:center; padding:48px 0 48px 7vw; }
+    .mscreen { display:none; width:min(600px,90vw); animation:rise .35s ease; }
+    .mscreen.active { display:block; }
+    @keyframes rise { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:none; } }
+    .eyebrow { font:bold 12px monospace; letter-spacing:4px; color:#7fd0ff; margin-bottom:10px; }
+    .title { font-size:clamp(44px,7vw,76px); font-weight:800; line-height:.95; letter-spacing:1px;
+      background:linear-gradient(180deg,#fff 30%,#9fc6ff 75%,#5f8fd0); -webkit-background-clip:text;
+      background-clip:text; -webkit-text-fill-color:transparent;
+      filter:drop-shadow(0 4px 18px rgba(80,140,255,.25)); }
+    .title small { display:block; font-size:clamp(15px,2vw,20px); letter-spacing:8px; margin-top:8px;
+      -webkit-text-fill-color:#cfe3ff; font-weight:600; }
+    .subtitle { margin:14px 0 20px; font-size:14px; color:#b9c6dc; line-height:1.6; max-width:480px; }
+    .chips { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px; }
+    .chip { font:bold 11px monospace; letter-spacing:1px; color:#bcd6ff; background:rgba(120,170,255,.1);
+      border:1px solid rgba(120,170,255,.3); border-radius:20px; padding:4px 12px; }
+    .flight-card { display:flex; align-items:center; gap:16px; width:100%; text-align:left; cursor:pointer;
+      background:rgba(14,20,34,.72); border:1px solid rgba(120,170,255,.22); border-radius:14px;
+      padding:14px 18px; margin:10px 0; color:#fff; backdrop-filter:blur(10px);
+      transition:transform .15s ease, border-color .15s, box-shadow .15s; font-family:inherit; }
+    .flight-card:hover { transform:translateX(6px); border-color:rgba(140,200,255,.6);
+      box-shadow:0 6px 26px rgba(70,130,255,.25); }
+    .flight-card.hero { background:linear-gradient(120deg,rgba(46,110,70,.85),rgba(24,60,44,.8));
+      border-color:rgba(120,255,170,.35); }
+    .flight-card.hero:hover { box-shadow:0 6px 26px rgba(60,220,130,.3); }
+    .flight-card .ico { font-size:30px; }
+    .flight-card b { display:block; font-size:16px; letter-spacing:1px; }
+    .flight-card small { color:#a9b8d2; font-size:12px; }
+    .flight-card.hero small { color:#c9ecd9; }
+    .flight-card .go { margin-left:auto; font:bold 18px monospace; color:#9cf; }
+    .menubar { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+    .btn { font:bold 13px monospace; letter-spacing:1px; padding:11px 22px; border-radius:10px; cursor:pointer;
+      color:#e6efff; background:rgba(20,30,48,.7); border:1px solid rgba(120,170,255,.3);
+      transition:background .15s, border-color .15s; font-family:inherit; }
+    .btn:hover { background:rgba(40,60,95,.8); border-color:rgba(140,200,255,.6); }
+    .btn.primary { background:linear-gradient(180deg,#3f9a5f,#2c7046); border-color:#3fae6a; }
+    .btn.primary:hover { filter:brightness(1.12); }
+    .btn.warn { background:rgba(60,30,26,.7); border-color:rgba(255,150,120,.3); }
+    .menufoot { margin-top:26px; font:11px/1.8 monospace; color:#7c8aa3; }
+    .menufoot b { color:#a9b8d2; }
+    /* inner screens (howto/settings/fly) float as glass cards */
+    .card { background:rgba(9,14,26,.9); border:1px solid rgba(120,160,255,.3); border-radius:16px;
+      padding:30px 34px; width:100%; max-height:88vh; overflow-y:auto; backdrop-filter:blur(12px);
+      box-shadow:0 20px 60px rgba(0,0,0,.5); }
+    .card h1 { font-size:24px; letter-spacing:2px; margin-bottom:6px; }
+    .card h2 { font-size:16px; color:#9cf; margin:14px 0 8px; letter-spacing:1px; }
+    .card p, .card li { font-size:13px; color:#c4cede; line-height:1.6; }
+    .card ul, .card ol { text-align:left; margin:8px auto; padding-left:22px; }
+    .card table { margin:8px auto; font-size:12px; text-align:left; color:#ddd; border-collapse:collapse; width:100%; }
+    .card td { padding:4px 10px; border-bottom:1px solid rgba(255,255,255,.07); }
+    .card td.k { color:#8af; font-weight:bold; white-space:nowrap; }
+    .setrow { display:flex; align-items:center; justify-content:space-between; gap:12px;
+      margin:10px auto; font-size:13px; color:#ddd; text-align:left; }
+    .setrow input[type=range] { flex:1; accent-color:#5fa8ff; }
+    .setrow select { background:#141c2e; color:#fff; border:1px solid rgba(120,170,255,.3); border-radius:6px; padding:4px 8px; }
+    .setrow input[type=checkbox] { width:18px; height:18px; accent-color:#3f9a5f; }
+    .btnrow { margin-top:12px; text-align:center; }
+    /* pause */
+    #pause { background:rgba(3,5,10,.7); backdrop-filter:blur(4px); align-items:center; justify-content:center; }
+    #pause:not(.hidden) { display:flex; }
+    #pause .card { max-width:400px; text-align:center; }
+    #pause h1 { margin-bottom:14px; }
+    #pause .btn { display:block; width:100%; margin:8px 0; }
+    /* ---------- touch controls (mobile) ---------- */
+    #touch-ui { position:fixed; inset:0; z-index:18; pointer-events:none; font-family:monospace; }
+    #touch-ui.touch-hidden { display:none; }
+    #touch-ui > * { pointer-events:auto; }
+    #touch-ui .t-sys, #touch-ui .t-stick, #touch-ui .t-thr, #touch-ui .t-rud { z-index:2; }
+    #touch-ui .t-look { z-index:1; }
+    .t-stick { position:absolute; left:20px; bottom:96px; width:148px; height:148px; border-radius:50%;
+      background:rgba(10,16,28,.4); border:2px solid rgba(140,190,255,.4); backdrop-filter:blur(2px); }
+    .t-knob { position:absolute; left:50%; top:50%; width:62px; height:62px; margin:-31px 0 0 -31px;
+      border-radius:50%; background:rgba(140,190,255,.35); border:2px solid rgba(180,215,255,.7); }
+    .t-thr { position:absolute; right:20px; bottom:96px; width:66px; height:230px; border-radius:12px;
+      background:rgba(10,16,28,.4); border:2px solid rgba(140,190,255,.4); overflow:hidden; }
+    .t-thr-fill { position:absolute; left:0; right:0; bottom:0; height:0%;
+      background:linear-gradient(180deg,#3fd07a,#1f7a44); }
+    .t-thr-lab { position:absolute; left:0; right:0; bottom:4px; text-align:center;
+      font:bold 12px monospace; color:#fff; text-shadow:0 1px 2px #000; }
+    .t-rud { position:absolute; right:100px; bottom:96px; display:flex; gap:10px; }
+    .t-btn { min-width:56px; height:56px; padding:0 10px; border-radius:14px; font:bold 14px monospace;
+      color:#e6efff; background:rgba(14,22,38,.62); border:1px solid rgba(120,170,255,.45);
+      backdrop-filter:blur(4px); }
+    .t-btn:active, .t-btn.held { background:rgba(70,130,220,.6); }
+    .t-sys { position:absolute; right:12px; top:120px; display:grid; grid-template-columns:repeat(2,58px);
+      gap:8px; }
+    #touch-ui[data-mode="fly"] .t-sys-walk, #touch-ui[data-mode="fly"] .t-look { display:none; }
+    #touch-ui[data-mode="walk"] .t-sys-fly, #touch-ui[data-mode="walk"] .t-thr, #touch-ui[data-mode="walk"] .t-rud { display:none; }
+    .t-look { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
+    /* smaller HUD on touch */
+    body.touch #hud-top { font-size:12px; gap:6px; }
+    body.touch .hud-box { padding:3px 8px; }
+    body.touch #horizon-wrap, body.touch #horizon { width:104px; height:104px; }
+    body.touch #hud-left { top:126px; font-size:11px; }
+    body.touch #hud-right { font-size:11px; }
+    body.touch #quest-tracker { display:none; }
+    body.touch #help { width:min(300px,86vw); }
+    @media (max-width:760px) {
+      #hud-top { font-size:12px; gap:6px; }
+      .hud-box { padding:3px 8px; }
+      #horizon-wrap, #horizon { width:104px; height:104px; }
+      #hud-left { top:126px; font-size:11px; }
+      #hud-right { font-size:11px; }
+    }
+  </style>
+  <script type="module" crossorigin src="./assets/index-DerCF7HN.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="hud">
+    <div id="horizon-wrap"><canvas id="horizon" width="150" height="150"></canvas></div>
+    <div id="hud-top">
+      <div class="hud-box">IAS <span id="h-ias">0</span> kt</div>
+      <div class="hud-box">ALT <span id="h-alt">0</span> ft</div>
+      <div class="hud-box">VSI <span id="h-vsi">0</span> fpm</div>
+      <div class="hud-box">HDG <span id="h-hdg">000</span>°</div>
+    </div>
+    <div id="warn">
+      <div class="stall" id="w-stall">⚠ STALL ⚠</div>
+      <div class="gear" id="w-gear">GEAR UP — LOW</div>
+      <div class="over" id="w-over"></div>
+    </div>
+    <div id="hint"><span id="hint-text"></span></div>
+    <div id="hud-left">
+      <div>THR <span id="h-thr">0</span>%</div>
+      <div>RPM <span id="h-rpm">0</span></div>
+      <div>FLAP <span id="h-flap">0</span>°</div>
+      <div>GEAR <span id="h-gear">DOWN</span></div>
+      <div>TRIM <span id="h-trim">+0</span></div>
+      <div>AOA <span id="h-aoa">0</span>°</div>
+    </div>
+    <div id="hud-right">
+      <div>💰 <span id="h-money">$100</span></div>
+      <div><span id="h-clock">☀ 10:00</span></div>
+      <div>AGL <span id="h-agl">0</span> ft</div>
+      <div>WIND <span id="h-wind">0</span> kt</div>
+      <div>SIGHTS <span id="h-sights">0/8</span></div>
+      <div>CAM <span id="h-cam">CHASE</span></div>
+      <div>FPS <span id="h-fps">--</span></div>
+    </div>
+  </div>
+  <div id="quest-tracker" class="hidden"></div>
+  <div id="instructor" class="hidden"></div>
+  <div id="help" class="hidden">
+    <b>⌨ CONTROLS</b> <span style="opacity:.6">(H to hide)</span><br>
+    Mouse — fly (up = climb)<br>
+    Right-mouse (hold) — binoculars (shop)<br>
+    W / S or wheel — throttle<br>
+    A / D — rudder · B — brakes<br>
+    F / V — flaps down / up<br>
+    Z / X — trim down / up<br>
+    G — gear · C — camera<br>
+    K — get out / climb in<br>
+    E — shop / talk (on foot)<br>
+    T — tutorial next · R — reset<br>
+    P — pause<br>
+    <span style="opacity:.65">📱 Mobile: left stick flies/walks · right slider = throttle · drag right side to look</span>
+  </div>
+  <div id="toast"></div>
+
+  <!-- ============ MAIN MENU ============ -->
+  <div id="menu" class="screen">
+    <div class="mwrap">
+      <!-- HOME -->
+      <div class="mscreen active" id="screen-home">
+        <div class="eyebrow">BLOCKFORGE AVIATION CLUB</div>
+        <div class="title">SKYHAWK<small>FLIGHT SIMULATOR</small></div>
+        <p class="subtitle">A Cessna-172 class trainer with a real lift/drag/stall flight model on a 24 km island chain. Land on 3 strips, find 8 sights, walk around town, do quests for cash and spend it at the Pilot Shop. Day turns to night — the townsfolk sleep, the beacons wake up.</p>
+        <div class="chips"><span class="chip">C172 CLASS</span><span class="chip">24 KM MAP</span><span class="chip">3 AIRSTRIPS</span><span class="chip">QUESTS + SHOP</span><span class="chip">DAY / NIGHT</span><span class="chip">WALK MODE</span></div>
+        <button class="flight-card hero" data-fly="free"><span class="ico">🛫</span><span><b>FREE FLIGHT</b><small>Runway 36 · full fuel · the whole island</small></span><span class="go">›</span></button>
+        <button class="flight-card" data-fly="takeoff"><span class="ico">🎓</span><span><b>LESSON 1 — TAKEOFF &amp; CLIMB</b><small>Instructor-guided first flight</small></span><span class="go">›</span></button>
+        <button class="flight-card" data-fly="landing"><span class="ico">🎓</span><span><b>LESSON 2 — LANDING</b><small>Spawn on final · grease it on</small></span><span class="go">›</span></button>
+        <div class="menubar">
+          <button class="btn" data-nav="howto">📖 HOW TO FLY</button>
+          <button class="btn" data-nav="settings">⚙ SETTINGS</button>
+          <button class="btn" onclick="try{window.location.href='../games.html?v=2'}catch(e){}">🎲 OTHER GAMES</button>
+        </div>
+        <div class="menufoot">Mouse = fly (up = climb) · <b>W/S</b> throttle · <b>F/V</b> flaps · <b>G</b> gear · <b>C</b> camera · <b>H</b> help<br>Sky HDRI · Poly Haven (CC0) · Built with Three.js</div>
+      </div>
+      <!-- FLY SELECT (kept for nav compat) -->
+      <div class="mscreen" id="screen-fly">
+        <div class="card">
+          <h1>CHOOSE FLIGHT</h1>
+          <button class="flight-card hero" data-fly="free"><span class="ico">🛫</span><span><b>FREE FLIGHT</b><small>Runway 36 · full fuel</small></span><span class="go">›</span></button>
+          <button class="flight-card" data-fly="takeoff"><span class="ico">🎓</span><span><b>LESSON 1 — TAKEOFF</b><small>Instructor-guided</small></span><span class="go">›</span></button>
+          <button class="flight-card" data-fly="landing"><span class="ico">🎓</span><span><b>LESSON 2 — LANDING</b><small>Spawn on final</small></span><span class="go">›</span></button>
+          <div class="btnrow"><button class="btn warn" data-nav="home">← BACK</button></div>
+        </div>
+      </div>
+      <!-- HOW TO -->
+      <div class="mscreen" id="screen-howto">
+        <div class="card">
+          <h1>📖 HOW TO FLY</h1>
+          <h2>Goal</h2>
+          <p>Take off from Runway 36, fly the island, land back under 400 fpm descent. The plane flies like a real Cessna: it needs <b>airspeed</b> to make lift — no speed, no fly.</p>
+          <h2>Controls</h2>
+          <table>
+            <tr><td class="k">Mouse</td><td>fly — move it where you want to go (click the game to capture it)</td></tr>
+            <tr><td class="k">W / S or wheel</td><td>throttle up / down</td></tr>
+            <tr><td class="k">A / D</td><td>rudder (steer on ground, coordinate turns in air)</td></tr>
+            <tr><td class="k">F / V</td><td>flaps extend / retract (max 85 kt with flaps!)</td></tr>
+            <tr><td class="k">Z / X</td><td>elevator trim — relieves yoke pressure</td></tr>
+            <tr><td class="k">G / B</td><td>landing gear / wheel brakes</td></tr>
+            <tr><td class="k">C / H / P</td><td>camera (chase/cockpit/tower) / help / pause</td></tr>
+            <tr><td class="k">T / R</td><td>tutorial next-step / reset on runway</td></tr>
+          <tr><td class="k">📱 Touch</td><td>left stick = fly / walk · right slider = throttle · hold RUD = rudder · drag right side = look on foot</td></tr>
+          </table>
+          <h2>V-speeds (your cheat sheet)</h2>
+          <p><span class="vtag">Vr 55</span><span class="vtag">Vx 62</span><span class="vtag">Vy 74</span><span class="vtag">Vfe 85</span><span class="vtag">Vapp 65</span><span class="vtag">Vno 129</span><span class="vtag">Vne 163</span> kt</p>
+          <h2>Takeoff</h2>
+          <ol>
+            <li>Flaps 10° (press <b>F</b> once), trim neutral.</li>
+            <li>Full power (<b>W</b> to 100%), steer centerline with rudder.</li>
+            <li>At <b>55 kt</b> ease the mouse up gently — climb at <b>74 kt</b>.</li>
+            <li>Above 500 ft: flaps up, power 75%, trim hands-off.</li>
+          </ol>
+          <h2>Landing</h2>
+          <ol>
+            <li>Downwind: slow below 85 kt, flaps 10° → 20° → 30°.</li>
+            <li>Final: <b>65 kt</b>, ~500 fpm down, aiming at the threshold.</li>
+            <li>Fast? cut power. Slow? add power — never yank the mouse to stretch the glide.</li>
+            <li>At 30 ft: flare — look at the far end, bleed off sink, touchdown mains first.</li>
+            <li>Brake below 40 kt, stay on centerline.</li>
+          </ol>
+          <h2>Life on the islands</h2>
+        <ul>
+          <li><b>Walk:</b> land (or stop) and press <b>K</b> to step out. WASD + mouse, Shift to run. <b>K</b> by the plane climbs back in.</li>
+          <li><b>Shop:</b> walk to the blue-roof <b>Pilot Shop</b> in Harborview, press <b>E</b> — paints, turbo, STOL kit, parachute…</li>
+          <li><b>Quests:</b> talk to <b>Marta</b> by the main hangars (E) for jobs. They pay cash — track the ◈ marker top-right.</li>
+          <li><b>Night:</b> townsfolk go home and sleep (Zzz), street lamps and beacons light up. Try a night landing!</li>
+        </ul>
+        <h2>Realism notes</h2>
+          <ul>
+            <li><b>Stall:</b> past ~15° angle of attack the wing quits — nose drops, controls go mushy. Recover: push the mouse down, full power, level wings.</li>
+            <li><b>P-factor / torque:</b> at full power and low speed the nose yaws/rolls left — feed in right rudder.</li>
+            <li><b>Adverse yaw:</b> rolling right yaws you left — coordinate with rudder.</li>
+            <li><b>Ground effect:</b> she floats in the last few feet — be patient in the flare.</li>
+          </ul>
+          <div class="btnrow"><button class="btn warn" data-nav="home">← BACK</button></div>
+        </div>
+      </div>
+      <!-- SETTINGS -->
+      <div class="mscreen" id="screen-settings">
+        <div class="card">
+          <h1>⚙ SETTINGS</h1>
+          <div class="setrow"><span>Wind (headwind on runway)</span><input id="set-wind" type="range" min="0" max="20" step="1"><b id="set-wind-val"></b></div>
+          <div class="setrow"><span>Turbulence</span><select id="set-turb"><option value="0">Calm</option><option value="1">Light</option><option value="2">Moderate</option></select></div>
+        <div class="setrow"><span>Mouse sensitivity</span><input id="set-sens" type="range" min="0.4" max="2" step="0.1"><b id="set-sens-val"></b></div>
+        <div class="setrow"><span>Full realism (torque + P-factor)</span><input id="set-realism" type="checkbox"></div>
+        <div class="setrow"><span>Time of day</span><select id="set-tod"><option value="dawn">Dawn</option><option value="morning">Morning</option><option value="noon">Noon</option><option value="dusk">Dusk</option><option value="night">Night</option></select></div>
+        <div class="setrow"><span>Day length</span><select id="set-daylen"><option value="6">6 min</option><option value="12">12 min</option><option value="24">24 min</option></select></div>
+          <div class="btnrow"><button class="btn warn" data-nav="home">← BACK</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ PAUSE ============ -->
+  <div id="pause" class="screen hidden">
+    <div class="card">
+      <h1>⏸ PAUSED</h1>
+      <button class="btn primary" id="resume-btn">RESUME</button>
+      <button class="btn" id="pause-restart-btn">↻ RESTART FLIGHT</button>
+      <button class="btn warn" id="pause-menu-btn">MAIN MENU</button>
+      <button class="btn" id="quit-btn" style="display:none">QUIT</button>
+    </div>
+  </div>
+
+  <!-- ============ SHOP ============ -->
+  <div id="shop" class="overlay-panel hidden">
+    <div class="shop-card">
+      <h1>🛒 PILOT SHOP <span id="shop-money">$100</span></h1>
+      <p class="sub">Earn cash from quests (◈ tracker, top-right). Upgrades apply instantly and save forever.</p>
+      <div id="shop-items"></div>
+      <div class="btnrow"><button class="btn warn" id="shop-close">LEAVE SHOP (walk out!)</button></div>
+    </div>
+  </div>
+
+  <!-- ============ DIALOGUE (Marta) ============ -->
+  <div id="dialogue" class="overlay-panel hidden">
+    <div class="shop-card">
+      <h1>🔧 Marta the Mechanic</h1>
+      <p class="sub">"Hey pilot! Jobs pay cash — cash buys speed. Here's what's on the board:"</p>
+      <div id="dlg-next" class="qrow"></div>
+      <div id="dlg-quests"></div>
+      <div class="btnrow"><button class="btn primary" id="dlg-close">BACK TO WORK</button></div>
+    </div>
+  </div>
+
+</body>
+</html>
