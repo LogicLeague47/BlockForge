@@ -146,40 +146,61 @@
     #pause .card { max-width:400px; text-align:center; }
     #pause h1 { margin-bottom:14px; }
     #pause .btn { display:block; width:100%; margin:8px 0; }
-    /* ---------- touch controls (mobile) ---------- */
+    /* ---------- touch controls (mobile): fully fluid, fits any screen ---------- */
+    :root {
+      --ts: clamp(104px, 30vmin, 168px);   /* stick diameter */
+      --tb: clamp(46px, 12vmin, 60px);     /* touch button size */
+      --tgap: clamp(6px, 1.8vmin, 10px);
+    }
     #touch-ui { position:fixed; inset:0; z-index:18; pointer-events:none; font-family:monospace; }
     #touch-ui.touch-hidden { display:none; }
     #touch-ui > * { pointer-events:auto; }
     #touch-ui .t-sys, #touch-ui .t-stick, #touch-ui .t-thr, #touch-ui .t-rud { z-index:2; }
     #touch-ui .t-look { z-index:1; }
-    .t-stick { position:absolute; left:20px; bottom:96px; width:148px; height:148px; border-radius:50%;
+    .t-stick { position:absolute; left:max(12px, env(safe-area-inset-left)); bottom:calc(64px + env(safe-area-inset-bottom, 0px));
+      width:var(--ts); height:var(--ts); border-radius:50%;
       background:rgba(10,16,28,.4); border:2px solid rgba(140,190,255,.4); backdrop-filter:blur(2px); }
-    .t-knob { position:absolute; left:50%; top:50%; width:62px; height:62px; margin:-31px 0 0 -31px;
+    .t-knob { position:absolute; left:50%; top:50%; width:calc(var(--ts)*0.42); height:calc(var(--ts)*0.42);
+      margin:calc(var(--ts)*-0.21) 0 0 calc(var(--ts)*-0.21);
       border-radius:50%; background:rgba(140,190,255,.35); border:2px solid rgba(180,215,255,.7); }
-    .t-thr { position:absolute; right:20px; bottom:96px; width:66px; height:230px; border-radius:12px;
+    .t-thr { position:absolute; right:max(12px, env(safe-area-inset-right)); bottom:calc(64px + env(safe-area-inset-bottom, 0px));
+      width:calc(var(--ts)*0.44); height:calc(var(--ts)*1.45); border-radius:12px;
       background:rgba(10,16,28,.4); border:2px solid rgba(140,190,255,.4); overflow:hidden; }
     .t-thr-fill { position:absolute; left:0; right:0; bottom:0; height:0%;
       background:linear-gradient(180deg,#3fd07a,#1f7a44); }
     .t-thr-lab { position:absolute; left:0; right:0; bottom:4px; text-align:center;
       font:bold 12px monospace; color:#fff; text-shadow:0 1px 2px #000; }
-    .t-rud { position:absolute; right:100px; bottom:96px; display:flex; gap:10px; }
-    .t-btn { min-width:56px; height:56px; padding:0 10px; border-radius:14px; font:bold 14px monospace;
+    .t-rud { position:absolute; bottom:calc(64px + env(safe-area-inset-bottom, 0px));
+      right:calc(max(12px, env(safe-area-inset-right)) + var(--ts)*0.44 + 10px);
+      display:flex; gap:var(--tgap); }
+    .t-rud .t-btn { width:var(--tb); }
+    .t-btn { min-width:var(--tb); height:var(--tb); padding:0 8px; border-radius:12px;
+      font:bold clamp(12px, 3.4vmin, 15px) monospace;
       color:#e6efff; background:rgba(14,22,38,.62); border:1px solid rgba(120,170,255,.45);
       backdrop-filter:blur(4px); }
     .t-btn:active, .t-btn.held { background:rgba(70,130,220,.6); }
-    .t-sys { position:absolute; right:12px; top:120px; display:grid; grid-template-columns:repeat(2,58px);
-      gap:8px; }
+    .t-sys { position:absolute; right:max(8px, env(safe-area-inset-right)); top:118px;
+      display:grid; grid-template-columns:repeat(2, var(--tb)); gap:var(--tgap); }
     #touch-ui[data-mode="fly"] .t-sys-walk, #touch-ui[data-mode="fly"] .t-look { display:none; }
     #touch-ui[data-mode="walk"] .t-sys-fly, #touch-ui[data-mode="walk"] .t-thr, #touch-ui[data-mode="walk"] .t-rud { display:none; }
     .t-look { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
+    /* short landscape screens: sys buttons become a compact bottom-center row */
+    @media (max-height:540px) {
+      .t-sys { top:auto; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); right:50%;
+        transform:translateX(50%); grid-template-columns:repeat(8, var(--tb)); }
+      #touch-ui[data-mode="walk"] .t-sys { grid-template-columns:repeat(6, var(--tb)); }
+      .t-stick { bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
+    }
     /* smaller HUD on touch */
-    body.touch #hud-top { font-size:12px; gap:6px; }
+    body.touch #hud-top { font-size:clamp(10px, 3vmin, 13px); gap:6px; }
     body.touch .hud-box { padding:3px 8px; }
-    body.touch #horizon-wrap, body.touch #horizon { width:104px; height:104px; }
+    body.touch #horizon-wrap, body.touch #horizon { width:clamp(72px, 22vmin, 104px); height:clamp(72px, 22vmin, 104px); }
     body.touch #hud-left { top:126px; font-size:11px; }
     body.touch #hud-right { font-size:11px; }
     body.touch #quest-tracker { display:none; }
     body.touch #help { width:min(300px,86vw); }
+    body.touch #instructor { bottom:calc(var(--ts) + 84px); font-size:12px; }
+    body.touch #toast { bottom:calc(var(--ts) + 84px); }
     @media (max-width:760px) {
       #hud-top { font-size:12px; gap:6px; }
       .hud-box { padding:3px 8px; }
@@ -188,7 +209,7 @@
       #hud-right { font-size:11px; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-DerCF7HN.js"></script>
+  <script type="module" crossorigin src="./assets/index-Ckt-y-bK.js"></script>
 </head>
 <body>
   <div id="app"></div>

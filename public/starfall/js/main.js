@@ -128,13 +128,13 @@ function newRun() {
     speed: 175, magnet: 90, armor: 0, regen: 0, might: 1,
     crit: 0, leech: 0, cdr: 0,
     iframes: 0,
-    weapons: { blaster: 1, orbit: BF_DEV ? 1 : 0, missiles: 0, tesla: 0 },
-    orbitA: 0, fireT: 0, misT: 0, tesT: 0,
+    weapons: { blaster: 1, orbit: BF_DEV ? 1 : 0, missiles: 0, tesla: 0, rail: 0 },
+    orbitA: 0, fireT: 0, misT: 0, tesT: 0, railT: 1,
   };
   enemies = []; bolts = []; missiles = []; cores = []; parts = []; floats = []; rings = []; shooters = []; ebullets = []; zaps = [];
   lastBossLv = 0; activeBoss = null;
   camX = 0; camY = 0; shake = 0;
-  elapsed = 0; kills = 0; spawnT = 1.2; eliteT = 45; pendingLevels = 0;
+  elapsed = 0; kills = 0; spawnT = 0.8; eliteT = 45; pendingLevels = 0;
 }
 function xpFor(lv) { return Math.floor(5 + lv * 3.6 + lv * lv * 0.55); }
 
@@ -142,6 +142,7 @@ function xpFor(lv) { return Math.floor(5 + lv * 3.6 + lv * lv * 0.55); }
 var ETYPES = {
   drifter:  { hp: 4,  spd: 55, r: 12, dmg: 8,  xp: 1, col: '#8a8f9a' },
   dart:     { hp: 3,  spd: 120, r: 9, dmg: 10, xp: 1, col: '#f08018' },
+  stinger:  { hp: 5,  spd: 150, r: 8, dmg: 8,  xp: 2, col: '#ff4ad8' },
   splitter: { hp: 14, spd: 45, r: 16, dmg: 12, xp: 3, col: '#3ec850' },
   mite:     { hp: 2,  spd: 95, r: 7,  dmg: 6,  xp: 1, col: '#7fe880' },
   brute:    { hp: 90, spd: 38, r: 26, dmg: 22, xp: 8, col: '#a04ae0' },
@@ -165,6 +166,7 @@ function spawnEnemy(forceType) {
   if (!type) {
     var r = Math.random(), t = elapsed;
     if (t > 110 && r < 0.16) type = 'splitter';
+    else if (t > 150 && r < 0.32) type = 'stinger';
     else if (t > 40 && r < 0.38) type = 'dart';
     else type = 'drifter';
   }
@@ -309,11 +311,11 @@ function summonMinion(type, x, y) {
 }
 
 // ---------- level-up cards ----------
-function weaponIcon(w) { return w === 'blaster' ? '🔫' : (w === 'missiles' ? '🚀' : (w === 'tesla' ? '⚡' : '⚙️')); }
+function weaponIcon(w) { return w === 'blaster' ? '🔫' : (w === 'missiles' ? '🚀' : (w === 'tesla' ? '⚡' : (w === 'rail' ? '🔱' : '⚙️'))); }
 function buildChoices() {
   var pool = [];
   var ws = player.weapons;
-  ['blaster', 'orbit', 'missiles', 'tesla'].forEach(function(w) {
+  ['blaster', 'orbit', 'missiles', 'tesla', 'rail'].forEach(function(w) {
     var lv = ws[w] || 0;
     if (lv === 0) pool.push({ kind: 'wnew', w: w });
     else if (lv < 5) pool.push({ kind: 'wup', w: w });
@@ -340,12 +342,13 @@ function buildChoices() {
   return out;
 }
 function wName(w) {
-  return w === 'blaster' ? 'Pulse Blaster' : (w === 'orbit' ? 'Orbit Blades' : (w === 'tesla' ? 'Tesla Arc' : 'Seeker Missiles'));
+  return w === 'blaster' ? 'Pulse Blaster' : (w === 'orbit' ? 'Orbit Blades' : (w === 'tesla' ? 'Tesla Arc' : (w === 'rail' ? 'Railgun Lance' : 'Seeker Missiles')));
 }
 function wDesc(w) {
   return w === 'blaster' ? 'Auto-fires bolts at the nearest foe.'
     : (w === 'orbit' ? 'Blades circle your hull, shredding contact.'
-    : (w === 'tesla' ? 'Chain lightning zaps packed groups.' : 'Homing missiles with splash damage.'));
+    : (w === 'tesla' ? 'Chain lightning zaps packed groups.'
+    : (w === 'rail' ? 'Slow hyper-velocity lance that punches through whole packs.' : 'Homing missiles with splash damage.')));
 }
 function cardInfo(c) {
   var ws = player.weapons;
@@ -392,7 +395,7 @@ function hide(id) { el(id).classList.add('hidden'); }
 function refreshWeaponHUD() {
   var w = el('hud-weapons');
   w.innerHTML = '';
-  ['blaster', 'orbit', 'missiles', 'tesla'].forEach(function(k) {
+  ['blaster', 'orbit', 'missiles', 'tesla', 'rail'].forEach(function(k) {
     var lv = player.weapons[k] || 0;
     if (!lv) return;
     var d = document.createElement('div');
@@ -479,11 +482,11 @@ function update(dt) {
       life: 0.25 + Math.random() * 0.2, col: Math.random() < 0.5 ? '#ff9a30' : '#ffd050' });
   }
 
-  // spawn director
+  // spawn director (ramps fast: action from second one, crowds by minute two)
   spawnT -= dt;
   if (spawnT <= 0) {
-    spawnT = Math.max(0.32, 1.15 - elapsed / 100);
-    var batch = 1 + Math.floor(elapsed / 70);
+    spawnT = Math.max(0.28, 0.85 - elapsed / 90);
+    var batch = 1 + Math.floor(elapsed / 55);
     for (var i = 0; i < batch; i++) spawnEnemy();
   }
   eliteT -= dt;
@@ -575,6 +578,22 @@ function update(dt) {
         }
         zaps.push({ pts: pts, life: 0.2 });
         ring(player.x, player.y, 40, 'rgba(140,220,255,0.7)', 2);
+        STAR_Audio.shoot();
+      }
+    }
+  }
+  if (W.rail) {
+    player.railT -= dt;
+    if (player.railT <= 0) {
+      player.railT = Math.max(1.0, 2.6 - W.rail * 0.32) * (1 - player.cdr);
+      var rt = nearestEnemy(player.x, player.y, 700);
+      if (rt) {
+        var ra = Math.atan2(rt.y - player.y, rt.x - player.x);
+        bolts.push({ x: player.x, y: player.y, vx: Math.cos(ra) * 720, vy: Math.sin(ra) * 720,
+          dmg: (30 + W.rail * 24) * might, pierce: 99, life: 1.5, big: 1 });
+        burst(player.x + Math.cos(ra) * 18, player.y + Math.sin(ra) * 18, '#bff3ff', 6);
+        ring(player.x, player.y, 26, 'rgba(160,240,255,0.8)', 2);
+        shake = Math.max(shake, 3);
         STAR_Audio.shoot();
       }
     }
@@ -690,6 +709,14 @@ function update(dt) {
     } else if (en.type === 'matriarch') {
       en.summonT -= dt;
       if (en.summonT <= 0) { en.summonT = 5; summonMinion('mite', en.x, en.y); summonMinion('mite', en.x, en.y); }
+    } else if (en.type === 'stinger') {
+      // burst hunter: full-speed chase, then a short drift to re-aim
+      en.modeT -= dt;
+      if (en.modeT <= 0) {
+        if (en.mode === 'chase') { en.mode = 'drift'; en.modeT = 0.5; }
+        else { en.mode = 'chase'; en.modeT = 1.1; }
+      }
+      if (en.mode === 'drift') { mvx = dx / dl * en.spd * 0.25; mvy = dy / dl * en.spd * 0.25; }
     }
     var wobx = 0, woby = 0;
     if (en.type === 'dart') { wobx = -dy / dl * Math.sin(en.wob) * 30; woby = dx / dl * Math.sin(en.wob) * 30; }
@@ -969,6 +996,25 @@ function draw() {
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(da) * 3, ep[1] + Math.sin(da) * 3, 2.6, 0, 6.283); ctx.fill();
       ctx.fillStyle = '#e02020';
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(da) * 3, ep[1] + Math.sin(da) * 3, 1.3, 0, 6.283); ctx.fill();
+    } else if (e.type === 'stinger') {
+      // needle interceptor: magenta spike, hot core, drift shimmer
+      var sa = Math.atan2(player.y - e.y, player.x - e.x);
+      if (e.mode === 'drift') {
+        ctx.strokeStyle = 'rgba(255,74,216,' + (0.35 + 0.3 * Math.sin(elapsed * 20)).toFixed(2) + ')';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r + 6, 0, 6.283); ctx.stroke();
+      }
+      ctx.fillStyle = flash ? '#fff' : '#a01078';
+      tri(ep[0], ep[1], e.r + 9, sa);
+      ctx.fillStyle = flash ? '#fff' : '#ff4ad8';
+      tri(ep[0], ep[1], e.r + 1, sa);
+      ctx.fillStyle = flash ? '#fff' : '#ffd0f0';
+      ctx.beginPath(); ctx.arc(ep[0] - Math.cos(sa) * 2, ep[1] - Math.sin(sa) * 2, 2.4, 0, 6.283); ctx.fill();
+      // barbed fins
+      ctx.fillStyle = flash ? '#fff' : '#6a0848';
+      var ba1 = sa + 2.4, ba2 = sa - 2.4;
+      tri(ep[0] + Math.cos(ba1) * e.r * 0.6, ep[1] + Math.sin(ba1) * e.r * 0.6, 5, ba1);
+      tri(ep[0] + Math.cos(ba2) * e.r * 0.6, ep[1] + Math.sin(ba2) * e.r * 0.6, 5, ba2);
     } else if (e.type === 'splitter' || e.type === 'mite') {
       // pulsing bio-blob with nucleus
       var pulse = 1 + Math.sin(e.wob * 2) * 0.07;
@@ -1136,18 +1182,27 @@ function draw() {
     }
     if (e.spawnT > 0) ctx.globalAlpha = 1;
   }
-  // bolts (glowing plasma slugs)
+  // bolts (glowing plasma slugs; railgun lances are bigger and white-hot)
   for (var bi = 0; bi < bolts.length; bi++) {
     var bl = bolts[bi], bp = P(bl.x, bl.y);
     var ba = Math.atan2(bl.vy, bl.vx);
     ctx.save();
     ctx.translate(bp[0], bp[1]); ctx.rotate(ba);
-    ctx.fillStyle = 'rgba(90,180,255,0.35)';
-    ctx.fillRect(-9, -4, 18, 8);
-    ctx.fillStyle = '#58b6ff';
-    ctx.fillRect(-8, -2.5, 16, 5);
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-8, -1, 16, 2);
+    if (bl.big) {
+      ctx.fillStyle = 'rgba(160,240,255,0.4)';
+      ctx.fillRect(-22, -7, 44, 14);
+      ctx.fillStyle = '#7fe8ff';
+      ctx.fillRect(-20, -4, 40, 8);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-20, -1.5, 40, 3);
+    } else {
+      ctx.fillStyle = 'rgba(90,180,255,0.35)';
+      ctx.fillRect(-9, -4, 18, 8);
+      ctx.fillStyle = '#58b6ff';
+      ctx.fillRect(-8, -2.5, 16, 5);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(-8, -1, 16, 2);
+    }
     ctx.restore();
   }
   // missiles (armored darts with fat flames)
@@ -1321,6 +1376,15 @@ function draw() {
     vg.addColorStop(0, 'rgba(255,0,0,0)');
     vg.addColorStop(1, 'rgba(255,30,20,' + va.toFixed(2) + ')');
     ctx.fillStyle = vg;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // low-hull warning pulse (below 35% hull)
+  if (state === 'play' && player.hp < player.maxhp * 0.35) {
+    var la = 0.22 + 0.14 * Math.sin(elapsed * 6);
+    var lg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.72);
+    lg.addColorStop(0, 'rgba(255,0,0,0)');
+    lg.addColorStop(1, 'rgba(255,20,10,' + la.toFixed(2) + ')');
+    ctx.fillStyle = lg;
     ctx.fillRect(0, 0, W, H);
   }
 }
