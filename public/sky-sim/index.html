@@ -73,6 +73,8 @@
     .shop-row small { color:#8d99ae; }
     .shop-row .btn { padding:8px 16px; font-size:12px; white-space:nowrap; }
     .shop-row .btn:disabled { opacity:.45; cursor:default; }
+    .shop-sec { font:bold 12px monospace; letter-spacing:2px; color:#ffd97a; margin:16px 0 4px;
+      border-bottom:1px solid rgba(255,210,110,.25); padding-bottom:4px; }
     .qrow { background:rgba(255,255,255,.04); border-radius:8px; padding:8px 12px; margin:6px 0;
       font:12px/1.5 monospace; color:#dfe8ff; }
     .qrow small { color:#8d99ae; }
@@ -184,12 +186,29 @@
     #touch-ui[data-mode="fly"] .t-sys-walk, #touch-ui[data-mode="fly"] .t-look { display:none; }
     #touch-ui[data-mode="walk"] .t-sys-fly, #touch-ui[data-mode="walk"] .t-thr, #touch-ui[data-mode="walk"] .t-rud { display:none; }
     .t-look { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
-    /* short landscape screens: sys buttons become a compact bottom-center row */
+    /* short landscape screens: sys buttons become a compact top-center row */
     @media (max-height:540px) {
-      .t-sys { top:auto; bottom:calc(14px + env(safe-area-inset-bottom, 0px)); right:50%;
-        transform:translateX(50%); grid-template-columns:repeat(8, var(--tb)); }
+      .t-sys { top:56px; bottom:auto; right:50%; transform:translateX(50%);
+        grid-template-columns:repeat(8, var(--tb)); }
       #touch-ui[data-mode="walk"] .t-sys { grid-template-columns:repeat(6, var(--tb)); }
       .t-stick { bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
+      /* engine panel would hide under the stick: keep only the essentials */
+      #hud-left div:nth-child(2), #hud-left div:nth-child(5), #hud-left div:nth-child(6) { display:none; }
+      #hud-left { padding:5px 9px; }
+      #warn { top:112px; font-size:15px; }
+      #hint { top:150px; }
+      #hint span { font-size:13px; padding:5px 16px; }
+    }
+    /* ---------- minimap ---------- */
+    #minimap { position:fixed; z-index:12; right:16px; bottom:16px; width:180px; height:180px;
+      border-radius:50%; overflow:hidden; border:2px solid rgba(140,190,255,.55);
+      box-shadow:0 6px 24px rgba(0,0,0,.5); cursor:pointer; }
+    #minimap canvas { width:100%; height:100%; display:block; }
+    #minimap.big { width:min(320px,82vmin); height:min(320px,82vmin); }
+    body.touch #minimap { left:50%; right:auto; transform:translateX(-50%); bottom:12px;
+      width:140px; height:140px; }
+    @media (max-height:540px) {
+      body.touch #minimap { width:104px; height:104px; bottom:8px; }
     }
     /* smaller HUD on touch */
     body.touch #hud-top { font-size:clamp(10px, 3vmin, 13px); gap:6px; }
@@ -209,7 +228,7 @@
       #hud-right { font-size:11px; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-Ckt-y-bK.js"></script>
+  <script type="module" crossorigin src="./assets/index-BSuJ_qKI.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -271,8 +290,8 @@
       <div class="mscreen active" id="screen-home">
         <div class="eyebrow">BLOCKFORGE AVIATION CLUB</div>
         <div class="title">SKYHAWK<small>FLIGHT SIMULATOR</small></div>
-        <p class="subtitle">A Cessna-172 class trainer with a real lift/drag/stall flight model on a 24 km island chain. Land on 3 strips, find 8 sights, walk around town, do quests for cash and spend it at the Pilot Shop. Day turns to night — the townsfolk sleep, the beacons wake up.</p>
-        <div class="chips"><span class="chip">C172 CLASS</span><span class="chip">24 KM MAP</span><span class="chip">3 AIRSTRIPS</span><span class="chip">QUESTS + SHOP</span><span class="chip">DAY / NIGHT</span><span class="chip">WALK MODE</span></div>
+        <p class="subtitle">A Cessna-172 class trainer with a real lift/drag/stall flight model on a 24 km island chain. Land on 3 strips, find 13 sights, finish 18 quests, and spend your earnings at the Pilot Shop. Walk Aurora City and four towns — day turns to night, the townsfolk sleep, the beacons wake up.</p>
+        <div class="chips"><span class="chip">C172 CLASS</span><span class="chip">24 KM MAP</span><span class="chip">3 AIRSTRIPS</span><span class="chip">18 QUESTS + SHOP</span><span class="chip">CITY + 4 TOWNS</span><span class="chip">4 PLANES</span><span class="chip">DAY / NIGHT</span><span class="chip">WALK MODE</span></div>
         <button class="flight-card hero" data-fly="free"><span class="ico">🛫</span><span><b>FREE FLIGHT</b><small>Runway 36 · full fuel · the whole island</small></span><span class="go">›</span></button>
         <button class="flight-card" data-fly="takeoff"><span class="ico">🎓</span><span><b>LESSON 1 — TAKEOFF &amp; CLIMB</b><small>Instructor-guided first flight</small></span><span class="go">›</span></button>
         <button class="flight-card" data-fly="landing"><span class="ico">🎓</span><span><b>LESSON 2 — LANDING</b><small>Spawn on final · grease it on</small></span><span class="go">›</span></button>
@@ -308,6 +327,7 @@
             <tr><td class="k">Z / X</td><td>elevator trim — relieves yoke pressure</td></tr>
             <tr><td class="k">G / B</td><td>landing gear / wheel brakes</td></tr>
             <tr><td class="k">C / H / P</td><td>camera (chase/cockpit/tower) / help / pause</td></tr>
+          <tr><td class="k">M</td><td>map hide / show (tap it to zoom)</td></tr>
             <tr><td class="k">T / R</td><td>tutorial next-step / reset on runway</td></tr>
           <tr><td class="k">📱 Touch</td><td>left stick = fly / walk · right slider = throttle · hold RUD = rudder · drag right side = look on foot</td></tr>
           </table>
@@ -355,6 +375,7 @@
         <div class="setrow"><span>Full realism (torque + P-factor)</span><input id="set-realism" type="checkbox"></div>
         <div class="setrow"><span>Time of day</span><select id="set-tod"><option value="dawn">Dawn</option><option value="morning">Morning</option><option value="noon">Noon</option><option value="dusk">Dusk</option><option value="night">Night</option></select></div>
         <div class="setrow"><span>Day length</span><select id="set-daylen"><option value="6">6 min</option><option value="12">12 min</option><option value="24">24 min</option></select></div>
+        <div class="setrow"><span>Weather</span><select id="set-weather"><option value="0">Clear</option><option value="1">Rain</option><option value="2">Storm</option></select></div>
           <div class="btnrow"><button class="btn warn" data-nav="home">← BACK</button></div>
         </div>
       </div>
