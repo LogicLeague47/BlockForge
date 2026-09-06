@@ -25,6 +25,45 @@ function fmtTime(t) {
   return (m < 10 ? '0' + m : m) + ':' + (s < 10 ? '0' + s : s);
 }
 
+// ---------- sprite models (Kenney Space Shooter Remastered, CC0 public domain) ----------
+// Vendored under assets/ships/. PNG ships face UP; we rotate +90° to match
+// game angles (0 = +x). White flash variants are pre-rendered once at load.
+var SPRITES = {};
+[['player', 'playerShip1_blue.png'], ['dart', 'enemyRed1.png'], ['stinger', 'enemyRed2.png'],
+ ['splitter', 'enemyGreen3.png'], ['mite', 'enemyGreen1.png'],
+ ['rock1', 'meteorGrey_med1.png'], ['rock2', 'meteorGrey_med2.png']].forEach(function(pair) {
+  var img = new Image();
+  var rec = { img: img, ok: false, white: null };
+  img.onload = function() {
+    rec.ok = true;
+    try {
+      var c = document.createElement('canvas');
+      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      var g = c.getContext('2d');
+      g.drawImage(img, 0, 0);
+      g.globalCompositeOperation = 'source-in';
+      g.fillStyle = '#fff';
+      g.fillRect(0, 0, c.width, c.height);
+      rec.white = c;
+    } catch (e) {}
+  };
+  img.src = 'assets/ships/' + pair[1];
+  SPRITES[pair[0]] = rec;
+});
+// name, screen x/y, facing angle, width px, flash?, spin (for rocks: absolute angle)
+function drawSprite(name, x, y, angle, wPx, flash, spin) {
+  var s = SPRITES[name];
+  if (!s || !s.ok) return false;
+  var img = (flash && s.white) ? s.white : s.img;
+  var hPx = wPx * (img.naturalHeight / img.naturalWidth);
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate((spin !== undefined ? spin : angle) + Math.PI / 2);
+  ctx.drawImage(img, -wPx / 2, -hPx / 2, wPx, hPx);
+  ctx.restore();
+  return true;
+}
+
 // ---------- canvas ----------
 var canvas = document.getElementById('game');
 var ctx = canvas.getContext('2d');
@@ -967,77 +1006,37 @@ function draw() {
     }
     var flash = e.flash > 0;
     if (e.type === 'drifter') {
-      // tumbling cratered rock
-      ctx.fillStyle = flash ? '#fff' : '#7d828e';
-      rockPoly(ep[0], ep[1], e.r, e.seed, e.rot);
-      ctx.fillStyle = flash ? '#fff' : '#565b66';
-      ctx.beginPath(); ctx.arc(ep[0] - e.r * 0.25, ep[1] - e.r * 0.15, e.r * 0.22, 0, 6.283); ctx.fill();
-      ctx.beginPath(); ctx.arc(ep[0] + e.r * 0.3, ep[1] + e.r * 0.25, e.r * 0.15, 0, 6.283); ctx.fill();
-      ctx.fillStyle = flash ? '#fff' : '#a8adb8';
-      ctx.beginPath(); ctx.arc(ep[0] - e.r * 0.28, ep[1] - e.r * 0.32, e.r * 0.12, 0, 6.283); ctx.fill();
+      // proper model: tumbling Kenney meteor (alt skin by seed), spins with e.rot
+      if (!drawSprite(e.seed > 0.5 ? 'rock1' : 'rock2', ep[0], ep[1], 0, e.r * 2.5, flash, e.rot)) {
+        ctx.fillStyle = flash ? '#fff' : '#7d828e';
+        rockPoly(ep[0], ep[1], e.r, e.seed, e.rot);
+      }
     } else if (e.type === 'dart') {
-      // sleek arrow interceptor with engine glow + trail
-      var da = Math.atan2(player.y - e.y, player.x - e.x);
-      ctx.fillStyle = flash ? '#fff' : '#ff8c1a';
-      tri(ep[0], ep[1], e.r + 6, da);
-      ctx.fillStyle = flash ? '#fff' : '#c22e10';
-      tri(ep[0] - Math.cos(da) * 4, ep[1] - Math.sin(da) * 4, e.r * 0.62, da);
-      ctx.fillStyle = flash ? '#fff' : '#ffd080';
-      tri(ep[0] + Math.cos(da) * 2, ep[1] + Math.sin(da) * 2, e.r * 0.34, da);
-      ctx.fillStyle = 'rgba(255,150,40,0.8)';
-      ctx.beginPath(); ctx.arc(ep[0] - Math.cos(da) * (e.r + 2), ep[1] - Math.sin(da) * (e.r + 2), 3 + Math.random() * 2, 0, 6.283); ctx.fill();
-      // swept fins
-      ctx.fillStyle = flash ? '#fff' : '#a83c08';
-      var fa = da + 2.6, fa2 = da - 2.6;
-      tri(ep[0] + Math.cos(fa) * e.r * 0.7, ep[1] + Math.sin(fa) * e.r * 0.7, 6, fa);
-      tri(ep[0] + Math.cos(fa2) * e.r * 0.7, ep[1] + Math.sin(fa2) * e.r * 0.7, 6, fa2);
-      // sensor eye
-      ctx.fillStyle = '#fff';
-      ctx.beginPath(); ctx.arc(ep[0] + Math.cos(da) * 3, ep[1] + Math.sin(da) * 3, 2.6, 0, 6.283); ctx.fill();
-      ctx.fillStyle = '#e02020';
-      ctx.beginPath(); ctx.arc(ep[0] + Math.cos(da) * 3, ep[1] + Math.sin(da) * 3, 1.3, 0, 6.283); ctx.fill();
+      // proper model: Kenney red interceptor
+      if (!drawSprite('dart', ep[0], ep[1], Math.atan2(player.y - e.y, player.x - e.x), 27, flash)) {
+        var da = Math.atan2(player.y - e.y, player.x - e.x);
+        ctx.fillStyle = flash ? '#fff' : '#ff8c1a';
+        tri(ep[0], ep[1], e.r + 6, da);
+      }
     } else if (e.type === 'stinger') {
-      // needle interceptor: magenta spike, hot core, drift shimmer
+      // proper model: Kenney sleek arrow + drift shimmer ring
       var sa = Math.atan2(player.y - e.y, player.x - e.x);
       if (e.mode === 'drift') {
         ctx.strokeStyle = 'rgba(255,74,216,' + (0.35 + 0.3 * Math.sin(elapsed * 20)).toFixed(2) + ')';
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r + 6, 0, 6.283); ctx.stroke();
       }
-      ctx.fillStyle = flash ? '#fff' : '#a01078';
-      tri(ep[0], ep[1], e.r + 9, sa);
-      ctx.fillStyle = flash ? '#fff' : '#ff4ad8';
-      tri(ep[0], ep[1], e.r + 1, sa);
-      ctx.fillStyle = flash ? '#fff' : '#ffd0f0';
-      ctx.beginPath(); ctx.arc(ep[0] - Math.cos(sa) * 2, ep[1] - Math.sin(sa) * 2, 2.4, 0, 6.283); ctx.fill();
-      // barbed fins
-      ctx.fillStyle = flash ? '#fff' : '#6a0848';
-      var ba1 = sa + 2.4, ba2 = sa - 2.4;
-      tri(ep[0] + Math.cos(ba1) * e.r * 0.6, ep[1] + Math.sin(ba1) * e.r * 0.6, 5, ba1);
-      tri(ep[0] + Math.cos(ba2) * e.r * 0.6, ep[1] + Math.sin(ba2) * e.r * 0.6, 5, ba2);
+      if (!drawSprite('stinger', ep[0], ep[1], sa, 25, flash)) {
+        ctx.fillStyle = flash ? '#fff' : '#ff4ad8';
+        tri(ep[0], ep[1], e.r + 9, sa);
+      }
     } else if (e.type === 'splitter' || e.type === 'mite') {
-      // pulsing bio-blob with nucleus
-      var pulse = 1 + Math.sin(e.wob * 2) * 0.07;
-      var rr = e.r * pulse;
-      ctx.fillStyle = flash ? '#fff' : (e.type === 'splitter' ? '#1f7a34' : '#3fa858');
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], rr, 0, 6.283); ctx.fill();
-      ctx.fillStyle = flash ? '#fff' : (e.type === 'splitter' ? '#37c858' : '#6fe888');
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], rr * 0.68, 0, 6.283); ctx.fill();
-      // nucleus
-      ctx.fillStyle = flash ? '#fff' : '#0e3a1a';
-      ctx.beginPath(); ctx.arc(ep[0] + Math.cos(e.wob) * 2, ep[1] + Math.sin(e.wob) * 2, rr * 0.3, 0, 6.283); ctx.fill();
-      ctx.fillStyle = 'rgba(230,255,230,0.75)';
-      ctx.beginPath(); ctx.arc(ep[0] - rr * 0.3, ep[1] - rr * 0.35, rr * 0.2, 0, 6.283); ctx.fill();
-      // beady eyes track the player
-      var bea = Math.atan2(player.y - e.y, player.x - e.x);
-      ctx.fillStyle = '#0e2a12';
-      ctx.beginPath(); ctx.arc(ep[0] + Math.cos(bea - 0.3) * rr * 0.4, ep[1] + Math.sin(bea - 0.3) * rr * 0.4, rr * 0.14, 0, 6.283); ctx.fill();
-      ctx.beginPath(); ctx.arc(ep[0] + Math.cos(bea + 0.3) * rr * 0.4, ep[1] + Math.sin(bea + 0.3) * rr * 0.4, rr * 0.14, 0, 6.283); ctx.fill();
-      if (e.type === 'splitter') {
-        // volatile spots that hint the split
-        ctx.fillStyle = '#e8ff70';
-        ctx.fillRect(ep[0] - rr - 1, ep[1] - 2, 4, 4);
-        ctx.fillRect(ep[0] + rr - 3, ep[1] - 2, 4, 4);
+      // proper models: Kenney green gunships (big splitter / small mite)
+      if (!drawSprite(e.type === 'splitter' ? 'splitter' : 'mite', ep[0], ep[1],
+          Math.atan2(player.y - e.y, player.x - e.x), e.type === 'splitter' ? 46 : 21, flash)) {
+        var pulse = 1 + Math.sin(e.wob * 2) * 0.07;
+        ctx.fillStyle = flash ? '#fff' : '#37c858';
+        ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * pulse, 0, 6.283); ctx.fill();
       }
     } else if (e.type === 'matriarch') {
       // broodmother blob: veined sac, egg spots, pulsing crown
@@ -1291,41 +1290,23 @@ function draw() {
     ctx.save();
     ctx.translate(pp[0], pp[1]);
     ctx.rotate(player.face + bank * 0.45);
-    // shadow layer (dark hull base, slightly bigger)
-    ctx.fillStyle = '#101c3a';
-    ctx.beginPath();
-    ctx.moveTo(19, 0); ctx.lineTo(-10, -13); ctx.lineTo(-6, 0); ctx.lineTo(-10, 13);
-    ctx.closePath(); ctx.fill();
-    // wing fins
-    ctx.fillStyle = '#24407c';
-    ctx.beginPath();
-    ctx.moveTo(2, 0); ctx.lineTo(-12, -16); ctx.lineTo(-8, -2); ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(2, 0); ctx.lineTo(-12, 16); ctx.lineTo(-8, 2); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#3a6ac8';
-    ctx.beginPath();
-    ctx.moveTo(2, 0); ctx.lineTo(-12, -16); ctx.lineTo(-9, -4); ctx.closePath(); ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(2, 0); ctx.lineTo(-12, 16); ctx.lineTo(-9, 4); ctx.closePath(); ctx.fill();
-    // main hull
-    ctx.fillStyle = '#2a4a8a';
-    ctx.beginPath();
-    ctx.moveTo(18, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8);
-    ctx.closePath(); ctx.fill();
-    // nose + spine highlight
-    ctx.fillStyle = '#6aa0e8';
-    ctx.beginPath();
-    ctx.moveTo(18, 0); ctx.lineTo(8, -3); ctx.lineTo(8, 3);
-    ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#9dc8ff';
-    ctx.fillRect(-4, -1, 14, 2);
-    // cockpit bubble
-    ctx.fillStyle = '#0a2038';
-    ctx.beginPath(); ctx.arc(4, 0, 5.5, 0, 6.283); ctx.fill();
-    ctx.fillStyle = '#bfe4ff';
-    ctx.beginPath(); ctx.arc(4, 0, 3.6, 0, 6.283); ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(3, -1, 1.4, 0, 6.283); ctx.fill();
+    // proper model: Kenney player ship, banks into turns like the old hull
+    var pflash = player.iframes > 0;
+    var ps = SPRITES.player;
+    if (ps && ps.ok) {
+      var pimg = (pflash && ps.white) ? ps.white : ps.img;
+      ctx.drawImage(pimg, -23, -17.5, 46, 35);
+    } else {
+      // fallback vector hull while the sprite loads (menu time only)
+      ctx.fillStyle = '#2a4a8a';
+      ctx.beginPath();
+      ctx.moveTo(18, 0); ctx.lineTo(-8, -8); ctx.lineTo(-4, 0); ctx.lineTo(-8, 8);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = '#6aa0e8';
+      ctx.beginPath();
+      ctx.moveTo(18, 0); ctx.lineTo(8, -3); ctx.lineTo(8, 3);
+      ctx.closePath(); ctx.fill();
+    }
     // wingtip lights
     ctx.fillStyle = (Math.floor(elapsed * 4) % 2) ? '#ff4040' : '#40ff70';
     ctx.fillRect(-12, -16, 3, 3);
