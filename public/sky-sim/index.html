@@ -28,6 +28,7 @@
       text-shadow:0 1px 3px #000; background:rgba(8,12,20,.55); border:1px solid rgba(140,180,255,.2);
       border-radius:8px; padding:8px 12px; backdrop-filter:blur(6px); }
     #hud-left span, #hud-right span { color:#9cf; }
+    #mute-btn { pointer-events:auto; cursor:pointer; }
     #warn { position:absolute; top:66px; left:0; right:0; text-align:center; font:bold 20px monospace; }
     #warn .stall { color:#ff5252; animation:blink .5s steps(2) infinite; display:none; text-shadow:0 2px 6px #000; }
     #warn .gear { color:#ffcc44; display:none; text-shadow:0 2px 6px #000; }
@@ -182,14 +183,14 @@
       backdrop-filter:blur(4px); }
     .t-btn:active, .t-btn.held { background:rgba(70,130,220,.6); }
     .t-sys { position:absolute; right:max(8px, env(safe-area-inset-right)); top:118px;
-      display:grid; grid-template-columns:repeat(2, var(--tb)); gap:var(--tgap); }
+      display:grid; grid-template-columns:repeat(3, var(--tb)); gap:var(--tgap); }
     #touch-ui[data-mode="fly"] .t-sys-walk, #touch-ui[data-mode="fly"] .t-look { display:none; }
     #touch-ui[data-mode="walk"] .t-sys-fly, #touch-ui[data-mode="walk"] .t-thr, #touch-ui[data-mode="walk"] .t-rud { display:none; }
     .t-look { position:absolute; right:0; top:0; width:55%; height:100%; pointer-events:auto; }
     /* short landscape screens: sys buttons become a compact top-center row */
     @media (max-height:540px) {
       .t-sys { top:56px; bottom:auto; right:50%; transform:translateX(50%);
-        grid-template-columns:repeat(8, var(--tb)); }
+        grid-template-columns:repeat(9, var(--tb)); }
       #touch-ui[data-mode="walk"] .t-sys { grid-template-columns:repeat(6, var(--tb)); }
       .t-stick { bottom:calc(64px + env(safe-area-inset-bottom, 0px)); }
       /* engine panel would hide under the stick: keep only the essentials */
@@ -228,7 +229,7 @@
       #hud-right { font-size:11px; }
     }
   </style>
-  <script type="module" crossorigin src="./assets/index-BSuJ_qKI.js"></script>
+  <script type="module" crossorigin src="./assets/index-B2JPyvav.js"></script>
 </head>
 <body>
   <div id="app"></div>
@@ -259,9 +260,10 @@
       <div><span id="h-clock">☀ 10:00</span></div>
       <div>AGL <span id="h-agl">0</span> ft</div>
       <div>WIND <span id="h-wind">0</span> kt</div>
-      <div>SIGHTS <span id="h-sights">0/8</span></div>
+      <div>SIGHTS <span id="h-sights">0/14</span></div>
       <div>CAM <span id="h-cam">CHASE</span></div>
       <div>FPS <span id="h-fps">--</span></div>
+      <div id="mute-btn" title="mute/unmute voices">🔊 <span>VOX</span></div>
     </div>
   </div>
   <div id="quest-tracker" class="hidden"></div>
@@ -276,7 +278,8 @@
     Z / X — trim down / up<br>
     G — gear · C — camera<br>
     K — get out / climb in<br>
-    E — shop / talk (on foot)<br>
+    E — drive / shop / talk (on foot)<br>
+    J — skydive (bring a chute!)<br>
     T — tutorial next · R — reset<br>
     P — pause<br>
     <span style="opacity:.65">📱 Mobile: left stick flies/walks · right slider = throttle · drag right side to look</span>
@@ -291,7 +294,7 @@
         <div class="eyebrow">BLOCKFORGE AVIATION CLUB</div>
         <div class="title">SKYHAWK<small>FLIGHT SIMULATOR</small></div>
         <p class="subtitle">A Cessna-172 class trainer with a real lift/drag/stall flight model on a 24 km island chain. Land on 3 strips, find 13 sights, finish 18 quests, and spend your earnings at the Pilot Shop. Walk Aurora City and four towns — day turns to night, the townsfolk sleep, the beacons wake up.</p>
-        <div class="chips"><span class="chip">C172 CLASS</span><span class="chip">24 KM MAP</span><span class="chip">3 AIRSTRIPS</span><span class="chip">18 QUESTS + SHOP</span><span class="chip">CITY + 4 TOWNS</span><span class="chip">4 PLANES</span><span class="chip">DAY / NIGHT</span><span class="chip">WALK MODE</span></div>
+        <div class="chips"><span class="chip">C172 CLASS</span><span class="chip">24 KM MAP</span><span class="chip">3 AIRSTRIPS</span><span class="chip">20 QUESTS + SHOP</span><span class="chip">CITY + 4 TOWNS</span><span class="chip">4 PLANES</span><span class="chip">DRIVE + SKYDIVE</span><span class="chip">DAY / NIGHT</span></div>
         <button class="flight-card hero" data-fly="free"><span class="ico">🛫</span><span><b>FREE FLIGHT</b><small>Runway 36 · full fuel · the whole island</small></span><span class="go">›</span></button>
         <button class="flight-card" data-fly="takeoff"><span class="ico">🎓</span><span><b>LESSON 1 — TAKEOFF &amp; CLIMB</b><small>Instructor-guided first flight</small></span><span class="go">›</span></button>
         <button class="flight-card" data-fly="landing"><span class="ico">🎓</span><span><b>LESSON 2 — LANDING</b><small>Spawn on final · grease it on</small></span><span class="go">›</span></button>
@@ -327,6 +330,8 @@
             <tr><td class="k">Z / X</td><td>elevator trim — relieves yoke pressure</td></tr>
             <tr><td class="k">G / B</td><td>landing gear / wheel brakes</td></tr>
             <tr><td class="k">C / H / P</td><td>camera (chase/cockpit/tower) / help / pause</td></tr>
+            <tr><td class="k">K / E</td><td>step out, drive cars, shop, talk (on foot)</td></tr>
+            <tr><td class="k">J</td><td>skydive — canopy auto-opens at 400 ft if you own a chute</td></tr>
           <tr><td class="k">M</td><td>map hide / show (tap it to zoom)</td></tr>
             <tr><td class="k">T / R</td><td>tutorial next-step / reset on runway</td></tr>
           <tr><td class="k">📱 Touch</td><td>left stick = fly / walk · right slider = throttle · hold RUD = rudder · drag right side = look on foot</td></tr>
@@ -351,6 +356,8 @@
           <h2>Life on the islands</h2>
         <ul>
           <li><b>Walk:</b> land (or stop) and press <b>K</b> to step out. WASD + mouse, Shift to run. <b>K</b> by the plane climbs back in.</li>
+          <li><b>Drive:</b> walk up to any town car and press <b>E</b> — joyride, then <b>E/K</b> to hop out. 1 km earns the Sunday Driver quest.</li>
+          <li><b>Skydive:</b> press <b>J</b> above 200 ft with a parachute from the shop. Steer the fall, canopy opens at 400 ft, walk away from the landing.</li>
           <li><b>Shop:</b> walk to the blue-roof <b>Pilot Shop</b> in Harborview, press <b>E</b> — paints, turbo, STOL kit, parachute…</li>
           <li><b>Quests:</b> talk to <b>Marta</b> by the main hangars (E) for jobs. They pay cash — track the ◈ marker top-right.</li>
           <li><b>Night:</b> townsfolk go home and sleep (Zzz), street lamps and beacons light up. Try a night landing!</li>
