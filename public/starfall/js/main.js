@@ -31,31 +31,54 @@ function fmtTime(t) {
 var SPRITES = {};
 [['player', 'playerShip1_blue.png'], ['dart', 'enemyRed1.png'], ['stinger', 'enemyRed2.png'],
  ['splitter', 'enemyGreen3.png'], ['mite', 'enemyGreen1.png'],
- ['rock1', 'meteorGrey_med1.png'], ['rock2', 'meteorGrey_med2.png']].forEach(function(pair) {
+ ['rock1', 'meteorGrey_med1.png'], ['rock2', 'meteorGrey_med2.png'],
+ // bosses: tinted to their identity colors (tint, then white-flash from tint)
+ ['brute', 'enemyBlack5.png', '#a04ae0'], ['matriarch', 'ufoGreen.png', '#27b84e'],
+ ['voltwing', 'enemyBlue2.png', '#ffd23d'], ['aegis', 'enemyBlue4.png', '#3aa8e8'],
+ ['hex', 'enemyBlack1.png', '#e84aa0'], ['voidlord', 'enemyBlack3.png', '#8a2be2']
+].forEach(function(spec) {
   var img = new Image();
-  var rec = { img: img, ok: false, white: null };
+  var rec = { img: img, ok: false, white: null, tint: null };
   img.onload = function() {
-    rec.ok = true;
     try {
+      var base = img;
+      if (spec[2]) {
+        // color wash: draw sprite, keep alpha, flood with identity color
+        var tc = document.createElement('canvas');
+        tc.width = img.naturalWidth; tc.height = img.naturalHeight;
+        var tg = tc.getContext('2d');
+        tg.drawImage(img, 0, 0);
+        tg.globalCompositeOperation = 'source-atop';
+        tg.globalAlpha = 0.82;
+        tg.fillStyle = spec[2];
+        tg.fillRect(0, 0, tc.width, tc.height);
+        tg.globalAlpha = 1;
+        tg.globalCompositeOperation = 'source-over';
+        rec.tint = tc;
+        base = tc;
+      }
       var c = document.createElement('canvas');
-      c.width = img.naturalWidth; c.height = img.naturalHeight;
+      c.width = base.naturalWidth || base.width; c.height = base.naturalHeight || base.height;
       var g = c.getContext('2d');
-      g.drawImage(img, 0, 0);
+      g.drawImage(base, 0, 0);
       g.globalCompositeOperation = 'source-in';
       g.fillStyle = '#fff';
       g.fillRect(0, 0, c.width, c.height);
       rec.white = c;
     } catch (e) {}
+    rec.ok = true;
   };
-  img.src = 'assets/ships/' + pair[1];
-  SPRITES[pair[0]] = rec;
+  img.src = 'assets/ships/' + spec[1];
+  SPRITES[spec[0]] = rec;
 });
-// name, screen x/y, facing angle, width px, flash?, spin (for rocks: absolute angle)
+// name, screen x/y, facing angle, width px, flash?, spin (for rocks/saucers: absolute angle)
 function drawSprite(name, x, y, angle, wPx, flash, spin) {
   var s = SPRITES[name];
   if (!s || !s.ok) return false;
-  var img = (flash && s.white) ? s.white : s.img;
-  var hPx = wPx * (img.naturalHeight / img.naturalWidth);
+  var base = s.tint || s.img;
+  var img = (flash && s.white) ? s.white : base;
+  var nw = base.naturalWidth || base.width, nh = base.naturalHeight || base.height;
+  var hPx = wPx * (nh / nw);
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate((spin !== undefined ? spin : angle) + Math.PI / 2);
@@ -90,6 +113,10 @@ window.addEventListener('keydown', function(e) {
 });
 window.addEventListener('keyup', function(e) { keys[e.code] = false; });
 document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+// auto-pause when the tab loses focus mid-run
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden && state === 'play') togglePause();
+});
 
 var touch = { active: false, ox: 0, oy: 0, dx: 0, dy: 0, id: null };
 var stickEl = document.createElement('div');
@@ -308,10 +335,13 @@ function damageEnemy(e, dmg, kx, ky) {
 }
 
 function dropCores(x, y, n) {
-  for (var i = 0; i < n; i++) {
+  // elites/bosses drop fewer chunky gold cores (same total XP, fewer entities)
+  var val = n >= 8 ? 4 : 1;
+  var chunks = n >= 8 ? Math.ceil(n / 4) : n;
+  for (var i = 0; i < chunks; i++) {
     if (cores.length > 300) cores.shift();
     var a = Math.random() * 6.28, d = 4 + Math.random() * 18;
-    cores.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: Math.cos(a) * 40, vy: Math.sin(a) * 40, v: 1 });
+    cores.push({ x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, vx: Math.cos(a) * 40, vy: Math.sin(a) * 40, v: val, big: val > 1 });
   }
 }
 function burst(x, y, col, n) {
@@ -548,18 +578,18 @@ function update(dt) {
     player.fireT -= dt;
     if (player.fireT <= 0) {
       player.fireT = Math.max(0.18, 0.55 - W.blaster * 0.07) * (1 - player.cdr);
-      var tgt = nearestEnemy(player.x, player.y, 520);
-      if (tgt) {
-        var n = 1 + Math.floor((W.blaster - 1) / 2);
+      // one bolt per barrel, each aimed at its own nearest foe
+      var barrels = 1 + Math.floor((W.blaster - 1) / 2);
+      var tgts = nearestTargets(player.x, player.y, 520, barrels);
+      for (var b = 0; b < barrels; b++) {
+        var tgt = tgts[b] || tgts[0];
+        if (!tgt) break;
         var fa = Math.atan2(tgt.y - player.y, tgt.x - player.x);
-        for (var b = 0; b < n; b++) {
-          var a = fa + (b - (n - 1) / 2) * 0.12;
-          bolts.push({ x: player.x, y: player.y, vx: Math.cos(a) * 460, vy: Math.sin(a) * 460, dmg: (6 + W.blaster * 3) * might, pierce: 1 + Math.floor(W.blaster / 3), life: 1.1 });
-        }
-        // muzzle flash
-        burst(player.x + Math.cos(fa) * 16, player.y + Math.sin(fa) * 16, '#ffe98a', 3);
-        STAR_Audio.shoot();
+        bolts.push({ x: player.x, y: player.y, vx: Math.cos(fa) * 460, vy: Math.sin(fa) * 460, dmg: (6 + W.blaster * 3) * might, pierce: 1 + Math.floor(W.blaster / 3), life: 1.1 });
+        // muzzle flash on the first barrel
+        if (b === 0) burst(player.x + Math.cos(fa) * 16, player.y + Math.sin(fa) * 16, '#ffe98a', 3);
       }
+      if (tgts.length) STAR_Audio.shoot();
     }
   }
   if (W.orbit) {
@@ -587,14 +617,15 @@ function update(dt) {
     player.misT -= dt;
     if (player.misT <= 0) {
       player.misT = Math.max(0.7, 2.2 - W.missiles * 0.28) * (1 - player.cdr);
-      var mt = nearestEnemy(player.x, player.y, 620);
-      if (mt) {
-        var cnt = 1 + Math.floor(W.missiles / 2);
-        for (var m = 0; m < cnt; m++) {
-          missiles.push({ x: player.x, y: player.y - 6, vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 60, tgt: mt, dmg: (14 + W.missiles * 8) * might, life: 3 });
-        }
-        STAR_Audio.shoot();
+      var cnt = 1 + Math.floor(W.missiles / 2);
+      // each missile locks its own foe instead of dogpiling one
+      var mtgts = nearestTargets(player.x, player.y, 620, cnt);
+      for (var m = 0; m < cnt; m++) {
+        var mt = mtgts[m] || mtgts[0];
+        if (!mt) break;
+        missiles.push({ x: player.x, y: player.y - 6, vx: (Math.random() - 0.5) * 120, vy: -120 - Math.random() * 60, tgt: mt, dmg: (14 + W.missiles * 8) * might, life: 3 });
       }
+      if (mtgts.length) STAR_Audio.shoot();
     }
   }
   if (W.tesla) {
@@ -625,12 +656,16 @@ function update(dt) {
     player.railT -= dt;
     if (player.railT <= 0) {
       player.railT = Math.max(1.0, 2.6 - W.rail * 0.32) * (1 - player.cdr);
-      var rt = nearestEnemy(player.x, player.y, 700);
-      if (rt) {
+      // Lv3+ twin lances: second slug takes the next-nearest foe
+      var rtgts = nearestTargets(player.x, player.y, 700, W.rail >= 3 ? 2 : 1);
+      for (var ri = 0; ri < rtgts.length; ri++) {
+        var rt = rtgts[ri];
         var ra = Math.atan2(rt.y - player.y, rt.x - player.x);
         bolts.push({ x: player.x, y: player.y, vx: Math.cos(ra) * 720, vy: Math.sin(ra) * 720,
           dmg: (30 + W.rail * 24) * might, pierce: 99, life: 1.5, big: 1 });
         burst(player.x + Math.cos(ra) * 18, player.y + Math.sin(ra) * 18, '#bff3ff', 6);
+      }
+      if (rtgts.length) {
         ring(player.x, player.y, 26, 'rgba(160,240,255,0.8)', 2);
         shake = Math.max(shake, 3);
         STAR_Audio.shoot();
@@ -891,6 +926,21 @@ function nearestEnemy(x, y, maxD) {
   }
   return best;
 }
+// spread targeting: up to n DISTINCT nearest foes so multi-shot weapons
+// engage packs instead of stacking every barrel on one target
+function nearestTargets(x, y, maxD, n) {
+  var scored = [];
+  for (var i = 0; i < enemies.length; i++) {
+    var e = enemies[i];
+    if (e.dead || e.spawnT > 0) continue;
+    var d = dist2(x, y, e.x, e.y);
+    if (d < maxD * maxD) scored.push({ e: e, d: d });
+  }
+  scored.sort(function(a, b) { return a.d - b.d; });
+  var out = [];
+  for (var j = 0; j < Math.min(n, scored.length); j++) out.push(scored[j].e);
+  return out;
+}
 function angDiff(a, b) {
   var d = a - b;
   while (d > Math.PI) d -= Math.PI * 2;
@@ -969,20 +1019,21 @@ function draw() {
 
   function P(x, y) { return [x + ox, y + oy]; }
 
-  // cores (pulsing diamonds with halo)
+  // cores (pulsing diamonds with halo; elite cores are big and gold)
   for (var i = 0; i < cores.length; i++) {
     var c = cores[i], p = P(c.x, c.y);
     if (p[0] < -20 || p[1] < -20 || p[0] > W + 20 || p[1] > H + 20) continue;
     var cp = 1 + Math.sin(elapsed * 5 + c.x) * 0.15;
-    ctx.fillStyle = 'rgba(40,255,140,0.18)';
-    ctx.beginPath(); ctx.arc(p[0], p[1], 8 * cp, 0, 6.283); ctx.fill();
-    ctx.fillStyle = '#0a5a30';
+    var cs = c.big ? 1.7 : 1;
+    ctx.fillStyle = c.big ? 'rgba(255,210,80,0.22)' : 'rgba(40,255,140,0.18)';
+    ctx.beginPath(); ctx.arc(p[0], p[1], 8 * cp * cs, 0, 6.283); ctx.fill();
+    ctx.fillStyle = c.big ? '#6a4a00' : '#0a5a30';
     ctx.beginPath();
-    ctx.moveTo(p[0], p[1] - 6 * cp); ctx.lineTo(p[0] + 5 * cp, p[1]); ctx.lineTo(p[0], p[1] + 6 * cp); ctx.lineTo(p[0] - 5 * cp, p[1]);
+    ctx.moveTo(p[0], p[1] - 6 * cp * cs); ctx.lineTo(p[0] + 5 * cp * cs, p[1]); ctx.lineTo(p[0], p[1] + 6 * cp * cs); ctx.lineTo(p[0] - 5 * cp * cs, p[1]);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#2ff88a';
+    ctx.fillStyle = c.big ? '#ffd23d' : '#2ff88a';
     ctx.beginPath();
-    ctx.moveTo(p[0], p[1] - 4 * cp); ctx.lineTo(p[0] + 3 * cp, p[1]); ctx.lineTo(p[0], p[1] + 4 * cp); ctx.lineTo(p[0] - 3 * cp, p[1]);
+    ctx.moveTo(p[0], p[1] - 4 * cp * cs); ctx.lineTo(p[0] + 3 * cp * cs, p[1]); ctx.lineTo(p[0], p[1] + 4 * cp * cs); ctx.lineTo(p[0] - 3 * cp * cs, p[1]);
     ctx.closePath(); ctx.fill();
     ctx.fillStyle = '#dfffe8';
     ctx.fillRect(p[0] - 1, p[1] - 3 * cp, 2, 2);
@@ -1039,32 +1090,26 @@ function draw() {
         ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * pulse, 0, 6.283); ctx.fill();
       }
     } else if (e.type === 'matriarch') {
-      // broodmother blob: veined sac, egg spots, pulsing crown
-      var mp = 1 + Math.sin(e.wob * 2.4) * 0.06;
-      ctx.fillStyle = flash ? '#fff' : '#14602a';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * mp, 0, 6.283); ctx.fill();
-      ctx.fillStyle = flash ? '#fff' : '#2fae4e';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.74 * mp, 0, 6.283); ctx.fill();
-      // egg spots
-      ctx.fillStyle = flash ? '#fff' : '#d8ff9a';
-      for (var eg = 0; eg < 6; eg++) {
-        var ea = e.rot + eg * 6.283 / 6;
-        ctx.beginPath(); ctx.arc(ep[0] + Math.cos(ea) * e.r * 0.5, ep[1] + Math.sin(ea) * e.r * 0.5, 3.4, 0, 6.283); ctx.fill();
+      // proper model: saucer mothership, slow saucer spin, brood glow
+      if (!drawSprite('matriarch', ep[0], ep[1], 0, e.r * 2.7, flash, e.rot * 0.4)) {
+        ctx.fillStyle = flash ? '#fff' : '#2fae4e';
+        ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.74, 0, 6.283); ctx.fill();
+      } else {
+        // brood lights orbit the saucer rim
+        ctx.fillStyle = flash ? '#fff' : '#d8ff9a';
+        for (var eg = 0; eg < 5; eg++) {
+          var ea = e.rot * 0.4 + eg * 6.283 / 5;
+          ctx.beginPath(); ctx.arc(ep[0] + Math.cos(ea) * e.r * 0.95, ep[1] + Math.sin(ea) * e.r * 0.95, 3, 0, 6.283); ctx.fill();
+        }
       }
-      // crown spikes
-      ctx.fillStyle = flash ? '#fff' : '#0e3a1a';
-      for (var cs = 0; cs < 8; cs++) {
-        var ca2 = e.wob * 0.4 + cs * 6.283 / 8;
-        tri(ep[0] + Math.cos(ca2) * e.r * 1.02, ep[1] + Math.sin(ca2) * e.r * 1.02, 7, ca2);
-      }
-      // furious eyes
+      // furious eyes track the player
       var mea = Math.atan2(player.y - e.y, player.x - e.x);
       ctx.fillStyle = '#ffe14d';
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(mea - 0.35) * 9, ep[1] + Math.sin(mea - 0.35) * 9, 3.4, 0, 6.283); ctx.fill();
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(mea + 0.35) * 9, ep[1] + Math.sin(mea + 0.35) * 9, 3.4, 0, 6.283); ctx.fill();
       bossHpBar(ep[0], ep[1], e);
     } else if (e.type === 'voltwing') {
-      // golden falcon: swept wings, lightning crest, telegraphs dashes
+      // proper model: gold-tinted arrow interceptor; telegraph beam kept
       var va = (e.mode === 'dash') ? e.dashA : Math.atan2(player.y - e.y, player.x - e.x);
       if (e.mode === 'tele') {
         // telegraph beam
@@ -1075,33 +1120,18 @@ function draw() {
         ctx.lineTo(ep[0] + Math.cos(e.dashA) * 220, ep[1] + Math.sin(e.dashA) * 220); ctx.stroke();
         ctx.setLineDash([]);
       }
-      ctx.fillStyle = flash ? '#fff' : '#c8920a';
-      tri(ep[0], ep[1], e.r + 8, va);
-      ctx.fillStyle = flash ? '#fff' : '#ffe14d';
-      tri(ep[0], ep[1], e.r + 1, va);
-      // crest fins
-      ctx.fillStyle = flash ? '#fff' : '#8a5f06';
-      tri(ep[0] - Math.cos(va) * 6 + Math.cos(va + 2.2) * 10, ep[1] - Math.sin(va) * 6 + Math.sin(va + 2.2) * 10, 8, va + 2.2);
-      tri(ep[0] - Math.cos(va) * 6 + Math.cos(va - 2.2) * 10, ep[1] - Math.sin(va) * 6 + Math.sin(va - 2.2) * 10, 8, va - 2.2);
-      // visor eye
-      ctx.fillStyle = '#401a00';
-      ctx.fillRect(ep[0] + Math.cos(va) * 6 - 4, ep[1] + Math.sin(va) * 6 - 2, 8, 4);
-      ctx.fillStyle = '#ff4040';
-      ctx.fillRect(ep[0] + Math.cos(va) * 6 - 3, ep[1] + Math.sin(va) * 6 - 1, 6, 2);
+      if (!drawSprite('voltwing', ep[0], ep[1], va, e.r * 2.8, flash)) {
+        ctx.fillStyle = flash ? '#fff' : '#ffe14d';
+        tri(ep[0], ep[1], e.r + 1, va);
+      }
       bossHpBar(ep[0], ep[1], e);
     } else if (e.type === 'aegis') {
-      // warden shell: armored hex dome, portholes, shield bubble
-      ctx.fillStyle = flash ? '#fff' : '#1e5a80';
-      poly(ep[0], ep[1], e.r, 8, e.rot * 0.2);
-      ctx.fillStyle = flash ? '#fff' : '#3aa8e8';
-      poly(ep[0], ep[1], e.r * 0.72, 8, e.rot * 0.2 + 0.4);
-      ctx.fillStyle = flash ? '#fff' : '#0e2a3e';
-      for (var ph = 0; ph < 6; ph++) {
-        var pa = e.rot * 0.2 + ph * 6.283 / 6;
-        ctx.beginPath(); ctx.arc(ep[0] + Math.cos(pa) * e.r * 0.45, ep[1] + Math.sin(pa) * e.r * 0.45, 3.2, 0, 6.283); ctx.fill();
+      // proper model: tinted wide gunship; shield bubble kept
+      var aga = Math.atan2(player.y - e.y, player.x - e.x);
+      if (!drawSprite('aegis', ep[0], ep[1], aga, e.r * 2.7, flash)) {
+        ctx.fillStyle = flash ? '#fff' : '#3aa8e8';
+        poly(ep[0], ep[1], e.r * 0.72, 8, e.rot * 0.2 + 0.4);
       }
-      ctx.fillStyle = '#dff4ff';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.2, 0, 6.283); ctx.fill();
       if (e.shield) {
         ctx.strokeStyle = 'rgba(125,223,255,' + (0.55 + 0.3 * Math.sin(elapsed * 8)).toFixed(2) + ')';
         ctx.lineWidth = 3;
@@ -1109,70 +1139,36 @@ function draw() {
       }
       bossHpBar(ep[0], ep[1], e);
     } else if (e.type === 'hex') {
-      // blade hunter: magenta kite with sensor eye + ion trail
+      // proper model: magenta-tinted blade + sensor eye
       var ha = Math.atan2(player.y - e.y, player.x - e.x);
-      ctx.fillStyle = flash ? '#fff' : '#a02868';
-      ctx.save();
-      ctx.translate(ep[0], ep[1]); ctx.rotate(ha);
-      ctx.fillRect(-e.r - 4, -4, (e.r + 4) * 2, 8);
-      ctx.fillRect(-3, -e.r - 2, 6, (e.r + 2) * 2);
-      ctx.fillStyle = flash ? '#fff' : '#ff6ab8';
-      ctx.fillRect(-e.r + 2, -2, (e.r - 2) * 2, 4);
-      ctx.restore();
+      drawSprite('hex', ep[0], ep[1], ha, e.r * 2.9, flash);
       ctx.fillStyle = '#fff';
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(ha) * 4, ep[1] + Math.sin(ha) * 4, 3, 0, 6.283); ctx.fill();
       ctx.fillStyle = '#ff0848';
       ctx.beginPath(); ctx.arc(ep[0] + Math.cos(ha) * 4, ep[1] + Math.sin(ha) * 4, 1.6, 0, 6.283); ctx.fill();
       bossHpBar(ep[0], ep[1], e);
     } else if (e.type === 'voidlord') {
-      // abyssal sovereign: dark halo, rune ring, devouring core
+      // proper model: violet-tinted sovereign + devouring halo
+      var vla = Math.atan2(player.y - e.y, player.x - e.x);
       ctx.fillStyle = 'rgba(60,10,110,0.5)';
       ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r + 14 + Math.sin(elapsed * 3) * 4, 0, 6.283); ctx.fill();
-      ctx.fillStyle = flash ? '#fff' : '#3a1068';
-      poly(ep[0], ep[1], e.r, 8, e.rot * 0.25);
-      ctx.fillStyle = flash ? '#fff' : '#6a20b8';
-      poly(ep[0], ep[1], e.r * 0.7, 8, -e.rot * 0.25);
-      // rune ring
-      ctx.fillStyle = '#c870ff';
-      for (var rn = 0; rn < 8; rn++) {
-        var ra = -e.rot * 0.6 + rn * 6.283 / 8;
-        ctx.fillRect(ep[0] + Math.cos(ra) * e.r * 0.85 - 2, ep[1] + Math.sin(ra) * e.r * 0.85 - 2, 4, 4);
-      }
-      // devouring core
-      ctx.fillStyle = flash ? '#fff' : '#12041f';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.34, 0, 6.283); ctx.fill();
-      ctx.fillStyle = '#e080ff';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.2 * (1 + 0.2 * Math.sin(elapsed * 7)), 0, 6.283); ctx.fill();
-      // triple eyes
-      var vea = Math.atan2(player.y - e.y, player.x - e.x);
+      drawSprite('voidlord', ep[0], ep[1], vla, e.r * 2.6, flash);
+      // triple eyes track the player
       [-0.5, 0, 0.5].forEach(function(off) {
         ctx.fillStyle = '#ff3050';
-        ctx.beginPath(); ctx.arc(ep[0] + Math.cos(vea + off) * e.r * 0.55, ep[1] + Math.sin(vea + off) * e.r * 0.55, 2.6, 0, 6.283); ctx.fill();
+        ctx.beginPath(); ctx.arc(ep[0] + Math.cos(vla + off) * e.r * 0.55, ep[1] + Math.sin(vla + off) * e.r * 0.55, 2.6, 0, 6.283); ctx.fill();
       });
       bossHpBar(ep[0], ep[1], e);
     } else if (e.type === 'brute') {
-      // dreadnought: hex hull, rotating gun ring, burning core
-      ctx.fillStyle = flash ? '#fff' : '#5a2088';
-      poly(ep[0], ep[1], e.r, 6, e.rot * 0.3);
-      ctx.fillStyle = flash ? '#fff' : '#7a30c8';
-      poly(ep[0], ep[1], e.r * 0.78, 6, e.rot * 0.3 + 0.5);
-      // rotating gun ring
-      for (var gs = 0; gs < 6; gs++) {
-        var ga = e.rot + gs * 6.283 / 6;
-        ctx.fillStyle = flash ? '#fff' : '#3a1060';
-        ctx.fillRect(ep[0] + Math.cos(ga) * e.r * 0.95 - 3, ep[1] + Math.sin(ga) * e.r * 0.95 - 3, 6, 6);
+      // proper model: tinted heavy gunship + burning core glint
+      var bra = Math.atan2(player.y - e.y, player.x - e.x);
+      if (!drawSprite('brute', ep[0], ep[1], bra, e.r * 2.7, flash)) {
+        ctx.fillStyle = flash ? '#fff' : '#5a2088';
+        poly(ep[0], ep[1], e.r, 6, e.rot * 0.3);
       }
-      // burning core (pulse speeds up as it weakens)
       var coreP = 0.5 + 0.5 * Math.sin(elapsed * (4 + (1 - clamp(e.hp / e.maxhp, 0, 1)) * 10));
       ctx.fillStyle = flash ? '#fff' : '#e040f0';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.34 * (1 + coreP * 0.15), 0, 6.283); ctx.fill();
-      ctx.fillStyle = '#ffd0ff';
-      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.14, 0, 6.283); ctx.fill();
-      ctx.fillStyle = '#ffd83d';
-      for (var s = 0; s < 5; s++) {
-        var sa = -Math.PI / 2 + s * 6.283 / 5;
-        ctx.fillRect(ep[0] + Math.cos(sa) * (e.r + 2) - 2, ep[1] + Math.sin(sa) * (e.r + 2) - 2, 4, 4);
-      }
+      ctx.beginPath(); ctx.arc(ep[0], ep[1], e.r * 0.2 * (1 + coreP * 0.2), 0, 6.283); ctx.fill();
       // hp bar
       ctx.fillStyle = 'rgba(0,0,0,0.6)';
       ctx.fillRect(ep[0] - 20, ep[1] - e.r - 12, 40, 5);
@@ -1368,6 +1364,34 @@ function draw() {
     lg.addColorStop(1, 'rgba(255,20,10,' + la.toFixed(2) + ')');
     ctx.fillStyle = lg;
     ctx.fillRect(0, 0, W, H);
+  }
+  // off-screen boss arrow (points at the live boss + distance)
+  if (state === 'play') {
+    var ab = (activeBoss && !activeBoss.dead) ? activeBoss : null;
+    if (!ab) {
+      for (var bi3 = 0; bi3 < enemies.length; bi3++) {
+        if (enemies[bi3].isBoss && !enemies[bi3].dead) { ab = enemies[bi3]; break; }
+      }
+    }
+    if (ab) {
+      var bsx = ab.x - camX + W / 2, bsy = ab.y - camY + H / 2, bm = 60;
+      if (bsx < bm || bsy < bm || bsx > W - bm || bsy > H - bm) {
+        var baa = Math.atan2(bsy - H / 2, bsx - W / 2);
+        var bax = clamp(bsx, bm, W - bm), bay = clamp(bsy, bm, H - bm);
+        ctx.save();
+        ctx.translate(bax, bay); ctx.rotate(baa);
+        ctx.fillStyle = '#ff5566';
+        tri(0, 0, 17, 0);
+        ctx.fillStyle = '#fff';
+        tri(0, 0, 8, 0);
+        ctx.restore();
+        var bdist = Math.round(Math.hypot(ab.x - player.x, ab.y - player.y));
+        ctx.fillStyle = '#ff8899';
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'center';
+        ctx.fillText('☠ ' + bdist + 'm', bax, bay + 28);
+      }
+    }
   }
 }
 function drawStars(par, size, cell) {
