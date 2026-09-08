@@ -1,15 +1,15 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{width:100%;height:100%;overflow:hidden;background:#04040c;font-family:monospace;-webkit-user-select:none;user-select:none;touch-action:none}
-#game{position:fixed;inset:0;display:block}
+#game{position:fixed;top:0;left:0;right:0;bottom:0;display:block}
 .hidden{display:none !important}
 
 /* HUD */
-#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+#hud{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:5}
 #hud-top{position:absolute;top:8px;left:0;right:0;display:flex;align-items:center;justify-content:center;gap:14px}
 #hud-timer{font:bold 18px monospace;color:#fff;text-shadow:0 0 8px #48f,1px 1px 0 #000}
 #hud-levelwrap{position:relative;width:min(320px,44vw);height:14px;background:rgba(10,10,25,.7);border:1px solid rgba(120,160,255,.4);border-radius:7px;overflow:hidden}
 #hud-levelbar{height:100%;width:0%;background:linear-gradient(90deg,#38e,#8ef);transition:width .2s}
-#hud-leveltext{position:absolute;inset:0;text-align:center;font:bold 10px/14px monospace;color:#fff;text-shadow:1px 1px 0 #000}
+#hud-leveltext{position:absolute;top:0;left:0;right:0;bottom:0;text-align:center;font:bold 10px/14px monospace;color:#fff;text-shadow:1px 1px 0 #000}
 #hud-kills{font:bold 13px monospace;color:#f88;text-shadow:1px 1px 0 #000}
 #hud-hpwrap{position:absolute;top:30px;left:50%;transform:translateX(-50%);width:min(220px,34vw);height:8px;background:rgba(40,5,5,.7);border:1px solid rgba(255,100,100,.4);border-radius:4px;overflow:hidden}
 #hud-hpbar{height:100%;width:100%;background:linear-gradient(90deg,#e33,#f88);transition:width .15s}
@@ -19,9 +19,9 @@ html,body{width:100%;height:100%;overflow:hidden;background:#04040c;font-family:
 #btn-mute{position:absolute;top:8px;right:54px;width:38px;height:38px;border-radius:50%;border:2px solid rgba(255,255,255,.3);background:rgba(0,0,0,.5);color:#fff;font-size:15px;pointer-events:auto;cursor:pointer}
 
 /* Screens */
-.screen{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#dfe6ff;padding:20px}
+.screen{position:fixed;top:0;left:0;right:0;bottom:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#dfe6ff;padding:20px}
 #screen-menu{background:radial-gradient(ellipse at 50% 120%,#1a1440 0%,#04040c 60%)}
-.stars-bg{position:absolute;inset:0;background-image:radial-gradient(1px 1px at 12% 22%,#fff,transparent),radial-gradient(1px 1px at 68% 8%,#9df,transparent),radial-gradient(2px 2px at 84% 64%,#fff,transparent),radial-gradient(1px 1px at 33% 78%,#fda,transparent),radial-gradient(1px 1px at 51% 41%,#fff,transparent),radial-gradient(2px 2px at 8% 58%,#adf,transparent);animation:twinkle 3s infinite alternate}
+.stars-bg{position:absolute;top:0;left:0;right:0;bottom:0;background-image:radial-gradient(1px 1px at 12% 22%,#fff,transparent),radial-gradient(1px 1px at 68% 8%,#9df,transparent),radial-gradient(2px 2px at 84% 64%,#fff,transparent),radial-gradient(1px 1px at 33% 78%,#fda,transparent),radial-gradient(1px 1px at 51% 41%,#fff,transparent),radial-gradient(2px 2px at 8% 58%,#adf,transparent);animation:twinkle 3s infinite alternate}
 @keyframes twinkle{from{opacity:.6}to{opacity:1}}
 .game-title{font-size:min(54px,11vw);letter-spacing:4px;color:#fff;text-shadow:0 0 24px #48f,0 0 60px #22c;z-index:1;line-height:1.05}
 .game-title span{color:#8ef}
