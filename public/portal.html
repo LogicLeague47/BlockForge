@@ -1483,11 +1483,11 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
-          heading: 'Skyhawk: iOS 10 compat + PC fix',
-          desc: 'Full CSS overhaul of sky-sim HTML: inset, min(), clamp(), gap, backdrop-filter, max() all fixed for Safari 10. Removed crossorigin attribute that blocked module execution on PC.',
+          heading: 'Skyhawk: tree crash fix + re-sync',
+          desc: 'Fixed ReferenceError in world tree generation — 6 setMatrixAt calls used undefined var m instead of m4. Rebuilt and re-vendored bundle.',
           date: 'Sep 8',
-          bugs: ['Skyhawk buttons non-functional on PC (crossorigin CORS block)', 'Skyhawk invisible on iOS 10 (unsupported CSS)'],
-          updates: ['41 CSS property fixes for Safari 10', 'crossorigin attr removed from module script', '?v=8'],
+          bugs: ['Skyhawk ReferenceError: m is not defined (world.js tree rendering)'],
+          updates: ['world.js: 6x setMatrixAt(i, m) → setMatrixAt(i, m4)', 'bundle re-vendored ?v=9'],
           features: [],
         },
         {
