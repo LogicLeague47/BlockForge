@@ -446,7 +446,7 @@
 
       /* Water overlay */
       #water-overlay {
-        position: fixed; inset: 0; z-index: 8;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 8;
         pointer-events: none;
         opacity: 0;
         transition: opacity 0.3s;
@@ -456,7 +456,7 @@
 
       /* Underwater overlay — solid blue tint */
       #underwater-overlay {
-        position: fixed; inset: 0;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         background: rgba(0, 40, 120, 0.25);
         pointer-events: none; display: none;
         z-index: 5;
@@ -464,7 +464,7 @@
 
       /* Sleep overlay */
       #sleep-overlay {
-        position: fixed; inset: 0; z-index: 90;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 90;
         background: #000; opacity: 0;
         pointer-events: none;
       }
@@ -481,7 +481,7 @@
 
       /* Damage flash overlay — red vignette when hurt */
       #damage-overlay {
-        position: fixed; inset: 0; z-index: 6;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 6;
         pointer-events: none;
         opacity: 0;
         background: radial-gradient(ellipse at center, rgba(180,0,0,0) 35%, rgba(180,0,0,0.55) 100%);
@@ -491,7 +491,7 @@
 
       /* Low health vignette — persistent red border when health <= 4 hearts */
       #low-health-vignette {
-        position: fixed; inset: 0; z-index: 5;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 5;
         pointer-events: none;
         opacity: 0;
         background: radial-gradient(ellipse at center, rgba(180,0,0,0) 40%, rgba(180,0,0,0.45) 100%);
@@ -516,7 +516,7 @@
       .pk-hud-deaths { font: 14px monospace; color: #f88; }
 
       #parkour-finish {
-        position: fixed; inset: 0; z-index: 60;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 60;
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
         background: rgba(0,0,0,0.75);
@@ -611,7 +611,7 @@
 
       /* Achievement list screen */
       #achievement-screen {
-        position: fixed; inset: 0; z-index: 55;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 55;
         background: rgba(0,0,0,0.8);
         display: none; flex-direction: column;
         align-items: center; justify-content: flex-start;
@@ -623,7 +623,7 @@
 
       /* Recipe book screen */
       #recipe-screen {
-        position: fixed; inset: 0; z-index: 70;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 70;
         background: rgba(0,0,0,0.85);
         display: none; flex-direction: column;
         align-items: center; justify-content: flex-start;
@@ -667,7 +667,7 @@
         box-shadow: 0 2px 0 #224;
       }
       #stats-screen {
-        position: fixed; inset: 0; z-index: 55;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 55;
         background: rgba(0,0,0,0.8);
         display: none; flex-direction: column;
         align-items: center; justify-content: flex-start;
@@ -775,7 +775,7 @@
 
       /* Pause menu — Bedrock style overlay */
       #menu-pause {
-        position: fixed; inset: 0; z-index: 56;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 56;
         background: rgba(0,0,0,0.7);
         display: none; flex-direction: column;
         align-items: center; justify-content: center;
@@ -838,7 +838,7 @@
 
       /* Dev error log panel */
       #error-log-panel {
-        position: fixed; inset: 0; z-index: 9999;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;
         display: none; align-items: center; justify-content: center;
         background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
       }
@@ -893,7 +893,7 @@
 
       /* Inventory screen */
       #inventory-screen {
-        position: fixed; inset: 0; z-index: 55;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 55;
         background: var(--bg-screen);
         backdrop-filter: blur(4px);
         display: none; flex-direction: column;
@@ -1087,7 +1087,7 @@
       #chest-inv-grid .inv-slot,
       #chest-hotbar-grid .inv-slot,
       #furnace-inv-grid .inv-slot {
-        width: auto; height: auto; aspect-ratio: 1;
+        width: auto; height: auto; padding-bottom: 100%; /* aspect-ratio: 1 fallback */
       }
       #inventory-grid .inv-slot canvas,
       #chest-grid .inv-slot canvas,
@@ -1213,7 +1213,7 @@
 
       /* Furnace screen */
       #furnace-screen {
-        position: fixed; inset: 0; z-index: 56;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 56;
         background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: stretch; justify-content: flex-start;
@@ -1227,7 +1227,7 @@
         flex-wrap: wrap; gap: 8px;
       }
       #chest-screen {
-        position: fixed; inset: 0; z-index: 56;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 56;
         background: var(--bg-screen);
         display: none; flex-direction: column;
         align-items: stretch; justify-content: flex-start;
@@ -1437,7 +1437,7 @@
       }
       /* Main menu overlay — Bedrock Beta style */
       #overlay {
-        position: fixed; inset: 0; z-index: 50;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 50;
         display: flex; flex-direction: column;
         align-items: center;
         /* NOTE: do NOT use justify-content:center here. With a child taller
@@ -1455,7 +1455,7 @@
       #overlay::-webkit-scrollbar-track { background: transparent; }
       #overlay.hidden { display: none; }
       #overlay-bg {
-        position: absolute; inset: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 0;
         image-rendering: pixelated;
         background-size: cover;
@@ -1469,7 +1469,7 @@
         100% { opacity: 1; transform: scale(1.02); }
       }
       #overlay-vignette {
-        position: absolute; inset: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 1;
         background: var(--bg-overlay-vignette);
       }
@@ -1495,7 +1495,7 @@
        /* Add-Server modal must be a proper full-screen scrollable overlay so it
           never crops on small screens (flex-centre + overflow used to clip it). */
        #add-server-modal {
-         position: fixed !important; inset: 0 !important;
+         position: fixed !important; top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
          max-width: none !important; width: 100% !important; height: 100% !important;
          z-index: 60; display: none; padding: 16px !important; overflow: auto !important;
          background: rgba(0,0,0,0.72) !important;
@@ -2088,7 +2088,7 @@
 
       /* Loading screen — Bedrock style */
       #loading-screen {
-        position: fixed; inset: 0; z-index: 200;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 200;
         display: none; flex-direction: column;
         align-items: center; justify-content: flex-end;
         font-family: 'Segoe UI', 'Helvetica Neue', monospace; color: #fff;
@@ -2096,14 +2096,14 @@
       }
       #loading-screen.active { display: flex; }
       #loading-bg {
-        position: absolute; inset: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 0;
         background-size: cover;
         background-position: center;
         image-rendering: pixelated;
       }
       #loading-vignette {
-        position: absolute; inset: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         z-index: 1;
         background: linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.15) 40%, rgba(0,0,0,0.65) 100%);
       }
@@ -2274,7 +2274,7 @@
       /* ── Mobile touch controls (Bedrock-style) ── */
       #bf-controls {
         display: none;
-        position: fixed; inset: 0;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         pointer-events: none; z-index: 20;
         touch-action: none;
         user-select: none; -webkit-user-select: none;
@@ -2307,7 +2307,7 @@
 
       /* Camera zone — full screen (behind everything) */
       .bf-camera-zone {
-        position: absolute; inset: 0;
+        position: absolute; top: 0; left: 0; right: 0; bottom: 0;
         pointer-events: auto; z-index: 1;
       }
 
@@ -2538,7 +2538,7 @@
       * { box-sizing: border-box; }
       html { background: #08080f; }
       body::before {
-        content: ''; position: fixed; inset: 0;
+        content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
         background: radial-gradient(ellipse at 50% 0%, rgba(30,40,80,0.15) 0%, transparent 70%);
         pointer-events: none; z-index: 0;
       }
@@ -2652,7 +2652,7 @@
     <div id="low-health-vignette"></div>
 
     <!-- Tutorial / First-Time Intro Overlay -->
-    <div id="tutorial-overlay" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;overflow-y:auto;">
+    <div id="tutorial-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:100;background:rgba(0,0,0,0.88);align-items:center;justify-content:center;overflow-y:auto;">
       <div style="max-width:520px;width:90%;background:rgba(20,22,32,0.97);border:2px solid rgba(100,150,200,0.25);border-radius:10px;padding:32px 36px;color:#ddd;font-family:monospace;box-shadow:0 0 40px rgba(0,0,0,0.5);">
         <div style="text-align:center;margin-bottom:20px;">
           <div style="font:bold 30px monospace;color:#6cbb3c;letter-spacing:3px;text-shadow:0 2px 8px rgba(80,200,60,0.3);">BLOCKFORGE</div>
@@ -2744,7 +2744,7 @@
       <div id="overlay-vignette"></div>
 
       <!-- One-time announcement (shown once per device, then self-deletes) -->
-      <div id="announcement-modal" style="display:none;position:fixed;inset:0;z-index:200;align-items:center;justify-content:center;">
+      <div id="announcement-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:200;align-items:center;justify-content:center;">
         <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:24px 28px;max-width:480px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
           <div id="announcement-title" style="font:bold 18px monospace;color:#ff0;margin-bottom:12px;"></div>
           <div id="announcement-body" style="font:14px/1.6 monospace;color:#ccc;margin-bottom:20px;white-space:pre-wrap;"></div>
@@ -2808,7 +2808,7 @@
         <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
         <div id="mod-buttons-container"></div>
         <button class="menu-btn" id="btn-menu-errors" style="display:none;font-size:11px;padding:6px 20px;border-color:#f88;background:linear-gradient(180deg,#4a2a2a 0%,#3a1a1a 40%,#301515 60%,#200a0a 100%);">⚠ View Errors</button>
-        <div id="other-games-popup" style="display:none;position:fixed;inset:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
+        <div id="other-games-popup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
           <div style="width:min(420px,92vw);background:#14141f;border:2px solid rgba(90,160,255,0.4);border-radius:10px;padding:22px 24px;text-align:center;font-family:monospace;color:#ddd;box-shadow:0 0 40px rgba(0,0,0,0.6);">
             <div style="font:bold 17px monospace;color:#fff;margin-bottom:10px;">🎲 Other Games</div>
             <div style="font:12px/1.6 monospace;color:#bbb;margin-bottom:16px;">These are offbranch games made by this creator.</div>
@@ -2856,7 +2856,7 @@
       </div>
 
       <!-- Account Info Modal -->
-      <div id="account-info-modal" style="display:none;position:fixed;inset:0;z-index:150;align-items:center;justify-content:center;">
+      <div id="account-info-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:150;align-items:center;justify-content:center;">
         <div style="background:var(--bg-panel);border:1px solid var(--bg-panel-border);border-radius:6px;padding:20px 24px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.6);">
           <div style="font:bold 16px monospace;color:#ff0;margin-bottom:14px;">Account Info</div>
           <div style="font:13px/1.8 monospace;color:#ccc;">
@@ -2877,7 +2877,7 @@
           </div>
           <button class="menu-btn secondary" id="btn-ai-close" style="width:100%;margin-top:14px;padding:8px 0;font-size:13px;">CLOSE</button>
         </div>
-        <div id="ai-backdrop" style="position:fixed;inset:0;z-index:-1;" onclick="document.getElementById('account-info-modal').style.display='none'"></div>
+        <div id="ai-backdrop" style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:-1;" onclick="document.getElementById('account-info-modal').style.display='none'"></div>
       </div>
 
       <!-- Screen: World List -->

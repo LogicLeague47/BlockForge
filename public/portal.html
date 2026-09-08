@@ -1482,12 +1482,12 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '20ae46e',
-          heading: 'iOS 10.3.4 compat: inset:0 replaced',
-          desc: 'Replaced shorthand inset:0 with longhand top/left/right/bottom:0 across three games for Safari < 14 support.',
+          hash: 'PENDING',
+          heading: 'iOS 10.3.4 compat: full inset:0 fix',
+          desc: 'Replaced shorthand inset:0 with longhand top/left/right/bottom:0 across index.html (26 screens), all offbranch games (PaperForge, Starfall, Mold Kingdom, Skyhawk), portal, games, mods, and user-data pages for Safari < 14 support.',
           date: 'Sep 8',
-          bugs: [],
-          updates: ['starfall, mold-kingdom, sky-sim CSS: inset:0 → longhand fallback'],
+          bugs: ['iOS 10.3.4 (iPhone 5): UI overlays invisible — only world preview rendered'],
+          updates: ['index.html: 26 inset:0 → longhand fallback', 'starfall, mold-kingdom, sky-sim, paperforge CSS: same fix', 'portal, games, mods, user-data pages: same fix'],
           features: [],
         },
         {
