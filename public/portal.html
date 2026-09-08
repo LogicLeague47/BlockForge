@@ -1483,12 +1483,12 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
-          heading: 'Skyhawk: crash fixes — undefined vars in world.js',
-          desc: 'Fixed two ReferenceErrors that killed 3D init: 6 setMatrixAt calls used undefined m instead of m4, and buildTowns called an undefined mat() helper. Added the missing material shorthand function.',
+          heading: 'Skyhawk: iOS 10.3.4 legacy build',
+          desc: 'Wrapped module in async IIFE, built IIFE+ES5 legacy bundle via Babel. Added <script nomodule> fallback for Safari 10.',
           date: 'Sep 8',
-          bugs: ['Skyhawk ReferenceError: m is not defined (tree generation)', 'Skyhawk ReferenceError: mat is not defined (town building)'],
-          updates: ['world.js: 6x setMatrixAt(i, m) → setMatrixAt(i, m4)', 'world.js: added mat() shorthand in buildTowns', 'bundle re-vendored ?v=10'],
-          features: [],
+          bugs: ['Skyhawk invisible/non-functional on iOS 10.3.4 (ES module not parsed by old Safari)'],
+          updates: ['src/main.js: async IIFE wrapper eliminates top-level await', 'LEGACY_BUILD=1 IIFE + Babel ES5 transpile', 'skyhawk-legacy.js vendored (870KB)', '<script nomodule> fallback in sky-sim/index.html'],
+          features: ['Skyhawk now runs on iOS 10.3.4 (iPhone 5)'],
         },
         {
           hash: 'dea306a',
