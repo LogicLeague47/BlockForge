@@ -1482,12 +1482,12 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
-          hash: '6484159',
-          heading: 'Skyhawk: latest build re-synced',
-          desc: 'Latest Skyhawk flight sim build re-vendored with fresh bundle. Cache-busted to ?v=7.',
+          hash: 'PENDING',
+          heading: 'Skyhawk: iOS 10 compat + PC fix',
+          desc: 'Full CSS overhaul of sky-sim HTML: inset, min(), clamp(), gap, backdrop-filter, max() all fixed for Safari 10. Removed crossorigin attribute that blocked module execution on PC.',
           date: 'Sep 8',
-          bugs: [],
-          updates: ['latest sky-sim dist synced'],
+          bugs: ['Skyhawk buttons non-functional on PC (crossorigin CORS block)', 'Skyhawk invisible on iOS 10 (unsupported CSS)'],
+          updates: ['41 CSS property fixes for Safari 10', 'crossorigin attr removed from module script', '?v=8'],
           features: [],
         },
         {
