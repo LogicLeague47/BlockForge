@@ -1482,6 +1482,15 @@
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
         {
+          hash: '51fa09b',
+          heading: 'Legacy iPhone fix: menu now shows',
+          desc: 'Found it: the menu code used NodeList.forEach and runtime builtins that old Safari chokes on, so the legacy bundle rendered the world but threw before showing any buttons. Menu path rewritten with plain loops, guarded ES5 polyfills prepended to the legacy bundle, cache-busted loader.',
+          date: 'Sep 8',
+          bugs: ['iPhone 5 and older: preview world rendered but no buttons ever appeared', 'NodeList.forEach threw inside showMenu on old Safari', 'Array.includes / Object.entries / padStart missing on iOS 9'],
+          updates: ['indexed loops in showMenu', 'legacy-polyfills.js prepended by the build', 'main-legacy.js?v=1 loader'],
+          features: [],
+        },
+        {
           hash: 'd454c7f',
           heading: 'Skyhawk: towered airport build',
           desc: 'Latest Skyhawk build re-synced: towered airport with ATC audio plus everything before. Also fixed a nightGlows crash in the fresh source so the build actually boots.',

@@ -3,7 +3,7 @@
 // modern build is unaffected. Non-fatal: if anything fails the modern bundle
 // still deploys.
 import { execSync } from 'node:child_process';
-import { existsSync, copyFileSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, copyFileSync, mkdirSync, rmSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { transformFileSync } from '@babel/core';
 
@@ -50,6 +50,17 @@ try {
     });
     writeFileSync('dist/assets/main-legacy.js', babeled.code);
     console.log('[build-legacy] ✓ downleveled to es5 (old-Safari safe)');
+    // Prepend guarded ES5 polyfills (NodeList.forEach, Array.includes/find,
+    // Object.entries/values, String padStart/padEnd, Element.closest) so
+    // iOS 9/10 Safari gets the runtime builtins Babel doesn't provide.
+    try {
+      const poly = readFileSync(resolve(root, 'scripts/legacy-polyfills.js'), 'utf8');
+      const prev = readFileSync('dist/assets/main-legacy.js', 'utf8');
+      writeFileSync('dist/assets/main-legacy.js', poly + '\n' + prev);
+      console.log('[build-legacy] ✓ polyfills prepended');
+    } catch (e) {
+      console.warn('[build-legacy] polyfill prepend failed (non-fatal):', e.message);
+    }
   } else {
     console.warn('[build-legacy] ✗ main-legacy.js not found in dist-legacy');
   }

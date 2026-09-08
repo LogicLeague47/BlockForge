@@ -2048,7 +2048,8 @@ export class UI {
   showMenu(name) {
     if (name === 'pause') {
       if (this.pauseEl) this.pauseEl.classList.add('active');
-      this.overlayEl.querySelectorAll('.menu-screen').forEach(s => s.classList.remove('active'));
+      var _ss = this.overlayEl.querySelectorAll('.menu-screen');
+      for (var _si = 0; _si < _ss.length; _si++) _ss[_si].classList.remove('active');
       this.overlayEl.classList.add('hidden');
       this._setGameUI(false);
       return;
