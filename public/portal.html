@@ -1483,11 +1483,11 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
-          heading: 'Skyhawk: tree crash fix + re-sync',
-          desc: 'Fixed ReferenceError in world tree generation — 6 setMatrixAt calls used undefined var m instead of m4. Rebuilt and re-vendored bundle.',
+          heading: 'Skyhawk: crash fixes — undefined vars in world.js',
+          desc: 'Fixed two ReferenceErrors that killed 3D init: 6 setMatrixAt calls used undefined m instead of m4, and buildTowns called an undefined mat() helper. Added the missing material shorthand function.',
           date: 'Sep 8',
-          bugs: ['Skyhawk ReferenceError: m is not defined (world.js tree rendering)'],
-          updates: ['world.js: 6x setMatrixAt(i, m) → setMatrixAt(i, m4)', 'bundle re-vendored ?v=9'],
+          bugs: ['Skyhawk ReferenceError: m is not defined (tree generation)', 'Skyhawk ReferenceError: mat is not defined (town building)'],
+          updates: ['world.js: 6x setMatrixAt(i, m) → setMatrixAt(i, m4)', 'world.js: added mat() shorthand in buildTowns', 'bundle re-vendored ?v=10'],
           features: [],
         },
         {
