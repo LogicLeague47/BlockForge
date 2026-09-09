@@ -418,3 +418,19 @@ body {
   #workspace .element .emoji { font-size: 1.3rem; }
   #workspace .element .label { font-size: 1.05rem; }
 }
+
+/* ── Tiny legacy screens (iPhone 5 = 320px): tighten topbar, cap pills ── */
+@media (max-width: 380px) {
+  #topbar { padding: 0 8px; gap: 6px; }
+  #topbar h1 { font-size: 0.85rem; letter-spacing: 0; }
+  #games-link { font-size: 0.7rem; }
+  #counter { font-size: 0.72rem; }
+  #reset-btn { width: 28px; height: 28px; font-size: 1rem; }
+  #workspace .element { max-width: 92vw; }
+  #workspace .element .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}

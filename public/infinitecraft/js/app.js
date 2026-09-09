@@ -20,11 +20,37 @@ const App = {
     this.initBg();
     this.bindEvents();
     this.updateCounter();
-    // Fill in sidebar icons + wake the server. Re-render when done.
+    this.fitScale();
     var self = this;
+    window.addEventListener("resize", function() { self.fitScale(); });
+    window.addEventListener("orientationchange", function() {
+      setTimeout(function() { self.fitScale(); }, 100);
+    });
+    // Fill in sidebar icons + wake the server. Re-render when done.
     var names = [];
     State.discovered.forEach(function(n) { names.push(n); });
     Game.fetchEmojis(names, function() { self.renderSidebar(); });
+  },
+
+  /* Scale-to-fit for tiny legacy screens (iPhone 5 = 320px).
+     - Locks the app to window.innerHeight: iOS Safari's 100vh includes the
+       toolbar area, which would cut the workspace bottom off.
+     - Shrinks the whole app via zoom on very narrow screens so the topbar
+       and pills fit without sideways cutoff. zoom is supported back to
+       old iOS Safari and keeps drag math consistent (rects + touch coords
+       are both in scaled space). */
+  fitScale() {
+    var app = document.getElementById("app");
+    if (!app) return;
+    var vw = document.documentElement.clientWidth || window.innerWidth || 320;
+    var vh = window.innerHeight || document.documentElement.clientHeight || 568;
+    app.style.height = vh + "px";
+    if (vw < 360) {
+      var s = vw / 360;
+      app.style.zoom = s < 1 ? s : "";
+    } else {
+      app.style.zoom = "";
+    }
   },
 
   renderSidebar(filter = "") {
