@@ -16,6 +16,7 @@
     "typecheck": "echo 'No TS setup yet'"
   },
   "dependencies": {
+    "@distube/ytdl-core": "^4.16.12",
     "electron-updater": "^6.8.9",
     "lz-string": "^1.5.0",
     "simplex-noise": "^4.0.1",

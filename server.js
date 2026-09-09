@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createRea
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash, webcrypto } from 'crypto';
-import { execFile } from 'child_process';
+import ytdl from '@distube/ytdl-core';
 import { promisify } from 'util';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
@@ -1550,8 +1550,8 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
   }
 
   // ── YT Forge stream extractor ─────────────────────────────────────
-  // Uses yt-dlp to extract direct .mp4 stream URL for native <video> playback.
-  // Works on iOS 10 because it's just a raw MP4 URL — no modern JS needed.
+  // Uses @distube/ytdl-core (pure Node.js) to extract direct .mp4 stream URL.
+  // No external binaries needed — works on Render out of the box.
   if (pathname === '/api/yt-stream' && req.method === 'GET') {
     const qs = new URL(req.url, 'http://localhost').searchParams;
     const vid = (qs.get('v') || '').trim();
@@ -1567,27 +1567,22 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       res.end(JSON.stringify(cached.data));
       return;
     }
-    execFile('python3', ['-m', 'yt_dlp', '-f', 'best[ext=mp4]', '--get-url', '--get-title', '--no-warnings', 'https://www.youtube.com/watch?v=' + vid], {
-      timeout: 15000,
-      maxBuffer: 1024 * 1024,
-    }, (err, stdout, stderr) => {
-      if (err) {
+    const url = 'https://www.youtube.com/watch?v=' + vid;
+    ytdl.getInfo(url).then(info => {
+      const formats = ytdl.filterFormats(info.formats, 'videoandaudio');
+      const mp4 = formats.find(f => f.container === 'mp4') || formats[0];
+      if (!mp4 || !mp4.url) {
         res.writeHead(502, CORS);
-        res.end(JSON.stringify({ error: 'yt-dlp failed: ' + (err.message || '').slice(0, 100) }));
+        res.end(JSON.stringify({ error: 'No playable format found' }));
         return;
       }
-      const lines = (stdout || '').split('\n').filter(Boolean);
-      if (lines.length < 2) {
-        res.writeHead(502, CORS);
-        res.end(JSON.stringify({ error: 'No stream URL found' }));
-        return;
-      }
-      const title = lines[0];
-      const streamUrl = lines[1];
-      const data = { title: title, url: streamUrl };
+      const data = { title: info.videoDetails.title || '', url: mp4.url };
       streamCache.set(cacheKey, { data: data, ts: Date.now() });
       res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
       res.end(JSON.stringify(data));
+    }).catch(err => {
+      res.writeHead(502, CORS);
+      res.end(JSON.stringify({ error: 'ytdl failed: ' + (err.message || '').slice(0, 120) }));
     });
     return;
   }
