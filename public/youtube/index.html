@@ -83,7 +83,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="status" id="status"></div>
 
   <div class="player-box" id="player-box">
-    <video id="player" playsinline style="width:100%;height:100%;background:#000"></video>
+    <iframe id="ytframe" style="width:100%;height:100%;border:none;display:none" webkitallowfullscreen allowfullscreen="allowfullscreen"></iframe>
+    <video id="player" playsinline style="width:100%;height:100%;background:#000;display:none"></video>
   </div>
   <div class="player-controls" id="player-controls" style="display:none">
     <button class="pc-btn" id="pc-rew" title="Rewind 10s">&#9664;&#9664;</button>
@@ -168,11 +169,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function playVideo(id, title, author, authorId, viewCount) {
+    var ytframe = document.getElementById('ytframe');
     playerEl.pause();
     playerEl.removeAttribute('src');
-    playerEl.load();
+    playerEl.style.display = 'none';
+    ytframe.style.display = 'none';
     playerBox.style.display = 'block';
-    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
+    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     npTitle.textContent = title || '';
 
@@ -196,17 +199,28 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
           var data = JSON.parse(xhr.responseText);
           if (data.url) {
             playerEl.src = data.url;
+            playerEl.style.display = 'block';
             setStatus('');
-          } else {
-            setStatus(data.error || 'No stream found');
+            ctrlWrap.style.display = '-webkit-box';
+            ctrlWrap.style.display = 'flex';
+            return;
           }
-        } catch(e) {
-          setStatus('Parse error');
-        }
-      } else {
-        setStatus('Stream error (' + xhr.status + ')');
+        } catch(e) {}
       }
+      loadIframe(id);
     };
+    xhr.onerror = function() { loadIframe(id); };
+    xhr.ontimeout = function() { loadIframe(id); };
+    xhr.send();
+  }
+
+  function loadIframe(id) {
+    var ytframe = document.getElementById('ytframe');
+    setStatus('');
+    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3';
+    ytframe.style.display = 'block';
+    ctrlWrap.style.display = 'none';
+  }
     xhr.onerror = function() { setStatus('Network error'); };
     xhr.ontimeout = function() { setStatus('Timed out'); };
     xhr.send();
@@ -405,12 +419,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     playerEl.currentTime = pct * playerEl.duration;
   });
 
-  // override playVideo to also show controls and track index
+  // override playVideo to track index
   var _origPlayVideo = playVideo;
   playVideo = function(id, title, author, authorId, viewCount) {
     _origPlayVideo(id, title, author, authorId, viewCount);
-    ctrlWrap.style.display = '-webkit-box';
-    ctrlWrap.style.display = 'flex';
     currentResultIdx = -1;
     for (var i = 0; i < searchResultIds.length; i++) {
       if (searchResultIds[i].vid === id) { currentResultIdx = i; break; }
@@ -438,6 +450,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     ctrlWrap.style.display = 'none';
     playerEl.pause();
     playerEl.removeAttribute('src');
+    playerEl.style.display = 'none';
+    var ytframe = document.getElementById('ytframe');
+    ytframe.src = '';
+    ytframe.style.display = 'none';
     searchResultIds = [];
     currentResultIdx = -1;
     _origDoSearch(q);
