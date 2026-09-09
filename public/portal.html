@@ -12,7 +12,7 @@
     // Change these two values to switch hosting providers. All links in the
     // portal and game client derive from them automatically.
     window.BF_WEB  = 'https://blockforge-1.onrender.com';
-    window.BF_WS   = 'wss://blockforge-server.onrender.com';
+    window.BF_WS   = 'wss://blockforge-ws.fly.dev';
   </script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -1357,7 +1357,7 @@
       });
 
       // ── Live dashboard stats ───────────────────────────────────────────
-      var SRV_WS = window.BF_WS || 'wss://blockforge-server.onrender.com';
+      var SRV_WS = window.BF_WS || 'wss://blockforge-ws.fly.dev';
       function fmtUptime(sec) {
         if (!sec && sec !== 0) return '—';
         var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
@@ -1481,6 +1481,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Cutover: game + social now on Fly.io',
+          desc: 'Clients now play on wss://blockforge-ws.fly.dev (game) with DMs/social on blockforge-social.fly.dev. Auth, accounts, mods and directory stay on Render. HidenCloud dropped (no free Node hosting); second Fly app replaces it. Player-hosted servers should point UPSTREAM at Fly social.',
+          date: 'Sep 9',
+          bugs: [],
+          updates: ['GAME_WS_URL split from BACKEND_URL (auth/APIs stay Render)', 'offbranch APIs (yt/ic) + portal + Official SMP → Fly hosts', 'UPSTREAM default → Fly social (centralizes player-hosted DMs)', 'docs/BACKEND_SPLIT.md finalized'],
+          features: ['Always-on game + social hosts (no more sleep disconnects)'],
+        },
         {
           hash: 'PENDING',
           heading: 'Backend split: Fly.io social host live',

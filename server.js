@@ -25,8 +25,9 @@ const scryptAsync = promisify(scrypt);
 // One codebase, three deployments:
 //   BF_ROLE=main   (Render)     — everything: accounts/auth source of truth,
 //                                 all HTTP APIs, game WS. Default.
-//   BF_ROLE=ws     (HidenCloud) — game WS only; relays ALL social + account
-//                                 traffic upstream (Fly). HTTP: /health only.
+//   BF_ROLE=ws     (Fly blockforge-ws) — game WS only; relays ALL social
+//                                 + account traffic upstream (Fly social).
+//                                 HTTP: /health only.
 //   BF_ROLE=social (Fly.io)     — owns DMs/friends/community/stats/news;
 //                                 relays account traffic upstream (Render);
 //                                 serves offbranch HTTP APIs (yt/ic).
@@ -38,7 +39,7 @@ const IS_WS_ROLE = BF_ROLE === 'ws';
 const IS_SOCIAL_ROLE = BF_ROLE === 'social';
 const RELAY_SOCIAL = process.env.RELAY === 'true' || process.env.IS_OFFICIAL === 'false' || IS_WS_ROLE || IS_SOCIAL_ROLE;
 const IS_OFFICIAL = !RELAY_SOCIAL;
-const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-server.onrender.com';
+const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-social.fly.dev';
 // Message types that are social and should be relayed upstream (not handled
 // locally) on a player-hosted server.
 const SOCIAL_TYPES = new Set([

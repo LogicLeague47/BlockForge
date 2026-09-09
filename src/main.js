@@ -1,7 +1,7 @@
 // Entry point: wires up renderer, world, player, input, and the render loop.
 
 import * as THREE from 'three';
-import { BACKEND_URL } from './config.js';
+import { BACKEND_URL, GAME_WS_URL } from './config.js';
 import { World, CHUNK_SIZE, BIOMES } from './world.js';
 import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
@@ -4575,9 +4575,9 @@ function removeSavedServer(address) {
 }
 function ensureSeedOfficialServer() {
   const list = getSavedServers();
-  if (list.some(s => s.address === BACKEND_URL)) return;
+  if (list.some(s => s.address === GAME_WS_URL)) return;
   if (list.length === 0) {
-    list.push({ name: 'Official SMP', address: BACKEND_URL, official: true });
+    list.push({ name: 'Official SMP', address: GAME_WS_URL, official: true });
     saveServers(list);
   }
 }
@@ -7484,7 +7484,7 @@ function initMenu() {
   } catch (_) { console.warn("operation failed"); }
 
   // Client-side keepalive: ping server every 5 min while tab is open
-  const _healthUrl = BACKEND_URL.replace(/^wss?:\/\//, 'https://') + '/health';
+  const _healthUrl = GAME_WS_URL.replace(/^wss?:\/\//, 'https://') + '/health';
   setInterval(() => {
     fetch(_healthUrl).catch(() => {});
   }, 300000);
@@ -8812,7 +8812,7 @@ function initMenu() {
           setDevAccountListMsg('Connecting...');
           _devPanelNeedsAccounts = true;
           _backgroundAuth = true;
-          const url = network.serverUrl || BACKEND_URL;
+          const url = network.serverUrl || GAME_WS_URL;
           network.onConnectedOnce(() => {
             const pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
             network.sendAuth(playerName, pass, 'login');
@@ -9144,7 +9144,7 @@ function initMenu() {
       // Create multiplayer dev world on the server
       const roomName = name.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 32) || 'DevWorld';
       if (!network.connected) {
-        network.connect(BACKEND_URL);
+        network.connect(GAME_WS_URL);
         network.onConnectedOnce(() => {
           createDevWorldMultiplayer(roomName, seed, _dwState.mode, _dwState.diff, _dwState.terrain, maxP);
         });
@@ -9249,7 +9249,7 @@ function initMenu() {
     if (!playerName) playerName = 'Player';
     const attempt = () => network.sendAuth(playerName, pass, mode);
     if (!network.connected) {
-      network.connect(BACKEND_URL);
+      network.connect(GAME_WS_URL);
       network.onConnectedOnce(attempt);
       setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
     } else {
@@ -9315,7 +9315,7 @@ function initMenu() {
         cloudSet('bf_player_name', playerName);
         const attempt = () => network.sendIdentityAuth(oauthProvider, oauthProviderId, playerName);
         if (!network.connected) {
-          network.connect(BACKEND_URL);
+          network.connect(GAME_WS_URL);
           network.onConnectedOnce(attempt);
           setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
         } else {
@@ -9399,7 +9399,7 @@ function initMenu() {
       _identityAuthPending = true;
       const attempt = () => network.sendIdentityAuth('crazygames', data.providerId || playerName, playerName, token);
       if (!network.connected) {
-        network.connect(BACKEND_URL);
+        network.connect(GAME_WS_URL);
         network.onConnectedOnce(attempt);
         setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
       } else {
@@ -9499,7 +9499,7 @@ function initMenu() {
           try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
-            network.connect(BACKEND_URL);
+            network.connect(GAME_WS_URL);
             network.onConnectedOnce(attempt);
             setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
           } else {
@@ -9530,7 +9530,7 @@ function initMenu() {
             promptEl.style.display = 'none';
             const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
             if (!network.connected) {
-              network.connect(BACKEND_URL);
+              network.connect(GAME_WS_URL);
               network.onConnectedOnce(attempt);
               setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
             } else {
@@ -9545,7 +9545,7 @@ function initMenu() {
           try { localStorage.setItem('bf_oauth_provider', provider); localStorage.setItem('bf_oauth_provider_id', providerId); } catch (_) { console.warn("localStorage write failed"); }
           const attempt = () => network.sendIdentityAuth(provider, providerId, playerName);
           if (!network.connected) {
-            network.connect(BACKEND_URL);
+            network.connect(GAME_WS_URL);
             network.onConnectedOnce(attempt);
             setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
           } else {
@@ -9585,7 +9585,7 @@ function initMenu() {
     cloudSet('bf_player_name', playerName);
     const attempt = () => network.sendIdentityAuth('guest', playerName, playerName);
     if (!network.connected) {
-      network.connect(BACKEND_URL);
+      network.connect(GAME_WS_URL);
       network.onConnectedOnce(attempt);
       setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
     } else {
@@ -12161,7 +12161,7 @@ document.getElementById('btn-ai-portal')?.addEventListener('click', () => {
 // main menu, so social (friends / DMs / accounts) is live immediately. Auth still
 // only happens on login; this is just the socket.
 if (!network.connected && !window.__OFFLINE_MODE) {
-  try { network.connect(BACKEND_URL); } catch (_) { console.warn('auto-connect to backend failed'); }
+  try { network.connect(GAME_WS_URL); } catch (_) { console.warn('auto-connect to backend failed'); }
 }
 
 // Initialise the CrazyGames SDK (no-op off-platform — the SDK script is only
