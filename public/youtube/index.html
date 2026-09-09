@@ -95,7 +95,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <script>
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
-  var PROXY = 'https://www.youtube.com/embed';
+  var INV = 'https://invidious.materialio.us';
+  var PROXY = INV;
   var YTS = 'https://www.youtube.com/results?search_query=';
   var playerBox = document.getElementById('player-box');
   var playerWrap = playerBox.parentNode;
@@ -157,7 +158,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     iframe.setAttribute('mozallowfullscreen', '');
     iframe.setAttribute('allowfullscreen', 'allowfullscreen');
     playerBox.appendChild(iframe);
-    iframe.src = PROXY + '/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3&fs=1';
+    iframe.src = PROXY + '/embed/' + id;
     playerBox.style.display = 'block';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
