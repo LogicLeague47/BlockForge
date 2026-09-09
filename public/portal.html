@@ -1484,10 +1484,10 @@
         {
           hash: 'PENDING',
           heading: 'InfiniteCraft joins offbranch games',
-          desc: 'New static offbranch game — drag elements together to discover 793K+ recipes (Fire + Fire = Volcano). Fixed 5 corrupt combo entries that broke all combining, enabled same-element combining like neal.fun, added instant emoji lookup.',
+          desc: 'New static offbranch game — drag elements together to discover 793K+ recipes (Fire + Fire = Volcano). Fixed 5 corrupt combo entries that broke all combining, enabled same-element combining like neal.fun, chunked background index so phones don\'t lock up, touch drag support + mobile layout.',
           date: 'Sep 9',
-          bugs: ['InfiniteCraft: combos.js syntax errors (bad emoji escapes) killed all combining', 'InfiniteCraft: same-element combining blocked by name-based target exclusion'],
-          updates: ['fixed 5 corrupt combo lines', 'target exclusion now by element identity — Fire + Fire works'],
+          bugs: ['InfiniteCraft: combos.js syntax errors (bad emoji escapes) killed all combining', 'InfiniteCraft: same-element combining blocked by name-based target exclusion', 'InfiniteCraft: 53MB combo file froze/crashed phones on load', 'InfiniteCraft: mouse-only drags, no mobile support'],
+          updates: ['fixed 5 corrupt combo lines', 'target exclusion now by element identity — Fire + Fire works', 'combo index builds in background chunks with loading bar', 'touch drag + mobile layout', 'instant emoji lookup'],
           features: ['InfiniteCraft — 793K-recipe element combiner'],
         },
         {

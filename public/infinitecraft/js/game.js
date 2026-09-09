@@ -17,22 +17,57 @@ const Game = {
   },
 
   _emojiIndex: null,
+  _indexKeys: null,
+  _indexPos: 0,
+  _indexReady: false,
+  INDEX_CHUNK: 40000,
 
-  buildEmojiIndex() {
-    if (this._emojiIndex) return;
-    this._emojiIndex = {};
-    for (const key in COMBOS) {
+  lookup(a, b) {
+    if (!this._indexReady) return null;
+    const key = [a, b].sort().join("+");
+    return COMBO_LOOKUP[key] || null;
+  },
+
+  /* Builds COMBO_LOOKUP + emoji index in small chunks so the page stays
+     responsive on phones. Call repeatedly via setTimeout until it returns true. */
+  buildIndexStep() {
+    if (this._indexReady) return true;
+    if (!this._indexKeys) {
+      this._emojiIndex = {};
+      this._indexKeys = Object.keys(COMBOS);
+      this._indexPos = 0;
+    }
+    const end = Math.min(this._indexPos + this.INDEX_CHUNK, this._indexKeys.length);
+    for (let i = this._indexPos; i < end; i++) {
+      const key = this._indexKeys[i];
       const val = COMBOS[key];
-      if (val && val.name && !(val.name in this._emojiIndex)) {
+      if (!val) continue;
+      const parts = key.split("+");
+      parts.sort();
+      COMBO_LOOKUP[parts.join("+")] = val;
+      if (val.name && !(val.name in this._emojiIndex)) {
         this._emojiIndex[val.name] = val.emoji;
       }
     }
+    this._indexPos = end;
+    if (this._indexPos >= this._indexKeys.length) {
+      this._indexKeys = null;
+      this._indexReady = true;
+      return true;
+    }
+    return false;
+  },
+
+  indexProgress() {
+    if (this._indexReady) return 1;
+    if (!this._indexKeys || !this._indexKeys.length) return 0;
+    return this._indexPos / this._indexKeys.length;
   },
 
   getEmoji(name) {
     if (this.EMOJIS[name]) return this.EMOJIS[name];
-    this.buildEmojiIndex();
-    return this._emojiIndex[name] || "⭐";
+    if (this._emojiIndex && (name in this._emojiIndex)) return this._emojiIndex[name];
+    return "⭐";
   },
 
   showToast(msg) {

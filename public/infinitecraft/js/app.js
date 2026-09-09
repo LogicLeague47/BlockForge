@@ -1,6 +1,18 @@
+/* Mouse + touch unify: extract client coords from either event type */
+function coord(e) {
+  if (e.touches && e.touches.length) {
+    return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+  }
+  if (e.changedTouches && e.changedTouches.length) {
+    return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
+  }
+  return { x: e.clientX, y: e.clientY };
+}
+
 const App = {
   workspaceElements: [],
   _id: 0,
+  _touchActive: false,
 
   init() {
     State.load();
@@ -8,6 +20,32 @@ const App = {
     this.initBg();
     this.bindEvents();
     this.updateCounter();
+    this.buildIndexBackground();
+  },
+
+  /* Builds the 793K-combo index in small chunks so the page paints
+     immediately and phones don't lock up or get killed. */
+  buildIndexBackground() {
+    const overlay = document.getElementById("loading");
+    const pct = document.getElementById("load-pct");
+    const step = () => {
+      let done = false;
+      try {
+        done = Game.buildIndexStep();
+      } catch (err) {
+        done = true;
+      }
+      if (pct) pct.textContent = Math.floor(Game.indexProgress() * 100);
+      if (done) {
+        if (overlay) overlay.style.display = "none";
+        const search = document.getElementById("search");
+        this.renderSidebar(search ? search.value : "");
+        this.updateCounter();
+      } else {
+        setTimeout(step, 0);
+      }
+    };
+    setTimeout(step, 50);
   },
 
   renderSidebar(filter = "") {
@@ -70,74 +108,114 @@ const App = {
   /* ── Sidebar drag ── */
   makeSidebarDraggable(el) {
     el.addEventListener("mousedown", (e) => {
+      if (this._touchActive) { this._touchActive = false; return; }
       if (e.button !== 0) return;
       e.preventDefault();
-      const name = el.dataset.name;
-      const emoji = Game.getEmoji(name);
-
-      const ghost = Game.createElement(name, emoji, true);
-      ghost.style.position = "fixed";
-      ghost.style.zIndex = "10000";
-      ghost.style.pointerEvents = "none";
-      ghost.style.opacity = "0.85";
-      ghost.style.transition = "none";
-      ghost.classList.remove("pop-in");
-      ghost.style.left = (e.clientX - 60) + "px";
-      ghost.style.top = (e.clientY - 45) + "px";
-      document.body.appendChild(ghost);
-
-      let lastTarget = null;
-
-      const onMove = (ev) => {
-        ghost.style.left = (ev.clientX - 60) + "px";
-        ghost.style.top = (ev.clientY - 45) + "px";
-
-        const t = this._findTarget(ev.clientX, ev.clientY, null);
-        if (t !== lastTarget) {
-          if (lastTarget) lastTarget.classList.remove("drop-target");
-          if (t) t.classList.add("drop-target");
-          lastTarget = t;
-        }
-      };
-
-      const onUp = (ev) => {
-        document.removeEventListener("mousemove", onMove);
-        document.removeEventListener("mouseup", onUp);
-        ghost.remove();
-        if (lastTarget) lastTarget.classList.remove("drop-target");
-
-        const ws = document.getElementById("workspace");
-        const wsRect = ws.getBoundingClientRect();
-        if (
-          ev.clientX >= wsRect.left && ev.clientX <= wsRect.right &&
-          ev.clientY >= wsRect.top && ev.clientY <= wsRect.bottom
-        ) {
-          const target = this._findTarget(ev.clientX, ev.clientY, null);
-          if (target) {
-            this._combine(name, target.dataset.name, ev.clientX, ev.clientY, null, target);
-          } else {
-            this.addToWorkspace(name, ev.clientX, ev.clientY);
-          }
-        }
-      };
-
-      document.addEventListener("mousemove", onMove);
-      document.addEventListener("mouseup", onUp);
+      const p = coord(e);
+      this.startGhostDrag(el.dataset.name, p.x, p.y);
     });
+    el.addEventListener("touchstart", (e) => {
+      this._touchActive = true;
+      e.preventDefault();
+      const p = coord(e);
+      this.startGhostDrag(el.dataset.name, p.x, p.y);
+    }, { passive: false });
+  },
+
+  startGhostDrag(name, sx, sy) {
+    const emoji = Game.getEmoji(name);
+
+    const ghost = Game.createElement(name, emoji, true);
+    ghost.style.position = "fixed";
+    ghost.style.zIndex = "10000";
+    ghost.style.pointerEvents = "none";
+    ghost.style.opacity = "0.85";
+    ghost.style.transition = "none";
+    ghost.classList.remove("pop-in");
+    ghost.style.left = (sx - 60) + "px";
+    ghost.style.top = (sy - 45) + "px";
+    document.body.appendChild(ghost);
+
+    let lastTarget = null;
+
+    const onMove = (ev) => {
+      if (ev.cancelable) ev.preventDefault();
+      const p = coord(ev);
+      ghost.style.left = (p.x - 60) + "px";
+      ghost.style.top = (p.y - 45) + "px";
+
+      const t = this._findTarget(p.x, p.y, null);
+      if (t !== lastTarget) {
+        if (lastTarget) lastTarget.classList.remove("drop-target");
+        if (t) t.classList.add("drop-target");
+        lastTarget = t;
+      }
+    };
+
+    const onUp = (ev) => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+      document.removeEventListener("touchmove", onMove);
+      document.removeEventListener("touchend", onUp);
+      document.removeEventListener("touchcancel", onUp);
+      ghost.remove();
+      if (lastTarget) lastTarget.classList.remove("drop-target");
+
+      const p = coord(ev);
+      const ws = document.getElementById("workspace");
+      const wsRect = ws.getBoundingClientRect();
+      if (
+        p.x >= wsRect.left && p.x <= wsRect.right &&
+        p.y >= wsRect.top && p.y <= wsRect.bottom
+      ) {
+        const target = this._findTarget(p.x, p.y, null);
+        if (target) {
+          this._combine(name, target.dataset.name, p.x, p.y, null, target);
+        } else {
+          this.addToWorkspace(name, p.x, p.y);
+        }
+      }
+    };
+
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    document.addEventListener("touchmove", onMove, { passive: false });
+    document.addEventListener("touchend", onUp);
+    document.addEventListener("touchcancel", onUp);
   },
 
   /* ── Workspace drag ── */
   makeWorkspaceDraggable(el) {
     el.addEventListener("mousedown", (e) => {
+      if (this._touchActive) { this._touchActive = false; return; }
       if (e.button !== 0) return;
       e.preventDefault();
       e.stopPropagation();
+      const p = coord(e);
+      this.startElDrag(el, p.x, p.y);
+    });
+    el.addEventListener("touchstart", (e) => {
+      this._touchActive = true;
+      e.preventDefault();
+      e.stopPropagation();
+      const p = coord(e);
+      this.startElDrag(el, p.x, p.y);
+    }, { passive: false });
 
+    el.addEventListener("dblclick", () => {
+      this.removeElement(el);
+      this.workspaceElements = this.workspaceElements.filter(w => w.el !== el);
+      const ws = document.getElementById("workspace");
+      if (!ws.querySelector(".element")) ws.classList.remove("has-elements");
+    });
+  },
+
+  startElDrag(el, sx, sy) {
       const ws = document.getElementById("workspace");
       const wsRect = ws.getBoundingClientRect();
       const elRect = el.getBoundingClientRect();
-      const offX = e.clientX - elRect.left;
-      const offY = e.clientY - elRect.top;
+      const offX = sx - elRect.left;
+      const offY = sy - elRect.top;
 
       el.classList.add("dragging");
       el.style.zIndex = "100";
@@ -146,12 +224,14 @@ const App = {
       let lastTarget = null;
 
       const onMove = (ev) => {
-        const nx = ev.clientX - wsRect.left - offX;
-        const ny = ev.clientY - wsRect.top - offY;
+        if (ev.cancelable) ev.preventDefault();
+        const p = coord(ev);
+        const nx = p.x - wsRect.left - offX;
+        const ny = p.y - wsRect.top - offY;
         el.style.left = Math.max(0, nx) + "px";
         el.style.top = Math.max(0, ny) + "px";
 
-        const t = this._findTarget(ev.clientX, ev.clientY, el);
+        const t = this._findTarget(p.x, p.y, el);
         if (t !== lastTarget) {
           if (lastTarget) lastTarget.classList.remove("drop-target");
           if (t) t.classList.add("drop-target");
@@ -162,14 +242,18 @@ const App = {
       const onUp = (ev) => {
         document.removeEventListener("mousemove", onMove);
         document.removeEventListener("mouseup", onUp);
+        document.removeEventListener("touchmove", onMove);
+        document.removeEventListener("touchend", onUp);
+        document.removeEventListener("touchcancel", onUp);
         el.classList.remove("dragging");
         el.style.transition = "";
         if (lastTarget) lastTarget.classList.remove("drop-target");
 
+        const p = coord(ev);
         const wsRect2 = ws.getBoundingClientRect();
         if (
-          ev.clientX < wsRect2.left || ev.clientX > wsRect2.right ||
-          ev.clientY < wsRect2.top || ev.clientY > wsRect2.bottom
+          p.x < wsRect2.left || p.x > wsRect2.right ||
+          p.y < wsRect2.top || p.y > wsRect2.bottom
         ) {
           this.removeElement(el);
           this.workspaceElements = this.workspaceElements.filter(w => w.el !== el);
@@ -177,22 +261,17 @@ const App = {
           return;
         }
 
-        const target = this._findTarget(ev.clientX, ev.clientY, el);
+        const target = this._findTarget(p.x, p.y, el);
         if (target) {
-          this._combine(el.dataset.name, target.dataset.name, ev.clientX, ev.clientY, el, target);
+          this._combine(el.dataset.name, target.dataset.name, p.x, p.y, el, target);
         }
       };
 
       document.addEventListener("mousemove", onMove);
       document.addEventListener("mouseup", onUp);
-    });
-
-    el.addEventListener("dblclick", () => {
-      this.removeElement(el);
-      this.workspaceElements = this.workspaceElements.filter(w => w.el !== el);
-      const ws = document.getElementById("workspace");
-      if (!ws.querySelector(".element")) ws.classList.remove("has-elements");
-    });
+      document.addEventListener("touchmove", onMove, { passive: false });
+      document.addEventListener("touchend", onUp);
+      document.addEventListener("touchcancel", onUp);
   },
 
   /* ── Collision detection ── */
@@ -222,6 +301,10 @@ const App = {
 
   /* ── Combine ── */
   _combine(nameA, nameB, x, y, elA, elB) {
+    if (!Game._indexReady) {
+      Game.showToast("Still loading recipes, one sec...");
+      return;
+    }
     const result = Game.combine(nameA, nameB, x, y);
     if (result) {
       if (result.isNew) {

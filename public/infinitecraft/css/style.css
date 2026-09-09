@@ -12,7 +12,10 @@ body {
 /* ── Animated backdrop ── */
 #bg-animation {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 0;
   overflow: hidden;
   background: radial-gradient(ellipse at 20% 50%, rgba(0,255,200,0.03) 0%, transparent 50%),
@@ -221,11 +224,19 @@ body {
 
 .element .emoji { font-size: 1rem; }
 
+.element {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── Workspace ── */
 #workspace {
   grid-area: workspace;
   position: relative;
   overflow: hidden;
+  touch-action: none;
 }
 
 #workspace-hint {
@@ -376,3 +387,57 @@ body {
 }
 
 #toast.hidden { display: none; }
+
+/* ── Loading overlay ── */
+#loading {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 15, 0.85);
+}
+
+#loading .load-box {
+  padding: 16px 28px;
+  background: rgba(0, 0, 0, 0.85);
+  border: 1px solid rgba(0, 255, 200, 0.4);
+  border-radius: 12px;
+  color: #00ffc8;
+  font-size: 0.9rem;
+}
+
+/* ── Mobile layout ── */
+@media (max-width: 700px) {
+  #app {
+    grid-template-columns: 1fr;
+    grid-template-rows: 52px auto 1fr;
+    grid-template-areas:
+      "topbar"
+      "sidebar"
+      "workspace";
+  }
+
+  #topbar { padding: 0 12px; gap: 10px; }
+  #topbar h1 { font-size: 0.95rem; }
+
+  #sidebar {
+    border-right: none;
+    border-bottom: 1px solid rgba(0, 255, 200, 0.1);
+    max-height: 30vh;
+  }
+
+  #search { margin: 8px; padding: 8px 12px; }
+
+  #workspace .element {
+    height: 64px;
+    padding: 0 14px;
+  }
+
+  #workspace .element .emoji { font-size: 1.3rem; }
+  #workspace .element .label { font-size: 1.05rem; }
+}
