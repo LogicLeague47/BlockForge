@@ -30,7 +30,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .np-avatar{width:36px;height:36px;border-radius:50%;background:#222}
 .np-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .np-channel-name{font-size:13px;font-weight:bold;color:#ddd}
-.np-channel-name .verified{color:#aaa;font-size:11px}
 .np-subs{font-size:11px;color:#888}
 .np-stats{font-size:11px;color:#888}
 .results{display:flex;flex-direction:column;gap:8px}
@@ -83,21 +82,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     <div class="empty">Search for something to get started</div>
   </div>
 
-  <div class="footer">Powered by YouTube · Invidious API · LogicLeague</div>
+  <div class="footer">Powered by YouTube · LogicLeague</div>
 </div>
 
 <script>
 (function(){
-  var INSTANCES = [
-    'https://invidious.materialio.us',
-    'https://yewtu.be',
-    'https://invidious.fdn.fr',
-    'https://vid.puffyan.us',
-    'https://invidious.nerdvpn.de',
-    'https://inv.nadeko.net',
-    'https://invidious.privacyredirect.com'
-  ];
-  var apiBase = INSTANCES[0];
+  var BASE = location.origin;
   var playerWrap = document.getElementById('player-wrap');
   var playerEl = document.getElementById('player');
   var resultsEl = document.getElementById('results');
@@ -147,21 +137,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return getThumbUrl(thumbs, 76) || getThumbUrl(thumbs, 48) || '';
   }
 
-  function playVideo(id, title, author, authorId, authorThumbs, viewCount) {
+  function playVideo(id, title, author, authorId, viewCount) {
     playerEl.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0';
     playerWrap.style.display = 'block';
     npTitle.textContent = title || '';
 
-    var avatarUrl = getAvatarUrl(authorThumbs);
-    var channelHtml = '';
-    if (avatarUrl) channelHtml += '<div class="np-avatar"><img src="' + esc(avatarUrl) + '" alt=""></div>';
-    channelHtml += '<div><div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
+    var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
     if (authorId) channelHtml += '<div class="np-subs"><a href="https://youtube.com/channel/' + esc(authorId) + '" target="_blank" style="color:#8af;text-decoration:none">Visit channel</a></div>';
-    channelHtml += '</div>';
     npChannel.innerHTML = channelHtml;
 
     var statsHtml = '';
-    if (viewCount) statsHtml += fmtNum(viewCount) + ' views';
+    if (viewCount) statsHtml = fmtNum(viewCount) + ' views';
     npStats.innerHTML = statsHtml;
 
     npWrap.style.display = 'block';
@@ -192,18 +178,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       var metaLine = '';
       if (author) {
         metaLine += '<span class="r-channel">' + author;
-        if (verified) metaLine += ' <span class="vbadge">✓</span>';
+        if (verified) metaLine += ' <span class="vbadge">\u2713</span>';
         metaLine += '</span>';
       }
-      if (published) metaLine += '<span class="r-stats"> · ' + published + '</span>';
-      if (views) metaLine += '<span class="r-stats"> · ' + views + '</span>';
+      if (published) metaLine += '<span class="r-stats"> \u00b7 ' + published + '</span>';
+      if (views) metaLine += '<span class="r-stats"> \u00b7 ' + views + '</span>';
 
       html += '<div class="result-item" data-vid="' + esc(vid) + '"'
         + ' data-title="' + esc(v.title || '') + '"'
         + ' data-author="' + esc(v.author || '') + '"'
         + ' data-authorid="' + esc(authorId) + '"'
         + ' data-views="' + (v.viewCount || '') + '"'
-        + ' data-avatar="' + esc(avatarUrl) + '"'
         + '>'
         + '<div class="r-thumb">'
         + '<img src="' + thumb + '" alt="" loading="lazy">'
@@ -231,7 +216,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
             el.getAttribute('data-title'),
             el.getAttribute('data-author'),
             el.getAttribute('data-authorid'),
-            null,
             el.getAttribute('data-views')
           );
         }
@@ -252,50 +236,33 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     playerWrap.style.display = 'none';
     npWrap.style.display = 'none';
 
-    var tryIdx = 0;
-    function tryInstance() {
-      if (tryIdx >= INSTANCES.length) {
-        setStatus('All search servers failed. Try again later.');
-        resultsEl.innerHTML = '<div class="empty">Could not reach any search API.<br>Try again in a moment.</div>';
-        return;
-      }
-      var base = INSTANCES[tryIdx];
-      var url = base + '/api/v1/search?q=' + encodeURIComponent(query) + '&type=video';
-      var xhr = new XMLHttpRequest();
-      xhr.open('GET', url, true);
-      xhr.timeout = 8000;
-      xhr.onload = function() {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            var data = JSON.parse(xhr.responseText);
-            if (data && data.length > 0) {
-              apiBase = base;
-              setStatus('');
-              renderResults(data);
-            } else {
-              tryIdx++;
-              tryInstance();
-            }
-          } catch(e) {
-            tryIdx++;
-            tryInstance();
-          }
-        } else {
-          tryIdx++;
-          tryInstance();
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', BASE + '/api/yt-search?q=' + encodeURIComponent(query), true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          setStatus('');
+          renderResults(data);
+        } catch(e) {
+          setStatus('Parse error');
+          resultsEl.innerHTML = '<div class="empty">Bad response from server</div>';
         }
-      };
-      xhr.onerror = function() {
-        tryIdx++;
-        tryInstance();
-      };
-      xhr.ontimeout = function() {
-        tryIdx++;
-        tryInstance();
-      };
-      xhr.send();
-    }
-    tryInstance();
+      } else {
+        setStatus('Server error (' + xhr.status + ')');
+        resultsEl.innerHTML = '<div class="empty">Search failed. Try again.</div>';
+      }
+    };
+    xhr.onerror = function() {
+      setStatus('Network error');
+      resultsEl.innerHTML = '<div class="empty">Could not reach server. Check your connection.</div>';
+    };
+    xhr.ontimeout = function() {
+      setStatus('Timed out');
+      resultsEl.innerHTML = '<div class="empty">Search took too long. Try again.</div>';
+    };
+    xhr.send();
   }
 
   btnSearch.addEventListener('click', function() { doSearch(qInput.value); });

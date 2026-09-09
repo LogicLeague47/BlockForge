@@ -3,6 +3,7 @@
 
 import { WebSocketServer, WebSocket } from 'ws';
 import http from 'http';
+import https from 'https';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createReadStream } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
@@ -1452,6 +1453,83 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       res.writeHead(404, CORS);
       res.end(JSON.stringify({ ok: false, reason: 'Video not found' }));
     }
+    return;
+  }
+
+  // ── YT Forge search proxy ──────────────────────────────────────────
+  // Proxies YouTube search through Invidious API so the browser doesn't hit CORS.
+  if (pathname === '/api/yt-search' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const q = (qs.get('q') || '').trim();
+    if (!q) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing q param' })); return; }
+    const INSTANCES = [
+      'https://invidious.materialio.us',
+      'https://yewtu.be',
+      'https://invidious.fdn.fr',
+      'https://vid.puffyan.us',
+      'https://invidious.nerdvpn.de',
+    ];
+    let tryIdx = 0;
+    function tryNext() {
+      if (tryIdx >= INSTANCES.length) {
+        res.writeHead(502, CORS);
+        res.end(JSON.stringify({ error: 'All Invidious instances failed' }));
+        return;
+      }
+      const base = INSTANCES[tryIdx++];
+      const url = base + '/api/v1/search?q=' + encodeURIComponent(q) + '&type=video';
+      const proxyReq = https.get(url, { timeout: 6000 }, proxyRes => {
+        let body = '';
+        proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });
+        proxyRes.on('end', () => {
+          try {
+            JSON.parse(body); // validate JSON
+            res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
+            res.end(body);
+          } catch (_) { tryNext(); }
+        });
+      });
+      proxyReq.on('error', () => tryNext());
+      proxyReq.on('timeout', () => { proxyReq.destroy(); tryNext(); });
+    }
+    tryNext();
+    return;
+  }
+
+  // ── YT Forge channel proxy ──────────────────────────────────────────
+  if (pathname === '/api/yt-channel' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const channelId = (qs.get('channelId') || '').trim();
+    if (!channelId) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing channelId' })); return; }
+    const INSTANCES = [
+      'https://invidious.materialio.us',
+      'https://yewtu.be',
+      'https://invidious.fdn.fr',
+    ];
+    let tryIdx = 0;
+    function tryNext() {
+      if (tryIdx >= INSTANCES.length) {
+        res.writeHead(502, CORS);
+        res.end(JSON.stringify({ error: 'All Invidious instances failed' }));
+        return;
+      }
+      const base = INSTANCES[tryIdx++];
+      const url = base + '/api/v1/channels/' + encodeURIComponent(channelId);
+      const proxyReq = https.get(url, { timeout: 6000 }, proxyRes => {
+        let body = '';
+        proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });
+        proxyRes.on('end', () => {
+          try {
+            JSON.parse(body);
+            res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' });
+            res.end(body);
+          } catch (_) { tryNext(); }
+        });
+      });
+      proxyReq.on('error', () => tryNext());
+      proxyReq.on('timeout', () => { proxyReq.destroy(); tryNext(); });
+    }
+    tryNext();
     return;
   }
 
