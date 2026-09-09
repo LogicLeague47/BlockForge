@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: YouTube frontend',
+          desc: 'New offbranch app — search and watch YouTube videos in a clean, ad-free player. Uses Invidious API for search (no API key needed), YouTube iframe embed for playback.',
+          date: 'Sep 9',
+          bugs: [],
+          updates: ['PaperForge + Mold Kingdom JS transpiled to ES5 for legacy iOS', 'Symbol.iterator polyfill for Map/Set/NodeList on iOS 10'],
+          features: ['YT Forge — YouTube search + embedded player'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Legacy mode fixes: crypto, touch, CSS',
           desc: 'Fixed three legacy-mode blockers: guarded crypto.getRandomValues with Math.random fallback (create world crash), removed touch-action:none from html/body in PaperForge and #stage in Mold Kingdom (blocked tap→click synthesis on old iOS), added touchstart fallback handlers on all menu buttons, replaced unsupported CSS min()/100dvh/aspect-ratio with fallbacks.',
           date: 'Sep 9',

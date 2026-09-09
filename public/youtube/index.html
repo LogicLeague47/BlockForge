@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>YT Forge — YouTube Frontend</title>
+<link rel="icon" type="image/png" href="../BlockForge.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f0f1a;color:#e6e6f0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 0,rgba(180,40,40,.12) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(60,60,180,.1) 0,transparent 50%);pointer-events:none}
+.wrap{width:min(900px,96vw);z-index:1;padding:20px 0}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.topbar .logo{font-size:20px;font-weight:bold;color:#fff;white-space:nowrap}
+.topbar .logo span{color:#f44}
+.back{color:#8af;font:12px monospace;text-decoration:none;white-space:nowrap}
+.back:hover{text-decoration:underline}
+.search-row{display:flex;margin-bottom:16px}
+.search-row input{flex:1;padding:10px 14px;font:14px/1.4 monospace;background:rgba(24,24,48,.85);border:1px solid rgba(120,120,180,.35);border-right:none;border-radius:8px 0 0 8px;color:#fff;outline:none}
+.search-row input:focus{border-color:rgba(200,80,80,.6)}
+.search-row button{padding:10px 18px;font:14px/1.4 monospace;background:rgba(180,40,40,.8);border:1px solid rgba(180,40,40,.6);border-radius:0 8px 8px 0;color:#fff;cursor:pointer}
+.search-row button:hover{background:rgba(220,50,50,.9)}
+.status{font-size:11px;color:#888;margin-bottom:12px;min-height:16px}
+#player-wrap{position:relative;width:100%;padding-bottom:56.25%;margin-bottom:16px;background:#000;border-radius:10px;overflow:hidden;display:none}
+#player-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.results{display:flex;flex-direction:column;gap:10px}
+.result-item{display:flex;gap:12px;padding:10px;background:rgba(20,20,40,.75);border:1px solid rgba(90,90,140,.22);border-radius:8px;cursor:pointer;transition:background .12s}
+.result-item:hover{background:rgba(40,40,80,.8);border-color:rgba(140,100,100,.4)}
+.result-thumb{width:168px;min-width:168px;height:94px;background:#111;border-radius:6px;overflow:hidden;position:relative}
+.result-thumb img{width:100%;height:100%;object-fit:cover}
+.result-thumb .dur{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.8);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px}
+.result-info{display:flex;flex-direction:column;justify-content:center;min-width:0}
+.result-title{font-size:13px;font-weight:bold;color:#fff;line-height:1.4;margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.result-meta{font-size:11px;color:#999;line-height:1.4}
+.result-desc{font-size:11px;color:#777;line-height:1.3;margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.empty{text-align:center;padding:40px 0;color:#666;font-size:13px}
+.footer{text-align:center;margin-top:20px;font-size:11px;color:#555}
+@media(max-width:600px){
+  .result-thumb{width:120px;min-width:120px;height:68px}
+  .result-title{font-size:12px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="logo"><span>YT</span> Forge</span>
+    <a class="back" href="../games.html?v=2">← Games</a>
+  </div>
+
+  <div class="search-row">
+    <input id="q" type="text" placeholder="Search YouTube..." autocomplete="off">
+    <button id="btn-search">Search</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <div id="player-wrap"><iframe id="player" allowfullscreen></iframe></div>
+
+  <div class="results" id="results">
+    <div class="empty">Search for something to get started</div>
+  </div>
+
+  <div class="footer">Powered by YouTube · LogicLeague</div>
+</div>
+
+<script>
+(function(){
+  var INVIDIOUS = [
+    'https://inv.nadeko.net',
+    'https://invidious.fdn.fr',
+    'https://vid.puffyan.us',
+    'https://yewtu.be',
+    'https://invidious.nerdvpn.de'
+  ];
+  var apiBase = INVIDIOUS[0];
+  var playerWrap = document.getElementById('player-wrap');
+  var playerEl = document.getElementById('player');
+  var resultsEl = document.getElementById('results');
+  var statusEl = document.getElementById('status');
+  var qInput = document.getElementById('q');
+  var btnSearch = document.getElementById('btn-search');
+
+  function setStatus(msg) { statusEl.textContent = msg; }
+
+  function escHtml(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s));
+    return d.innerHTML;
+  }
+
+  function fmtNum(n) {
+    if (n == null) return '';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+    return String(n);
+  }
+
+  function fmtDuration(s) {
+    if (!s) return '';
+    var h = Math.floor(s / 3600);
+    var m = Math.floor((s % 3600) / 60);
+    var sec = s % 60;
+    if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
+    return m + ':' + (sec < 10 ? '0' : '') + sec;
+  }
+
+  function playVideo(id) {
+    playerEl.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0';
+    playerWrap.style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderResults(items) {
+    if (!items || items.length === 0) {
+      resultsEl.innerHTML = '<div class="empty">No results found</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < items.length; i++) {
+      var v = items[i];
+      if (v.type !== 'video' && v.type !== 'short') continue;
+      var vid = v.videoId;
+      var title = escHtml(v.title || 'Untitled');
+      var author = escHtml(v.author || v.authorName || '');
+      var published = escHtml(v.publishedText || v.published || '');
+      var views = v.viewCount ? fmtNum(v.viewCount) + ' views' : '';
+      var length = v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '';
+      var thumb = v.videoThumbnails ? (v.videoThumbnails[2] || v.videoThumbnails[1] || v.videoThumbnails[0] || {}).url : '';
+      if (!thumb) thumb = 'https://i.ytimg.com/vi/' + vid + '/mqdefault.jpg';
+      var meta = author;
+      if (published) meta += (meta ? ' · ' : '') + published;
+      if (views) meta += (meta ? ' · ' : '') + views;
+      html += '<div class="result-item" data-vid="' + vid + '">'
+        + '<div class="result-thumb">'
+        + '<img src="' + thumb + '" alt="" loading="lazy">'
+        + (length ? '<span class="dur">' + length + '</span>' : '')
+        + '</div>'
+        + '<div class="result-info">'
+        + '<div class="result-title">' + title + '</div>'
+        + '<div class="result-meta">' + meta + '</div>'
+        + '</div></div>';
+    }
+    if (!html) {
+      resultsEl.innerHTML = '<div class="empty">No video results found</div>';
+      return;
+    }
+    resultsEl.innerHTML = html;
+    var items_els = resultsEl.querySelectorAll('.result-item');
+    for (var j = 0; j < items_els.length; j++) {
+      (function(el) {
+        function handler(e) {
+          e.preventDefault();
+          var vid = el.getAttribute('data-vid');
+          if (vid) playVideo(vid);
+        }
+        el.addEventListener('click', handler);
+        el.addEventListener('touchend', function(e) {
+          e.preventDefault();
+          handler(e);
+        });
+      })(items_els[j]);
+    }
+  }
+
+  function doSearch(query) {
+    query = (query || '').trim();
+    if (!query) return;
+    setStatus('Searching...');
+    resultsEl.innerHTML = '';
+    playerWrap.style.display = 'none';
+
+    var tryIdx = 0;
+    function tryInstance() {
+      if (tryIdx >= INVIDIOUS.length) {
+        setStatus('All instances failed. Try again later.');
+        resultsEl.innerHTML = '<div class="empty">Could not reach any search API. Try again in a moment.</div>';
+        return;
+      }
+      var base = INVIDIOUS[tryIdx];
+      var url = base + '/api/v1/search?q=' + encodeURIComponent(query) + '&type=video';
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.timeout = 8000;
+      xhr.onload = function() {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            var data = JSON.parse(xhr.responseText);
+            apiBase = base;
+            setStatus('');
+            renderResults(data);
+          } catch(e) {
+            tryIdx++;
+            tryInstance();
+          }
+        } else {
+          tryIdx++;
+          tryInstance();
+        }
+      };
+      xhr.onerror = function() {
+        tryIdx++;
+        tryInstance();
+      };
+      xhr.ontimeout = function() {
+        tryIdx++;
+        tryInstance();
+      };
+      xhr.send();
+    }
+    tryInstance();
+  }
+
+  btnSearch.addEventListener('click', function() { doSearch(qInput.value); });
+  qInput.addEventListener('keydown', function(e) {
+    if (e.keyCode === 13 || e.key === 'Enter') {
+      e.preventDefault();
+      doSearch(qInput.value);
+    }
+  });
+
+  if (qInput.addEventListener) {
+    qInput.focus();
+  }
+})();
+</script>
+</body>
+</html>
