@@ -21,7 +21,22 @@ const scryptAsync = promisify(scrypt);
 // The canonical backend is official by default (handles everything locally).
 // Player-hosted servers opt in to relay mode with RELAY=true (or IS_OFFICIAL=false)
 // and point UPSTREAM_BACKEND_URL at the official backend.
-const RELAY_SOCIAL = process.env.RELAY === 'true' || process.env.IS_OFFICIAL === 'false';
+// ── Split-backend roles (see docs/BACKEND_SPLIT.md) ──────────────────────
+// One codebase, three deployments:
+//   BF_ROLE=main   (Render)     — everything: accounts/auth source of truth,
+//                                 all HTTP APIs, game WS. Default.
+//   BF_ROLE=ws     (HidenCloud) — game WS only; relays ALL social + account
+//                                 traffic upstream (Fly). HTTP: /health only.
+//   BF_ROLE=social (Fly.io)     — owns DMs/friends/community/stats/news;
+//                                 relays account traffic upstream (Render);
+//                                 serves offbranch HTTP APIs (yt/ic).
+// UPSTREAM_BACKEND_URL points at the next hop (ws→Fly WS, social→Render WS,
+// player-hosted→official). DATA_DIR overrides where JSON state files live
+// (Fly mounts a persistent volume at /data).
+const BF_ROLE = process.env.BF_ROLE || 'main';
+const IS_WS_ROLE = BF_ROLE === 'ws';
+const IS_SOCIAL_ROLE = BF_ROLE === 'social';
+const RELAY_SOCIAL = process.env.RELAY === 'true' || process.env.IS_OFFICIAL === 'false' || IS_WS_ROLE || IS_SOCIAL_ROLE;
 const IS_OFFICIAL = !RELAY_SOCIAL;
 const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-server.onrender.com';
 // Message types that are social and should be relayed upstream (not handled
@@ -35,6 +50,24 @@ const SOCIAL_TYPES = new Set([
   'player_settings_get', 'player_settings_set',
   'get_own_account', 'link_identity', 'start_oauth_link', 'link_account', 'unlink_identity',
 ]);
+
+// ── Split-backend roles (see docs/BACKEND_SPLIT.md for the full map) ────
+// (Role constants live above with RELAY_SOCIAL.)
+
+// Account/identity/dev-admin messages whose source of truth is the main
+// backend (Render). Relayed upstream by the ws + social roles instead of
+// being handled locally (they have no accounts database).
+const UPSTREAM_TYPES = new Set([
+  'auth', 'get_own_account', 'link_identity', 'start_oauth_link', 'link_account', 'unlink_identity',
+  'dev_list_accounts', 'dev_get_account', 'dev_set_tag', 'dev_set_role',
+  'dev_delete_account', 'dev_timed_ban', 'dev_unban', 'dev_global_bans',
+]);
+
+// Offbranch HTTP APIs served by the social role (always-on, no cold starts).
+const SOCIAL_HTTP = new Set([
+  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel',
+  '/api/ic-lookup', '/api/ic-emojis',
+]);
 function safeSendRaw(conn, data) {
   if (!conn) return;
   if (conn.readyState !== 1) return; // WebSocket.OPEN === 1
@@ -46,14 +79,15 @@ function safeSendRaw(conn, data) {
 
 const PORT = process.env.PORT || 4000;
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const DATA_FILE = join(__dirname, 'server-data.json');
+const DATA_DIR = process.env.DATA_DIR || __dirname;
+const DATA_FILE = join(DATA_DIR, 'server-data.json');
 const IS_LAN = process.argv.includes('--lan');
-const ACCOUNTS_FILE = join(__dirname, 'accounts.json');
-const FRIENDS_FILE = join(__dirname, 'friends.json');
-const PENDING_DMS_FILE = join(__dirname, 'pending-dms.json');
-const DM_HISTORY_FILE = join(__dirname, 'dm-history.json');
-const NEWS_FILE = join(__dirname, 'news.json');
-const GLOBAL_BANS_FILE = join(__dirname, 'global-bans.json');
+const ACCOUNTS_FILE = join(DATA_DIR, 'accounts.json');
+const FRIENDS_FILE = join(DATA_DIR, 'friends.json');
+const PENDING_DMS_FILE = join(DATA_DIR, 'pending-dms.json');
+const DM_HISTORY_FILE = join(DATA_DIR, 'dm-history.json');
+const NEWS_FILE = join(DATA_DIR, 'news.json');
+const GLOBAL_BANS_FILE = join(DATA_DIR, 'global-bans.json');
 
 async function getPlayerData(username) {
   if (USE_REDIS) {
@@ -61,7 +95,7 @@ async function getPlayerData(username) {
     return data ? JSON.parse(data) : { stats: {}, settings: {} };
   }
   try {
-    const f = join(__dirname, 'player-data.json');
+    const f = join(DATA_DIR, 'player-data.json');
     if (!existsSync(f)) return { stats: {}, settings: {} };
     const all = JSON.parse(readFileSync(f, 'utf8'));
     return all[username] || { stats: {}, settings: {} };
@@ -74,7 +108,7 @@ async function setPlayerData(username, data) {
     return;
   }
   try {
-    const f = join(__dirname, 'player-data.json');
+    const f = join(DATA_DIR, 'player-data.json');
     let all = {};
     if (existsSync(f)) all = JSON.parse(readFileSync(f, 'utf8'));
     all[username] = data;
@@ -146,7 +180,7 @@ let serverStats = { dailyUsers: {}, monthlyUsers: {}, serversCreated: 0 };
 // hosting — so compute stays tiny. The directory is PERSISTED to a JSON file
 // (editable via Node) and keeps every server that was ever created, even
 // offline ones (they just show as offline until they heartbeat again).
-const SERVER_DIRECTORY_FILE = join(__dirname, 'server-directory.json');
+const SERVER_DIRECTORY_FILE = join(DATA_DIR, 'server-directory.json');
 const SERVER_TTL = 90 * 1000;
 let DIRECTORY_MAP = new Map(); // id -> entry
 function loadDirectory() {
@@ -1408,6 +1442,19 @@ const server = http.createServer((req, res) => {
     res.end();
     return;
   }
+  // Split-backend HTTP allowlists (see docs/BACKEND_SPLIT.md). The ws role
+  // serves game traffic over WebSocket only; the social role serves the
+  // offbranch APIs + health. Everything else lives on the main backend.
+  if (IS_WS_ROLE) {
+    res.writeHead(404, CORS);
+    res.end(JSON.stringify({ error: 'Not served by the game host' }));
+    return;
+  }
+  if (IS_SOCIAL_ROLE && !SOCIAL_HTTP.has(pathname)) {
+    res.writeHead(404, CORS);
+    res.end(JSON.stringify({ error: 'Not served by the social host' }));
+    return;
+  }
 
   // --- CrazyGames OAuth-link endpoint (used when on CG and linking GitHub/Google) ---
   if (pathname === '/auth/cg-link' && req.method === 'POST') {
@@ -1768,6 +1815,21 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
     return;
   }
 
+  // ── Global ban sync (for ws-role game hosts) ─────────────────────────
+  // Shared-secret gated: BAN_SYNC_SECRET must match the x-ban-secret header.
+  // Lets split-backend game hosts enforce main-backend bans at join time.
+  if (pathname === '/api/global-bans' && req.method === 'GET') {
+    const secret = process.env.BAN_SYNC_SECRET || '';
+    if (!secret || req.headers['x-ban-secret'] !== secret) {
+      res.writeHead(403, CORS);
+      res.end(JSON.stringify({ error: 'Forbidden' }));
+      return;
+    }
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ bans: globalBans }));
+    return;
+  }
+
   // ── YT Forge search proxy ──────────────────────────────────────────
   // Proxies YouTube search through Invidious API so the browser doesn't hit CORS.
   if (pathname === '/api/yt-search' && req.method === 'GET') {
@@ -2006,6 +2068,7 @@ function isRateLimited(ws) {
 
   ws.on('message', (raw, isBinary) => {
     if (isBinary) {
+      if (IS_SOCIAL_ROLE) return; // game traffic never belongs on the social host
       if (isRateLimited(ws)) return;
       try {
         const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
@@ -2029,8 +2092,18 @@ function isRateLimited(ws) {
     if (isRateLimited(ws)) return;
     if (typeof msg !== 'object' || msg === null) return;
 
-    // Player-hosted: relay social traffic upstream; handle game traffic locally.
-    if (RELAY_SOCIAL && SOCIAL_TYPES.has(msg.type)) {
+    // Split-backend routing (see docs/BACKEND_SPLIT.md):
+    // - ws role: relay ALL social + account traffic upstream (Fly); game local.
+    // - social role: relay account traffic upstream (Render); social local;
+    //   game/voice/room traffic is never sent here — ignore it defensively.
+    // - player-hosted relay: relay SOCIAL_TYPES upstream (unchanged behavior).
+    if (IS_SOCIAL_ROLE) {
+      if (UPSTREAM_TYPES.has(msg.type)) {
+        if (ws._relay) ws._relay(raw);
+        return;
+      }
+      if (!SOCIAL_TYPES.has(msg.type) && msg.type !== 'ping' && msg.type !== 'status') return;
+    } else if (RELAY_SOCIAL && (SOCIAL_TYPES.has(msg.type) || UPSTREAM_TYPES.has(msg.type))) {
       if (ws._relay) ws._relay(raw);
       return;
     }
@@ -2532,7 +2605,7 @@ function deleteGuestAccount(name) {
       redisCmd(['DEL', `player_data:${name}`]).catch(() => {});
     } else {
       try {
-        const f = join(__dirname, 'player-data.json');
+        const f = join(DATA_DIR, 'player-data.json');
         if (existsSync(f)) {
           const all = JSON.parse(readFileSync(f, 'utf8'));
           if (all[name]) {
@@ -3651,6 +3724,8 @@ let _hbInterval;
   server.listen(PORT, () => {
     console.log(`\n  BlockForge Server`);
     console.log(`  ─────────────────`);
+    console.log(`  Role:    ${BF_ROLE}${IS_WS_ROLE ? ' (game WS, social relayed upstream)' : IS_SOCIAL_ROLE ? ' (social + offbranch APIs, accounts relayed upstream)' : ' (everything)'}`);
+    if (RELAY_SOCIAL && !IS_LAN) console.log(`  Upstream:${UPSTREAM_URL}`);
     console.log(`  Mode:    ${IS_LAN ? 'LAN (open rooms, no auth)' : 'Public (custom + private worlds)'}`);
     console.log(`  Storage: ${USE_REDIS ? 'Upstash Redis (persistent)' : 'local files (ephemeral)'}`);
     console.log(`  HTTP:    http://localhost:${PORT}`);
@@ -3663,6 +3738,45 @@ let _hbInterval;
       if (!c.clientId) console.warn(`  ⚠ OAuth ${p}: ${varName} not set — "${p}" login will show "not configured"`);
     }
   });
+
+  // ws role: poll the main backend for global bans (source of truth) so
+  // join-time enforcement works without local accounts, and boot/kick
+  // players who were banned since the last poll. Needs BAN_SYNC_URL +
+  // BAN_SYNC_SECRET env (same secret as the main backend).
+  if (IS_WS_ROLE) {
+    if (process.env.BAN_SYNC_URL) {
+      const pollBans = async () => {
+        try {
+          const r = await fetch(process.env.BAN_SYNC_URL, {
+            headers: { 'x-ban-secret': process.env.BAN_SYNC_SECRET || '' },
+            signal: AbortSignal.timeout(10000),
+          });
+          const d = await r.json();
+          if (d && d.bans) {
+            const prev = globalBans;
+            globalBans = d.bans;
+            saveGlobalBans();
+            for (const cws of wss.clients) {
+              const nm = cws._playerData && cws._playerData.name;
+              if (nm && cws._roomName && !prev[nm.toLowerCase()] && isGloballyBanned(nm)) {
+                const room = getRoom(cws._roomName);
+                if (room) {
+                  broadcast(room, { type: 'chat', name: 'Server', role: 'server', text: `${nm} has been globally banned.` });
+                }
+                safeSend(cws, JSON.stringify({ type: 'kicked', reason: 'Globally banned.' }));
+                try { handleLeave(cws); } catch {}
+                try { cws.close(); } catch {}
+              }
+            }
+          }
+        } catch (e) { console.warn('[bansync] poll failed:', e.message); }
+      };
+      pollBans();
+      setInterval(pollBans, 60000);
+    } else {
+      console.warn('  ⚠ BAN_SYNC_URL not set — global bans NOT enforced on this host!');
+    }
+  }
 
   // Server-side WebSocket heartbeat — ping all clients every 45s, terminate dead ones
   // This prevents Render's reverse proxy from closing idle WebSocket connections.

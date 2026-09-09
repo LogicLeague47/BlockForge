@@ -1,0 +1,16 @@
+# BlockForge social-role backend for Fly.io (DMs/friends/community + yt/ic APIs).
+# Same server.js as everywhere, gated by BF_ROLE. See docs/BACKEND_SPLIT.md.
+FROM node:22-slim
+WORKDIR /app
+COPY server-package/package.json ./package.json
+RUN npm install --omit=dev
+COPY server.js ./server.js
+COPY src/profanity.js ./src/profanity.js
+COPY server-data/ic-patch.tsv ./server-data/ic-patch.tsv
+COPY public/infinitecraft/js/combos.js ./public/infinitecraft/js/combos.js
+COPY scripts/build-ic-index.mjs ./scripts/build-ic-index.mjs
+# Pre-build the InfiniteCraft flat index so runtime stays lean (~60MB).
+RUN node scripts/build-ic-index.mjs
+ENV PORT=8080 BF_ROLE=social DATA_DIR=/data NODE_ENV=production
+EXPOSE 8080
+CMD ["node", "server.js"]

@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Backend split: Fly.io social host live',
+          desc: 'server.js now runs in three roles (BF_ROLE=main/ws/social). Fly.io hosts DMs, friends, community + offbranch APIs at blockforge-social.fly.dev — verified live: health, IC lookup, YT search, and WS auth relay all pass. Ships dark: clients still point at Render until the HidenCloud game host is live.',
+          date: 'Sep 9',
+          bugs: [],
+          updates: ['ROLE modes + relay-chain routing (client keeps one socket)', 'Fly app + volume + secrets deployed (jnb region)', 'ban-sync endpoint + 60s poll with proactive kick', 'DATA_DIR support for persistent volumes', 'docs/BACKEND_SPLIT.md'],
+          features: ['Fly.io social backend (DMs, offbranch APIs, always-on)'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'YT Forge: Download MP4 button',
           desc: 'New Download MP4 link under the player. Server-side downloading is blocked from datacenter IPs on every route, so the button opens an external free downloader with the video URL auto-copied and ready to paste.',
           date: 'Sep 9',
