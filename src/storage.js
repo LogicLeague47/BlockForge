@@ -70,7 +70,7 @@ export function getDevWorldList() {
 
 function _saveList(key, list) {
   const json = JSON.stringify(list);
-  localStorage.setItem(key, json);
+  try { localStorage.setItem(key, json); } catch (_) {}
   sdkSet(key, json);
 }
 

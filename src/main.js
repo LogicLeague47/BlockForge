@@ -5162,7 +5162,7 @@ function setupNetworkHandlers() {
         const pass = document.getElementById('login-password');
         if (pass) localStorage.setItem('bf_login_pass', _xorEncode(pass.value));
       } catch (_) { console.warn("save login credentials failed"); }
-      sessionStorage.setItem('bf_authenticated', '1');
+      try { sessionStorage.setItem('bf_authenticated', '1'); } catch (_) {}
       setSkinUser(playerName);
       // Sync DM history to server for cross-device support
       try {
@@ -12020,7 +12020,7 @@ document.getElementById('btn-inv-theme')?.addEventListener('click', () => {
   if (!el) return;
   el.classList.toggle('inv-light');
   const theme = el.classList.contains('inv-light') ? 'light' : 'dark';
-  localStorage.setItem('bf_inv_theme', theme);
+  try { localStorage.setItem('bf_inv_theme', theme); } catch (_) {}
   try {
     if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) {
       window.CrazyGames.SDK.data.setItem('bf_inv_theme', theme).catch(() => {});
