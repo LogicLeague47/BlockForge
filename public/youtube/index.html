@@ -97,7 +97,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <script>
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
-  var PIPED = 'https://pipedapi.kavin.rocks';
+  var STREAM = 'https://blockforge-server.onrender.com/api/yt-stream';
   var YTS = 'https://www.youtube.com/results?search_query=';
   var playerBox = document.getElementById('player-box');
   var playerEl = document.getElementById('player');
@@ -171,36 +171,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
     setStatus('Loading stream...');
     var xhr = new XMLHttpRequest();
-    xhr.open('GET', PIPED + '/streams/' + id, true);
-    xhr.timeout = 15000;
+    xhr.open('GET', STREAM + '?v=' + id, true);
+    xhr.timeout = 20000;
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
           var data = JSON.parse(xhr.responseText);
-          var muxed = null;
-          var streams = data.videoStreams || [];
-          for (var i = 0; i < streams.length; i++) {
-            if (streams[i].videoOnly === false && streams[i].format === 'MPEG_4') {
-              muxed = streams[i];
-              break;
-            }
-          }
-          if (!muxed) {
-            for (var j = 0; j < streams.length; j++) {
-              if (streams[j].videoOnly === false) {
-                muxed = streams[j];
-                break;
-              }
-            }
-          }
-          if (!muxed && streams.length > 0) {
-            muxed = streams[0];
-          }
-          if (muxed && muxed.url) {
-            playerEl.src = muxed.url;
+          if (data.url) {
+            playerEl.src = data.url;
             setStatus('');
           } else {
-            setStatus('No stream found');
+            setStatus(data.error || 'No stream found');
           }
         } catch(e) {
           setStatus('Parse error');
