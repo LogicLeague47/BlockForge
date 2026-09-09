@@ -75,7 +75,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
 
-  <div class="player-box" id="player-box"></div>
+  <div class="player-box" id="player-box">
+    <video id="player" controls playsinline style="width:100%;height:100%;background:#000"></video>
+  </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
     <div class="np-title" id="np-title"></div>
@@ -95,11 +97,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <script>
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
-  var INV = 'https://invidious.materialio.us';
-  var PROXY = INV;
+  var PIPED = 'https://pipedapi.kavin.rocks';
   var YTS = 'https://www.youtube.com/results?search_query=';
   var playerBox = document.getElementById('player-box');
-  var playerWrap = playerBox.parentNode;
+  var playerEl = document.getElementById('player');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
   var qInput = document.getElementById('q');
@@ -150,15 +151,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function playVideo(id, title, author, authorId, viewCount) {
-    var old = document.getElementById('player');
-    if (old) old.parentNode.removeChild(old);
-    var iframe = document.createElement('iframe');
-    iframe.id = 'player';
-    iframe.setAttribute('webkitallowfullscreen', '');
-    iframe.setAttribute('mozallowfullscreen', '');
-    iframe.setAttribute('allowfullscreen', 'allowfullscreen');
-    playerBox.appendChild(iframe);
-    iframe.src = PROXY + '/embed/' + id + '?local=true';
+    playerEl.pause();
+    playerEl.removeAttribute('src');
+    playerEl.load();
     playerBox.style.display = 'block';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
@@ -171,9 +166,52 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var statsHtml = '';
     if (viewCount) statsHtml = fmtNum(viewCount) + ' views';
     npStats.innerHTML = statsHtml;
-
     npWrap.style.display = 'block';
     window.scrollTo(0, 0);
+
+    setStatus('Loading stream...');
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', PIPED + '/streams/' + id, true);
+    xhr.timeout = 15000;
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var data = JSON.parse(xhr.responseText);
+          var muxed = null;
+          var streams = data.videoStreams || [];
+          for (var i = 0; i < streams.length; i++) {
+            if (streams[i].videoOnly === false && streams[i].format === 'MPEG_4') {
+              muxed = streams[i];
+              break;
+            }
+          }
+          if (!muxed) {
+            for (var j = 0; j < streams.length; j++) {
+              if (streams[j].videoOnly === false) {
+                muxed = streams[j];
+                break;
+              }
+            }
+          }
+          if (!muxed && streams.length > 0) {
+            muxed = streams[0];
+          }
+          if (muxed && muxed.url) {
+            playerEl.src = muxed.url;
+            setStatus('');
+          } else {
+            setStatus('No stream found');
+          }
+        } catch(e) {
+          setStatus('Parse error');
+        }
+      } else {
+        setStatus('Stream error (' + xhr.status + ')');
+      }
+    };
+    xhr.onerror = function() { setStatus('Network error'); };
+    xhr.ontimeout = function() { setStatus('Timed out'); };
+    xhr.send();
   }
 
   function renderResults(items) {
