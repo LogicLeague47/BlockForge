@@ -154,8 +154,26 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var ytframe = document.getElementById('ytframe');
     playerBox.style.display = 'block';
     ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3';
-    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>';
+    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>'
+      + ' &middot; <a href="https://turboscribe.ai/downloader/youtube/video/free" target="_blank" id="dl-link" title="Opens an external downloader">Download MP4 &#x2197;</a>';
     ytLinkEl.style.display = 'block';
+    var dlLink = document.getElementById('dl-link');
+    if (dlLink) {
+      dlLink.addEventListener('click', function() {
+        // Copy the video URL so it can be pasted on the download page.
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = 'https://www.youtube.com/watch?v=' + id;
+          ta.style.position = 'fixed';
+          ta.style.opacity = '0';
+          document.body.appendChild(ta);
+          ta.select();
+          if (ta.setSelectionRange) ta.setSelectionRange(0, 99999);
+          if (document.execCommand('copy')) setStatus('Link copied — paste it on the download page');
+          document.body.removeChild(ta);
+        } catch (e) { /* clipboard unavailable, page still opens */ }
+      });
+    }
     npTitle.textContent = title || '';
 
     var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
