@@ -1516,6 +1516,10 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
           + 'new MutationObserver(hideBranding).observe(document.body||document.documentElement,{childList:true,subtree:true});'
           + '})();'
           + '<\/script>';
+        // Rewrite relative URLs to absolute YouTube URLs so scripts load correctly
+        body = body.replace(/"\/(player|s|base|ajax|embed|img|vi|results|generate_204)/g, '"https://www.youtube.com/$1');
+        body = body.replace(/src="\/(player|s|base|ajax|embed|img|vi)/g, 'src="https://www.youtube.com/$1');
+        body = body.replace(/href="\/(player|s|base|ajax|embed|img|vi)/g, 'href="https://www.youtube.com/$1');
         // Inject before </head>
         if (body.indexOf('</head>') !== -1) {
           body = body.replace('</head>', hideCSS + hideJS + '</head>');
