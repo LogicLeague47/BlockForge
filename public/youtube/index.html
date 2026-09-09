@@ -24,14 +24,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .search-links a{color:#8af;text-decoration:none}
 .status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
-.player-box video{position:absolute;top:0;left:0;width:100%;height:100%}
-.player-controls{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;width:100%;background:rgba(20,20,40,.92);padding:6px 10px;box-sizing:border-box;border-radius:0 0 10px 10px;margin-top:-4px}
-.pc-btn{background:none;border:none;color:#ccc;font:16px/1 monospace;padding:4px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pc-btn:hover{color:#fff}
-.pc-btn:active{color:#f44}
-.pc-progress-wrap{-webkit-flex:1;flex:1;height:4px;background:rgba(255,255,255,.2);border-radius:2px;margin:0 8px;position:relative;cursor:pointer}
-.pc-progress-fill{height:100%;background:#f44;border-radius:2px;width:0%;pointer-events:none}
-.pc-time{font:11px/1 monospace;color:#aaa;white-space:nowrap;min-width:70px;text-align:center}
+.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
 .yt-link a{color:#8af;text-decoration:none}
 .yt-link a:hover{text-decoration:underline}
@@ -83,18 +76,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="status" id="status"></div>
 
   <div class="player-box" id="player-box">
-    <iframe id="ytframe" style="width:100%;height:100%;border:none;display:none" webkitallowfullscreen allowfullscreen="allowfullscreen"></iframe>
-    <video id="player" playsinline style="width:100%;height:100%;background:#000;display:none"></video>
-  </div>
-  <div class="player-controls" id="player-controls" style="display:none">
-    <button class="pc-btn" id="pc-rew" title="Rewind 10s">&#9664;&#9664;</button>
-    <button class="pc-btn" id="pc-play" title="Play/Pause">&#9654;</button>
-    <button class="pc-btn" id="pc-fwd" title="Forward 10s">&#9654;&#9654;</button>
-    <div class="pc-progress-wrap" id="pc-pbar">
-      <div class="pc-progress-fill" id="pc-fill"></div>
-    </div>
-    <span class="pc-time" id="pc-time">0:00 / 0:00</span>
-    <button class="pc-btn" id="pc-next" title="Next result">&#9193;</button>
+    <iframe id="ytframe" style="width:100%;height:100%;border:none" webkitallowfullscreen allowfullscreen="allowfullscreen"></iframe>
   </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
@@ -115,7 +97,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <script>
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
-  var STREAM = 'https://blockforge-server.onrender.com/api/yt-stream';
+  var YTS = 'https://www.youtube.com/results?search_query=';
   var YTS = 'https://www.youtube.com/results?search_query=';
   var playerBox = document.getElementById('player-box');
   var playerEl = document.getElementById('player');
@@ -168,24 +150,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return thumbs[thumbs.length - 1].url;
   }
 
-  function isOldDevice() {
-    var ua = navigator.userAgent || '';
-    if (ua.indexOf('iPhone') !== -1 && ua.indexOf('OS 1') !== -1) return true;
-    if (ua.indexOf('iPad') !== -1 && ua.indexOf('OS 1') !== -1) return true;
-    if (ua.indexOf('iPhone') !== -1 && (ua.indexOf('OS 10') !== -1 || ua.indexOf('OS 9') !== -1 || ua.indexOf('OS 8') !== -1)) return true;
-    if (ua.indexOf('iPad') !== -1 && (ua.indexOf('OS 10') !== -1 || ua.indexOf('OS 9') !== -1 || ua.indexOf('OS 8') !== -1)) return true;
-    if (ua.indexOf('Android 4') !== -1 || ua.indexOf('Android 5') !== -1) return true;
-    if (ua.indexOf('MSIE') !== -1 || ua.indexOf('Trident/') !== -1) return true;
-    return false;
-  }
-
   function playVideo(id, title, author, authorId, viewCount) {
     var ytframe = document.getElementById('ytframe');
-    playerEl.pause();
-    playerEl.removeAttribute('src');
-    playerEl.style.display = 'none';
-    ytframe.style.display = 'none';
     playerBox.style.display = 'block';
+    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     npTitle.textContent = title || '';
@@ -198,48 +166,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     if (viewCount) statsHtml = fmtNum(viewCount) + ' views';
     npStats.innerHTML = statsHtml;
     npWrap.style.display = 'block';
-    window.scrollTo(0, 0);
-
-    if (!isOldDevice()) {
-      loadIframe(id);
-      return;
-    }
-
-    setStatus('Loading stream...');
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', STREAM + '?v=' + id, true);
-    xhr.timeout = 20000;
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          var data = JSON.parse(xhr.responseText);
-          if (data.url) {
-            playerEl.src = data.url;
-            playerEl.style.display = 'block';
-            setStatus('');
-            ctrlWrap.style.display = '-webkit-box';
-            ctrlWrap.style.display = 'flex';
-            return;
-          }
-        } catch(e) {}
-      }
-      loadIframe(id);
-    };
-    xhr.onerror = function() { loadIframe(id); };
-    xhr.ontimeout = function() { loadIframe(id); };
-    xhr.send();
-  }
-
-  function loadIframe(id) {
-    var ytframe = document.getElementById('ytframe');
     setStatus('');
-    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3';
-    ytframe.style.display = 'block';
-    ctrlWrap.style.display = 'none';
-  }
-    xhr.onerror = function() { setStatus('Network error'); };
-    xhr.ontimeout = function() { setStatus('Timed out'); };
-    xhr.send();
+    window.scrollTo(0, 0);
   }
 
   function renderResults(items) {
@@ -371,107 +299,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     if (e.keyCode === 13 || e.key === 'Enter') { e.preventDefault(); doSearch(qInput.value); }
   });
 
-  // ── Custom player controls ──────────────────────────────────────
-  var ctrlWrap = document.getElementById('player-controls');
-  var pcPlay = document.getElementById('pc-play');
-  var pcRew = document.getElementById('pc-rew');
-  var pcFwd = document.getElementById('pc-fwd');
-  var pcNext = document.getElementById('pc-next');
-  var pcPbar = document.getElementById('pc-pbar');
-  var pcFill = document.getElementById('pc-fill');
-  var pcTime = document.getElementById('pc-time');
-  var searchResultIds = [];
-  var currentResultIdx = -1;
-
-  function fmtTime(s) {
-    if (!s || isNaN(s)) return '0:00';
-    s = Math.floor(s);
-    var h = Math.floor(s / 3600);
-    var m = Math.floor((s % 3600) / 60);
-    var sec = s % 60;
-    if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
-    return m + ':' + (sec < 10 ? '0' : '') + sec;
-  }
-
-  function updateControls() {
-    if (!playerEl.duration) return;
-    var pct = (playerEl.currentTime / playerEl.duration) * 100;
-    pcFill.style.width = pct + '%';
-    pcTime.textContent = fmtTime(playerEl.currentTime) + ' / ' + fmtTime(playerEl.duration);
-    pcPlay.innerHTML = playerEl.paused ? '&#9654;' : '&#9646;&#9646;';
-  }
-
-  playerEl.addEventListener('play', updateControls);
-  playerEl.addEventListener('pause', updateControls);
-  playerEl.addEventListener('timeupdate', updateControls);
-  playerEl.addEventListener('loadedmetadata', updateControls);
-
-  pcPlay.addEventListener('click', function() {
-    if (playerEl.paused) playerEl.play();
-    else playerEl.pause();
-  });
-
-  pcRew.addEventListener('click', function() {
-    playerEl.currentTime = Math.max(0, playerEl.currentTime - 10);
-  });
-
-  pcFwd.addEventListener('click', function() {
-    playerEl.currentTime = Math.min(playerEl.duration || 0, playerEl.currentTime + 10);
-  });
-
-  pcNext.addEventListener('click', function() {
-    if (currentResultIdx < 0 || currentResultIdx >= searchResultIds.length - 1) return;
-    var next = searchResultIds[currentResultIdx + 1];
-    if (next) {
-      currentResultIdx++;
-      playVideo(next.vid, next.title, next.author, next.authorId, next.views);
-    }
-  });
-
-  pcPbar.addEventListener('click', function(e) {
-    if (!playerEl.duration) return;
-    var rect = pcPbar.getBoundingClientRect();
-    var pct = (e.clientX - rect.left) / rect.width;
-    playerEl.currentTime = pct * playerEl.duration;
-  });
-
-  // override playVideo to track index
-  var _origPlayVideo = playVideo;
-  playVideo = function(id, title, author, authorId, viewCount) {
-    _origPlayVideo(id, title, author, authorId, viewCount);
-    currentResultIdx = -1;
-    for (var i = 0; i < searchResultIds.length; i++) {
-      if (searchResultIds[i].vid === id) { currentResultIdx = i; break; }
-    }
-  };
-
-  // hook into renderResults to track IDs
-  var _origRenderResults = renderResults;
-  renderResults = function(items) {
-    searchResultIds = [];
-    if (items) {
-      for (var i = 0; i < items.length; i++) {
-        var v = items[i];
-        if ((v.type === 'video' || v.type === 'short') && v.videoId) {
-          searchResultIds.push({ vid: v.videoId, title: v.title, author: v.author, authorId: v.authorId, views: v.viewCount });
-        }
-      }
-    }
-    _origRenderResults(items);
-  };
-
-  // hide controls when search starts
   var _origDoSearch = doSearch;
   doSearch = function(q) {
-    ctrlWrap.style.display = 'none';
-    playerEl.pause();
-    playerEl.removeAttribute('src');
-    playerEl.style.display = 'none';
     var ytframe = document.getElementById('ytframe');
     ytframe.src = '';
-    ytframe.style.display = 'none';
-    searchResultIds = [];
-    currentResultIdx = -1;
+    playerBox.style.display = 'none';
+    npWrap.style.display = 'none';
+    ytLinkEl.style.display = 'none';
     _origDoSearch(q);
   };
 
