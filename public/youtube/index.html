@@ -168,6 +168,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return thumbs[thumbs.length - 1].url;
   }
 
+  function isOldDevice() {
+    var ua = navigator.userAgent || '';
+    if (ua.indexOf('iPhone') !== -1 && ua.indexOf('OS 1') !== -1) return true;
+    if (ua.indexOf('iPad') !== -1 && ua.indexOf('OS 1') !== -1) return true;
+    if (ua.indexOf('iPhone') !== -1 && (ua.indexOf('OS 10') !== -1 || ua.indexOf('OS 9') !== -1 || ua.indexOf('OS 8') !== -1)) return true;
+    if (ua.indexOf('iPad') !== -1 && (ua.indexOf('OS 10') !== -1 || ua.indexOf('OS 9') !== -1 || ua.indexOf('OS 8') !== -1)) return true;
+    if (ua.indexOf('Android 4') !== -1 || ua.indexOf('Android 5') !== -1) return true;
+    if (ua.indexOf('MSIE') !== -1 || ua.indexOf('Trident/') !== -1) return true;
+    return false;
+  }
+
   function playVideo(id, title, author, authorId, viewCount) {
     var ytframe = document.getElementById('ytframe');
     playerEl.pause();
@@ -188,6 +199,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     npStats.innerHTML = statsHtml;
     npWrap.style.display = 'block';
     window.scrollTo(0, 0);
+
+    if (!isOldDevice()) {
+      loadIframe(id);
+      return;
+    }
 
     setStatus('Loading stream...');
     var xhr = new XMLHttpRequest();
