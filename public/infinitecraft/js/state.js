@@ -6,13 +6,14 @@ const State = {
   workspace: [],
 
   load() {
+    // Fresh start every visit: sidebar always resets to the 4 starters.
+    // Discovered combos live on the server (dataset + patch + AI cache),
+    // so anything you found before is instantly re-discoverable.
+    this.discovered = new Set(this.STARTERS);
+    this.emojiCache = {};
+    this.workspace = [];
     try {
-      const raw = localStorage.getItem(this.KEY);
-      if (raw) {
-        const data = JSON.parse(raw);
-        this.discovered = new Set(data.discovered || this.STARTERS);
-        this.emojiCache = data.emojiCache || {};
-      }
+      localStorage.removeItem(this.KEY);
     } catch (e) { /* ignore */ }
   },
 

@@ -6,24 +6,50 @@ const Game = {
   },
 
   /* Server-side recipe lookup. cb(resultOrNull, ok).
-     ok=false means the server couldn't be reached (NOT "no recipe"). */
+     ok=false means the server couldn't be reached (NOT "no recipe").
+     Retries once: Render's free tier sleeps after 15 min idle and the
+     first request wakes it (~30-50s), which can outlast one timeout. */
   lookup(a, b, cb) {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', Game.API + '/api/ic-lookup?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b), true);
-    xhr.timeout = 20000;
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          var d = JSON.parse(xhr.responseText);
-          cb(d.result || null, true);
-          return;
-        } catch (e) { /* fall through */ }
-      }
-      cb(null, false);
-    };
-    xhr.onerror = function() { cb(null, false); };
-    xhr.ontimeout = function() { cb(null, false); };
-    xhr.send();
+    var url = Game.API + '/api/ic-lookup?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b);
+    var done = false;
+    var tries = 0;
+    function attempt() {
+      tries++;
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', url, true);
+      xhr.timeout = 45000;
+      xhr.onload = function() {
+        if (done) return;
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            var d = JSON.parse(xhr.responseText);
+            done = true;
+            cb(d.result || null, true);
+            return;
+          } catch (e) { /* fall through to retry/fail */ }
+        }
+        if (tries < 2 && !done) {
+          Game.showToast("Waking server, retrying...");
+          attempt();
+        } else if (!done) {
+          done = true;
+          cb(null, false);
+        }
+      };
+      xhr.onerror = function() {
+        if (done) return;
+        if (tries < 2) {
+          Game.showToast("Waking server, retrying...");
+          attempt();
+        } else {
+          done = true;
+          cb(null, false);
+        }
+      };
+      xhr.ontimeout = xhr.onerror;
+      xhr.send();
+    }
+    attempt();
   },
 
   /* Batch-fill emoji cache for names we haven't seen. cb() always runs. */
@@ -40,7 +66,7 @@ const Game = {
     }
     var xhr = new XMLHttpRequest();
     xhr.open('GET', Game.API + '/api/ic-emojis?' + q, true);
-    xhr.timeout = 20000;
+    xhr.timeout = 45000;
     xhr.onload = function() {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
