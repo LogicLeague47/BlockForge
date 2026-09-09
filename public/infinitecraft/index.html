@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Infinite Craft</title>
+  <link rel="stylesheet" href="css/style.css?v=1">
+  <link rel="stylesheet" href="css/animations.css?v=1">
+</head>
+<body>
+  <div id="bg-animation"></div>
+  <div id="app">
+    <header id="topbar">
+      <h1>InfiniteCraft</h1>
+      <a id="games-link" href="../games.html?v=2">&larr; Games</a>
+      <span id="counter">4 / ∞</span>
+      <button id="reset-btn" title="Reset progress">↺</button>
+    </header>
+    <aside id="sidebar">
+      <input type="text" id="search" placeholder="Search elements..." autocomplete="off">
+      <div id="element-list"></div>
+    </aside>
+    <main id="workspace">
+      <div id="workspace-hint">Drag two elements here to combine them</div>
+    </main>
+  </div>
+  <div id="toast" class="hidden"></div>
+  <script src="js/combos.js?v=1"></script>
+  <script src="js/state.js?v=1"></script>
+  <script src="js/game.js?v=1"></script>
+  <script src="js/app.js?v=1"></script>
+</body>
+</html>

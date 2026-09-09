@@ -1,0 +1,22 @@
+/* ── Subtle ambient animations ── */
+@keyframes gentleFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes softGlow {
+  0%, 100% { box-shadow: 0 0 5px rgba(0, 255, 200, 0.1); }
+  50% { box-shadow: 0 0 15px rgba(0, 255, 200, 0.2); }
+}
+
+@keyframes borderShimmer {
+  0% { border-color: rgba(0, 255, 200, 0.3); }
+  50% { border-color: rgba(0, 255, 200, 0.5); }
+  100% { border-color: rgba(0, 255, 200, 0.3); }
+}
+
+/* ── Background pulse ── */
+@keyframes bgPulse {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.06; }
+}
