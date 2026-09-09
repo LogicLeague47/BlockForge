@@ -136,8 +136,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return m + ':' + (sec < 10 ? '0' : '') + sec;
   }
 
-  function ytThumb(vid, quality) {
-    return 'https://i.ytimg.com/vi/' + vid + '/' + quality + '.jpg';
+  function ytThumb(vid) {
+    return 'https://i.ytimg.com/vi/' + vid + '/default.jpg';
   }
 
   function ytChannelThumb(thumbs) {
@@ -185,7 +185,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       var views = v.viewCount ? fmtNum(v.viewCount) + ' views' : '';
       var length = v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '';
       var verified = v.authorVerified;
-      var thumb = ytThumb(vid, 'mqdefault');
+      var thumb = ytThumb(vid);
       var avatarUrl = ytChannelThumb(v.authorThumbnails);
 
       var metaLine = '';
@@ -204,7 +204,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         + ' data-views="' + (v.viewCount || '') + '"'
         + '>'
         + '<div class="r-thumb">'
-        + '<img src="' + thumb + '" alt="" loading="lazy">'
+        + '<img src="' + thumb + '" alt="">'
         + (length ? '<span class="dur">' + length + '</span>' : '')
         + '</div>'
         + '<div class="r-body">'
@@ -222,6 +222,19 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var allItems = resultsEl.querySelectorAll('.result-item');
     for (var j = 0; j < allItems.length; j++) {
       (function(el) {
+        var touchStartY = 0;
+        var touchStartX = 0;
+        var didScroll = false;
+        el.addEventListener('touchstart', function(e) {
+          touchStartY = e.touches[0].clientY;
+          touchStartX = e.touches[0].clientX;
+          didScroll = false;
+        }, { passive: true });
+        el.addEventListener('touchmove', function(e) {
+          var dy = Math.abs(e.touches[0].clientY - touchStartY);
+          var dx = Math.abs(e.touches[0].clientX - touchStartX);
+          if (dy > 10 || dx > 10) didScroll = true;
+        }, { passive: true });
         function handler(e) {
           e.preventDefault();
           playVideo(
@@ -234,6 +247,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         }
         el.addEventListener('click', handler);
         el.addEventListener('touchend', function(e) {
+          if (didScroll) return;
           e.preventDefault();
           handler(e);
         });
