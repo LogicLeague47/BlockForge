@@ -9,9 +9,9 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0f0f1a;color:#e6e6f0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center}
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 0,rgba(180,40,40,.12) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(60,60,180,.1) 0,transparent 50%);pointer-events:none}
-.wrap{width:min(1000px,96vw);z-index:1;padding:16px 0}
-.topbar{display:flex;align-items:center;gap:12px;margin-bottom:14px}
-.topbar .logo{font-size:20px;font-weight:bold;color:#fff;white-space:nowrap}
+.wrap{width:96vw;max-width:1000px;z-index:1;padding:16px 0}
+.topbar{display:flex;align-items:center;margin-bottom:14px}
+.topbar .logo{font-size:20px;font-weight:bold;color:#fff;white-space:nowrap;margin-right:12px}
 .topbar .logo span{color:#f44}
 .back{color:#8af;font:12px monospace;text-decoration:none;white-space:nowrap}
 .back:hover{text-decoration:underline}
@@ -31,21 +31,21 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .yt-link a:hover{text-decoration:underline}
 .now-playing{margin-bottom:16px;display:none}
 .np-title{font-size:16px;font-weight:bold;color:#fff;line-height:1.3;margin-bottom:6px}
-.np-meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.np-channel{display:flex;align-items:center;gap:8px}
+.np-meta{display:flex;align-items:center;flex-wrap:wrap}
+.np-channel{display:flex;align-items:center;margin-right:10px}
 .np-avatar{width:36px;height:36px;border-radius:50%;background:#222}
 .np-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .np-channel-name{font-size:13px;font-weight:bold;color:#ddd}
 .np-subs{font-size:11px;color:#888}
 .np-stats{font-size:11px;color:#888}
-.results{display:flex;flex-direction:column;gap:8px}
-.result-item{display:flex;gap:12px;padding:8px;background:rgba(20,20,40,.7);border:1px solid rgba(90,90,140,.18);border-radius:8px;cursor:pointer;transition:background .12s}
-.result-item:hover{background:rgba(40,40,80,.75);border-color:rgba(140,100,100,.35)}
+.results{display:flex;flex-direction:column}
+.result-item{display:flex;padding:8px;margin-bottom:8px;background:rgba(20,20,40,.7);border:1px solid rgba(90,90,140,.18);border-radius:8px;cursor:pointer}
+.result-item:active{background:rgba(40,40,80,.75)}
 .r-thumb{width:168px;min-width:168px;height:94px;background:#111;border-radius:6px;overflow:hidden;position:relative;flex-shrink:0}
 .r-thumb img{width:100%;height:100%;object-fit:cover}
 .r-thumb .dur{position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,.82);color:#fff;font-size:10px;padding:1px 5px;border-radius:3px}
-.r-body{display:flex;gap:10px;min-width:0;flex:1}
-.r-avatar{width:36px;height:36px;border-radius:50%;background:#222;flex-shrink:0;overflow:hidden;margin-top:2px}
+.r-body{display:flex;min-width:0;flex:1}
+.r-avatar{width:36px;height:36px;border-radius:50%;background:#222;flex-shrink:0;overflow:hidden;margin-top:2px;margin-right:10px}
 .r-avatar img{width:100%;height:100%;border-radius:50%;object-fit:cover}
 .r-info{display:flex;flex-direction:column;min-width:0;flex:1}
 .r-title{font-size:13px;font-weight:bold;color:#fff;line-height:1.3;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
@@ -66,7 +66,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <div class="wrap">
   <div class="topbar">
     <span class="logo"><span>YT</span> Forge</span>
-    <a class="back" href="../games.html?v=2">← Games</a>
+    <a class="back" href="../games.html?v=2">&larr; Games</a>
   </div>
 
   <div class="search-row">
@@ -76,7 +76,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
 
-  <div id="player-wrap"><iframe id="player" allow="autoplay; encrypted-media" allowfullscreen></iframe></div>
+  <div id="player-wrap"><iframe id="player" allowfullscreen="allowfullscreen" webkitallowfullscreen="webkitallowfullscreen"></iframe></div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
     <div class="np-title" id="np-title"></div>
@@ -90,7 +90,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     <div class="empty">Search for something to get started</div>
   </div>
 
-  <div class="footer">Powered by YouTube · LogicLeague</div>
+  <div class="footer">Powered by YouTube &middot; LogicLeague</div>
 </div>
 
 <script>
@@ -149,14 +149,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function playVideo(id, title, author, authorId, viewCount) {
-    playerEl.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&modestbranding=1';
+    playerEl.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1';
     playerWrap.style.display = 'block';
-    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + esc(id) + '" target="_blank">Open on YouTube \u2197</a>';
+    ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     npTitle.textContent = title || '';
 
     var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
-    if (authorId) channelHtml += '<div class="np-subs"><a href="https://youtube.com/channel/' + esc(authorId) + '" target="_blank" style="color:#8af;text-decoration:none">Visit channel \u2197</a></div>';
+    if (authorId) channelHtml += '<div class="np-subs"><a href="https://youtube.com/channel/' + authorId + '" target="_blank" style="color:#8af;text-decoration:none">Visit channel &#x2197;</a></div>';
     npChannel.innerHTML = channelHtml;
 
     var statsHtml = '';
@@ -164,7 +164,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     npStats.innerHTML = statsHtml;
 
     npWrap.style.display = 'block';
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo(0, 0);
   }
 
   function renderResults(items) {
@@ -191,11 +191,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       var metaLine = '';
       if (author) {
         metaLine += '<span class="r-channel">' + author;
-        if (verified) metaLine += ' <span class="vbadge">\u2713</span>';
+        if (verified) metaLine += ' <span class="vbadge">&#x2713;</span>';
         metaLine += '</span>';
       }
-      if (published) metaLine += '<span class="r-stats"> \u00b7 ' + published + '</span>';
-      if (views) metaLine += '<span class="r-stats"> \u00b7 ' + views + '</span>';
+      if (published) metaLine += '<span class="r-stats"> &middot; ' + published + '</span>';
+      if (views) metaLine += '<span class="r-stats"> &middot; ' + views + '</span>';
 
       html += '<div class="result-item" data-vid="' + esc(vid) + '"'
         + ' data-title="' + esc(v.title || '') + '"'
@@ -223,20 +223,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     for (var j = 0; j < allItems.length; j++) {
       (function(el) {
         var touchStartY = 0;
-        var touchStartX = 0;
         var didScroll = false;
         el.addEventListener('touchstart', function(e) {
           touchStartY = e.touches[0].clientY;
-          touchStartX = e.touches[0].clientX;
           didScroll = false;
-        }, { passive: true });
+        }, true);
         el.addEventListener('touchmove', function(e) {
-          var dy = Math.abs(e.touches[0].clientY - touchStartY);
-          var dx = Math.abs(e.touches[0].clientX - touchStartX);
-          if (dy > 10 || dx > 10) didScroll = true;
-        }, { passive: true });
-        function handler(e) {
-          e.preventDefault();
+          if (Math.abs(e.touches[0].clientY - touchStartY) > 10) didScroll = true;
+        }, true);
+        function handler(ev) {
+          if (ev) ev.preventDefault();
           playVideo(
             el.getAttribute('data-vid'),
             el.getAttribute('data-title'),
@@ -246,10 +242,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
           );
         }
         el.addEventListener('click', handler);
-        el.addEventListener('touchend', function(e) {
+        el.addEventListener('touchend', function(ev) {
           if (didScroll) return;
-          e.preventDefault();
-          handler(e);
+          if (ev) ev.preventDefault();
+          handler();
         });
       })(allItems[j]);
     }
@@ -263,7 +259,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     playerWrap.style.display = 'none';
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
-    searchLinksEl.innerHTML = '<a href="' + YTS + encodeURIComponent(query) + '" target="_blank">Open "' + esc(query) + '" on YouTube \u2197</a>';
+    searchLinksEl.innerHTML = '<a href="' + YTS + encodeURIComponent(query) + '" target="_blank">Open "' + esc(query) + '" on YouTube &#x2197;</a>';
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '?q=' + encodeURIComponent(query), true);
@@ -280,16 +276,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         }
       } else {
         setStatus('Server error (' + xhr.status + ')');
-        resultsEl.innerHTML = '<div class="empty">Search failed. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead \u2197</a></div>';
+        resultsEl.innerHTML = '<div class="empty">Search failed. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
       }
     };
     xhr.onerror = function() {
       setStatus('Network error');
-      resultsEl.innerHTML = '<div class="empty">Could not reach server. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead \u2197</a></div>';
+      resultsEl.innerHTML = '<div class="empty">Could not reach server. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
     };
     xhr.ontimeout = function() {
       setStatus('Timed out');
-      resultsEl.innerHTML = '<div class="empty">Search took too long. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead \u2197</a></div>';
+      resultsEl.innerHTML = '<div class="empty">Search took too long. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
     };
     xhr.send();
   }
