@@ -67,4 +67,23 @@ try {
   console.warn('[minigame-legacy] Mold Kingdom failed (non-fatal):', e.message);
 }
 
+// ── InfiniteCraft ─────────────────────────────────────────────────────────
+// Concatenates state.js + game.js + app.js → single file → Babel ES5.
+// combos.js is NOT transpiled (53MB) — it only contains one `var` and a
+// giant data literal, both parseable on old Safari as-is.
+try {
+  console.log('[minigame-legacy] InfiniteCraft: concatenating + transpiling ...');
+  const icDir = resolve(root, 'public/infinitecraft/js');
+  const files = ['state.js', 'game.js', 'app.js'];
+  let combined = '';
+  for (const f of files) {
+    combined += readFileSync(resolve(icDir, f), 'utf8') + '\n;\n';
+  }
+  const result = transformSync(combined, { ...babelOpts, filename: 'infinitecraft-legacy.js' });
+  writeFileSync(resolve(outDir, 'infinitecraft-legacy.js'), result.code);
+  console.log('  ✓ 3 files → infinitecraft-legacy.js');
+} catch (e) {
+  console.warn('[minigame-legacy] InfiniteCraft failed (non-fatal):', e.message);
+}
+
 console.log('[minigame-legacy] done');

@@ -51,7 +51,9 @@ const App = {
   renderSidebar(filter = "") {
     const list = document.getElementById("element-list");
     list.innerHTML = "";
-    const sorted = [...State.discovered].sort((a, b) => a.localeCompare(b));
+    const sorted = [];
+    State.discovered.forEach(function(n) { sorted.push(n); });
+    sorted.sort(function(a, b) { return a.localeCompare(b); });
     const filtered = filter
       ? sorted.filter(n => n.toLowerCase().includes(filter.toLowerCase()))
       : sorted;
