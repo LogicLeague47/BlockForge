@@ -1456,6 +1456,99 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
     return;
   }
 
+  // ── YT Forge embed proxy ─────────────────────────────────────────
+  // Proxies YouTube embed HTML through our server, injecting CSS/JS to hide
+  // all YouTube branding. The iframe loads from OUR domain, so we control the content.
+  if (pathname === '/api/yt-proxy' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const vid = (qs.get('v') || '').trim();
+    if (!vid || !/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+      res.writeHead(400, CORS);
+      res.end('Invalid video ID');
+      return;
+    }
+    const embedUrl = 'https://www.youtube.com/embed/' + vid;
+    const proxyReq = https.get(embedUrl, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      }
+    }, proxyRes => {
+      if (proxyRes.statusCode >= 300 && proxyRes.statusCode < 400) {
+        res.writeHead(proxyRes.statusCode, { Location: proxyRes.headers.location || '' });
+        res.end();
+        return;
+      }
+      if (proxyRes.statusCode !== 200) {
+        res.writeHead(proxyRes.statusCode, CORS);
+        res.end('YouTube returned ' + proxyRes.statusCode);
+        return;
+      }
+      let body = '';
+      proxyRes.on('data', c => { body += c; if (body.length > 500000) proxyRes.destroy(); });
+      proxyRes.on('end', () => {
+        // Inject CSS to hide ALL YouTube branding elements
+        const hideCSS = '<style>'
+          + 'ytd-player,.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-top,'
+          + '.ytp-gradient-bottom,.ytp-watermark,.ytp-show-cards-title,'
+          + '.ytp-ce-element,.ytp-endscreen-content,.ytp-cards-teaser,'
+          + '.ytp-button.ytp-share-button,.ytp-button.ytp-watch-later-button,'
+          + '.ytp-button.ytp-settings-button,.ytp-button.ytp-size-button,'
+          + '.ytp-button.ytp-fullscreen-button,.ytp-watermark.ytp-logo,'
+          + '.annotation,.ytp-pause-overlay,.ytp-spinner,.ytp-suggested-action,'
+          + '.ytp-paid-content-overlay,.ytp-ad-overlay-container,'
+          + '.ytp-ad-text-overlay,.ytp-ad-image-overlay,'
+          + '.ytp-cards-button,.ytp-chapters-container,'
+          + '[class*="ytp-logo"],[class*="youtube-logo"],'
+          + '[class*="watermark"],[class*="endscreen"],'
+          + '[class*="annotation"],[class*="share-button"],'
+          + '[class*="watch-later"],[class*="settings-button"],'
+          + '[class*="size-button"]{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;height:0!important;width:0!important;overflow:hidden!important}'
+          + '.ytp-big-play-button{background:rgba(0,0,0,0.7)!important;border:none!important}'
+          + '.html5-endscreen{display:none!important}'
+          + '</style>';
+        // Inject JS to auto-hide branding as it appears
+        const hideJS = '<script>'
+          + '(function(){'
+          + 'function hideBranding(){'
+          + 'var s="ytp-logo,ytp-watermark,ytp-ce-element,ytp-endscreen-content,ytp-cards-teaser,ytp-chapters-container,.ytp-share-button,.ytp-watch-later-button,.ytp-settings-button,.html5-endscreen,.ytp-big-play-button .ytp-large-play-button-bg";'
+          + 's.split(",").forEach(function(sel){'
+          + 'try{document.querySelectorAll(sel).forEach(function(el){el.style.cssText="display:none!important;visibility:hidden!important"})}catch(e){}'
+          + '});'
+          + '}'
+          + 'hideBranding();'
+          + 'setInterval(hideBranding,500);'
+          + 'new MutationObserver(hideBranding).observe(document.body||document.documentElement,{childList:true,subtree:true});'
+          + '})();'
+          + '<\/script>';
+        // Inject before </head>
+        if (body.indexOf('</head>') !== -1) {
+          body = body.replace('</head>', hideCSS + hideJS + '</head>');
+        } else {
+          body = hideCSS + hideJS + body;
+        }
+        res.writeHead(200, {
+          ...CORS,
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=3600',
+          'X-Frame-Options': '',
+        });
+        res.end(body);
+      });
+    });
+    proxyReq.on('error', () => {
+      res.writeHead(502, CORS);
+      res.end('Failed to fetch YouTube embed');
+    });
+    proxyReq.on('timeout', () => {
+      proxyReq.destroy();
+      res.writeHead(504, CORS);
+      res.end('YouTube embed timed out');
+    });
+    return;
+  }
+
   // ── YT Forge search proxy ──────────────────────────────────────────
   // Proxies YouTube search through Invidious API so the browser doesn't hit CORS.
   if (pathname === '/api/yt-search' && req.method === 'GET') {

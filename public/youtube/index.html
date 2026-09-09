@@ -23,20 +23,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .search-links{font-size:11px;margin-bottom:12px}
 .search-links a{color:#8af;text-decoration:none}
 .status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
-.player-outer{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
-.player-outer iframe,
-.player-outer .yt-api-player{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
-.custom-controls{display:none;width:100%;background:rgba(20,20,40,.9);border-radius:0 0 10px 10px;padding:6px 10px;margin-bottom:10px}
-.ctrl-row{display:flex;align-items:center}
-.ctrl-btn{background:none;border:none;color:#ccc;font:16px/1 monospace;cursor:pointer;padding:4px 8px;-webkit-tap-highlight-color:transparent}
-.ctrl-btn:hover{color:#fff}
-.ctrl-time{font-size:11px;color:#aaa;margin:0 8px;white-space:nowrap}
-.progress-wrap{flex:1;height:4px;background:rgba(255,255,255,.15);border-radius:2px;cursor:pointer;position:relative;margin:0 6px}
-.progress-fill{height:100%;background:#f44;border-radius:2px;width:0;pointer-events:none}
-.progress-buffered{height:100%;background:rgba(255,255,255,.2);border-radius:2px;width:0;position:absolute;top:0;left:0;pointer-events:none}
-.vol-wrap{display:flex;align-items:center;margin-left:4px}
-.vol-bar{width:60px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;cursor:pointer;position:relative;margin:0 4px}
-.vol-fill{height:100%;background:#8af;border-radius:2px;width:80%;pointer-events:none}
+.player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
+.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
 .yt-link a{color:#8af;text-decoration:none}
 .yt-link a:hover{text-decoration:underline}
@@ -87,25 +75,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
 
-  <div class="player-outer" id="player-outer">
-    <div id="api-player" class="yt-api-player"></div>
-    <iframe id="fallback-player" style="display:none" webkitallowfullscreen mozallowfullscreen allowfullscreen="allowfullscreen"></iframe>
-  </div>
-  <div class="custom-controls" id="custom-controls">
-    <div class="ctrl-row">
-      <button class="ctrl-btn" id="btn-play" title="Play/Pause">&#9654;</button>
-      <span class="ctrl-time" id="time-display">0:00 / 0:00</span>
-      <div class="progress-wrap" id="progress-wrap">
-        <div class="progress-buffered" id="progress-buffered"></div>
-        <div class="progress-fill" id="progress-fill"></div>
-      </div>
-      <div class="vol-wrap">
-        <button class="ctrl-btn" id="btn-mute" title="Mute">&#128266;</button>
-        <div class="vol-bar" id="vol-bar">
-          <div class="vol-fill" id="vol-fill"></div>
-        </div>
-      </div>
-    </div>
+  <div class="player-box" id="player-box">
+    <iframe id="player" webkitallowfullscreen mozallowfullscreen allowfullscreen="allowfullscreen"></iframe>
   </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
@@ -124,130 +95,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 </div>
 
 <script>
-var YT_FORGE = {
-  apiReady: false,
-  player: null,
-  mode: 'none',
-  currentId: null,
-  progressTimer: null
-};
-
-(function loadYTApi() {
-  var s = document.createElement('script');
-  s.src = 'https://www.youtube.com/iframe_api';
-  s.onerror = function() { YT_FORGE.fallbackMode('API script failed to load'); };
-  var ref = document.getElementsByTagName('script')[0];
-  ref.parentNode.insertBefore(s, ref);
-
-  setTimeout(function() {
-    if (!YT_FORGE.apiReady) YT_FORGE.fallbackMode('API timed out');
-  }, 8000);
-})();
-
-function onYouTubeIframeAPIReady() {
-  try {
-    YT_FORGE.player = new YT.Player('api-player', {
-      height: '100%',
-      width: '100%',
-      videoId: '',
-      playerVars: {
-        autoplay: 0, controls: 0, disablekb: 1, fs: 0,
-        iv_load_policy: 3, modestbranding: 1, rel: 0,
-        showinfo: 0, playsinline: 1, origin: location.origin
-      },
-      events: {
-        onReady: function() {
-          YT_FORGE.apiReady = true;
-          YT_FORGE.mode = 'api';
-        },
-        onStateChange: function(e) {
-          var btn = document.getElementById('btn-play');
-          if (e.data === YT.PlayerState.PLAYING) {
-            btn.innerHTML = '&#9646;&#9646;';
-            YT_FORGE.startProgress();
-          } else if (e.data === YT.PlayerState.PAUSED) {
-            btn.innerHTML = '&#9654;';
-            YT_FORGE.stopProgress();
-          } else if (e.data === YT.PlayerState.ENDED) {
-            btn.innerHTML = '&#9654;';
-            YT_FORGE.stopProgress();
-            document.getElementById('progress-fill').style.width = '100%';
-          }
-        },
-        onError: function() {
-          YT_FORGE.fallbackMode('Player error');
-        }
-      }
-    });
-  } catch(ex) {
-    YT_FORGE.fallbackMode('YT.Player constructor failed: ' + ex.message);
-  }
-}
-
-YT_FORGE.fallbackMode = function(reason) {
-  if (YT_FORGE.mode === 'fallback') return;
-  YT_FORGE.mode = 'fallback';
-  var apiDiv = document.getElementById('api-player');
-  var fb = document.getElementById('fallback-player');
-  if (apiDiv) apiDiv.style.display = 'none';
-  if (fb) fb.style.display = 'block';
-};
-
-YT_FORGE.play = function(id) {
-  YT_FORGE.currentId = id;
-  document.getElementById('player-outer').style.display = 'block';
-  document.getElementById('custom-controls').style.display = 'block';
-
-  if (YT_FORGE.mode === 'api' && YT_FORGE.player && YT_FORGE.player.loadVideoById) {
-    try {
-      YT_FORGE.player.loadVideoById(id);
-      return;
-    } catch(ex) {}
-  }
-
-  var fb = document.getElementById('fallback-player');
-  fb.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3&fs=1&origin=' + encodeURIComponent(location.origin);
-  YT_FORGE.mode = 'fallback';
-  YT_FORGE.startFallbackPoll(id);
-};
-
-YT_FORGE.startFallbackPoll = function(id) {
-  YT_FORGE.stopProgress();
-  YT_FORGE.progressTimer = setInterval(function() {
-    document.getElementById('progress-fill').style.width = '50%';
-    document.getElementById('time-display').textContent = 'playing...';
-  }, 1000);
-};
-
-YT_FORGE.startProgress = function() {
-  YT_FORGE.stopProgress();
-  YT_FORGE.progressTimer = setInterval(function() {
-    if (!YT_FORGE.player || !YT_FORGE.player.getDuration) return;
-    var cur = YT_FORGE.player.getCurrentTime() || 0;
-    var dur = YT_FORGE.player.getDuration() || 1;
-    document.getElementById('progress-fill').style.width = ((cur / dur) * 100) + '%';
-    document.getElementById('time-display').textContent = YT_FORGE.fmtTime(cur) + ' / ' + YT_FORGE.fmtTime(dur);
-  }, 250);
-};
-
-YT_FORGE.stopProgress = function() {
-  if (YT_FORGE.progressTimer) { clearInterval(YT_FORGE.progressTimer); YT_FORGE.progressTimer = null; }
-};
-
-YT_FORGE.fmtTime = function(s) {
-  s = Math.floor(s || 0);
-  var h = Math.floor(s / 3600);
-  var m = Math.floor((s % 3600) / 60);
-  var sec = s % 60;
-  if (h > 0) return h + ':' + (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec;
-  return m + ':' + (sec < 10 ? '0' : '') + sec;
-};
-
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
+  var PROXY = 'https://blockforge-server.onrender.com/api/yt-proxy';
   var YTS = 'https://www.youtube.com/results?search_query=';
-  var playerOuter = document.getElementById('player-outer');
-  var controlsEl = document.getElementById('custom-controls');
+  var playerBox = document.getElementById('player-box');
+  var playerEl = document.getElementById('player');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
   var qInput = document.getElementById('q');
@@ -298,8 +151,8 @@ YT_FORGE.fmtTime = function(s) {
   }
 
   function playVideo(id, title, author, authorId, viewCount) {
-    YT_FORGE.play(id);
-
+    playerEl.src = PROXY + '?v=' + id;
+    playerBox.style.display = 'block';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     npTitle.textContent = title || '';
@@ -315,38 +168,6 @@ YT_FORGE.fmtTime = function(s) {
     npWrap.style.display = 'block';
     window.scrollTo(0, 0);
   }
-
-  document.getElementById('btn-play').addEventListener('click', function() {
-    if (YT_FORGE.mode === 'api' && YT_FORGE.player) {
-      var st = YT_FORGE.player.getPlayerState ? YT_FORGE.player.getPlayerState() : -1;
-      if (st === YT.PlayerState.PLAYING) YT_FORGE.player.pauseVideo();
-      else YT_FORGE.player.playVideo();
-    }
-  });
-
-  document.getElementById('progress-wrap').addEventListener('click', function(e) {
-    if (YT_FORGE.mode === 'api' && YT_FORGE.player && YT_FORGE.player.seekTo) {
-      var rect = this.getBoundingClientRect();
-      var pct = (e.clientX - rect.left) / rect.width;
-      YT_FORGE.player.seekTo(pct * (YT_FORGE.player.getDuration() || 0), true);
-    }
-  });
-
-  document.getElementById('btn-mute').addEventListener('click', function() {
-    if (YT_FORGE.mode === 'api' && YT_FORGE.player) {
-      if (YT_FORGE.player.isMuted()) { YT_FORGE.player.unMute(); this.innerHTML = '&#128266;'; }
-      else { YT_FORGE.player.mute(); this.innerHTML = '&#128263;'; }
-    }
-  });
-
-  document.getElementById('vol-bar').addEventListener('click', function(e) {
-    if (YT_FORGE.mode === 'api' && YT_FORGE.player && YT_FORGE.player.setVolume) {
-      var rect = this.getBoundingClientRect();
-      var pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      YT_FORGE.player.setVolume(pct * 100);
-      document.getElementById('vol-fill').style.width = (pct * 100) + '%';
-    }
-  });
 
   function renderResults(items) {
     if (!items || items.length === 0) {
@@ -445,8 +266,7 @@ YT_FORGE.fmtTime = function(s) {
     if (!query) return;
     setStatus('Searching...');
     resultsEl.innerHTML = '';
-    playerOuter.style.display = 'none';
-    controlsEl.style.display = 'none';
+    playerBox.style.display = 'none';
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
     searchLinksEl.innerHTML = '<a href="javascript:void(0)" onclick="window.open(\'' + YTS + encodeURIComponent(query) + '\',\'_blank\')">Open "' + esc(query) + '" on YouTube &#x2197;</a>';
