@@ -573,7 +573,7 @@ export class AccountLinker {
   // Helper functions for password hashing and salt generation
   _generateSalt() {
     const array = new Uint8Array(16);
-    crypto.getRandomValues(array);
+    try { crypto.getRandomValues(array); } catch { for (var i = 0; i < 16; i++) array[i] = (Math.random() * 256) | 0; }
     return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
   }
 

@@ -1,12 +1,11 @@
 *{box-sizing:border-box}
-body{margin:0;background:#2b2118 url('');font-family:"Comic Sans MS","Chalkboard SE","Segoe Print",cursive;color:#3a2c1c;display:flex;justify-content:center;min-height:100vh;min-height:100dvh;overflow-x:hidden}
+body{margin:0;background:#2b2118 url('');font-family:"Comic Sans MS","Chalkboard SE","Segoe Print",cursive;color:#3a2c1c;display:flex;justify-content:center;min-height:100vh;overflow-x:hidden}
 #wrap{width:1000px;max-width:100vw;padding:10px;display:flex;flex-direction:column;align-items:center}
-#topbar{display:flex;justify-content:space-between;align-items:center;color:#f5e9c9;font-size:14px;margin:4px 2px;width:min(960px,96vw)}
+#topbar{display:flex;justify-content:space-between;align-items:center;color:#f5e9c9;font-size:14px;margin:4px 2px;width:96vw;max-width:960px}
 #logo-small em{opacity:.7;font-style:normal}
 #btn-mute{background:#f5e9c9;border:2px solid #3a2c1c;border-radius:8px;cursor:pointer}
-#stage{position:relative;width:min(960px,96vw,calc((100vh - 175px)*16/9));width:min(960px,96vw,calc((100dvh - 175px)*16/9));aspect-ratio:16/9;margin:0 auto;flex:0 1 auto;min-height:0}
-canvas#game{width:100%;height:100%;background:#f7f0d8;border:4px solid #3a2c1c;border-radius:14px;box-shadow:0 10px 0 #3a2c1c,0 18px 40px rgba(0,0,0,.4);cursor:crosshair;display:block;touch-action:none}
-#stage{touch-action:none}
+#stage{position:relative;width:96vw;max-width:960px;padding-bottom:56.25%;margin:0 auto;flex:0 1 auto;min-height:0}
+canvas#game{position:absolute;top:0;left:0;width:100%;height:100%;background:#f7f0d8;border:4px solid #3a2c1c;border-radius:14px;box-shadow:0 10px 0 #3a2c1c,0 18px 40px rgba(0,0,0,.4);cursor:crosshair;display:block;touch-action:none}
 .screen{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:rgba(247,240,216,.97);border-radius:10px;padding:18px;z-index:5}
 .hidden{display:none!important}
 #screen-logo,#screen-title{background:#14100b;color:#f5e9c9}
@@ -67,7 +66,7 @@ button.big{font-size:22px;background:#7bd389}
 #rotate-hint{display:none;text-align:center;color:#ffd23f;font-size:13px;margin:2px 4px}
 @media (max-width:700px) and (orientation:portrait){#rotate-hint{display:block}}
 @media (orientation:landscape) and (max-height:500px){#helpline{display:none}}
-#touch{display:none;width:min(960px,96vw);margin:8px auto 0;justify-content:space-between;align-items:center;z-index:7}
+#touch{display:none;width:96vw;max-width:960px;margin:8px auto 0;justify-content:space-between;align-items:center;z-index:7}
 #touch .tcluster{display:flex;gap:10px}
 #touch button{opacity:.92;font-size:24px;width:66px;height:58px;border-radius:16px;touch-action:none;-webkit-user-select:none;user-select:none}
 #touch button.on{background:#ff9f1c;opacity:1}

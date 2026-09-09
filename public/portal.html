@@ -1483,12 +1483,12 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
-          heading: 'Skyhawk: iOS 10.3.4 legacy build',
-          desc: 'Wrapped module in async IIFE, built IIFE+ES5 legacy bundle via Babel. Added <script nomodule> fallback for Safari 10.',
-          date: 'Sep 8',
-          bugs: ['Skyhawk invisible/non-functional on iOS 10.3.4 (ES module not parsed by old Safari)'],
-          updates: ['src/main.js: async IIFE wrapper eliminates top-level await', 'LEGACY_BUILD=1 IIFE + Babel ES5 transpile', 'skyhawk-legacy.js vendored (870KB)', '<script nomodule> fallback in sky-sim/index.html'],
-          features: ['Skyhawk now runs on iOS 10.3.4 (iPhone 5)'],
+          heading: 'Legacy mode fixes: crypto, touch, CSS',
+          desc: 'Fixed three legacy-mode blockers: guarded crypto.getRandomValues with Math.random fallback (create world crash), removed touch-action:none from html/body in PaperForge and #stage in Mold Kingdom (blocked tap→click synthesis on old iOS), added touchstart fallback handlers on all menu buttons, replaced unsupported CSS min()/100dvh/aspect-ratio with fallbacks.',
+          date: 'Sep 9',
+          bugs: ['Legacy: create world crashes with ReferenceError crypto (iOS 9)', 'Legacy: PaperForge stuck on home screen (touch-action:none blocks click)', 'Legacy: Mold Kingdom stuck on home screen (same + unsupported CSS)'],
+          updates: ['crypto.getRandomValues guarded in main.js, storage.js, linkedaccounts.js', 'PaperForge: touch-action:none removed from html,body, 100dvh→100vh, touchstart menu handlers', 'Mold Kingdom: #stage touch-action:none removed, min()→fallbacks, aspect-ratio→padding hack, touchstart handlers', 'Legacy bundle rebuilt'],
+          features: [],
         },
         {
           hash: 'dea306a',

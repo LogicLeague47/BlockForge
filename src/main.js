@@ -8368,7 +8368,7 @@ function initMenu() {
       }
     } else {
       const buf = new Uint32Array(1);
-      crypto.getRandomValues(buf);
+      try { crypto.getRandomValues(buf); } catch { buf[0] = (Math.random() * 0xFFFFFFFF) >>> 0; }
       seed = buf[0];
     }
     const mode = document.querySelector('#menu-create .mode-option.selected[data-mode]')?.dataset.mode || 'creative';

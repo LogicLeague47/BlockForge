@@ -99,7 +99,7 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
   let finalSeed = seed;
   if (finalSeed == null || finalSeed === undefined) {
     const buf = new Uint32Array(1);
-    crypto.getRandomValues(buf);
+    try { crypto.getRandomValues(buf); } catch { buf[0] = (Math.random() * 0xFFFFFFFF) >>> 0; }
     finalSeed = buf[0];
   }
   const world = {

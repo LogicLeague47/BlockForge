@@ -1830,6 +1830,12 @@ document.getElementById('btn-back-bf').addEventListener('click', () => { try { w
 document.getElementById('btn-respawn').addEventListener('click', () => { respawn(); Sfx.click(); });
 document.getElementById('btn-dead-menu').addEventListener('click', () => { toMenu(true); Sfx.click(); });
 
+// Touch-start fallback for old iOS (click events may not synthesize on tap)
+['btn-play','btn-continue','btn-how','btn-how-back','btn-back-bf','btn-resume','btn-save-quit','btn-respawn','btn-dead-menu'].forEach(function(id) {
+  var b = document.getElementById(id);
+  if (b) b.addEventListener('touchstart', function(e) { e.preventDefault(); b.click(); }, { passive: false });
+});
+
 // boot: menu content + the frame loop kickoff (without this, nothing renders)
 refreshMenu();
 requestAnimationFrame(frame);

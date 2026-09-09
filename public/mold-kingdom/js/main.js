@@ -239,7 +239,11 @@ window.STALE_Game = {
   },
   bindUI(){
     const blur=()=>{ try{ if(document.activeElement && document.activeElement.blur) document.activeElement.blur(); }catch(e){} };
-    const click=(id,fn)=>document.getElementById(id).addEventListener('click',()=>{STALE_Audio.init();STALE_Audio.play('ui');blur();fn();});
+    const click=(id,fn)=>{
+      var el=document.getElementById(id);
+      el.addEventListener('click',()=>{STALE_Audio.init();STALE_Audio.play('ui');blur();fn();});
+      el.addEventListener('touchstart',function(e){e.preventDefault();STALE_Audio.init();STALE_Audio.play('ui');blur();fn();},{passive:false});
+    };
     click('btn-skip',()=>STALE_Cutscene.skip());
     click('btn-play',()=>this.startPlay(0));
     click('btn-continue',()=>this.startPlay(Math.min(STALE_LEVELS.length-1,STALE_Settings.data.unlocked-1)));
@@ -446,6 +450,7 @@ window.STALE_Game = {
     },{passive:false});
     cv.addEventListener('touchend',()=>{window._MOUSE.down=false;STALE_Paint.finish();});
     addEventListener('pointerdown',()=>{ if(this.state==='logo'||this.state==='title')this.advanceBoot(); });
+    addEventListener('touchstart',()=>{ if(this.state==='logo'||this.state==='title')this.advanceBoot(); },{passive:true});
   },
   togglePause(){
     if(this.state!=='play')return;
