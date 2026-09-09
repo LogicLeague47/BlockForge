@@ -1488,37 +1488,31 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       let body = '';
       proxyRes.on('data', c => { body += c; if (body.length > 500000) proxyRes.destroy(); });
       proxyRes.on('end', () => {
-        // Inject CSS to hide ALL YouTube branding elements
+        // Inject CSS to hide YouTube branding only (NOT controls)
         const hideCSS = '<style>'
-          + 'ytd-player,.ytp-chrome-bottom,.ytp-chrome-top,.ytp-gradient-top,'
-          + '.ytp-gradient-bottom,.ytp-watermark,.ytp-show-cards-title,'
-          + '.ytp-ce-element,.ytp-endscreen-content,.ytp-cards-teaser,'
-          + '.ytp-button.ytp-share-button,.ytp-button.ytp-watch-later-button,'
-          + '.ytp-button.ytp-settings-button,.ytp-button.ytp-size-button,'
-          + '.ytp-button.ytp-fullscreen-button,.ytp-watermark.ytp-logo,'
-          + '.annotation,.ytp-pause-overlay,.ytp-spinner,.ytp-suggested-action,'
+          + '.ytp-watermark,.ytp-watermark.ytp-logo,'
+          + '[class*="ytp-logo"],[class*="youtube-logo"],'
+          + '.ytp-ce-element,.ytp-endscreen-content,.html5-endscreen,'
+          + '.ytp-cards-teaser,.ytp-show-cards-title,.ytp-cards-button,'
+          + '.ytp-chapters-container,.ytp-pause-overlay,'
+          + '.ytp-suggested-action,.ytp-spinner,'
           + '.ytp-paid-content-overlay,.ytp-ad-overlay-container,'
           + '.ytp-ad-text-overlay,.ytp-ad-image-overlay,'
-          + '.ytp-cards-button,.ytp-chapters-container,'
-          + '[class*="ytp-logo"],[class*="youtube-logo"],'
-          + '[class*="watermark"],[class*="endscreen"],'
-          + '[class*="annotation"],[class*="share-button"],'
-          + '[class*="watch-later"],[class*="settings-button"],'
-          + '[class*="size-button"]{display:none!important;visibility:hidden!important;opacity:0!important;pointer-events:none!important;height:0!important;width:0!important;overflow:hidden!important}'
-          + '.ytp-big-play-button{background:rgba(0,0,0,0.7)!important;border:none!important}'
-          + '.html5-endscreen{display:none!important}'
+          + '.annotation,.annotation-link,.annotation-text,'
+          + '[class*="watermark"],[class*="endscreen"],[class*="annotation"]'
+          + '{display:none!important;visibility:hidden!important}'
           + '</style>';
-        // Inject JS to auto-hide branding as it appears
+        // Inject JS to auto-hide branding as it appears (NOT controls)
         const hideJS = '<script>'
           + '(function(){'
           + 'function hideBranding(){'
-          + 'var s="ytp-logo,ytp-watermark,ytp-ce-element,ytp-endscreen-content,ytp-cards-teaser,ytp-chapters-container,.ytp-share-button,.ytp-watch-later-button,.ytp-settings-button,.html5-endscreen,.ytp-big-play-button .ytp-large-play-button-bg";'
+          + 'var s="ytp-watermark,.ytp-ce-element,.ytp-endscreen-content,.ytp-cards-teaser,.ytp-chapters-container,.ytp-pause-overlay,.html5-endscreen,.annotation";'
           + 's.split(",").forEach(function(sel){'
           + 'try{document.querySelectorAll(sel).forEach(function(el){el.style.cssText="display:none!important;visibility:hidden!important"})}catch(e){}'
           + '});'
           + '}'
           + 'hideBranding();'
-          + 'setInterval(hideBranding,500);'
+          + 'setInterval(hideBranding,1000);'
           + 'new MutationObserver(hideBranding).observe(document.body||document.documentElement,{childList:true,subtree:true});'
           + '})();'
           + '<\/script>';
