@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createRea
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash, webcrypto } from 'crypto';
+import { runInNewContext } from 'vm';
 import { promisify } from 'util';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
@@ -790,6 +791,103 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS, POST',
   'Access-Control-Allow-Headers': 'Content-Type, x-bf-name, x-bf-pass, x-bf-identity-type, x-bf-identity-id, x-bf-filename',
 };
+
+// ── InfiniteCraft combo dataset (lazy-loaded) ────────────────────────────
+// Production: two sorted flat files generated at build time
+// (scripts/build-ic-index.mjs → dist/ic/*.tsv). Binary-searched in ~60MB
+// of flat strings instead of ~300MB of live objects, so the 53MB dataset
+// never blows the free-tier RAM. Dev fallback: parse combos.js into Maps.
+let icMode = 0; // 0=unloaded, 1=flat files, 2=in-memory fallback, -1=failed
+let icKey = null;   // { text, offs: Uint32Array, n }
+let icName = null;  // same shape, lines are name\temoji
+let icCombos = null; // dev fallback Map
+let icEmoji = null;  // dev fallback Map
+function icLoadFlat(path) {
+  const text = readFileSync(path, 'utf8');
+  const offs = [0];
+  for (let i = 0; i < text.length; i++) {
+    if (text.charCodeAt(i) === 10) offs.push(i + 1);
+  }
+  let n = offs.length;
+  while (n > 0 && offs[n - 1] >= text.length) n--;
+  return { text, offs: Uint32Array.from(offs.slice(0, n)), n };
+}
+// Binary search lines by field 0. Uses `<` (UTF-16 order), matching the
+// default Array.prototype.sort used when the files were generated.
+function icSearch(t, target) {
+  let lo = 0, hi = t.n - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    let s = t.offs[mid];
+    let e = mid + 1 < t.n ? t.offs[mid + 1] - 1 : t.text.length;
+    if (e > s && t.text.charCodeAt(e - 1) === 13) e--;
+    let f1 = t.text.indexOf('\t', s);
+    if (f1 < 0 || f1 > e) f1 = e;
+    const f = t.text.substring(s, f1);
+    if (f === target) return { s, e };
+    if (f < target) lo = mid + 1;
+    else hi = mid - 1;
+  }
+  return null;
+}
+function icLoadMem() {
+  const src = readFileSync(join(__dirname, 'public/infinitecraft/js/combos.js'), 'utf8');
+  const box = {};
+  runInNewContext(src + '\n;globalThis.__IC = COMBOS;', box);
+  icCombos = new Map();
+  icEmoji = new Map();
+  for (const key of Object.keys(box.__IC)) {
+    const val = box.__IC[key];
+    if (!val || !val.name) continue;
+    const sk = key.split('+').sort().join('+');
+    if (!icCombos.has(sk)) icCombos.set(sk, { name: val.name, emoji: val.emoji || '' });
+    if (!icEmoji.has(val.name)) icEmoji.set(val.name, val.emoji || '');
+  }
+}
+function icLoad() {
+  if (icMode === 1 || icMode === 2) return true;
+  if (icMode === -1) return false;
+  try {
+    icKey = icLoadFlat(join(__dirname, 'dist/ic/by-key.tsv'));
+    icName = icLoadFlat(join(__dirname, 'dist/ic/by-name.tsv'));
+    icMode = 1;
+    console.log('[ic] flat index loaded (' + icKey.n + ' combos)');
+    return true;
+  } catch (e) { /* fall through to dev fallback */ }
+  try {
+    icLoadMem();
+    icMode = 2;
+    console.log('[ic] in-memory index loaded (' + icCombos.size + ' combos, dev fallback)');
+    return true;
+  } catch (e) {
+    console.warn('[ic] failed to load combos:', e.message);
+    icMode = -1;
+    return false;
+  }
+}
+function icLookupKey(sk) {
+  if (icMode === 1) {
+    const r = icSearch(icKey, sk);
+    if (!r) return null;
+    const line = icKey.text.substring(r.s, r.e);
+    const p1 = line.indexOf('\t');
+    const p2 = line.indexOf('\t', p1 + 1);
+    if (p1 < 0 || p2 < 0) return null;
+    return { name: line.substring(p1 + 1, p2), emoji: line.substring(p2 + 1) };
+  }
+  return icCombos.get(sk) || null;
+}
+function icEmojiFor(n) {
+  if (icMode === 1) {
+    const r = icSearch(icName, n);
+    if (!r) return null;
+    const line = icName.text.substring(r.s, r.e);
+    const p = line.indexOf('\t');
+    if (p < 0) return null;
+    return line.substring(p + 1) || null;
+  }
+  return icEmoji.get(n) || null;
+}
 
 // ── News video uploads ───────────────────────────────────────────────
 // Videos uploaded for News posts are stored on the server's disk (ephemeral
@@ -1584,6 +1682,40 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       proxyReq.on('timeout', () => { proxyReq.destroy(); tryNext(); });
     }
     tryNext();
+    return;
+  }
+
+  // ── InfiniteCraft lookup API ───────────────────────────────────────
+  // The 793K-combo dataset lives on disk here so old phones never have to
+  // download or parse the 53MB combos.js (that jetsams iOS 10 Safari).
+  // Client sends two element names, server returns the recipe (or null).
+  if (pathname === '/api/ic-lookup' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const a = (qs.get('a') || '').trim().slice(0, 80);
+    const b = (qs.get('b') || '').trim().slice(0, 80);
+    if (!a || !b) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing a/b params' })); return; }
+    if (!icLoad()) { res.writeHead(502, CORS); res.end(JSON.stringify({ error: 'Combo data unavailable' })); return; }
+    const hit = icLookupKey([a, b].sort().join('+'));
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+    res.end(JSON.stringify({ result: hit }));
+    return;
+  }
+
+  // ── InfiniteCraft emoji batch API ────────────────────────────────────
+  // Returns { name: emoji } for up to 200 names so clients can fill in
+  // sidebar icons without downloading the dataset.
+  if (pathname === '/api/ic-emojis' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    let names = qs.getAll('n').map(s => (s || '').trim().slice(0, 80)).filter(Boolean);
+    if (!names.length && qs.get('names')) {
+      names = qs.get('names').split(',').map(s => (s || '').trim().slice(0, 80)).filter(Boolean);
+    }
+    names = names.slice(0, 200);
+    if (!icLoad()) { res.writeHead(502, CORS); res.end(JSON.stringify({ error: 'Combo data unavailable' })); return; }
+    const out = {};
+    for (const n of names) out[n] = icEmojiFor(n);
+    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+    res.end(JSON.stringify({ emojis: out }));
     return;
   }
 

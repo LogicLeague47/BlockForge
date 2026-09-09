@@ -20,32 +20,11 @@ const App = {
     this.initBg();
     this.bindEvents();
     this.updateCounter();
-    this.buildIndexBackground();
-  },
-
-  /* Builds the 793K-combo index in small chunks so the page paints
-     immediately and phones don't lock up or get killed. */
-  buildIndexBackground() {
-    const overlay = document.getElementById("loading");
-    const pct = document.getElementById("load-pct");
-    const step = () => {
-      let done = false;
-      try {
-        done = Game.buildIndexStep();
-      } catch (err) {
-        done = true;
-      }
-      if (pct) pct.textContent = Math.floor(Game.indexProgress() * 100);
-      if (done) {
-        if (overlay) overlay.style.display = "none";
-        const search = document.getElementById("search");
-        this.renderSidebar(search ? search.value : "");
-        this.updateCounter();
-      } else {
-        setTimeout(step, 0);
-      }
-    };
-    setTimeout(step, 50);
+    // Fill in sidebar icons + wake the server. Re-render when done.
+    var self = this;
+    var names = [];
+    State.discovered.forEach(function(n) { names.push(n); });
+    Game.fetchEmojis(names, function() { self.renderSidebar(); });
   },
 
   renderSidebar(filter = "") {
@@ -303,28 +282,25 @@ const App = {
 
   /* ── Combine ── */
   _combine(nameA, nameB, x, y, elA, elB) {
-    if (!Game._indexReady) {
-      Game.showToast("Still loading recipes, one sec...");
-      return;
-    }
-    const result = Game.combine(nameA, nameB, x, y);
-    if (result) {
-      if (result.isNew) {
-        this.renderSidebar(document.getElementById("search").value);
-        this.updateCounter();
-      }
-      if (elA) this.removeElement(elA);
-      if (elB) this.removeElement(elB);
-      this.workspaceElements = this.workspaceElements.filter(
-        w => w.el !== elA && w.el !== elB
-      );
-      setTimeout(() => this.addToWorkspace(result.name, x, y), 280);
-    } else {
-      if (elB) {
+    var self = this;
+    Game.combine(nameA, nameB, x, y, function(result) {
+      if (result) {
+        if (result.isNew) {
+          var s = document.getElementById("search");
+          self.renderSidebar(s ? s.value : "");
+          self.updateCounter();
+        }
+        if (elA) self.removeElement(elA);
+        if (elB) self.removeElement(elB);
+        self.workspaceElements = self.workspaceElements.filter(
+          function(w) { return w.el !== elA && w.el !== elB; }
+        );
+        setTimeout(function() { self.addToWorkspace(result.name, x, y); }, 280);
+      } else if (elB) {
         elB.classList.add("fail");
-        setTimeout(() => elB.classList.remove("fail"), 400);
+        setTimeout(function() { elB.classList.remove("fail"); }, 400);
       }
-    }
+    });
   },
 
   bindEvents() {

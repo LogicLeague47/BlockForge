@@ -388,29 +388,6 @@ body {
 
 #toast.hidden { display: none; }
 
-/* ── Loading overlay ── */
-#loading {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 5000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(10, 10, 15, 0.85);
-}
-
-#loading .load-box {
-  padding: 16px 28px;
-  background: rgba(0, 0, 0, 0.85);
-  border: 1px solid rgba(0, 255, 200, 0.4);
-  border-radius: 12px;
-  color: #00ffc8;
-  font-size: 0.9rem;
-}
-
 /* ── Mobile layout ── */
 @media (max-width: 700px) {
   #app {
