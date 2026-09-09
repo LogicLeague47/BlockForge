@@ -24,8 +24,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .search-links a{color:#8af;text-decoration:none}
 .search-links a:hover{text-decoration:underline}
 .status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
-#player-wrap{position:relative;width:100%;padding-bottom:56.25%;margin-bottom:6px;background:#000;border-radius:10px;overflow:hidden;display:none}
-#player-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.player-box{width:100%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:6px;display:none}
+.player-box iframe{display:block;width:100%;height:0;padding-bottom:56.25%;border:none}
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
 .yt-link a{color:#8af;text-decoration:none}
 .yt-link a:hover{text-decoration:underline}
@@ -76,7 +76,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
 
-  <div id="player-wrap"><iframe id="player" allowfullscreen="allowfullscreen" webkitallowfullscreen="webkitallowfullscreen"></iframe></div>
+  <div class="player-box" id="player-box">
+    <iframe id="player" webkitallowfullscreen mozallowfullscreen allowfullscreen="allowfullscreen"></iframe>
+  </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
     <div class="np-title" id="np-title"></div>
@@ -97,7 +99,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
   var YTS = 'https://www.youtube.com/results?search_query=';
-  var playerWrap = document.getElementById('player-wrap');
+  var playerBox = document.getElementById('player-box');
   var playerEl = document.getElementById('player');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
@@ -149,8 +151,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function playVideo(id, title, author, authorId, viewCount) {
-    playerEl.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1';
-    playerWrap.style.display = 'block';
+    var src = 'https://www.youtube.com/embed/' + id
+      + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&fs=1&modestbranding=1';
+    playerEl.src = src;
+    playerBox.style.display = 'block';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Open on YouTube &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     npTitle.textContent = title || '';
@@ -219,36 +223,44 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       return;
     }
     resultsEl.innerHTML = html;
-    var allItems = resultsEl.querySelectorAll('.result-item');
-    for (var j = 0; j < allItems.length; j++) {
-      (function(el) {
-        var touchStartY = 0;
-        var didScroll = false;
-        el.addEventListener('touchstart', function(e) {
-          touchStartY = e.touches[0].clientY;
-          didScroll = false;
-        }, true);
-        el.addEventListener('touchmove', function(e) {
-          if (Math.abs(e.touches[0].clientY - touchStartY) > 10) didScroll = true;
-        }, true);
-        function handler(ev) {
-          if (ev) ev.preventDefault();
-          playVideo(
-            el.getAttribute('data-vid'),
-            el.getAttribute('data-title'),
-            el.getAttribute('data-author'),
-            el.getAttribute('data-authorid'),
-            el.getAttribute('data-views')
-          );
-        }
-        el.addEventListener('click', handler);
-        el.addEventListener('touchend', function(ev) {
-          if (didScroll) return;
-          if (ev) ev.preventDefault();
-          handler();
-        });
-      })(allItems[j]);
+
+    var items = resultsEl.querySelectorAll('.result-item');
+    for (var j = 0; j < items.length; j++) {
+      bindResult(items[j]);
     }
+  }
+
+  function bindResult(el) {
+    var sy = 0;
+    var moved = false;
+    el.addEventListener('touchstart', function(e) {
+      sy = e.touches[0].clientY;
+      moved = false;
+    }, true);
+    el.addEventListener('touchmove', function(e) {
+      if (Math.abs(e.touches[0].clientY - sy) > 10) moved = true;
+    }, true);
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      playVideo(
+        el.getAttribute('data-vid'),
+        el.getAttribute('data-title'),
+        el.getAttribute('data-author'),
+        el.getAttribute('data-authorid'),
+        el.getAttribute('data-views')
+      );
+    });
+    el.addEventListener('touchend', function(e) {
+      if (moved) return;
+      e.preventDefault();
+      playVideo(
+        el.getAttribute('data-vid'),
+        el.getAttribute('data-title'),
+        el.getAttribute('data-author'),
+        el.getAttribute('data-authorid'),
+        el.getAttribute('data-views')
+      );
+    });
   }
 
   function doSearch(query) {
@@ -256,10 +268,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     if (!query) return;
     setStatus('Searching...');
     resultsEl.innerHTML = '';
-    playerWrap.style.display = 'none';
+    playerBox.style.display = 'none';
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
-    searchLinksEl.innerHTML = '<a href="' + YTS + encodeURIComponent(query) + '" target="_blank">Open "' + esc(query) + '" on YouTube &#x2197;</a>';
+    searchLinksEl.innerHTML = '<a href="javascript:void(0)" onclick="window.open(\'' + YTS + encodeURIComponent(query) + '\',\'_blank\')" id="yt-search-link">Open "' + esc(query) + '" on YouTube &#x2197;</a>';
 
     var xhr = new XMLHttpRequest();
     xhr.open('GET', API + '?q=' + encodeURIComponent(query), true);
@@ -276,16 +288,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         }
       } else {
         setStatus('Server error (' + xhr.status + ')');
-        resultsEl.innerHTML = '<div class="empty">Search failed. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
       }
     };
     xhr.onerror = function() {
       setStatus('Network error');
-      resultsEl.innerHTML = '<div class="empty">Could not reach server. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
     };
     xhr.ontimeout = function() {
       setStatus('Timed out');
-      resultsEl.innerHTML = '<div class="empty">Search took too long. <a href="' + YTS + encodeURIComponent(query) + '" target="_blank" style="color:#8af">Try on YouTube instead &#x2197;</a></div>';
     };
     xhr.send();
   }
