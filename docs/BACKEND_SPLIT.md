@@ -1,5 +1,12 @@
 # Backend split (Render + Fly.io)
 
+> **STATUS (Sep 2026): rolled back to Render-primary.** Fly's no-card trial
+> hard-stops machines after 5 minutes of runtime (traffic or not), so the
+> Fly hosts can't hold sessions. All clients point back at Render; an
+> UptimeRobot ping on `/health` every 5 min defeats Render's *idle* sleep.
+> The role code below stays in the repo, dormant, in case hosting changes.
+> (`blockforge-social` + `blockforge-ws` apps still exist but are unused.)
+
 One codebase (`server.js`), three deployments, selected by the `BF_ROLE`
 env var. The game client keeps a **single** WebSocket — traffic is split
 server-side via the relay chain:

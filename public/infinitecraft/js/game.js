@@ -1,5 +1,5 @@
 const Game = {
-  API: 'https://blockforge-social.fly.dev',
+  API: 'https://blockforge-server.onrender.com',
 
   EMOJIS: {
     Fire: "🔥", Water: "💧", Earth: "🌎", Wind: "🌬️",

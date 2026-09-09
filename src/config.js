@@ -10,7 +10,7 @@ export const BACKEND_URL = process.env.BF_BACKEND_WS || 'wss://blockforge-server
 
 // Game socket host (ROLE=ws). Everything real-time-game goes here;
 // HTTP APIs, auth and directory stay on BACKEND_URL (ROLE=main).
-export const GAME_WS_URL = process.env.BF_GAME_WS || 'wss://blockforge-ws.fly.dev';
+export const GAME_WS_URL = process.env.BF_GAME_WS || 'wss://blockforge-server.onrender.com';
 
 // Official SMP is the one server we (the dev) host.
 export const OFFICIAL_SMP_URL = GAME_WS_URL;

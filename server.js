@@ -39,7 +39,7 @@ const IS_WS_ROLE = BF_ROLE === 'ws';
 const IS_SOCIAL_ROLE = BF_ROLE === 'social';
 const RELAY_SOCIAL = process.env.RELAY === 'true' || process.env.IS_OFFICIAL === 'false' || IS_WS_ROLE || IS_SOCIAL_ROLE;
 const IS_OFFICIAL = !RELAY_SOCIAL;
-const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-social.fly.dev';
+const UPSTREAM_URL = process.env.UPSTREAM_BACKEND_URL || 'wss://blockforge-server.onrender.com';
 // Message types that are social and should be relayed upstream (not handled
 // locally) on a player-hosted server.
 const SOCIAL_TYPES = new Set([
