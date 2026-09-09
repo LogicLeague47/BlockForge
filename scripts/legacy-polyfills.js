@@ -79,4 +79,37 @@
       return null;
     };
   }
+  // Ensure Symbol.iterator exists and common iterables are properly iterable
+  // on old Safari where Map/Set/NodeList may lack it.
+  if (typeof Symbol !== 'undefined' && !Symbol.iterator) {
+    Symbol.iterator = Symbol('Symbol.iterator');
+  }
+  var SI = typeof Symbol !== 'undefined' && Symbol.iterator;
+  function ensureIter(proto, fn) {
+    if (proto && SI && !proto[SI]) proto[SI] = fn;
+  }
+  ensureIter(Array.prototype, function () {
+    var i = 0, self = this;
+    return { next: function () { return i < self.length ? { value: self[i++], done: false } : { done: true }; } };
+  });
+  ensureIter(String.prototype, function () {
+    var i = 0, s = String(this);
+    return { next: function () { return i < s.length ? { value: s[i++], done: false } : { done: true }; } };
+  });
+  if (typeof Map !== 'undefined') ensureIter(Map.prototype, function () {
+    var entries = [], self = this;
+    self.forEach(function (v, k) { entries.push([k, v]); });
+    var i = 0;
+    return { next: function () { return i < entries.length ? { value: entries[i++], done: false } : { done: true }; } };
+  });
+  if (typeof Set !== 'undefined') ensureIter(Set.prototype, function () {
+    var vals = [], self = this;
+    self.forEach(function (v) { vals.push(v); });
+    var i = 0;
+    return { next: function () { return i < vals.length ? { value: vals[i++], done: false } : { done: true }; } };
+  });
+  if (typeof NodeList !== 'undefined') ensureIter(NodeList.prototype, function () {
+    var i = 0, self = this;
+    return { next: function () { return i < self.length ? { value: self[i++], done: false } : { done: true }; } };
+  });
 })();
