@@ -1,0 +1,25 @@
+# InfiniteCraft curated patch — verified neal.fun canon recipes.
+# Format (unsorted OK, server sorts keys): INGREDIENT_A+INGREDIENT_B<TAB>Result Name<TAB>emoji
+# These WIN over the 793K dataset (which contains hallucinated junk for basics).
+# Sources: infinite-craft-nealfun.fandom.com element pages, IGN guides, Dot Esports walkthrough.
+Dust+Dust	Sand	🏖️
+Dust+Water	Mud	💩
+Tsunami+Water	Ocean	🌊
+Mountain+Water	Lake	🌊
+Mountain+Fire	Volcano	🌋
+Mountain+Wave	Tsunami	🌊
+Mountain+Plant	Tree	🌳
+Mountain+Lake	Fjord	🏞️
+Mountain+Tree	Forest	🌲
+Mountain+Ocean	Island	🏝️
+Mountain+Cloud	Snow	❄️
+Tsunami+Volcano	Earthquake	🌋
+Wave+Wave	Tsunami	🌊
+Shard+Shard	Gem	💎
+Dust+Wave	Sand	🏖️
+Dust+Storm	Tornado	🌪️
+Plant+Steam	Tea	🍵
+Storm+Water	Rain	🌧️
+Lava+Wave	Stone	🪨
+Steam+Wave	Surf	🏄
+Smoke+Water	Fog	🌫️

@@ -802,6 +802,8 @@ let icKey = null;   // { text, offs: Uint32Array, n }
 let icName = null;  // same shape, lines are name\temoji
 let icCombos = null; // dev fallback Map
 let icEmoji = null;  // dev fallback Map
+let icPatch = null;  // Map sortedKey -> { name, emoji } (curated, wins over dataset)
+let icPatchEmoji = null; // Map name -> emoji from patch
 function icLoadFlat(path) {
   const text = readFileSync(path, 'utf8');
   const offs = [0];
@@ -844,9 +846,30 @@ function icLoadMem() {
     if (!icEmoji.has(val.name)) icEmoji.set(val.name, val.emoji || '');
   }
 }
+function icLoadPatch() {
+  icPatch = new Map();
+  icPatchEmoji = new Map();
+  try {
+    const text = readFileSync(join(__dirname, 'server-data/ic-patch.tsv'), 'utf8');
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const parts = t.split('\t');
+      if (parts.length < 3) continue;
+      const sk = parts[0].split('+').map(s => s.trim()).sort().join('+');
+      const name = parts[1].trim();
+      const emoji = parts[2].trim();
+      if (!sk || !name) continue;
+      icPatch.set(sk, { name, emoji });
+      if (!icPatchEmoji.has(name)) icPatchEmoji.set(name, emoji);
+    }
+    console.log('[ic] patch loaded (' + icPatch.size + ' curated recipes)');
+  } catch (e) { /* patch is optional */ }
+}
 function icLoad() {
   if (icMode === 1 || icMode === 2) return true;
   if (icMode === -1) return false;
+  icLoadPatch();
   try {
     icKey = icLoadFlat(join(__dirname, 'dist/ic/by-key.tsv'));
     icName = icLoadFlat(join(__dirname, 'dist/ic/by-name.tsv'));
@@ -878,6 +901,7 @@ function icLookupKey(sk) {
   return icCombos.get(sk) || null;
 }
 function icEmojiFor(n) {
+  if (icPatchEmoji && icPatchEmoji.has(n)) return icPatchEmoji.get(n);
   if (icMode === 1) {
     const r = icSearch(icName, n);
     if (!r) return null;
@@ -887,6 +911,105 @@ function icEmojiFor(n) {
     return line.substring(p + 1) || null;
   }
   return icEmoji.get(n) || null;
+}
+
+// ── InfiniteCraft AI fallback + result cache ─────────────────────────────
+// Lookup order: curated patch → 793K dataset → cache → Gemini (Llama-style
+// generation like neal.fun) → cache the new combo for everyone.
+// Cache: Upstash Redis (env UPSTASH_REDIS_REST_URL/TOKEN), else process memory.
+// Gemini key: env GEMINI_API_KEY — NEVER hardcode (it would ship to git).
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
+const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
+const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
+const icMemCache = new Map(); // sortedKey -> { name, emoji }
+async function icCacheGet(sk) {
+  if (icMemCache.has(sk)) return icMemCache.get(sk);
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return undefined;
+  try {
+    const r = await fetch(UPSTASH_URL + '/get/' + encodeURIComponent('ic:' + sk), {
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN },
+      signal: AbortSignal.timeout(6000),
+    });
+    const d = await r.json();
+    if (d && d.result) {
+      const v = JSON.parse(d.result);
+      if (v && v.name) {
+        icMemCache.set(sk, v);
+        if (icMemCache.size > 5000) icMemCache.delete(icMemCache.keys().next().value);
+        return v;
+      }
+    }
+    return undefined;
+  } catch (_) { return undefined; }
+}
+async function icCacheSet(sk, val) {
+  icMemCache.set(sk, val);
+  if (icMemCache.size > 5000) icMemCache.delete(icMemCache.keys().next().value);
+  if (!UPSTASH_URL || !UPSTASH_TOKEN) return;
+  try {
+    await fetch(UPSTASH_URL, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['SET', 'ic:' + sk, JSON.stringify(val)]),
+      signal: AbortSignal.timeout(6000),
+    });
+  } catch (_) { /* best effort */ }
+}
+async function icCacheGetMany(keys) {
+  // Returns { key: val } for hits. Memory first, then one Redis MGET.
+  const out = {};
+  const missing = [];
+  for (const k of keys) {
+    if (icMemCache.has(k)) out[k] = icMemCache.get(k);
+    else missing.push(k);
+  }
+  if (!missing.length || !UPSTASH_URL || !UPSTASH_TOKEN) return out;
+  try {
+    const r = await fetch(UPSTASH_URL, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + UPSTASH_TOKEN, 'Content-Type': 'application/json' },
+      body: JSON.stringify(['MGET', ...missing.map(k => 'ic:' + k)]),
+      signal: AbortSignal.timeout(8000),
+    });
+    const d = await r.json();
+    const arr = (d && d.result) || [];
+    for (let i = 0; i < missing.length; i++) {
+      if (arr[i]) {
+        try {
+          const v = JSON.parse(arr[i]);
+          if (v && v.name) { out[missing[i]] = v; icMemCache.set(missing[i], v); }
+        } catch (_) { /* skip bad entry */ }
+      }
+    }
+  } catch (_) { /* best effort */ }
+  return out;
+}
+async function icAskAI(a, b) {
+  if (!GEMINI_KEY) return null;
+  const prompt = 'In the browser game Infinite Craft (neal.fun), combining two elements creates a new element. '
+    + 'What does "' + a + '" + "' + b + '" make? Output ONLY a JSON object like '
+    + '{"name": "...", "emoji": "one single emoji"}. No sentences, no preamble. '
+    + 'Keep the name to 1-3 words.';
+  try {
+    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { responseMimeType: 'application/json', maxOutputTokens: 500, temperature: 0.7 },
+      }),
+      signal: AbortSignal.timeout(25000),
+    });
+    const d = await r.json();
+    const text = (d && d.candidates && d.candidates[0] && d.candidates[0].content &&
+      d.candidates[0].content.parts && d.candidates[0].content.parts[0] &&
+      d.candidates[0].content.parts[0].text) || '';
+    const o = JSON.parse((text.match(/\{[\s\S]*\}/) || [text])[0].replace(/```json|```/g, '').trim());
+    const name = String((o && o.name) || '').trim().slice(0, 40);
+    const emoji = Array.from(String((o && o.emoji) || '').trim()).slice(0, 4).join('');
+    if (!name || !emoji) return null;
+    return { name, emoji };
+  } catch (_) { return null; }
 }
 
 // ── News video uploads ───────────────────────────────────────────────
@@ -1695,9 +1818,29 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
     const b = (qs.get('b') || '').trim().slice(0, 80);
     if (!a || !b) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing a/b params' })); return; }
     if (!icLoad()) { res.writeHead(502, CORS); res.end(JSON.stringify({ error: 'Combo data unavailable' })); return; }
-    const hit = icLookupKey([a, b].sort().join('+'));
-    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
-    res.end(JSON.stringify({ result: hit }));
+    const sk = [a, b].sort().join('+');
+    const send = (result) => {
+      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+      res.end(JSON.stringify({ result }));
+    };
+    if (icPatch && icPatch.has(sk)) { send(icPatch.get(sk)); return; }
+    const hit = icLookupKey(sk);
+    if (hit) { send(hit); return; }
+    // Miss in dataset: check AI-result cache, else ask Gemini (neal.fun-style).
+    icCacheGet(sk).then((cached) => {
+      if (cached) { send(cached); return; }
+      if (!GEMINI_KEY) { send(null); return; }
+      icAskAI(a, b).then((ai) => {
+        if (ai) {
+          icCacheSet(sk, ai);
+          icCacheSet('name:' + ai.name, { name: ai.name, emoji: ai.emoji });
+          send(ai);
+        } else {
+          res.writeHead(502, CORS);
+          res.end(JSON.stringify({ error: 'AI generation failed, try again' }));
+        }
+      });
+    });
     return;
   }
 
@@ -1713,9 +1856,29 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
     names = names.slice(0, 200);
     if (!icLoad()) { res.writeHead(502, CORS); res.end(JSON.stringify({ error: 'Combo data unavailable' })); return; }
     const out = {};
-    for (const n of names) out[n] = icEmojiFor(n);
-    res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
-    res.end(JSON.stringify({ emojis: out }));
+    const needCache = [];
+    for (const n of names) {
+      if (icPatchEmoji && icPatchEmoji.has(n)) out[n] = icPatchEmoji.get(n);
+      else {
+        const e = icEmojiFor(n);
+        if (e) out[n] = e;
+        else { out[n] = null; needCache.push(n); }
+      }
+    }
+    const sendEmojis = () => {
+      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+      res.end(JSON.stringify({ emojis: out }));
+    };
+    if (!needCache.length) { sendEmojis(); return; }
+    // Fill gaps from AI-result cache (covers names only ever generated by AI).
+    const ck = needCache.map((n) => 'name:' + n);
+    icCacheGetMany(ck).then((hits) => {
+      for (const n of needCache) {
+        const h = hits['name:' + n];
+        if (h && h.emoji) out[n] = h.emoji;
+      }
+      sendEmojis();
+    });
     return;
   }
 

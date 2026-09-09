@@ -1484,10 +1484,10 @@
         {
           hash: 'PENDING',
           heading: 'InfiniteCraft joins offbranch games',
-          desc: 'New static offbranch game — drag elements together to discover 793K+ recipes (Fire + Fire = Volcano). Fixed 5 corrupt combo entries that broke all combining, enabled same-element combining like neal.fun, touch drag support + mobile layout, ES5 legacy bundle for iOS 10. Recipes now served by server API (no more 53MB download = no more phone crashes).',
+          desc: 'New static offbranch game — drag elements together to discover recipes endlessly. Fixed 5 corrupt combo entries, enabled same-element combining, touch drag + mobile layout, ES5 legacy bundle. Recipes served by server API (no 53MB download = no phone crashes). Missing pairs now fall back to Gemini AI like neal.fun, with Redis/memory caching so every generation is instant forever.',
           date: 'Sep 9',
-          bugs: ['InfiniteCraft: combos.js syntax errors (bad emoji escapes) killed all combining', 'InfiniteCraft: same-element combining blocked by name-based target exclusion', 'InfiniteCraft: 53MB combo file froze/crashed phones on load (iOS jetsam)', 'InfiniteCraft: mouse-only drags, no mobile support'],
-          updates: ['fixed 5 corrupt combo lines', 'target exclusion now by element identity — Fire + Fire works', 'server-side /api/ic-lookup + /api/ic-emojis (flat-file index, ~60MB not ~300MB)', 'touch drag + mobile layout', 'instant emoji lookup', 'ES5 legacy bundle for iOS 10 (nomodule)'],
+          bugs: ['InfiniteCraft: combos.js syntax errors (bad emoji escapes) killed all combining', 'InfiniteCraft: same-element combining blocked by name-based target exclusion', 'InfiniteCraft: 53MB combo file froze/crashed phones on load (iOS jetsam)', 'InfiniteCraft: mouse-only drags, no mobile support', 'InfiniteCraft: dataset gaps (Dust+Dust, Tsunami+Water...) vs neal.fun AI'],
+          updates: ['fixed 5 corrupt combo lines', 'target exclusion now by element identity — Fire + Fire works', 'server-side /api/ic-lookup + /api/ic-emojis (flat-file index, ~60MB not ~300MB)', '21 curated neal.fun-canon patch recipes (Dust+Dust=Sand, Mountain+Water=Lake...)', 'Gemini AI fallback generates missing pairs, Upstash Redis + memory cache', 'touch drag + mobile layout', 'ES5 legacy bundle for iOS 10 (nomodule)'],
           features: ['InfiniteCraft — 793K-recipe element combiner'],
         },
         {
