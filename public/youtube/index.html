@@ -25,6 +25,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
 .player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.player-box .loader{position:absolute;top:50%;left:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);z-index:2}
+.player-box .loader .spin{width:32px;height:32px;border:3px solid rgba(255,255,255,.2);border-top-color:#f44;border-radius:50%;-webkit-animation:spin .8s linear infinite;animation:spin .8s linear infinite}
+@-webkit-keyframes spin{to{-webkit-transform:rotate(360deg)}}
+@keyframes spin{to{transform:rotate(360deg)}}
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
 .yt-link a{color:#8af;text-decoration:none}
 .yt-link a:hover{text-decoration:underline}
@@ -76,7 +80,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="status" id="status"></div>
 
   <div class="player-box" id="player-box">
-    <iframe id="ytframe" style="width:100%;height:100%;border:none" webkitallowfullscreen allowfullscreen="allowfullscreen"></iframe>
+    <div class="loader" id="player-loader"><div class="spin"></div></div>
+    <iframe id="ytframe" style="width:100%;height:100%;border:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline"></iframe>
   </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
@@ -101,6 +106,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var YTS = 'https://www.youtube.com/results?search_query=';
   var playerBox = document.getElementById('player-box');
   var playerEl = document.getElementById('player');
+  var playerLoader = document.getElementById('player-loader');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
   var qInput = document.getElementById('q');
@@ -153,7 +159,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   function playVideo(id, title, author, authorId, viewCount) {
     var ytframe = document.getElementById('ytframe');
     playerBox.style.display = 'block';
-    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3';
+    playerLoader.style.display = 'block';
+    ytframe.onload = function() { playerLoader.style.display = 'none'; ytframe.onload = null; };
+    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&fs=1&enablejsapi=1&iv_load_policy=3';
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>'
       + ' &middot; <a href="https://turboscribe.ai/downloader/youtube/video/free" target="_blank" id="dl-link" title="Opens an external downloader">Download MP4 &#x2197;</a>';
     ytLinkEl.style.display = 'block';
@@ -322,6 +330,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var ytframe = document.getElementById('ytframe');
     ytframe.src = '';
     playerBox.style.display = 'none';
+    playerLoader.style.display = 'none';
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
     _origDoSearch(q);
