@@ -7,7 +7,9 @@
 <link rel="icon" type="image/png" href="../BlockForge.png">
 <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
 <link rel="preconnect" href="https://www.youtube.com" crossorigin>
+<link rel="preconnect" href="https://yewtu.be" crossorigin>
 <link rel="dns-prefetch" href="https://i.ytimg.com">
+<link rel="dns-prefetch" href="https://yewtu.be">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0f0f1a;color:#e6e6f0;font-family:monospace;min-height:100vh;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center}
@@ -30,13 +32,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
 .player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
 
-.preview-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;cursor:pointer;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+.preview-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;cursor:pointer;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
 .preview-overlay img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover}
 .preview-overlay .play-btn{position:relative;z-index:1;width:64px;height:64px;background:rgba(180,40,40,.88);border-radius:50%;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;box-shadow:0 2px 16px rgba(0,0,0,.5)}
 .preview-overlay .play-btn::after{content:'';display:block;width:0;height:0;border-style:solid;border-width:12px 0 12px 22px;border-color:transparent transparent transparent #fff;margin-left:4px}
 .preview-overlay .play-btn:active{background:rgba(220,50,50,1)}
 .preview-overlay .preview-title{position:relative;z-index:1;background:rgba(0,0,0,.65);color:#fff;font:bold 13px/1.3 monospace;padding:8px 12px;border-radius:6px;margin-top:10px;max-width:90%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .preview-overlay .preview-hint{position:relative;z-index:1;font:11px monospace;color:#aaa;margin-top:6px}
+.preview-overlay .inv-btn{position:relative;z-index:1;margin-top:8px;padding:6px 14px;font:12px monospace;background:rgba(80,80,160,.7);border:1px solid rgba(120,120,200,.4);border-radius:6px;color:#c8c8ff;text-decoration:none;display:inline-block}
+.preview-overlay .inv-btn:active{background:rgba(100,100,200,.9)}
 
 .loader{position:absolute;top:50%;left:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);z-index:2;display:none}
 .loader .spin{width:32px;height:32px;border:3px solid rgba(255,255,255,.2);border-top-color:#f44;border-radius:50%;-webkit-animation:spin .8s linear infinite;animation:spin .8s linear infinite}
@@ -46,7 +50,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .block-msg{position:absolute;top:50%;left:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);z-index:4;text-align:center;padding:20px;display:none}
 .block-msg .icon{font-size:32px;margin-bottom:8px}
 .block-msg .msg{font:13px monospace;color:#ccc;margin-bottom:10px}
-.block-msg a{color:#8af;text-decoration:none;font:bold 13px monospace}
+.block-msg a{color:#8af;text-decoration:none;font:bold 13px monospace;display:block;margin-bottom:6px}
 .block-msg a:hover{text-decoration:underline}
 
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
@@ -107,14 +111,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="play-btn" id="play-btn"></div>
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint">Tap to play</div>
+      <a class="inv-btn" id="inv-btn" href="#" target="_blank">Play via Invidious &#x2197;</a>
     </div>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
       <div class="msg">YouTube blocked this video.</div>
       <a id="fallback-yt" href="#" target="_blank">Watch on YouTube &#x2197;</a>
+      <a id="fallback-inv" href="#" target="_blank">Try Invidious &#x2197;</a>
     </div>
-    <iframe id="ytframe" style="width:100%;height:100%;border:none;display:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline"></iframe>
+    <div id="ytplayer" style="position:absolute;top:0;left:0;width:100%;height:100%;display:none"></div>
   </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
@@ -136,15 +142,19 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
   var YTS = 'https://www.youtube.com/results?search_query=';
+  var INV = 'https://yewtu.be/watch?v=';
+  var INV_EMBED = 'https://yewtu.be/embed/';
   var playerBox = document.getElementById('player-box');
   var previewOverlay = document.getElementById('preview-overlay');
   var previewThumb = document.getElementById('preview-thumb');
   var previewTitle = document.getElementById('preview-title');
   var playBtn = document.getElementById('play-btn');
+  var invBtn = document.getElementById('inv-btn');
   var playerLoader = document.getElementById('player-loader');
   var blockMsg = document.getElementById('block-msg');
   var fallbackYt = document.getElementById('fallback-yt');
-  var ytframe = document.getElementById('ytframe');
+  var fallbackInv = document.getElementById('fallback-inv');
+  var ytplayerEl = document.getElementById('ytplayer');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
   var qInput = document.getElementById('q');
@@ -156,8 +166,23 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var ytLinkEl = document.getElementById('yt-link');
   var searchLinksEl = document.getElementById('search-links');
 
+  var ytPlayer = null;
   var currentVid = '';
   var blockTimer = null;
+  var apiReady = false;
+  var pendingPlay = null;
+
+  var ytTag = document.createElement('script');
+  ytTag.src = 'https://www.youtube.com/iframe_api';
+  document.head.appendChild(ytTag);
+
+  window.onYouTubeIframeAPIReady = function() {
+    apiReady = true;
+    if (pendingPlay) {
+      loadEmbed(pendingPlay);
+      pendingPlay = null;
+    }
+  };
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -201,16 +226,18 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     currentVid = id;
     previewThumb.src = ytThumb(id);
     previewTitle.textContent = title || '';
-    previewOverlay.style.display = 'box';
-    previewOverlay.style.display = '-webkit-box';
-    previewOverlay.style.display = '-webkit-flex';
     previewOverlay.style.display = 'flex';
     playerLoader.style.display = 'none';
     blockMsg.style.display = 'none';
-    ytframe.style.display = 'none';
-    ytframe.src = '';
+    ytplayerEl.style.display = 'none';
+    ytplayerEl.innerHTML = '';
+    ytPlayer = null;
     playerBox.style.display = 'block';
     if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
+
+    invBtn.href = INV + id;
+    fallbackYt.href = 'https://www.youtube.com/watch?v=' + id;
+    fallbackInv.href = INV + id;
 
     npTitle.textContent = title || '';
     var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
@@ -246,34 +273,59 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function loadEmbed(id) {
+    if (!apiReady) {
+      pendingPlay = id;
+      return;
+    }
     previewOverlay.style.display = 'none';
     playerLoader.style.display = 'block';
     blockMsg.style.display = 'none';
-    ytframe.style.display = 'none';
-    ytframe.src = '';
+    ytplayerEl.style.display = 'block';
+    if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
 
-    ytframe.onload = function() {
-      playerLoader.style.display = 'none';
-      ytframe.style.display = 'block';
-      ytframe.onload = null;
-      if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
-    };
+    if (ytPlayer && typeof ytPlayer.loadVideoById === 'function') {
+      ytPlayer.loadVideoById(id);
+    } else {
+      ytplayerEl.innerHTML = '';
+      ytPlayer = new YT.Player('ytplayer', {
+        height: '100%',
+        width: '100%',
+        videoId: id,
+        playerVars: {
+          autoplay: 1,
+          rel: 0,
+          playsinline: 1,
+          controls: 1,
+          fs: 1,
+          iv_load_policy: 3
+        },
+        events: {
+          onReady: function() {
+            playerLoader.style.display = 'none';
+            if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
+          },
+          onError: function(e) {
+            playerLoader.style.display = 'none';
+            blockMsg.style.display = 'block';
+          }
+        }
+      });
+    }
 
-    ytframe.src = 'https://www.youtube.com/embed/' + id + '?autoplay=1&rel=0&playsinline=1&controls=1&fs=1&enablejsapi=1&iv_load_policy=3';
-
-    if (blockTimer) clearTimeout(blockTimer);
     blockTimer = setTimeout(function() {
-      playerLoader.style.display = 'none';
-      blockMsg.style.display = 'block';
-      fallbackYt.href = 'https://www.youtube.com/watch?v=' + id;
-    }, 12000);
+      if (playerLoader.style.display !== 'none') {
+        playerLoader.style.display = 'none';
+        blockMsg.style.display = 'block';
+      }
+    }, 15000);
   }
 
   playBtn.addEventListener('click', function(e) {
     e.stopPropagation();
     loadEmbed(currentVid);
   });
-  previewOverlay.addEventListener('click', function() {
+  previewOverlay.addEventListener('click', function(e) {
+    if (e.target === invBtn || invBtn.contains(e.target)) return;
     loadEmbed(currentVid);
   });
 
@@ -408,8 +460,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   var _origDoSearch = doSearch;
   doSearch = function(q) {
-    ytframe.src = '';
-    ytframe.style.display = 'none';
+    if (ytPlayer && typeof ytPlayer.destroy === 'function') {
+      try { ytPlayer.destroy(); } catch(e) {}
+    }
+    ytPlayer = null;
+    ytplayerEl.innerHTML = '';
+    ytplayerEl.style.display = 'none';
     playerBox.style.display = 'none';
     playerLoader.style.display = 'none';
     blockMsg.style.display = 'none';
