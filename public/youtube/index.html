@@ -6,7 +6,9 @@
 <title>YT Forge</title>
 <link rel="icon" type="image/png" href="../BlockForge.png">
 <link rel="preconnect" href="https://i.ytimg.com" crossorigin>
+<link rel="preconnect" href="https://yewtu.be" crossorigin>
 <link rel="dns-prefetch" href="https://i.ytimg.com">
+<link rel="dns-prefetch" href="https://yewtu.be">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#0f0f1a;color:#e6e6f0;font-family:monospace;min-height:100vh;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center}
@@ -27,7 +29,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
 
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
-.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.player-box video{position:absolute;top:0;left:0;width:100%;height:100%;background:#000}
 
 .preview-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;cursor:pointer;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
 .preview-overlay img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover}
@@ -107,19 +109,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint">Tap to play</div>
     </div>
+    <video id="nativevid" controls="controls" playsinline="playsinline" webkit-playsinline="webkit-playsinline" preload="metadata" style="display:none"></video>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
-      <div class="msg">Video couldn't load.</div>
+      <div class="msg" id="block-text">Video couldn't load.</div>
       <a id="fallback-yt" href="#" target="_blank">Watch on YouTube &#x2197;</a>
     </div>
-    <iframe id="ytframe"
-      style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;display:none"
-      webkitallowfullscreen allowfullscreen="allowfullscreen"
-      playsinline="playsinline"
-      allow="autoplay; encrypted-media; fullscreen"
-      referrerpolicy="strict-origin-when-cross-origin"
-    ></iframe>
   </div>
   <div class="yt-link" id="yt-link"></div>
   <div class="now-playing" id="now-playing">
@@ -141,6 +137,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
   var YTS = 'https://www.youtube.com/results?search_query=';
+  var INV_API = 'https://yewtu.be/api/v1/videos/';
   var playerBox = document.getElementById('player-box');
   var previewOverlay = document.getElementById('preview-overlay');
   var previewThumb = document.getElementById('preview-thumb');
@@ -148,8 +145,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var playBtn = document.getElementById('play-btn');
   var playerLoader = document.getElementById('player-loader');
   var blockMsg = document.getElementById('block-msg');
+  var blockText = document.getElementById('block-text');
   var fallbackYt = document.getElementById('fallback-yt');
-  var ytframe = document.getElementById('ytframe');
+  var nativevid = document.getElementById('nativevid');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
   var qInput = document.getElementById('q');
@@ -162,8 +160,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var searchLinksEl = document.getElementById('search-links');
 
   var currentVid = '';
-  var blockTimer = null;
-  var firstInteraction = false;
+  var streamTimer = null;
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -203,6 +200,106 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return thumbs[thumbs.length - 1].url;
   }
 
+  function showFail(msg) {
+    playerLoader.style.display = 'none';
+    nativevid.style.display = 'none';
+    nativevid.removeAttribute('src');
+    try { nativevid.load(); } catch (e) {}
+    blockText.textContent = msg || "Video couldn't load.";
+    blockMsg.style.display = 'flex';
+    previewOverlay.style.display = 'none';
+  }
+
+  function pickStream(list) {
+    if (!list || !list.length) return null;
+    var i, f;
+    for (i = 0; i < list.length; i++) {
+      f = list[i];
+      if (String(f.itag) === '18' && f.url) return f.url;
+    }
+    for (i = 0; i < list.length; i++) {
+      f = list[i];
+      if (String(f.itag) === '22' && f.url) return f.url;
+    }
+    for (i = 0; i < list.length; i++) {
+      f = list[i];
+      if (f.container === 'mp4' && f.encoding === 'avc1' && f.url) return f.url;
+    }
+    return null;
+  }
+
+  function loadStream(id) {
+    previewOverlay.style.display = 'none';
+    blockMsg.style.display = 'none';
+    nativevid.style.display = 'none';
+    playerLoader.style.display = 'block';
+    setStatus('Getting stream...');
+    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+
+    streamTimer = setTimeout(function() {
+      showFail('Stream timed out. Try another video.');
+      setStatus('');
+    }, 25000);
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', INV_API + id + '?fields=formatStreams', true);
+    xhr.timeout = 15000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) {
+        if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+        showFail('Stream server blocked this network.');
+        setStatus('');
+        return;
+      }
+      var data;
+      try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+      if (!data || data.error || !data.formatStreams) {
+        showFail('This video blocks outside playback.');
+        setStatus('');
+        return;
+      }
+      var url = pickStream(data.formatStreams);
+      if (!url) {
+        showFail('No playable stream on this video.');
+        setStatus('');
+        return;
+      }
+      nativevid.style.display = 'block';
+      nativevid.src = url;
+      try { nativevid.load(); } catch (e) {}
+      setStatus('Loaded — press play on the video.');
+      streamTimer = setTimeout(function() {
+        if (nativevid.readyState < 2) {
+          showFail('Stream stalled. Try another video.');
+          setStatus('');
+        }
+      }, 20000);
+    };
+    xhr.onerror = function() {
+      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+      showFail('Stream server unreachable.');
+      setStatus('');
+    };
+    xhr.ontimeout = function() {
+      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+      showFail('Stream server timed out.');
+      setStatus('');
+    };
+    xhr.send();
+  }
+
+  nativevid.addEventListener('loadeddata', function() {
+    playerLoader.style.display = 'none';
+    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+    setStatus('Loaded — press play on the video.');
+  });
+  nativevid.addEventListener('error', function() {
+    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
+    showFail('This stream format failed to play.');
+    setStatus('');
+  });
+
   function showPreview(id, title, author, authorId, viewCount) {
     currentVid = id;
     previewThumb.src = ytThumb(id);
@@ -210,10 +307,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     previewOverlay.style.display = 'flex';
     playerLoader.style.display = 'none';
     blockMsg.style.display = 'none';
-    ytframe.style.display = 'none';
-    ytframe.src = '';
+    nativevid.style.display = 'none';
+    nativevid.removeAttribute('src');
+    try { nativevid.load(); } catch (e) {}
     playerBox.style.display = 'block';
-    if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
+    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
 
     fallbackYt.href = 'https://www.youtube.com/watch?v=' + id;
 
@@ -250,46 +348,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     window.scrollTo(0, 0);
   }
 
-  function loadEmbed(id) {
-    previewOverlay.style.display = 'none';
-    playerLoader.style.display = 'block';
-    blockMsg.style.display = 'none';
-    ytframe.style.display = 'none';
-    ytframe.src = '';
-    if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
-
-    var embedUrl = 'https://www.youtube.com/embed/' + id
-      + '?autoplay=1&rel=0&playsinline=1&controls=1&fs=1'
-      + '&enablejsapi=1&iv_load_policy=3'
-      + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
-
-    ytframe.onload = function() {
-      playerLoader.style.display = 'none';
-      ytframe.style.display = 'block';
-      ytframe.onload = null;
-    };
-    ytframe.onerror = function() {
-      playerLoader.style.display = 'none';
-      blockMsg.style.display = 'flex';
-      ytframe.onerror = null;
-    };
-
-    ytframe.src = embedUrl;
-
-    blockTimer = setTimeout(function() {
-      if (playerLoader.style.display !== 'none') {
-        playerLoader.style.display = 'none';
-        blockMsg.style.display = 'flex';
-      }
-    }, 12000);
-  }
-
   playBtn.addEventListener('click', function(e) {
     e.stopPropagation();
-    loadEmbed(currentVid);
+    loadStream(currentVid);
   });
   previewOverlay.addEventListener('click', function() {
-    loadEmbed(currentVid);
+    loadStream(currentVid);
   });
 
   function renderResults(items) {
@@ -423,13 +487,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   var _origDoSearch = doSearch;
   doSearch = function(q) {
-    ytframe.src = '';
-    ytframe.style.display = 'none';
+    nativevid.removeAttribute('src');
+    try { nativevid.load(); } catch (e) {}
+    nativevid.style.display = 'none';
     playerBox.style.display = 'none';
     playerLoader.style.display = 'none';
     blockMsg.style.display = 'none';
     previewOverlay.style.display = 'none';
-    if (blockTimer) { clearTimeout(blockTimer); blockTimer = null; }
+    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
     _origDoSearch(q);
