@@ -26,10 +26,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .search-row button:hover{background:rgba(220,50,50,.9)}
 .search-links{font-size:11px;margin-bottom:12px}
 .search-links a{color:#8af;text-decoration:none}
-.status{font-size:11px;color:#888;margin-bottom:10px;min-height:16px}
+.status{font-size:11px;color:#888;margin-bottom:4px;min-height:16px}
+.dbg{font-size:10px;color:#567;margin-bottom:10px;min-height:14px;word-break:break-all}
 
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
 .player-box video{position:absolute;top:0;left:0;width:100%;height:100%;background:#000}
+.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
 
 .preview-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;cursor:pointer;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
 .preview-overlay img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover}
@@ -44,11 +46,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 @-webkit-keyframes spin{to{-webkit-transform:rotate(360deg)}}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-.block-msg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:4;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;background:rgba(0,0,0,.85);padding:20px;text-align:center}
-.block-msg .icon{font-size:32px;margin-bottom:8px}
+.block-msg{position:absolute;top:0;left:0;width:100%;height:100%;z-index:4;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;background:rgba(0,0,0,.88);padding:20px;text-align:center;overflow:auto}
+.block-msg .icon{font-size:28px;margin-bottom:6px}
 .block-msg .msg{font:13px monospace;color:#ccc;margin-bottom:10px}
-.block-msg a{color:#8af;text-decoration:none;font:bold 13px monospace;display:block;margin-bottom:6px}
-.block-msg a:hover{text-decoration:underline}
+.block-msg .pbtn{display:block;width:90%;max-width:320px;margin:0 auto 8px;padding:10px;font:bold 13px monospace;background:rgba(180,40,40,.8);border:1px solid rgba(180,40,40,.6);border-radius:8px;color:#fff;cursor:pointer;text-decoration:none}
+.block-msg .pbtn:active{background:rgba(220,50,50,1)}
+.block-msg .pbtn.alt{background:rgba(60,70,120,.6);border-color:rgba(100,120,200,.4)}
+.block-msg .pbtn.alt:active{background:rgba(80,95,160,.9)}
 
 .yt-link{font-size:11px;margin-bottom:14px;display:none}
 .yt-link a{color:#8af;text-decoration:none}
@@ -101,6 +105,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   </div>
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
+  <div class="dbg" id="dbg"></div>
 
   <div class="player-box" id="player-box">
     <div class="preview-overlay" id="preview-overlay">
@@ -110,11 +115,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="preview-hint">Tap to play</div>
     </div>
     <video id="nativevid" controls="controls" playsinline="playsinline" webkit-playsinline="webkit-playsinline" preload="metadata" style="display:none"></video>
+    <iframe id="classicframe" style="display:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline" referrerpolicy="strict-origin-when-cross-origin"></iframe>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
-      <div class="msg" id="block-text">Video couldn't load.</div>
-      <a id="fallback-yt" href="#" target="_blank">Watch on YouTube &#x2197;</a>
+      <div class="msg" id="block-text">Video wouldn't play.</div>
+      <button class="pbtn" id="btn-classic">Try classic player</button>
+      <a class="pbtn alt" id="link-myt" href="#" target="_blank">Open mobile YouTube</a>
+      <a class="pbtn alt" id="link-app" href="#">Open YouTube app</a>
+      <a class="pbtn alt" id="link-yt" href="#" target="_blank">Watch on YouTube</a>
     </div>
   </div>
   <div class="yt-link" id="yt-link"></div>
@@ -137,7 +146,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
   var YTS = 'https://www.youtube.com/results?search_query=';
-  var INV_API = 'https://yewtu.be/api/v1/videos/';
+  var LV = 'https://yewtu.be/latest_version?id=';
   var playerBox = document.getElementById('player-box');
   var previewOverlay = document.getElementById('preview-overlay');
   var previewThumb = document.getElementById('preview-thumb');
@@ -146,10 +155,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var playerLoader = document.getElementById('player-loader');
   var blockMsg = document.getElementById('block-msg');
   var blockText = document.getElementById('block-text');
-  var fallbackYt = document.getElementById('fallback-yt');
+  var btnClassic = document.getElementById('btn-classic');
+  var linkMyt = document.getElementById('link-myt');
+  var linkApp = document.getElementById('link-app');
+  var linkYt = document.getElementById('link-yt');
   var nativevid = document.getElementById('nativevid');
+  var classicframe = document.getElementById('classicframe');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
+  var dbgEl = document.getElementById('dbg');
   var qInput = document.getElementById('q');
   var btnSearch = document.getElementById('btn-search');
   var npWrap = document.getElementById('now-playing');
@@ -160,9 +174,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var searchLinksEl = document.getElementById('search-links');
 
   var currentVid = '';
-  var streamTimer = null;
+  var attemptTimer = null;
+  var ERR_NAMES = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src' };
 
   function setStatus(msg) { statusEl.textContent = msg; }
+
+  function dbg(msg) {
+    var t = dbgEl.textContent;
+    t = t ? (t + ' · ' + msg) : msg;
+    if (t.length > 400) t = t.slice(t.length - 400);
+    dbgEl.textContent = t;
+  }
 
   function esc(s) {
     var d = document.createElement('div');
@@ -200,120 +222,147 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     return thumbs[thumbs.length - 1].url;
   }
 
-  function showFail(msg) {
-    playerLoader.style.display = 'none';
-    nativevid.style.display = 'none';
+  function clearTimer() {
+    if (attemptTimer) { clearTimeout(attemptTimer); attemptTimer = null; }
+  }
+
+  function resetPlayer() {
+    clearTimer();
+    try { nativevid.pause(); } catch (e) {}
     nativevid.removeAttribute('src');
     try { nativevid.load(); } catch (e) {}
-    blockText.textContent = msg || "Video couldn't load.";
-    blockMsg.style.display = 'flex';
+    nativevid.style.display = 'none';
+    classicframe.src = '';
+    classicframe.style.display = 'none';
+    playerLoader.style.display = 'none';
+    blockMsg.style.display = 'none';
     previewOverlay.style.display = 'none';
   }
 
-  function pickStream(list) {
-    if (!list || !list.length) return null;
-    var i, f;
-    for (i = 0; i < list.length; i++) {
-      f = list[i];
-      if (String(f.itag) === '18' && f.url) return f.url;
+  function showFail(msg) {
+    clearTimer();
+    try { nativevid.pause(); } catch (e) {}
+    nativevid.removeAttribute('src');
+    try { nativevid.load(); } catch (e) {}
+    nativevid.style.display = 'none';
+    classicframe.src = '';
+    classicframe.style.display = 'none';
+    playerLoader.style.display = 'none';
+    previewOverlay.style.display = 'none';
+    blockText.textContent = msg || "Video wouldn't play.";
+    blockMsg.style.display = 'flex';
+    dbg('fail');
+  }
+
+  // Direct MP4 attempts: itag 18 (360p H.264) then 22 (720p H.264),
+  // proxied through the instance (local=true) so no API call, no CORS,
+  // no IP-locked googlevideo URL is ever needed client-side.
+  var DIRECT_TRIES = [
+    { tag: 'lv18', itag: '18' },
+    { tag: 'lv22', itag: '22' }
+  ];
+
+  function tryDirect(idx) {
+    var id = currentVid;
+    if (idx >= DIRECT_TRIES.length) {
+      showFail("Direct stream didn't load. Try the classic player or YouTube links below.");
+      setStatus('');
+      return;
     }
-    for (i = 0; i < list.length; i++) {
-      f = list[i];
-      if (String(f.itag) === '22' && f.url) return f.url;
-    }
-    for (i = 0; i < list.length; i++) {
-      f = list[i];
-      if (f.container === 'mp4' && f.encoding === 'avc1' && f.url) return f.url;
-    }
-    return null;
+    var t = DIRECT_TRIES[idx];
+    var url = LV + id + '&itag=' + t.itag + '&local=true';
+    dbg(t.tag + '...');
+    previewOverlay.style.display = 'none';
+    blockMsg.style.display = 'none';
+    classicframe.style.display = 'none';
+    nativevid.style.display = 'block';
+    playerLoader.style.display = 'block';
+    setStatus('Loading video...');
+    clearTimer();
+
+    nativevid.onerror = function() {
+      var code = 0;
+      try { code = nativevid.error ? nativevid.error.code : 0; } catch (e) {}
+      dbg(t.tag + ' err' + code + '(' + (ERR_NAMES[code] || '?') + ')');
+      clearTimer();
+      tryDirect(idx + 1);
+    };
+    nativevid.onloadeddata = function() {
+      dbg(t.tag + ' ok rs' + nativevid.readyState);
+      clearTimer();
+      playerLoader.style.display = 'none';
+      setStatus('Loaded — press play on the video.');
+    };
+    nativevid.src = url;
+    try { nativevid.load(); } catch (e) {}
+
+    attemptTimer = setTimeout(function() {
+      var rs = 0;
+      try { rs = nativevid.readyState; } catch (e) {}
+      dbg(t.tag + ' stall rs' + rs);
+      tryDirect(idx + 1);
+    }, 15000);
   }
 
   function loadStream(id) {
-    previewOverlay.style.display = 'none';
-    blockMsg.style.display = 'none';
-    nativevid.style.display = 'none';
-    playerLoader.style.display = 'block';
-    setStatus('Getting stream...');
-    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-
-    streamTimer = setTimeout(function() {
-      showFail('Stream timed out. Try another video.');
-      setStatus('');
-    }, 25000);
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', INV_API + id + '?fields=formatStreams', true);
-    xhr.timeout = 15000;
-    xhr.onload = function() {
-      if (xhr.status < 200 || xhr.status >= 300) {
-        if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-        showFail('Stream server blocked this network.');
-        setStatus('');
-        return;
-      }
-      var data;
-      try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
-      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-      if (!data || data.error || !data.formatStreams) {
-        showFail('This video blocks outside playback.');
-        setStatus('');
-        return;
-      }
-      var url = pickStream(data.formatStreams);
-      if (!url) {
-        showFail('No playable stream on this video.');
-        setStatus('');
-        return;
-      }
-      nativevid.style.display = 'block';
-      nativevid.src = url;
-      try { nativevid.load(); } catch (e) {}
-      setStatus('Loaded — press play on the video.');
-      streamTimer = setTimeout(function() {
-        if (nativevid.readyState < 2) {
-          showFail('Stream stalled. Try another video.');
-          setStatus('');
-        }
-      }, 20000);
-    };
-    xhr.onerror = function() {
-      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-      showFail('Stream server unreachable.');
-      setStatus('');
-    };
-    xhr.ontimeout = function() {
-      if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-      showFail('Stream server timed out.');
-      setStatus('');
-    };
-    xhr.send();
+    dbgEl.textContent = '';
+    dbg('play ' + id);
+    resetPlayer();
+    playerBox.style.display = 'block';
+    tryDirect(0);
   }
 
-  nativevid.addEventListener('loadeddata', function() {
-    playerLoader.style.display = 'none';
-    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-    setStatus('Loaded — press play on the video.');
+  function tryClassic() {
+    var id = currentVid;
+    dbg('classic...');
+    clearTimer();
+    blockMsg.style.display = 'none';
+    nativevid.style.display = 'none';
+    try { nativevid.pause(); } catch (e) {}
+    nativevid.removeAttribute('src');
+    try { nativevid.load(); } catch (e) {}
+    classicframe.style.display = 'block';
+    playerLoader.style.display = 'block';
+    setStatus('Loading classic player...');
+    classicframe.onload = function() {
+      dbg('classic loaded');
+      playerLoader.style.display = 'none';
+      setStatus('Tap play inside the player.');
+      classicframe.onload = null;
+    };
+    classicframe.src = 'https://www.youtube-nocookie.com/embed/' + id
+      + '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3'
+      + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
+    attemptTimer = setTimeout(function() {
+      if (playerLoader.style.display !== 'none') {
+        dbg('classic stall');
+        playerLoader.style.display = 'none';
+        showFail('Classic player stalled too. Use the YouTube links below.');
+        setStatus('');
+      }
+    }, 20000);
+  }
+
+  btnClassic.addEventListener('click', function() { tryClassic(); });
+  playBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    loadStream(currentVid);
   });
-  nativevid.addEventListener('error', function() {
-    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
-    showFail('This stream format failed to play.');
-    setStatus('');
+  previewOverlay.addEventListener('click', function() {
+    loadStream(currentVid);
   });
 
   function showPreview(id, title, author, authorId, viewCount) {
     currentVid = id;
+    resetPlayer();
     previewThumb.src = ytThumb(id);
     previewTitle.textContent = title || '';
     previewOverlay.style.display = 'flex';
-    playerLoader.style.display = 'none';
-    blockMsg.style.display = 'none';
-    nativevid.style.display = 'none';
-    nativevid.removeAttribute('src');
-    try { nativevid.load(); } catch (e) {}
     playerBox.style.display = 'block';
-    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
 
-    fallbackYt.href = 'https://www.youtube.com/watch?v=' + id;
+    linkMyt.href = 'https://m.youtube.com/watch?v=' + id;
+    linkApp.href = 'youtube://watch?v=' + id;
+    linkYt.href = 'https://www.youtube.com/watch?v=' + id;
 
     npTitle.textContent = title || '';
     var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
@@ -347,14 +396,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     setStatus('');
     window.scrollTo(0, 0);
   }
-
-  playBtn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    loadStream(currentVid);
-  });
-  previewOverlay.addEventListener('click', function() {
-    loadStream(currentVid);
-  });
 
   function renderResults(items) {
     if (!items || items.length === 0) {
@@ -487,14 +528,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   var _origDoSearch = doSearch;
   doSearch = function(q) {
-    nativevid.removeAttribute('src');
-    try { nativevid.load(); } catch (e) {}
-    nativevid.style.display = 'none';
+    resetPlayer();
     playerBox.style.display = 'none';
-    playerLoader.style.display = 'none';
-    blockMsg.style.display = 'none';
-    previewOverlay.style.display = 'none';
-    if (streamTimer) { clearTimeout(streamTimer); streamTimer = null; }
     npWrap.style.display = 'none';
     ytLinkEl.style.display = 'none';
     _origDoSearch(q);

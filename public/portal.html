@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: direct MP4 playback, no YouTube player',
+          desc: 'Skips the YouTube embed entirely (its stream never decodes on iOS 10) and plays a direct 360p H.264 MP4 in a native video element with real controls. Fallback ladder: 720p, classic player, mobile YouTube, YouTube app. Includes an on-page debug readout for diagnosing device-side failures.',
+          date: 'Sep 10',
+          bugs: ['YouTube embed black screen on iOS 10 (stream never decodes)'],
+          updates: ['native video playback', 'playback fallback ladder', 'debug readout'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Back to Render + UptimeRobot (Fly trial kills machines)',
           desc: 'Fly.io stops no-card trial machines after 5 min runtime even under load, so both Fly hosts are parked. Game, social and APIs are back on Render; a free UptimeRobot monitor pinging /health every 5 min prevents Render idle sleep. Split code stays dormant in-repo.',
           date: 'Sep 9',
