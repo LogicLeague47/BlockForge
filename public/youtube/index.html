@@ -89,6 +89,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .coming .t{font:bold 15px monospace;color:#fff;margin-bottom:6px}
 .coming .s{font-size:11px;color:#888}
 .chn-link{cursor:pointer}
+.ch-card{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;padding:10px;margin-bottom:8px;background:rgba(30,26,50,.7);border:1px solid rgba(180,120,80,.3);border-radius:8px;cursor:pointer}
+.ch-card:active{background:rgba(50,40,80,.8)}
+.ch-card-av{width:52px;height:52px;border-radius:50%;background:#222;overflow:hidden;-webkit-flex-shrink:0;flex-shrink:0;margin-right:12px}
+.ch-card-av img{width:100%;height:100%;border-radius:50%}
+.ch-card-name{font-size:14px;font-weight:bold;color:#fff;line-height:1.3}
+.ch-card-sub{font-size:11px;color:#8af;margin-top:2px}
+.ch-card-desc{font-size:11px;color:#777;margin-top:2px;max-height:28px;overflow:hidden;line-height:1.3}
 .results{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column}
 .result-item{display:-webkit-box;display:-webkit-flex;display:flex;padding:8px;margin-bottom:8px;background:rgba(20,20,40,.7);border:1px solid rgba(90,90,140,.18);border-radius:8px;cursor:pointer}
 .result-item:active{background:rgba(40,40,80,.75)}
@@ -548,6 +555,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       + '</div></div></div>';
   }
 
+  function channelCardHtml(c) {
+    var av = ytChannelThumb(c.authorThumbnails);
+    var desc = c.descriptionSnippet || c.description || '';
+    return '<div class="ch-card" data-ch="' + esc(c.authorId || '') + '">'
+      + (av ? '<div class="ch-card-av"><img src="' + esc(av) + '" alt=""></div>' : '')
+      + '<div><div class="ch-card-name">' + esc(c.author || 'Unknown') + '</div>'
+      + '<div class="ch-card-sub">' + (c.subCount != null ? fmtNum(c.subCount) + ' subscribers &middot; ' : '') + 'View channel &#8250;</div>'
+      + (desc ? '<div class="ch-card-desc">' + esc(String(desc).slice(0, 120)) + '</div>' : '')
+      + '</div></div>';
+  }
+
   function renderResults(items) {
     if (!items || items.length === 0) {
       resultsEl.innerHTML = '<div class="empty">No results found</div>';
@@ -556,9 +574,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var html = '';
     for (var i = 0; i < items.length; i++) {
       var v = items[i];
+      // Channels render as tappable profile cards (artist profiles).
+      if (v.type === 'channel') {
+        if (v.authorId) html += channelCardHtml(v);
+        continue;
+      }
       // All videos from YT: accept anything with a playable videoId —
-      // videos, shorts, livestreams, movies. Only skip channels/playlists.
-      if (v.type === 'channel' || v.type === 'playlist' || v.type === 'hashtag') continue;
+      // videos, shorts, livestreams, movies. Only skip playlists.
+      if (v.type === 'playlist' || v.type === 'hashtag') continue;
       var vid = v.videoId;
       if (!vid) continue;
       html += itemHtml({
@@ -586,6 +609,33 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     for (var j = 0; j < allItems.length; j++) {
       bindResult(allItems[j]);
     }
+
+    var chCards = resultsEl.querySelectorAll('.ch-card');
+    for (var k = 0; k < chCards.length; k++) {
+      bindChannelCard(chCards[k]);
+    }
+  }
+
+  function bindChannelCard(el) {
+    var sy = 0;
+    var moved = false;
+    function go(e) {
+      e.preventDefault();
+      var id = el.getAttribute('data-ch');
+      if (id) openChannel(id);
+    }
+    el.addEventListener('touchstart', function(e) {
+      sy = e.touches[0].clientY;
+      moved = false;
+    });
+    el.addEventListener('touchmove', function(e) {
+      if (Math.abs(e.touches[0].clientY - sy) > 10) moved = true;
+    });
+    el.addEventListener('click', go);
+    el.addEventListener('touchend', function(e) {
+      if (moved) return;
+      go(e);
+    });
   }
 
   function tapIsChannel(el, e) {
