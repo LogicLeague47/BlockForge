@@ -66,7 +66,7 @@ const UPSTREAM_TYPES = new Set([
 
 // Offbranch HTTP APIs served by the social role (always-on, no cold starts).
 const SOCIAL_HTTP = new Set([
-  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel',
+  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel', '/api/yt-stream',
   '/api/ic-lookup', '/api/ic-emojis',
 ]);
 function safeSendRaw(conn, data) {
@@ -957,6 +957,7 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const icMemCache = new Map(); // sortedKey -> { name, emoji }
+const ytStreamCache = new Map(); // videoId -> { url, exp } (resolved MP4 URLs, 30min TTL)
 async function icCacheGet(sk) {
   if (icMemCache.has(sk)) return icMemCache.get(sk);
   if (!UPSTASH_URL || !UPSTASH_TOKEN) return undefined;
@@ -1813,6 +1814,94 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       res.writeHead(504, CORS);
       res.end('YouTube embed timed out');
     });
+    return;
+  }
+
+  // ── YT Forge first-party stream proxy ─────────────────────────────
+  // Resolves itag 18/22 progressive MP4 via the ANDROID player endpoint
+  // (the only client still returning direct URLs without a PO token) and
+  // pipes the bytes with Range support so iOS <video> can play + seek.
+  // Same-origin for our pages → no CORS, no cookies, no third parties.
+  // NOTE: proxied bytes count against host bandwidth — fine for dev-scale.
+  if (pathname === '/api/yt-stream' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const vid = (qs.get('v') || '').trim();
+    if (!vid || !/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+      res.writeHead(400, CORS);
+      res.end('Invalid video ID');
+      return;
+    }
+    const serveFrom = (mediaUrl, redirects) => {
+      redirects = redirects || 0;
+      const headers = {
+        'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+      };
+      if (req.headers.range) headers.Range = req.headers.range;
+      const up = https.get(mediaUrl, { timeout: 15000, headers }, upRes => {
+        if (upRes.statusCode >= 300 && upRes.statusCode < 400 && upRes.headers.location && redirects < 3) {
+          upRes.resume();
+          serveFrom(upRes.headers.location, redirects + 1);
+          return;
+        }
+        if (upRes.statusCode !== 200 && upRes.statusCode !== 206) {
+          upRes.resume();
+          res.writeHead(502, CORS);
+          res.end('stream upstream ' + upRes.statusCode);
+          return;
+        }
+        const out = { ...CORS, 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
+        if (upRes.headers['content-range']) out['Content-Range'] = upRes.headers['content-range'];
+        if (upRes.headers['content-length']) out['Content-Length'] = upRes.headers['content-length'];
+        res.writeHead(upRes.statusCode, out);
+        upRes.pipe(res);
+      });
+      up.on('error', () => { res.writeHead(502, CORS); res.end('stream fetch failed'); });
+      up.on('timeout', () => { up.destroy(); res.writeHead(504, CORS); res.end('stream timed out'); });
+    };
+    const cached = ytStreamCache.get(vid);
+    if (cached && cached.exp > Date.now()) { serveFrom(cached.url, 0); return; }
+    const payload = JSON.stringify({
+      videoId: vid,
+      context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 34, hl: 'en', gl: 'US' } },
+    });
+    const preq = https.request(
+      'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false',
+      {
+        method: 'POST',
+        timeout: 12000,
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(payload),
+          'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
+        },
+      },
+      pres => {
+        let body = '';
+        pres.on('data', c => { body += c; if (body.length > 3e6) pres.destroy(); });
+        pres.on('end', () => {
+          try {
+            const d = JSON.parse(body);
+            if (((d.playabilityStatus || {}).status) !== 'OK') throw new Error('unplayable');
+            const fmts = ((d.streamingData || {}).formats || []);
+            const pick = fmts.find(f => String(f.itag) === '18' && f.url)
+              || fmts.find(f => String(f.itag) === '22' && f.url)
+              || fmts.find(f => (f.mimeType || '').indexOf('video/mp4') === 0 && f.url);
+            if (!pick) throw new Error('no-mp4');
+            ytStreamCache.set(vid, { url: pick.url, exp: Date.now() + 30 * 60 * 1000 });
+            if (ytStreamCache.size > 200) ytStreamCache.delete(ytStreamCache.keys().next().value);
+            serveFrom(pick.url, 0);
+          } catch (e) {
+            res.writeHead(502, CORS);
+            res.end('unplayable');
+          }
+        });
+      }
+    );
+    preq.on('error', () => { res.writeHead(502, CORS); res.end('resolve failed'); });
+    preq.on('timeout', () => { preq.destroy(); res.writeHead(504, CORS); res.end('resolve timed out'); });
+    preq.end(payload);
     return;
   }
 
