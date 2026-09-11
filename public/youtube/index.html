@@ -537,6 +537,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       + (IS_LEGACY
         ? ' &middot; <a href="javascript:void(0)" id="inline-link">Try inline player</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted inline</a>'
+          + ' &middot; <a href="javascript:void(0)" id="leg-direct">Direct MP4</a>'
         : ' &middot; <a href="javascript:void(0)" id="reload-link">Reload &#x21bb;</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-ncf">NoCookie</a>'
@@ -861,6 +862,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       resetPlayer();
       playerBox.style.display = 'block';
       loadClassic('min');
+    } else if (t.id === 'leg-direct') {
+      e.preventDefault();
+      dbg('manual-direct');
+      resetPlayer();
+      playerBox.style.display = 'block';
+      tryDirect(0);
     }
   });
 
