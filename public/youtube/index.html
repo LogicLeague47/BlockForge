@@ -66,6 +66,29 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .np-channel-name{font-size:13px;font-weight:bold;color:#ddd}
 .np-subs{font-size:11px;color:#888}
 .np-stats{font-size:11px;color:#888}
+.menu-row{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:12px}
+.menu-row button{-webkit-flex:1;flex:1;padding:9px;font:bold 13px monospace;background:rgba(24,24,48,.85);border:1px solid rgba(120,120,180,.35);color:#ccc;cursor:pointer}
+.menu-row button:first-child{border-radius:8px 0 0 8px;border-right:none}
+.menu-row button:last-child{border-radius:0 8px 8px 0}
+.menu-row button.on{background:rgba(180,40,40,.8);border-color:rgba(180,40,40,.6);color:#fff}
+.ch-view{display:none}
+.ch-back{font-size:11px;color:#8af;text-decoration:none;display:inline-block;margin-bottom:8px}
+.ch-head{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;margin-bottom:8px}
+.ch-avatar{width:56px;height:56px;border-radius:50%;background:#222;overflow:hidden;-webkit-flex-shrink:0;flex-shrink:0;margin-right:12px}
+.ch-avatar img{width:100%;height:100%;border-radius:50%}
+.ch-name{font-size:16px;font-weight:bold;color:#fff;line-height:1.3}
+.ch-subs{font-size:11px;color:#888}
+.ch-desc{font-size:11px;color:#888;margin-bottom:10px;max-height:54px;overflow:hidden;line-height:1.4}
+.ch-tabs{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:10px}
+.ch-tabs button{-webkit-flex:1;flex:1;padding:8px;font:bold 12px monospace;background:rgba(24,24,48,.85);border:1px solid rgba(120,120,180,.35);color:#ccc;cursor:pointer}
+.ch-tabs button:first-child{border-radius:8px 0 0 8px;border-right:none}
+.ch-tabs button:last-child{border-radius:0 8px 8px 0}
+.ch-tabs button.on{background:rgba(180,40,40,.8);border-color:rgba(180,40,40,.6);color:#fff}
+.coming{display:none;text-align:center;padding:40px 0}
+.coming .big{font-size:36px;margin-bottom:10px}
+.coming .t{font:bold 15px monospace;color:#fff;margin-bottom:6px}
+.coming .s{font-size:11px;color:#888}
+.chn-link{cursor:pointer}
 .results{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column}
 .result-item{display:-webkit-box;display:-webkit-flex;display:flex;padding:8px;margin-bottom:8px;background:rgba(20,20,40,.7);border:1px solid rgba(90,90,140,.18);border-radius:8px;cursor:pointer}
 .result-item:active{background:rgba(40,40,80,.75)}
@@ -97,6 +120,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="topbar">
     <span class="logo"><span>YT</span> Forge</span>
     <a class="back" href="../games.html?v=2">&larr; Games</a>
+  </div>
+
+  <div class="menu-row" id="menu-row">
+    <button id="menu-home" class="on">Home</button>
+    <button id="menu-shorts">Shorts</button>
   </div>
 
   <div class="search-row">
@@ -135,6 +163,34 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     </div>
   </div>
 
+  <div class="ch-view" id="channel-view">
+    <a class="ch-back" id="ch-back" href="javascript:void(0)">&larr; Back</a>
+    <div class="ch-head">
+      <div class="ch-avatar"><img id="ch-avatar" src="" alt=""></div>
+      <div>
+        <div class="ch-name" id="ch-name"></div>
+        <div class="ch-subs" id="ch-subs"></div>
+      </div>
+    </div>
+    <div class="ch-desc" id="ch-desc"></div>
+    <div class="ch-tabs">
+      <button id="ch-tab-videos" class="on">Videos</button>
+      <button id="ch-tab-shorts">Shorts</button>
+    </div>
+    <div id="ch-list"></div>
+    <div class="coming" id="ch-shorts-coming">
+      <div class="big">&#9201;</div>
+      <div class="t">Shorts coming soon</div>
+      <div class="s">Short-form playback is on the way.</div>
+    </div>
+  </div>
+
+  <div class="coming" id="shorts-view">
+    <div class="big">&#9201;</div>
+    <div class="t">Shorts coming soon</div>
+    <div class="s">A short-form feed is on the way.<br>Search still finds every video.</div>
+  </div>
+
   <div class="results" id="results">
     <div class="empty">Search for something to get started</div>
   </div>
@@ -145,6 +201,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 <script>
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
+  var API_CH = 'https://blockforge-server.onrender.com/api/yt-channel';
   var YTS = 'https://www.youtube.com/results?search_query=';
   var LV = 'https://yewtu.be/latest_version?id=';
   var playerBox = document.getElementById('player-box');
@@ -172,6 +229,30 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var npStats = document.getElementById('np-stats');
   var ytLinkEl = document.getElementById('yt-link');
   var searchLinksEl = document.getElementById('search-links');
+  var menuHome = document.getElementById('menu-home');
+  var menuShorts = document.getElementById('menu-shorts');
+  var channelView = document.getElementById('channel-view');
+  var shortsView = document.getElementById('shorts-view');
+  var chAvatar = document.getElementById('ch-avatar');
+  var chName = document.getElementById('ch-name');
+  var chSubs = document.getElementById('ch-subs');
+  var chDesc = document.getElementById('ch-desc');
+  var chBack = document.getElementById('ch-back');
+  var chTabVideos = document.getElementById('ch-tab-videos');
+  var chTabShorts = document.getElementById('ch-tab-shorts');
+  var chList = document.getElementById('ch-list');
+  var chShortsComing = document.getElementById('ch-shorts-coming');
+
+  var curView = 'home';
+
+  function showView(name) {
+    curView = name;
+    resultsEl.style.display = name === 'home' ? 'flex' : 'none';
+    channelView.style.display = name === 'channel' ? 'block' : 'none';
+    shortsView.style.display = name === 'shorts' ? 'block' : 'none';
+    menuHome.className = name === 'home' ? 'on' : '';
+    menuShorts.className = name === 'shorts' ? 'on' : '';
+  }
 
   var currentVid = '';
   var attemptTimer = null;
@@ -372,7 +453,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     linkYt.href = 'https://www.youtube.com/watch?v=' + id;
 
     npTitle.textContent = title || '';
-    var channelHtml = '<div class="np-channel-name">' + esc(author || 'Unknown') + '</div>';
+    var channelHtml = '<div class="np-channel-name"><span class="chn-link" data-ch="' + esc(authorId || '') + '">' + esc(author || 'Unknown') + '</span></div>';
     if (authorId) channelHtml += '<div class="np-subs"><a href="https://youtube.com/channel/' + authorId + '" target="_blank" style="color:#8af;text-decoration:none">Visit channel &#x2197;</a></div>';
     npChannel.innerHTML = channelHtml;
     var statsHtml = '';
@@ -404,6 +485,34 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     window.scrollTo(0, 0);
   }
 
+  function itemHtml(o) {
+    var metaLine = '';
+    if (o.author) {
+      metaLine += '<span class="r-channel"><span class="chn-link" data-ch="' + esc(o.authorId) + '">' + o.author + '</span>';
+      if (o.verified) metaLine += ' <span class="vbadge">&#x2713;</span>';
+      metaLine += '</span>';
+    }
+    if (o.published) metaLine += '<span class="r-stats"> &middot; ' + o.published + '</span>';
+    if (o.viewsLabel) metaLine += '<span class="r-stats"> &middot; ' + o.viewsLabel + '</span>';
+
+    return '<div class="result-item" data-vid="' + esc(o.vid) + '"'
+      + ' data-title="' + esc(o.title || '') + '"'
+      + ' data-author="' + esc(o.authorRaw || '') + '"'
+      + ' data-authorid="' + esc(o.authorId) + '"'
+      + ' data-views="' + (o.rawViews || '') + '"'
+      + '>'
+      + '<div class="r-thumb">'
+      + '<img src="' + o.thumb + '" alt="">'
+      + (o.durLabel ? '<span class="dur">' + o.durLabel + '</span>' : '')
+      + '</div>'
+      + '<div class="r-body">'
+      + (o.avatarUrl ? '<div class="r-avatar"><img src="' + esc(o.avatarUrl) + '" alt=""></div>' : '')
+      + '<div class="r-info">'
+      + '<div class="r-title">' + o.title + '</div>'
+      + metaLine
+      + '</div></div></div>';
+  }
+
   function renderResults(items) {
     if (!items || items.length === 0) {
       resultsEl.innerHTML = '<div class="empty">No results found</div>';
@@ -417,41 +526,20 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       if (v.type === 'channel' || v.type === 'playlist' || v.type === 'hashtag') continue;
       var vid = v.videoId;
       if (!vid) continue;
-      var title = esc(v.title || 'Untitled');
-      var author = esc(v.author || '');
-      var authorId = v.authorId || '';
-      var published = esc(v.publishedText || '');
-      var views = v.viewCount ? fmtNum(v.viewCount) + ' views' : '';
-      var length = v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '';
-      var verified = v.authorVerified;
-      var thumb = ytThumb(vid);
-      var avatarUrl = ytChannelThumb(v.authorThumbnails);
-
-      var metaLine = '';
-      if (author) {
-        metaLine += '<span class="r-channel">' + author;
-        if (verified) metaLine += ' <span class="vbadge">&#x2713;</span>';
-        metaLine += '</span>';
-      }
-      if (published) metaLine += '<span class="r-stats"> &middot; ' + published + '</span>';
-      if (views) metaLine += '<span class="r-stats"> &middot; ' + views + '</span>';
-
-      html += '<div class="result-item" data-vid="' + esc(vid) + '"'
-        + ' data-title="' + esc(v.title || '') + '"'
-        + ' data-author="' + esc(v.author || '') + '"'
-        + ' data-authorid="' + esc(authorId) + '"'
-        + ' data-views="' + (v.viewCount || '') + '"'
-        + '>'
-        + '<div class="r-thumb">'
-        + '<img src="' + thumb + '" alt="">'
-        + (length ? '<span class="dur">' + length + '</span>' : '')
-        + '</div>'
-        + '<div class="r-body">'
-        + (avatarUrl ? '<div class="r-avatar"><img src="' + esc(avatarUrl) + '" alt=""></div>' : '')
-        + '<div class="r-info">'
-        + '<div class="r-title">' + title + '</div>'
-        + metaLine
-        + '</div></div></div>';
+      html += itemHtml({
+        vid: vid,
+        title: esc(v.title || 'Untitled'),
+        author: esc(v.author || ''),
+        authorRaw: v.author || '',
+        authorId: v.authorId || '',
+        rawViews: v.viewCount || '',
+        published: esc(v.publishedText || ''),
+        viewsLabel: v.viewCount ? fmtNum(v.viewCount) + ' views' : '',
+        durLabel: v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '',
+        verified: v.authorVerified,
+        thumb: ytThumb(vid),
+        avatarUrl: ytChannelThumb(v.authorThumbnails)
+      });
     }
     if (!html) {
       resultsEl.innerHTML = '<div class="empty">No video results found</div>';
@@ -463,6 +551,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     for (var j = 0; j < allItems.length; j++) {
       bindResult(allItems[j]);
     }
+  }
+
+  function tapIsChannel(el, e) {
+    var t = e.target;
+    while (t && t !== el) {
+      if (t.getAttribute && t.getAttribute('data-ch')) return t.getAttribute('data-ch');
+      t = t.parentNode;
+    }
+    return null;
   }
 
   function bindResult(el) {
@@ -477,6 +574,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     }, true);
     el.addEventListener('click', function(e) {
       e.preventDefault();
+      var chid = tapIsChannel(el, e);
+      if (chid) { openChannel(chid); return; }
       showPreview(
         el.getAttribute('data-vid'),
         el.getAttribute('data-title'),
@@ -488,6 +587,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     el.addEventListener('touchend', function(e) {
       if (moved) return;
       e.preventDefault();
+      var chid = tapIsChannel(el, e);
+      if (chid) { openChannel(chid); return; }
       showPreview(
         el.getAttribute('data-vid'),
         el.getAttribute('data-title'),
@@ -496,6 +597,83 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         el.getAttribute('data-views')
       );
     });
+  }
+
+  function openChannel(authorId) {
+    if (!authorId) return;
+    showView('channel');
+    chName.textContent = 'Loading...';
+    chSubs.textContent = '';
+    chDesc.textContent = '';
+    chAvatar.src = '';
+    chList.innerHTML = '';
+    chList.style.display = 'block';
+    chShortsComing.style.display = 'none';
+    chTabVideos.className = 'on';
+    chTabShorts.className = '';
+    setStatus('Loading channel...');
+    window.scrollTo(0, 0);
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_CH + '?channelId=' + encodeURIComponent(authorId) + '&tab=info', true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) { setStatus('Channel failed to load'); return; }
+      var d;
+      try { d = JSON.parse(xhr.responseText); } catch (e) { setStatus('Channel failed to load'); return; }
+      if (d.error) { setStatus('Channel failed to load'); return; }
+      chName.textContent = d.author || 'Unknown channel';
+      chSubs.textContent = (d.subCount != null ? fmtNum(d.subCount) + ' subscribers' : '');
+      chDesc.textContent = d.description || '';
+      var av = ytChannelThumb(d.authorThumbnails);
+      if (av) chAvatar.src = av;
+      loadChannelVideos(authorId, d.author || '', av);
+    };
+    xhr.onerror = function() { setStatus('Channel failed to load'); };
+    xhr.ontimeout = function() { setStatus('Channel timed out'); };
+    xhr.send();
+  }
+
+  function loadChannelVideos(authorId, authorName, avatarUrl) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_CH + '?channelId=' + encodeURIComponent(authorId) + '&tab=videos', true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) { setStatus('Videos failed to load'); return; }
+      var d;
+      try { d = JSON.parse(xhr.responseText); } catch (e) { setStatus('Videos failed to load'); return; }
+      var vids = d.videos || d.latestVideos || [];
+      if (!vids.length) {
+        chList.innerHTML = '<div class="empty">No videos found</div>';
+        setStatus('');
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < vids.length; i++) {
+        var v = vids[i];
+        if (!v.videoId) continue;
+        html += itemHtml({
+          vid: v.videoId,
+          title: esc(v.title || 'Untitled'),
+          author: esc(authorName || v.author || ''),
+          authorRaw: authorName || v.author || '',
+          authorId: authorId,
+          rawViews: v.viewCount || '',
+          published: esc(v.publishedText || ''),
+          viewsLabel: v.viewCount ? fmtNum(v.viewCount) + ' views' : '',
+          durLabel: v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '',
+          verified: v.authorVerified,
+          thumb: ytThumb(v.videoId),
+          avatarUrl: avatarUrl
+        });
+      }
+      chList.innerHTML = html || '<div class="empty">No videos found</div>';
+      var items = chList.querySelectorAll('.result-item');
+      for (var j = 0; j < items.length; j++) bindResult(items[j]);
+      setStatus('');
+    };
+    xhr.onerror = function() { setStatus('Videos failed to load'); };
+    xhr.ontimeout = function() { setStatus('Videos timed out'); };
+    xhr.send();
   }
 
   function doSearch(query) {
@@ -530,9 +708,36 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     xhr.send();
   }
 
-  btnSearch.addEventListener('click', function() { doSearch(qInput.value); });
+  npWrap.addEventListener('click', function(e) {
+    var t = e.target;
+    while (t && t !== npWrap) {
+      if (t.getAttribute && t.getAttribute('data-ch')) {
+        if (t.getAttribute('data-ch')) openChannel(t.getAttribute('data-ch'));
+        return;
+      }
+      t = t.parentNode;
+    }
+  });
+
+  menuHome.addEventListener('click', function() { showView('home'); });
+  menuShorts.addEventListener('click', function() { showView('shorts'); });
+  chBack.addEventListener('click', function() { showView('home'); });
+  chTabVideos.addEventListener('click', function() {
+    chTabVideos.className = 'on';
+    chTabShorts.className = '';
+    chShortsComing.style.display = 'none';
+    chList.style.display = 'block';
+  });
+  chTabShorts.addEventListener('click', function() {
+    chTabShorts.className = 'on';
+    chTabVideos.className = '';
+    chList.style.display = 'none';
+    chShortsComing.style.display = 'block';
+  });
+
+  btnSearch.addEventListener('click', function() { showView('home'); doSearch(qInput.value); });
   qInput.addEventListener('keydown', function(e) {
-    if (e.keyCode === 13 || e.key === 'Enter') { e.preventDefault(); doSearch(qInput.value); }
+    if (e.keyCode === 13 || e.key === 'Enter') { e.preventDefault(); showView('home'); doSearch(qInput.value); }
   });
 
   var _origDoSearch = doSearch;
