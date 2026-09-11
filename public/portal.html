@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: legacy browsers hand off to YouTube',
+          desc: 'YouTube’s embed player no longer runs on Safari 10 and older (verified: loads but renders black on every video). Those browsers now jump straight to mobile YouTube in the same tab — back button returns to YT Forge. Modern browsers keep inline playback.',
+          date: 'Sep 10',
+          bugs: ['embed renders black on Safari ≤ 10 (YouTube dropped support)'],
+          updates: ['same-tab YouTube handoff on legacy', 'inline kept on modern'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'YT Forge: minimal embed primary + variant switcher',
           desc: 'Primary player is now the barest working embed URL (www host, no origin param) after 10/10 systematic failures with the full-param URL on old Safari. NoCookie and Full-WWW one-tap variants stay for comparison.',
           date: 'Sep 10',
