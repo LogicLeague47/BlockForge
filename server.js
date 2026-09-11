@@ -1865,8 +1865,51 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
           direct: fmts.filter(f => f.url).length,
         });
       }
+      // Instance API probe: can THIS host reach Invidious APIs, do they
+      // allow browser CORS, and do they return playable streams?
+      const getJSON = (url) => new Promise((resolve) => {
+        const r = https.get(url, {
+          timeout: 12000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+            Origin: 'https://blockforge-1.onrender.com',
+          },
+        }, ir => {
+          let b = '';
+          ir.on('data', c => { b += c; if (b.length > 1e6) ir.destroy(); });
+          ir.on('end', () => {
+            resolve({ status: ir.statusCode, acao: ir.headers['access-control-allow-origin'] || null, body: b });
+          });
+        });
+        r.on('error', () => resolve({ status: 'FETCH_FAIL' }));
+        r.on('timeout', () => { r.destroy(); resolve({ status: 'TIMEOUT' }); });
+      });
+      const HOSTS = [
+        'https://yewtu.be',
+        'https://inv.nadeko.net',
+        'https://invidious.nerdvpn.de',
+        'https://invidious.f5.si',
+        'https://yt.chocolatemoo53.com',
+        'https://invidious.tiekoetter.com',
+      ];
+      const inst = [];
+      for (const h of HOSTS) {
+        const r = await getJSON(h + '/api/v1/videos/dQw4w9WgXcQ?fields=title,formatStreams');
+        const row = { host: h, http: r.status, cors: r.acao, streams: 0, itag18: null };
+        if (r.status === 200 && r.body) {
+          try {
+            const d = JSON.parse(r.body);
+            const fs = d.formatStreams || [];
+            row.title = !!d.title;
+            row.streams = fs.length;
+            const f18 = fs.find(f => String(f.itag) === '18' && f.url);
+            if (f18) row.itag18 = f18.url.slice(0, 60);
+          } catch (e) { row.parse = 'NO_JSON'; }
+        }
+        inst.push(row);
+      }
       res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify(out));
+      res.end(JSON.stringify({ youtubei: out, instances: inst }));
     })();
     return;
   }
