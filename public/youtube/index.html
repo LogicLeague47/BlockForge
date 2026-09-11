@@ -397,9 +397,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     loadClassic();
   }
 
-  function loadClassic() {
+  function loadClassic(base) {
     var id = currentVid;
-    dbg('classic...');
+    base = base || 'nocookie';
+    var host = base === 'alt' ? 'https://www.youtube.com/embed/' : 'https://www.youtube-nocookie.com/embed/';
+    dbg('classic' + (base === 'alt' ? '-alt' : '') + '...');
     clearTimer();
     blockMsg.style.display = 'none';
     nativevid.style.display = 'none';
@@ -424,9 +426,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         setStatus('Tap play inside the player.');
         classicframe.onload = null;
       };
-      classicframe.src = 'https://www.youtube-nocookie.com/embed/' + id
-        + '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3'
-        + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
+    classicframe.src = host + id
+      + '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3'
+      + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
       attemptTimer = setTimeout(function() {
         if (playerLoader.style.display !== 'none') {
           dbg('classic stall');
@@ -493,6 +495,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     npWrap.style.display = 'block';
 
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>'
+      + ' &middot; <a href="javascript:void(0)" id="reload-link">Reload player &#x21bb;</a>'
+      + ' &middot; <a href="javascript:void(0)" id="alt-link">Try youtube.com player</a>'
       + ' &middot; <a href="https://turboscribe.ai/downloader/youtube/video/free" target="_blank" id="dl-link" title="Opens an external downloader">Download MP4 &#x2197;</a>';
     ytLinkEl.style.display = 'block';
     var dlLink = document.getElementById('dl-link');
@@ -747,6 +751,24 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         return;
       }
       t = t.parentNode;
+    }
+  });
+
+  ytLinkEl.addEventListener('click', function(e) {
+    var t = e.target;
+    if (!t || !t.id) return;
+    if (t.id === 'reload-link') {
+      e.preventDefault();
+      dbg('reload');
+      resetPlayer();
+      playerBox.style.display = 'block';
+      loadClassic();
+    } else if (t.id === 'alt-link') {
+      e.preventDefault();
+      dbg('alt-try');
+      resetPlayer();
+      playerBox.style.display = 'block';
+      loadClassic('alt');
     }
   });
 

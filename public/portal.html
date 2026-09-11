@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: reload + alternate player links',
+          desc: 'Under every video: Reload player (fresh embed load for flaky old-Safari renders) and Try youtube.com player (alternate embed host). Helps diagnose per-video vs per-load failures.',
+          date: 'Sep 10',
+          bugs: [],
+          updates: ['player reload link', 'alternate embed host'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'YT Forge: embedding precheck + cache-bust',
           desc: 'Videos with embedding disabled now fail fast with a clear message instead of a dead player. Games card points at a fresh page URL so old caches stop serving stale code.',
           date: 'Sep 10',
