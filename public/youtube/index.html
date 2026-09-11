@@ -412,7 +412,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var html = '';
     for (var i = 0; i < items.length; i++) {
       var v = items[i];
-      if (v.type !== 'video' && v.type !== 'short') continue;
+      // All videos from YT: accept anything with a playable videoId —
+      // videos, shorts, livestreams, movies. Only skip channels/playlists.
+      if (v.type === 'channel' || v.type === 'playlist' || v.type === 'hashtag') continue;
       var vid = v.videoId;
       if (!vid) continue;
       var title = esc(v.title || 'Untitled');

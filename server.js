@@ -1852,7 +1852,7 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
         return;
       }
       const base = INSTANCES[tryIdx++];
-      const url = base + '/api/v1/search?q=' + encodeURIComponent(q) + '&type=video';
+      const url = base + '/api/v1/search?q=' + encodeURIComponent(q) + '&type=all';
       const proxyReq = https.get(url, { timeout: 6000 }, proxyRes => {
         let body = '';
         proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });
