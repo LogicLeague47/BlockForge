@@ -431,6 +431,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   // that ever painted UI (www host, bare params, no origin).
   var EMBED_CFG = {
     min: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0' },
+    minm: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0&mute=1' },
     ncf: { host: 'https://www.youtube-nocookie.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) },
     wwf: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) }
   };
@@ -535,7 +536,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     ytLinkEl.innerHTML = '<a href="https://www.youtube.com/watch?v=' + id + '" target="_blank">Watch on YouTube &#x2197;</a>'
       + (IS_LEGACY
         ? ' &middot; <a href="javascript:void(0)" id="inline-link">Try inline player</a>'
+          + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted inline</a>'
         : ' &middot; <a href="javascript:void(0)" id="reload-link">Reload &#x21bb;</a>'
+          + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-ncf">NoCookie</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-wwf">Full-WWW</a>')
       + ' &middot; <a href="https://turboscribe.ai/downloader/youtube/video/free" target="_blank" id="dl-link" title="Opens an external downloader">Download MP4 &#x2197;</a>';
@@ -847,11 +850,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       resetPlayer();
       playerBox.style.display = 'block';
       loadClassic(curCfg);
-    } else if (t.id === 'cfg-ncf' || t.id === 'cfg-wwf') {
+    } else if (t.id === 'cfg-ncf' || t.id === 'cfg-wwf' || t.id === 'cfg-minm') {
       e.preventDefault();
       resetPlayer();
       playerBox.style.display = 'block';
-      loadClassic(t.id === 'cfg-ncf' ? 'ncf' : 'wwf');
+      loadClassic(t.id.split('-')[1]);
     } else if (t.id === 'inline-link') {
       e.preventDefault();
       dbg('inline-try');
