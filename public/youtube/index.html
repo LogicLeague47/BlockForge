@@ -120,7 +120,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
       <div class="msg" id="block-text">Video wouldn't play.</div>
-      <button class="pbtn" id="btn-classic">Try classic player</button>
+      <button class="pbtn" id="btn-direct">Try direct MP4</button>
       <a class="pbtn alt" id="link-myt" href="#" target="_blank">Open mobile YouTube</a>
       <a class="pbtn alt" id="link-app" href="#">Open YouTube app</a>
       <a class="pbtn alt" id="link-yt" href="#" target="_blank">Watch on YouTube</a>
@@ -155,7 +155,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var playerLoader = document.getElementById('player-loader');
   var blockMsg = document.getElementById('block-msg');
   var blockText = document.getElementById('block-text');
-  var btnClassic = document.getElementById('btn-classic');
+  var btnDirect = document.getElementById('btn-direct');
   var linkMyt = document.getElementById('link-myt');
   var linkApp = document.getElementById('link-app');
   var linkYt = document.getElementById('link-yt');
@@ -254,9 +254,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     dbg('fail');
   }
 
-  // Direct MP4 attempts: itag 18 (360p H.264) then 22 (720p H.264),
-  // proxied through the instance (local=true) so no API call, no CORS,
-  // no IP-locked googlevideo URL is ever needed client-side.
+  // Direct MP4 attempts (backup): itag 18 (360p H.264) then 22 (720p),
+  // proxied through the instance (local=true) so no API call, no CORS.
+  // Only works if the device holds a clearance cookie for the instance,
+  // so this runs ONLY from the fallback panel, never automatically.
   var DIRECT_TRIES = [
     { tag: 'lv18', itag: '18' },
     { tag: 'lv22', itag: '22' }
@@ -265,7 +266,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   function tryDirect(idx) {
     var id = currentVid;
     if (idx >= DIRECT_TRIES.length) {
-      showFail("Direct stream didn't load. Try the classic player or YouTube links below.");
+      showFail("Direct stream didn't load either. Use the YouTube links below.");
       setStatus('');
       return;
     }
@@ -305,14 +306,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function loadStream(id) {
+    // Primary path (proven on iOS 10): classic nocookie embed, autoplay
+    // OFF so the in-iframe tap is a fresh user gesture, real controls.
     dbgEl.textContent = '';
     dbg('play ' + id);
     resetPlayer();
     playerBox.style.display = 'block';
-    tryDirect(0);
+    loadClassic();
   }
 
-  function tryClassic() {
+  function loadClassic() {
     var id = currentVid;
     dbg('classic...');
     clearTimer();
@@ -337,13 +340,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       if (playerLoader.style.display !== 'none') {
         dbg('classic stall');
         playerLoader.style.display = 'none';
-        showFail('Classic player stalled too. Use the YouTube links below.');
+        showFail('Classic player stalled. Try direct MP4 or the YouTube links below.');
         setStatus('');
       }
     }, 20000);
   }
 
-  btnClassic.addEventListener('click', function() { tryClassic(); });
+  btnDirect.addEventListener('click', function() {
+    dbg('manual-direct');
+    blockMsg.style.display = 'none';
+    tryDirect(0);
+  });
   playBtn.addEventListener('click', function(e) {
     e.stopPropagation();
     loadStream(currentVid);

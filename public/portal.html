@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: classic player wins, now the default',
+          desc: 'Device testing settled it: the classic YouTube embed (no autoplay, real controls) plays on iOS 10, so it is now the primary path — tap a result, tap play, tap play inside. Direct-MP4 attempts moved to backup. Removed the dead server stream/matrix endpoints (datacenter IPs are filtered).',
+          date: 'Sep 10',
+          bugs: [],
+          updates: ['classic player primary', 'removed dead stream endpoints'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'YT Forge: direct MP4 playback, no YouTube player',
           desc: 'Skips the YouTube embed entirely (its stream never decodes on iOS 10) and plays a direct 360p H.264 MP4 in a native video element with real controls. Fallback ladder: 720p, classic player, mobile YouTube, YouTube app. Includes an on-page debug readout for diagnosing device-side failures.',
           date: 'Sep 10',

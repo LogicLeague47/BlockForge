@@ -66,7 +66,7 @@ const UPSTREAM_TYPES = new Set([
 
 // Offbranch HTTP APIs served by the social role (always-on, no cold starts).
 const SOCIAL_HTTP = new Set([
-  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel', '/api/yt-stream',
+  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel',
   '/api/ic-lookup', '/api/ic-emojis',
 ]);
 function safeSendRaw(conn, data) {
@@ -957,7 +957,6 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const icMemCache = new Map(); // sortedKey -> { name, emoji }
-const ytStreamCache = new Map(); // videoId -> { url, exp } (resolved MP4 URLs, 30min TTL)
 async function icCacheGet(sk) {
   if (icMemCache.has(sk)) return icMemCache.get(sk);
   if (!UPSTASH_URL || !UPSTASH_TOKEN) return undefined;
@@ -1814,191 +1813,6 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       res.writeHead(504, CORS);
       res.end('YouTube embed timed out');
     });
-    return;
-  }
-
-  // ── YT client matrix probe (temporary datacenter diagnostic) ──────
-  // Tests which youtubei clients return playable streams from THIS host's
-  // network. Read-only. Remove once the yt-stream client is settled.
-  if (pathname === '/api/yt-matrix' && req.method === 'GET') {
-    (async () => {
-      const postJSON = (url, payload, ua) => new Promise((resolve) => {
-        const data = JSON.stringify(payload);
-        const r = https.request(url, {
-          method: 'POST', timeout: 15000,
-          headers: {
-            'Content-Type': 'application/json',
-            'Content-Length': Buffer.byteLength(data),
-            'User-Agent': ua || 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
-          },
-        }, pr => {
-          let b = '';
-          pr.on('data', c => { b += c; if (b.length > 3e6) pr.destroy(); });
-          pr.on('end', () => { try { resolve(JSON.parse(b)); } catch (e) { resolve(null); } });
-        });
-        r.on('error', () => resolve(null));
-        r.on('timeout', () => { r.destroy(); resolve(null); });
-        r.end(data);
-      });
-      const KEY = 'AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8';
-      const URL = 'https://www.youtube.com/youtubei/v1/player?key=' + KEY + '&prettyPrint=false';
-      const VARIANTS = [
-        { name: 'ANDROID', ver: '20.10.38', extra: { androidSdkVersion: 34 } },
-        { name: 'ANDROID', ver: '17.31.35', extra: { androidSdkVersion: 30 } },
-        { name: 'ANDROID', ver: '18.11.34', extra: { androidSdkVersion: 33 } },
-        { name: 'ANDROID_MUSIC', ver: '6.42.52', extra: {} },
-        { name: 'ANDROID_CREATOR', ver: '22.30.100', extra: {} },
-        { name: 'IOS', ver: '19.09.3', extra: {} },
-        { name: 'TVHTML5', ver: '7.20240101.10.00', extra: {} },
-        { name: 'WEB', ver: '2.20240101.00.00', extra: { contentCheckOk: true, racyCheckOk: true } },
-      ];
-      const out = [];
-      for (const v of VARIANTS) {
-        const client = { clientName: v.name, clientVersion: v.ver, hl: 'en', gl: 'US', ...v.extra };
-        const d = await postJSON(URL, { videoId: 'dQw4w9WgXcQ', context: { client } });
-        if (!d) { out.push({ client: v.name + ' ' + v.ver, status: 'FETCH_FAIL', streams: 0, direct: 0 }); continue; }
-        const fmts = (((d.streamingData || {}).formats) || []).concat(((d.streamingData || {}).adaptiveFormats) || []);
-        out.push({
-          client: v.name + ' ' + v.ver,
-          status: ((d.playabilityStatus || {}).status) || '?',
-          streams: fmts.length,
-          direct: fmts.filter(f => f.url).length,
-        });
-      }
-      // Instance API probe: can THIS host reach Invidious APIs, do they
-      // allow browser CORS, and do they return playable streams?
-      const getJSON = (url) => new Promise((resolve) => {
-        const r = https.get(url, {
-          timeout: 12000,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
-            Origin: 'https://blockforge-1.onrender.com',
-          },
-        }, ir => {
-          let b = '';
-          ir.on('data', c => { b += c; if (b.length > 1e6) ir.destroy(); });
-          ir.on('end', () => {
-            resolve({ status: ir.statusCode, acao: ir.headers['access-control-allow-origin'] || null, body: b });
-          });
-        });
-        r.on('error', () => resolve({ status: 'FETCH_FAIL' }));
-        r.on('timeout', () => { r.destroy(); resolve({ status: 'TIMEOUT' }); });
-      });
-      const HOSTS = [
-        'https://yewtu.be',
-        'https://inv.nadeko.net',
-        'https://invidious.nerdvpn.de',
-        'https://invidious.f5.si',
-        'https://yt.chocolatemoo53.com',
-        'https://invidious.tiekoetter.com',
-      ];
-      const inst = [];
-      for (const h of HOSTS) {
-        const r = await getJSON(h + '/api/v1/videos/dQw4w9WgXcQ?fields=title,formatStreams');
-        const row = { host: h, http: r.status, cors: r.acao, streams: 0, itag18: null };
-        if (r.status === 200 && r.body) {
-          try {
-            const d = JSON.parse(r.body);
-            const fs = d.formatStreams || [];
-            row.title = !!d.title;
-            row.streams = fs.length;
-            const f18 = fs.find(f => String(f.itag) === '18' && f.url);
-            if (f18) row.itag18 = f18.url.slice(0, 60);
-          } catch (e) { row.parse = 'NO_JSON'; }
-        }
-        inst.push(row);
-      }
-      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-      res.end(JSON.stringify({ youtubei: out, instances: inst }));
-    })();
-    return;
-  }
-
-  // ── YT Forge first-party stream proxy ─────────────────────────────
-  // Resolves itag 18/22 progressive MP4 via the ANDROID player endpoint
-  // (the only client still returning direct URLs without a PO token) and
-  // pipes the bytes with Range support so iOS <video> can play + seek.
-  // Same-origin for our pages → no CORS, no cookies, no third parties.
-  // NOTE: proxied bytes count against host bandwidth — fine for dev-scale.
-  if (pathname === '/api/yt-stream' && req.method === 'GET') {
-    const qs = new URL(req.url, 'http://localhost').searchParams;
-    const vid = (qs.get('v') || '').trim();
-    if (!vid || !/^[A-Za-z0-9_-]{11}$/.test(vid)) {
-      res.writeHead(400, CORS);
-      res.end('Invalid video ID');
-      return;
-    }
-    const serveFrom = (mediaUrl, redirects) => {
-      redirects = redirects || 0;
-      const headers = {
-        'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
-        'Accept': '*/*',
-        'Accept-Language': 'en-US,en;q=0.9',
-      };
-      if (req.headers.range) headers.Range = req.headers.range;
-      const up = https.get(mediaUrl, { timeout: 15000, headers }, upRes => {
-        if (upRes.statusCode >= 300 && upRes.statusCode < 400 && upRes.headers.location && redirects < 3) {
-          upRes.resume();
-          serveFrom(upRes.headers.location, redirects + 1);
-          return;
-        }
-        if (upRes.statusCode !== 200 && upRes.statusCode !== 206) {
-          upRes.resume();
-          res.writeHead(502, CORS);
-          res.end('stream upstream ' + upRes.statusCode);
-          return;
-        }
-        const out = { ...CORS, 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Cache-Control': 'no-store' };
-        if (upRes.headers['content-range']) out['Content-Range'] = upRes.headers['content-range'];
-        if (upRes.headers['content-length']) out['Content-Length'] = upRes.headers['content-length'];
-        res.writeHead(upRes.statusCode, out);
-        upRes.pipe(res);
-      });
-      up.on('error', () => { res.writeHead(502, CORS); res.end('stream fetch failed'); });
-      up.on('timeout', () => { up.destroy(); res.writeHead(504, CORS); res.end('stream timed out'); });
-    };
-    const cached = ytStreamCache.get(vid);
-    if (cached && cached.exp > Date.now()) { serveFrom(cached.url, 0); return; }
-    const payload = JSON.stringify({
-      videoId: vid,
-      context: { client: { clientName: 'ANDROID', clientVersion: '20.10.38', androidSdkVersion: 34, hl: 'en', gl: 'US' } },
-    });
-    const preq = https.request(
-      'https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8&prettyPrint=false',
-      {
-        method: 'POST',
-        timeout: 12000,
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
-          'User-Agent': 'com.google.android.youtube/20.10.38 (Linux; U; Android 14) gzip',
-        },
-      },
-      pres => {
-        let body = '';
-        pres.on('data', c => { body += c; if (body.length > 3e6) pres.destroy(); });
-        pres.on('end', () => {
-          try {
-            const d = JSON.parse(body);
-            if (((d.playabilityStatus || {}).status) !== 'OK') throw new Error('unplayable');
-            const fmts = ((d.streamingData || {}).formats || []);
-            const pick = fmts.find(f => String(f.itag) === '18' && f.url)
-              || fmts.find(f => String(f.itag) === '22' && f.url)
-              || fmts.find(f => (f.mimeType || '').indexOf('video/mp4') === 0 && f.url);
-            if (!pick) throw new Error('no-mp4');
-            ytStreamCache.set(vid, { url: pick.url, exp: Date.now() + 30 * 60 * 1000 });
-            if (ytStreamCache.size > 200) ytStreamCache.delete(ytStreamCache.keys().next().value);
-            serveFrom(pick.url, 0);
-          } catch (e) {
-            res.writeHead(502, CORS);
-            res.end('unplayable');
-          }
-        });
-      }
-    );
-    preq.on('error', () => { res.writeHead(502, CORS); res.end('resolve failed'); });
-    preq.on('timeout', () => { preq.destroy(); res.writeHead(504, CORS); res.end('resolve timed out'); });
-    preq.end(payload);
     return;
   }
 
