@@ -202,6 +202,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 (function(){
   var API = 'https://blockforge-server.onrender.com/api/yt-search';
   var API_CH = 'https://blockforge-server.onrender.com/api/yt-channel';
+  var API_EMBED = 'https://blockforge-server.onrender.com/api/yt-embed';
   var YTS = 'https://www.youtube.com/results?search_query=';
   var LV = 'https://yewtu.be/latest_version?id=';
   var playerBox = document.getElementById('player-box');
@@ -405,26 +406,56 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     try { nativevid.pause(); } catch (e) {}
     nativevid.removeAttribute('src');
     try { nativevid.load(); } catch (e) {}
-    classicframe.style.display = 'block';
+    classicframe.style.display = 'none';
     playerLoader.style.display = 'block';
-    setStatus('Loading classic player...');
-    classicframe.onload = function() {
-      dbg('classic loaded');
-      playerLoader.style.display = 'none';
-      setStatus('Tap play inside the player.');
-      classicframe.onload = null;
-    };
-    classicframe.src = 'https://www.youtube-nocookie.com/embed/' + id
-      + '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3'
-      + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
-    attemptTimer = setTimeout(function() {
-      if (playerLoader.style.display !== 'none') {
-        dbg('classic stall');
+    setStatus('Checking video...');
+    // Fail fast when the owner disabled embedding — oEmbed 200 means
+    // playable. Fail-open: any check error still tries the player.
+    var xhr = new XMLHttpRequest();
+    var checked = false;
+    function startClassic() {
+      if (checked) return;
+      checked = true;
+      classicframe.style.display = 'block';
+      setStatus('Loading classic player...');
+      classicframe.onload = function() {
+        dbg('classic loaded');
         playerLoader.style.display = 'none';
-        showFail('Classic player stalled. Try direct MP4 or the YouTube links below.');
-        setStatus('');
+        setStatus('Tap play inside the player.');
+        classicframe.onload = null;
+      };
+      classicframe.src = 'https://www.youtube-nocookie.com/embed/' + id
+        + '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3'
+        + '&origin=' + encodeURIComponent(location.protocol + '//' + location.host);
+      attemptTimer = setTimeout(function() {
+        if (playerLoader.style.display !== 'none') {
+          dbg('classic stall');
+          playerLoader.style.display = 'none';
+          showFail('Classic player stalled. Try direct MP4 or the YouTube links below.');
+          setStatus('');
+        }
+      }, 20000);
+    }
+    xhr.open('GET', API_EMBED + '?v=' + encodeURIComponent(id), true);
+    xhr.timeout = 8000;
+    xhr.onload = function() {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          var d = JSON.parse(xhr.responseText);
+          if (d && d.embeddable === false) {
+            dbg('embed-disabled');
+            playerLoader.style.display = 'none';
+            showFail('The owner disabled embedding for this video. Use the YouTube links below — they always work.');
+            setStatus('');
+            return;
+          }
+        } catch (e) {}
       }
-    }, 20000);
+      startClassic();
+    };
+    xhr.onerror = function() { startClassic(); };
+    xhr.ontimeout = function() { startClassic(); };
+    xhr.send();
   }
 
   btnDirect.addEventListener('click', function() {

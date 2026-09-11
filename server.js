@@ -66,7 +66,7 @@ const UPSTREAM_TYPES = new Set([
 
 // Offbranch HTTP APIs served by the social role (always-on, no cold starts).
 const SOCIAL_HTTP = new Set([
-  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel',
+  '/api/yt-proxy', '/api/yt-search', '/api/yt-channel', '/api/yt-embed',
   '/api/ic-lookup', '/api/ic-emojis',
 ]);
 function safeSendRaw(conn, data) {
@@ -1985,6 +1985,38 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       proxyReq.on('timeout', () => { proxyReq.destroy(); tryNext(); });
     }
     tryNext();
+    return;
+  }
+
+  // ── YT Forge embeddability precheck ────────────────────────────────
+  // oEmbed returns 200 only when the owner allows embedding. Cheap GET
+  // (not the filtered youtubei path) so it works from any host network.
+  // Fail-open: on any upstream error we say embeddable=true and let the
+  // client try the player rather than blocking on our own outage.
+  if (pathname === '/api/yt-embed' && req.method === 'GET') {
+    const qs = new URL(req.url, 'http://localhost').searchParams;
+    const vid = (qs.get('v') || '').trim();
+    if (!vid || !/^[A-Za-z0-9_-]{11}$/.test(vid)) {
+      res.writeHead(400, CORS);
+      res.end(JSON.stringify({ error: 'Invalid video ID' }));
+      return;
+    }
+    const url = 'https://www.youtube.com/oembed?url=' + encodeURIComponent('https://www.youtube.com/watch?v=' + vid) + '&format=json';
+    const oreq = https.get(url, { timeout: 8000 }, ores => {
+      ores.resume();
+      const ok = ores.statusCode === 200;
+      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=3600' });
+      res.end(JSON.stringify({ embeddable: ok }));
+    });
+    oreq.on('error', () => {
+      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ embeddable: true }));
+    });
+    oreq.on('timeout', () => {
+      oreq.destroy();
+      res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ embeddable: true }));
+    });
     return;
   }
 
