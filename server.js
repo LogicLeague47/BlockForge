@@ -1833,10 +1833,17 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
 
   // ── YT Forge search proxy ──────────────────────────────────────────
   // Proxies YouTube search through Invidious API so the browser doesn't hit CORS.
+  // Optional filters (whitelisted): sort_by=relevance|rating|upload_date|view_count,
+  // date=hour|today|week|month|year, duration=short|long, page=N (load-more).
   if (pathname === '/api/yt-search' && req.method === 'GET') {
     const qs = new URL(req.url, 'http://localhost').searchParams;
     const q = (qs.get('q') || '').trim();
     if (!q) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing q param' })); return; }
+    const clean = (v, re) => (v && re.test(v) ? v : '');
+    const sortBy = clean(qs.get('sort_by'), /^(relevance|rating|upload_date|view_count)$/);
+    const date = clean(qs.get('date'), /^(hour|today|week|month|year)$/);
+    const duration = clean(qs.get('duration'), /^(short|long)$/);
+    const page = clean(qs.get('page'), /^[1-9][0-9]?$/);
     const INSTANCES = [
       'https://invidious.materialio.us',
       'https://yewtu.be',
@@ -1845,23 +1852,37 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       'https://invidious.nerdvpn.de',
     ];
     let tryIdx = 0;
+    let lastEmpty = null;
     function tryNext() {
       if (tryIdx >= INSTANCES.length) {
+        if (lastEmpty) {
+          res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
+          res.end(lastEmpty);
+          return;
+        }
         res.writeHead(502, CORS);
         res.end(JSON.stringify({ error: 'All Invidious instances failed' }));
         return;
       }
       const base = INSTANCES[tryIdx++];
-      const url = base + '/api/v1/search?q=' + encodeURIComponent(q) + '&type=all';
+      let url = base + '/api/v1/search?q=' + encodeURIComponent(q) + '&type=all';
+      if (sortBy) url += '&sort_by=' + sortBy;
+      if (date) url += '&date=' + date;
+      if (duration) url += '&duration=' + duration;
+      if (page) url += '&page=' + page;
       const proxyReq = https.get(url, { timeout: 6000 }, proxyRes => {
         let body = '';
         proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });
         proxyRes.on('end', () => {
-          try {
-            JSON.parse(body); // validate JSON
+          let d;
+          try { d = JSON.parse(body); } catch (_) { tryNext(); return; }
+          if (Array.isArray(d) && d.length) {
             res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=300' });
             res.end(body);
-          } catch (_) { tryNext(); }
+          } else if (Array.isArray(d)) {
+            lastEmpty = body;
+            tryNext();
+          } else { tryNext(); }
         });
       });
       proxyReq.on('error', () => tryNext());
