@@ -191,14 +191,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint" id="preview-hint">Tap to play</div>
     </div>
-    <video id="nativevid" controls="controls" playsinline="playsinline" webkit-playsinline="webkit-playsinline" preload="metadata" style="display:none"></video>    <iframe id="classicframe" style="display:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <iframe id="classicframe" style="display:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline" referrerpolicy="strict-origin-when-cross-origin"></iframe>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
       <div class="msg" id="block-text">Video wouldn't play.</div>
-      <button class="pbtn" id="btn-direct">Try direct MP4</button>
-      <a class="pbtn alt" id="link-myt" href="#" target="_blank">Open mobile YouTube</a>
-      <a class="pbtn alt" id="link-app" href="#">Open YouTube app</a>
       <a class="pbtn alt" id="link-yt" href="#" target="_blank">Watch on YouTube</a>
     </div>
   </div>
@@ -263,7 +260,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var API_CH = 'https://blockforge-server.onrender.com/api/yt-channel';
   var API_EMBED = 'https://blockforge-server.onrender.com/api/yt-embed';
   var YTS = 'https://www.youtube.com/results?search_query=';
-  var LV = 'https://yewtu.be/latest_version?id=';
   var playerBox = document.getElementById('player-box');
   var previewOverlay = document.getElementById('preview-overlay');
   var previewThumb = document.getElementById('preview-thumb');
@@ -273,11 +269,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var playerLoader = document.getElementById('player-loader');
   var blockMsg = document.getElementById('block-msg');
   var blockText = document.getElementById('block-text');
-  var btnDirect = document.getElementById('btn-direct');
-  var linkMyt = document.getElementById('link-myt');
-  var linkApp = document.getElementById('link-app');
   var linkYt = document.getElementById('link-yt');
-  var nativevid = document.getElementById('nativevid');
   var classicframe = document.getElementById('classicframe');
   var resultsEl = document.getElementById('results');
   var statusEl = document.getElementById('status');
@@ -329,7 +321,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var curLenSec = '';
   var curType = '';
   var attemptTimer = null;
-  var ERR_NAMES = { 1: 'aborted', 2: 'network', 3: 'decode', 4: 'src' };
 
   // Legacy mode: YouTube's 2026 embed bundle no longer executes on
   // Safari <= 10 (all hosts/params load but render black — verified on
@@ -397,10 +388,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   function resetPlayer() {
     clearTimer();
-    try { nativevid.pause(); } catch (e) {}
-    nativevid.removeAttribute('src');
-    try { nativevid.load(); } catch (e) {}
-    nativevid.style.display = 'none';
     classicframe.src = '';
     classicframe.style.display = 'none';
     playerLoader.style.display = 'none';
@@ -410,10 +397,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   function showFail(msg) {
     clearTimer();
-    try { nativevid.pause(); } catch (e) {}
-    nativevid.removeAttribute('src');
-    try { nativevid.load(); } catch (e) {}
-    nativevid.style.display = 'none';
     classicframe.src = '';
     classicframe.style.display = 'none';
     playerLoader.style.display = 'none';
@@ -421,57 +404,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     blockText.textContent = msg || "Video wouldn't play.";
     blockMsg.style.display = 'flex';
     dbg('fail');
-  }
-
-  // Direct MP4 attempts (backup): itag 18 (360p H.264) then 22 (720p),
-  // proxied through the instance (local=true) so no API call, no CORS.
-  // Only works if the device holds a clearance cookie for the instance,
-  // so this runs ONLY from the fallback panel, never automatically.
-  var DIRECT_TRIES = [
-    { tag: 'lv18', itag: '18' },
-    { tag: 'lv22', itag: '22' }
-  ];
-
-  function tryDirect(idx) {
-    var id = currentVid;
-    if (idx >= DIRECT_TRIES.length) {
-      showFail("Direct stream didn't load either. Use the YouTube links below.");
-      setStatus('');
-      return;
-    }
-    var t = DIRECT_TRIES[idx];
-    var url = LV + id + '&itag=' + t.itag + '&local=true';
-    dbg(t.tag + '...');
-    previewOverlay.style.display = 'none';
-    blockMsg.style.display = 'none';
-    classicframe.style.display = 'none';
-    nativevid.style.display = 'block';
-    playerLoader.style.display = 'block';
-    setStatus('Loading video...');
-    clearTimer();
-
-    nativevid.onerror = function() {
-      var code = 0;
-      try { code = nativevid.error ? nativevid.error.code : 0; } catch (e) {}
-      dbg(t.tag + ' err' + code + '(' + (ERR_NAMES[code] || '?') + ')');
-      clearTimer();
-      tryDirect(idx + 1);
-    };
-    nativevid.onloadeddata = function() {
-      dbg(t.tag + ' ok rs' + nativevid.readyState);
-      clearTimer();
-      playerLoader.style.display = 'none';
-      setStatus('Loaded — press play on the video.');
-    };
-    nativevid.src = url;
-    try { nativevid.load(); } catch (e) {}
-
-    attemptTimer = setTimeout(function() {
-      var rs = 0;
-      try { rs = nativevid.readyState; } catch (e) {}
-      dbg(t.tag + ' stall rs' + rs);
-      tryDirect(idx + 1);
-    }, 15000);
   }
 
   function loadStream(id) {
@@ -498,25 +430,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   // Embed configs under test on old Safari. MIN = closest to anything
   // that ever painted UI (www host, bare params, no origin).
   var EMBED_CFG = {
-    min: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0' },
-    og: { host: 'https://www.youtube.com/embed/', params: '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3' },
-    minm: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0&mute=1' },
-    ncf: { host: 'https://www.youtube-nocookie.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) },
-    wwf: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) }
+    min: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0' }
   };
-  var curCfg = 'min';
 
-  function loadClassic(cfg) {
+  function loadClassic() {
     var id = currentVid;
-    curCfg = cfg || 'min';
-    var ec = EMBED_CFG[curCfg];
-    dbg('classic-' + curCfg + '...');
+    var ec = EMBED_CFG.min;
+    dbg('classic...');
     clearTimer();
     blockMsg.style.display = 'none';
-    nativevid.style.display = 'none';
-    try { nativevid.pause(); } catch (e) {}
-    nativevid.removeAttribute('src');
-    try { nativevid.load(); } catch (e) {}
     classicframe.style.display = 'none';
     playerLoader.style.display = 'block';
     setStatus('Checking video...');
@@ -540,7 +462,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         if (playerLoader.style.display !== 'none') {
           dbg('classic stall');
           playerLoader.style.display = 'none';
-          showFail('Classic player stalled. Try direct MP4 or the YouTube links below.');
+          showFail('Classic player stalled. Use the Watch link below — it always works.');
           setStatus('');
         }
       }, 20000);
@@ -567,11 +489,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     xhr.send();
   }
 
-  btnDirect.addEventListener('click', function() {
-    dbg('manual-direct');
-    blockMsg.style.display = 'none';
-    tryDirect(0);
-  });
   var theater = document.getElementById('theater');
   var thStage = document.getElementById('th-stage');
   var thTitle = document.getElementById('th-title');
@@ -692,8 +609,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     previewOverlay.style.display = 'flex';
     playerBox.style.display = 'block';
 
-    linkMyt.href = shortCtx ? watchUrl : 'https://m.youtube.com/watch?v=' + id;
-    linkApp.href = shortCtx ? watchUrl : 'youtube://watch?v=' + id;
     linkYt.href = watchUrl;
 
     npTitle.textContent = title || '';
@@ -705,35 +620,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     npStats.innerHTML = statsHtml;
     npWrap.style.display = 'block';
 
-    ytLinkEl.innerHTML = '<a href="' + watchUrl + '" target="_blank">' + (shortCtx ? 'Open short on YouTube &#x2197;' : 'Watch on YouTube &#x2197;') + '</a>'
-      + (IS_LEGACY
-        ? ' &middot; <a href="javascript:void(0)" id="inline-link">Try inline player</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted inline</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-og">OG player</a>'
-          + ' &middot; <a href="javascript:void(0)" id="leg-direct">Direct MP4</a>'
-        : ' &middot; <a href="javascript:void(0)" id="reload-link">Reload &#x21bb;</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-og">OG</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-ncf">NoCookie</a>'
-          + ' &middot; <a href="javascript:void(0)" id="cfg-wwf">Full-WWW</a>')
-      + ' &middot; <a href="https://turboscribe.ai/downloader/youtube/video/free" target="_blank" id="dl-link" title="Opens an external downloader">Download MP4 &#x2197;</a>';
+    ytLinkEl.innerHTML = '<a href="' + watchUrl + '" target="_blank">' + (shortCtx ? 'Open short on YouTube &#x2197;' : 'Watch on YouTube &#x2197;') + '</a>';
     ytLinkEl.style.display = 'block';
-    var dlLink = document.getElementById('dl-link');
-    if (dlLink) {
-      dlLink.addEventListener('click', function() {
-        try {
-          var ta = document.createElement('textarea');
-          ta.value = 'https://www.youtube.com/watch?v=' + id;
-          ta.style.position = 'fixed';
-          ta.style.opacity = '0';
-          document.body.appendChild(ta);
-          ta.select();
-          if (ta.setSelectionRange) ta.setSelectionRange(0, 99999);
-          if (document.execCommand('copy')) setStatus('Link copied — paste it on the download page');
-          document.body.removeChild(ta);
-        } catch (e) {}
-      });
-    }
 
     setStatus('');
     window.scrollTo(0, 0);
@@ -1214,35 +1102,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         return;
       }
       t = t.parentNode;
-    }
-  });
-
-  ytLinkEl.addEventListener('click', function(e) {
-    var t = e.target;
-    if (!t || !t.id) return;
-    if (t.id === 'reload-link') {
-      e.preventDefault();
-      dbg('reload');
-      resetPlayer();
-      playerBox.style.display = 'block';
-      loadClassic(curCfg);
-    } else if (t.id === 'cfg-ncf' || t.id === 'cfg-wwf' || t.id === 'cfg-minm' || t.id === 'cfg-og') {
-      e.preventDefault();
-      resetPlayer();
-      playerBox.style.display = 'block';
-      loadClassic(t.id.split('-')[1]);
-    } else if (t.id === 'inline-link') {
-      e.preventDefault();
-      dbg('inline-try');
-      resetPlayer();
-      playerBox.style.display = 'block';
-      loadClassic('min');
-    } else if (t.id === 'leg-direct') {
-      e.preventDefault();
-      dbg('manual-direct');
-      resetPlayer();
-      playerBox.style.display = 'block';
-      tryDirect(0);
     }
   });
 
