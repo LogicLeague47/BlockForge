@@ -1,6 +1,17 @@
 # AGENTS.md
 
-## Git workflow
+## Deploy minutes (Render free tier is capped)
+
+- **Pipeline minutes are scarce — every deploy hook call burns them, failed
+  or not.** Batch work into as few deploys as possible. Never deploy twice
+  for the same commit, never re-fire a hook "just to check".
+- **Content-only deploys** (portal, YT Forge page, config, server.js logic —
+  anything that doesn't touch PaperForge/MoldKingdom/InfiniteCraft data or
+  downloads) must use the cheap pipeline: temporarily set the service
+  Build Command to `npm run build:lite` (skips minigame-legacy, ic-index,
+  downloads). Restore `npm run build` for full releases.
+- If the dashboard shows "pipeline minutes exhausted", STOP all deploy
+  activity and tell the user (monthly reset or billing decision is theirs).
 
 - **Always auto-commit and auto-push after completing any work.** Do not wait
   to be asked. Stage the relevant files, write a concise commit message

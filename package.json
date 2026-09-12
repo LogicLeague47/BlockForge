@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node scripts/build-server-package.mjs && vite build && node scripts/build-legacy.mjs && node scripts/build-minigame-legacy.mjs && node scripts/build-ic-index.mjs && node scripts/generate-downloads.mjs",
+    "build:lite": "node scripts/build-server-package.mjs && vite build && node scripts/build-legacy.mjs",
     "preview": "vite preview",
     "server": "node server.js",
     "start": "node server.js",
