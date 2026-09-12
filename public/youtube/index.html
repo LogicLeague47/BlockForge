@@ -186,7 +186,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   <div class="player-box" id="player-box">
     <div class="preview-overlay" id="preview-overlay">
-      <img id="preview-thumb" src="" alt="">
+      <img id="preview-thumb" src="" alt="" onerror="this.style.display='none'">
       <div class="play-btn" id="play-btn"></div>
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint" id="preview-hint">Tap to play</div>
@@ -210,9 +210,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   <div class="ch-view" id="channel-view">
     <a class="ch-back" id="ch-back" href="javascript:void(0)">&larr; Back</a>
-    <div class="ch-banner"><img id="ch-banner" src="" alt=""></div>
+    <div class="ch-banner"><img id="ch-banner" src="" alt="" onerror="this.style.display='none'"></div>
     <div class="ch-head">
-      <div class="ch-avatar"><img id="ch-avatar" src="" alt=""></div>
+      <div class="ch-avatar"><img id="ch-avatar" src="" alt="" onerror="this.style.display='none'"></div>
       <div>
         <div class="ch-name" id="ch-name"></div>
         <div class="ch-subs" id="ch-subs"></div>
@@ -305,11 +305,18 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var curChAvatar = '';
   var chVideosHtml = '';
   var shortsLoaded = false;
+  var shortsLoadedAt = 0;
+  function refreshShorts() {
+    if (shortsLoaded && (Date.now() - shortsLoadedAt < 600000)) { showView('shorts'); return; }
+    shortsLoaded = false;
+    loadMenuShorts();
+  }
 
   var curView = 'home';
 
   function showView(name) {
     curView = name;
+    try { closeTheater(); } catch (e) {}
     resultsEl.style.display = name === 'home' ? 'flex' : 'none';
     channelView.style.display = name === 'channel' ? 'block' : 'none';
     shortsView.style.display = name === 'shorts' ? 'block' : 'none';
@@ -336,6 +343,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     } catch (e) {}
     return false;
   })();
+
+  function storeGet(k) {
+    try {
+      var raw = window.localStorage ? localStorage.getItem(k) : null;
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  function storeSet(k, v) {
+    try { if (window.localStorage) localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+  }
 
   function setStatus(msg) { statusEl.textContent = msg; }
 
@@ -424,7 +441,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     dbg('play ' + id);
     resetPlayer();
     playerBox.style.display = 'block';
-    loadClassic('min');
+    loadClassic();
   }
 
   // Embed configs under test on old Safari. MIN = closest to anything
@@ -603,6 +620,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       ? 'https://www.youtube.com/shorts/' + id
       : 'https://www.youtube.com/watch?v=' + id;
     resetPlayer();
+    previewThumb.style.display = '';
     previewThumb.src = ytThumb(id);
     previewTitle.textContent = title || '';
     previewHint.textContent = IS_LEGACY ? 'Tap to watch on YouTube' : 'Tap to play';
@@ -638,7 +656,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     if (o.viewsLabel) metaLine += '<span class="r-stats"> &middot; ' + o.viewsLabel + '</span>';
 
     return '<div class="result-item" data-vid="' + esc(o.vid) + '"'
-      + ' data-title="' + esc(o.title || '') + '"'
+      + ' data-title="' + (o.title || '') + '"'
       + ' data-author="' + esc(o.authorRaw || '') + '"'
       + ' data-authorid="' + esc(o.authorId) + '"'
       + ' data-views="' + (o.rawViews || '') + '"'
@@ -646,11 +664,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       + ' data-type="' + esc(o.vtype || '') + '"'
       + '>'
       + '<div class="r-thumb">'
-      + '<img src="' + o.thumb + '" alt="">'
+      + '<img src="' + o.thumb + '" alt="" onerror="this.style.display=\'none\'">'
       + (o.durLabel ? '<span class="dur">' + o.durLabel + '</span>' : '')
       + '</div>'
       + '<div class="r-body">'
-      + (o.avatarUrl ? '<div class="r-avatar"><img src="' + esc(o.avatarUrl) + '" alt=""></div>' : '')
+      + (o.avatarUrl ? '<div class="r-avatar"><img src="' + esc(o.avatarUrl) + '" alt="" onerror="this.style.display=\'none\'"></div>' : '')
       + '<div class="r-info">'
       + '<div class="r-title">' + o.title + '</div>'
       + metaLine
@@ -661,7 +679,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var av = ytChannelThumb(c.authorThumbnails);
     var desc = c.descriptionSnippet || c.description || '';
     return '<div class="ch-card" data-ch="' + esc(c.authorId || '') + '">'
-      + (av ? '<div class="ch-card-av"><img src="' + esc(av) + '" alt=""></div>' : '')
+      + (av ? '<div class="ch-card-av"><img src="' + esc(av) + '" alt="" onerror="this.style.display=\'none\'"></div>' : '')
       + '<div><div class="ch-card-name">' + esc(c.author || 'Unknown') + '</div>'
       + '<div class="ch-card-sub">' + (c.subCount != null ? fmtNum(c.subCount) + ' subscribers &middot; ' : '') + 'View channel &#8250;</div>'
       + (desc ? '<div class="ch-card-desc">' + esc(String(desc).slice(0, 120)) + '</div>' : '')
@@ -749,12 +767,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     for (var k = 0; k < cards.length; k++) bindChannelCard(cards[k]);
   }
 
-  function isShort(v) {
-    if (v.type === 'short') return true;
-    if (v.lengthSeconds && parseInt(v.lengthSeconds, 10) <= 62) return true;
-    return false;
-  }
-
   function shortItemHtml(v, authorName, authorId, avatarUrl) {
     return itemHtml({
       vid: v.videoId,
@@ -834,9 +846,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     chSubs.textContent = '';
     chDesc.textContent = '';
     chAvatar.src = '';
+    chAvatar.style.display = '';
     chBanner.removeAttribute('src');
     chBanner.style.display = 'none';
     chSub.href = '#';
+    chSub.style.display = 'none';
     chList.innerHTML = '';
     chList.style.display = 'block';
     chSetTab('videos');
@@ -864,6 +878,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       if (bn) { chBanner.src = bn; chBanner.style.display = 'block'; }
       var curl = d.authorUrl || ('https://www.youtube.com/channel/' + authorId);
       chSub.href = curl + '?sub_confirmation=1';
+      chSub.style.display = '';
       curChName = d.author || '';
       curChAvatar = av;
       loadChannelVideos(authorId, curChName, av);
@@ -1121,7 +1136,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       var html = '';
       for (var i = 0; data && i < data.length; i++) {
         var v = data[i];
-        if (!v.videoId || !isShort(v)) continue;
+        if (!v.videoId || !isShortCtx(v.type, v.lengthSeconds)) continue;
         html += shortItemHtml(v, '', '', '');
       }
       if (!html) {
@@ -1132,6 +1147,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       shortsFeed.innerHTML = html;
       bindItems(shortsFeed);
       shortsLoaded = true;
+      shortsLoadedAt = Date.now();
       setStatus('');
     };
     xhr.onerror = function() { setStatus('Shorts failed to load'); };
@@ -1139,8 +1155,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     xhr.send();
   }
 
+  chDesc.addEventListener('click', function() {
+    chDesc.style.maxHeight = chDesc.style.maxHeight === 'none' ? '' : 'none';
+  });
+
   menuHome.addEventListener('click', function() { showView('home'); });
-  menuShorts.addEventListener('click', function() { loadMenuShorts(); });
+  menuShorts.addEventListener('click', function() { refreshShorts(); });
   chBack.addEventListener('click', function() { showView('home'); });
   chTabVideos.addEventListener('click', function() {
     chSetTab('videos');
@@ -1171,7 +1191,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     _origDoSearch(q);
   };
 
-  qInput.focus();
+  if (!('ontouchstart' in window)) { try { qInput.focus(); } catch (e) {} }
 })();
 </script>
 </body>
