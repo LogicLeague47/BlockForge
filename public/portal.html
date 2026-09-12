@@ -1483,6 +1483,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'YT Forge: playlists fixed + fresh page URL',
+          desc: 'Half-dead instances returned empty lists that blocked good ones — the server now skips empties, and every channel gets its Uploads playlist injected. Games card bumped to v=3 so old phones fetch the current page (shorts, profiles, OG player).',
+          date: 'Sep 10',
+          bugs: ['empty instance responses winning', 'stale cached page'],
+          updates: ['empty-list fallback', 'uploads injection', 'v=3 cache-bust'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'YT Forge: playlists on profiles',
           desc: 'Artist profiles gain a Playlists tab: browse every playlist, open it inline, play any video. Matches YouTube channel layout (Live left out — same dead path as embeds).',
           date: 'Sep 10',

@@ -1970,8 +1970,35 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
       'https://invidious.nerdvpn.de',
     ];
     let tryIdx = 0;
+    let lastEmpty = null;
+    // Empty-but-valid responses from half-dead forks must NOT win — they
+    // fall through to the next instance. If every instance comes back
+    // empty, the last empty body is returned as-is (legit empty case).
+    function usable(body) {
+      let d;
+      try { d = JSON.parse(body); } catch (_) { return 'retry'; }
+      if (playlistId) {
+        const v = d.videos || [];
+        if (!d.error && v.length) return 'ok';
+        if (!d.error) { lastEmpty = body; return 'retry'; }
+        return 'retry';
+      }
+      if (tab === 'info') return (!d.error && d.authorId) ? 'ok' : 'retry';
+      // Playlists: empty lists are passed through (the server injects the
+      // channel's Uploads playlist below), errors still fall through.
+      if (tab === 'playlists') return d.error ? 'retry' : 'ok';
+      const list = (d.videos || d.shorts || d.latestVideos || []);
+      if (list.length) return 'ok';
+      lastEmpty = body;
+      return 'retry';
+    }
     function tryNext() {
       if (tryIdx >= INSTANCES.length) {
+        if (lastEmpty) {
+          res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' });
+          res.end(lastEmpty);
+          return;
+        }
         res.writeHead(502, CORS);
         res.end(JSON.stringify({ error: 'All Invidious instances failed' }));
         return;
@@ -1985,11 +2012,23 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
         let body = '';
         proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });
         proxyRes.on('end', () => {
-          try {
-            JSON.parse(body);
-            res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' });
-            res.end(body);
-          } catch (_) { tryNext(); }
+          if (usable(body) !== 'ok') { tryNext(); return; }
+          let out = body;
+          // Every channel implicitly owns its Uploads playlist (UU + id).
+          // Instances here never list it, so inject it server-side.
+          if (tab === 'playlists' && !playlistId && /^UC[A-Za-z0-9_-]{22}$/.test(channelId)) {
+            try {
+              const d = JSON.parse(body);
+              const uu = 'UU' + channelId.slice(2);
+              d.playlists = d.playlists || [];
+              if (!d.playlists.some(p => p.playlistId === uu)) {
+                d.playlists.unshift({ playlistId: uu, title: 'Uploads', authorId: channelId });
+              }
+              out = JSON.stringify(d);
+            } catch (_) {}
+          }
+          res.writeHead(200, { ...CORS, 'Content-Type': 'application/json', 'Cache-Control': 'public, max-age=600' });
+          res.end(out);
         });
       });
       proxyReq.on('error', () => tryNext());
