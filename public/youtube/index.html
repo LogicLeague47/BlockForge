@@ -201,6 +201,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="menu-row" id="menu-row">
     <button id="menu-home" class="on">Home</button>
     <button id="menu-shorts">Shorts</button>
+    <button id="menu-saved">Saved</button>
   </div>
 
   <div class="search-row">
@@ -233,6 +234,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="np-channel" id="np-channel"></div>
       <div class="np-stats" id="np-stats"></div>
     </div>
+    <div class="np-actions" id="np-actions">
+      <button id="btn-save">＋ Save</button>
+      <button id="btn-share">Share</button>
+      <button id="btn-full">&#9974; Full</button>
+    </div>
+  </div>
+  <div id="upnext-sec" style="display:none">
+    <div class="sec-title">Up next <span id="upnext-from"></span></div>
+    <div id="upnext-list"></div>
   </div>
 
   <div class="ch-view" id="channel-view">
@@ -258,6 +268,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div id="shorts-view" style="display:none">
     <div class="feed-head">⚡ Shorts</div>
     <div id="shorts-feed"></div>
+  </div>
+
+  <div id="saved-view" style="display:none">
+    <div class="sec-title">Saved videos</div>
+    <div id="saved-list"></div>
+  </div>
+
+  <div id="recent-sec" style="display:none">
+    <div class="sec-title">Recently watched</div>
+    <div id="recent-list"></div>
   </div>
 
   <div class="results" id="results">
@@ -311,6 +331,18 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var searchLinksEl = document.getElementById('search-links');
   var menuHome = document.getElementById('menu-home');
   var menuShorts = document.getElementById('menu-shorts');
+  var menuSaved = document.getElementById('menu-saved');
+  var savedView = document.getElementById('saved-view');
+  var savedList = document.getElementById('saved-list');
+  var recentSec = document.getElementById('recent-sec');
+  var recentList = document.getElementById('recent-list');
+  var upnextSec = document.getElementById('upnext-sec');
+  var upnextList = document.getElementById('upnext-list');
+  var upnextFrom = document.getElementById('upnext-from');
+  var btnSave = document.getElementById('btn-save');
+  var btnShare = document.getElementById('btn-share');
+  var btnFull = document.getElementById('btn-full');
+  var curWatchUrl = '';
   var channelView = document.getElementById('channel-view');
   var shortsView = document.getElementById('shorts-view');
   var chAvatar = document.getElementById('ch-avatar');
@@ -347,8 +379,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     resultsEl.style.display = name === 'home' ? 'flex' : 'none';
     channelView.style.display = name === 'channel' ? 'block' : 'none';
     shortsView.style.display = name === 'shorts' ? 'block' : 'none';
+    savedView.style.display = name === 'saved' ? 'block' : 'none';
     menuHome.className = name === 'home' ? 'on' : '';
     menuShorts.className = name === 'shorts' ? 'on' : '';
+    menuSaved.className = name === 'saved' ? 'on' : '';
+    if (name === 'saved') renderSaved();
+    if (name === 'home') renderRecent();
   }
 
   var currentVid = '';
@@ -379,6 +415,97 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
   function storeSet(k, v) {
     try { if (window.localStorage) localStorage.setItem(k, JSON.stringify(v)); } catch (e) {}
+  }
+
+  var curAuthor = '';
+  var curAuthorId = '';
+
+  function pushHist(it) {
+    var h = storeGet('ytf_hist') || [];
+    var out = [];
+    for (var i = 0; i < h.length; i++) if (h[i].id !== it.id) out.push(h[i]);
+    out.unshift(it);
+    if (out.length > 30) out.length = 30;
+    storeSet('ytf_hist', out);
+  }
+
+  function histItemHtml(it) {
+    return itemHtml({
+      vid: it.id,
+      title: esc(it.title || 'Untitled'),
+      author: esc(it.author || ''),
+      authorRaw: it.author || '',
+      authorId: it.authorId || '',
+      rawViews: '',
+      published: '',
+      viewsLabel: '',
+      durLabel: '',
+      lenSec: it.lenSec || '',
+      vtype: it.vtype || '',
+      verified: false,
+      thumb: ytThumb(it.id),
+      avatarUrl: ''
+    });
+  }
+
+  function renderRecent() {
+    var h = storeGet('ytf_hist') || [];
+    var hasResults = false;
+    try { hasResults = !!resultsEl.querySelector('.result-item'); } catch (e) {}
+    if (!h.length || hasResults || curView !== 'home') { recentSec.style.display = 'none'; return; }
+    var html = '';
+    for (var i = 0; i < Math.min(h.length, 6); i++) html += histItemHtml(h[i]);
+    recentList.innerHTML = html;
+    bindItems(recentList);
+    recentSec.style.display = 'block';
+  }
+
+  function getSaved() { return storeGet('ytf_list') || []; }
+  function isSaved(id) {
+    var l = getSaved();
+    for (var i = 0; i < l.length; i++) if (l[i].id === id) return true;
+    return false;
+  }
+  function paintSaveBtn() {
+    var s = isSaved(currentVid);
+    btnSave.textContent = s ? '✓ Saved' : '＋ Save';
+    btnSave.className = s ? 'saved' : '';
+  }
+  function removeSaved(id) {
+    var l = getSaved();
+    var out = [];
+    for (var i = 0; i < l.length; i++) if (l[i].id !== id) out.push(l[i]);
+    storeSet('ytf_list', out);
+    paintSaveBtn();
+    if (curView === 'saved') renderSaved();
+  }
+  function renderSaved() {
+    var l = getSaved();
+    if (!l.length) {
+      savedList.innerHTML = '<div class="empty"><span class="big">🔖</span>Nothing saved yet.<br>Open any video and tap ＋ Save.</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < l.length; i++) html += histItemHtml(l[i]);
+    savedList.innerHTML = html;
+    bindItems(savedList);
+    var rows = savedList.querySelectorAll('.result-item');
+    for (var j = 0; j < rows.length; j++) {
+      if (j >= l.length) break;
+      var rm = document.createElement('span');
+      rm.className = 'rm';
+      rm.textContent = '×';
+      rm.setAttribute('data-rm', l[j].id);
+      rows[j].appendChild(rm);
+    }
+  }
+  function tapIsRm(el, e) {
+    var t = e.target;
+    while (t && t !== el) {
+      if (t.getAttribute && t.getAttribute('data-rm')) return t.getAttribute('data-rm');
+      t = t.parentNode;
+    }
+    return null;
   }
 
   function setStatus(msg) { statusEl.textContent = msg; }
@@ -642,10 +769,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     currentVid = id;
     curLenSec = lenSec || '';
     curType = vtype || '';
+    curAuthor = author || '';
+    curAuthorId = authorId || '';
     var shortCtx = isShortCtx(vtype, lenSec);
     var watchUrl = shortCtx
       ? 'https://www.youtube.com/shorts/' + id
       : 'https://www.youtube.com/watch?v=' + id;
+    curWatchUrl = watchUrl;
+    pushHist({ id: id, title: title || '', author: author || '', authorId: authorId || '', lenSec: lenSec || '', vtype: vtype || '' });
+    paintSaveBtn();
     resetPlayer();
     previewThumb.style.display = '';
     previewThumb.src = ytThumb(id);
@@ -757,6 +889,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function bindChannelCard(el) {
+    if (el._yfb) return;
+    el._yfb = 1;
     var sy = 0;
     var moved = false;
     function go(e) {
@@ -814,6 +948,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   }
 
   function bindResult(el) {
+    if (el._yfb) return;
+    el._yfb = 1;
     var sy = 0;
     var moved = false;
     el.addEventListener('touchstart', function(e) {
@@ -825,6 +961,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     }, true);
     el.addEventListener('click', function(e) {
       e.preventDefault();
+      var rmid = tapIsRm(el, e);
+      if (rmid) { removeSaved(rmid); return; }
       var chid = tapIsChannel(el, e);
       if (chid) { openChannel(chid); return; }
       if (!IS_LEGACY && isShortCtx(el.getAttribute('data-type'), el.getAttribute('data-len'))) {
@@ -843,6 +981,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     el.addEventListener('touchend', function(e) {
       if (moved) return;
       e.preventDefault();
+      var rmid = tapIsRm(el, e);
+      if (rmid) { removeSaved(rmid); return; }
       var chid = tapIsChannel(el, e);
       if (chid) { openChannel(chid); return; }
       if (!IS_LEGACY && isShortCtx(el.getAttribute('data-type'), el.getAttribute('data-len'))) {
@@ -929,6 +1069,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   function bindPlCards(box) {
     var cards = box.querySelectorAll('.pl-card');
     for (var i = 0; i < cards.length; i++) (function(el) {
+      if (el._yfb) return;
+      el._yfb = 1;
       var sy = 0;
       var moved = false;
       el.addEventListener('touchstart', function(e) {
@@ -1123,6 +1265,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
           var data = JSON.parse(xhr.responseText);
           setStatus('');
           renderResults(data);
+          renderRecent();
         } catch(e) {
           setStatus('Parse error');
           resultsEl.innerHTML = '<div class="empty">Bad response from server</div>';
@@ -1186,8 +1329,43 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     chDesc.style.maxHeight = chDesc.style.maxHeight === 'none' ? '' : 'none';
   });
 
-  menuHome.addEventListener('click', function() { showView('home'); });
+  btnSave.addEventListener('click', function() {
+    if (!currentVid) return;
+    if (isSaved(currentVid)) removeSaved(currentVid);
+    else {
+      var l = getSaved();
+      l.unshift({ id: currentVid, title: npTitle.textContent || '', author: curAuthor, authorId: curAuthorId, lenSec: curLenSec, vtype: curType });
+      if (l.length > 100) l.length = 100;
+      storeSet('ytf_list', l);
+      paintSaveBtn();
+      setStatus('Saved.');
+    }
+  });
+  btnShare.addEventListener('click', function() {
+    if (!curWatchUrl) return;
+    try {
+      var ta = document.createElement('textarea');
+      ta.value = curWatchUrl;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      if (ta.setSelectionRange) ta.setSelectionRange(0, 99999);
+      if (document.execCommand('copy')) setStatus('Link copied — share it anywhere');
+      document.body.removeChild(ta);
+    } catch (e) { setStatus('Copy failed'); }
+  });
+  btnFull.addEventListener('click', function() {
+    try {
+      if (playerBox.requestFullscreen) playerBox.requestFullscreen();
+      else if (playerBox.webkitRequestFullscreen) playerBox.webkitRequestFullscreen();
+      else if (playerBox.webkitEnterFullscreen) playerBox.webkitEnterFullscreen();
+    } catch (e) {}
+  });
+
+  menuHome.addEventListener('click', function() { showView('home'); renderRecent(); });
   menuShorts.addEventListener('click', function() { refreshShorts(); });
+  menuSaved.addEventListener('click', function() { showView('saved'); });
   chBack.addEventListener('click', function() { showView('home'); });
   chTabVideos.addEventListener('click', function() {
     chSetTab('videos');
@@ -1219,6 +1397,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   };
 
   if (!('ontouchstart' in window)) { try { qInput.focus(); } catch (e) {} }
+  renderRecent();
 })();
 </script>
 </body>
