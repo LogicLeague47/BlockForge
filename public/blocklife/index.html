@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BlockLife</title>
+<link rel="icon" type="image/png" href="../BlockForge.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0d18;color:#e8e8f2;font-family:monospace;min-height:100vh;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-text-size-adjust:100%}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 50% 0,rgba(90,200,120,.10) 0,transparent 55%),radial-gradient(ellipse at 50% 100%,rgba(60,60,180,.10) 0,transparent 50%);pointer-events:none}
+.wrap{width:96vw;max-width:640px;z-index:1;padding:14px 0 30px}
+.topbar{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:10px}
+.logo{font-size:22px;font-weight:bold;color:#fff;letter-spacing:1px;text-shadow:0 0 18px rgba(90,220,120,.35)}
+.logo span{color:#5da}
+.back{color:#cfe0ff;font-size:12px;text-decoration:none;background:rgba(60,70,120,.35);border:1px solid rgba(120,140,220,.35);border-radius:20px;padding:6px 14px;white-space:nowrap}
+.back:active{background:rgba(80,95,160,.6)}
+.topbtns{display:-webkit-box;display:-webkit-flex;display:flex}
+.topbtns .back{margin-left:8px}
+.idcard{background:rgba(20,20,40,.6);border:1px solid rgba(90,90,140,.25);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+#bl-name{font-size:17px;font-weight:bold;color:#fff}
+#bl-sub{font-size:12px;color:#9a9ac0;margin-top:3px}
+#bl-money{font-size:15px;font-weight:bold;color:#8f8;margin-top:6px}
+.bars{margin-bottom:10px}
+.bar-row{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;margin-bottom:6px}
+.bar-lab{width:86px;font-size:12px;color:#bbb;flex-shrink:0}
+.bar-track{-webkit-flex:1;flex:1;height:14px;background:rgba(0,0,0,.5);border:1px solid rgba(120,120,180,.3);border-radius:7px;overflow:hidden}
+.bar-fill{height:100%;width:50%;border-radius:6px;background:linear-gradient(90deg,#5da,#8f8)}
+.bar-fill.low{background:linear-gradient(90deg,#a33,#f66)}
+.bar-fill.mid{background:linear-gradient(90deg,#a80,#fc3)}
+.bar-val{width:40px;text-align:right;font-size:12px;color:#ddd;flex-shrink:0}
+#bl-log{background:rgba(10,10,22,.7);border:1px solid rgba(90,90,140,.25);border-radius:12px;padding:10px;height:300px;overflow-y:auto;-webkit-overflow-scrolling:touch;margin-bottom:10px;font-size:13px;line-height:1.5}
+.log-age{color:#f44;font-weight:bold;margin-top:8px}
+.log-ev{color:#ddd;margin-top:2px}
+.log-good{color:#8f8}
+.log-bad{color:#f88}
+.log-money{color:#fc3}
+#btn-age{display:block;width:100%;padding:16px;margin-bottom:10px;font:bold 18px monospace;letter-spacing:2px;color:#fff;background:linear-gradient(180deg,rgba(60,180,100,.9),rgba(30,130,70,.9));border:2px solid rgba(120,255,170,.5);border-radius:12px;cursor:pointer}
+#btn-age:active{background:linear-gradient(180deg,rgba(80,200,120,1),rgba(40,150,80,1))}
+#btn-age:disabled{opacity:.4}
+.tabs{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:10px}
+.tabs button{-webkit-flex:1;flex:1;padding:11px 2px;font:bold 11px monospace;background:rgba(24,24,48,.85);border:1px solid rgba(120,120,180,.35);border-left:none;color:#ccc;cursor:pointer;min-width:0}
+.tabs button:first-child{border-radius:8px 0 0 8px;border-left:1px solid rgba(120,120,180,.35)}
+.tabs button:last-child{border-radius:0 8px 8px 0}
+.tabs button.on{background:linear-gradient(180deg,rgba(60,180,100,.85),rgba(30,130,70,.85));border-color:rgba(120,255,170,.5);color:#fff}
+#sheet{margin-bottom:10px}
+.act-grid{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap}
+.act-grid button{width:50%;padding:12px 8px;font:bold 12px monospace;background:rgba(24,24,48,.85);border:1px solid rgba(120,120,180,.3);color:#dfe6ff;cursor:pointer}
+.act-grid button:active{background:rgba(50,90,60,.8)}
+.act-grid button:disabled{opacity:.35}
+.act-grid button.wide{width:100%}
+#popup-wrap{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.72);z-index:60;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:18px}
+#popup-wrap.open{display:-webkit-box;display:-webkit-flex;display:flex}
+#popup{width:100%;max-width:420px;max-height:84vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#191926;border:2px solid rgba(120,255,170,.35);border-radius:12px;padding:18px}
+#pp-title{font-size:15px;font-weight:bold;color:#fff;margin-bottom:8px;line-height:1.4}
+#pp-text{font-size:13px;color:#ccc;line-height:1.55;margin-bottom:14px;white-space:pre-wrap}
+#pp-btns button{display:block;width:100%;padding:12px;margin-bottom:8px;font:bold 13px monospace;background:rgba(50,55,100,.6);border:1px solid rgba(120,140,220,.4);border-radius:8px;color:#fff;cursor:pointer}
+#pp-btns button:active{background:rgba(80,95,160,.85)}
+#pp-btns button:last-child{margin-bottom:0}
+#toast{min-height:18px;font-size:12px;color:#fc3;margin-bottom:8px;text-align:center}
+.status{font-size:11px;color:#888;margin-bottom:4px;min-height:16px}
+.footer{text-align:center;margin-top:14px;font-size:11px;color:#555}
+.godrow{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:8px}
+.godrow button{-webkit-flex:1;flex:1;padding:8px;font:11px monospace;background:rgba(40,36,20,.7);border:1px solid rgba(200,170,60,.4);border-radius:6px;color:#fc3;margin-right:6px;cursor:pointer}
+.godrow button:last-child{margin-right:0}
+@media(max-width:600px){
+  #bl-log{height:260px}
+  .logo{font-size:19px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span class="logo"><span>Block</span>Life</span>
+    <div class="topbtns">
+      <a class="back" id="btn-grave" href="javascript:void(0)">Graves</a>
+      <a class="back" id="btn-god" href="javascript:void(0)">God</a>
+      <a class="back" href="../games.html">Games</a>
+    </div>
+  </div>
+  <div id="start-screen"></div>
+  <div id="game-screen" style="display:none">
+    <div class="idcard">
+      <div id="bl-name"></div>
+      <div id="bl-sub"></div>
+      <div id="bl-money"></div>
+    </div>
+    <div class="bars">
+      <div class="bar-row"><span class="bar-lab">Happiness</span><div class="bar-track"><div class="bar-fill" id="bar-hap"></div></div><span class="bar-val" id="val-hap"></span></div>
+      <div class="bar-row"><span class="bar-lab">Health</span><div class="bar-track"><div class="bar-fill" id="bar-hea"></div></div><span class="bar-val" id="val-hea"></span></div>
+      <div class="bar-row"><span class="bar-lab">Smarts</span><div class="bar-track"><div class="bar-fill" id="bar-sma"></div></div><span class="bar-val" id="val-sma"></span></div>
+      <div class="bar-row"><span class="bar-lab">Looks</span><div class="bar-track"><div class="bar-fill" id="bar-loo"></div></div><span class="bar-val" id="val-loo"></span></div>
+    </div>
+    <div id="bl-log"></div>
+    <button id="btn-age">AGE +</button>
+    <div class="tabs" id="tabs">
+      <button data-tab="act" class="on">Actions</button>
+      <button data-tab="love">Love</button>
+      <button data-tab="job">Career</button>
+      <button data-tab="assets">Assets</button>
+    </div>
+    <div id="sheet"></div>
+    <div id="toast"></div>
+    <div class="status" id="status"></div>
+  </div>
+  <div id="popup-wrap">
+    <div id="popup">
+      <div id="pp-title"></div>
+      <div id="pp-text"></div>
+      <div id="pp-btns"></div>
+    </div>
+  </div>
+  <div class="footer">BlockLife &middot; live once, die funny &middot; LogicLeague</div>
+</div>
+<script src="data.js"></script>
+<script src="life.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
