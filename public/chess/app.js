@@ -60,9 +60,10 @@ function materialDiff() {
 
 function renderStatus(extra) {
   if (S.over) return;
+  var botName = (ChessAI.LEVELS[S.level] || {}).name || 'Bot';
   var t;
-  if (S.game.in_check()) t = (S.game.turn() === S.playerColor ? 'Check! Your move.' : 'Check! Bot thinking…');
-  else t = S.game.turn() === S.playerColor ? 'Your move.' : 'Bot thinking…';
+  if (S.game.in_check()) t = (S.game.turn() === S.playerColor ? 'Check! Your move.' : 'Check! ' + botName + ' thinking…');
+  else t = S.game.turn() === S.playerColor ? 'Your move.' : botName + ' thinking…';
   $('status').textContent = extra || t;
 }
 
@@ -381,11 +382,44 @@ function continueGame(sv) {
 }
 
 function syncControls() {
-  $('level').value = String(S.level);
-  $('color').value = S.playerColor;
-  $('clocksel').value = String(S.clockMs);
   var lv = ChessAI.LEVELS[S.level];
-  $('leveldesc').textContent = lv ? (lv.name + ' — ' + lv.sub) : '';
+  var grid = $('lvl-grid').querySelectorAll('button');
+  for (var i = 0; i < grid.length; i++) {
+    grid[i].className = (parseInt(grid[i].getAttribute('data-v'), 10) === S.level) ? 'on' : '';
+  }
+  segSet('seg-color', S.menuColor);
+  segSet('seg-clock', String(S.menuClock));
+  var sv = loadSave();
+  $('menu-top').style.display = (sv && sv.history && sv.history.length) || (S.started && !S.over) ? 'flex' : 'none';
+  $('btn-continue').style.display = (sv && sv.history && sv.history.length) ? 'block' : 'none';
+  $('btn-resume').style.display = (S.started && !S.over) ? 'block' : 'none';
+}
+
+function segSet(id, val) {
+  var btns = $(id).querySelectorAll('button');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = (btns[i].getAttribute('data-v') === val) ? 'on' : '';
+  }
+}
+
+function segWire(id, fn) {
+  var btns = $(id).querySelectorAll('button');
+  for (var i = 0; i < btns.length; i++) {
+    (function(b) {
+      b.addEventListener('click', function() { fn(b.getAttribute('data-v')); });
+    })(btns[i]);
+  }
+}
+
+function openMenu() {
+  stopClock();
+  syncControls();
+  $('menu').style.display = 'flex';
+}
+
+function closeMenu() {
+  $('menu').style.display = 'none';
+  if (!S.over) startClock();
 }
 
 function undo() {
@@ -434,28 +468,60 @@ function boot() {
     $('status').textContent = '3D failed to start on this device.';
     return;
   }
-  var lvSel = $('level');
-  for (var i = 0; i < ChessAI.LEVELS.length; i++) {
-    var o = document.createElement('option');
-    o.value = String(i);
-    o.textContent = (i + 1) + '. ' + ChessAI.LEVELS[i].name;
-    lvSel.appendChild(o);
+  S.menuLevel = 3;
+  S.menuColor = 'w';
+  S.menuClock = 0;
+  S.started = false;
+
+  var grid = $('lvl-grid');
+  for (var li = 0; li < ChessAI.LEVELS.length; li++) {
+    (function(idx) {
+      var b = document.createElement('button');
+      b.setAttribute('data-v', String(idx));
+      var nm = document.createElement('div');
+      nm.textContent = (idx + 1) + '. ' + ChessAI.LEVELS[idx].name;
+      var sb = document.createElement('small');
+      sb.textContent = ChessAI.LEVELS[idx].sub;
+      b.appendChild(nm);
+      b.appendChild(sb);
+      b.addEventListener('click', function() {
+        S.menuLevel = idx;
+        syncControls();
+      });
+      grid.appendChild(b);
+    })(li);
   }
-  S.view3d.onPick(onPick);
-  $('btn-new').addEventListener('click', function() { newGame(); });
-  lvSel.addEventListener('change', function() {
-    S.level = parseInt(lvSel.value, 10) || 0;
-    syncControls();
-    toast('Bot: ' + ChessAI.LEVELS[S.level].name + '. Applies from its next move.');
-  });
-  $('color').addEventListener('change', function() {
-    S.playerColor = $('color').value === 'b' ? 'b' : 'w';
+  segWire('seg-color', function(v) { S.menuColor = v; syncControls(); });
+  segWire('seg-clock', function(v) { S.menuClock = parseInt(v, 10) || 0; syncControls(); });
+
+  $('btn-play').addEventListener('click', function() {
+    S.level = S.menuLevel;
+    var c = S.menuColor;
+    S.playerColor = (c === 'r') ? (Math.random() < 0.5 ? 'w' : 'b') : c;
+    S.clockMs = S.menuClock;
+    S.started = true;
+    closeMenu();
     newGame();
   });
-  $('clocksel').addEventListener('change', function() {
-    S.clockMs = parseInt($('clocksel').value, 10) || 0;
-    newGame();
+  $('btn-continue').addEventListener('click', function() {
+    var sv = loadSave();
+    if (!sv) return;
+    S.started = true;
+    closeMenu();
+    continueGame(sv);
+    toast('Restored your saved game.');
   });
+  $('btn-resume').addEventListener('click', function() {
+    closeMenu();
+    renderStatus();
+  });
+  $('btn-multi').addEventListener('click', function() {
+    $('soon').style.display = 'flex';
+  });
+  $('btn-soon-ok').addEventListener('click', function() {
+    $('soon').style.display = 'none';
+  });
+  $('btn-menu').addEventListener('click', function() { openMenu(); });
   S.whiteBottom = true;
   $('btn-flip').addEventListener('click', function() {
     S.whiteBottom = !S.whiteBottom;
@@ -470,21 +536,19 @@ function boot() {
   $('btn-again').addEventListener('click', function() { newGame(); });
   window.addEventListener('resize', function() { S.view3d.resize(); });
 
-  var sv = loadSave();
-  if (sv && sv.history && sv.history.length) {
-    S.level = 3;
-    S.playerColor = 'w';
-    S.clockMs = 0;
-    syncControls();
-    continueGame(sv);
-    toast('Restored your saved game.');
-  } else {
-    S.level = 3;
-    S.playerColor = 'w';
-    S.clockMs = 0;
-    syncControls();
-    newGame();
-  }
+  var sv0 = loadSave();
+  S.level = 3;
+  S.playerColor = 'w';
+  S.clockMs = 0;
+  S.game = new Chess();
+  S.view3d.setPosition(S.game.board());
+  S.view3d.flip(true);
+  renderMoves();
+  renderCaptured();
+  renderClocks();
+  syncControls();
+  if (sv0 && sv0.history && sv0.history.length) toast('A saved game waits in the menu.');
+  openMenu();
 }
 
 return { boot: boot };

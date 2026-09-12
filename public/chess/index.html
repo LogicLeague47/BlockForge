@@ -9,10 +9,13 @@
   BlockChess vendored libraries:
   - three.js r128 (MIT License, Copyright (c) 2010-2021 Three.js authors)
   - OrbitControls.js r128 (same MIT license)
+  - three.es5.js / orbit.es5.js: Babel-transpiled fallbacks for Safari <= 10
   - chess.js 0.10.3 (BSD-2-Clause, Copyright (c) 2019 Jeff Hlywa)
 -->
 <script src="vendor/three.min.js"></script>
+<script>if(!window.THREE){document.write('<script src="vendor/three.es5.js"><\/script>');}</script>
 <script src="vendor/OrbitControls.js"></script>
+<script>if(window.THREE&&!THREE.OrbitControls){document.write('<script src="vendor/orbit.es5.js"><\/script>');}</script>
 <script src="vendor/chess.min.js"></script>
 <script src="ai.js"></script>
 <script src="game3d.js"></script>
@@ -24,15 +27,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .topbar{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;margin-bottom:10px}
 .logo{font-size:22px;font-weight:bold;color:#fff;letter-spacing:1px;text-shadow:0 0 18px rgba(220,180,90,.35)}
 .logo span{color:#ec5}
-.back{color:#cfe0ff;font-size:12px;text-decoration:none;background:rgba(60,70,120,.35);border:1px solid rgba(120,140,220,.35);border-radius:20px;padding:6px 14px;white-space:nowrap}
+.back{color:#cfe0ff;font-size:12px;text-decoration:none;background:rgba(60,70,120,.35);border:1px solid rgba(120,140,220,.35);border-radius:20px;padding:8px 16px;white-space:nowrap}
 .back:active{background:rgba(80,95,160,.6)}
 .controls{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin-bottom:8px}
-.controls .ctl{margin:0 8px 8px 0;display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center}
-.controls label{font-size:11px;color:#888;margin-right:6px}
-.controls select{padding:9px 8px;font:12px monospace;background:rgba(20,20,40,.9);border:1px solid rgba(120,120,180,.35);border-radius:8px;color:#ddd;outline:none;max-width:170px}
-.controls button{padding:9px 12px;margin:0 8px 8px 0;font:bold 12px monospace;background:rgba(50,55,100,.55);border:1px solid rgba(120,140,220,.35);border-radius:8px;color:#dfe6ff;cursor:pointer}
+.controls button{padding:11px 14px;margin:0 8px 8px 0;font:bold 13px monospace;background:rgba(50,55,100,.55);border:1px solid rgba(120,140,220,.35);border-radius:8px;color:#dfe6ff;cursor:pointer;min-height:44px}
 .controls button:active{background:rgba(80,95,160,.8)}
-#leveldesc{font-size:11px;color:#888;margin:-2px 0 10px}
 #status{font-size:13px;color:#fc3;min-height:20px;margin-bottom:8px;text-align:center}
 .main{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap}
 .boardcol{-webkit-flex:1 1 420px;flex:1 1 420px;min-width:280px}
@@ -40,7 +39,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 #board canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important}
 .sidecol{-webkit-flex:1 1 220px;flex:1 1 220px;min-width:220px;margin-left:12px}
 #clocks{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:8px}
-#clocks div{-webkit-flex:1;flex:1;text-align:center;font:bold 15px monospace;background:rgba(20,20,40,.8);border:1px solid rgba(120,120,180,.3);border-radius:8px;padding:8px}
+#clocks div{-webkit-flex:1;flex:1;text-align:center;font:bold 15px monospace;background:rgba(20,20,40,.8);border:1px solid rgba(120,120,180,.3);border-radius:8px;padding:10px}
 #clocks div:first-child{margin-right:8px}
 .panel{background:rgba(20,20,40,.55);border:1px solid rgba(90,90,140,.2);border-radius:10px;padding:10px;margin-bottom:8px}
 .panel h3{font-size:12px;color:#888;margin-bottom:6px;letter-spacing:1px}
@@ -51,15 +50,42 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .modal .box{background:#191926;border:2px solid rgba(220,180,90,.4);border-radius:12px;padding:22px;text-align:center;max-width:380px;width:100%}
 .modal h2{font-size:20px;color:#fff;margin-bottom:10px}
 .modal p{font-size:13px;color:#ccc;line-height:1.6;margin-bottom:16px;white-space:pre-wrap}
-.modal button{display:block;width:100%;padding:12px;margin-bottom:8px;font:bold 14px monospace;background:rgba(60,60,110,.7);border:1px solid rgba(140,150,230,.4);border-radius:8px;color:#fff;cursor:pointer}
+.modal button{display:block;width:100%;padding:13px;margin-bottom:8px;font:bold 14px monospace;background:rgba(60,60,110,.7);border:1px solid rgba(140,150,230,.4);border-radius:8px;color:#fff;cursor:pointer;min-height:44px}
 .modal button:active{background:rgba(90,100,170,.9)}
 .prow{display:-webkit-box;display:-webkit-flex;display:flex}
-.prow button{font-size:26px;-webkit-flex:1;flex:1;margin-right:8px}
+.prow button{font-size:22px;-webkit-flex:1;flex:1;margin-right:8px}
 .prow button:last-child{margin-right:0}
+/* Main menu */
+#menu{display:-webkit-box;display:-webkit-flex;display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,12,.88);z-index:70;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.menu-box{width:100%;max-width:440px;max-height:94vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#14141f;border:2px solid rgba(220,180,90,.45);border-radius:14px;padding:22px 20px;text-align:center;box-shadow:0 0 60px rgba(220,180,90,.12)}
+.menu-logo{font-size:34px;font-weight:bold;color:#fff;letter-spacing:3px;text-shadow:0 0 26px rgba(220,180,90,.55)}
+.menu-logo span{color:#ec5}
+.menu-sub{font-size:12px;color:#9a9ac0;margin:6px 0 16px}
+.menu-sec{font-size:11px;color:#888;letter-spacing:2px;margin:14px 0 8px}
+.lvl-grid{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap}
+.lvl-grid button{width:50%;padding:12px 6px;font:bold 12px monospace;background:rgba(30,30,55,.9);border:1px solid rgba(120,120,180,.3);color:#ddd;cursor:pointer;min-height:48px}
+.lvl-grid button small{display:block;font-weight:normal;font-size:10px;color:#888;margin-top:2px}
+.lvl-grid button.on{background:linear-gradient(180deg,rgba(170,120,40,.85),rgba(110,75,20,.85));border-color:rgba(230,190,90,.7);color:#fff}
+.lvl-grid button.on small{color:#ffe9b0}
+.seg{display:-webkit-box;display:-webkit-flex;display:flex}
+.seg button{-webkit-flex:1;flex:1;padding:12px 4px;font:bold 13px monospace;background:rgba(30,30,55,.9);border:1px solid rgba(120,120,180,.3);border-left:none;color:#ddd;cursor:pointer;min-height:48px}
+.seg button:first-child{border-radius:8px 0 0 8px;border-left:1px solid rgba(120,120,180,.3)}
+.seg button:last-child{border-radius:0 8px 8px 0}
+.seg button.on{background:linear-gradient(180deg,rgba(170,120,40,.85),rgba(110,75,20,.85));border-color:rgba(230,190,90,.7);color:#fff}
+#btn-play{display:block;width:100%;padding:16px;margin:18px 0 10px;font:bold 18px monospace;letter-spacing:3px;color:#0a0a14;background:linear-gradient(180deg,#ffe9a8,#dfa83c);border:2px solid rgba(255,230,160,.8);border-radius:12px;cursor:pointer;box-shadow:0 0 30px rgba(220,180,90,.35)}
+#btn-play:active{-webkit-transform:scale(.98);transform:scale(.98)}
+#btn-multi{display:block;width:100%;padding:13px;margin-bottom:8px;font:bold 13px monospace;letter-spacing:1px;color:#777;background:rgba(30,30,40,.9);border:1px dashed rgba(130,130,160,.5);border-radius:10px;cursor:pointer}
+#btn-multi .soon{display:inline-block;font-size:10px;letter-spacing:2px;color:#0a0a14;background:#8a8aa0;border-radius:4px;padding:2px 8px;margin-left:8px;vertical-align:2px}
+.menu-row2{display:-webkit-box;display:-webkit-flex;display:flex}
+.menu-row2 button{-webkit-flex:1;flex:1;padding:12px 4px;font:bold 12px monospace;background:rgba(50,55,100,.55);border:1px solid rgba(120,140,220,.35);border-radius:8px;color:#dfe6ff;cursor:pointer;min-height:44px}
+.menu-row2 button:first-child{margin-right:8px}
+.menu-row2 button:active{background:rgba(80,95,160,.8)}
+.menu-foot{margin-top:14px;font-size:10px;color:#555}
 .footer{text-align:center;margin-top:14px;font-size:11px;color:#555}
 @media(max-width:700px){
   .sidecol{margin-left:0;margin-top:10px}
   .logo{font-size:19px}
+  .menu-logo{font-size:28px}
 }
 </style>
 </head>
@@ -70,25 +96,13 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     <a class="back" href="../games.html">Games</a>
   </div>
 
-  <div class="controls">
-    <span class="ctl"><label>Bot</label><select id="level"></select></span>
-    <span class="ctl"><label>Play</label><select id="color">
-      <option value="w">White</option>
-      <option value="b">Black</option>
-    </select></span>
-    <span class="ctl"><label>Clock</label><select id="clocksel">
-      <option value="0">None</option>
-      <option value="300000">5 min</option>
-      <option value="600000">10 min</option>
-      <option value="900000">15 min</option>
-    </select></span>
-    <button id="btn-new">New</button>
-    <button id="btn-flip">Flip</button>
+  <div class="controls" id="gamebar">
+    <button id="btn-menu">Menu</button>
     <button id="btn-undo">Undo</button>
     <button id="btn-hint">Hint</button>
     <button id="btn-resign">Resign</button>
+    <button id="btn-flip">Flip</button>
   </div>
-  <div id="leveldesc"></div>
   <div id="status">Loading…</div>
 
   <div class="main">
@@ -117,6 +131,43 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <h2 id="res-title"></h2>
       <p id="res-sub"></p>
       <button id="btn-again">Play again</button>
+    </div>
+  </div>
+
+  <div class="modal" id="soon">
+    <div class="box">
+      <h2>Multiplayer</h2>
+      <p>Online play against friends is coming soon. For now, the 10 bots await.</p>
+      <button id="btn-soon-ok">OK</button>
+    </div>
+  </div>
+
+  <div id="menu">
+    <div class="menu-box">
+      <div class="menu-logo"><span>BLOCK</span>CHESS</div>
+      <div class="menu-sub">Full 3D chess &middot; 10 bots, pushover to nightmare</div>
+      <div class="menu-row2" id="menu-top" style="display:none">
+        <button id="btn-continue">Continue</button>
+        <button id="btn-resume">Resume</button>
+      </div>
+      <div class="menu-sec">CHOOSE YOUR BOT</div>
+      <div class="lvl-grid" id="lvl-grid"></div>
+      <div class="menu-sec">PLAY AS</div>
+      <div class="seg" id="seg-color">
+        <button data-v="w" class="on">White</button>
+        <button data-v="b">Black</button>
+        <button data-v="r">Random</button>
+      </div>
+      <div class="menu-sec">CLOCK</div>
+      <div class="seg" id="seg-clock">
+        <button data-v="0" class="on">None</button>
+        <button data-v="300000">5 min</button>
+        <button data-v="600000">10 min</button>
+        <button data-v="900000">15 min</button>
+      </div>
+      <button id="btn-play">PLAY</button>
+      <button id="btn-multi">MULTIPLAYER<span class="soon">COMING SOON</span></button>
+      <div class="menu-foot">Drag to orbit &middot; tap a piece, tap a highlighted square</div>
     </div>
   </div>
 
