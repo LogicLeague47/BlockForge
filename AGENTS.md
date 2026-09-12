@@ -12,6 +12,9 @@
   downloads). Restore `npm run build` for full releases.
 - If the dashboard shows "pipeline minutes exhausted", STOP all deploy
   activity and tell the user (monthly reset or billing decision is theirs).
+- Client ships to GitHub Pages too (`.github/workflows/pages.yml`, free
+  Actions quota) — page-only changes reach users without Render minutes.
+  Backend still needs Render pipeline.
 
 - **Always auto-commit and auto-push after completing any work.** Do not wait
   to be asked. Stage the relevant files, write a concise commit message
