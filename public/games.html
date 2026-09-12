@@ -9,18 +9,22 @@
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#07070f;color:#e6e6f0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px}
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 0,rgba(70,80,180,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(180,60,160,.12) 0,transparent 50%);pointer-events:none}
-h1{font-size:26px;letter-spacing:2px;margin-bottom:6px;z-index:1}
+h1{font-size:26px;letter-spacing:2px;margin-bottom:6px;z-index:1;text-shadow:0 0 24px rgba(120,140,255,.3)}
 .sub{color:#9a9ac0;font-size:12px;margin-bottom:28px;z-index:1}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;width:min(860px,94vw);z-index:1}
 .card{background:rgba(24,24,48,.72);border:1px solid rgba(90,90,140,.28);border-radius:12px;padding:20px;text-align:center;transition:transform .15s,box-shadow .15s}
 a.card{display:block;text-decoration:none;color:inherit;cursor:pointer}
 a.card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(100,140,255,.18);border-color:rgba(130,160,255,.5)}
+.card.featured{grid-column:1/-1;display:flex;align-items:center;text-align:left;gap:20px;padding:22px 24px;background:linear-gradient(135deg,rgba(140,35,35,.4),rgba(24,24,48,.85));border:1px solid rgba(220,90,90,.55);box-shadow:0 4px 30px rgba(200,50,50,.15)}
+.card.featured .emoji{font-size:54px;margin-bottom:0;flex-shrink:0}
+.card .flag{display:inline-block;font-size:10px;letter-spacing:2px;color:#ffb3b3;border:1px solid rgba(255,120,120,.55);border-radius:4px;padding:2px 8px;margin-bottom:8px}
 .card .emoji{font-size:40px;margin-bottom:10px}
 .card .name{font-size:15px;font-weight:bold;color:#fff;margin-bottom:6px}
 .card .desc{font-size:11px;color:#9a9ac0;line-height:1.5}
 .card.soon{opacity:.55}
-.back{margin-top:28px;color:#8af;font:12px monospace;text-decoration:none;z-index:1}
-.back:hover{text-decoration:underline}
+.back{margin-top:28px;color:#cfe0ff;font:12px monospace;text-decoration:none;z-index:1;background:rgba(60,70,120,.35);border:1px solid rgba(120,140,220,.35);border-radius:20px;padding:8px 18px}
+.back:active{background:rgba(80,95,160,.6)}
+.foot{margin-top:18px;color:#555;font-size:11px;z-index:1}
 </style>
 </head>
 <body>
@@ -28,6 +32,7 @@ a.card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(100,140,255,.
 <div class="sub">Offbranch games made by LL (LogicLeague).</div>
 <div class="grid" id="games-grid"></div>
 <a class="back" href="portal.html">← Back to BlockForge Portal</a>
+<div class="foot">Made by LogicLeague · BlockForge</div>
 <script>
 // To add a game: push { name, emoji, desc, url } here.
 var GAMES = [
@@ -39,10 +44,21 @@ var GAMES = [
   { name: 'InfiniteCraft', emoji: '♾️', desc: 'Combine elements to discover 793K+ recipes — Fire + Fire = Volcano. Drag, drop, discover.', url: 'infinitecraft/index.html?v=5' },
 ];
 var grid = document.getElementById('games-grid');
-GAMES.forEach(function(g) {
+GAMES.forEach(function(g, idx) {
   var a = document.createElement('a');
-  a.className = 'card';
+  a.className = 'card' + (idx === 0 ? ' featured' : '');
   a.href = g.url;
+  if (idx === 0) {
+    var wrap = document.createElement('div');
+    var flag = document.createElement('div'); flag.className = 'flag'; flag.textContent = '★ FLAGSHIP';
+    var n0 = document.createElement('div'); n0.className = 'name'; n0.textContent = g.name;
+    var d0 = document.createElement('div'); d0.className = 'desc'; d0.textContent = g.desc;
+    wrap.appendChild(flag); wrap.appendChild(n0); wrap.appendChild(d0);
+    var e0 = document.createElement('div'); e0.className = 'emoji'; e0.textContent = g.emoji;
+    a.appendChild(e0); a.appendChild(wrap);
+    grid.appendChild(a);
+    return;
+  }
   var e = document.createElement('div'); e.className = 'emoji'; e.textContent = g.emoji;
   var n = document.createElement('div'); n.className = 'name'; n.textContent = g.name;
   var d = document.createElement('div'); d.className = 'desc'; d.textContent = g.desc;
