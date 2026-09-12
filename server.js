@@ -1948,12 +1948,13 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
   // ── YT Forge channel proxy ──────────────────────────────────────────
   // ?channelId=UC...&tab=info (default) → channel header info
   // ?channelId=UC...&tab=videos → latest videos list
+  // ?channelId=UC...&tab=shorts → latest shorts list
   if (pathname === '/api/yt-channel' && req.method === 'GET') {
     const qs = new URL(req.url, 'http://localhost').searchParams;
     const channelId = (qs.get('channelId') || '').trim();
     const tab = (qs.get('tab') || 'info').trim();
     if (!channelId) { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Missing channelId' })); return; }
-    if (tab !== 'info' && tab !== 'videos') { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Bad tab' })); return; }
+    if (tab !== 'info' && tab !== 'videos' && tab !== 'shorts') { res.writeHead(400, CORS); res.end(JSON.stringify({ error: 'Bad tab' })); return; }
     const INSTANCES = [
       'https://invidious.materialio.us',
       'https://yewtu.be',
@@ -1969,7 +1970,8 @@ const proto = req.headers['x-forwarded-proto'] || (req.socket.encrypted ? 'https
         return;
       }
       const base = INSTANCES[tryIdx++];
-      const url = base + '/api/v1/channels/' + encodeURIComponent(channelId) + (tab === 'videos' ? '/videos' : '');
+      const suffix = tab === 'videos' ? '/videos' : (tab === 'shorts' ? '/shorts' : '');
+      const url = base + '/api/v1/channels/' + encodeURIComponent(channelId) + suffix;
       const proxyReq = https.get(url, { timeout: 6000 }, proxyRes => {
         let body = '';
         proxyRes.on('data', c => { body += c; if (body.length > 2e6) { proxyRes.destroy(); } });

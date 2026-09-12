@@ -89,6 +89,17 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .coming .t{font:bold 15px monospace;color:#fff;margin-bottom:6px}
 .coming .s{font-size:11px;color:#888}
 .chn-link{cursor:pointer}
+.feed-head{font:bold 14px monospace;color:#fff;margin-bottom:10px}
+/* Minecraft-style artist profile (pure CSS, no assets) */
+#channel-view{background:#1c1a24;border:3px solid #000;border-radius:4px;padding:12px;overflow:hidden}
+#channel-view::before{content:'';display:block;height:12px;margin:-12px -12px 12px;background:linear-gradient(180deg,#6abe30 0 40%,#5a3d24 40% 100%);border-bottom:3px solid #000}
+#channel-view .ch-avatar{border-radius:0;border:3px solid #000}
+#channel-view .ch-avatar img{border-radius:0}
+#channel-view .ch-name{color:#fff;text-shadow:2px 2px 0 #000;letter-spacing:1px}
+#channel-view .ch-back{background:linear-gradient(180deg,#9a9a9a,#6f6f6f);border:2px solid #000;box-shadow:inset 2px 2px 0 rgba(255,255,255,.45),inset -2px -2px 0 rgba(0,0,0,.45);color:#fff !important;text-shadow:2px 2px 0 #383838;padding:6px 14px;font-weight:bold;margin-bottom:12px}
+#channel-view .ch-tabs button{background:linear-gradient(180deg,#9a9a9a,#6f6f6f);border:2px solid #000 !important;border-radius:0 !important;color:#fff;text-shadow:2px 2px 0 #383838}
+#channel-view .ch-tabs button:first-child{border-right:none !important}
+#channel-view .ch-tabs button.on{background:linear-gradient(180deg,#5fae3f,#3e8e2f)}
 .ch-card{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;padding:10px;margin-bottom:8px;background:rgba(30,26,50,.7);border:1px solid rgba(180,120,80,.3);border-radius:8px;cursor:pointer}
 .ch-card:active{background:rgba(50,40,80,.8)}
 .ch-card-av{width:52px;height:52px;border-radius:50%;background:#222;overflow:hidden;-webkit-flex-shrink:0;flex-shrink:0;margin-right:12px}
@@ -184,17 +195,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <button id="ch-tab-shorts">Shorts</button>
     </div>
     <div id="ch-list"></div>
-    <div class="coming" id="ch-shorts-coming">
-      <div class="big">&#9201;</div>
-      <div class="t">Shorts coming soon</div>
-      <div class="s">Short-form playback is on the way.</div>
-    </div>
   </div>
 
-  <div class="coming" id="shorts-view">
-    <div class="big">&#9201;</div>
-    <div class="t">Shorts coming soon</div>
-    <div class="s">A short-form feed is on the way.<br>Search still finds every video.</div>
+  <div id="shorts-view" style="display:none">
+    <div class="feed-head">⚡ Shorts</div>
+    <div id="shorts-feed"></div>
   </div>
 
   <div class="results" id="results">
@@ -249,7 +254,12 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var chTabVideos = document.getElementById('ch-tab-videos');
   var chTabShorts = document.getElementById('ch-tab-shorts');
   var chList = document.getElementById('ch-list');
-  var chShortsComing = document.getElementById('ch-shorts-coming');
+  var shortsFeed = document.getElementById('shorts-feed');
+  var curChId = '';
+  var curChName = '';
+  var curChAvatar = '';
+  var chVideosHtml = '';
+  var shortsLoaded = false;
 
   var curView = 'home';
 
@@ -431,6 +441,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   // that ever painted UI (www host, bare params, no origin).
   var EMBED_CFG = {
     min: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0' },
+    og: { host: 'https://www.youtube.com/embed/', params: '?autoplay=1&rel=0&playsinline=1&controls=1&enablejsapi=1&modestbranding=1&showinfo=0&iv_load_policy=3' },
     minm: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0&mute=1' },
     ncf: { host: 'https://www.youtube-nocookie.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) },
     wwf: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3&origin=' + encodeURIComponent(location.protocol + '//' + location.host) }
@@ -537,8 +548,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       + (IS_LEGACY
         ? ' &middot; <a href="javascript:void(0)" id="inline-link">Try inline player</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted inline</a>'
+          + ' &middot; <a href="javascript:void(0)" id="cfg-og">OG player</a>'
           + ' &middot; <a href="javascript:void(0)" id="leg-direct">Direct MP4</a>'
         : ' &middot; <a href="javascript:void(0)" id="reload-link">Reload &#x21bb;</a>'
+          + ' &middot; <a href="javascript:void(0)" id="cfg-og">OG</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-minm">Muted</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-ncf">NoCookie</a>'
           + ' &middot; <a href="javascript:void(0)" id="cfg-wwf">Full-WWW</a>')
@@ -642,16 +655,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       return;
     }
     resultsEl.innerHTML = html;
-
-    var allItems = resultsEl.querySelectorAll('.result-item');
-    for (var j = 0; j < allItems.length; j++) {
-      bindResult(allItems[j]);
-    }
-
-    var chCards = resultsEl.querySelectorAll('.ch-card');
-    for (var k = 0; k < chCards.length; k++) {
-      bindChannelCard(chCards[k]);
-    }
+    bindItems(resultsEl);
   }
 
   function bindChannelCard(el) {
@@ -683,6 +687,36 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       t = t.parentNode;
     }
     return null;
+  }
+
+  function bindItems(box) {
+    var items = box.querySelectorAll('.result-item');
+    for (var j = 0; j < items.length; j++) bindResult(items[j]);
+    var cards = box.querySelectorAll('.ch-card');
+    for (var k = 0; k < cards.length; k++) bindChannelCard(cards[k]);
+  }
+
+  function isShort(v) {
+    if (v.type === 'short') return true;
+    if (v.lengthSeconds && parseInt(v.lengthSeconds, 10) <= 62) return true;
+    return false;
+  }
+
+  function shortItemHtml(v, authorName, authorId, avatarUrl) {
+    return itemHtml({
+      vid: v.videoId,
+      title: esc(v.title || 'Untitled'),
+      author: esc(authorName || v.author || ''),
+      authorRaw: authorName || v.author || '',
+      authorId: authorId || v.authorId || '',
+      rawViews: v.viewCount || '',
+      published: esc(v.publishedText || ''),
+      viewsLabel: v.viewCount ? fmtNum(v.viewCount) + ' views' : '',
+      durLabel: v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '',
+      verified: v.authorVerified,
+      thumb: ytThumb(v.videoId),
+      avatarUrl: avatarUrl || ytChannelThumb(v.authorThumbnails)
+    });
   }
 
   function bindResult(el) {
@@ -724,6 +758,10 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   function openChannel(authorId) {
     if (!authorId) return;
+    curChId = authorId;
+    curChName = '';
+    curChAvatar = '';
+    chVideosHtml = '';
     showView('channel');
     chName.textContent = 'Loading...';
     chSubs.textContent = '';
@@ -731,7 +769,6 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     chAvatar.src = '';
     chList.innerHTML = '';
     chList.style.display = 'block';
-    chShortsComing.style.display = 'none';
     chTabVideos.className = 'on';
     chTabShorts.className = '';
     setStatus('Loading channel...');
@@ -749,10 +786,45 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       chDesc.textContent = d.description || '';
       var av = ytChannelThumb(d.authorThumbnails);
       if (av) chAvatar.src = av;
-      loadChannelVideos(authorId, d.author || '', av);
+      curChName = d.author || '';
+      curChAvatar = av;
+      loadChannelVideos(authorId, curChName, av);
     };
     xhr.onerror = function() { setStatus('Channel failed to load'); };
     xhr.ontimeout = function() { setStatus('Channel timed out'); };
+    xhr.send();
+  }
+
+  function paintChList(html) {
+    chList.innerHTML = html;
+    bindItems(chList);
+  }
+
+  function loadChannelShorts(authorId, authorName, avatarUrl) {
+    chList.innerHTML = '<div class="empty">Loading shorts...</div>';
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_CH + '?channelId=' + encodeURIComponent(authorId) + '&tab=shorts', true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) { setStatus('Shorts failed to load'); return; }
+      var d;
+      try { d = JSON.parse(xhr.responseText); } catch (e) { setStatus('Shorts failed to load'); return; }
+      var vids = d.videos || d.shorts || d.latestVideos || [];
+      if (!vids.length) {
+        chList.innerHTML = '<div class="empty">No shorts found</div>';
+        setStatus('');
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < vids.length; i++) {
+        if (!vids[i].videoId) continue;
+        html += shortItemHtml(vids[i], authorName, authorId, avatarUrl);
+      }
+      paintChList(html || '<div class="empty">No shorts found</div>');
+      setStatus('');
+    };
+    xhr.onerror = function() { setStatus('Shorts failed to load'); };
+    xhr.ontimeout = function() { setStatus('Shorts timed out'); };
     xhr.send();
   }
 
@@ -789,9 +861,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
           avatarUrl: avatarUrl
         });
       }
-      chList.innerHTML = html || '<div class="empty">No videos found</div>';
-      var items = chList.querySelectorAll('.result-item');
-      for (var j = 0; j < items.length; j++) bindResult(items[j]);
+      chVideosHtml = html || '<div class="empty">No videos found</div>';
+      paintChList(chVideosHtml);
       setStatus('');
     };
     xhr.onerror = function() { setStatus('Videos failed to load'); };
@@ -851,7 +922,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       resetPlayer();
       playerBox.style.display = 'block';
       loadClassic(curCfg);
-    } else if (t.id === 'cfg-ncf' || t.id === 'cfg-wwf' || t.id === 'cfg-minm') {
+    } else if (t.id === 'cfg-ncf' || t.id === 'cfg-wwf' || t.id === 'cfg-minm' || t.id === 'cfg-og') {
       e.preventDefault();
       resetPlayer();
       playerBox.style.display = 'block';
@@ -871,20 +942,53 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     }
   });
 
+  function loadMenuShorts() {
+    showView('shorts');
+    if (shortsLoaded) return;
+    shortsFeed.innerHTML = '<div class="empty">Loading shorts...</div>';
+    setStatus('Loading shorts...');
+    window.scrollTo(0, 0);
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API + '?q=' + encodeURIComponent('#shorts'), true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) { setStatus('Shorts failed to load'); return; }
+      var data;
+      try { data = JSON.parse(xhr.responseText); } catch (e) { setStatus('Shorts failed to load'); return; }
+      var html = '';
+      for (var i = 0; data && i < data.length; i++) {
+        var v = data[i];
+        if (!v.videoId || !isShort(v)) continue;
+        html += shortItemHtml(v, '', '', '');
+      }
+      if (!html) {
+        shortsFeed.innerHTML = '<div class="empty">No shorts found — try again</div>';
+        setStatus('');
+        return;
+      }
+      shortsFeed.innerHTML = html;
+      bindItems(shortsFeed);
+      shortsLoaded = true;
+      setStatus('');
+    };
+    xhr.onerror = function() { setStatus('Shorts failed to load'); };
+    xhr.ontimeout = function() { setStatus('Shorts timed out'); };
+    xhr.send();
+  }
+
   menuHome.addEventListener('click', function() { showView('home'); });
-  menuShorts.addEventListener('click', function() { showView('shorts'); });
+  menuShorts.addEventListener('click', function() { loadMenuShorts(); });
   chBack.addEventListener('click', function() { showView('home'); });
   chTabVideos.addEventListener('click', function() {
     chTabVideos.className = 'on';
     chTabShorts.className = '';
-    chShortsComing.style.display = 'none';
-    chList.style.display = 'block';
+    if (chVideosHtml) paintChList(chVideosHtml);
+    else chList.innerHTML = '<div class="empty">Loading videos...</div>';
   });
   chTabShorts.addEventListener('click', function() {
     chTabShorts.className = 'on';
     chTabVideos.className = '';
-    chList.style.display = 'none';
-    chShortsComing.style.display = 'block';
+    if (curChId) loadChannelShorts(curChId, curChName, curChAvatar);
   });
 
   btnSearch.addEventListener('click', function() { showView('home'); doSearch(qInput.value); });
