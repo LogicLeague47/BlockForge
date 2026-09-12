@@ -98,9 +98,13 @@ Life.baby = function(s) {
   var c = null;
   for (var i = 0; i < BLD.countries.length; i++) if (BLD.countries[i].name === s.country) c = BLD.countries[i];
   if (!c) c = BLD.countries[0];
-  var g = Life.chance(0.5) ? 'M' : 'F';
-  s.children.push({ name: Life.pick(g === 'M' ? c.male : c.female) + ' ' + s.name.split(' ')[1], alive: true, born: s.age });
-  return s;
+  function makeOne() {
+    var g = Life.chance(0.5) ? 'M' : 'F';
+    s.children.push({ name: Life.pick(g === 'M' ? c.male : c.female) + ' ' + s.name.split(' ')[1], alive: true, born: s.age });
+  }
+  makeOne();
+  if (Life.chance(0.03)) { makeOne(); s.twins = (s.twins || 0) + 1; return 'twins'; }
+  return 'single';
 };
 
 Life.jobById = function(id) {

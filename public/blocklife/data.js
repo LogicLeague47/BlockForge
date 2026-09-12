@@ -73,6 +73,8 @@ BLD.jobs = [
   { id: 'popstar', title: 'Pop Star', track: 'arts', salary: 480000, req: { loo: 90 }, fame: 30 },
   { id: 'athlete', title: 'Pro Athlete', track: 'arts', salary: 520000, req: { hea: 90, loo: 60 }, fame: 25 },
   { id: 'writer', title: 'Writer', track: 'arts', salary: 52000, req: { edu: 2, sma: 65 } },
+  { id: 'influencer', title: 'Influencer', track: 'arts', salary: 90000, req: { loo: 60 }, fame: 10 },
+  { id: 'mega_influencer', title: 'Mega Influencer', track: 'arts', salary: 310000, req: { loo: 75 }, fame: 25 },
   { id: 'pilot', title: 'Pilot', track: 'pro', salary: 140000, req: { edu: 2, sma: 70, hea: 60 } },
   { id: 'architect', title: 'Architect', track: 'pro', salary: 110000, req: { edu: 3, sma: 70 } },
   { id: 'professor', title: 'Professor', track: 'pro', salary: 98000, req: { edu: 3, sma: 80 } },
@@ -135,7 +137,17 @@ BLD.crimes = [
   { id: 'bank', name: 'Bank Robbery', loot: [20000, 250000], jail: 0.45, years: [3, 12] },
   { id: 'mug', name: 'Mug a Jogger', loot: [20, 300], jail: 0.18, years: [0, 2] },
   { id: 'arson', name: 'Arson', loot: [0, 0], jail: 0.35, years: [2, 8] },
-  { id: 'murder', name: 'Murder', loot: [0, 0], jail: 0.6, years: [10, 40] }
+  { id: 'murder', name: 'Murder', loot: [0, 0], jail: 0.6, years: [10, 40] },
+  { id: 'kidnap', name: 'Kidnapping', loot: [50000, 500000], jail: 0.55, years: [8, 25] },
+  { id: 'hack', name: 'Bank Hacking', loot: [10000, 300000], jail: 0.35, years: [2, 10] },
+  { id: 'fraud', name: 'Insurance Fraud', loot: [5000, 80000], jail: 0.3, years: [1, 7] },
+  { id: 'drugs', name: 'Deal Drugs', loot: [2000, 60000], jail: 0.4, years: [2, 12] },
+  { id: 'train', name: 'Train Robbery', loot: [15000, 200000], jail: 0.42, years: [3, 10] },
+  { id: 'museum', name: 'Museum Heist', loot: [30000, 800000], jail: 0.5, years: [4, 15] },
+  { id: 'casino_heist', name: 'Casino Heist', loot: [50000, 1000000], jail: 0.52, years: [5, 20] },
+  { id: 'gta', name: 'Grand Theft Auto', loot: [5000, 40000], jail: 0.3, years: [1, 5] },
+  { id: 'extort', name: 'Extortion', loot: [3000, 50000], jail: 0.33, years: [2, 8] },
+  { id: 'ponzi', name: 'Ponzi Scheme', loot: [20000, 600000], jail: 0.38, years: [3, 15] }
 ];
 
 BLD.deaths = [
@@ -154,7 +166,20 @@ BLD.deaths = [
   { t: 'fell into a volcano taking a selfie', w: 3 },
   { t: 'was assassinated by a jealous ex', w: 3 },
   { t: 'overdosed on protein powder', w: 3 },
-  { t: 'slipped on a banana peel. Classic.', w: 5 }
+  { t: 'slipped on a banana peel. Classic.', w: 5 },
+  { t: 'spontaneously combusted. Science has no comment.', w: 2 },
+  { t: 'was flattened by a falling piano. Cartoon rules apply.', w: 3 },
+  { t: 'was eaten by a shark while paddleboarding', w: 4 },
+  { t: 'starved in an IKEA. The exit signs lied.', w: 3 },
+  { t: 'used deodorant as a flamethrower. Indoors.', w: 3 },
+  { t: 'was launched by a manhole cover geyser', w: 2 },
+  { t: 'was killed by a falling coconut. Avengeable.', w: 4 },
+  { t: 'was trampled on Black Friday over a toaster', w: 4 },
+  { t: 'skydived with a parachute packed by an ex', w: 3 },
+  { t: 'drowned in quicksand. Slowly. Dramatically.', w: 3 },
+  { t: 'was launched off a treadmill into a wall', w: 4 },
+  { t: 'was buried in a cheese avalanche. Delicious end.', w: 2 },
+  { t: 'was sat on by a sumo wrestler. Accidentally. Probably.', w: 3 }
 ];
 
 /* EVENTS. fx(s) mutates via Life helpers, returns log string/array or {log,then}. */
@@ -313,7 +338,11 @@ BLE({ id: 'love_baby', min: 20, max: 45, w: 9,
   t: function(s) { return 'Your partner wants a baby. A whole human. From scratch.'; },
   ch: [
     { t: 'Do it', fx: function(s) {
-        if (Life.chance(0.7)) { Life.baby(s); Life.bump(s, 'hap', 12); return 'A baby! It screams like a tiny CEO.'; }
+        if (Life.chance(0.7)) {
+          var tw = Life.baby(s);
+          Life.bump(s, 'hap', 12);
+          return tw === 'twins' ? 'TWINS! Double screaming, double love, zero sleep.' : 'A baby! It screams like a tiny CEO.';
+        }
         return 'No luck this year. Practice was fun though.'; } },
     { t: 'No way', fx: function(s) { Life.bump(s, 'hap', -6); return 'The argument lasted three days.'; } }
   ] });
@@ -676,6 +705,88 @@ BLE({ id: 'blood_drive', min: 18, max: 65, w: 6,
   ch: [
     { t: 'Donate', fx: function(s) { Life.bump(s, 'hea', -3); Life.bump(s, 'karma', 8); Life.bump(s, 'hap', 4); return 'Cookies earned. Heroism achieved.'; } },
     { t: 'Keep blood', fx: function(s) { return 'Selfish. But hydrated with your own fluids.'; } }
+  ] });
+
+BLE({ id: 'scam_revenge', min: 18, max: 70, w: 6,
+  t: function(s) { return 'The prince scammer emailed AGAIN. This time you smell opportunity.'; },
+  ch: [
+    { t: 'Scam him back', fx: function(s) {
+        if (Life.chance(0.4)) { Life.cash(s, 3000); Life.bump(s, 'hap', 10); return 'You out-scummed a scammer. Legendary.'; }
+        return 'He scammed you twice. He is just better at crime.'; } },
+    { t: 'Ignore', fx: function(s) { return null; } }
+  ] });
+
+BLE({ id: 'hoa_war', min: 25, max: 80, w: 6,
+  t: function(s) { return 'The HOA fined you because your grass is "an inch of anarchy".'; },
+  ch: [
+    { t: 'Pay $200', fx: function(s) { Life.cash(s, -200); return 'Conformity purchased.'; } },
+    { t: 'Declare war', fx: function(s) { Life.bump(s, 'hap', 6); Life.bump(s, 'karma', -4); return 'Flamingos on every lawn. They started it.'; } }
+  ] });
+
+BLE({ id: 'garage_band', min: 13, max: 30, w: 7,
+  t: function(s) { return 'Some kids want you in their garage band. They need "a vibe guy".'; },
+  ch: [
+    { t: 'Join', fx: function(s) {
+        if (Life.chance(0.1)) { Life.fame(s, 20); Life.cash(s, 50000); return 'The band BLEW UP. Groupies. Drama minus hygiene.'; }
+        Life.bump(s, 'hap', 6); return 'Three gigs. Two were to the drummer\u2019s mom.'; } },
+    { t: 'Pass', fx: function(s) { return null; } }
+  ] });
+
+BLE({ id: 'jury_duty', min: 18, max: 70, w: 6,
+  t: function(s) { return 'Jury duty summons. Your civic duty calls. It sounds boring.'; },
+  ch: [
+    { t: 'Serve', fx: function(s) { Life.bump(s, 'karma', 6); Life.bump(s, 'hap', -3); return 'Justice served. Parking validated.'; } },
+    { t: 'Fake a cough', fx: function(s) { Life.bump(s, 'karma', -3); return 'Dismissed. The cough was Oscar-worthy.'; } }
+  ] });
+
+BLE({ id: 'fridge_thief', min: 18, max: 60, w: 6,
+  if: function(s) { return !!s.job; },
+  t: function(s) { return 'Someone keeps stealing your lunch from the office fridge. This means war.'; },
+  ch: [
+    { t: 'Laxative trap', fx: function(s) {
+        if (Life.chance(0.6)) { Life.bump(s, 'hap', 8); Life.bump(s, 'karma', -5); return 'Justice was served. So was revenge. Loudly.'; }
+        return 'Wrong sandwich. HR meeting scheduled.'; } },
+    { t: 'Label everything', fx: function(s) { return 'Passive aggression. The office way.'; } }
+  ] });
+
+BLE({ id: 'dentist_horror', min: 8, max: 90, w: 7,
+  t: function(s) { return 'The dentist found "something interesting". Interesting is never good.'; },
+  ch: [
+    { t: 'Fix it ($2000)', fx: function(s) {
+        if (s.money >= 2000) { Life.cash(s, -2000); Life.bump(s, 'hea', 8); return 'Root canal survived. Numb face selfies taken.'; }
+        return 'You smiled and left. The tooth remains interesting.'; } },
+    { t: 'Ignore it', fx: function(s) { Life.bump(s, 'hea', -8); return 'It will resolve itself. (It will not.)'; } }
+  ] });
+
+BLE({ id: 'found_phone', min: 12, max: 70, w: 6,
+  t: function(s) { return 'You found a phone with no lock screen. The temptation is exquisite.'; },
+  ch: [
+    { t: 'Snoop', fx: function(s) { Life.bump(s, 'hap', 4); Life.bump(s, 'karma', -5); return 'Their search history haunts YOU now.'; } },
+    { t: 'Turn it in', fx: function(s) { Life.bump(s, 'karma', 6); return 'Reward: a firm handshake.'; } }
+  ] });
+
+BLE({ id: 'crash_wedding', min: 18, max: 50, w: 6,
+  t: function(s) { return 'You heard about a wedding with an open bar and zero security.'; },
+  ch: [
+    { t: 'Crash it', fx: function(s) {
+        if (Life.chance(0.6)) { Life.bump(s, 'hap', 10); return 'Free cake, free booze, fake name. Perfect crime.'; }
+        return 'Caught by the bride\u2019s grandmother. Terrifying woman.'; } },
+    { t: 'Respect boundaries', fx: function(s) { return null; } }
+  ] });
+
+BLE({ id: 'fame_paparazzi', min: 14, max: 70, w: 6,
+  if: function(s) { return (s.fame || 0) > 20; },
+  t: function(s) { return 'Paparazzi caught you buying toilet paper. HEADLINE: STAR HOARDS PAPER.'; },
+  ch: [
+    { t: 'Pose', fx: function(s) { Life.fame(s, 5); Life.bump(s, 'hap', 5); return 'Iconic toilet paper run.'; } },
+    { t: 'Flip them off', fx: function(s) { Life.fame(s, 8); Life.bump(s, 'karma', -4); return 'Front page. Middle finger. Brand deals pending.'; } }
+  ] });
+
+BLE({ id: 'tiny_house', min: 25, max: 60, w: 5,
+  t: function(s) { return 'A documentary convinced you that living in 200 square feet is freedom.'; },
+  ch: [
+    { t: 'Downsize', fx: function(s) { Life.bump(s, 'hap', 5); return 'Everything you own fits in a shoebox. Liberating. Smelly.'; } },
+    { t: 'Keep space', fx: function(s) { return null; } }
   ] });
 
 BLE({ id: 'pyramid', min: 18, max: 60, w: 6,

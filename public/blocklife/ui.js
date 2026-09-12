@@ -126,10 +126,46 @@ BLUI.boot = function() {
   $('btn-age').addEventListener('click', function() { BLUI.doAge(); });
   $('btn-grave').addEventListener('click', function() { BLUI.showGraves(); });
   $('btn-god').addEventListener('click', function() {
-    BLUI.god = !BLUI.god;
-    BLUI.toast(BLUI.god ? 'God mode ON. Naughty.' : 'God mode off.');
-    BLUI.renderSheet();
+    if (BLUI.god) { BLUI.openGod(); return; }
+    var pw = null;
+    try { pw = window.prompt('God mode password?', ''); } catch (e) {}
+    if (pw === '1928') {
+      BLUI.god = true;
+      try { if (window.localStorage) window.localStorage.setItem('blocklife_god', '1'); } catch (e2) {}
+      BLUI.toast('God mode ON. Naughty.');
+      BLUI.renderSheet();
+      BLUI.openGod();
+    } else if (pw !== null) {
+      BLUI.toast('Wrong password. Mortals only.');
+    }
   });
+  try { if (window.localStorage && window.localStorage.getItem('blocklife_god') === '1') BLUI.god = true; } catch (e3) {}
+};
+
+BLUI.openGod = function() {
+  var s = BLUI.state;
+  if (!s || !s.alive) { BLUI.toast('Start a life first.'); return; }
+  function refresh() { Life.save(s); BLUI.render(); BLUI.openGod(); }
+  var btns = [];
+  var defs = [['Happiness', 'hap'], ['Health', 'hea'], ['Smarts', 'sma'], ['Looks', 'loo']];
+  for (var i = 0; i < defs.length; i++) {
+    (function(label, key) {
+      btns.push({ t: '-10 ' + label, fn: function() { Life.bump(s, key, -10); refresh(); return true; } });
+      btns.push({ t: label + ': ' + Life.get(s, key) + ' +10', fn: function() { Life.bump(s, key, 10); refresh(); return true; } });
+    })(defs[i][0], defs[i][1]);
+  }
+  btns.push({ t: 'Money: ' + Life.money(s, s.money) + ' +$1M', fn: function() { Life.cash(s, 1000000); refresh(); return true; } });
+  btns.push({ t: 'Karma: ' + s.karma + ' +20', fn: function() { s.karma += 20; refresh(); return true; } });
+  btns.push({ t: 'Fame: ' + (s.fame || 0) + ' +20', fn: function() { Life.fame(s, 20); refresh(); return true; } });
+  btns.push({ t: 'Grant PhD', fn: function() { s.edu.level = 3; Life.bump(s, 'sma', 10); refresh(); return true; } });
+  btns.push({ t: 'Clear criminal record', fn: function() { s.record = 0; s.murders = 0; refresh(); return true; } });
+  btns.push({ t: 'Lock god mode', fn: function() {
+    BLUI.god = false;
+    try { if (window.localStorage) window.localStorage.removeItem('blocklife_god'); } catch (e) {}
+    BLUI.toast('Mortal again.');
+    BLUI.renderSheet();
+  } });
+  BLUI.popup('GOD MODE', 'Edit anything. No judgment. (Much.)', btns);
 };
 
 BLUI.showGraves = function() {
@@ -277,6 +313,13 @@ BLUI.actList = function(s) {
     Life.cash(s, -500);
     if (Life.chance(0.3)) { Life.cash(s, 2500); Life.bump(s, 'hap', 8); BLUI.afterAction('Your horse won! Neigh! (That means yes.)'); }
     else BLUI.afterAction('Your horse stopped for snacks mid-race.'); });
+  A('Slots $100', function() {
+    if (s.money < 100) return BLUI.toast('Need $100.');
+    Life.cash(s, -100);
+    var r = Life.rnd();
+    if (r < 0.02) { Life.cash(s, 50000); Life.bump(s, 'hap', 25); BLUI.afterAction('TRIPLE SEVENS! $50,000! The machine is smoking.'); }
+    else if (r < 0.15) { Life.cash(s, 500); Life.bump(s, 'hap', 8); BLUI.afterAction('Small win! Up $400. Quit while ahead. (You will not.)'); }
+    else BLUI.afterAction('Lost. The machine blinked mockingly.'); });
   A('Vacation $2k', function() {
     if (s.money < 2000) return BLUI.toast('Need $2,000.');
     Life.cash(s, -2000); Life.bump(s, 'hap', 14); BLUI.afterAction('Beach acquired. Inbox ignored.'); });
@@ -344,12 +387,19 @@ BLUI.loveList = function(s) {
     A('Have Baby', function() {
       if (!s.partner) return BLUI.toast('Need a partner. Biology 101.');
       if (s.children.length >= 8) return BLUI.toast('The house is full. Stop.');
-      if (Life.chance(0.7)) { Life.baby(s); Life.bump(s, 'hap', 12); BLUI.afterAction('A baby! It looks like an angry potato. You love it.'); }
+      if (Life.chance(0.7)) {
+        var tw = Life.baby(s);
+        Life.bump(s, 'hap', 12);
+        BLUI.afterAction(tw === 'twins' ? 'TWINS! The house just got loud forever.' : 'A baby! It looks like an angry potato. You love it.');
+      }
       else BLUI.afterAction('Not this year. Practice was fun.'); });
     A('Adopt ($5k)', function() {
       if (s.money < 5000) return BLUI.toast('Need $5,000.');
       if (s.children.length >= 8) return BLUI.toast('The house is full. Stop.');
-      Life.cash(s, -5000); Life.baby(s); Life.bump(s, 'hap', 10); BLUI.afterAction('Adopted! Instant family, just add love.'); });
+      Life.cash(s, -5000);
+      var tw2 = Life.baby(s);
+      Life.bump(s, 'hap', 10);
+      BLUI.afterAction(tw2 === 'twins' ? 'Adopted TWINS! Buy one get one forever.' : 'Adopted! Instant family, just add love.'); });
   }
   return L;
 };
