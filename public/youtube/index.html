@@ -92,13 +92,16 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .feed-head{font:bold 14px monospace;color:#fff;margin-bottom:10px}
 /* Minecraft-style artist profile (pure CSS, no assets) */
 #channel-view{background:#1c1a24;border:3px solid #000;border-radius:4px;padding:12px;overflow:hidden}
-#channel-view::before{content:'';display:block;height:12px;margin:-12px -12px 12px;background:linear-gradient(180deg,#6abe30 0 40%,#5a3d24 40% 100%);border-bottom:3px solid #000}
+#channel-view .ch-banner{height:86px;margin:-12px -12px 12px;background:linear-gradient(135deg,#23233a,#3a2a4a);border-bottom:3px solid #000;overflow:hidden}
+#channel-view .ch-banner img{width:100%;height:100%;-o-object-fit:cover;object-fit:cover;display:none}
 #channel-view .ch-avatar{border-radius:0;border:3px solid #000}
 #channel-view .ch-avatar img{border-radius:0}
 #channel-view .ch-name{color:#fff;text-shadow:2px 2px 0 #000;letter-spacing:1px}
 #channel-view .ch-back{background:linear-gradient(180deg,#9a9a9a,#6f6f6f);border:2px solid #000;box-shadow:inset 2px 2px 0 rgba(255,255,255,.45),inset -2px -2px 0 rgba(0,0,0,.45);color:#fff !important;text-shadow:2px 2px 0 #383838;padding:6px 14px;font-weight:bold;margin-bottom:12px}
 #channel-view .ch-tabs button{background:linear-gradient(180deg,#9a9a9a,#6f6f6f);border:2px solid #000 !important;border-radius:0 !important;color:#fff;text-shadow:2px 2px 0 #383838}
 #channel-view .ch-tabs button:first-child{border-right:none !important}
+#channel-view .ch-subbtn{display:block;text-align:center;background:linear-gradient(180deg,#c44,#922);border:2px solid #000;box-shadow:inset 2px 2px 0 rgba(255,255,255,.35),inset -2px -2px 0 rgba(0,0,0,.45);color:#fff !important;text-decoration:none;font:bold 13px monospace;text-shadow:2px 2px 0 #300;padding:8px;margin-bottom:10px}
+#channel-view .ch-subbtn:active{background:linear-gradient(180deg,#e55,#a33)}
 #channel-view .ch-tabs button.on{background:linear-gradient(180deg,#5fae3f,#3e8e2f)}
 #channel-view .result-item{background:#2b2b31;border:2px solid #000;border-radius:2px}
 #channel-view .r-thumb{border-radius:0;border:2px solid #000}
@@ -188,6 +191,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   <div class="ch-view" id="channel-view">
     <a class="ch-back" id="ch-back" href="javascript:void(0)">&larr; Back</a>
+    <div class="ch-banner"><img id="ch-banner" src="" alt=""></div>
     <div class="ch-head">
       <div class="ch-avatar"><img id="ch-avatar" src="" alt=""></div>
       <div>
@@ -196,6 +200,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       </div>
     </div>
     <div class="ch-desc" id="ch-desc"></div>
+    <a class="ch-subbtn" id="ch-sub" href="#" target="_blank">Subscribe on YouTube</a>
     <div class="ch-tabs">
       <button id="ch-tab-videos" class="on">Videos</button>
       <button id="ch-tab-shorts">Shorts</button>
@@ -253,6 +258,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var channelView = document.getElementById('channel-view');
   var shortsView = document.getElementById('shorts-view');
   var chAvatar = document.getElementById('ch-avatar');
+  var chBanner = document.getElementById('ch-banner');
+  var chSub = document.getElementById('ch-sub');
   var chName = document.getElementById('ch-name');
   var chSubs = document.getElementById('ch-subs');
   var chDesc = document.getElementById('ch-desc');
@@ -773,6 +780,9 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     chSubs.textContent = '';
     chDesc.textContent = '';
     chAvatar.src = '';
+    chBanner.removeAttribute('src');
+    chBanner.style.display = 'none';
+    chSub.href = '#';
     chList.innerHTML = '';
     chList.style.display = 'block';
     chTabVideos.className = 'on';
@@ -792,6 +802,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       chDesc.textContent = d.description || '';
       var av = ytChannelThumb(d.authorThumbnails);
       if (av) chAvatar.src = av;
+      var bn = '';
+      if (d.authorBanners && d.authorBanners.length) {
+        for (var bi = d.authorBanners.length - 1; bi >= 0; bi--) {
+          if (d.authorBanners[bi].url) { bn = d.authorBanners[bi].url; break; }
+        }
+      }
+      if (bn) { chBanner.src = bn; chBanner.style.display = 'block'; }
+      var curl = d.authorUrl || ('https://www.youtube.com/channel/' + authorId);
+      chSub.href = curl + '?sub_confirmation=1';
       curChName = d.author || '';
       curChAvatar = av;
       loadChannelVideos(authorId, curChName, av);
