@@ -205,8 +205,29 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   </div>
 
   <div class="search-row">
-    <input id="q" type="text" placeholder="Search YouTube..." autocomplete="off">
+    <input id="q" type="search" placeholder="Search YouTube..." autocomplete="off">
     <button id="btn-search">Search</button>
+  </div>
+  <div class="filters" id="filters">
+    <select id="f-sort">
+      <option value="">Sort: Best</option>
+      <option value="upload_date">Newest</option>
+      <option value="view_count">Most viewed</option>
+      <option value="rating">Top rated</option>
+    </select>
+    <select id="f-date">
+      <option value="">Any time</option>
+      <option value="hour">Past hour</option>
+      <option value="today">Today</option>
+      <option value="week">This week</option>
+      <option value="month">This month</option>
+      <option value="year">This year</option>
+    </select>
+    <select id="f-dur">
+      <option value="">Any length</option>
+      <option value="short">Short</option>
+      <option value="long">Long</option>
+    </select>
   </div>
   <div class="search-links" id="search-links"></div>
   <div class="status" id="status"></div>
@@ -283,6 +304,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   <div class="results" id="results">
     <div class="empty">Search for something to get started</div>
   </div>
+  <button class="loadmore" id="loadmore" style="display:none">Load more</button>
 
   <div id="theater">
     <div class="th-top">
@@ -323,6 +345,14 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   var dbgEl = document.getElementById('dbg');
   var qInput = document.getElementById('q');
   var btnSearch = document.getElementById('btn-search');
+  var fSort = document.getElementById('f-sort');
+  var fDate = document.getElementById('f-date');
+  var fDur = document.getElementById('f-dur');
+  var loadmoreBtn = document.getElementById('loadmore');
+  var curQuery = '';
+  var curPage = 1;
+  var seenIds = {};
+  var upnextCache = {};
   var npWrap = document.getElementById('now-playing');
   var npTitle = document.getElementById('np-title');
   var npChannel = document.getElementById('np-channel');
@@ -778,6 +808,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     curWatchUrl = watchUrl;
     pushHist({ id: id, title: title || '', author: author || '', authorId: authorId || '', lenSec: lenSec || '', vtype: vtype || '' });
     paintSaveBtn();
+    loadUpNext(authorId, author);
     resetPlayer();
     previewThumb.style.display = '';
     previewThumb.src = ytThumb(id);
@@ -845,26 +876,56 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       + '</div></div>';
   }
 
-  function renderResults(items) {
-    if (!items || items.length === 0) {
-      resultsEl.innerHTML = '<div class="empty">No results found</div>';
-      return;
+  function skelHtml() {
+    var h = '';
+    for (var i = 0; i < 3; i++) {
+      h += '<div class="skel"><div class="sb-t"></div><div class="sb-b"><div class="sb-l1"></div><div class="sb-l2"></div></div></div>';
     }
+    return h;
+  }
+
+  function noteSeen(items) {
+    for (var i = 0; items && i < items.length; i++) {
+      if (items[i].videoId) seenIds['v' + items[i].videoId] = 1;
+      if (items[i].authorId) seenIds['c' + items[i].authorId] = 1;
+    }
+  }
+
+  function searchUrl(q, page) {
+    var u = API + '?q=' + encodeURIComponent(q);
+    if (fSort.value) u += '&sort_by=' + fSort.value;
+    if (fDate.value) u += '&date=' + fDate.value;
+    if (fDur.value) u += '&duration=' + fDur.value;
+    if (page > 1) u += '&page=' + page;
+    return u;
+  }
+
+  function fetchSearch(url, cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) { cb('Server error (' + xhr.status + ')'); return; }
+      try { cb(null, JSON.parse(xhr.responseText)); }
+      catch (e) { cb('Bad response from server'); }
+    };
+    xhr.onerror = function() { cb('Network error'); };
+    xhr.ontimeout = function() { cb('Timed out'); };
+    xhr.send();
+  }
+
+  function appendResults(items) {
     var html = '';
     for (var i = 0; i < items.length; i++) {
       var v = items[i];
-      // Channels render as tappable profile cards (artist profiles).
       if (v.type === 'channel') {
-        if (v.authorId) html += channelCardHtml(v);
+        if (v.authorId && !seenIds['c' + v.authorId]) html += channelCardHtml(v);
         continue;
       }
-      // All videos from YT: accept anything with a playable videoId —
-      // videos, shorts, livestreams, movies. Only skip playlists.
       if (v.type === 'playlist' || v.type === 'hashtag') continue;
-      var vid = v.videoId;
-      if (!vid) continue;
+      if (!v.videoId || seenIds['v' + v.videoId]) continue;
       html += itemHtml({
-        vid: vid,
+        vid: v.videoId,
         title: esc(v.title || 'Untitled'),
         author: esc(v.author || ''),
         authorRaw: v.author || '',
@@ -876,16 +937,58 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
         lenSec: v.lengthSeconds || '',
         vtype: v.type || '',
         verified: v.authorVerified,
-        thumb: ytThumb(vid),
+        thumb: ytThumb(v.videoId),
         avatarUrl: ytChannelThumb(v.authorThumbnails)
       });
     }
+    noteSeen(items);
+    return html;
+  }
+
+  function renderResults(items) {
+    if (!items || items.length === 0) {
+      resultsEl.innerHTML = '<div class="empty">No results found</div>';
+      loadmoreBtn.style.display = 'none';
+      return;
+    }
+    var html = appendResults(items);
     if (!html) {
       resultsEl.innerHTML = '<div class="empty">No video results found</div>';
+      loadmoreBtn.style.display = 'none';
       return;
     }
     resultsEl.innerHTML = html;
     bindItems(resultsEl);
+    loadmoreBtn.style.display = 'block';
+    loadmoreBtn.disabled = false;
+    loadmoreBtn.textContent = 'Load more';
+  }
+
+  function loadMore() {
+    if (!curQuery) return;
+    loadmoreBtn.disabled = true;
+    loadmoreBtn.textContent = 'Loading...';
+    fetchSearch(searchUrl(curQuery, curPage + 1), function(err, data) {
+      if (err || !data || !data.length) {
+        loadmoreBtn.style.display = 'none';
+        setStatus(err || '');
+        return;
+      }
+      curPage++;
+      var html = appendResults(data);
+      if (!html) {
+        loadmoreBtn.style.display = 'none';
+        setStatus('No more results.');
+        return;
+      }
+      var tmp = document.createElement('div');
+      tmp.innerHTML = html;
+      while (tmp.firstChild) resultsEl.appendChild(tmp.firstChild);
+      bindItems(resultsEl);
+      loadmoreBtn.disabled = false;
+      loadmoreBtn.textContent = 'Load more';
+      setStatus('');
+    });
   }
 
   function bindChannelCard(el) {
@@ -1246,37 +1349,84 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     xhr.send();
   }
 
+  function loadUpNext(authorId, authorName) {
+    upnextSec.style.display = 'none';
+    if (!authorId || IS_LEGACY) return;
+    if (upnextCache[authorId]) { paintUpNext(authorId, authorName); return; }
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', API_CH + '?channelId=' + encodeURIComponent(authorId) + '&tab=videos', true);
+    xhr.timeout = 12000;
+    xhr.onload = function() {
+      if (xhr.status < 200 || xhr.status >= 300) return;
+      try {
+        var d = JSON.parse(xhr.responseText);
+        var vids = d.videos || d.latestVideos || [];
+        if (!vids.length) return;
+        upnextCache[authorId] = vids.slice(0, 12);
+        paintUpNext(authorId, authorName);
+      } catch (e) {}
+    };
+    xhr.onerror = function() {};
+    xhr.ontimeout = function() {};
+    xhr.send();
+  }
+
+  function paintUpNext(authorId, authorName) {
+    var vids = upnextCache[authorId] || [];
+    var html = '';
+    var shown = 0;
+    for (var i = 0; i < vids.length && shown < 6; i++) {
+      var v = vids[i];
+      if (!v.videoId || v.videoId === currentVid) continue;
+      html += itemHtml({
+        vid: v.videoId,
+        title: esc(v.title || 'Untitled'),
+        author: esc(authorName || v.author || ''),
+        authorRaw: authorName || v.author || '',
+        authorId: authorId,
+        rawViews: v.viewCount || '',
+        published: esc(v.publishedText || ''),
+        viewsLabel: v.viewCount ? fmtNum(v.viewCount) + ' views' : '',
+        durLabel: v.lengthSeconds ? fmtDuration(v.lengthSeconds) : '',
+        lenSec: v.lengthSeconds || '',
+        vtype: v.type || 'video',
+        verified: v.authorVerified,
+        thumb: ytThumb(v.videoId),
+        avatarUrl: ''
+      });
+      shown++;
+    }
+    if (!shown) return;
+    upnextList.innerHTML = html;
+    bindItems(upnextList);
+    upnextFrom.textContent = authorName ? '· ' + authorName : '';
+    upnextSec.style.display = 'block';
+  }
+
   function doSearch(query) {
     query = (query || '').trim();
     if (!query) return;
+    curQuery = query;
+    curPage = 1;
+    seenIds = {};
     setStatus('Searching...');
-    resultsEl.innerHTML = '';
+    resultsEl.innerHTML = skelHtml();
+    loadmoreBtn.style.display = 'none';
     playerBox.style.display = 'none';
     npWrap.style.display = 'none';
+    upnextSec.style.display = 'none';
     ytLinkEl.style.display = 'none';
     searchLinksEl.innerHTML = '<a href="javascript:void(0)" onclick="window.open(\'' + YTS + encodeURIComponent(query) + '\',\'_blank\')">Open "' + esc(query) + '" on YouTube &#x2197;</a>';
-
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', API + '?q=' + encodeURIComponent(query), true);
-    xhr.timeout = 12000;
-    xhr.onload = function() {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          var data = JSON.parse(xhr.responseText);
-          setStatus('');
-          renderResults(data);
-          renderRecent();
-        } catch(e) {
-          setStatus('Parse error');
-          resultsEl.innerHTML = '<div class="empty">Bad response from server</div>';
-        }
-      } else {
-        setStatus('Server error (' + xhr.status + ')');
+    fetchSearch(searchUrl(query, 1), function(err, data) {
+      if (err) {
+        setStatus(err);
+        resultsEl.innerHTML = '<div class="empty">Search failed — try again</div>';
+        return;
       }
-    };
-    xhr.onerror = function() { setStatus('Network error'); };
-    xhr.ontimeout = function() { setStatus('Timed out'); };
-    xhr.send();
+      setStatus('');
+      renderResults(data);
+      renderRecent();
+    });
   }
 
   npWrap.addEventListener('click', function(e) {
@@ -1382,6 +1532,11 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     else if (curChId) loadChannelPlaylists(curChId);
   });
 
+  fSort.addEventListener('change', function() { if (curQuery || qInput.value.trim()) { showView('home'); doSearch(qInput.value.trim() || curQuery); } });
+  fDate.addEventListener('change', function() { if (curQuery || qInput.value.trim()) { showView('home'); doSearch(qInput.value.trim() || curQuery); } });
+  fDur.addEventListener('change', function() { if (curQuery || qInput.value.trim()) { showView('home'); doSearch(qInput.value.trim() || curQuery); } });
+  loadmoreBtn.addEventListener('click', function() { loadMore(); });
+
   btnSearch.addEventListener('click', function() { showView('home'); doSearch(qInput.value); });
   qInput.addEventListener('keydown', function(e) {
     if (e.keyCode === 13 || e.key === 'Enter') { e.preventDefault(); showView('home'); doSearch(qInput.value); }
@@ -1392,6 +1547,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     resetPlayer();
     playerBox.style.display = 'none';
     npWrap.style.display = 'none';
+    upnextSec.style.display = 'none';
     ytLinkEl.style.display = 'none';
     _origDoSearch(q);
   };
