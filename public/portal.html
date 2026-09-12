@@ -514,8 +514,8 @@
           <h2 class="hero-title">FORGE. BUILD. <span class="grad">BLOCKFORGE.</span></h2>
           <p class="hero-sub">Craft, fight and build with friends in a living voxel world — right in your browser, on any device.</p>
           <div class="hero-actions">
-            <a class="hero-play" id="hero-play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
-            <a class="btn hero-alt" id="hero-offline-btn" href="https://blockforge-1.onrender.com/?offline=1" target="_blank" rel="noopener">📴 Play Offline</a>
+            <a class="hero-play" id="hero-play-link" href="./" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
+            <a class="btn hero-alt" id="hero-offline-btn" href="./?offline=1" target="_blank" rel="noopener">📴 Play Offline</a>
             <button class="btn hero-alt" id="hero-servers-btn">🌐 Live Servers</button>
           </div>
           <div class="hero-stats">
@@ -570,14 +570,14 @@
               <div class="stat"><div class="v" id="dev-online-count">—</div><div class="l">Online</div></div>
             </div>
             <div class="quick-row" style="margin-top:12px;">
-              <a class="btn primary" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener" style="text-decoration:none;">Open Dev Panel</a>
+              <a class="btn primary" href="./" target="_blank" rel="noopener" style="text-decoration:none;">Open Dev Panel</a>
             </div>
           </div>
         </div>
 
         <div class="section-title">⚡ QUICK ACTIONS</div>
         <div class="feature-grid">
-          <a class="card" id="play-link" href="https://blockforge-1.onrender.com/" target="_blank" rel="noopener">
+          <a class="card" id="play-link" href="./" target="_blank" rel="noopener">
             <div class="icon">🎮</div>
             <div class="name">Play BlockForge</div>
             <div class="desc">Launch the game in a new tab</div>
@@ -587,7 +587,7 @@
             <div class="name">Live Servers</div>
             <div class="desc">Browse active multiplayer rooms</div>
           </div>
-          <a class="card" href="https://blockforge-1.onrender.com/?offline=1" target="_blank" rel="noopener">
+          <a class="card" href="./?offline=1" target="_blank" rel="noopener">
             <div class="icon">📴</div>
             <div class="name">Play Offline</div>
             <div class="desc">Jump into a local singleplayer world — no account needed</div>
@@ -1177,7 +1177,7 @@
         document.getElementById('user-badge').textContent = name;
         document.getElementById('user-name').textContent = name;
         document.getElementById('avatar-letter').textContent = name.charAt(0).toUpperCase();
-        var playUrl = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(name) + '&from=portal';
+        var playUrl = './?user=' + encodeURIComponent(name) + '&from=portal';
         var playLink = document.getElementById('play-link');
         if (playLink) playLink.href = playUrl;
         var heroPlay = document.getElementById('hero-play-link');
@@ -1242,7 +1242,7 @@
 
       document.getElementById('close-btn').addEventListener('click', function() {
         window.close();
-        var closeUrl = 'https://blockforge-1.onrender.com/';
+        var closeUrl = './';
         if (userName) closeUrl += '?user=' + encodeURIComponent(userName) + '&from=portal';
         setTimeout(function() { location.href = closeUrl; }, 250);
       });
@@ -1437,7 +1437,7 @@
       });
 
       document.getElementById('copy-invite').addEventListener('click', function() {
-        var link = 'https://blockforge-1.onrender.com/?user=' + encodeURIComponent(userName) + '&from=portal';
+        var link = './?user=' + encodeURIComponent(userName) + '&from=portal';
         var ta = document.createElement('textarea');
         ta.value = link;
         document.body.appendChild(ta);
@@ -3564,7 +3564,7 @@
           localStorage.setItem('bf_custom_skin_created', '1');
           try { if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.data) { window.CrazyGames.SDK.data.setItem('blockforge_skin' + suffix, 'custom:' + idx).catch(() => {}); window.CrazyGames.SDK.data.setItem('bf_custom_skin_created', '1').catch(() => {}); } } catch (_) {}
         } catch (_) {}
-        var url = 'https://blockforge-1.onrender.com/?skin=equip';
+        var url = './?skin=equip';
         if (user) url += '&user=' + encodeURIComponent(user);
         toast('Skin equipped — opening BlockForge…', 'ok');
         location.href = url;
@@ -3901,7 +3901,7 @@
       if (heroSrv) heroSrv.addEventListener('click', function() { openCard('servers'); });
       var heroPlay = document.getElementById('hero-play-link');
       if (heroPlay && !userName) {
-        heroPlay.href = 'https://blockforge-1.onrender.com/';
+        heroPlay.href = './';
       }
 
       // ── Initial data load (must run AFTER all event handlers are bound) ──

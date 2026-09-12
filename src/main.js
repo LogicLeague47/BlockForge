@@ -5216,7 +5216,7 @@ function setupNetworkHandlers() {
           // reloads and direct link opens have no token and land on the login
           // screen. CrazyGames keeps its SDK account-integration flow.
           try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
-          window.location.href = '/?user=' + encodeURIComponent(playerName || '') + '&from=game';
+          window.location.href = './?user=' + encodeURIComponent(playerName || '') + '&from=game';
         }
       }
     } else {
@@ -12108,7 +12108,7 @@ document.getElementById('btn-ai-open-link')?.addEventListener('click', () => {
   if (!user || user === '—') return;
   if (isOnCrazyGames()) { addChatLine('Open your profile on the official BlockForge site.', '#7af', true); return; }
   try { sessionStorage.setItem('bf_entry_token', '1'); } catch (_) { console.warn("sessionStorage write failed"); }
-  window.location.href = '/u/?user=' + encodeURIComponent(user);
+  window.location.href = './u/?user=' + encodeURIComponent(user);
 });
 document.getElementById('ai-username')?.addEventListener('click', async () => {
   const u = document.getElementById('ai-username')?.textContent || '';
