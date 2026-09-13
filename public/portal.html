@@ -811,19 +811,27 @@
         <!-- Skins sub-page -->
         <div class="comm-sub-page" id="comm-skins">
           <h3>Community Skins</h3>
-          <p>Player-created skins for BlockForge.</p>
+          <p>Upload your skin to share with the community. Anyone can browse and equip uploaded skins.</p>
           <p><button class="btn upload-btn" id="skin-upload-btn">Upload Skin</button></p>
           <input type="file" accept="image/png" class="file-input-hidden" id="skin-file-input">
+          <div style="font:10px monospace;color:var(--dim);margin-bottom:12px;">Your uploads (local):</div>
           <div class="upload-grid" id="skin-grid"></div>
+          <div style="font:10px monospace;color:var(--dim);margin:16px 0 8px;">Community Gallery (shared online):</div>
+          <div class="upload-grid" id="skin-community-grid"></div>
+          <div id="skin-community-status" style="font:11px monospace;color:var(--dim);text-align:center;padding:8px;">Loading community skins...</div>
         </div>
 
         <!-- Textures sub-page -->
         <div class="comm-sub-page" id="comm-textures">
           <h3>Texture Packs</h3>
-          <p>Custom texture packs created by the community.</p>
+          <p>Upload texture packs to share with the community.</p>
           <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
           <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
+          <div style="font:10px monospace;color:var(--dim);margin-bottom:12px;">Your uploads (local):</div>
           <div class="upload-grid" id="tex-grid"></div>
+          <div style="font:10px monospace;color:var(--dim);margin:16px 0 8px;">Community Gallery (shared online):</div>
+          <div class="upload-grid" id="tex-community-grid"></div>
+          <div id="tex-community-status" style="font:11px monospace;color:var(--dim);text-align:center;padding:8px;">Loading community textures...</div>
         </div>
 
         <!-- Mods sub-page -->
@@ -3776,6 +3784,128 @@
         renderUploads('skin-grid', 'bf_uploads_skins', true);
         renderUploads('tex-grid', 'bf_uploads_textures', false);
       }
+
+      // ── Firebase Community Gallery (upload to internet for everyone) ───
+      function fbInit() {
+        if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') return false;
+        try {
+          var cfg = window.FIREBASE_CONFIG;
+          if (!cfg || !cfg.apiKey) return false;
+          if (!firebase.apps.length) firebase.initializeApp(cfg);
+          return true;
+        } catch (_) { return false; }
+      }
+      function fbUploadToGallery(type, name, dataUrl, cb) {
+        if (!fbInit()) { cb('Firebase not available'); return; }
+        var db = firebase.database();
+        var ref = db.ref('community/' + type).push();
+        var uploader = userName || 'Anonymous';
+        ref.set({ name: name, data: dataUrl, uploader: uploader, date: Date.now() }, function(err) {
+          if (err) cb('Upload failed: ' + err.message);
+          else cb(null, ref.key);
+        });
+      }
+      function fbLoadGallery(type, gridId, statusId, isImage) {
+        var grid = document.getElementById(gridId);
+        var status = document.getElementById(statusId);
+        if (!grid) return;
+        if (!fbInit()) {
+          grid.innerHTML = '<div style="color:var(--dim);font-size:12px;text-align:center;padding:12px;">Offline — community gallery unavailable.</div>';
+          if (status) status.style.display = 'none';
+          return;
+        }
+        var db = firebase.database();
+        db.ref('community/' + type).orderByChild('date').limitToLast(50).once('value', function(snap) {
+          if (status) status.style.display = 'none';
+          var items = [];
+          snap.forEach(function(child) { items.unshift(child.val()); });
+          if (items.length === 0) {
+            grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No community uploads yet. Be the first!</div>';
+            return;
+          }
+          grid.innerHTML = items.map(function(item) {
+            var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '<div style="font-size:11px;color:var(--dim);padding:8px;">' + esc(item.name) + '</div>';
+            var equipBtn = isImage ? '<button class="equip-btn" onclick="window._equipCommunitySkin(this)" data-data="' + item.data.replace(/"/g, '&quot;') + '">Equip in BlockForge</button>' : '';
+            var dlBtn = '<a class="btn" href="' + item.data + '" download="' + esc(item.name) + '" style="font-size:10px;padding:4px 8px;margin-top:4px;">Download</a>';
+            return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '<br><span style="font-size:10px;color:var(--dim);">by ' + esc(item.uploader) + '</span></div>' + equipBtn + dlBtn + '</div>';
+          }).join('');
+        }).catch(function() {
+          if (status) status.textContent = 'Could not load community gallery.';
+        });
+      }
+      window._equipCommunitySkin = function(btn) {
+        var data = btn.getAttribute('data-data');
+        if (data) equipSkinInGame(data);
+      };
+
+      // Patch setupUpload to also push to Firebase community gallery
+      var _origSetupUpload = setupUpload;
+      // Override: when skin is uploaded, also push to Firebase
+      var _skinBtn = document.getElementById('skin-upload-btn');
+      var _skinInput = document.getElementById('skin-file-input');
+      if (_skinBtn && _skinInput) {
+        _skinBtn.removeEventListener('click', _skinBtn._clickHandler);
+        _skinInput.removeEventListener('change', _skinInput._changeHandler);
+      }
+      // Re-setup with Firebase push
+      function setupUploadWithGallery(btnId, inputId, gridId, storageKey, isImage, galleryType) {
+        var btn = document.getElementById(btnId);
+        var input = document.getElementById(inputId);
+        if (!btn || !input) return;
+        btn.addEventListener('click', function() { input.click(); });
+        input.addEventListener('change', function(e) {
+          if (!e.target.files || !e.target.files[0]) return;
+          var file = e.target.files[0];
+          var reader = new FileReader();
+          reader.onload = function(ev) {
+            var dataUrl = ev.target.result;
+            // Save locally
+            loadUploadsAsync(storageKey, function(list) {
+              list.push({ name: file.name, data: dataUrl, date: Date.now() });
+              saveUploads(storageKey, list, function() {
+                renderUploads(gridId, storageKey, isImage);
+              });
+            });
+            // Also upload to Firebase community gallery
+            if (galleryType && fbInit()) {
+              fbUploadToGallery(galleryType, file.name, dataUrl, function(err) {
+                if (err) { toast('Saved locally but community upload failed: ' + err, 'error'); return; }
+                toast('Uploaded ' + file.name + ' to community gallery!', 'ok');
+                fbLoadGallery(galleryType, galleryType === 'skins' ? 'skin-community-grid' : 'tex-community-grid', galleryType === 'skins' ? 'skin-community-status' : 'tex-community-status', isImage);
+              });
+            } else {
+              toast('Uploaded ' + file.name, 'ok');
+            }
+          };
+          reader.readAsDataURL(file);
+          e.target.value = '';
+        });
+        document.getElementById(gridId).addEventListener('click', function(ev) {
+          if (ev.target.classList.contains('del')) {
+            var idx = parseInt(ev.target.dataset.idx, 10);
+            loadUploadsAsync(ev.target.dataset.key, function(list) {
+              list.splice(idx, 1);
+              saveUploads(ev.target.dataset.key, list, function() {
+                renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+              });
+            });
+          } else if (ev.target.classList.contains('equip-btn')) {
+            var items = loadUploads(ev.target.dataset.key || storageKey);
+            var ei = parseInt(ev.target.dataset.eq, 10);
+            if (items[ei] && items[ei].data) equipSkinInGame(items[ei].data);
+          }
+        });
+      }
+      // Re-setup with gallery upload
+      setupUploadWithGallery('skin-upload-btn', 'skin-file-input', 'skin-grid', 'bf_uploads_skins', true, 'skins');
+      setupUploadWithGallery('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false, 'textures');
+      // Load community galleries
+      if (userName) {
+        renderUploads('skin-grid', 'bf_uploads_skins', true);
+        renderUploads('tex-grid', 'bf_uploads_textures', false);
+      }
+      fbLoadGallery('skins', 'skin-community-grid', 'skin-community-status', true);
+      fbLoadGallery('textures', 'tex-community-grid', 'tex-community-status', false);
 
       // ── Community sub-tabs ───────────────────────────────────────────
       document.querySelectorAll('.comm-sub-tab').forEach(function(tab) {
