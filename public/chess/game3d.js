@@ -389,9 +389,11 @@ function create(container, opts) {
   var onPick = null;
   var downPos = null;
   var lastPickT = 0;
+  var _hasPointerEvents = !!window.PointerEvent;
   function pointFromEvent(e) {
-    if (e && e.clientX !== undefined && e.clientX !== null) return [e.clientX, e.clientY];
-    var t = (e && e.changedTouches && e.changedTouches[0]) || (e && e.touches && e.touches[0]);
+    if (!e) return null;
+    if (e.clientX !== undefined && e.clientX !== null) return [e.clientX, e.clientY];
+    var t = (e.changedTouches && e.changedTouches[0]) || (e.touches && e.touches[0]);
     if (t) return [t.clientX, t.clientY];
     return null;
   }
@@ -423,12 +425,15 @@ function create(container, opts) {
     while (o && !o.userData.square) o = o.parent;
     if (o && o.userData.square) onPick(o.userData.square);
   }
-  renderer.domElement.addEventListener('pointerdown', onDown);
-  renderer.domElement.addEventListener('pointerup', onUp);
-  renderer.domElement.addEventListener('touchstart', onDown, { passive: true });
-  renderer.domElement.addEventListener('touchend', onUp, { passive: true });
-  renderer.domElement.addEventListener('mousedown', onDown);
-  renderer.domElement.addEventListener('mouseup', onUp);
+  if (_hasPointerEvents) {
+    renderer.domElement.addEventListener('pointerdown', onDown);
+    renderer.domElement.addEventListener('pointerup', onUp);
+  } else {
+    renderer.domElement.addEventListener('mousedown', onDown);
+    renderer.domElement.addEventListener('mouseup', onUp);
+    renderer.domElement.addEventListener('touchstart', onDown, { passive: true });
+    renderer.domElement.addEventListener('touchend', onUp, { passive: true });
+  }
 
   var flipTarget = null;
   var clockT = Date.now();

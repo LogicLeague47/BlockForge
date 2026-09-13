@@ -585,7 +585,10 @@ function boot() {
   segWire('seg-color', function(v) { S.menuColor = v; syncControls(); });
   segWire('seg-clock', function(v) { S.menuClock = parseInt(v, 10) || 0; syncControls(); });
 
-  $('btn-play').addEventListener('click', function() {
+  /* Menu actions — defined once, called by both click and pointerdown.
+     _ptrHandled prevents double-fire on desktop (pointerdown fires first, then click). */
+  var _ptrHandled = false;
+  function doPlay() {
     resumeAudio(); sfx('click');
     S.level = S.menuLevel;
     var c = S.menuColor;
@@ -594,8 +597,8 @@ function boot() {
     S.started = true;
     closeMenu();
     newGame();
-  });
-  $('btn-continue').addEventListener('click', function() {
+  }
+  function doContinue() {
     resumeAudio(); sfx('click');
     var sv = loadSave();
     if (!sv) return;
@@ -603,17 +606,20 @@ function boot() {
     closeMenu();
     continueGame(sv);
     toast('Restored your saved game.');
-  });
-  $('btn-resume').addEventListener('click', function() {
-    sfx('click');
-    closeMenu();
-    renderStatus();
-  });
+  }
+  function doResume() { sfx('click'); closeMenu(); renderStatus(); }
+  function doMulti() { sfx('click'); $('soon').style.display = 'flex'; }
+  function doSoonOk() { $('soon').style.display = 'none'; }
+  function doAgain() { sfx('click'); newGame(); }
+
+  $('btn-play').addEventListener('click', function() { if (_ptrHandled) { _ptrHandled = false; return; } doPlay(); });
+  $('btn-continue').addEventListener('click', function() { if (_ptrHandled) { _ptrHandled = false; return; } doContinue(); });
+  $('btn-resume').addEventListener('click', function() { if (_ptrHandled) { _ptrHandled = false; return; } doResume(); });
   $('btn-multi').addEventListener('click', function() {
-    $('soon').style.display = 'flex';
+    if (_ptrHandled) { _ptrHandled = false; return; } doMulti();
   });
   $('btn-soon-ok').addEventListener('click', function() {
-    $('soon').style.display = 'none';
+    if (_ptrHandled) { _ptrHandled = false; return; } doSoonOk();
   });
   $('btn-menu').addEventListener('click', function() { sfx('click'); openMenu(); });
   S.whiteBottom = true;
@@ -627,8 +633,37 @@ function boot() {
     if (S.over) return;
     endGame(S.playerColor === 'w' ? '0-1' : '1-0', 'resignation', 'You tipped your king over.');
   });
-  $('btn-again').addEventListener('click', function() { sfx('click'); newGame(); });
+  $('btn-again').addEventListener('click', function() { if (_ptrHandled) { _ptrHandled = false; return; } doAgain(); });
   window.addEventListener('resize', function() { S.view3d.resize(); });
+
+  /* Mobile fallback: delegated pointerdown on menu for iOS click-swallowing bug. */
+  $('menu').addEventListener('pointerdown', function(e) {
+    var t = e.target;
+    while (t && t !== $('menu')) {
+      if (t.id) {
+        if (t.id === 'btn-play') { _ptrHandled = true; doPlay(); return; }
+        if (t.id === 'btn-continue') { _ptrHandled = true; doContinue(); return; }
+        if (t.id === 'btn-resume') { _ptrHandled = true; doResume(); return; }
+        if (t.id === 'btn-multi') { _ptrHandled = true; doMulti(); return; }
+        if (t.id === 'btn-soon-ok') { _ptrHandled = true; doSoonOk(); return; }
+        if (t.id === 'btn-again') { _ptrHandled = true; doAgain(); return; }
+      }
+      /* Bot grid buttons */
+      if (t.tagName === 'BUTTON' && t.parentElement && t.parentElement.id === 'lvl-grid') {
+        var idx = parseInt(t.getAttribute('data-v'), 10);
+        if (!isNaN(idx)) { _ptrHandled = true; S.menuLevel = idx; syncControls(); }
+        return;
+      }
+      /* Color/clock segments */
+      if (t.tagName === 'BUTTON' && t.parentElement && t.parentElement.classList.contains('seg')) {
+        var val = t.getAttribute('data-v');
+        if (t.parentElement.id === 'seg-color') { _ptrHandled = true; S.menuColor = val; syncControls(); }
+        else if (t.parentElement.id === 'seg-clock') { _ptrHandled = true; S.menuClock = parseInt(val, 10) || 0; syncControls(); }
+        return;
+      }
+      t = t.parentElement;
+    }
+  }, { passive: true });
 
   var sv0 = loadSave();
   S.level = 3;
