@@ -779,6 +779,7 @@ function boot() {
 
   /* ── Multiplayer lobby buttons ── */
   $('mp-host-btn').addEventListener('click', function() { sfx('click'); mpHostGame(); });
+  $('mp-find-match').addEventListener('click', function() { sfx('click'); doFindMatch(); });
   $('mp-join-btn2').addEventListener('click', function() { sfx('click'); mpShow('mp-join-view'); });
   $('mp-join-btn').addEventListener('click', function() {
     sfx('click');
@@ -858,6 +859,170 @@ function boot() {
   syncControls();
   if (sv0 && sv0.history && sv0.history.length) toast('A saved game waits in the menu.');
   openMenu();
+}
+
+/* ── Matchmaking (Firebase auto-connect) ────────────────────────────────── */
+function doFindMatch() {
+  var cfg = window.FIREBASE_CONFIG;
+  if (!cfg || !cfg.apiKey || cfg.apiKey === 'YOUR_API_KEY') {
+    toast('Matchmaking not configured yet. Use Host/Join instead.');
+    return;
+  }
+  if (!firebase.apps.length) firebase.initializeApp(cfg);
+  var db = firebase.database();
+  var myName = 'Player_' + Math.floor(Math.random() * 9999);
+  var queueRef = db.ref('chess/queue');
+  var myRef = queueRef.push();
+  var matched = false;
+  var pollTimer = null;
+
+  mpShow('mp-host-view');
+  $('mp-title').textContent = 'Finding Opponent…';
+  $('mp-status').textContent = 'Searching for a player to match with…';
+  $('mp-code-box').textContent = '…';
+  $('mp-qr').innerHTML = '';
+
+  function cleanup() {
+    myRef.remove();
+    if (pollTimer) clearInterval(pollTimer);
+    queueRef.off();
+  }
+
+  // Remove on disconnect
+  myRef.onDisconnect().remove();
+
+  // Set ourselves in the queue
+  myRef.set({ name: myName, timestamp: firebase.database.ServerValue.TIMESTAMP, status: 'waiting' });
+
+  // Listen for rooms where we're the joiner
+  db.ref('chess/rooms').on('child_added', function(snap) {
+    if (matched) return;
+    var room = snap.val();
+    if (!room || room.joiner !== myName || room.status !== 'offer') return;
+    matched = true;
+    cleanup();
+    $('mp-status').textContent = 'Matched with ' + room.host + '! Connecting…';
+
+    // We're the joiner — create answer
+    var pc = new RTCPeerConnection([{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }]);
+    var peer = P2P.create();
+    S.mpPeer = peer;
+    S.mpRole = 'join';
+
+    pc.ondatachannel = function(e) {
+      var dc = e.channel;
+      dc.binaryType = 'arraybuffer';
+      peer._dc = dc;
+      peer._pc = pc;
+      peer._connected = true;
+
+      dc.onmessage = function(ev) {
+        var msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+        mpHandleMessage(msg);
+      };
+      dc.onopen = function() {
+        peer._connected = true;
+        $('mp-status').textContent = 'Connected to ' + room.host + '!';
+        mpShow('mp-color-pick');
+        $('mp-start').style.display = 'none';
+        if (peer.on) peer.on('connect') && peer.on('connect')();
+      };
+      dc.onclose = function() { peer._connected = false; };
+    };
+
+    pc.setRemoteDescription({ type: 'offer', sdp: room.offerSdp }).then(function() {
+      return pc.createAnswer();
+    }).then(function(a) {
+      return pc.setLocalDescription(a);
+    }).then(function() {
+      snap.ref.update({ answerSdp: pc.localDescription.sdp, status: 'answer' });
+    }).catch(function(e) { toast('Connection error: ' + e.message); });
+  });
+
+  // Listen for answer (if we're the host)
+  db.ref('chess/rooms').on('child_changed', function(snap) {
+    if (matched) return;
+    var room = snap.val();
+    if (!room || room.host !== myName || room.status !== 'answer') return;
+    matched = true;
+    cleanup();
+    $('mp-status').textContent = 'Matched with ' + room.joiner + '! Connecting…';
+
+    var peer = P2P.create();
+    S.mpPeer = peer;
+    S.mpRole = 'host';
+
+    // Find the pending PC for this joiner
+    // The host PC was created in the queue listener below
+    if (peer._pendingPC) {
+      peer._pendingPC.setRemoteDescription({ type: 'answer', sdp: room.answerSdp }).then(function() {
+        $('mp-status').textContent = 'Connected to ' + room.joiner + '!';
+        mpShow('mp-color-pick');
+      }).catch(function(e) { toast('Connection error: ' + e.message); });
+    }
+  });
+
+  // Check for waiting players
+  function tryMatch() {
+    if (matched) return;
+    queueRef.orderByChild('status').equalTo('waiting').limitToFirst(2).once('value', function(snap) {
+      if (matched) return;
+      var others = [];
+      snap.forEach(function(child) {
+        if (child.key !== myRef.key) others.push({ id: child.key, name: child.val().name });
+      });
+
+      if (others.length > 0) {
+        // We're the host!
+        matched = true;
+        cleanup();
+        $('mp-status').textContent = 'Matched with ' + others[0].name + '! Connecting…';
+
+        var peer = P2P.create();
+        S.mpPeer = peer;
+        S.mpRole = 'host';
+
+        var pc = new RTCPeerConnection([{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }]);
+        peer._pendingPC = pc;
+
+        var dc = pc.createDataChannel('game', { ordered: true });
+        dc.binaryType = 'arraybuffer';
+        peer._dc = dc;
+        peer._pc = pc;
+
+        dc.onmessage = function(ev) {
+          var msg; try { msg = JSON.parse(ev.data); } catch(e) { return; }
+          mpHandleMessage(msg);
+        };
+        dc.onopen = function() {
+          peer._connected = true;
+          $('mp-status').textContent = 'Connected to ' + others[0].name + '!';
+          mpShow('mp-color-pick');
+          $('mp-start').style.display = '';
+          mpSendStart(S.mpColor || 'w', S.mpRemoteColor || 'b');
+        };
+        dc.onclose = function() { peer._connected = false; };
+
+        var roomRef = db.ref('chess/rooms/' + myRef.key);
+        pc.createOffer().then(function(o) { return pc.setLocalDescription(o); }).then(function() {
+          roomRef.set({
+            host: myName,
+            joiner: others[0].name,
+            offerSdp: pc.localDescription.sdp,
+            status: 'offer',
+            timestamp: firebase.database.ServerValue.TIMESTAMP
+          });
+          // Remove from queue
+          myRef.update({ status: 'matched' });
+        }).catch(function(e) { toast('Error: ' + e.message); });
+      } else {
+        $('mp-status').textContent = 'Searching… (tap to refresh)';
+      }
+    });
+  }
+
+  tryMatch();
+  pollTimer = setInterval(tryMatch, 3000);
 }
 
 return { boot: boot };
