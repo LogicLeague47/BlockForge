@@ -468,6 +468,7 @@ function boot() {
     $('status').textContent = '3D failed to start on this device.';
     return;
   }
+  S.view3d.onPick(onPick);
   S.menuLevel = 3;
   S.menuColor = 'w';
   S.menuClock = 0;
