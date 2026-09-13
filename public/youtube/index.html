@@ -256,7 +256,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint" id="preview-hint">Tap to play</div>
     </div>
-    <iframe id="classicframe" style="display:none" webkitallowfullscreen allowfullscreen="allowfullscreen" playsinline="playsinline" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+    <iframe id="classicframe" style="display:none" allow="autoplay; encrypted-media; fullscreen" allowfullscreen playsinline referrerpolicy="no-referrer-when-downgrade"></iframe>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>
@@ -656,42 +656,53 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
   // Embed configs under test on old Safari. MIN = closest to anything
   // that ever painted UI (www host, bare params, no origin).
   var EMBED_CFG = {
-    min: { host: 'https://www.youtube.com/embed/', params: '?autoplay=0&controls=1&playsinline=1&rel=0' }
+    // Primary: standard YouTube embed — works on most devices.
+    primary: { host: 'https://www.youtube.com/embed/', params: '?playsinline=1&rel=0&iv_load_policy=3&modestbranding=1' },
+    // Fallback: nocookie host for stricter embed contexts.
+    fallback: { host: 'https://www.youtube-nocookie.com/embed/', params: '?playsinline=1&rel=0&iv_load_policy=3' }
   };
 
   function loadClassic() {
     var id = currentVid;
-    var ec = EMBED_CFG.min;
+    var ec = EMBED_CFG.primary;
     dbg('classic...');
     clearTimer();
     blockMsg.style.display = 'none';
     classicframe.style.display = 'none';
     playerLoader.style.display = 'block';
     setStatus('Checking video...');
-    // Fail fast when the owner disabled embedding — oEmbed 200 means
-    // playable. Fail-open: any check error still tries the player.
-    var xhr = new XMLHttpRequest();
+    var triedFallback = false;
     var checked = false;
-    function startClassic() {
+    var xhr = new XMLHttpRequest();
+    function startClassic(cfg) {
       if (checked) return;
       checked = true;
+      var useCfg = cfg || ec;
       classicframe.style.display = 'block';
       setStatus('Loading classic player...');
       classicframe.onload = function() {
-        dbg('classic loaded');
+        dbg('classic loaded (' + useCfg.host.split('/')[2] + ')');
         playerLoader.style.display = 'none';
         setStatus('Tap play inside the player.');
         classicframe.onload = null;
       };
-    classicframe.src = ec.host + id + ec.params;
+      classicframe.src = useCfg.host + id + useCfg.params;
       attemptTimer = setTimeout(function() {
         if (playerLoader.style.display !== 'none') {
-          dbg('classic stall');
-          playerLoader.style.display = 'none';
-          showFail('Classic player stalled. Use the Watch link below — it always works.');
-          setStatus('');
+          if (!triedFallback) {
+            triedFallback = true;
+            dbg('primary stall, trying fallback');
+            checked = false;
+            classicframe.style.display = 'none';
+            startClassic(EMBED_CFG.fallback);
+          } else {
+            dbg('classic stall');
+            playerLoader.style.display = 'none';
+            showFail('Player stalled. Use the Watch link below — it always works.');
+            setStatus('');
+          }
         }
-      }, 20000);
+      }, 15000);
     }
     xhr.open('GET', API_EMBED + '?v=' + encodeURIComponent(id), true);
     xhr.timeout = 8000;
@@ -776,16 +787,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     thCount.textContent = (thIdx + 1) + ' / ' + thQueue.length;
     thStage.innerHTML = '<div class="th-load">Loading...</div>';
     var fr = document.createElement('iframe');
-    fr.setAttribute('webkitallowfullscreen', '');
-    fr.setAttribute('allowfullscreen', 'allowfullscreen');
+    fr.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
     fr.setAttribute('playsinline', 'playsinline');
-    fr.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
+    fr.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
     fr.onload = function() {
       var l = thStage.querySelector('.th-load');
       if (l) l.style.display = 'none';
       fr.onload = null;
     };
-    fr.src = EMBED_CFG.min.host + it.vid + EMBED_CFG.min.params;
+    fr.src = EMBED_CFG.primary.host + it.vid + EMBED_CFG.primary.params;
     thStage.appendChild(fr);
   }
 
@@ -1490,17 +1500,15 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     var ld = slide.querySelector('.snap-load');
     if (ld) ld.style.display = 'block';
     var fr = document.createElement('iframe');
-    fr.setAttribute('webkitallowfullscreen', '');
-    fr.setAttribute('allowfullscreen', 'allowfullscreen');
-    fr.setAttribute('playsinline', 'playsinline');
-    fr.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
     fr.setAttribute('allow', 'autoplay; encrypted-media; fullscreen');
+    fr.setAttribute('playsinline', 'playsinline');
+    fr.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
     fr.onload = function() {
       var l = slide.querySelector('.snap-load');
       if (l) l.style.display = 'none';
       fr.onload = null;
     };
-    fr.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=1&rel=0&playsinline=1&controls=1&fs=1&iv_load_policy=3';
+    fr.src = 'https://www.youtube.com/embed/' + vid + '?autoplay=1&mute=1&rel=0&playsinline=1&controls=1&iv_load_policy=3';
     slide.appendChild(fr);
   }
 
