@@ -863,6 +863,10 @@ function boot() {
 
 /* ── Matchmaking (Firebase auto-connect) ────────────────────────────────── */
 function doFindMatch() {
+  if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') {
+    toast('Matchmaking unavailable on this browser. Use Host/Join instead.');
+    return;
+  }
   var cfg = window.FIREBASE_CONFIG;
   if (!cfg || !cfg.apiKey || cfg.apiKey === 'YOUR_API_KEY') {
     toast('Matchmaking not configured yet. Use Host/Join instead.');
