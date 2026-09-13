@@ -18,7 +18,7 @@ const ICE_SERVERS = [
   { urls: 'stun:stun4.l.google.com:19302' },
 ];
 
-const MAX_PLAYERS = 16;
+const MAX_PLAYERS = 1000;
 
 function b64(o) { try { return btoa(JSON.stringify(o)); } catch (e) { return ''; } }
 function unb64(s) { try { return JSON.parse(atob(s)); } catch (e) { return null; } }
@@ -548,3 +548,165 @@ export class P2PNetwork {
 }
 
 export const p2pNetwork = new P2PNetwork();
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Firebase Room Directory — replaces server room listing (offloads Render)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export class P2PDirectory {
+  constructor() {
+    this._db = null;
+    this._roomsRef = null;
+    this._myRoomRef = null;
+    this._listeners = [];
+  }
+
+  _getDB() {
+    if (this._db) return this._db;
+    if (!window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.apiKey) return null;
+    if (typeof firebase === 'undefined') return null;
+    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    this._db = firebase.database();
+    this._roomsRef = this._db.ref('p2p_rooms');
+    return this._db;
+  }
+
+  // Host: register a room in the directory
+  registerRoom(hostName, seed, gameMode, maxPlayers, playerCount) {
+    const db = this._getDB();
+    if (!db) return;
+    const roomData = {
+      host: hostName,
+      seed: seed || 42,
+      gameMode: gameMode || 'survival',
+      maxPlayers: maxPlayers || MAX_PLAYERS,
+      playerCount: playerCount || 1,
+      timestamp: firebase.database.ServerValue.TIMESTAMP,
+    };
+    this._myRoomRef = this._roomsRef.child(hostName);
+    this._myRoomRef.set(roomData);
+    // Auto-remove on disconnect
+    this._myRoomRef.onDisconnect().remove();
+    // Heartbeat every 30s
+    this._heartbeat = setInterval(() => {
+      if (this._myRoomRef) this._myRoomRef.child('timestamp').set(firebase.database.ServerValue.TIMESTAMP);
+    }, 30000);
+  }
+
+  // Host: update player count
+  updatePlayerCount(count) {
+    if (this._myRoomRef) this._myRoomRef.child('playerCount').set(count);
+  }
+
+  // Host: remove room from directory
+  unregisterRoom() {
+    if (this._heartbeat) { clearInterval(this._heartbeat); this._heartbeat = null; }
+    if (this._myRoomRef) { this._myRoomRef.remove(); this._myRoomRef = null; }
+  }
+
+  // Joiner: list available rooms (returns promise of room array)
+  listRooms() {
+    return new Promise((resolve) => {
+      const db = this._getDB();
+      if (!db) { resolve([]); return; }
+      // Only show rooms from the last 60 seconds
+      const cutoff = Date.now() - 60000;
+      this._roomsRef.orderByChild('timestamp').startAt(cutoff).once('value', (snap) => {
+        const rooms = [];
+        snap.forEach((child) => {
+          const r = child.val();
+          if (r && r.host) rooms.push(r);
+        });
+        resolve(rooms);
+      }).catch(() => resolve([]));
+    });
+  }
+
+  // Joiner: watch for room changes in real-time
+  onRoomsChanged(callback) {
+    const db = this._getDB();
+    if (!db) return;
+    const listener = this._roomsRef.on('value', (snap) => {
+      const rooms = [];
+      snap.forEach((child) => {
+        const r = child.val();
+        if (r && r.host) rooms.push(r);
+      });
+      callback(rooms);
+    });
+    this._listeners.push(listener);
+  }
+
+  // Stop watching
+  stopListening() {
+    if (this._roomsRef) this._roomsRef.off();
+    this._listeners = [];
+  }
+
+  destroy() {
+    this.unregisterRoom();
+    this.stopListening();
+    this._db = null;
+  }
+}
+
+export const p2pDirectory = new P2PDirectory();
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Firebase Voice Signaling — replaces WS relay for voice chat (offloads Render)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export class P2PVoiceSignaling {
+  constructor() {
+    this._db = null;
+    this._channelRef = null;
+    this._listeners = [];
+  }
+
+  _getDB() {
+    if (this._db) return this._db;
+    if (!window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.apiKey) return null;
+    if (typeof firebase === 'undefined') return null;
+    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    this._db = firebase.database();
+    return this._db;
+  }
+
+  // Send a voice signaling message (SDP offer/answer/ICE) to a specific peer
+  sendSignal(roomName, fromName, toName, type, data) {
+    const db = this._getDB();
+    if (!db) return;
+    const signalRef = db.ref('voice_signals').child(roomName).child(toName).push();
+    signalRef.set({ from: fromName, type, data, timestamp: firebase.database.ServerValue.TIMESTAMP });
+    // Auto-cleanup after 30s
+    signalRef.onDisconnect().remove();
+    setTimeout(() => signalRef.remove(), 30000);
+  }
+
+  // Listen for incoming voice signals
+  onSignal(roomName, myName, callback) {
+    const db = this._getDB();
+    if (!db) return;
+    const ref = db.ref('voice_signals').child(roomName).child(myName);
+    const listener = ref.on('child_added', (snap) => {
+      const val = snap.val();
+      if (val) callback(val.from, val.type, val.data);
+      snap.ref.remove(); // consume the signal
+    });
+    this._listeners.push(listener);
+  }
+
+  // Cleanup
+  clearSignals(roomName, myName) {
+    const db = this._getDB();
+    if (db) db.ref('voice_signals').child(roomName).child(myName).remove();
+    this._listeners = [];
+  }
+
+  destroy() {
+    this._listeners = [];
+    this._db = null;
+  }
+}
+
+export const p2pVoiceSignaling = new P2PVoiceSignaling();

@@ -56,7 +56,7 @@ import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './p
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
-import { p2pNetwork } from './p2p-network.js';
+import { p2pNetwork, p2pDirectory, p2pVoiceSignaling } from './p2p-network.js';
 import { VoiceChat } from './voice.js';
 import { WeatherSystem } from './weather.js';
 import { filterProfanity } from './profanity.js';
@@ -4724,10 +4724,16 @@ function showMultiplayerMenu() {
   if (mpUsername) mpUsername.value = playerName;
   renderRecentServers();
   renderSavedServers();
+  renderPP2PRooms(); // Show P2P rooms from Firebase
   showServersView();
   ui.showMenu('multiplayer');
   stopMpStatusTimer();
-  _mpStatusTimer = setInterval(() => { renderSavedServers(); }, 5000);
+  _mpStatusTimer = setInterval(() => { renderSavedServers(); renderPP2PRooms(); }, 5000);
+
+  // Sync dev button visibility
+  const isDev = playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
+  const devBtn = document.getElementById('btn-dev-p2p-host');
+  if (devBtn) devBtn.style.display = isDev ? '' : 'none';
 
   // Connect to server and fetch remote room list
   if (!network.connected) {
@@ -4738,6 +4744,41 @@ function showMultiplayerMenu() {
   network.listRooms();
   syncLocalServersToNetwork();
 }
+
+// Render P2P rooms discovered from Firebase
+function renderPP2PRooms() {
+  const el = document.getElementById('p2p-room-list');
+  if (!el) return;
+  p2pDirectory.listRooms().then((rooms) => {
+    if (rooms.length === 0) {
+      el.innerHTML = '<div style="color:#666;text-align:center;padding:8px;">No P2P servers found. Host one!</div>';
+      return;
+    }
+    el.innerHTML = rooms.map((r) => {
+      const playerLabel = r.playerCount + '/' + (r.maxPlayers || 1000);
+      return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;margin-bottom:4px;background:rgba(0,0,0,0.3);border:1px solid rgba(80,180,100,0.25);border-radius:4px;cursor:pointer;" onclick="window._joinPP2PRoom('${escHtml(r.host)}')">
+        <div style="flex:1;"><span style="color:#5f5;font-weight:bold;">${escHtml(r.host)}</span> <span style="color:#666;font-size:10px;">${escHtml(r.gameMode)}</span></div>
+        <div style="color:#888;font-size:10px;">${playerLabel} &#9654;</div>
+      </div>`;
+    }).join('');
+  }).catch(() => {
+    el.innerHTML = '<div style="color:#666;text-align:center;padding:8px;">Could not reach matchmaking server.</div>';
+  });
+}
+
+// Global handler for clicking a P2P room in the list
+window._joinPP2PRoom = function(hostName) {
+  addChatLine('Connecting to ' + hostName + '...', '#5f5');
+  // The joiner needs an offer code from the host
+  // For now, open the P2P join view with instructions
+  ui.showMenu('p2p');
+  const joinView = document.getElementById('p2p-join-view');
+  const hostView = document.getElementById('p2p-host-view');
+  if (joinView) joinView.style.display = 'block';
+  if (hostView) hostView.style.display = 'none';
+  const input = document.getElementById('p2p-join-input');
+  if (input) input.placeholder = 'Ask ' + hostName + ' for their offer code...';
+};
 
 // Re-broadcast locally-saved servers to the WS server so other devices can see them
 function syncLocalServersToNetwork() {
@@ -5224,6 +5265,7 @@ function setupNetworkHandlers() {
       gameRunning = false;
       isMultiplayer = false;
       currentServer = null;
+      p2pDirectory.unregisterRoom();
       ui.showMenu('multiplayer');
       showMultiplayerMenu();
     }
@@ -5240,6 +5282,7 @@ function setupNetworkHandlers() {
     gameRunning = false;
     isMultiplayer = false;
     currentServer = null;
+    p2pDirectory.unregisterRoom();
     p2pNetwork.disconnect();
     ui.showMenu('multiplayer');
     showMultiplayerMenu();
@@ -8207,6 +8250,67 @@ function initMenu() {
   document.getElementById('btn-p2p-play')?.addEventListener('click', () => {
     ui.showMenu('p2p');
   });
+
+  // Dev P2P Host — creates a P2P server visible in Firebase directory
+  document.getElementById('btn-dev-p2p-host')?.addEventListener('click', () => {
+    const seed = Math.floor(Math.random() * 999999) + 1;
+    const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
+
+    // Register in Firebase directory so anyone can discover it
+    p2pDirectory.registerRoom(playerName, seed, 'survival', 1000, 1);
+
+    // Create offer for first joiner
+    p2pNetwork.createOfferForJoiner('__waiting__').then((offerCode) => {
+      // Show the room code in the P2P lobby
+      ui.showMenu('p2p');
+      const codeBox = document.getElementById('p2p-code-box');
+      if (codeBox) {
+        codeBox.style.display = 'block';
+        codeBox.textContent = offerCode;
+        codeBox.onclick = () => {
+          try { navigator.clipboard.writeText(offerCode); addChatLine('Offer code copied!', '#5f5'); } catch (e) {}
+        };
+      }
+      const qrDiv = document.getElementById('p2p-qr');
+      if (qrDiv) {
+        qrDiv.innerHTML = '';
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(offerCode);
+          img.style.borderRadius = '8px';
+          qrDiv.appendChild(img);
+        } catch (e) {}
+      }
+      const statusEl = document.getElementById('p2p-host-status');
+      if (statusEl) statusEl.textContent = 'P2P server live! Listed in server browser. Or share the code below.';
+
+      _activeNetwork = 'p2p';
+      _p2pHostSeed = seed;
+      _p2pHostReady = true;
+
+      // Start game as host
+      startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
+      isMultiplayer = true;
+      serverName = 'P2P: ' + playerName;
+
+      // Update directory player count as peers connect
+      p2pNetwork.onPlayerJoin = (name) => {
+        p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
+      };
+      p2pNetwork.onPlayerLeave = (name) => {
+        p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
+      };
+    });
+  });
+
+  // Show/hide dev P2P host button based on role
+  function syncDevP2PButton() {
+    const isDev = playerRole === 'dev' || playerRole === 'gamedev' || playerRole === 'owner';
+    const btn = document.getElementById('btn-dev-p2p-host');
+    if (btn) btn.style.display = isDev ? '' : 'none';
+  }
+  syncDevP2PButton();
   document.getElementById('btn-p2p-cancel')?.addEventListener('click', () => {
     ui.showMenu('multiplayer');
   });
@@ -8222,6 +8326,10 @@ function initMenu() {
   document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
     const seed = Math.floor(Math.random() * 999999) + 1;
     const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
+
+    // Register in Firebase directory so others can discover this room
+    p2pDirectory.registerRoom(playerName, seed, 'survival', 1000, 1);
+
     // Now create an offer for the first joiner
     p2pNetwork.createOfferForJoiner('__waiting__').then((offerCode) => {
       // The offer code IS the room code joiners will use
@@ -8245,7 +8353,7 @@ function initMenu() {
         } catch (e) {}
       }
       const statusEl = document.getElementById('p2p-host-status');
-      if (statusEl) statusEl.textContent = 'Share this code with your friend. When they send their answer code, paste it below.';
+      if (statusEl) statusEl.textContent = 'Room listed in server browser. Share the code below with your friend.';
 
       _activeNetwork = 'p2p';
       _p2pHostSeed = seed;
@@ -8255,6 +8363,10 @@ function initMenu() {
       startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
       isMultiplayer = true;
       serverName = 'P2P: ' + playerName;
+
+      // Update directory player count
+      p2pNetwork.onPlayerJoin = () => p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
+      p2pNetwork.onPlayerLeave = () => p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
     });
   });
   document.getElementById('btn-p2p-join-go')?.addEventListener('click', () => {
