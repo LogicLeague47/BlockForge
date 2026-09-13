@@ -17,6 +17,7 @@
 <script src="vendor/OrbitControls.js"></script>
 <script>if(window.THREE&&!THREE.OrbitControls){document.write('<script src="vendor/orbit.es5.js"><\/script>');}</script>
 <script src="vendor/chess.min.js"></script>
+<script src="../webrtc-peer.js"></script>
 <script src="ai.js"></script>
 <script src="game3d.js"></script>
 <style>
@@ -139,6 +140,38 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <h2>Multiplayer</h2>
       <p>Online play against friends is coming soon. For now, the 10 bots await.</p>
       <button id="btn-soon-ok">OK</button>
+    </div>
+  </div>
+
+  <div class="modal" id="mp-lobby">
+    <div class="box">
+      <h2 id="mp-title">Multiplayer</h2>
+      <div id="mp-host-view">
+        <p style="color:#ccc;font-size:13px;margin-bottom:12px">Share this code with your friend:</p>
+        <div id="mp-code-box" style="background:#0a0a14;border:1px solid rgba(220,180,90,.4);border-radius:8px;padding:14px;margin-bottom:12px;word-break:break-all;font:bold 18px monospace;color:#ec5;text-align:center;letter-spacing:2px;cursor:pointer" title="Tap to copy">Generating…</div>
+        <div id="mp-qr" style="text-align:center;margin-bottom:12px"></div>
+        <p id="mp-status" style="font-size:12px;color:#888;margin-bottom:14px">Waiting for opponent…</p>
+        <button id="mp-cancel">Cancel</button>
+      </div>
+      <div id="mp-join-view" style="display:none">
+        <p style="color:#ccc;font-size:13px;margin-bottom:12px">Paste or type the room code:</p>
+        <textarea id="mp-join-input" style="width:100%;height:80px;background:#0a0a14;border:1px solid rgba(220,180,90,.4);border-radius:8px;padding:10px;color:#ec5;font:14px monospace;resize:none;margin-bottom:12px" placeholder="Paste room code here…"></textarea>
+        <button id="mp-join-btn" style="margin-bottom:8px">Connect</button>
+        <button id="mp-cancel2">Cancel</button>
+      </div>
+      <div id="mp-menu-view">
+        <button id="mp-host-btn" style="margin-bottom:8px">Host Game</button>
+        <button id="mp-join-btn2" style="margin-bottom:8px">Join Game</button>
+        <button id="mp-cancel3">Cancel</button>
+      </div>
+      <div id="mp-color-pick" style="display:none">
+        <p style="color:#ccc;font-size:13px;margin-bottom:12px">Choose your color:</p>
+        <div class="seg" id="mp-color-seg">
+          <button data-v="w" class="on">White</button>
+          <button data-v="b">Black</button>
+        </div>
+        <button id="mp-start" style="margin-top:14px">Start Game</button>
+      </div>
     </div>
   </div>
 

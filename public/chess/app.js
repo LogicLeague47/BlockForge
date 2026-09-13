@@ -25,7 +25,9 @@ var S = {
   playerColor: 'w', level: 3,
   selected: null, hints: [],
   clocks: null, clockMs: 0, clockTimer: null, clockOn: false,
-  busy: false, over: false
+  busy: false, over: false,
+  /* Multiplayer state */
+  mp: null, mpPeer: null, mpColor: 'w', mpRole: null, mpRemoteColor: null
 };
 
 var _audioCtx = null;
@@ -140,10 +142,16 @@ function materialDiff() {
 
 function renderStatus(extra) {
   if (S.over) return;
+  var isMP = S.mpPeer && S.mpPeer.isConnected();
   var botName = (ChessAI.LEVELS[S.level] || {}).name || 'Bot';
   var t;
-  if (S.game.in_check()) t = (S.game.turn() === S.playerColor ? 'Check! Your move.' : 'Check! ' + botName + ' thinking…');
-  else t = S.game.turn() === S.playerColor ? 'Your move.' : botName + ' thinking…';
+  if (S.game.in_check()) {
+    if (isMP) t = (S.game.turn() === S.playerColor ? 'Check! Your move.' : 'Check! Opponent thinking…');
+    else t = (S.game.turn() === S.playerColor ? 'Check! Your move.' : 'Check! ' + botName + ' thinking…');
+  } else {
+    if (isMP) t = S.game.turn() === S.playerColor ? 'Your move.' : 'Opponent thinking…';
+    else t = S.game.turn() === S.playerColor ? 'Your move.' : botName + ' thinking…';
+  }
   $('status').textContent = extra || t;
 }
 
@@ -319,6 +327,7 @@ function doPlayerMove(from, to, promotion) {
   var mv = S.game.move({ from: from, to: to, promotion: promotion });
   if (!mv) { toast(illegalReason(to)); return; }
   S.selected = null;
+  mpSendMove(from, to, promotion);
   afterMove(mv, true);
 }
 
@@ -338,7 +347,12 @@ function afterMove(mv, byPlayer) {
   if (byPlayer) {
     S.busy = true;
     renderStatus();
-    setTimeout(botMove, 420);
+    if (S.mpPeer && S.mpPeer.isConnected()) {
+      /* Multiplayer: wait for opponent's move, don't start bot */
+      renderStatus('Waiting for opponent…');
+    } else {
+      setTimeout(botMove, 420);
+    }
   } else {
     S.busy = false;
     renderStatus();
@@ -544,6 +558,133 @@ function hint() {
   }, 60);
 }
 
+/* ── Multiplayer (WebRTC P2P) ──────────────────────────────────────────── */
+function mpShow(id) {
+  ['mp-host-view','mp-join-view','mp-color-pick','mp-menu-view'].forEach(function(x) { $(x).style.display = 'none'; });
+  $(id).style.display = 'block';
+  $('mp-lobby').style.display = 'flex';
+}
+function mpClose() { $('mp-lobby').style.display = 'none'; mpLeave(); }
+
+function mpHostGame() {
+  var peer = P2P.create();
+  S.mpPeer = peer;
+  S.mpRole = 'host';
+  mpShow('mp-host-view');
+  $('mp-title').textContent = 'Hosting Game';
+  $('mp-status').textContent = 'Waiting for opponent…';
+
+  peer.on('connect', function() {
+    $('mp-status').textContent = 'Connected! Choose your color.';
+    mpShow('mp-color-pick');
+  });
+  peer.on('data', function(msg) {
+    mpHandleMessage(msg);
+  });
+  peer.on('disconnect', function() {
+    toast('Opponent disconnected.');
+    mpClose();
+    S.mpPeer = null;
+    S.mpRole = null;
+  });
+  peer.on('error', function(e) {
+    toast('Connection error: ' + (e.message || e));
+  });
+
+  peer.createRoom(function(code) {
+    $('mp-code-box').textContent = code;
+    /* Copy to clipboard on tap */
+    $('mp-code-box').onclick = function() {
+      try { navigator.clipboard.writeText(code); toast('Code copied!'); } catch (e) {}
+    };
+    /* Generate QR code */
+    var qr = P2P.generateQR(code, 180);
+    var qrDiv = $('mp-qr');
+    qrDiv.innerHTML = '';
+    if (qr.img) {
+      qr.img.style.borderRadius = '8px';
+      qrDiv.appendChild(qr.img);
+    }
+  });
+}
+
+function mpJoinGame(code) {
+  if (!code) {
+    toast('Paste a room code first.');
+    return;
+  }
+  var peer = P2P.create();
+  S.mpPeer = peer;
+  S.mpRole = 'join';
+
+  peer.on('connect', function() {
+    $('mp-status').textContent = 'Connected! Waiting for host to start…';
+    mpShow('mp-color-pick');
+    $('mp-start').style.display = 'none'; /* joiner waits for host */
+  });
+  peer.on('data', function(msg) {
+    mpHandleMessage(msg);
+  });
+  peer.on('disconnect', function() {
+    toast('Opponent disconnected.');
+    mpClose();
+    S.mpPeer = null;
+    S.mpRole = null;
+  });
+  peer.on('error', function(e) {
+    toast('Connection error: ' + (e.message || e));
+  });
+
+  peer.joinRoom(code, function(answerCode) {
+    peer.answerRoom(answerCode);
+    toast('Connecting…');
+  });
+}
+
+function mpHandleMessage(msg) {
+  if (!msg || typeof msg !== 'object') return;
+  if (msg.type === 'color-pick') {
+    /* Host tells joiner which color they are */
+    S.mpRemoteColor = msg.color;
+  } else if (msg.type === 'start') {
+    /* Host starts the game — joiner receives their color */
+    S.playerColor = msg.joinerColor;
+    S.mpColor = msg.hostColor || (S.playerColor === 'w' ? 'b' : 'w');
+    closeMenu();
+    newGame();
+    toast('Game started! You are ' + (S.playerColor === 'w' ? 'White' : 'Black') + '.');
+  } else if (msg.type === 'move') {
+    /* Opponent made a move — always apply regardless of busy state
+       because the player's own move set busy=true while waiting. */
+    var mv = S.game.move({ from: msg.from, to: msg.to, promotion: msg.promo || 'q' });
+    if (mv) {
+      afterMove(mv, false);
+    }
+  } else if (msg.type === 'chat') {
+    toast(msg.text);
+  }
+}
+
+function mpSendMove(from, to, promo) {
+  if (S.mpPeer && S.mpPeer.isConnected()) {
+    S.mpPeer.send({ type: 'move', from: from, to: to, promo: promo });
+  }
+}
+
+function mpSendStart(hostColor, joinerColor) {
+  if (S.mpPeer && S.mpPeer.isConnected()) {
+    S.mpPeer.send({ type: 'start', hostColor: hostColor, joinerColor: joinerColor });
+  }
+}
+
+function mpLeave() {
+  if (S.mpPeer) { S.mpPeer.close(); S.mpPeer = null; }
+  S.mpRole = null;
+  S.mpColor = 'w';
+  S.mpRemoteColor = null;
+}
+
+/* ── Boot ──────────────────────────────────────────────────────────────── */
 function boot() {
   var box = $('board');
   S.view3d = Chess3D.create(box, { lowQ: IS_LEGACY });
@@ -608,7 +749,7 @@ function boot() {
     toast('Restored your saved game.');
   }
   function doResume() { sfx('click'); closeMenu(); renderStatus(); }
-  function doMulti() { sfx('click'); $('soon').style.display = 'flex'; }
+  function doMulti() { sfx('click'); mpShow('mp-menu-view'); $('mp-title').textContent = 'Multiplayer'; }
   function doSoonOk() { $('soon').style.display = 'none'; }
   function doAgain() { sfx('click'); newGame(); }
 
@@ -635,6 +776,45 @@ function boot() {
   });
   $('btn-again').addEventListener('click', function() { if (_ptrHandled) { _ptrHandled = false; return; } doAgain(); });
   window.addEventListener('resize', function() { S.view3d.resize(); });
+
+  /* ── Multiplayer lobby buttons ── */
+  $('mp-host-btn').addEventListener('click', function() { sfx('click'); mpHostGame(); });
+  $('mp-join-btn2').addEventListener('click', function() { sfx('click'); mpShow('mp-join-view'); });
+  $('mp-join-btn').addEventListener('click', function() {
+    sfx('click');
+    var code = ($('mp-join-input').value || '').trim();
+    mpShow('mp-host-view');
+    $('mp-title').textContent = 'Joining…';
+    $('mp-status').textContent = 'Connecting…';
+    $('mp-code-box').textContent = '…';
+    $('mp-qr').innerHTML = '';
+    mpJoinGame(code);
+  });
+  $('mp-cancel').addEventListener('click', function() { sfx('click'); mpClose(); });
+  $('mp-cancel2').addEventListener('click', function() { sfx('click'); mpClose(); });
+  $('mp-cancel3').addEventListener('click', function() { sfx('click'); mpClose(); });
+  $('mp-start').addEventListener('click', function() {
+    sfx('click');
+    var c = $('mp-color-seg').querySelector('.on');
+    var myColor = c ? c.getAttribute('data-v') : 'w';
+    S.mpColor = myColor;
+    S.playerColor = myColor;
+    S.mpRemoteColor = myColor === 'w' ? 'b' : 'w';
+    mpSendStart(myColor, S.mpRemoteColor);
+    closeMenu();
+    newGame();
+    toast('Game started! You are ' + (S.playerColor === 'w' ? 'White' : 'Black') + '.');
+  });
+  /* Wire color segment inside mp-color-pick */
+  var mpSegBtns = $('mp-color-seg').querySelectorAll('button');
+  for (var si = 0; si < mpSegBtns.length; si++) {
+    (function(btn) {
+      btn.addEventListener('click', function() {
+        for (var j = 0; j < mpSegBtns.length; j++) mpSegBtns[j].className = '';
+        btn.className = 'on';
+      });
+    })(mpSegBtns[si]);
+  }
 
   /* Mobile fallback: delegated pointerdown on menu for iOS click-swallowing bug. */
   $('menu').addEventListener('pointerdown', function(e) {
