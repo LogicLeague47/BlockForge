@@ -1,16 +1,10 @@
-// Firebase config — REPLACE with your own Firebase project credentials.
-// Go to https://console.firebase.google.com → create project →
-// Enable Realtime Database → copy the config from Project Settings.
-//
-// This is the ONLY server needed — Firebase handles matchmaking + signaling.
-// Free tier: 1GB storage, 10GB/month transfer — more than enough for P2P matchmaking.
-
 window.FIREBASE_CONFIG = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
-  projectId: "YOUR_PROJECT",
-  storageBucket: "YOUR_PROJECT.appspot.com",
-  messagingSenderId: "YOUR_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBQhY3_QdpcsL9lFV6BhCx4fQ0bGPG-bA4",
+  authDomain: "blockforge-42cf0.firebaseapp.com",
+  databaseURL: "https://blockforge-42cf0-default-rtdb.firebaseio.com",
+  projectId: "blockforge-42cf0",
+  storageBucket: "blockforge-42cf0.firebasestorage.app",
+  messagingSenderId: "1088660217205",
+  appId: "1:1088660217205:web:255c95d09a8bd337f3473c",
+  measurementId: "G-HN3HXG945B"
 };
