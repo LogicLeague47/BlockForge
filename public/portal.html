@@ -3612,26 +3612,95 @@
       document.getElementById('srv-refresh').addEventListener('click', fetchServerList);
 
       // ── Upload helpers ──────────────────────────────────────────────────
-      function loadUploads(key) {
-        try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
+      // ── Upload persistence (IndexedDB — no 5MB localStorage limit) ────
+      var _uploadDB = null;
+      function openUploadDB(cb) {
+        if (_uploadDB) return cb(_uploadDB);
+        try {
+          var req = indexedDB.open('bf_uploads', 1);
+          req.onupgradeneeded = function(e) {
+            var db = e.target.result;
+            if (!db.objectStoreNames.contains('uploads')) db.createObjectStore('uploads');
+          };
+          req.onsuccess = function(e) { _uploadDB = e.target.result; cb(_uploadDB); };
+          req.onerror = function() { cb(null); };
+        } catch (_) { cb(null); }
       }
-      function saveUploads(key, list) {
-        try { localStorage.setItem(key, JSON.stringify(list)); } catch {}
+      function idbGet(key, cb) {
+        openUploadDB(function(db) {
+          if (!db) return cb(null);
+          try {
+            var tx = db.transaction('uploads', 'readonly');
+            var req = tx.objectStore('uploads').get(key);
+            req.onsuccess = function() { cb(req.result); };
+            req.onerror = function() { cb(null); };
+          } catch (_) { cb(null); }
+        });
+      }
+      function idbSet(key, val, cb) {
+        openUploadDB(function(db) {
+          if (!db) { if (cb) cb(false); return; }
+          try {
+            var tx = db.transaction('uploads', 'readwrite');
+            tx.objectStore('uploads').put(val, key);
+            tx.oncomplete = function() { if (cb) cb(true); };
+            tx.onerror = function() { if (cb) cb(false); };
+          } catch (_) { if (cb) cb(false); }
+        });
+      }
+      function loadUploads(key) {
+        // Synchronous stub — returns cached or empty, then async-refreshes
+        if (loadUploads._cache && loadUploads._cache[key]) return loadUploads._cache[key];
+        return [];
+      }
+      loadUploads._cache = {};
+      function loadUploadsAsync(key, cb) {
+        // Try IndexedDB first, fall back to localStorage
+        idbGet(key, function(val) {
+          if (val) {
+            loadUploads._cache[key] = val;
+            cb(val);
+          } else {
+            // Migrate from localStorage if present
+            try {
+              var raw = localStorage.getItem(key);
+              if (raw) {
+                var list = JSON.parse(raw);
+                if (list && list.length) {
+                  loadUploads._cache[key] = list;
+                  idbSet(key, list, function() { localStorage.removeItem(key); });
+                  cb(list);
+                  return;
+                }
+              }
+            } catch (_) {}
+            loadUploads._cache[key] = [];
+            cb([]);
+          }
+        });
+      }
+      function saveUploads(key, list, cb) {
+        loadUploads._cache[key] = list;
+        idbSet(key, list, function(ok) {
+          if (!ok && cb) cb(false);
+          else if (cb) cb(true);
+        });
       }
       function renderUploads(containerId, storageKey, isImage, equip) {
         var grid = document.getElementById(containerId);
         if (!grid) return;
         if (equip === undefined) equip = containerId === 'skin-grid';
-        var items = loadUploads(storageKey);
-        if (items.length === 0) {
-          grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No uploads yet.</div>';
-          return;
-        }
-        grid.innerHTML = items.map(function(item, i) {
-          var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '';
-          var eqBtn = (equip && isImage) ? '<button class="equip-btn" data-eq="' + i + '" data-key="' + storageKey + '">⚡ Equip in BlockForge</button>' : '';
-          return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div>' + eqBtn + '<span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
-        }).join('');
+        loadUploadsAsync(storageKey, function(items) {
+          if (items.length === 0) {
+            grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No uploads yet.</div>';
+            return;
+          }
+          grid.innerHTML = items.map(function(item, i) {
+            var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '';
+            var eqBtn = (equip && isImage) ? '<button class="equip-btn" data-eq="' + i + '" data-key="' + storageKey + '">Equip in BlockForge</button>' : '';
+            return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '</div>' + eqBtn + '<span class="del" data-idx="' + i + '" data-key="' + storageKey + '" data-grid="' + containerId + '" data-img="' + isImage + '">Delete</span></div>';
+          }).join('');
+        });
       }
 
       // Equip a portal skin in the game: write it into the game's per-account
@@ -3669,11 +3738,17 @@
           var file = e.target.files[0];
           var reader = new FileReader();
           reader.onload = function(ev) {
-            var list = loadUploads(storageKey);
-            list.push({ name: file.name, data: ev.target.result, date: Date.now() });
-            saveUploads(storageKey, list);
-            renderUploads(gridId, storageKey, isImage);
-            toast('Uploaded ' + file.name, 'ok');
+            loadUploadsAsync(storageKey, function(list) {
+              list.push({ name: file.name, data: ev.target.result, date: Date.now() });
+              saveUploads(storageKey, list, function(ok) {
+                if (!ok) {
+                  toast('Storage full — could not save ' + file.name + '. Try a smaller file.', 'error');
+                  return;
+                }
+                renderUploads(gridId, storageKey, isImage);
+                toast('Uploaded ' + file.name, 'ok');
+              });
+            });
           };
           reader.readAsDataURL(file);
           e.target.value = '';
@@ -3681,10 +3756,12 @@
         document.getElementById(gridId).addEventListener('click', function(ev) {
           if (ev.target.classList.contains('del')) {
             var idx = parseInt(ev.target.dataset.idx, 10);
-            var list = loadUploads(ev.target.dataset.key);
-            list.splice(idx, 1);
-            saveUploads(ev.target.dataset.key, list);
-            renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+            loadUploadsAsync(ev.target.dataset.key, function(list) {
+              list.splice(idx, 1);
+              saveUploads(ev.target.dataset.key, list, function() {
+                renderUploads(ev.target.dataset.grid, ev.target.dataset.key, ev.target.dataset.img === 'true');
+              });
+            });
           } else if (ev.target.classList.contains('equip-btn')) {
             var items = loadUploads(ev.target.dataset.key || storageKey);
             var ei = parseInt(ev.target.dataset.eq, 10);
@@ -3815,6 +3892,26 @@
         mobKillsAny: function(v) { return String(v); }
       };
       function requestLeaderboard() {
+        // Try Firebase first (works always, even if server is down)
+        if (window._fbAvailable && window.FIREBASE_CONFIG && window.firebase && firebase.apps && firebase.apps.length) {
+          try {
+            var db = firebase.database();
+            var metric = lbMetric;
+            var fmt = lbFmt[metric] || lbFmt.playTime;
+            db.ref('leaderboard').orderByChild(metric).limitToLast(20).once('value', function(snap) {
+              var entries = [];
+              snap.forEach(function(child) {
+                var v = child.val();
+                entries.push({ name: v.name || child.key, value: v[metric] || 0 });
+              });
+              entries.reverse();
+              entries.forEach(function(e, i) { e.rank = i + 1; });
+              renderLeaderboard({ metric: metric, entries: entries, self: null });
+            }).catch(function() {});
+            return;
+          } catch (_) {}
+        }
+        // Fall back to server WebSocket
         if (!chatWs || chatWs.readyState !== 1) return;
         chatWs.send(JSON.stringify({ type: 'leaderboard_get', metric: lbMetric }));
       }

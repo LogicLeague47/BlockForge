@@ -4751,7 +4751,7 @@ function renderPP2PRooms() {
   if (!el) return;
   p2pDirectory.listRooms().then((rooms) => {
     if (rooms.length === 0) {
-      el.innerHTML = '<div style="color:#666;text-align:center;padding:8px;">No P2P servers found. Host one!</div>';
+      el.innerHTML = '<div style="color:#666;text-align:center;padding:8px;">No friends\' worlds found. Host one!</div>';
       return;
     }
     el.innerHTML = rooms.map((r) => {
@@ -4768,7 +4768,7 @@ function renderPP2PRooms() {
 
 // Global handler for clicking a P2P room in the list
 window._joinPP2PRoom = function(hostName) {
-  addChatLine('Connecting to ' + hostName + '...', '#5f5');
+  addChatLine('Connecting to ' + hostName + '\'s world...', '#5f5');
   // The joiner needs an offer code from the host
   // For now, open the P2P join view with instructions
   ui.showMenu('p2p');
@@ -4777,7 +4777,7 @@ window._joinPP2PRoom = function(hostName) {
   if (joinView) joinView.style.display = 'block';
   if (hostView) hostView.style.display = 'none';
   const input = document.getElementById('p2p-join-input');
-  if (input) input.placeholder = 'Ask ' + hostName + ' for their offer code...';
+  if (input) input.placeholder = 'Ask ' + hostName + ' for their room code...';
 };
 
 // Re-broadcast locally-saved servers to the WS server so other devices can see them
@@ -7324,6 +7324,31 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   });
 }
 
+// Firebase leaderboard sync — works in both singleplayer and multiplayer.
+// Stats are written to Firebase RTDB under leaderboard/{playerName}.
+var _lastLeaderboardSync = 0;
+function _syncLeaderboardStats() {
+  if (!playerName || playerName.startsWith('Guest')) return;
+  if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') return;
+  try {
+    var cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !cfg.apiKey) return;
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    var db = firebase.database();
+    var s = achievements.stats || {};
+    var entry = {
+      playTime: Math.floor(s.playTime || 0),
+      level: s.level || 0,
+      mobKillsAny: s.mobKillsAny || 0,
+      totalBlocksBroken: s.totalBlocksBroken || 0,
+      daysSurvived: totalDays || 0,
+      name: playerName,
+      updated: Date.now()
+    };
+    db.ref('leaderboard/' + playerName).set(entry);
+  } catch (_) {}
+}
+
 function saveCurrentWorld() {
   if (isDevWorld || isParkour || isSkyblock) return;
   // Upload stats to server for dev panel
@@ -8283,7 +8308,7 @@ function initMenu() {
         } catch (e) {}
       }
       const statusEl = document.getElementById('p2p-host-status');
-      if (statusEl) statusEl.textContent = 'P2P server live! Listed in server browser. Or share the code below.';
+      if (statusEl) statusEl.textContent = 'Your world is live! Share the code below with your friend.';
 
       _activeNetwork = 'p2p';
       _p2pHostSeed = seed;
@@ -12000,6 +12025,8 @@ function _gameFrame() {
   if (autoSaveTimer > 30) {
     autoSaveTimer = 0;
     saveCurrentWorld();
+    // Sync stats to Firebase leaderboard every 30s
+    _syncLeaderboardStats();
   }
 
   // Send position to multiplayer server (30Hz)

@@ -3318,9 +3318,9 @@
 
         <!-- P2P Rooms (discovered via Firebase — replaces server room list) -->
         <div id="p2p-rooms-panel" style="max-width:480px;width:100%;background:rgba(0,0,0,0.45);border:1px solid rgba(80,180,100,0.35);border-radius:6px;padding:14px 16px;margin-bottom:6px;">
-          <div style="font:bold 10px monospace;color:#5f5;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9889; P2P SERVERS (no backend)</div>
-          <div id="p2p-room-list" style="max-height:140px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;font:11px monospace;color:#888;">Scanning for P2P servers...</div>
-          <div style="font:9px monospace;color:#578;margin-top:6px;">Rooms hosted by players — connect directly, no central server.</div>
+          <div style="font:bold 10px monospace;color:#5f5;letter-spacing:1.5px;margin-bottom:8px;text-shadow:1px 1px 0 #000;">&#9889; FRIENDS' WORLDS (direct connection)</div>
+          <div id="p2p-room-list" style="max-height:140px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(100,100,100,0.5) transparent;font:11px monospace;color:#888;">Looking for friends' worlds...</div>
+          <div style="font:9px monospace;color:#578;margin-top:6px;">Games hosted by other players — connect directly, no central server.</div>
         </div>
 
         <!-- Worlds on the server you joined (appears only after you connect) -->
@@ -3337,8 +3337,8 @@
 
         <!-- Buttons -->
         <div style="display:flex;gap:8px;max-width:480px;width:100%;flex-wrap:wrap;">
-          <button class="menu-btn" id="btn-p2p-play" style="flex:1 1 100%;background:linear-gradient(135deg,#2a7,#185);">PLAY WITH FRIEND (NO SERVER)</button>
-          <button class="menu-btn" id="btn-dev-p2p-host" style="flex:1 1 100%;background:linear-gradient(135deg,#507,#305);display:none;">HOST P2P SERVER (dev)</button>
+          <button class="menu-btn" id="btn-p2p-play" style="flex:1 1 100%;background:linear-gradient(135deg,#2a7,#185);">PLAY WITH A FRIEND</button>
+          <button class="menu-btn" id="btn-dev-p2p-host" style="flex:1 1 100%;background:linear-gradient(135deg,#507,#305);display:none;">HOST A WORLD (friends only)</button>
           <button class="menu-btn" id="btn-create-server" style="flex:1 1 100%;">HOST SERVER</button>
           <button class="menu-btn" id="btn-friends" style="flex:1;min-width:120px;font-size:13px;">FRIENDS <span class="btn-badge" id="friends-badge" style="display:none;background:#f55;color:#fff;border-radius:8px;padding:1px 6px;font:bold 10px monospace;margin-left:4px;"></span></button>
           <button class="menu-btn secondary" id="btn-mp-back" style="flex:1;min-width:100px;">BACK</button>
@@ -3346,15 +3346,15 @@
       </div>
 
       <!-- Screen: P2P Lobby (Play with Friend — no server needed) -->
-      <div id="menu-p2p" class="menu-screen" style="display:none;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:0;">
+      <div id="menu-p2p" class="menu-screen" style="background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:0;">
         <div style="max-width:480px;width:92%;background:rgba(20,20,30,0.97);border:1px solid rgba(80,180,100,0.45);border-radius:10px;padding:24px 26px;box-shadow:0 10px 40px rgba(0,0,0,0.6);">
-          <div style="font:bold 20px monospace;color:#5f5;text-align:center;margin-bottom:18px;text-shadow:1px 1px 0 #000;">&#9889; PLAY WITH FRIEND</div>
+          <div style="font:bold 20px monospace;color:#5f5;text-align:center;margin-bottom:18px;text-shadow:1px 1px 0 #000;">&#9889; PLAY WITH A FRIEND</div>
           <div style="font:11px monospace;color:#7a8;text-align:center;margin-bottom:16px;line-height:1.4;">Connect directly over WiFi or mobile data — no server needed. Works on the same network or across different networks.</div>
 
           <!-- Host View -->
           <div id="p2p-host-view">
             <button id="btn-p2p-findmatch" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:linear-gradient(135deg,#2a7,#185);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">FIND RANDOM OPPONENT</button>
-            <button id="btn-p2p-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:rgba(30,30,50,0.9);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">HOST WORLD (share code)</button>
+            <button id="btn-p2p-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:rgba(30,30,50,0.9);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">HOST A WORLD (share code with friend)</button>
             <div id="p2p-code-box" style="display:none;background:#0a0a14;border:1px solid rgba(80,180,100,0.4);border-radius:8px;padding:14px;margin-bottom:12px;word-break:break-all;font:bold 16px monospace;color:#5f5;text-align:center;letter-spacing:2px;cursor:pointer" title="Tap to copy"></div>
             <div id="p2p-qr" style="text-align:center;margin-bottom:12px"></div>
             <div id="p2p-host-status" style="font:11px monospace;color:#888;text-align:center;margin-bottom:12px;"></div>
@@ -3368,7 +3368,7 @@
 
           <!-- Toggle -->
           <div style="display:flex;gap:8px;margin-bottom:4px;">
-            <button id="btn-p2p-show-join" style="flex:1;padding:10px;font:12px monospace;color:#5f5;background:rgba(0,0,0,0.3);border:1px solid rgba(80,180,100,0.3);border-radius:4px;cursor:pointer;">JOIN FRIEND</button>
+            <button id="btn-p2p-show-join" style="flex:1;padding:10px;font:12px monospace;color:#5f5;background:rgba(0,0,0,0.3);border:1px solid rgba(80,180,100,0.3);border-radius:4px;cursor:pointer;">JOIN A FRIEND</button>
             <button id="btn-p2p-cancel" style="flex:1;padding:10px;font:12px monospace;color:#aaa;background:rgba(0,0,0,0.3);border:1px solid rgba(80,80,80,0.3);border-radius:4px;cursor:pointer;">BACK</button>
           </div>
         </div>
