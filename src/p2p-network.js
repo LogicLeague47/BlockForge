@@ -1,6 +1,14 @@
-// P2P Network adapter — WebRTC data channels replace the WebSocket server.
-// Host creates a room, joiners connect directly. No backend needed.
-// Implements the same callback API as network.js so main.js can swap freely.
+// P2P Network adapter — WebRTC data channels, zero backend.
+// Star topology: host relays all messages between peers.
+// Signaling via copy-paste/QR (no server needed for signaling).
+//
+// Flow per joiner:
+//   1. Host creates offer → generates ANSWER CODE (joiner enters this)
+//   2. Joiner enters code → creates answer → generates CONFIRM CODE
+//   3. Host enters confirm code → connection established
+//
+// For max players: host bandwidth is the bottleneck.
+// Position: binary 30B frames at 20Hz. All other: JSON.
 
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
@@ -10,11 +18,19 @@ const ICE_SERVERS = [
   { urls: 'stun:stun4.l.google.com:19302' },
 ];
 
-function encode(obj) {
-  try { return btoa(JSON.stringify(obj)); } catch (e) { return ''; }
-}
-function decode(str) {
-  try { return JSON.parse(atob(str)); } catch (e) { return null; }
+const MAX_PLAYERS = 16;
+
+function b64(o) { try { return btoa(JSON.stringify(o)); } catch (e) { return ''; } }
+function unb64(s) { try { return JSON.parse(atob(s)); } catch (e) { return null; } }
+
+function waitICE(pc) {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') { resolve(); return; }
+    pc.onicegatheringstatechange = () => {
+      if (pc.iceGatheringState === 'complete') resolve();
+    };
+    setTimeout(resolve, 3000); // timeout — don't block forever
+  });
 }
 
 export class P2PNetwork {
@@ -24,20 +40,19 @@ export class P2PNetwork {
     this.isHost = false;
     this.playerName = '';
 
-    // Text encoder/decoder (reuse across messages)
     this._textEncoder = new TextEncoder();
     this._textDecoder = new TextDecoder();
-    // Pre-allocated position send buffer
     this._posBuf = new ArrayBuffer(1 + 1 + 32 + 16 + 1);
     this._posView = new DataView(this._posBuf);
 
-    // WebRTC state
-    this._pc = null;               // RTCPeerConnection (joiner) or map (host)
-    this._peers = new Map();       // host: name -> { pc, dc }
-    this._dc = null;               // joiner: data channel
+    this._peers = new Map();        // name -> { pc, dc, name }
+    this._pc = null;                // joiner: single RTCPeerConnection
+    this._dc = null;                // joiner: single data channel
+    this._hostDC = null;            // joiner: data channel from host
     this._roomCode = null;
+    this._pendingOffers = new Map(); // peerName -> RTCPeerConnection (host awaiting answer)
+    this._maxPlayers = MAX_PLAYERS;
 
-    // Callbacks (same interface as Network)
     this.onConnected = null;
     this.onJoined = null;
     this.onPlayerJoin = null;
@@ -76,168 +91,190 @@ export class P2PNetwork {
     this._connectedCallbacks = [];
   }
 
-  // ── Host: create room and generate shareable code ──────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  HOST — create room
+  // ═══════════════════════════════════════════════════════════════════════
+
   createRoomOnP2P(playerName, seed, gameMode) {
     this.isHost = true;
     this.playerName = playerName;
     this.roomName = 'p2p_' + playerName;
     this._lastJoinInfo = { playerName, seed, gameMode };
+    this._peers.clear();
+    this._pendingOffers.clear();
 
-    // We don't use a single RTCPeerConnection for host — each peer gets one.
-    // Signal "ready" to let main.js know we're listening.
     console.log('[P2P] Hosting as', playerName, 'seed:', seed);
 
     if (this.onConnected) { const cb = this.onConnected; this.onConnected = null; cb(); }
     while (this._connectedCallbacks.length) this._connectedCallbacks.shift()();
 
-    // Return the room code (host needs to share this)
-    this._roomCode = this._generateRoomCode();
+    this._roomCode = b64({
+      t: 'p2p', n: playerName,
+      s: seed || 42, m: gameMode || 'survival', v: 2,
+    });
     return this._roomCode;
   }
 
-  _generateRoomCode() {
-    const data = {
-      t: 'p2p',
-      n: this.playerName,
-      s: this._lastJoinInfo?.seed || 42,
-      m: this._lastJoinInfo?.gameMode || 'survival',
+  // Host: create offer for a specific joiner → returns promise of offer code
+  createOfferForJoiner(joinerName) {
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+    const dc = pc.createDataChannel('game', { ordered: true, maxRetransmits: 2 });
+    dc.binaryType = 'arraybuffer';
+
+    const peerObj = { pc, dc, name: joinerName, ready: false };
+    this._pendingOffers.set(joinerName, peerObj);
+
+    dc.onopen = () => {
+      console.log('[P2P] Peer connected:', joinerName);
+      this._peers.set(joinerName, peerObj);
+      this._pendingOffers.delete(joinerName);
+      peerObj.ready = true;
+
+      this._sendToPeer(joinerName, {
+        _t: 'joined',
+        room: this.roomName,
+        seed: this._lastJoinInfo?.seed || 42,
+        gameMode: this._lastJoinInfo?.gameMode || 'survival',
+        players: this._getplayerList(),
+        role: 'player',
+        maxPlayers: this._maxPlayers,
+      });
+
+      if (this.onPlayerJoin) this.onPlayerJoin(joinerName, 'player', 0);
+      this._broadcastPlayerList();
     };
-    return encode(data);
+
+    dc.onclose = () => {
+      console.log('[P2P] Peer disconnected:', joinerName);
+      this._peers.delete(joinerName);
+      this._pendingOffers.delete(joinerName);
+      if (this.onPlayerLeave) this.onPlayerLeave(joinerName);
+      this._broadcastPlayerList();
+    };
+
+    dc.onerror = (e) => console.error('[P2P] DC error:', joinerName, e);
+
+    this._setupDC(dc, joinerName);
+
+    return pc.createOffer().then((offer) => pc.setLocalDescription(offer)).then(() => waitICE(pc)).then(() => {
+      const offerCode = b64({
+        o: pc.localDescription.sdp,
+        n: joinerName,
+        h: this.playerName,
+        s: this._lastJoinInfo?.seed || 42,
+        m: this._lastJoinInfo?.gameMode || 'survival',
+        v: 2,
+      });
+      return offerCode;
+    });
   }
 
-  // ── Joiner: connect to host via room code ──────────────────────────────
+  // Host: accept joiner's answer → completes signaling
+  acceptAnswer(answerCode) {
+    const data = unb64(answerCode);
+    if (!data || !data.a || !data.n) {
+      if (this.onError) this.onError('Invalid answer code.');
+      return false;
+    }
+    const joinerName = data.n;
+    const peerObj = this._pendingOffers.get(joinerName);
+    if (!peerObj) {
+      if (this.onError) this.onError('No pending connection for ' + joinerName + '. Create an offer first.');
+      return false;
+    }
+    peerObj.pc.setRemoteDescription({ type: 'answer', sdp: data.a }).catch((e) => {
+      console.error('[P2P] setRemoteDescription error:', e);
+      if (this.onError) this.onError('Failed to connect to ' + joinerName);
+    });
+    return true;
+  }
+
+  _getplayerList() {
+    const list = [this.playerName];
+    this._peers.forEach((_, name) => list.push(name));
+    return list;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  //  JOINER — connect to host
+  // ═══════════════════════════════════════════════════════════════════════
+
   joinRoomByCode(code, playerName) {
-    const data = decode(code);
+    const data = unb64(code);
     if (!data || data.t !== 'p2p') {
       if (this.onError) this.onError('Invalid room code.');
       return;
     }
-
     this.isHost = false;
     this.playerName = playerName;
-    const hostName = data.n;
+    console.log('[P2P] Joining', data.n, 'seed:', data.s);
+    // Store room metadata — the actual connection happens when acceptOfferCode is called
+    this._lastJoinInfo = { hostName: data.n, seed: data.s, gameMode: data.m };
+  }
+
+  // Joiner: enter the host's offer code → creates answer → returns answer code
+  acceptOfferCode(offerCode) {
+    const data = unb64(offerCode);
+    if (!data || !data.o) {
+      if (this.onError) this.onError('Invalid offer code.');
+      return Promise.reject(new Error('Invalid offer code'));
+    }
+
+    const hostName = data.h;
     const seed = data.s;
     const gameMode = data.m;
-
-    console.log('[P2P] Joining', hostName, 'seed:', seed);
 
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     this._pc = pc;
 
-    pc.onicecandidate = (e) => {
-      if (e.candidate && this._dc && this._dc.readyState === 'open') {
-        this._dc.send(JSON.stringify({ _t: '_ice', c: e.candidate }));
-      }
-    };
-
     pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-        console.log('[P2P] Connection lost');
+      const state = pc.iceConnectionState;
+      if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+        console.log('[P2P] Connection lost:', state);
         this.connected = false;
         this.roomName = null;
         if (this.onDisconnect) this.onDisconnect();
       }
     };
 
-    const dc = pc.createDataChannel('game', { ordered: true });
-    this._dc = dc;
-    dc.binaryType = 'arraybuffer';
-    this._setupDC(dc, 'host');
-
-    // Send a handshake with our name
-    dc.onopen = () => {
-      this.connected = true;
-      this.roomName = 'p2p_' + hostName;
-      dc.send(JSON.stringify({ _t: 'handshake', name: playerName }));
-
-      // Trigger onConnected + onJoined like the server flow
-      if (this.onConnected) { const cb = this.onConnected; this.onConnected = null; cb(); }
-      while (this._connectedCallbacks.length) this._connectedCallbacks.shift()();
-
-      // Simulate the server's "joined" message
-      if (this.onJoined) {
-        this.onJoined(
-          'p2p_' + hostName,   // room
-          seed,                 // seed
-          gameMode,            // gameMode
-          [hostName, playerName], // players
-          'player'             // role
-        );
-      }
-      if (this.onPlayerJoin) this.onPlayerJoin(hostName, 'player', 0);
-    };
-
-    // Create offer
-    pc.createOffer().then((offer) => pc.setLocalDescription(offer)).then(() => {
-      // Encode the offer for sharing — host will decode it
-      const offerData = { s: pc.localDescription.sdp, n: playerName };
-      const offerCode = encode(offerData);
-      // Send offer to host via the room code's signal channel
-      // In practice, this goes through the QR/copy-paste flow
-      window._p2pOfferCode = offerCode;
-      window._p2pOfferReady = true;
-      console.log('[P2P] Offer ready. Share this code:', offerCode);
-    }).catch((e) => console.error('[P2P] Offer error:', e));
-  }
-
-  // ── Host: accept an incoming joiner's offer ────────────────────────────
-  _acceptOffer(offerCode, peerName) {
-    const data = decode(offerCode);
-    if (!data || !data.s) return null;
-
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        const peer = this._peers.get(peerName);
-        if (peer && peer.dc && peer.dc.readyState === 'open') {
-          peer.dc.send(JSON.stringify({ _t: '_ice', c: e.candidate }));
-        }
-      }
-    };
-
-    pc.oniceconnectionstatechange = () => {
-      if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
-        console.log('[P2P] Peer disconnected:', peerName);
-        this._peers.delete(peerName);
-        if (this.onPlayerLeave) this.onPlayerLeave(peerName);
-        this._broadcastPlayerList();
-      }
-    };
-
-    const dc = pc.createDataChannel('game', { ordered: true });
-    dc.binaryType = 'arraybuffer';
-
-    const peerObj = { pc, dc, name: peerName };
-    this._peers.set(peerName, peerObj);
-    this._setupDC(dc, peerName);
-
-    pc.setRemoteDescription({ type: 'offer', sdp: data.s }).then(() => pc.createAnswer()).then((answer) => pc.setLocalDescription(answer)).then(() => {
-      const answerCode = encode({ s: pc.localDescription.sdp });
-      window._p2pAnswerCode = answerCode;
-      window._p2pAnswerReady = true;
+    // Receive host's data channel
+    pc.ondatachannel = (e) => {
+      const dc = e.channel;
+      dc.binaryType = 'arraybuffer';
+      this._hostDC = dc;
+      this._setupDC(dc, 'host');
 
       dc.onopen = () => {
-        console.log('[P2P] Peer connected:', peerName);
-        // Send initial game state
-        this._sendToPeer(peerName, {
-          _t: 'joined',
-          room: 'p2p_' + this.playerName,
-          seed: this._lastJoinInfo?.seed || 42,
-          gameMode: this._lastJoinInfo?.gameMode || 'survival',
-          players: [this.playerName, ...this._peers.keys()],
-          role: 'player'
-        });
-        // Notify others
-        if (this.onPlayerJoin) this.onPlayerJoin(peerName, 'player', 0);
-        this._broadcastPlayerList();
-      };
-    }).catch((e) => console.error('[P2P] Answer error:', e));
+        console.log('[P2P] Connected to host');
+        this.connected = true;
+        this.roomName = 'p2p_' + hostName;
 
-    return window._p2pAnswerReady ? window._p2pAnswerCode : null;
+        dc.send(JSON.stringify({ _t: 'handshake', name: this.playerName }));
+
+        if (this.onConnected) { const cb = this.onConnected; this.onConnected = null; cb(); }
+        while (this._connectedCallbacks.length) this._connectedCallbacks.shift()();
+      };
+
+      dc.onclose = () => {
+        this.connected = false;
+        this.roomName = null;
+        if (this.onDisconnect) this.onDisconnect();
+      };
+    };
+
+    return pc.setRemoteDescription({ type: 'offer', sdp: data.o }).then(() => pc.createAnswer()).then((answer) => pc.setLocalDescription(answer)).then(() => waitICE(pc)).then(() => {
+      const answerCode = b64({
+        a: pc.localDescription.sdp,
+        n: this.playerName,
+      });
+      return answerCode;
+    });
   }
 
-  // ── Data channel handler ──────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Data channel message handling
+  // ═══════════════════════════════════════════════════════════════════════
+
   _setupDC(dc, peerName) {
     dc.onmessage = (e) => {
       if (e.data instanceof ArrayBuffer) {
@@ -254,32 +291,37 @@ export class P2PNetwork {
     if (!msg || !msg._t) return;
     const t = msg._t;
 
-    // ── Host receives messages from joiners ──
+    // ── HOST receives from joiners ──
     if (this.isHost) {
       if (t === 'handshake') {
         console.log('[P2P] Handshake from', msg.name);
+        if (msg.name !== peerName) {
+          const peerObj = this._peers.get(peerName) || this._pendingOffers.get(peerName);
+          if (peerObj) {
+            this._peers.delete(peerName);
+            this._pendingOffers.delete(peerName);
+            peerObj.name = msg.name;
+            this._peers.set(msg.name, peerObj);
+          }
+        }
         if (this.onPlayerJoin) this.onPlayerJoin(msg.name, 'player', 0);
         this._broadcastPlayerList();
       } else if (t === 'position') {
-        // Relay to all other peers
-        this._broadcastExcept(peerName, msg);
-        if (this.onPlayerPosition) this.onPlayerPosition(peerName, msg.x, msg.y, msg.z, msg.y, msg.cr, null);
+        this._broadcastExceptRaw(peerName, this._encodePos(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.cr));
+        if (this.onPlayerPosition) this.onPlayerPosition(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.cr, null);
       } else if (t === 'block_update') {
         this._broadcastExcept(peerName, msg);
         if (this.onBlockUpdate) this.onBlockUpdate(msg.x, msg.y, msg.z, msg.block);
       } else if (t === 'chat') {
         this._broadcastExcept(peerName, { _t: 'chat', name: peerName, text: msg.text, role: 'player' });
         if (this.onChat) this.onChat(peerName, 'player', msg.text);
-      } else if (t === 'chest_update') {
+      } else if (t === 'chest_update' || t === 'bed_spawn_point') {
         this._broadcastExcept(peerName, msg);
       } else if (t === 'mob_spawn' || t === 'mob_position' || t === 'mob_damage' || t === 'mob_death') {
         this._broadcastExcept(peerName, msg);
       } else if (t === 'armor_update') {
         this._broadcastExcept(peerName, { _t: 'armor', name: peerName, armor: msg.armor });
-      } else if (t === 'bed_spawn_point') {
-        this._broadcastExcept(peerName, msg);
       } else if (t === 'player_damage') {
-        // PvP damage — relay to target
         const target = this._peers.get(msg.target);
         if (target && target.dc && target.dc.readyState === 'open') {
           target.dc.send(JSON.stringify({ _t: 'player_damage', from: peerName, damage: msg.damage }));
@@ -288,7 +330,7 @@ export class P2PNetwork {
       return;
     }
 
-    // ── Joiner receives messages from host ──
+    // ── JOINER receives from host ──
     if (t === 'joined') {
       this.connected = true;
       this.roomName = msg.room;
@@ -319,8 +361,6 @@ export class P2PNetwork {
       if (this.onMobDamage) this.onMobDamage(msg.id, msg.hp);
     } else if (t === 'mob_death') {
       if (this.onMobDeath) this.onMobDeath(msg.id);
-    } else if (t === 'chest_update') {
-      if (this.onBlockUpdate) this.onBlockUpdate(msg.x, msg.y, msg.z, msg.block);
     } else if (t === 'kick') {
       if (this.onKicked) this.onKicked(msg.reason);
     } else if (t === 'error') {
@@ -332,7 +372,6 @@ export class P2PNetwork {
     const view = new DataView(buf);
     const type = view.getUint8(0);
     if (type === 0x02) {
-      // Position update
       let off = 1;
       const nameLen = view.getUint8(off); off += 1;
       const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
@@ -343,242 +382,169 @@ export class P2PNetwork {
       const crouching = view.getUint8(off) === 1;
 
       if (this.isHost) {
-        // Relay to all other peers
         this._broadcastExceptRaw(peerName, buf);
         if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
       } else {
         if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
       }
     } else if (type === 0x03) {
-      // Armor sync
       let off = 1;
       const nameLen = view.getUint8(off); off += 1;
       const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
       const armorLen = view.getUint8(off); off += 1;
       const armor = armorLen > 0 ? this._textDecoder.decode(new Uint8Array(buf, off, armorLen)) : null;
-      if (this.isHost) {
-        this._broadcastExcept(peerName, { _t: 'armor', name, armor });
-      }
+      if (this.isHost) this._broadcastExcept(peerName, { _t: 'armor', name, armor });
       if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
     }
   }
 
-  // ── Public API (mirrors Network) ──────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Public API
+  // ═══════════════════════════════════════════════════════════════════════
 
-  connect() {
-    // No-op for P2P — connection is established via createRoomOnP2P / joinRoomByCode
-    console.log('[P2P] connect() called — use createRoomOnP2P() or joinRoomByCode() instead');
-  }
+  connect() { console.log('[P2P] Use createRoomOnP2P() or joinRoomByCode()'); }
 
   disconnect() {
     this.connected = false;
     this.roomName = null;
     if (this._pc) { try { this._pc.close(); } catch (e) {} this._pc = null; }
     if (this._dc) { try { this._dc.close(); } catch (e) {} this._dc = null; }
+    if (this._hostDC) { try { this._hostDC.close(); } catch (e) {} this._hostDC = null; }
     this._peers.forEach((p) => { try { p.pc.close(); } catch (e) {} });
     this._peers.clear();
+    this._pendingOffers.forEach((p) => { try { p.pc.close(); } catch (e) {} });
+    this._pendingOffers.clear();
   }
 
-  leaveRoom() {
-    this.disconnect();
-  }
+  leaveRoom() { this.disconnect(); }
+  isInRoom() { return this.connected && this.roomName !== null; }
+  onConnectedOnce(cb) { if (this.connected) { cb(); return; } this._connectedCallbacks.push(cb); }
+  getPlayerCount() { return this._peers.size + (this.isHost ? 1 : 0); }
+  getMaxPlayers() { return this._maxPlayers; }
 
-  isInRoom() {
-    return this.connected && this.roomName !== null;
-  }
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Send methods
+  // ═══════════════════════════════════════════════════════════════════════
 
-  onConnectedOnce(cb) {
-    if (this.connected) { cb(); return; }
-    this._connectedCallbacks.push(cb);
+  _encodePos(name, x, y, z, yaw, crouching) {
+    const nb = this._textEncoder.encodeInto(name, new Uint8Array(this._posBuf, 2));
+    const nl = nb.written || name.length;
+    const v = this._posView;
+    let o = 0;
+    v.setUint8(o, 0x02); o += 1;
+    v.setUint8(o, nl); o += 1;
+    o += nl;
+    v.setFloat32(o, x); o += 4;
+    v.setFloat32(o, y); o += 4;
+    v.setFloat32(o, z); o += 4;
+    v.setFloat32(o, yaw); o += 4;
+    v.setUint8(o, crouching ? 1 : 0);
+    return new Uint8Array(this._posBuf, 0, o + 1);
   }
-
-  // ── Send methods ──────────────────────────────────────────────────────
 
   sendPosition(x, y, z, yaw, crouching) {
     if (!this.connected) return;
-    const pname = this.playerName;
-    const nameBytes = this._textEncoder.encodeInto(pname, new Uint8Array(this._posBuf, 2));
-    const nameLen = nameBytes.written || pname.length;
-    const buf = this._posBuf;
-    const view = this._posView;
-    let off = 0;
-    view.setUint8(off, 0x02); off += 1;
-    view.setUint8(off, nameLen); off += 1;
-    off += nameLen;
-    view.setFloat32(off, x); off += 4;
-    view.setFloat32(off, y); off += 4;
-    view.setFloat32(off, z); off += 4;
-    view.setFloat32(off, yaw); off += 4;
-    view.setUint8(off, crouching ? 1 : 0);
-    const data = new Uint8Array(buf, 0, off + 1);
-
-    if (this.isHost) {
-      this._broadcastRaw(data);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(data);
-    }
+    const data = this._encodePos(this.playerName, x, y, z, yaw, crouching);
+    if (this.isHost) this._broadcastRaw(data);
+    else this._sendToHostRaw(data);
   }
 
   sendBlockUpdate(x, y, z, block) {
     const msg = { _t: 'block_update', x: x | 0, y: y | 0, z: z | 0, block: block | 0 };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
+    if (this.isHost) this._broadcast(msg);
+    else this._sendToHost(msg);
   }
 
   sendChestUpdate(x, y, z, slots) {
     const msg = { _t: 'chest_update', x: x | 0, y: y | 0, z: z | 0, slots: slots ? slots.map(s => s ? { item: s.item, count: s.count, ...(s.durability != null ? { durability: s.durability } : {}) } : null) : [] };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
+    if (this.isHost) this._broadcast(msg);
+    else this._sendToHost(msg);
   }
 
   sendChat(text) {
     const msg = { _t: 'chat', text };
     if (this.isHost) {
       this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
+      if (this.onChat) this.onChat(this.playerName, 'player', text);
+    } else {
+      this._sendToHost(msg);
     }
   }
 
   sendCommand(text) {
-    // Commands are local-only in P2P mode (no server to process them)
-    if (this.onChat) this.onChat('P2P', 'server', 'Commands are not available in P2P mode.');
+    if (this.onChat) this.onChat('P2P', 'server', 'Commands unavailable in P2P mode.');
   }
 
   sendArmor(armor) {
     const msg = { _t: 'armor_update', armor: armor || null };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
+    if (this.isHost) this._broadcast(msg);
+    else this._sendToHost(msg);
   }
 
   sendBedSpawn(x, y, z) {
     const msg = { _t: 'bed_spawn_point', x, y, z };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
+    if (this.isHost) this._broadcast(msg);
+    else this._sendToHost(msg);
   }
 
-  sendMobSpawn(id, type, x, y, z) {
-    const msg = { _t: 'mob_spawn', id, type, x, y, z };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
-  }
-
-  sendMobPosition(id, x, y, z, yaw) {
-    const msg = { _t: 'mob_position', id, x, y, z, yaw };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
-  }
-
-  sendMobDamage(id, hp) {
-    const msg = { _t: 'mob_damage', id, hp };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
-  }
-
-  sendMobDeath(id) {
-    const msg = { _t: 'mob_death', id };
-    if (this.isHost) {
-      this._broadcast(msg);
-    } else if (this._dc && this._dc.readyState === 'open') {
-      this._dc.send(JSON.stringify(msg));
-    }
-  }
+  sendMobSpawn(id, type, x, y, z) { const m = { _t: 'mob_spawn', id, type, x, y, z }; this.isHost ? this._broadcast(m) : this._sendToHost(m); }
+  sendMobPosition(id, x, y, z, yaw) { const m = { _t: 'mob_position', id, x, y, z, yaw }; this.isHost ? this._broadcast(m) : this._sendToHost(m); }
+  sendMobDamage(id, hp) { const m = { _t: 'mob_damage', id, hp }; this.isHost ? this._broadcast(m) : this._sendToHost(m); }
+  sendMobDeath(id) { const m = { _t: 'mob_death', id }; this.isHost ? this._broadcast(m) : this._sendToHost(m); }
 
   // No-op stubs for server-only features
-  sendAuth() {}
-  sendIdentityAuth() {}
-  linkIdentity() {}
-  startOAuthLink() {}
-  getOwnAccount() {}
-  linkAccount() {}
-  unlinkIdentity() {}
-  friendList() {}
-  friendRequest() {}
-  friendAccept() {}
-  friendDecline() {}
-  friendRemove() {}
-  sendDm() {}
-  sendDmRead() {}
-  sendDmSyncPush() {}
-  registerRoom() {}
-  listRooms() { if (this.onRoomList) this.onRoomList([]); }
-  createRoom() {}
-  joinRoom() {}
-  devListAccounts() {}
-  devGetAccount() {}
-  devSetTag() {}
-  devSetRole() {}
-  devDeleteAccount() {}
-  devGetStats() {}
-  devTimedBan() {}
-  devUnban() {}
-  devGlobalBans() {}
+  sendAuth() {} sendIdentityAuth() {} linkIdentity() {} startOAuthLink() {}
+  getOwnAccount() {} linkAccount() {} unlinkIdentity() {}
+  friendList() {} friendRequest() {} friendAccept() {} friendDecline() {} friendRemove() {}
+  sendDm() {} sendDmRead() {} sendDmSyncPush() {}
+  registerRoom() {} listRooms() { if (this.onRoomList) this.onRoomList([]); }
+  createRoom() {} joinRoom() {}
+  devListAccounts() {} devGetAccount() {} devSetTag() {} devSetRole() {}
+  devDeleteAccount() {} devGetStats() {} devTimedBan() {} devUnban() {} devGlobalBans() {}
 
-  // ── Host helpers ──────────────────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════════════════
+  //  Internal helpers
+  // ═══════════════════════════════════════════════════════════════════════
+
+  _sendToHost(msg) {
+    const dc = this._hostDC;
+    if (dc && dc.readyState === 'open') dc.send(JSON.stringify(msg));
+  }
+
+  _sendToHostRaw(data) {
+    const dc = this._hostDC;
+    if (dc && dc.readyState === 'open') dc.send(data);
+  }
 
   _broadcast(msg) {
     const data = JSON.stringify(msg);
-    this._peers.forEach((peer) => {
-      if (peer.dc && peer.dc.readyState === 'open') peer.dc.send(data);
-    });
+    this._peers.forEach((p) => { if (p.dc && p.dc.readyState === 'open') p.dc.send(data); });
   }
 
   _broadcastRaw(data) {
-    this._peers.forEach((peer) => {
-      if (peer.dc && peer.dc.readyState === 'open') peer.dc.send(data);
-    });
+    this._peers.forEach((p) => { if (p.dc && p.dc.readyState === 'open') p.dc.send(data); });
   }
 
-  _broadcastExcept(excludeName, msg) {
+  _broadcastExcept(exclude, msg) {
     const data = JSON.stringify(msg);
-    this._peers.forEach((peer, name) => {
-      if (name !== excludeName && peer.dc && peer.dc.readyState === 'open') peer.dc.send(data);
-    });
+    this._peers.forEach((p, n) => { if (n !== exclude && p.dc && p.dc.readyState === 'open') p.dc.send(data); });
   }
 
-  _broadcastExceptRaw(excludeName, data) {
-    this._peers.forEach((peer, name) => {
-      if (name !== excludeName && peer.dc && peer.dc.readyState === 'open') peer.dc.send(data);
-    });
+  _broadcastExceptRaw(exclude, data) {
+    this._peers.forEach((p, n) => { if (n !== exclude && p.dc && p.dc.readyState === 'open') p.dc.send(data); });
   }
 
-  _sendToPeer(peerName, msg) {
-    const peer = this._peers.get(peerName);
-    if (peer && peer.dc && peer.dc.readyState === 'open') {
-      peer.dc.send(JSON.stringify(msg));
-    }
+  _sendToPeer(name, msg) {
+    const p = this._peers.get(name);
+    if (p && p.dc && p.dc.readyState === 'open') p.dc.send(JSON.stringify(msg));
   }
 
   _broadcastPlayerList() {
-    const players = [this.playerName];
-    this._peers.forEach((_, name) => players.push(name));
-    this._broadcast({ _t: 'player_list', players });
+    this._broadcast({ _t: 'player_list', players: this._getplayerList() });
   }
 
   getPeers() { return this._peers; }
   getRoomCode() { return this._roomCode; }
 }
 
-// Singleton
 export const p2pNetwork = new P2PNetwork();

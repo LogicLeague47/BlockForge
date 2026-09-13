@@ -8221,51 +8221,61 @@ function initMenu() {
   });
   document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
     const seed = Math.floor(Math.random() * 999999) + 1;
-    const code = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
-    // Show the room code
-    const codeBox = document.getElementById('p2p-code-box');
-    if (codeBox) {
-      codeBox.style.display = 'block';
-      codeBox.textContent = code;
-      codeBox.onclick = () => {
-        try { navigator.clipboard.writeText(code); addChatLine('Room code copied!', '#5f5'); } catch (e) {}
-      };
-    }
-    // Generate QR code
-    const qrDiv = document.getElementById('p2p-qr');
-    if (qrDiv) {
-      qrDiv.innerHTML = '';
-      try {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(code);
-        img.style.borderRadius = '8px';
-        qrDiv.appendChild(img);
-      } catch (e) {}
-    }
-    const statusEl = document.getElementById('p2p-host-status');
-    if (statusEl) statusEl.textContent = 'Share this code or QR with your friend. Waiting for connection…';
+    const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
+    // Now create an offer for the first joiner
+    p2pNetwork.createOfferForJoiner('__waiting__').then((offerCode) => {
+      // The offer code IS the room code joiners will use
+      const codeBox = document.getElementById('p2p-code-box');
+      if (codeBox) {
+        codeBox.style.display = 'block';
+        codeBox.textContent = offerCode;
+        codeBox.onclick = () => {
+          try { navigator.clipboard.writeText(offerCode); addChatLine('Offer code copied!', '#5f5'); } catch (e) {}
+        };
+      }
+      const qrDiv = document.getElementById('p2p-qr');
+      if (qrDiv) {
+        qrDiv.innerHTML = '';
+        try {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(offerCode);
+          img.style.borderRadius = '8px';
+          qrDiv.appendChild(img);
+        } catch (e) {}
+      }
+      const statusEl = document.getElementById('p2p-host-status');
+      if (statusEl) statusEl.textContent = 'Share this code with your friend. When they send their answer code, paste it below.';
 
-    // Set up P2P as the active network
-    _activeNetwork = 'p2p';
+      _activeNetwork = 'p2p';
+      _p2pHostSeed = seed;
+      _p2pHostReady = true;
 
-    // Start the game as host — host creates the world locally
-    // We'll hook into the acceptOffer flow when a joiner connects
-    _p2pHostSeed = seed;
-    _p2pHostReady = true;
-
-    // Listen for incoming offers (joiners paste their offer code)
-    // For now, the host starts the game immediately
-    startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
-    isMultiplayer = true;
-    serverName = 'P2P: ' + playerName;
+      // Start the game as host
+      startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
+      isMultiplayer = true;
+      serverName = 'P2P: ' + playerName;
+    });
   });
   document.getElementById('btn-p2p-join-go')?.addEventListener('click', () => {
     const input = document.getElementById('p2p-join-input');
     const code = input ? input.value.trim() : '';
-    if (!code) { addChatLine('Paste a room code first.', '#fa0'); return; }
+    if (!code) { addChatLine('Paste an offer code first.', '#fa0'); return; }
     _activeNetwork = 'p2p';
     p2pNetwork.joinRoomByCode(code, playerName);
+    // Process the offer code to generate an answer
+    p2pNetwork.acceptOfferCode(code).then((answerCode) => {
+      addChatLine('Answer code generated! Share it with the host.', '#5f5');
+      // Show answer code in the input for easy copying
+      if (input) {
+        input.value = answerCode;
+        input.style.borderColor = '#5f5';
+        addChatLine('Copy the answer code above and send it to the host.', '#5f5');
+      }
+      window._p2pAnswerCode = answerCode;
+    }).catch((e) => {
+      addChatLine('Failed to connect: ' + e.message, '#f55');
+    });
   });
 
   // Invite link button — friends feature coming soon
