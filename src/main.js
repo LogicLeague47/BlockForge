@@ -56,6 +56,7 @@ import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './p
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
+import { p2pNetwork } from './p2p-network.js';
 import { VoiceChat } from './voice.js';
 import { WeatherSystem } from './weather.js';
 import { filterProfanity } from './profanity.js';
@@ -731,7 +732,7 @@ ui.onSmelt = (inputItem, count) => {
 
  // Broadcast local chest edits to other players in the room.
  ui.onChestChange = (x, y, z, slots) => {
-   if (network && network.isInRoom()) network.sendChestUpdate(x, y, z, slots);
+   if (network && _net().isInRoom()) _net().sendChestUpdate(x, y, z, slots);
  };
 
 // --- sleep overlay ---
@@ -805,6 +806,11 @@ let showFps = true;
 let joiningViaLink = false; // true when auto-joining from a shareable link
 let mobile = null;
 let isMultiplayer = false;
+let _activeNetwork = 'server'; // 'server' or 'p2p'
+let _p2pHostSeed = 42;
+let _p2pHostReady = false;
+// Smart network routing — returns whichever network is active
+function _net() { return _activeNetwork === 'p2p' ? p2pNetwork : network; }
 let droppedItemManager = null;
 let tntManager = null;
 let mpRenderer = null;
@@ -3011,7 +3017,7 @@ function placeBlock(slotOverride, targetHit) {
   if (itemId >= ITEM.WOOD_HOE && itemId <= ITEM.DIAMOND_HOE && (faceBlock === BLOCK.DIRT || faceBlock === BLOCK.GRASS || faceBlock === BLOCK.PODZOL || faceBlock === BLOCK.MYCELIUM)) {
     world.setBlock(bx, by, bz, BLOCK.FARMLAND);
     if (audio) audio.blockPlace(BLOCK.FARMLAND);
-    if (network.isInRoom()) network.sendBlockUpdate(bx, by, bz, BLOCK.FARMLAND);
+    if (_net().isInRoom()) _net().sendBlockUpdate(bx, by, bz, BLOCK.FARMLAND);
     return;
   }
   // Seeds: plant on farmland
@@ -3019,7 +3025,7 @@ function placeBlock(slotOverride, targetHit) {
     world.setBlock(hit.place.x, hit.place.y, hit.place.z, BLOCK.WHEAT_0);
     _wheatGrowth.set(`${hit.place.x},${hit.place.y},${hit.place.z}`, 0);
     if (audio) audio.blockPlace(BLOCK.WHEAT_0);
-    if (network.isInRoom()) network.sendBlockUpdate(hit.place.x, hit.place.y, hit.place.z, BLOCK.WHEAT_0);
+    if (_net().isInRoom()) _net().sendBlockUpdate(hit.place.x, hit.place.y, hit.place.z, BLOCK.WHEAT_0);
     return;
   }
   // Bone meal: advance wheat growth stage
@@ -3027,7 +3033,7 @@ function placeBlock(slotOverride, targetHit) {
     const nextStage = faceBlock === BLOCK.WHEAT_0 ? BLOCK.WHEAT_1 : faceBlock === BLOCK.WHEAT_1 ? BLOCK.WHEAT_2 : BLOCK.WHEAT_3;
     world.setBlock(bx, by, bz, nextStage);
     if (audio) audio.blockPlace(nextStage);
-    if (network.isInRoom()) network.sendBlockUpdate(bx, by, bz, nextStage);
+    if (_net().isInRoom()) _net().sendBlockUpdate(bx, by, bz, nextStage);
     return;
   }
 
@@ -3134,7 +3140,7 @@ function placeBlock(slotOverride, targetHit) {
       if (BLOCKS[fullBlock]?.luminance) addBlockLight(hit.x, hit.y, hit.z, fullBlock);
       liquidBlockChanged(hit.x, hit.y, hit.z);
       if (audio) audio.blockPlace(fullBlock);
-      if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, fullBlock);
+      if (_net().isInRoom()) _net().sendBlockUpdate(hit.x, hit.y, hit.z, fullBlock);
       { const _rcx = Math.floor(hit.x / CHUNK_SIZE), _rcz = Math.floor(hit.z / CHUNK_SIZE);
         manager.refreshAroundCell(_rcx, _rcz, hit.x - (_rcx << 4), hit.z - (_rcz << 4)); }
       // Consume the held slab in survival (the early return skips the shared
@@ -3161,7 +3167,7 @@ function placeBlock(slotOverride, targetHit) {
     _saplingGrowth.set(`${x},${y},${z}`, 0);
   }
   if (audio) audio.blockPlace(itemId);
-  if (network.isInRoom()) network.sendBlockUpdate(x, y, z, itemId);
+  if (_net().isInRoom()) _net().sendBlockUpdate(x, y, z, itemId);
 
   // Block place particles: small dust puff
   if (graphicsQuality !== 'low') {
@@ -3209,7 +3215,7 @@ function placeBlock(slotOverride, targetHit) {
     const headZ = z + dirZ;
     if (world.getBlock(headX, y, headZ) === BLOCK.AIR) {
       world.setBlock(headX, y, headZ, BLOCK.BED);
-      if (network.isInRoom()) network.sendBlockUpdate(headX, y, headZ, BLOCK.BED);
+      if (_net().isInRoom()) _net().sendBlockUpdate(headX, y, headZ, BLOCK.BED);
     }
   }
   viewmodel.swing();
@@ -3503,7 +3509,7 @@ function handleBucket(held, hit) {
     if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
     world.setBlock(x, y, z, BLOCK.WATER);
     registerSource(x, y, z);
-    if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.WATER);
+    if (_net().isInRoom()) _net().sendBlockUpdate(x, y, z, BLOCK.WATER);
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
@@ -3520,7 +3526,7 @@ function handleBucket(held, hit) {
     if (world.getBlock(x, y, z) !== BLOCK.AIR) return false;
     world.setBlock(x, y, z, BLOCK.LAVA);
     registerSource(x, y, z);
-    if (network.isInRoom()) network.sendBlockUpdate(x, y, z, BLOCK.LAVA);
+    if (_net().isInRoom()) _net().sendBlockUpdate(x, y, z, BLOCK.LAVA);
     held.count--;
     if (held.count <= 0) player.inventory.slots[sel] = null;
     player.inventory.add(ITEM.BUCKET, 1);
@@ -3579,7 +3585,7 @@ function doBreak(hit, b) {
             if (breakParticles) breakParticles.emit(nb, nx, ny, nz, 8);
             world.setBlock(nx, ny, nz, BLOCK.AIR);
             liquidBlockChanged(nx, ny, nz);
-            if (network.isInRoom()) network.sendBlockUpdate(nx, ny, nz, 0);
+            if (_net().isInRoom()) _net().sendBlockUpdate(nx, ny, nz, 0);
             if (player.isSurvival()) {
               const drop = blockDrop(nb, 4);
               if (drop && droppedItemManager) {
@@ -3625,7 +3631,7 @@ function doBreak(hit, b) {
         if (breakParticles) breakParticles.emit(tb.b, tb.x, tb.y, tb.z, 8);
         world.setBlock(tb.x, tb.y, tb.z, BLOCK.AIR);
         liquidBlockChanged(tb.x, tb.y, tb.z);
-        if (network.isInRoom()) network.sendBlockUpdate(tb.x, tb.y, tb.z, 0);
+        if (_net().isInRoom()) _net().sendBlockUpdate(tb.x, tb.y, tb.z, 0);
         if (player.isSurvival()) {
           const drop = blockDrop(tb.b, 4);
           if (drop && droppedItemManager) {
@@ -3648,7 +3654,7 @@ function doBreak(hit, b) {
   if (isLogBlock(b)) _leafDecayPositions.add(`${hit.x},${hit.y},${hit.z}`);
   if (isSaplingBlock(b)) _saplingGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
   if (b === BLOCK.WHEAT_0 || b === BLOCK.WHEAT_1 || b === BLOCK.WHEAT_2 || b === BLOCK.WHEAT_3) _wheatGrowth.delete(`${hit.x},${hit.y},${hit.z}`);
-  if (network.isInRoom()) network.sendBlockUpdate(hit.x, hit.y, hit.z, 0);
+  if (_net().isInRoom()) _net().sendBlockUpdate(hit.x, hit.y, hit.z, 0);
 
   // OneBlock minigame: breaking the OneBlock schedules its regeneration.
   if (isOneBlock) onOneBlockBroken(hit);
@@ -3667,7 +3673,7 @@ function doBreak(hit, b) {
       const nx = hit.x + dx, nz = hit.z + dz;
       if (world.getBlock(nx, hit.y, nz) === other) {
         world.setBlock(nx, hit.y, nz, BLOCK.AIR);
-        if (network.isInRoom()) network.sendBlockUpdate(nx, hit.y, nz, 0);
+        if (_net().isInRoom()) _net().sendBlockUpdate(nx, hit.y, nz, 0);
         if (breakParticles) breakParticles.emit(other, nx, hit.y, nz, 12);
         break;
       }
@@ -3745,7 +3751,7 @@ function trySleep() {
   bedSpawnPoint = { x: hit.x + 0.5, y: hit.y + 1, z: hit.z + 0.5 };
   player.spawnPoint.set(hit.x + 0.5, hit.y + 1, hit.z + 0.5);
   if (isMultiplayer && network && network.connected) {
-    network.sendBedSpawn(bedSpawnPoint.x, bedSpawnPoint.y, bedSpawnPoint.z);
+    _net().sendBedSpawn(bedSpawnPoint.x, bedSpawnPoint.y, bedSpawnPoint.z);
   }
 
   // Start sleep sequence
@@ -4360,7 +4366,7 @@ function submitChat() {
   } else {
     // Regular chat message
     if (network.connected && network.roomName) {
-      try { network.sendChat(text); } catch (_) { console.warn("network sendChat failed"); }
+      try { _net().sendChat(text); } catch (_) { console.warn("network sendChat failed"); }
       // Don't return — show locally too, server echo will be deduplicated below
     }
     const role = currentServer ? currentServer.getRole(playerName) : null;
@@ -5146,6 +5152,99 @@ function setupNetworkHandlers() {
       renderServerList(undefined, rooms);
     }
   };
+
+  // ── P2P Network callbacks (mirrors server callbacks) ───────────────────
+  p2pNetwork.onPlayerJoin = (name, role, skinIndex) => {
+    if (name === playerName) return;
+    if (mpRenderer) mpRenderer.addPlayer(name, role, skinIndex);
+    addChatLine(`${name} joined the game`, '#5f5');
+    if (currentServer) currentServer._addPlayer(name, role);
+  };
+  p2pNetwork.onPlayerLeave = (name) => {
+    if (mpRenderer) mpRenderer.removePlayer(name);
+    addChatLine(`${name} left the game`, '#fa0');
+  };
+  p2pNetwork.onPlayerPosition = (name, x, y, z, yaw, crouching, armor) => {
+    if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, crouching, armor);
+  };
+  p2pNetwork.onPlayerArmor = (name, armor) => {
+    if (mpRenderer) {
+      const rp = mpRenderer.remotePlayers.get(name);
+      if (rp) rp.armor = armor;
+    }
+  };
+  p2pNetwork.onChat = (name, role, text) => {
+    if (name === playerName) return;
+    const safeText = filterProfanity(text);
+    const safeName = filterProfanity(name);
+    let chatHtml;
+    if (role === 'server') {
+      chatHtml = `<span style="color:#aaa;font-style:italic;">${escHtml(safeText)}</span>`;
+    } else {
+      chatHtml = `${escHtml(safeName)}: ${escHtml(safeText)}`;
+    }
+    addChatLine(chatHtml, '#fff', true);
+  };
+  p2pNetwork.onPlayerList = (players) => {
+    if (!currentServer) return;
+    for (const p of players) {
+      const existing = currentServer.players.find(x => x.name === p.name);
+      if (existing) {
+        existing.role = p.role || 'player';
+      } else {
+        currentServer._addPlayer(p.name, p.role || 'player');
+      }
+    }
+    currentServer.players = currentServer.players.filter(p =>
+      p.name === playerName || players.some(x => x.name === p.name)
+    );
+  };
+  p2pNetwork.onBlockUpdate = (x, y, z, block) => {
+    if (!world || !gameRunning || !p2pNetwork.isInRoom()) return;
+    world.setBlock(x, y, z, block);
+    manager.refreshAround(Math.floor(x / CHUNK_SIZE), Math.floor(z / CHUNK_SIZE));
+    saveCurrentWorld();
+  };
+  p2pNetwork.onBlockBatch = (edits) => {
+    if (!world || !p2pNetwork.isInRoom()) return;
+    if (!gameRunning) {
+      _pendingRoomEdits = (_pendingRoomEdits || []).concat(edits || []);
+      return;
+    }
+    for (const e of edits) {
+      if (!isParkour && !isBedwars && e.y > 140) continue;
+      world.setBlock(e.x, e.y, e.z, e.block);
+      manager.refreshAround(Math.floor(e.x / CHUNK_SIZE), Math.floor(e.z / CHUNK_SIZE));
+    }
+    saveCurrentWorld();
+  };
+  p2pNetwork.onDisconnect = () => {
+    if (gameRunning && isMultiplayer) {
+      addChatLine('Connection lost.', '#fa0');
+      gameRunning = false;
+      isMultiplayer = false;
+      currentServer = null;
+      ui.showMenu('multiplayer');
+      showMultiplayerMenu();
+    }
+  };
+  p2pNetwork.onPlayerDamage = (from, damage) => {
+    if (player && !player.isDead()) {
+      player.takeDamage(damage, 'player');
+      if (playerModel) playerModel.triggerHurt();
+      addChatLine(`${from} hit you for ${damage} damage!`, '#f55');
+    }
+  };
+  p2pNetwork.onKicked = (reason) => {
+    addChatLine(`Kicked: ${reason}`, '#f55');
+    gameRunning = false;
+    isMultiplayer = false;
+    currentServer = null;
+    p2pNetwork.disconnect();
+    ui.showMenu('multiplayer');
+    showMultiplayerMenu();
+  };
+  p2pNetwork.onError = (text) => { addChatLine(text, '#f55'); };
 
   network.onAuthResult = (msg) => {
     const loginCreateBtn = document.getElementById('btn-login-create');
@@ -6237,9 +6336,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
   };
   mobManager.networkSend = {
-    sendMobSpawn: (id, type, x, y, z) => network.sendMobSpawn(id, type, x, y, z),
-    sendMobPosition: (id, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
-    sendMobDeath: (id) => network.sendMobDeath(id),
+    sendMobSpawn: (id, type, x, y, z) => _net().sendMobSpawn(id, type, x, y, z),
+    sendMobPosition: (id, x, y, z, yaw) => _net().sendMobPosition(id, x, y, z, yaw),
+    sendMobDeath: (id) => _net().sendMobDeath(id),
   };
   // All mob deaths funnel through MobManager, so this is the single loot-drop
   // point — visible world items the player auto-collects on approach.
@@ -8102,6 +8201,71 @@ function initMenu() {
   document.getElementById('btn-mp-back').addEventListener('click', () => {
     stopMpStatusTimer();
     ui.showMenu('main');
+  });
+
+  // ── P2P Multiplayer (Play with Friend — no server) ──
+  document.getElementById('btn-p2p-play')?.addEventListener('click', () => {
+    ui.showMenu('p2p');
+  });
+  document.getElementById('btn-p2p-cancel')?.addEventListener('click', () => {
+    ui.showMenu('multiplayer');
+  });
+  document.getElementById('btn-p2p-show-join')?.addEventListener('click', () => {
+    const hostV = document.getElementById('p2p-host-view');
+    const joinV = document.getElementById('p2p-join-view');
+    if (hostV && joinV) {
+      const showingJoin = joinV.style.display === 'block';
+      hostV.style.display = showingJoin ? 'block' : 'none';
+      joinV.style.display = showingJoin ? 'none' : 'block';
+    }
+  });
+  document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
+    const seed = Math.floor(Math.random() * 999999) + 1;
+    const code = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
+    // Show the room code
+    const codeBox = document.getElementById('p2p-code-box');
+    if (codeBox) {
+      codeBox.style.display = 'block';
+      codeBox.textContent = code;
+      codeBox.onclick = () => {
+        try { navigator.clipboard.writeText(code); addChatLine('Room code copied!', '#5f5'); } catch (e) {}
+      };
+    }
+    // Generate QR code
+    const qrDiv = document.getElementById('p2p-qr');
+    if (qrDiv) {
+      qrDiv.innerHTML = '';
+      try {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(code);
+        img.style.borderRadius = '8px';
+        qrDiv.appendChild(img);
+      } catch (e) {}
+    }
+    const statusEl = document.getElementById('p2p-host-status');
+    if (statusEl) statusEl.textContent = 'Share this code or QR with your friend. Waiting for connection…';
+
+    // Set up P2P as the active network
+    _activeNetwork = 'p2p';
+
+    // Start the game as host — host creates the world locally
+    // We'll hook into the acceptOffer flow when a joiner connects
+    _p2pHostSeed = seed;
+    _p2pHostReady = true;
+
+    // Listen for incoming offers (joiners paste their offer code)
+    // For now, the host starts the game immediately
+    startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
+    isMultiplayer = true;
+    serverName = 'P2P: ' + playerName;
+  });
+  document.getElementById('btn-p2p-join-go')?.addEventListener('click', () => {
+    const input = document.getElementById('p2p-join-input');
+    const code = input ? input.value.trim() : '';
+    if (!code) { addChatLine('Paste a room code first.', '#fa0'); return; }
+    _activeNetwork = 'p2p';
+    p2pNetwork.joinRoomByCode(code, playerName);
   });
 
   // Invite link button — friends feature coming soon
@@ -10904,7 +11068,7 @@ function _gameFrame() {
         _lastLocalArmorKey = armorKey;
         const armorIds = player.inventory.armor.map(s => s ? s.item : null);
         try { playerModel.setArmor(armorIds, ARMOR); } catch (_) { console.warn("playerModel operation failed"); }
-        if (network.connected && network.roomName) network.sendArmor(armorKey || null);
+        if (_net().connected && _net().roomName) _net().sendArmor(armorKey || null);
       }
     }
   }
@@ -11379,9 +11543,9 @@ function _gameFrame() {
         if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
       };
       mobManager.networkSend = {
-        sendMobSpawn: (id, type, x, y, z) => network.sendMobSpawn(id, type, x, y, z),
-        sendMobPosition: (id, type, x, y, z, yaw) => network.sendMobPosition(id, x, y, z, yaw),
-        sendMobDeath: (id) => network.sendMobDeath(id),
+        sendMobSpawn: (id, type, x, y, z) => _net().sendMobSpawn(id, type, x, y, z),
+        sendMobPosition: (id, type, x, y, z, yaw) => _net().sendMobPosition(id, x, y, z, yaw),
+        sendMobDeath: (id) => _net().sendMobDeath(id),
       };
       mobManager.onMobDeath = (mob) => {
         if (!droppedItemManager || !mob) return;
@@ -11722,6 +11886,14 @@ function _gameFrame() {
     if (_mpSendTimer >= 0.033) {
       _mpSendTimer = 0;
       network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
+    }
+  }
+  // P2P: send position (30Hz)
+  if (_activeNetwork === 'p2p' && p2pNetwork.connected && p2pNetwork.roomName && player) {
+    _mpSendTimer += dt;
+    if (_mpSendTimer >= 0.033) {
+      _mpSendTimer = 0;
+      p2pNetwork.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
     }
   }
 

@@ -3330,9 +3330,38 @@
 
         <!-- Buttons -->
         <div style="display:flex;gap:8px;max-width:480px;width:100%;flex-wrap:wrap;">
+          <button class="menu-btn" id="btn-p2p-play" style="flex:1 1 100%;background:linear-gradient(135deg,#2a7,#185);">PLAY WITH FRIEND (NO SERVER)</button>
           <button class="menu-btn" id="btn-create-server" style="flex:1 1 100%;">HOST SERVER</button>
           <button class="menu-btn" id="btn-friends" style="flex:1;min-width:120px;font-size:13px;">FRIENDS <span class="btn-badge" id="friends-badge" style="display:none;background:#f55;color:#fff;border-radius:8px;padding:1px 6px;font:bold 10px monospace;margin-left:4px;"></span></button>
           <button class="menu-btn secondary" id="btn-mp-back" style="flex:1;min-width:100px;">BACK</button>
+        </div>
+      </div>
+
+      <!-- Screen: P2P Lobby (Play with Friend — no server needed) -->
+      <div id="menu-p2p" class="menu-screen" style="display:none;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:0;">
+        <div style="max-width:480px;width:92%;background:rgba(20,20,30,0.97);border:1px solid rgba(80,180,100,0.45);border-radius:10px;padding:24px 26px;box-shadow:0 10px 40px rgba(0,0,0,0.6);">
+          <div style="font:bold 20px monospace;color:#5f5;text-align:center;margin-bottom:18px;text-shadow:1px 1px 0 #000;">&#9889; PLAY WITH FRIEND</div>
+          <div style="font:11px monospace;color:#7a8;text-align:center;margin-bottom:16px;line-height:1.4;">Connect directly over WiFi or mobile data — no server needed. Works on the same network or across different networks.</div>
+
+          <!-- Host View -->
+          <div id="p2p-host-view">
+            <button id="btn-p2p-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:linear-gradient(135deg,#2a7,#185);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">HOST WORLD</button>
+            <div id="p2p-code-box" style="display:none;background:#0a0a14;border:1px solid rgba(80,180,100,0.4);border-radius:8px;padding:14px;margin-bottom:12px;word-break:break-all;font:bold 16px monospace;color:#5f5;text-align:center;letter-spacing:2px;cursor:pointer" title="Tap to copy"></div>
+            <div id="p2p-qr" style="text-align:center;margin-bottom:12px"></div>
+            <div id="p2p-host-status" style="font:11px monospace;color:#888;text-align:center;margin-bottom:12px;"></div>
+          </div>
+
+          <!-- Join View -->
+          <div id="p2p-join-view" style="display:none">
+            <textarea id="p2p-join-input" style="width:100%;height:80px;background:#0a0a14;border:1px solid rgba(80,180,100,0.4);border-radius:8px;padding:10px;color:#5f5;font:13px monospace;resize:none;margin-bottom:12px;box-sizing:border-box" placeholder="Paste room code from your friend…"></textarea>
+            <button id="btn-p2p-join-go" style="width:100%;padding:12px;font:bold 14px monospace;color:#fff;background:linear-gradient(135deg,#2a7,#185);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:8px;">CONNECT</button>
+          </div>
+
+          <!-- Toggle -->
+          <div style="display:flex;gap:8px;margin-bottom:4px;">
+            <button id="btn-p2p-show-join" style="flex:1;padding:10px;font:12px monospace;color:#5f5;background:rgba(0,0,0,0.3);border:1px solid rgba(80,180,100,0.3);border-radius:4px;cursor:pointer;">JOIN FRIEND</button>
+            <button id="btn-p2p-cancel" style="flex:1;padding:10px;font:12px monospace;color:#aaa;background:rgba(0,0,0,0.3);border:1px solid rgba(80,80,80,0.3);border-radius:4px;cursor:pointer;">BACK</button>
+          </div>
         </div>
       </div>
 
