@@ -258,6 +258,7 @@ export class Player {
     this.hunger = this.maxHunger;
     this.saturation = 5;
     this.air = MAX_AIR;
+    this.drownAcc = 0;
     this.damageTimer = 0;
     this.dead = false;
   }
