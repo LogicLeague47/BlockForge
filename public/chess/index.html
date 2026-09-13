@@ -35,8 +35,8 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 #status{font-size:13px;color:#fc3;min-height:20px;margin-bottom:8px;text-align:center}
 .main{display:-webkit-box;display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap}
 .boardcol{-webkit-flex:1 1 420px;flex:1 1 420px;min-width:280px}
-#board{position:relative;width:100%;padding-bottom:100%;background:#000;border:1px solid rgba(200,170,100,.35);border-radius:12px;overflow:hidden}
-#board canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important}
+#board{position:relative;width:100%;padding-bottom:100%;background:#000;border:1px solid rgba(200,170,100,.35);border-radius:12px;overflow:hidden;touch-action:none;-webkit-touch-callout:none;-webkit-user-select:none}
+#board canvas{position:absolute;top:0;left:0;width:100% !important;height:100% !important;touch-action:none}
 .sidecol{-webkit-flex:1 1 220px;flex:1 1 220px;min-width:220px;margin-left:12px}
 #clocks{display:-webkit-box;display:-webkit-flex;display:flex;margin-bottom:8px}
 #clocks div{-webkit-flex:1;flex:1;text-align:center;font:bold 15px monospace;background:rgba(20,20,40,.8);border:1px solid rgba(120,120,180,.3);border-radius:8px;padding:10px}
@@ -56,7 +56,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 .prow button{font-size:22px;-webkit-flex:1;flex:1;margin-right:8px}
 .prow button:last-child{margin-right:0}
 /* Main menu */
-#menu{display:-webkit-box;display:-webkit-flex;display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,12,.88);z-index:70;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#menu{display:-webkit-box;display:-webkit-flex;display:flex;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(5,5,12,.88);z-index:70;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:manipulation}
 .menu-box{width:100%;max-width:440px;max-height:94vh;overflow-y:auto;-webkit-overflow-scrolling:touch;background:#14141f;border:2px solid rgba(220,180,90,.45);border-radius:14px;padding:22px 20px;text-align:center;box-shadow:0 0 60px rgba(220,180,90,.12)}
 .menu-logo{font-size:34px;font-weight:bold;color:#fff;letter-spacing:3px;text-shadow:0 0 26px rgba(220,180,90,.55)}
 .menu-logo span{color:#ec5}

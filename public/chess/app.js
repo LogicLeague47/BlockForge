@@ -28,6 +28,86 @@ var S = {
   busy: false, over: false
 };
 
+var _audioCtx = null;
+function audioCtx() {
+  if (_audioCtx) return _audioCtx;
+  try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+  return _audioCtx;
+}
+function resumeAudio() {
+  var ctx = audioCtx();
+  if (ctx && ctx.state === 'suspended') ctx.resume();
+}
+function sfx(type) {
+  var ctx = audioCtx();
+  if (!ctx) return;
+  var t = ctx.currentTime;
+  var osc, gain;
+  if (type === 'pick') {
+    osc = ctx.createOscillator(); gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(880, t);
+    osc.frequency.exponentialRampToValueAtTime(1200, t + 0.06);
+    gain.gain.setValueAtTime(0.12, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.1);
+  } else if (type === 'move') {
+    osc = ctx.createOscillator(); gain = ctx.createGain();
+    osc.type = 'triangle'; osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(350, t + 0.12);
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.15);
+  } else if (type === 'capture') {
+    osc = ctx.createOscillator(); gain = ctx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(300, t);
+    osc.frequency.exponentialRampToValueAtTime(100, t + 0.15);
+    gain.gain.setValueAtTime(0.15, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.2);
+  } else if (type === 'check') {
+    osc = ctx.createOscillator(); gain = ctx.createGain();
+    osc.type = 'square'; osc.frequency.setValueAtTime(800, t);
+    gain.gain.setValueAtTime(0.1, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.08);
+    var osc2 = ctx.createOscillator(); var gain2 = ctx.createGain();
+    osc2.type = 'square'; osc2.frequency.setValueAtTime(1000, t + 0.08);
+    gain2.gain.setValueAtTime(0.1, t + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+    osc2.connect(gain2); gain2.connect(ctx.destination);
+    osc2.start(t + 0.08); osc2.stop(t + 0.3);
+  } else if (type === 'win') {
+    [523, 659, 784].forEach(function(f, i) {
+      var o = ctx.createOscillator(); var g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(f, t + i * 0.15);
+      g.gain.setValueAtTime(0.15, t + i * 0.15);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.15 + 0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t + i * 0.15); o.stop(t + i * 0.15 + 0.3);
+    });
+  } else if (type === 'lose') {
+    [400, 300, 200].forEach(function(f, i) {
+      var o = ctx.createOscillator(); var g = ctx.createGain();
+      o.type = 'sawtooth'; o.frequency.setValueAtTime(f, t + i * 0.2);
+      g.gain.setValueAtTime(0.1, t + i * 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.2 + 0.35);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t + i * 0.2); o.stop(t + i * 0.2 + 0.35);
+    });
+  } else if (type === 'click') {
+    osc = ctx.createOscillator(); gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(600, t);
+    gain.gain.setValueAtTime(0.08, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.05);
+  }
+}
+
 var SAVE_KEY = 'blockchess_save';
 
 function toast(msg) {
@@ -168,6 +248,7 @@ function kingSquare(color) {
 
 function updateCheckHL() {
   if (!S.game.in_check()) return;
+  sfx('check');
   var ks = kingSquare(S.game.turn());
   if (ks) S.view3d.markCheck(ks);
 }
@@ -199,6 +280,7 @@ function onPick(sq) {
   }
   if (piece && piece.color === S.playerColor) {
     S.selected = sq;
+    sfx('pick');
     var ms = legalFrom(sq);
     var dests = [];
     for (var k = 0; k < ms.length; k++) dests.push(ms[k].to);
@@ -242,6 +324,7 @@ function doPlayerMove(from, to, promotion) {
 
 function afterMove(mv, byPlayer) {
   var captured = !!mv.captured;
+  sfx(captured ? 'capture' : 'move');
   S.view3d.movePiece(mv.from, mv.to, captured);
   setTimeout(function() {
     S.view3d.markLastMove(mv.from, mv.to);
@@ -296,8 +379,8 @@ function endGame(result, cause, detail) {
   var moves = S.game.history().length;
   var title;
   if (result === '1/2') title = 'Draw.';
-  else if ((result === '1-0' && S.playerColor === 'w') || (result === '0-1' && S.playerColor === 'b')) title = 'You win!';
-  else title = 'You lose.';
+  else if ((result === '1-0' && S.playerColor === 'w') || (result === '0-1' && S.playerColor === 'b')) { title = 'You win!'; sfx('win'); }
+  else { title = 'You lose.'; sfx('lose'); }
   var sub = 'How: ' + cause + (detail ? ' — ' + detail : '');
   sub += '\nMoves: ' + moves + '   Material: ' + (diff > 0 ? '+' + diff + ' for you' : (diff < 0 ? diff + ' (down)' : 'even'));
   $('res-title').textContent = title;
@@ -385,7 +468,7 @@ function syncControls() {
   var lv = ChessAI.LEVELS[S.level];
   var grid = $('lvl-grid').querySelectorAll('button');
   for (var i = 0; i < grid.length; i++) {
-    grid[i].className = (parseInt(grid[i].getAttribute('data-v'), 10) === S.level) ? 'on' : '';
+    grid[i].className = (parseInt(grid[i].getAttribute('data-v'), 10) === S.menuLevel) ? 'on' : '';
   }
   segSet('seg-color', S.menuColor);
   segSet('seg-clock', String(S.menuClock));
@@ -469,6 +552,13 @@ function boot() {
     return;
   }
   S.view3d.onPick(onPick);
+  /* Resume AudioContext on first board interaction (mobile requires a user gesture) */
+  (function() {
+    var el2 = $('board');
+    function initAudio() { resumeAudio(); el2.removeEventListener('pointerdown', initAudio); el2.removeEventListener('touchstart', initAudio); }
+    el2.addEventListener('pointerdown', initAudio);
+    el2.addEventListener('touchstart', initAudio);
+  })();
   S.menuLevel = 3;
   S.menuColor = 'w';
   S.menuClock = 0;
@@ -496,6 +586,7 @@ function boot() {
   segWire('seg-clock', function(v) { S.menuClock = parseInt(v, 10) || 0; syncControls(); });
 
   $('btn-play').addEventListener('click', function() {
+    resumeAudio(); sfx('click');
     S.level = S.menuLevel;
     var c = S.menuColor;
     S.playerColor = (c === 'r') ? (Math.random() < 0.5 ? 'w' : 'b') : c;
@@ -505,6 +596,7 @@ function boot() {
     newGame();
   });
   $('btn-continue').addEventListener('click', function() {
+    resumeAudio(); sfx('click');
     var sv = loadSave();
     if (!sv) return;
     S.started = true;
@@ -513,6 +605,7 @@ function boot() {
     toast('Restored your saved game.');
   });
   $('btn-resume').addEventListener('click', function() {
+    sfx('click');
     closeMenu();
     renderStatus();
   });
@@ -522,19 +615,19 @@ function boot() {
   $('btn-soon-ok').addEventListener('click', function() {
     $('soon').style.display = 'none';
   });
-  $('btn-menu').addEventListener('click', function() { openMenu(); });
+  $('btn-menu').addEventListener('click', function() { sfx('click'); openMenu(); });
   S.whiteBottom = true;
-  $('btn-flip').addEventListener('click', function() {
+  $('btn-flip').addEventListener('click', function() { sfx('click');
     S.whiteBottom = !S.whiteBottom;
     S.view3d.flip(S.whiteBottom);
   });
-  $('btn-undo').addEventListener('click', undo);
-  $('btn-hint').addEventListener('click', hint);
+  $('btn-undo').addEventListener('click', function() { sfx('click'); undo(); });
+  $('btn-hint').addEventListener('click', function() { sfx('click'); hint(); });
   $('btn-resign').addEventListener('click', function() {
     if (S.over) return;
     endGame(S.playerColor === 'w' ? '0-1' : '1-0', 'resignation', 'You tipped your king over.');
   });
-  $('btn-again').addEventListener('click', function() { newGame(); });
+  $('btn-again').addEventListener('click', function() { sfx('click'); newGame(); });
   window.addEventListener('resize', function() { S.view3d.resize(); });
 
   var sv0 = loadSave();
