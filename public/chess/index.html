@@ -19,7 +19,10 @@
 <script src="vendor/chess.min.js"></script>
 <script>
   window._fbAvailable = false;
-  try { var _fbT = new Function('return class{}'); window._fbAvailable = true; } catch(_e) {}
+  try {
+    var _fbT = new Function('return async function(){}');
+    window._fbAvailable = true;
+  } catch(_e) {}
 </script>
 <script>
   if (window._fbAvailable) {

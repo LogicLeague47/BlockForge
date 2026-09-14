@@ -563,8 +563,9 @@ function mpShow(id) {
   ['mp-host-view','mp-join-view','mp-color-pick','mp-menu-view'].forEach(function(x) { $(x).style.display = 'none'; });
   $(id).style.display = 'block';
   $('mp-lobby').style.display = 'flex';
+  $('menu').style.display = 'none';
 }
-function mpClose() { $('mp-lobby').style.display = 'none'; mpLeave(); }
+function mpClose() { $('mp-lobby').style.display = 'none'; $('menu').style.display = 'flex'; mpLeave(); }
 
 function mpHostGame() {
   var peer = P2P.create();

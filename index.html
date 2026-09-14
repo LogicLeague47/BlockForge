@@ -3940,31 +3940,20 @@
     <script>
       window.onerror = function(msg, src, line, col, err) {
         var srcStr = (src || '').toString();
-        // Only surface errors that come from OUR code (Vite dev /src/ or built /assets/).
-        // Ignore CrazyGames SDK, browser extensions, and other external/benign errors.
         var isOurs = srcStr.indexOf('/src/') !== -1 || srcStr.indexOf('/assets/') !== -1;
         if (!isOurs) {
           console.error('[window.onerror]', msg, '|', srcStr + ':' + line);
           return false;
         }
         var m = (msg && msg.message) ? msg.message : (typeof msg === 'string' ? msg : (err && err.message) || 'Unknown error');
-        var el = document.createElement('div');
-        el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:red;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
-        el.textContent = 'ERROR: ' + m + ' @ ' + srcStr.split('/').pop() + ':' + line;
-        document.body.appendChild(el);
+        // Log to console only — don't show scary red banner to players
+        console.error('[BlockForge]', m, '@', srcStr.split('/').pop() + ':' + line);
         return false;
       };
       window.addEventListener('unhandledrejection', function(e) {
         var reason = e && e.reason;
         var m = (reason && reason.message) ? reason.message : (typeof reason === 'string' ? reason : 'unknown');
-        // Only show for our own promise rejections
         console.warn('[unhandledrejection]', m);
-        if (m && (m.indexOf('/src/') !== -1 || m.indexOf('main.js') !== -1)) {
-          var el = document.createElement('div');
-          el.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#c33;color:#fff;padding:8px 12px;font:12px monospace;z-index:99999;white-space:pre-wrap;';
-          el.textContent = 'Unhandled Promise: ' + m;
-          document.body.appendChild(el);
-        }
       });
     </script>
     <script>
@@ -4002,11 +3991,11 @@
       })();
     </script>
     <script>
-      // Only load Firebase SDK on modern browsers — it uses syntax iOS 10 can't parse.
-      // Matchmaking will be unavailable on legacy, but the game still works.
+      // Only load Firebase SDK on modern browsers — it uses async/await and
+      // other syntax iOS 10 can't parse. Matchmaking unavailable on legacy.
       window._fbAvailable = false;
       try {
-        var _fbTest = new Function('return class{}');
+        var _fbTest = new Function('return async function(){}');
         window._fbAvailable = true;
       } catch(_e) {}
     </script>
