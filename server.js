@@ -2191,7 +2191,11 @@ function isRateLimited(ws) {
           const y = buf.readFloatBE(off); off += 4;
           const z = buf.readFloatBE(off); off += 4;
           const yaw = buf.readFloatBE(off); off += 4;
-          const crouching = buf.readUInt8(off) === 1;
+          const flags = buf.readUInt8(off); off += 1;
+          const crouching = (flags & 1) === 1;
+          const sprinting = (flags & 2) === 2;
+          const swimming = (flags & 4) === 4;
+          const flying = (flags & 8) === 8;
           handlePosition(ws, { x, y, z, yaw, crouching });
         }
       } catch (_) { console.warn('[Server] Binary message parse failed'); }

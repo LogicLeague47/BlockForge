@@ -323,8 +323,8 @@ export class Network {
         const y = view.getFloat32(off); off += 4;
         const z = view.getFloat32(off); off += 4;
         const yaw = view.getFloat32(off); off += 4;
-        const crouching = view.getUint8(off) === 1;
-        if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+        const flags = view.getUint8(off);
+        if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, flags, null);
       } else if (type === 0x03) {
         let off = 1;
         const nameLen = view.getUint8(off); off += 1;
@@ -415,8 +415,20 @@ export class Network {
     this._send({ type: 'unlink_identity', identityType });
   }
 
+  // Block update batching — coalesce rapid edits into one message
+  _blockBatch = [];
   sendBlockUpdate(x, y, z, block) {
-    this._send({ type: 'block_update', x: x | 0, y: y | 0, z: z | 0, block: block | 0 });
+    this._blockBatch.push({ x: x | 0, y: y | 0, z: z | 0, block: block | 0 });
+  }
+  flushBlockBatch() {
+    if (!this._blockBatch.length) return;
+    if (this._blockBatch.length === 1) {
+      var b = this._blockBatch[0];
+      this._send({ type: 'block_update', x: b.x, y: b.y, z: b.z, block: b.block });
+    } else {
+      this._send({ type: 'block_batch', edits: this._blockBatch });
+    }
+    this._blockBatch = [];
   }
 
   // Sync a chest's contents to other players in the room (multiplayer).
@@ -428,7 +440,7 @@ export class Network {
     this._send({ type: 'list_rooms' });
   }
 
-  sendPosition(x, y, z, yaw, crouching) {
+  sendPosition(x, y, z, yaw, flags) {
     if (!this.ws || this.ws.readyState !== 1) return;
     const pname = this._lastJoinInfo?.playerName || '';
     const nameBytes = this._textEncoder.encodeInto(pname, new Uint8Array(this._posBuf, 2));
@@ -443,7 +455,7 @@ export class Network {
     view.setFloat32(off, y); off += 4;
     view.setFloat32(off, z); off += 4;
     view.setFloat32(off, yaw); off += 4;
-    view.setUint8(off, crouching ? 1 : 0);
+    view.setUint8(off, flags & 0x0F);
     this.ws.send(new Uint8Array(buf, 0, off + 1));
   }
 

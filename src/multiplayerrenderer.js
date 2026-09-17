@@ -140,9 +140,13 @@ export class RemotePlayer {
   }
 
   // Add a new position snapshot from the server
-  addSnapshot(x, y, z, yaw, crouching) {
+  addSnapshot(x, y, z, yaw, flags) {
     const now = performance.now();
-    this._snapshots.push({ time: now, x, y, z, yaw, crouching: !!crouching });
+    const crouching = (flags & 1) === 1;
+    const sprinting = (flags & 2) === 2;
+    const swimming = (flags & 4) === 4;
+    const flying = (flags & 8) === 8;
+    this._snapshots.push({ time: now, x, y, z, yaw, crouching, sprinting, swimming, flying });
     // Trim old snapshots
     if (this._snapshots.length > MAX_BUFFER) {
       this._snapshots.splice(0, this._snapshots.length - MAX_BUFFER);
@@ -284,9 +288,9 @@ export class MultiplayerRenderer {
     }
   }
 
-  updatePlayerPosition(name, x, y, z, yaw, crouching) {
+  updatePlayerPosition(name, x, y, z, yaw, flags) {
     const rp = this.remotePlayers.get(name);
-    if (rp) rp.addSnapshot(x, y, z, yaw, crouching);
+    if (rp) rp.addSnapshot(x, y, z, yaw, flags);
   }
 
   update(dt, playerX, playerZ) {

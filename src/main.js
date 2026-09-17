@@ -3919,7 +3919,7 @@ function _initEmojiPicker() {
   const btn = document.getElementById('chat-emoji-btn');
   const inp = document.getElementById('chat-input');
   if (!btn || !inp || _emojiPanel) return;
-  const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
+  const GIF_URL = 'https://tenor.googleapis.com/v2/search?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&limit=6&media_filter=gif&q=';
   const panel = document.createElement('div');
   panel.style.cssText = 'display:none;position:fixed;bottom:80px;left:12px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:27;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
   // GIF search
@@ -3935,18 +3935,18 @@ function _initEmojiPicker() {
     const q = search.value.trim();
     if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>'; return; }
     gifTimer = setTimeout(() => {
-      fetch(GIF_URL + encodeURIComponent(q)).then(r => r.json()).then(data => {
+      fetch(GIF_URL + encodeURIComponent(q)).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(data => {
         gifGrid.innerHTML = '';
-        (data.data || []).forEach(gif => {
+        (data.results || []).forEach(gif => {
           const img = document.createElement('img');
-          img.src = gif.images.fixed_height.url;
+          img.src = (gif.media_formats && gif.media_formats.gif && gif.media_formats.gif.url) || '';
           img.style.cssText = 'width:100%;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:.15s;';
           img.onmouseenter = () => img.style.borderColor = '#5af';
           img.onmouseleave = () => img.style.borderColor = 'transparent';
-          img.addEventListener('click', () => { inp.value += gif.images.original.url; inp.focus(); panel.style.display = 'none'; });
+          img.addEventListener('click', () => { inp.value += img.src; inp.focus(); panel.style.display = 'none'; });
           gifGrid.appendChild(img);
         });
-        if (!data.data || !data.data.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
+        if (!data.results || !data.results.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
       }).catch(() => { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Failed to load</div>'; });
     }, 400);
   });
@@ -3981,7 +3981,7 @@ _initEmojiPicker();
   const btn = document.getElementById('dm-emoji-btn');
   const inp = document.getElementById('dm-input');
   if (!btn || !inp) return;
-  const GIF_URL = 'https://api.giphy.com/v1/gifs/search?api_key=dc6zaTOxFJmzC&limit=6&q=';
+  const GIF_URL = 'https://tenor.googleapis.com/v2/search?key=AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ&limit=6&media_filter=gif&q=';
   const panel = document.createElement('div');
   panel.style.cssText = 'display:none;position:fixed;bottom:120px;right:40px;background:rgba(0,0,0,0.9);border:1px solid rgba(100,100,100,0.5);border-radius:8px;padding:10px;z-index:27;width:280px;box-shadow:0 4px 20px rgba(0,0,0,0.6);';
   // GIF search
@@ -3997,18 +3997,18 @@ _initEmojiPicker();
     const q = search.value.trim();
     if (!q) { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Type to search GIFs</div>'; return; }
     gifTimer = setTimeout(() => {
-      fetch(GIF_URL + encodeURIComponent(q)).then(r => r.json()).then(data => {
+      fetch(GIF_URL + encodeURIComponent(q)).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(data => {
         gifGrid.innerHTML = '';
-        (data.data || []).forEach(gif => {
+        (data.results || []).forEach(gif => {
           const img = document.createElement('img');
-          img.src = gif.images.fixed_height.url;
+          img.src = (gif.media_formats && gif.media_formats.gif && gif.media_formats.gif.url) || '';
           img.style.cssText = 'width:100%;border-radius:4px;cursor:pointer;border:1px solid transparent;transition:.15s;';
           img.onmouseenter = () => img.style.borderColor = '#5af';
           img.onmouseleave = () => img.style.borderColor = 'transparent';
-          img.addEventListener('click', () => { inp.value += gif.images.original.url; inp.focus(); panel.style.display = 'none'; });
+          img.addEventListener('click', () => { inp.value += img.src; inp.focus(); panel.style.display = 'none'; });
           gifGrid.appendChild(img);
         });
-        if (!data.data || !data.data.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
+        if (!data.results || !data.results.length) gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">No GIFs found</div>';
       }).catch(() => { gifGrid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#666;font-size:11px;padding:6px;">Failed to load</div>'; });
     }, 400);
   });
@@ -5010,8 +5010,8 @@ function setupNetworkHandlers() {
     addChatLine(`${name} left the game`, '#fa0');
   };
 
-  network.onPlayerPosition = (name, x, y, z, yaw, crouching, armor) => {
-    if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, crouching, armor);
+  network.onPlayerPosition = (name, x, y, z, yaw, flags, armor) => {
+    if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, flags);
   };
 
   network.onPlayerArmor = (name, armor) => {
@@ -5205,8 +5205,8 @@ function setupNetworkHandlers() {
     if (mpRenderer) mpRenderer.removePlayer(name);
     addChatLine(`${name} left the game`, '#fa0');
   };
-  p2pNetwork.onPlayerPosition = (name, x, y, z, yaw, crouching, armor) => {
-    if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, crouching, armor);
+  p2pNetwork.onPlayerPosition = (name, x, y, z, yaw, flags, armor) => {
+    if (mpRenderer) mpRenderer.updatePlayerPosition(name, x, y, z, yaw, flags);
   };
   p2pNetwork.onPlayerArmor = (name, armor) => {
     if (mpRenderer) {
@@ -12029,15 +12029,40 @@ function _gameFrame() {
     _syncLeaderboardStats();
   }
 
-  // Send position to multiplayer server (30Hz)
+  // Send position to multiplayer server (30Hz, skip if stationary)
   _mpSendTimer += dt;
   if (_mpSendTimer >= 0.033) {
     _mpSendTimer = 0;
-    if (_activeNetwork === 'p2p' && p2pNetwork.connected && p2pNetwork.roomName && player) {
-      p2pNetwork.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
-    } else if (network.connected && network.roomName && player) {
-      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
+    if (player && (network.connected || (_activeNetwork === 'p2p' && p2pNetwork.connected))) {
+      var _px = player.position.x, _py = player.position.y, _pz = player.position.z;
+      var _pyaw = player.yaw, _pcr = player.crouching ? 1 : 0;
+      var _moved = Math.abs(_px - _lastMpPos.x) > 0.001 || Math.abs(_py - _lastMpPos.y) > 0.001 ||
+                   Math.abs(_pz - _lastMpPos.z) > 0.001 || Math.abs(_pyaw - _lastMpYaw) > 0.001 ||
+                   _pcr !== _lastMpCrouch || _mpForceSend;
+      // Animation flags: bit0=crouch, bit1=sprint, bit2=swim, bit3=fly
+      var _flags = _pcr;
+      if (player.sprinting) _flags |= 2;
+      if (player.isSwimming) _flags |= 4;
+      if (player.flying) _flags |= 8;
+      if (_moved) {
+        _lastMpPos.x = _px; _lastMpPos.y = _py; _lastMpPos.z = _pz;
+        _lastMpYaw = _pyaw; _lastMpCrouch = _pcr;
+        _mpForceSend = false;
+        if (_activeNetwork === 'p2p' && p2pNetwork.connected && p2pNetwork.roomName) {
+          p2pNetwork.sendPosition(_px, _py, _pz, _pyaw, _flags);
+        } else if (network.connected && network.roomName) {
+          network.sendPosition(_px, _py, _pz, _pyaw, _flags);
+        }
+      }
     }
+  }
+
+  // Flush block update batches every ~50ms
+  _blockBatchTimer = (_blockBatchTimer || 0) + dt;
+  if (_blockBatchTimer >= 0.05) {
+    _blockBatchTimer = 0;
+    var _net = _activeNetwork === 'p2p' ? p2pNetwork : network;
+    if (_net && _net.flushBlockBatch) _net.flushBlockBatch();
   }
 
   // Offer banner timer (random popup during survival gameplay)
@@ -12363,7 +12388,9 @@ const _shadowLookAt = new THREE.Matrix4();
 const _shadowLocalPos = new THREE.Vector3();
 const _shadowOffset = new THREE.Vector3();
 const _shadowInvMat = new THREE.Matrix4();
-let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true;
+let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true, _mpSendTimer = 0;
+const _lastMpPos = { x: 0, y: 0, z: 0 };
+let _lastMpCrouch = 0;
 function facingName(yaw) {
   const a = ((yaw * 180 / Math.PI) % 360 + 360) % 360;
   if (a < 45 || a >= 315) return 'South';

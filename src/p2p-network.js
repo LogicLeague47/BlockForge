@@ -307,8 +307,8 @@ export class P2PNetwork {
         if (this.onPlayerJoin) this.onPlayerJoin(msg.name, 'player', 0);
         this._broadcastPlayerList();
       } else if (t === 'position') {
-        this._broadcastExceptRaw(peerName, this._encodePos(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.cr));
-        if (this.onPlayerPosition) this.onPlayerPosition(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.cr, null);
+        this._broadcastExceptRaw(peerName, this._encodePos(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.flags || (msg.cr ? 1 : 0)));
+        if (this.onPlayerPosition) this.onPlayerPosition(msg.name || peerName, msg.x, msg.y, msg.z, msg.yaw, msg.flags || (msg.cr ? 1 : 0), null);
       } else if (t === 'block_update') {
         this._broadcastExcept(peerName, msg);
         if (this.onBlockUpdate) this.onBlockUpdate(msg.x, msg.y, msg.z, msg.block);
@@ -381,13 +381,16 @@ export class P2PNetwork {
         const y = view.getFloat32(off); off += 4;
         const z = view.getFloat32(off); off += 4;
         const yaw = view.getFloat32(off); off += 4;
-        const crouching = view.getUint8(off) === 1;
+        const flags = view.getUint8(off);
 
         if (this.isHost) {
-          this._broadcastExceptRaw(peerName, buf);
-          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+          // Area of Interest: only relay to peers within 96 blocks
+          var _pos = this._playerPositions || (this._playerPositions = {});
+          _pos[peerName] = { x: x, y: y, z: z };
+          this._broadcastExceptFiltered(peerName, buf, x, y, z);
+          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, flags, null);
         } else {
-          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, flags, null);
         }
       } else if (type === 0x03) {
         let off = 1;
@@ -431,7 +434,7 @@ export class P2PNetwork {
   //  Send methods
   // ═══════════════════════════════════════════════════════════════════════
 
-  _encodePos(name, x, y, z, yaw, crouching) {
+  _encodePos(name, x, y, z, yaw, flags) {
     const nb = this._textEncoder.encodeInto(name, new Uint8Array(this._posBuf, 2));
     const nl = nb.written || name.length;
     const v = this._posView;
@@ -443,21 +446,34 @@ export class P2PNetwork {
     v.setFloat32(o, y); o += 4;
     v.setFloat32(o, z); o += 4;
     v.setFloat32(o, yaw); o += 4;
-    v.setUint8(o, crouching ? 1 : 0);
+    v.setUint8(o, (typeof flags === 'number' ? flags : (flags ? 1 : 0)) & 0x0F);
     return new Uint8Array(this._posBuf, 0, o + 1);
   }
 
-  sendPosition(x, y, z, yaw, crouching) {
+  sendPosition(x, y, z, yaw, flags) {
     if (!this.connected) return;
-    const data = this._encodePos(this.playerName, x, y, z, yaw, crouching);
+    const data = this._encodePos(this.playerName, x, y, z, yaw, flags);
     if (this.isHost) this._broadcastRaw(data);
     else this._sendToHostRaw(data);
   }
 
+  // Block update batching
+  _blockBatch = [];
   sendBlockUpdate(x, y, z, block) {
-    const msg = { _t: 'block_update', x: x | 0, y: y | 0, z: z | 0, block: block | 0 };
+    this._blockBatch.push({ x: x | 0, y: y | 0, z: z | 0, block: block | 0 });
+  }
+  flushBlockBatch() {
+    if (!this._blockBatch.length) return;
+    var msg;
+    if (this._blockBatch.length === 1) {
+      var b = this._blockBatch[0];
+      msg = { _t: 'block_update', x: b.x, y: b.y, z: b.z, block: b.block };
+    } else {
+      msg = { _t: 'block_batch', edits: this._blockBatch };
+    }
     if (this.isHost) this._broadcast(msg);
     else this._sendToHost(msg);
+    this._blockBatch = [];
   }
 
   sendChestUpdate(x, y, z, slots) {
@@ -537,6 +553,21 @@ export class P2PNetwork {
 
   _broadcastExceptRaw(exclude, data) {
     this._peers.forEach((p, n) => { if (n !== exclude && p.dc && p.dc.readyState === 'open') p.dc.send(data); });
+  }
+
+  // Area of Interest: only relay position to peers within 96 blocks
+  _broadcastExceptFiltered(exclude, data, srcX, srcY, srcZ) {
+    var self = this;
+    var _MAX_DIST2 = 96 * 96;
+    this._peers.forEach(function(p, n) {
+      if (n === exclude || !p.dc || p.dc.readyState !== 'open') return;
+      var theirPos = self._playerPositions && self._playerPositions[n];
+      if (theirPos) {
+        var dx = theirPos.x - srcX, dy = theirPos.y - srcY, dz = theirPos.z - srcZ;
+        if (dx * dx + dy * dy + dz * dz > _MAX_DIST2) return;
+      }
+      p.dc.send(data);
+    });
   }
 
   _sendToPeer(name, msg) {
