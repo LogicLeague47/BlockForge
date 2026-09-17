@@ -1491,6 +1491,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Multiplayer flags protocol + GIF fix',
+          desc: 'Crouch, sprint, swim, fly animations now sync between players via binary flags byte. GIF picker switched from dead Giphy API to Tenor.',
+          date: 'Sep 17',
+          bugs: ['GIF search broken (Giphy key revoked)', 'animation flags not syncing in multiplayer', 'p2p-network block batch syntax error'],
+          updates: ['flags byte protocol full chain (client→network→renderer)', 'Tenor GIF search replaces deprecated Giphy', 'block batch field syntax fix for classes'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Auto-matchmaking + dev P2P servers + 1000 player rooms',
           desc: 'Firebase-powered matchmaking finds you a random opponent instantly. Dev accounts can host P2P servers visible to everyone. Room directory in server browser. Voice signaling offloaded to Firebase. Up to 1000 players per room.',
           date: 'Sep 13',
