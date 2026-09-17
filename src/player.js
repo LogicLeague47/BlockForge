@@ -270,7 +270,7 @@ export class Player {
 
     // Shield: blocking (crouching) with a shield halves incoming damage
     let shieldBlocked = false;
-    if (this.isCrouching && this.inventory) {
+    if (this.crouching && this.inventory) {
       const held = this.inventory.getSelected();
       if (held && held.item === 861 /* SHIELD */) {
         amount = Math.max(1, Math.ceil(amount * 0.5));
@@ -983,15 +983,18 @@ export class Player {
 
   // Find the nearest other Portal Pad within a radius and teleport the player there.
   _teleportToPartnerPad(cx, cy, cz) {
-    const R = 64;
+    // Search in expanding shells — stop as soon as we find the nearest pad.
     let best = null, bestD = Infinity;
-    for (let x = cx - R; x <= cx + R; x++) {
-      for (let y = cy - R; y <= cy + R; y++) {
-        for (let z = cz - R; z <= cz + R; z++) {
-          if (x === cx && y === cy && z === cz) continue;
-          if (this.world.getBlock(x, y, z) !== BLOCK.PORTAL_PAD) continue;
-          const d = (x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz);
-          if (d < bestD) { bestD = d; best = { x, y, z }; }
+    const MAX_R = 16;
+    for (let r = 1; r <= MAX_R && best === null; r++) {
+      for (let x = cx - r; x <= cx + r; x++) {
+        for (let y = cy - r; y <= cy + r; y++) {
+          for (let z = cz - r; z <= cz + r; z++) {
+            if (Math.abs(x - cx) !== r && Math.abs(y - cy) !== r && Math.abs(z - cz) !== r) continue;
+            if (this.world.getBlock(x, y, z) !== BLOCK.PORTAL_PAD) continue;
+            const d = (x - cx) * (x - cx) + (y - cy) * (y - cy) + (z - cz) * (z - cz);
+            if (d < bestD) { bestD = d; best = { x, y, z }; }
+          }
         }
       }
     }

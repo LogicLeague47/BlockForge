@@ -10,6 +10,15 @@ const Game = {
      Retries once: Render's free tier sleeps after 15 min idle and the
      first request wakes it (~30-50s), which can outlast one timeout. */
   lookup(a, b, cb) {
+    // Check local combos database first (instant, no server needed)
+    var key1 = a + '+' + b;
+    var key2 = b + '+' + a;
+    var local = COMBOS[key1] || COMBOS[key2];
+    if (local) {
+      cb(local, true);
+      return;
+    }
+    // Not in local database — ask the server (AI-generated combos, new recipes)
     var url = Game.API + '/api/ic-lookup?a=' + encodeURIComponent(a) + '&b=' + encodeURIComponent(b);
     var done = false;
     var tries = 0;
@@ -57,7 +66,18 @@ const Game = {
     var missing = [];
     for (var i = 0; i < names.length; i++) {
       var n = names[i];
-      if (!this.EMOJIS[n] && !State.emojiCache[n]) missing.push(n);
+      if (this.EMOJIS[n] || State.emojiCache[n]) continue;
+      // Check local COMBOS database for emoji
+      var found = false;
+      for (var combo in COMBOS) {
+        var parts = combo.split('+');
+        if (COMBOS[combo].name === n && COMBOS[combo].emoji) {
+          State.emojiCache[n] = COMBOS[combo].emoji;
+          found = true;
+          break;
+        }
+      }
+      if (!found) missing.push(n);
     }
     if (!missing.length) { if (cb) cb(); return; }
     var q = '';

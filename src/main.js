@@ -12030,19 +12030,13 @@ function _gameFrame() {
   }
 
   // Send position to multiplayer server (30Hz)
-  if (network.connected && network.roomName && player) {
-    _mpSendTimer += dt;
-    if (_mpSendTimer >= 0.033) {
-      _mpSendTimer = 0;
-      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
-    }
-  }
-  // P2P: send position (30Hz)
-  if (_activeNetwork === 'p2p' && p2pNetwork.connected && p2pNetwork.roomName && player) {
-    _mpSendTimer += dt;
-    if (_mpSendTimer >= 0.033) {
-      _mpSendTimer = 0;
+  _mpSendTimer += dt;
+  if (_mpSendTimer >= 0.033) {
+    _mpSendTimer = 0;
+    if (_activeNetwork === 'p2p' && p2pNetwork.connected && p2pNetwork.roomName && player) {
       p2pNetwork.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
+    } else if (network.connected && network.roomName && player) {
+      network.sendPosition(player.position.x, player.position.y, player.position.z, player.yaw, player.crouching);
     }
   }
 
@@ -12055,7 +12049,7 @@ function _gameFrame() {
   }
 
   // Death detection
-  if (player.isDead() && !ui.isOverlayShown()) {
+  if (player && player.isDead() && !ui.isOverlayShown()) {
     ui.showMenu('death');
     document.exitPointerLock?.();
     // Populate death stats

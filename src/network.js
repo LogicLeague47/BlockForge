@@ -311,26 +311,31 @@ export class Network {
 
   // Binary message decoder — 0x01 = player_position, 0x03 = armor_sync
   _handleBinaryMessage(buf) {
-    const view = new DataView(buf);
-    const type = view.getUint8(0);
-    if (type === 0x01) {
-      let off = 1;
-      const nameLen = view.getUint8(off); off += 1;
-      const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
-      const x = view.getFloat32(off); off += 4;
-      const y = view.getFloat32(off); off += 4;
-      const z = view.getFloat32(off); off += 4;
-      const yaw = view.getFloat32(off); off += 4;
-      const crouching = view.getUint8(off) === 1;
-      if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
-    } else if (type === 0x03) {
-      let off = 1;
-      const nameLen = view.getUint8(off); off += 1;
-      const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
-      const armorLen = view.getUint8(off); off += 1;
-      const armor = armorLen > 0 ? this._textDecoder.decode(new Uint8Array(buf, off, armorLen)) : null;
-      if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
-    }
+    try {
+      const view = new DataView(buf);
+      const type = view.getUint8(0);
+      if (type === 0x01) {
+        let off = 1;
+        const nameLen = view.getUint8(off); off += 1;
+        if (off + nameLen + 17 > buf.byteLength) return;
+        const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
+        const x = view.getFloat32(off); off += 4;
+        const y = view.getFloat32(off); off += 4;
+        const z = view.getFloat32(off); off += 4;
+        const yaw = view.getFloat32(off); off += 4;
+        const crouching = view.getUint8(off) === 1;
+        if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+      } else if (type === 0x03) {
+        let off = 1;
+        const nameLen = view.getUint8(off); off += 1;
+        if (off + nameLen + 1 > buf.byteLength) return;
+        const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
+        const armorLen = view.getUint8(off); off += 1;
+        if (off + armorLen > buf.byteLength) return;
+        const armor = armorLen > 0 ? this._textDecoder.decode(new Uint8Array(buf, off, armorLen)) : null;
+        if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
+      }
+    } catch (_) {}
   }
 
   // ── Public API ──────────────────────────────────────────────────────

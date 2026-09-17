@@ -369,33 +369,38 @@ export class P2PNetwork {
   }
 
   _handleBinaryMessage(buf, peerName) {
-    const view = new DataView(buf);
-    const type = view.getUint8(0);
-    if (type === 0x02) {
-      let off = 1;
-      const nameLen = view.getUint8(off); off += 1;
-      const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
-      const x = view.getFloat32(off); off += 4;
-      const y = view.getFloat32(off); off += 4;
-      const z = view.getFloat32(off); off += 4;
-      const yaw = view.getFloat32(off); off += 4;
-      const crouching = view.getUint8(off) === 1;
+    try {
+      const view = new DataView(buf);
+      const type = view.getUint8(0);
+      if (type === 0x02) {
+        let off = 1;
+        const nameLen = view.getUint8(off); off += 1;
+        if (off + nameLen + 17 > buf.byteLength) return;
+        const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
+        const x = view.getFloat32(off); off += 4;
+        const y = view.getFloat32(off); off += 4;
+        const z = view.getFloat32(off); off += 4;
+        const yaw = view.getFloat32(off); off += 4;
+        const crouching = view.getUint8(off) === 1;
 
-      if (this.isHost) {
-        this._broadcastExceptRaw(peerName, buf);
-        if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
-      } else {
-        if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+        if (this.isHost) {
+          this._broadcastExceptRaw(peerName, buf);
+          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+        } else {
+          if (this.onPlayerPosition) this.onPlayerPosition(name, x, y, z, yaw, crouching, null);
+        }
+      } else if (type === 0x03) {
+        let off = 1;
+        const nameLen = view.getUint8(off); off += 1;
+        if (off + nameLen + 1 > buf.byteLength) return;
+        const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
+        const armorLen = view.getUint8(off); off += 1;
+        if (off + armorLen > buf.byteLength) return;
+        const armor = armorLen > 0 ? this._textDecoder.decode(new Uint8Array(buf, off, armorLen)) : null;
+        if (this.isHost) this._broadcastExcept(peerName, { _t: 'armor', name, armor });
+        if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
       }
-    } else if (type === 0x03) {
-      let off = 1;
-      const nameLen = view.getUint8(off); off += 1;
-      const name = this._textDecoder.decode(new Uint8Array(buf, off, nameLen)); off += nameLen;
-      const armorLen = view.getUint8(off); off += 1;
-      const armor = armorLen > 0 ? this._textDecoder.decode(new Uint8Array(buf, off, armorLen)) : null;
-      if (this.isHost) this._broadcastExcept(peerName, { _t: 'armor', name, armor });
-      if (this.onPlayerArmor) this.onPlayerArmor(name, armor);
-    }
+    } catch (_) {}
   }
 
   // ═══════════════════════════════════════════════════════════════════════
