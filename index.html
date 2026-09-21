@@ -834,7 +834,7 @@
       #error-log-panel {
         position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 9999;
         display: none; align-items: center; justify-content: center;
-        background: rgba(0,0,0,0.7); ;
+        background: rgba(0,0,0,0.7);
       }
       #error-log-panel.active { display: flex; }
       #error-log-panel .elog-box {
@@ -1285,9 +1285,6 @@
       .skin-card.selected {
         border-color: rgba(100,200,100,0.8);
         background: rgba(40,80,40,0.4);
-      }
-      .skin-card canvas {
-
       }
       .skin-card-name {
         font-size: 11px; color: #ddd; text-shadow: 1px 1px 0 #000;
@@ -2735,6 +2732,7 @@
           <div class="menu-logo">BLOCKFORGE</div>
           <div class="menu-splash">Welcome!</div>
         </div>
+        <div style="max-width:420px;width:100%;background:rgba(8,8,16,0.55);border:1px solid rgba(100,140,255,0.1);border-radius:10px;padding:20px 24px;box-shadow:0 0 0 1px rgba(100,160,255,0.04),0 16px 48px rgba(0,0,0,0.3);">
           <div id="login-account-section">
             <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ACCOUNT</div>
             <input id="login-username" type="text" value="" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Username" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
@@ -2801,6 +2799,7 @@
 
       <!-- Fixed viewport elements -->
       <div class="menu-player-preview">
+        <div id="menu-player-container" style="width:120px;height:180px;border-radius:6px;overflow:hidden;background:rgba(0,0,0,0.3);"></div>
         <div class="menu-player-name" id="menu-player-name">Player</div>
         <button class="menu-btn secondary" id="btn-skin-customize">Customize Skin</button>
       </div>
@@ -3004,6 +3003,7 @@
               </label>
             </div>
             <div class="create-preview-box" id="seed-preview-box">
+              <canvas id="seed-preview-canvas" width="240" height="160" style="width:240px;height:160px;margin-top:4px;border-radius:4px;border:1px solid rgba(100,100,120,0.4);display:block;"></canvas>
               <div class="create-preview-text" id="seed-preview-name" style="font:bold 11px monospace;color:#aaa;margin-top:6px;">A new world awaits...</div>
               <div class="create-preview-sub" id="seed-preview-sub" style="font:10px monospace;color:#666;margin-top:2px;">Enter a seed above to preview terrain</div>
             </div>
@@ -3627,6 +3627,8 @@
     </div>
 
     <!-- First-time Name Prompt -->
+    <div id="name-prompt" style="display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;">
+      <div style="background:rgba(10,10,24,0.75);border:1px solid rgba(100,160,255,0.15);border-radius:12px;padding:30px 40px;max-width:380px;width:90%;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(100,160,255,0.04);">
         <div style="font:700 24px sans-serif;background:linear-gradient(135deg,#e0e8ff 0%,#8af 50%,#c084fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px;">Welcome to BlockForge!</div>
         <div style="font:13px sans-serif;color:#aab;margin-bottom:20px;line-height:1.5;">What name would you like to play as? You can change this later in settings.</div>
         <input id="name-prompt-input" type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Enter your name..." style="width:100%;padding:12px 16px;font:15px sans-serif;background:rgba(0,0,0,0.4);border:1px solid rgba(100,160,255,0.2);border-radius:6px;color:#fff;outline:none;text-align:center;margin-bottom:16px;box-sizing:border-box;transition:border-color .2s;" onfocus="this.style.borderColor='rgba(100,180,255,0.5)'" onblur="this.style.borderColor='rgba(100,160,255,0.2)'" />
