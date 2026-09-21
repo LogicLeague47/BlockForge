@@ -57,8 +57,8 @@ export class ViewModel {
   }
 
   _buildArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
-    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
-    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
+    const mat = new THREE.MeshBasicMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshBasicMaterial({ color: skinDark, fog: false });
 
     this._armGroup = new THREE.Group();
 
@@ -74,8 +74,8 @@ export class ViewModel {
   }
 
   _buildOffhandArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
-    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
-    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
+    const mat = new THREE.MeshBasicMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshBasicMaterial({ color: skinDark, fog: false });
 
     this._ohArmGroup = new THREE.Group();
 
@@ -363,17 +363,52 @@ export class ViewModel {
   }
 
   // Block items: a small bevelled cube textured from the atlas.
+  // Bakes side/top/bottom into a single texture to reduce draw calls from 6→1.
   _buildBlockMesh(blockId) {
     const sideName = tileNameFor(blockId, 'side');
     const topName = tileNameFor(blockId, 'top');
     const botName = tileNameFor(blockId, 'bottom');
-    const sideTex = this._atlasTileTexture(sideName);
-    const topTex = this._atlasTileTexture(topName);
-    const botTex = this._atlasTileTexture(botName);
-    const mk = (t) => new THREE.MeshLambertMaterial({ map: t, fog: false });
-    const materials = [mk(sideTex), mk(sideTex), mk(topTex), mk(botTex), mk(sideTex), mk(sideTex)];
+    const c = document.createElement('canvas');
+    c.width = TILE * 3; c.height = TILE;
+    const ctx = c.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    const drawTile = (name, dx) => {
+      const t = TILES[name];
+      if (t && this.atlasCanvas) ctx.drawImage(this.atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, dx, 0, TILE, TILE);
+    };
+    drawTile(sideName, 0);
+    drawTile(topName, TILE);
+    drawTile(botName, TILE * 2);
+    const tex = new THREE.CanvasTexture(c);
+    tex.magFilter = THREE.NearestFilter;
+    tex.minFilter = THREE.NearestFilter;
+    tex.generateMipmaps = false;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false });
     const size = 0.42;
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(size, size, size), materials);
+    const geo = new THREE.BoxGeometry(size, size, size);
+    // Remap UVs: each face maps to 1/3 of the texture strip (side=left, top=middle, bottom=right)
+    const uv = geo.attributes.uv;
+    // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
+    // Each face has 4 vertices (2 triangles). Map UVs to the 3-tile strip.
+    const faces = [
+      { idx: 0, col: 0 }, // +X = side
+      { idx: 4, col: 0 }, // -X = side
+      { idx: 8, col: 1 }, // +Y = top
+      { idx: 12, col: 2 }, // -Y = bottom
+      { idx: 16, col: 0 }, // +Z = side
+      { idx: 20, col: 0 }, // -Z = side
+    ];
+    for (const f of faces) {
+      const u0 = f.col / 3, u1 = (f.col + 1) / 3;
+      // Four UV pairs per face: (0,0),(1,0),(1,1),(0,1) → remapped
+      uv.setXY(f.idx + 0, u0, 0);
+      uv.setXY(f.idx + 1, u1, 0);
+      uv.setXY(f.idx + 2, u1, 1);
+      uv.setXY(f.idx + 3, u0, 1);
+    }
+    uv.needsUpdate = true;
+    const mesh = new THREE.Mesh(geo, mat);
     mesh.rotation.set(-0.18, -0.55, 0.05);
     mesh.position.set(0, 0, 0);
     return mesh;

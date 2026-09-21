@@ -1901,8 +1901,11 @@ export class UI {
 
   // --- held item name -------------------------------------------------------
   updateItemName(inventory, creative) {
-    let name = '';
     const s = inventory.getSelected();
+    const itemId = s ? s.item : null;
+    if (itemId === this._lastItemNameId) return;
+    this._lastItemNameId = itemId;
+    let name = '';
     if (s) name = itemName(s.item);
     if (name) {
       this.itemNameEl.textContent = name;

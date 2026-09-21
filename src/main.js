@@ -11656,20 +11656,19 @@ function _gameFrame() {
 
   // ── GHOST BLOCK PREVIEW ──
   if (player && !ui.isOverlayShown() && !ui.inventoryOpen && !ui.furnaceOpen && !ui.chestOpen) {
-    const hit = currentTarget();
     const slot = player.inventory.getSelected();
     const itemId = slot ? slot.item : null;
-    if (hit && itemId != null && isPlaceableBlockItem(itemId) && !(player && player.isAdventure()) && !(isBedwars && bwSpec)) {
-      const placePos = hit.place;
+    if (target && itemId != null && isPlaceableBlockItem(itemId) && !(player && player.isAdventure()) && !(isBedwars && bwSpec)) {
+      const placePos = target.place;
       const existing = world.getBlock(placePos.x, placePos.y, placePos.z);
       if (BLOCKS[itemId]?.slab) {
         // Preview the half that would actually place (same rule as placeBlock).
-        const gny = hit.normal ? hit.normal.y : 0;
+        const gny = target.normal ? target.normal.y : 0;
         let gTop;
         if (gny > 0) gTop = false;
         else if (gny < 0) gTop = true;
         else {
-          const gfrac = (hit.hitY ?? 0.5) - Math.floor(hit.hitY ?? 0.5);
+          const gfrac = (target.hitY ?? 0.5) - Math.floor(target.hitY ?? 0.5);
           gTop = gfrac > 0.5;
         }
         ghostMesh.scale.set(1, 0.5, 1);
