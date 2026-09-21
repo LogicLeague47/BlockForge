@@ -517,7 +517,7 @@
             <a class="hero-play" id="hero-play-link" href="./" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
             <a class="btn hero-alt" id="hero-offline-btn" href="./?offline=1" target="_blank" rel="noopener">📴 Play Offline</a>
             <button class="btn hero-alt" id="hero-servers-btn">🌐 Live Servers</button>
-            <a class="btn hero-alt" id="hero-apk-btn" href="downloads/BlockForge-android.apk" download="BlockForge-android.apk" title="Android APK — sideload onto any Android device">📱 Android APK</a>
+            <button class="btn hero-alt" id="hero-apk-btn" title="Android APK — tap to copy link">📱 Android APK</button>
           </div>
           <div class="hero-stats">
             <div class="hero-stat"><b id="hero-online">—</b><span>Players Online</span></div>
@@ -1193,19 +1193,28 @@
         if (heroPlay) heroPlay.href = playUrl;
       }
 
-      // Android APK auto-update: read URL from server, update link but don't auto-download
+      // Android APK: fetch URL from server, copy to clipboard on click
       (function() {
         var apkBtn = document.getElementById('hero-apk-btn');
         if (!apkBtn) return;
         var SRV = window.BF_WS || 'wss://blockforge-server.onrender.com';
         var apkBase = (SRV || '').replace(/^wss?:\/\//, 'https:');
+        var apkUrl = null;
         fetch(apkBase + '/api/apk-latest', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) {
           if (d && d.url) {
-            apkBtn.href = d.url;
-            apkBtn.title = 'Android APK — v' + (d.version || 'latest') + ' (sideload)';
-            console.log('[APK] auto-update link:', d.url);
+            apkUrl = d.url;
+            apkBtn.title = 'Android APK v' + (d.version || 'latest') + ' — tap to copy link';
+            console.log('[APK] link:', apkUrl);
           }
         }).catch(function() {});
+        apkBtn.addEventListener('click', function() {
+          if (!apkUrl) { alert('APK not available yet — check back soon.'); return; }
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(apkUrl).then(function() { alert('APK link copied to clipboard:\n' + apkUrl); });
+          } else {
+            prompt('Copy this APK link:', apkUrl);
+          }
+        });
       })();
 
       if (userName) {
