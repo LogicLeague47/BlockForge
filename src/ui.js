@@ -1925,7 +1925,6 @@ export class UI {
           for (let i = 0; i < 10; i++) {
             const val = capped - i * 2;
             const full = val >= 2, half = val >= 1;
-            ah += `<img src="${drawArmorUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
           }
           this.armorRowEl.innerHTML = ah;
         }
@@ -1943,7 +1942,6 @@ export class UI {
     for (let i = 9; i >= 0; i--) {
       const val = player.health - i * 2;
       const full = val >= 2, half = val >= 1;
-      hh += `<img src="${drawHeartUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.healthBar.innerHTML = hh;
 
@@ -1952,7 +1950,6 @@ export class UI {
     for (let i = 0; i < 10; i++) {
       const val = player.hunger - i * 2;
       const full = val >= 2, half = val >= 1;
-      fh += `<img src="${drawDrumstickUrl(full, half && !full)}" style="width:9px;height:9px;image-rendering:pixelated;vertical-align:middle;margin:0 0.5px;">`;
     }
     this.hungerBar.innerHTML = fh;
     // Hunger warning pulse when below 3 drumsticks (6 hunger)
@@ -1971,7 +1968,6 @@ export class UI {
       let offImg = offhandEl.querySelector('img');
       if (!offImg) {
         offImg = document.createElement('img');
-        offImg.style.cssText = 'width:30px;height:30px;image-rendering:pixelated;';
         offhandEl.appendChild(offImg);
       }
       let cnt = offhandEl.querySelector('.inv-count');

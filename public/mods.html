@@ -16,7 +16,6 @@
     }
     body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
     body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 0,rgba(120,80,220,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(120,60,180,.12) 0,transparent 50%);pointer-events:none;z-index:0}
-    header{background:linear-gradient(135deg,#12121f 0%,#221438 50%,#12121f 100%);border-bottom:1px solid var(--border);padding:18px 28px;display:flex;align-items:center;gap:20px;z-index:10;box-shadow:0 4px 24px rgba(0,0,0,.4);position:sticky;top:0;backdrop-filter:blur(8px);flex-wrap:wrap}
     header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(170,120,255,.45),rgba(200,120,240,.4),transparent)}
     .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
     .brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,#a8f,#c084fc,#7f7ff5,#a8f);display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(170,130,255,.35)}
@@ -27,7 +26,6 @@
     .section-title .count{background:rgba(150,120,255,.15);border:1px solid rgba(150,120,255,.35);color:#c084fc;font:bold 10px monospace;padding:2px 8px;border-radius:8px;margin-left:8px;-webkit-text-fill-color:#c084fc;letter-spacing:0}
     .intro{font-size:13px;color:var(--muted);margin-bottom:22px;line-height:1.7}
     .dl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px}
-    .dl-card{display:flex;flex-direction:column;gap:10px;padding:20px;background:var(--card);border:1px solid var(--border);border-radius:14px;position:relative;overflow:hidden;backdrop-filter:blur(4px)}
     .dl-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,#a8f,#c084fc,transparent);transform:scaleX(0);transition:transform .4s}
     .dl-card:hover::before{transform:scaleX(1)}
     .dl-card:hover{background:rgba(42,34,80,.9);border-color:rgba(170,130,255,.45);transform:translateY(-2px);box-shadow:0 10px 30px rgba(90,60,180,.18)}
@@ -64,7 +62,6 @@
     .upload-status.err{color:#f88}
     #community-grid{min-height:60px}
     .community-empty{grid-column:1/-1;font-size:13px;color:var(--dim);padding:14px;text-align:center}
-    footer{text-align:center;padding:22px;font-size:11px;color:#555;border-top:1px solid var(--border);background:linear-gradient(135deg,rgba(20,20,35,.7),rgba(15,15,25,.7));backdrop-filter:blur(4px);position:relative;z-index:1}
     footer a{color:#a8f;text-decoration:none}
     ::-webkit-scrollbar{width:8px}
     ::-webkit-scrollbar-track{background:rgba(0,0,0,.2)}

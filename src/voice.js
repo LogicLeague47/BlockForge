@@ -331,7 +331,6 @@ export class VoiceChat {
   _createPanel() {
     this._panel = document.createElement('div');
     this._panel.id = 'voice-panel';
-    this._panel.style.cssText = 'display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.5);align-items:center;justify-content:center;backdrop-filter:blur(2px);';
     this._panel.innerHTML = `
       <div id="voice-panel-box" style="background:#2b2b2b;border:2px solid #444;border-radius:8px;padding:0;min-width:300px;max-width:380px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.7);overflow:hidden;">
         <div style="padding:10px 16px 8px;font:600 15px sans-serif;color:#fff;">Voice Chat</div>

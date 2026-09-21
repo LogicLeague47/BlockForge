@@ -46,7 +46,6 @@ function ensureEl(api) {
   if (el) return;
   el = api.hud.upsert(
     'map',
-    '<canvas style="display:block;width:' + SIZE + 'px;height:' + SIZE + 'px;image-rendering:pixelated;"></canvas>' +
       '<div style="font:10px monospace;color:rgba(255,255,255,0.7);margin-top:4px;text-shadow:1px 1px 0 #000;">MINIMAP &middot; <span class="bfmm-coords"></span></div>',
     style()
   );

@@ -112,7 +112,6 @@ export class SkinEditor {
     paintBox.style.cssText = `position:relative;width:${VIEW}px;height:${VIEW}px;flex-shrink:0;background:conic-gradient(#2a2a2a 25%,#333 0 50%,#2a2a2a 0 75%,#333 0) 0 0/16px 16px;border:2px solid rgba(80,80,80,0.6);border-radius:4px;overflow:hidden;touch-action:none;cursor:crosshair;`;
     this.paint = document.createElement('canvas');
     this.paint.width = VIEW; this.paint.height = VIEW;
-    this.paint.style.cssText = 'display:block;image-rendering:pixelated;';
     paintBox.appendChild(this.paint);
     // static region-guide overlay
     this.overlay = document.createElement('canvas');

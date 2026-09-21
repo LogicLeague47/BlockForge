@@ -16,7 +16,7 @@ import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
-import { MobManager, MOB_TYPES, Arrow } from './mobs.js';
+import { MobManager, MOB_TYPES, Arrow, preloadMobTextures } from './mobs.js';
 import { calcBiome, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
 import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowAccountLinkPrompt, cgGetUser, cgGetUserToken, cgIsAccountAvailable, cgOnAuthChange, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
@@ -589,20 +589,31 @@ let starField = null;
 }
 
 // --- texture atlas ---
-// Guarded so a texture error can never prevent the game from booting: if the
-// atlas fails we fall back to a blank canvas and the game still runs.
+// Load pre-rendered atlas PNG (generated at build time by scripts/build-textures.mjs).
+// Falls back to procedural generation if the PNG hasn't been built yet.
 let atlasCanvas;
-try {
-  atlasCanvas = buildAtlas(1337);
-} catch (_e) {
-  const c = document.createElement('canvas');
-  c.width = 512; c.height = 512;
-  const cx = c.getContext('2d');
-  cx.fillStyle = '#000';
-  cx.fillRect(0, 0, 512, 512);
-  cx.fillStyle = '#ff00ff';
-  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) cx.fillRect(x * 32, y * 32, 30, 30);
-  atlasCanvas = c;
+{
+  // Start async PNG load — use procedural atlas immediately, swap when PNG arrives
+  const _atlasImg = new Image();
+  _atlasImg.src = '/textures/atlas.png';
+  try { atlasCanvas = buildAtlas(1337); } catch (_e) {
+    const c = document.createElement('canvas');
+    c.width = 512; c.height = 512;
+    atlasCanvas = c;
+  }
+  _atlasImg.onload = () => {
+    if (!_atlasImg.naturalWidth) return;
+    const c = document.createElement('canvas');
+    c.width = _atlasImg.width; c.height = _atlasImg.height;
+    const cx = c.getContext('2d');
+    cx.imageSmoothingEnabled = false;
+    cx.drawImage(_atlasImg, 0, 0);
+    atlasCanvas = c;
+    atlasTexture.image = c;
+    atlasTexture.needsUpdate = true;
+    setAtlasTexture(atlasTexture);
+    try { buildMenuBackground(); } catch (_) {}
+  };
 }
 const atlasTexture = new THREE.CanvasTexture(atlasCanvas);
 atlasTexture.magFilter = THREE.NearestFilter;
@@ -617,6 +628,9 @@ try { buildMenuBackground(); } catch (e) { if (window.__bfErr) window.__bfErr('b
 // autoClear=false so we can render the world, then the held-item overlay on top.
 renderer.autoClear = false;
 const viewmodel = new ViewModel(renderer, atlasCanvas);
+
+// Pre-load mob textures from PNGs (async, non-blocking)
+preloadMobTextures().catch(() => {});
 
 // --- selection highlight ---
 const hlGeo = new THREE.BoxGeometry(1.002, 1.002, 1.002);
@@ -3369,7 +3383,6 @@ function openTravelerTrade(travelerMob) {
   if (!panel) {
     panel = document.createElement('div');
     panel.id = 'trade-panel';
-    panel.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:rgba(20,20,30,0.95);border:2px solid rgba(85,221,187,0.4);border-radius:8px;padding:16px;min-width:320px;max-width:400px;pointer-events:auto;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,0.6);';
     document.body.appendChild(panel);
   }
   panel.innerHTML = html;
@@ -3408,7 +3421,6 @@ function openAnvilRename() {
   if (!panel) {
     panel = document.createElement('div');
     panel.id = 'anvil-panel';
-    panel.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:100;background:rgba(20,20,30,0.96);border:2px solid rgba(180,180,200,0.5);border-radius:8px;padding:18px;min-width:320px;max-width:420px;pointer-events:auto;backdrop-filter:blur(8px);box-shadow:0 4px 24px rgba(0,0,0,0.6);';
     document.body.appendChild(panel);
   }
   const current = slot.customName || itemName(slot.item);
