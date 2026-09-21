@@ -517,6 +517,7 @@
             <a class="hero-play" id="hero-play-link" href="./" target="_blank" rel="noopener">▶&nbsp;PLAY NOW</a>
             <a class="btn hero-alt" id="hero-offline-btn" href="./?offline=1" target="_blank" rel="noopener">📴 Play Offline</a>
             <button class="btn hero-alt" id="hero-servers-btn">🌐 Live Servers</button>
+            <a class="btn hero-alt" id="hero-apk-btn" href="downloads/BlockForge-android.apk" download="BlockForge-android.apk" title="Android APK — sideload onto any Android device">📱 Android APK</a>
           </div>
           <div class="hero-stats">
             <div class="hero-stat"><b id="hero-online">—</b><span>Players Online</span></div>
@@ -1192,6 +1193,21 @@
         if (heroPlay) heroPlay.href = playUrl;
       }
 
+      // Android APK auto-update: read URL from server, update link but don't auto-download
+      (function() {
+        var apkBtn = document.getElementById('hero-apk-btn');
+        if (!apkBtn) return;
+        var SRV = window.BF_WS || 'wss://blockforge-server.onrender.com';
+        var apkBase = (SRV || '').replace(/^wss?:\/\//, 'https:');
+        fetch(apkBase + '/api/apk-latest', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) {
+          if (d && d.url) {
+            apkBtn.href = d.url;
+            apkBtn.title = 'Android APK — v' + (d.version || 'latest') + ' (sideload)';
+            console.log('[APK] auto-update link:', d.url);
+          }
+        }).catch(function() {});
+      })();
+
       if (userName) {
         localStorage.setItem('bf_portal_user', userName);
         var hasPortalPass = false;
@@ -1496,7 +1512,7 @@
           date: 'Sep 17',
           bugs: ['GIF search broken (Giphy key revoked)', 'animation flags not syncing in multiplayer', 'p2p-network block batch syntax error'],
           updates: ['flags byte protocol full chain (client→network→renderer)', 'Tenor GIF search replaces deprecated Giphy', 'block batch field syntax fix for classes'],
-          features: [],
+          features: ['Android APK sideload link on portal (auto-updates from server)'],
         },
         {
           hash: 'PENDING',
