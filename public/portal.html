@@ -1193,22 +1193,25 @@
         if (heroPlay) heroPlay.href = playUrl;
       }
 
-      // Android APK: fetch URL from server, copy to clipboard on click
+      // Android APK: fetch latest release from GitHub, copy link on click
       (function() {
         var apkBtn = document.getElementById('hero-apk-btn');
         if (!apkBtn) return;
-        var SRV = window.BF_WS || 'wss://blockforge-server.onrender.com';
-        var apkBase = (SRV || '').replace(/^wss?:\/\//, 'https:');
         var apkUrl = null;
-        fetch(apkBase + '/api/apk-latest', { mode: 'cors' }).then(function(r) { return r.json(); }).then(function(d) {
-          if (d && d.url) {
-            apkUrl = d.url;
-            apkBtn.title = 'Android APK v' + (d.version || 'latest') + ' — tap to copy link';
-            console.log('[APK] link:', apkUrl);
-          }
-        }).catch(function() {});
+        fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d && d.assets && d.assets.length) {
+              var apk = d.assets.find(function(a) { return /\.apk$/i.test(a.name); });
+              if (apk) {
+                apkUrl = apk.browser_download_url;
+                apkBtn.title = 'Android APK — tap to copy link';
+                console.log('[APK] latest:', apkUrl);
+              }
+            }
+          }).catch(function() {});
         apkBtn.addEventListener('click', function() {
-          if (!apkUrl) { alert('APK not available yet — check back soon.'); return; }
+          if (!apkUrl) { alert('No APK available yet — build is in progress.'); return; }
           if (navigator.clipboard) {
             navigator.clipboard.writeText(apkUrl).then(function() { alert('APK link copied to clipboard:\n' + apkUrl); });
           } else {

@@ -9944,6 +9944,42 @@ function initMenu() {
       if (browseModsBtn) browseModsBtn.style.display = 'none';
     } catch (_) { console.warn("operation failed"); }
   }
+
+  // Android APK auto-update: check GitHub for new version, show update banner
+  try {
+    const isAndroid = /android/i.test(navigator.userAgent);
+    if (isAndroid) {
+      const lastSeen = localStorage.getItem('bf_apk_latest_build') || '0';
+      fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
+        .then(r => r.json())
+        .then(d => {
+          if (!d || !d.assets) return;
+          const apk = d.assets.find(a => /\.apk$/i.test(a.name));
+          if (!apk || !apk.browser_download_url) return;
+          const buildMatch = (d.tag_name || '').match(/(\d+)/);
+          const latestBuild = buildMatch ? buildMatch[1] : '0';
+          if (latestBuild === lastSeen) return;
+          localStorage.setItem('bf_apk_latest_build', latestBuild);
+          const menu = document.getElementById('menu');
+          if (!menu) return;
+          const bar = document.createElement('div');
+          bar.id = 'apk-update-bar';
+          bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:210;background:linear-gradient(90deg,#1a4a2a,#0d2818);border-bottom:1px solid #3a8a5a;color:#7f7;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font:13px monospace;gap:12px;';
+          bar.innerHTML = '<span>📱 Update available (build ' + latestBuild + ')</span>';
+          const dlBtn = document.createElement('button');
+          dlBtn.textContent = 'DOWNLOAD';
+          dlBtn.style.cssText = 'background:#3a8a5a;color:#fff;border:none;padding:6px 16px;border-radius:6px;font:bold 12px monospace;cursor:pointer;white-space:nowrap;';
+          dlBtn.onclick = function() { window.location.href = apk.browser_download_url; };
+          const dismissBtn = document.createElement('button');
+          dismissBtn.textContent = '✕';
+          dismissBtn.style.cssText = 'background:none;color:#7f7;border:1px solid #3a8a5a;padding:4px 8px;border-radius:4px;font:12px monospace;cursor:pointer;';
+          dismissBtn.onclick = function() { bar.remove(); };
+          bar.appendChild(dlBtn);
+          bar.appendChild(dismissBtn);
+          document.body.appendChild(bar);
+        }).catch(() => {});
+    }
+  } catch (_) { console.warn("operation failed"); }
 }
 
 function showConsentNotice() {
