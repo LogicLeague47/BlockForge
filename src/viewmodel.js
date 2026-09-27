@@ -198,32 +198,32 @@ export class ViewModel {
     return new THREE.Mesh(new THREE.PlaneGeometry(size, size), mat);
   }
 
-  // Minecraft-style held pose: big, diagonal across the view, blade up-right.
-  _mcPose(wrap, s = 1.25) {
+  // BlockForge-style held pose: big, diagonal across the view, blade up-right.
+  _bfPose(wrap, s = 1.25) {
     wrap.rotation.set(-0.3, -0.75, -0.5);
     wrap.scale.setScalar(s);
     wrap.position.set(0.05, -0.04, 0.02);
     return wrap;
   }
 
-  // Extruded pixel-art sprite, Minecraft item/generated style: the 16x16
+  // Extruded pixel-art sprite, BlockForge item/generated style: the 16x16
   // icon extruded to 1 texel thick with darkened silhouette walls.
   // Single shared mesh (1 draw call), cached per item.
   _extrudedSprite(itemId, w = 0.5) {
     const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), w);
     const wrap = new THREE.Group();
     wrap.add(mesh);
-    return this._mcPose(wrap, 1.15);
+    return this._bfPose(wrap, 1.15);
   }
 
-  // Tools / weapons: Minecraft renders these as extruded icons too
+  // Tools / weapons: BlockForge renders these as extruded icons too
   // (item/handheld parent). Route everything through the shared builder so
   // held tools match their inventory icons and drops pixel-for-pixel.
   _buildToolMesh(itemId) {
     return this._extrudedSprite(itemId, 0.55);
   }
 
-  // Food / materials / other items: extruded sprite, Minecraft held-item look.
+  // Food / materials / other items: extruded sprite, BlockForge held-item look.
   _buildItemMesh(itemId) {
     return this._extrudedSprite(itemId, 0.45, 0.45);
   }

@@ -550,7 +550,7 @@ export class PlayerModel {
         wrap.add(mesh);
       }
     } else {
-      // Tools AND any other non-block item: Minecraft-style extruded icon,
+      // Tools AND any other non-block item: BlockForge-style extruded icon,
       // shared + cached, so third-person hands match first-person + drops.
       const mesh = getExtrudedItemMesh(itemId, this._getItemCanvas(itemId), 0.5);
       wrap.add(mesh);

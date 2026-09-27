@@ -26,62 +26,61 @@ export function riverStrength(n, wx, wz) {
 }
 
 export function calcHeight(n, wx, wz, mode, _cache) {
-  // MC-style noise router: continentalness, erosion, peaks, detail.
-  // IMPORTANT: `continentalness` here has sd≈0.26 over the range ~[-0.75, 0.75]
-  // (fbm with 6 octaves flattens toward the mean). Every threshold below is
+  // BlockForge-style noise router: continentalness, erosion, peaks, detail.
+  // Two vanilla techniques shape the look here:
+  //  1. DOMAIN WARP — cont/erosion/ridge are sampled at warped coords, so
+  //     coasts meander instead of forming straight blob edges.
+  //  2. SMOOTH BAND BLENDS — every continentalness boundary is a smoothstep
+  //     blend, never a hard if/else step, so no terrace cliffs appear.
+  // Raw fbm output has sd≈0.26 over ~[-0.75, 0.75]; thresholds below are
   // calibrated to THAT distribution, not to [-1, 1].
-  const cont = _cache ? _cache.cont : n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
-  const erosion = _cache ? _cache.erosion : n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
-  const ridge = 1 - Math.abs(n.fbm2(n.ridge, wx * 0.005, wz * 0.005, 4, 2, 0.5));
+  const warpX = n.fbm2(n.detail, wx * 0.0011, wz * 0.0011, 2, 2, 0.5) * 34;
+  const warpZ = n.fbm2(n.depth, wx * 0.0011, wz * 0.0011, 2, 2, 0.5) * 34;
+  const qx = wx + warpX, qz = wz + warpZ;
+  const cont = _cache ? _cache.cont : n.fbm2(n.continentalness, qx * 0.003, qz * 0.003, 6, 2, 0.5);
+  const erosion = _cache ? _cache.erosion : n.fbm2(n.erosion, qx * 0.004, qz * 0.004, 4, 2, 0.5);
+  const ridgeRaw = n.fbm2(n.ridge, qx * 0.005, qz * 0.005, 4, 2, 0.5);
+  // Folded ridge: 1 at crests, 0 in valleys (vanilla ridges_folded shape)
+  const rn = Math.max(-1, Math.min(1, ridgeRaw / 0.26));
+  const ridge = 1 - Math.abs(rn);
   const detail = n.fbm2(n.detail, wx * 0.02, wz * 0.02, 4, 2, 0.5);
-  const depth = n.fbm2(n.depth, wx * 0.008, wz * 0.008, 4, 2, 0.5);
+  const depth = n.fbm2(n.depth, qx * 0.008, qz * 0.008, 4, 2, 0.5);
   const oceanDetail = n.fbm2(n.height, wx * 0.012, wz * 0.012, 3, 2, 0.5);
+  // Asymmetric detail (vanilla quarter_negative): dips stay wide and gentle,
+  // crests go sharp — wide valleys, crisp peaks.
+  const detailUp = detail > 0 ? detail : detail * 0.35;
 
-  let h;
-  
-  // Continentalness bands calibrated to the MEASURED distribution of the fbm
-  // output (sd≈0.26, ~50% of values in [-0.2, 0.19]). Shaped like MC:
-  // plains hug the sea (+1..+7), hills roll above them, and only high
-  // continentalness makes real mountains — no more plateau-everywhere.
-  //   cont < -0.50  (~2%)   →  deep ocean
-  //   -0.50 .. -0.30 (~13%) →  shallow shelf grading up to the shoreline
-  //   -0.30 ..  0.00 (~20%) →  coast: gentle SEA+1 .. SEA+4
-  //    0.00 ..  0.30 (~35%) →  plains: SEA+2 .. SEA+7 with erosion valleys
-  //   cont >  0.30 (~15%)   →  hills + mountains
-  if (cont < -0.50) {
-    // Deep ocean floor, sea-8 to sea-14
-    h = SEA_LEVEL - 8 + (cont + 0.50) * 22 + depth * 5 + oceanDetail * 3;
-  } else if (cont < -0.30) {
-    // Shallow shelf: sea-5 rising to just above sea level at the shoreline
-    const t = (cont + 0.50) / 0.20;
-    h = SEA_LEVEL - 5 + t * 6 + depth * 4 + oceanDetail * 2;
-  } else if (cont < 0.00) {
-    // Coast: gentle grade so shorelines slope instead of cliffing.
-    const t = (cont + 0.30) / 0.30;
-    h = SEA_LEVEL + 1 + t * 3 + depth * 3 + oceanDetail * 2;
-    if (h < SEA_LEVEL + 1) h = SEA_LEVEL + 1;
-  } else if (cont < 0.30) {
-    // Plains: low rolling ground hugging the sea, like MC (~+1..+7).
-    // High erosion digs valleys that bottom out as lakes.
-    const t = cont / 0.30;
-    h = SEA_LEVEL + 2 + t * 5 + detail * 4 * (1 - erosion * 0.5);
-    h -= Math.max(0, erosion - 0.25) * 14;
-    if (h < SEA_LEVEL - 1) h = SEA_LEVEL - 1;
-  } else {
-    // Hills and mountains: rolling base that steepens with continentalness
-    const baseHeight = SEA_LEVEL + 7 + (cont - 0.30) * 45;
-    const erosionFactor = 1 - erosion * 0.6;
+  const sstep = (a, b, v) => {
+    const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+  };
 
-    h = baseHeight + detail * 5 * erosionFactor;
+  // Per-band heights (same calibrated curves as before, retuned for blend)
+  const hDeep = SEA_LEVEL - 8 + (cont + 0.50) * 22 + depth * 5 + oceanDetail * 3;
+  const tShelf = Math.max(0, Math.min(1, (cont + 0.50) / 0.20));
+  const hShelf = SEA_LEVEL - 5 + tShelf * 6 + depth * 4 + oceanDetail * 2;
+  const tCoast = Math.max(0, Math.min(1, (cont + 0.30) / 0.30));
+  let hCoast = SEA_LEVEL + 1 + tCoast * 3 + depth * 3 + oceanDetail * 2;
+  if (hCoast < SEA_LEVEL + 1) hCoast = SEA_LEVEL + 1;
+  const tPlain = cont / 0.30;
+  let hPlain = SEA_LEVEL + 2 + tPlain * 5 + detailUp * 4 * (1 - erosion * 0.5);
+  hPlain -= Math.max(0, erosion - 0.25) * 14;
+  if (hPlain < SEA_LEVEL - 1) hPlain = SEA_LEVEL - 1;
+  // Hills: rolling base steepening inland + gated ridge peaks + jagged spikes
+  const erosionFactor = 1 - erosion * 0.6;
+  let hHill = SEA_LEVEL + 7 + (cont - 0.30) * 45 + detailUp * 5 * erosionFactor + ridge * 6 * erosionFactor;
+  // BlockForge gate: peaks need high-cont AND low-erosion AND ridge crest, else nothing
+  const peakGate = sstep(0.35, 0.45, cont) * sstep(0.2, 0.05, erosion);
+  hHill += peakGate * ridge * ridge * 100;
+  // Jaggedness: extra spikes only on the very crests (vanilla-style)
+  if (ridge > 0.75) hHill += peakGate * (ridge - 0.75) * 60;
 
-    // MC mountains: high continentalness + low erosion + ridge peaks
-    if (cont > 0.35 && erosion < 0.2 && ridge > 0.6) {
-      h += ridge * ridge * (cont - 0.35) * 100;
-    }
-
-    // MC hills: ridge-based undulation
-    h += ridge * 6 * erosionFactor;
-  }
+  // Blend across every boundary — no terrace walls
+  let h = hDeep;
+  h += (hShelf - h) * sstep(-0.55, -0.45, cont);
+  h += (hCoast - h) * sstep(-0.33, -0.27, cont);
+  h += (hPlain - h) * sstep(-0.03, 0.03, cont);
+  h += (hHill - h) * sstep(0.27, 0.33, cont);
 
   // River carving: only on land, near sea level
   if (cont > 0.05) {
@@ -113,8 +112,8 @@ export function getCont(n, wx, wz) {
   return n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
 }
 
-// MC spawn_target: full climate sample at a world position.
-// Mirrors the noise_router parameters MC uses to pick a world spawn.
+// BlockForge spawn_target: full climate sample at a world position.
+// Mirrors the noise_router parameters BlockForge uses to pick a world spawn.
 export function getClimate(n, wx, wz) {
   return {
     temperature:     n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5),
@@ -125,7 +124,7 @@ export function getClimate(n, wx, wz) {
   };
 }
 
-// MC spawn_target: the climate window the game aims for when placing world spawn.
+// BlockForge spawn_target: the climate window the game aims for when placing world spawn.
 // Overworld targets temperate, moderately humid, firmly inland, low-erosion land.
 const SPAWN_TARGET = {
   temperature:     [-0.15, 0.45],
@@ -149,60 +148,60 @@ export function spawnFitness(climate) {
 }
 
 export function calcBiome(n, wx, wz, h, _cache) {
-  // MC-style climate parameters: temperature, humidity, continentalness, erosion
+  // BlockForge-style climate parameters: temperature, humidity, continentalness, erosion
   const t = _cache ? _cache.temp : n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const hu = _cache ? _cache.humid : n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const cont = _cache ? _cache.cont : n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5);
   const erosion = _cache ? _cache.erosion : n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5);
 
-  // MC river: narrow water channels on land (same field as the carver)
+  // BlockForge river: narrow water channels on land (same field as the carver)
   if (cont > 0.05 && h <= SEA_LEVEL && h >= SEA_LEVEL - 3) {
     if (riverStrength(n, wx, wz) > 0.65) return BIOMES.RIVER;
   }
 
-  // MC ocean biomes — matches calcHeight's continentalness thresholds:
+  // BlockForge ocean biomes — matches calcHeight's continentalness thresholds:
   //   cont < -0.50  → deep ocean
   //   -0.50 .. -0.30 → shallow ocean
   //   -0.30 .. 0.00 → coast (beach band near sea level)
   if (cont < -0.50) return BIOMES.DEEP_OCEAN;
   if (cont < -0.30) return BIOMES.OCEAN;
   
-  // MC beach: near sea level on coast (window matches the clamped coast
+  // BlockForge beach: near sea level on coast (window matches the clamped coast
   // heights in calcHeight so beaches can actually form)
   if (h >= SEA_LEVEL && h <= SEA_LEVEL + 4 && cont < 0.1) return BIOMES.BEACH;
   
-  // MC Stony Peaks: high continentalness + low erosion
+  // BlockForge Stony Peaks: high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
   
-  // MC cold biomes: low temperature
+  // BlockForge cold biomes: low temperature
   if (t < -0.4) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
 
-  // MC swamp: warm-wet lowland flats near sea level (was defined but never returned)
+  // BlockForge swamp: warm-wet lowland flats near sea level (was defined but never returned)
   if (hu > 0.45 && erosion > 0.3 && h <= SEA_LEVEL + 3 && h >= SEA_LEVEL - 1 && t > -0.2 && t < 0.35) {
     return BIOMES.SWAMP;
   }
   
-  // MC forest biomes: cool to mild with humidity
+  // BlockForge forest biomes: cool to mild with humidity
   if (t < 0.15 && hu > 0.1) {
     if (hu > 0.4) return BIOMES.DARK_FOREST;
     if (hu > 0.2) return BIOMES.FOREST;
     if (hu > 0.1) return BIOMES.BIRCH_FOREST;
   }
   
-  // MC warm biomes: high temperature
+  // BlockForge warm biomes: high temperature
   if (t >= 0.15 && t < 0.5) {
     if (hu < -0.1) return BIOMES.DESERT;
     if (hu > 0.3) return BIOMES.JUNGLE;
     if (hu > 0.05) return BIOMES.SAVANNA;
   }
   
-  // MC plains: moderate temperatures, default (~40% of land)
+  // BlockForge plains: moderate temperatures, default (~40% of land)
   return BIOMES.PLAINS;
 }
 
-// MC surface_rule: top block for a column.
+// BlockForge surface_rule: top block for a column.
 export function surfBlock(biome, h, wx = 0, wz = 0) {
-  // MC rule: underwater terrain mixes sand/gravel/clay by noise, not pure sand
+  // BlockForge rule: underwater terrain mixes sand/gravel/clay by noise, not pure sand
   if (h < SEA_LEVEL) {
     const m = ((wx * 73856093) ^ (wz * 19349663)) >>> 0;
     const r = (m % 100) / 100;
@@ -219,7 +218,7 @@ export function surfBlock(biome, h, wx = 0, wz = 0) {
     case BIOMES.RIVER:       return BLOCK.SAND;
     case BIOMES.SNOWY:       return BLOCK.SNOW_GRASS;
     case BIOMES.SWAMP:       return BLOCK.GRASS;
-    // MC stony peaks: bare stone above 25, dirt transition, grass below
+    // BlockForge stony peaks: bare stone above 25, dirt transition, grass below
     case BIOMES.MOUNTAINS:   return h > SEA_LEVEL + 25 ? BLOCK.STONE : (h > SEA_LEVEL + 18 ? BLOCK.DIRT : BLOCK.GRASS);
     case BIOMES.TAIGA:       return BLOCK.GRASS;
     case BIOMES.JUNGLE:      return BLOCK.GRASS;
@@ -227,14 +226,14 @@ export function surfBlock(biome, h, wx = 0, wz = 0) {
   }
 }
 
-// MC surface_rule: depth of the sub-surface layer (dirt/sand band under the top block).
+// BlockForge surface_rule: depth of the sub-surface layer (dirt/sand band under the top block).
 export function surfDepth(biome, h) {
   if (h < SEA_LEVEL) return 3;
   switch (biome) {
-    case BIOMES.DESERT:    return 5;   // MC: deep sand over sandstone
+    case BIOMES.DESERT:    return 5;   // BlockForge: deep sand over sandstone
     case BIOMES.BEACH:     return 4;
     case BIOMES.MOUNTAINS: return h > SEA_LEVEL + 25 ? 0 : 2;  // bare stone peaks
-    default:               return 3;   // MC standard: 3 dirt under grass
+    default:               return 3;   // BlockForge standard: 3 dirt under grass
   }
 }
 
@@ -249,27 +248,31 @@ export function fillBlock(biome, h) {
     case BIOMES.RIVER:       return BLOCK.SAND;
     case BIOMES.DESERT:      return BLOCK.SAND;
     case BIOMES.SWAMP:       return BLOCK.DIRT;
-    // MC stony peaks: bare stone up high, but dirt under the grass band —
+    // BlockForge stony peaks: bare stone up high, but dirt under the grass band —
     // never grass sitting directly on stone.
     case BIOMES.MOUNTAINS:   return h > SEA_LEVEL + 18 ? BLOCK.STONE : BLOCK.DIRT;
     default:                 return BLOCK.DIRT;
   }
 }
 
-// MC surface_rule: block beneath the sub-surface band (sandstone under desert sand, etc.)
+// BlockForge surface_rule: block beneath the sub-surface band (sandstone under desert sand, etc.)
 export function deepBlock(biome, h) {
   switch (biome) {
-    case BIOMES.DESERT: return BLOCK.SANDSTONE;  // MC: sandstone under desert sand
+    case BIOMES.DESERT: return BLOCK.SANDSTONE;  // BlockForge: sandstone under desert sand
     case BIOMES.BEACH:  return BLOCK.SANDSTONE;
-    case BIOMES.SWAMP:  return BLOCK.CLAY;       // MC swamp: clay disks under the mud
+    case BIOMES.SWAMP:  return BLOCK.CLAY;       // BlockForge swamp: clay disks under the mud
     default:            return BLOCK.STONE;
   }
 }
 
 export function generateColumn(n, chunk, x, z, wx, wz, mode) {
+  // Same domain warp as calcHeight so cached samples match live ones
+  const _wX = n.fbm2(n.detail, wx * 0.0011, wz * 0.0011, 2, 2, 0.5) * 34;
+  const _wZ = n.fbm2(n.depth, wx * 0.0011, wz * 0.0011, 2, 2, 0.5) * 34;
+  const _qx = wx + _wX, _qz = wz + _wZ;
   const _cache = {
-    cont: n.fbm2(n.continentalness, wx * 0.003, wz * 0.003, 6, 2, 0.5),
-    erosion: n.fbm2(n.erosion, wx * 0.004, wz * 0.004, 4, 2, 0.5),
+    cont: n.fbm2(n.continentalness, _qx * 0.003, _qz * 0.003, 6, 2, 0.5),
+    erosion: n.fbm2(n.erosion, _qx * 0.004, _qz * 0.004, 4, 2, 0.5),
     temp: n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5),
     humid: n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5),
   };
@@ -277,12 +280,12 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
   const biome = calcBiome(n, wx, wz, h, _cache);
   const surf = surfBlock(biome, h, wx, wz);
   const sub = fillBlock(biome, h);
-  // MC surface_rule: variable-depth sub-surface band + transition layer
+  // BlockForge surface_rule: variable-depth sub-surface band + transition layer
   const depth = surfDepth(biome, h);
   const deep = deepBlock(biome, h);
 
   let topSolid = -1;
-  // MC bedrock floor: rough 3-layer shell (solid at y=0, noisy y=1-2) so one
+  // BlockForge bedrock floor: rough 3-layer shell (solid at y=0, noisy y=1-2) so one
   // unlucky explosion can never punch straight into the void.
   const bedrockRng = ((wx * 73856093) ^ (wz * 19349663)) >>> 0;
   for (let y = 0; y <= h; y++) {
@@ -291,18 +294,21 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
     else if (y <= 2 && ((bedrockRng >> (y * 7 + (wx & 3))) & 3) !== 0) b = BLOCK.BEDROCK;
     else if (y === h) b = surf;
     else if (y > h - depth) b = sub;
-    else if (y > h - depth - 3) b = deep;   // MC transition band (sandstone/stone)
-    // MC deepslate blend: stone grades into deepslate from y=8 down, solid by y=0
+    else if (y > h - depth - 3) b = deep;   // BlockForge transition band (sandstone/stone)
+    // BlockForge deepslate blend: stone grades into deepslate from y=8 down, solid by y=0
     else if (y <= 8 && y > 2) b = (((bedrockRng >> y) & 1) === 0 || y <= 3) ? BLOCK.DEEPSLATE : BLOCK.STONE;
     else b = BLOCK.STONE;
 
     if (y > 2 && y < h - 1) {
-      const c1 = n.cave(wx * 0.04, y * 0.05, wz * 0.04);
-      const c2 = n.cave2(wx * 0.035, y * 0.06, wz * 0.035);
+      // Spaghetti-2D style tunnels: the worm path meanders in xz (constant
+      // along y) while its floor height rolls slowly — long horizontal tubes
+      // like BlockForge, not blobby 3D pockets. (2D fields only: cave/cave2 are 3D.)
+      const spPath = n.fbm2(n.weirdness, wx * 0.015, wz * 0.015, 2, 2, 0.5);
+      const spFloor = 22 + n.fbm2(n.depth, wx * 0.008, wz * 0.008, 2, 2, 0.5) * 16;
       const c3 = n.cave(wx * 0.02, y * 0.03, wz * 0.02);
       const c4 = n.cave2(wx * 0.018, y * 0.025, wz * 0.018);
 
-      if (Math.abs(c1) < 0.12 && Math.abs(c2) < 0.12) b = BLOCK.AIR;
+      if (Math.abs(spPath) < 0.07 && Math.abs(y - spFloor) < 2.5) b = BLOCK.AIR;
       else if (Math.abs(c3) < 0.085 && Math.abs(c4) < 0.085) b = BLOCK.AIR;
 
       const ravX = n.cave(wx * 0.01, y * 0.15, wz * 0.06);
@@ -311,7 +317,7 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
       if (Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
     }
 
-    // MC aquifer-lite: sub-sea-level caves flood instead of hanging as air
+    // BlockForge aquifer-lite: sub-sea-level caves flood instead of hanging as air
     // pockets under the ocean.
     if (b === BLOCK.AIR && y <= SEA_LEVEL && y >= 1) b = BLOCK.WATER;
 
@@ -474,7 +480,7 @@ function placeOreCluster(chunk, cx, cy, cz, blockId, veinSize, shape, rng) {
 }
 
 function generateOreVeins(chunk, baseX, baseZ) {
-  // MC triangular distribution: rejection-sample y toward the band middle so
+  // BlockForge triangular distribution: rejection-sample y toward the band middle so
   // veins cluster like Java's triangle peaks instead of uniform spam.
   const triY = (rng, minY, maxY) =>
     Math.floor(minY + (maxY - minY + 1) * (rng() + rng()) * 0.5);
@@ -744,7 +750,7 @@ function placeFeature(chunk, x, h, z, biome, roll, local, top) {
 }
 
 export function plantTree(chunk, x, y, z, rng, type) {
-  // MC parity: keep whole trees inside the chunk — trunks near the border
+  // BlockForge parity: keep whole trees inside the chunk — trunks near the border
   // would grow canopies cut off at the chunk edge.
   if (x < 3 || x > CHUNK_SIZE - 4 || z < 3 || z > CHUNK_SIZE - 4) return;
   const canOverwrite = (bx, by, bz) => {
@@ -753,7 +759,7 @@ export function plantTree(chunk, x, y, z, rng, type) {
     const cur = chunk.get(bx, by, bz);
     if (cur === BLOCK.AIR) return true;
     const d = BLOCKS[cur];
-    // MC replaces leaves/plants when canopies overlap, never solid trunks/ground
+    // BlockForge replaces leaves/plants when canopies overlap, never solid trunks/ground
     return !!d && (!!d.transparent || !!d.plant);
   };
   const setLeaf = (bx, by, bz, leafBlock) => {
@@ -786,7 +792,7 @@ export function plantTree(chunk, x, y, z, rng, type) {
       trunkBlock = BLOCK.DARK_OAK_WOOD; leafBlock = BLOCK.DARK_OAK_LEAVES;
       trunkH = 5 + ((rng() * 3) | 0); leafRadius = 2; doubleTrunk = true; break;
     default:
-      // MC oak: trunk 4-7 with a 2-layer 5x5 canopy + 3x3 cap + top plus
+      // BlockForge oak: trunk 4-7 with a 2-layer 5x5 canopy + 3x3 cap + top plus
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 4 + ((rng() * 4) | 0); leafRadius = 2;
   }
@@ -804,7 +810,7 @@ export function plantTree(chunk, x, y, z, rng, type) {
   const cz = doubleTrunk ? z : z;
   const top = y + trunkH;
   if (type === 'taiga') {
-    // MC spruce cone: tapering 2-1-1-plus layers, not a cylinder
+    // BlockForge spruce cone: tapering 2-1-1-plus layers, not a cylinder
     const layers = [
       { dy: -3, r: 2 }, { dy: -2, r: 2 }, { dy: -1, r: 1 },
       { dy: 0, r: 1 }, { dy: 1, r: 0 },
@@ -839,7 +845,7 @@ export function plantTree(chunk, x, y, z, rng, type) {
       }
     }
   }
-  // MC oak top: 3x3 cap plus a plus-shaped tip
+  // BlockForge oak top: 3x3 cap plus a plus-shaped tip
   setLeaf(cx, top + 2, cz, leafBlock);
   setLeaf(cx + 1, top + 2, cz, leafBlock);
   setLeaf(cx - 1, top + 2, cz, leafBlock);
@@ -905,7 +911,7 @@ export function growTreeInWorld(world, x, y, z, saplingBlock) {
       }
     }
   }
-  // MC oak top plus-tip
+  // BlockForge oak top plus-tip
   const topY = top + 2;
   if (topY < WORLD_HEIGHT) {
     if (world.getBlock(x, topY, z) === BLOCK.AIR) world.setBlock(x, topY, z, leafBlock);

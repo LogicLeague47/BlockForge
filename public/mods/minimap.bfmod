@@ -70,7 +70,7 @@ function scan(world, px, pz) {
   return max;
 }
 
-// Fixed elevation ramp (like Minecraft maps): water → sand → grass → stone →
+// Fixed elevation ramp (like BlockForge maps): water → sand → grass → stone →
 // snow, keyed to absolute height. Not per-scan normalised, so colours stay
 // stable while you walk (no flashing/remapping).
 function rampColor(h) {

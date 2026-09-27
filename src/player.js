@@ -25,7 +25,7 @@ const PLAYER_HALF_WIDTH = 0.3;
 const PLAYER_HEIGHT = 1.8;
 
 const GRAVITY = 28;        // blocks/s^2
-const WALK_SPEED = 4.317;  // ~minecraft
+const WALK_SPEED = 4.317;  // ~BlockForge
 const SPRINT_SPEED = 5.6;
 const CROUCH_SPEED = 1.297;
 const FLY_SPEED = 11;
@@ -150,7 +150,7 @@ export class Player {
   isSpectator() { return this.gamemode === 'spectator'; }
   isDead() { return this.dead || this.health <= 0; }
 
-  // MC-style world spawn: spiral outward sampling the climate noise router and
+  // BlockForge-style world spawn: spiral outward sampling the climate noise router and
   // pick the position whose climate best matches the overworld spawn_target.
   // Candidates must also sit on open, flat, inland ground — no coastlines,
   // no clifftops, no narrow ledges.

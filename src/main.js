@@ -56,7 +56,7 @@ import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './p
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
 import { network } from './network.js';
-import { p2pNetwork, p2pDirectory, p2pVoiceSignaling } from './p2p-network.js';
+import { p2pNetwork, p2pDirectory, p2pVoiceSignaling, cleanP2PCode } from './p2p-network.js';
 import { VoiceChat } from './voice.js';
 import { WeatherSystem } from './weather.js';
 import { filterProfanity } from './profanity.js';
@@ -186,7 +186,7 @@ try {
 // auto-uses a WebGL1 context in that case — nothing else here needs to change.
 const LEGACY_WEBGL = !!window.__LEGACY_WEBGL;
 if (LEGACY_WEBGL) console.log('[BlockForge] Legacy WebGL mode (older device) — using WebGL1-compatible three.js.');
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, IS_MOBILE ? 1 : 2));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = !VERY_LOW_END;
 renderer.shadowMap.type = (VERY_LOW_END) ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
@@ -220,8 +220,9 @@ renderer.domElement.addEventListener('webglcontextrestored', () => {
 function applyGraphicsQuality() {
   let pr;
   if (IS_MOBILE) {
-    // Mobile: use native resolution for medium/high, slightly reduced for low
-    pr = graphicsQuality === 'low' ? 0.85 : 1;
+    // Mobile: native resolution for high, near-native for medium, 1x for low.
+    // Modern phones handle 2x; the quality menu remains the FPS lever.
+    pr = graphicsQuality === 'low' ? 1 : Math.min(window.devicePixelRatio, 2);
   } else if (VERY_LOW_END) {
     // Weak GPUs / low-end desktops: cap at 1x so we never render supersampled pixels
     pr = 1;
@@ -288,6 +289,9 @@ function fitCanvas() {
 window.addEventListener('resize', fitCanvas);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', fitCanvas);
 window.addEventListener('orientationchange', () => setTimeout(fitCanvas, 120));
+// Some Android browsers don't fire resize when the toolbar hides mid-game,
+// leaving a stuck black bar. Re-check cheaply (early-returns when unchanged).
+setInterval(() => { try { fitCanvas(); } catch (_) {} }, 2000);
 // NOTE: do NOT call fitCanvas() here at module scope — menuBgCamera (same
 // scope const, declared below) is still in TDZ and even `typeof` throws.
 // Initial sizing is already done by renderer.setSize at creation.
@@ -1195,7 +1199,7 @@ document.addEventListener('mousemove', (e) => {
   // Hotbar keys 1-9
   if (e.code >= 'Digit1' && e.code <= 'Digit9') {
     const idx = parseInt(e.code.slice(5)) - 1;
-    // MC behavior: number keys swap hovered slot with hotbar slot in any screen
+    // BlockForge behavior: number keys swap hovered slot with hotbar slot in any screen
     const hovered = ui._hoveredSlot && ui._hoveredSlot();
     if (hovered && (ui.inventoryOpen || ui.chestOpen || ui.furnaceOpen)) {
       const inv = player.inventory;
@@ -3298,7 +3302,7 @@ function placeBlock(slotOverride, targetHit) {
   const pz = Math.floor(player.position.z);
   if ((x === px && z === pz) && (y === py || y === py + 1)) return;
 
-  // Slabs: pick top/bottom half by clicked face (Minecraft rules) — top face
+  // Slabs: pick top/bottom half by clicked face (BlockForge rules) — top face
   // stacks upward, underside hangs a top slab, side faces split upper/lower.
   if (BLOCKS[itemId]?.slab) {
     const ny = hit.normal ? hit.normal.y : 0;
@@ -4975,18 +4979,26 @@ function renderPP2PRooms() {
   });
 }
 
-// Global handler for clicking a P2P room in the list
+// Global handler for clicking a P2P room in the list — one-click join when
+// the host published an invite, otherwise falls back to manual code entry
 window._joinPP2PRoom = function(hostName) {
   addChatLine('Connecting to ' + hostName + '\'s world...', '#5f5');
-  // The joiner needs an offer code from the host
-  // For now, open the P2P join view with instructions
   ui.showMenu('p2p');
   const joinView = document.getElementById('p2p-join-view');
   const hostView = document.getElementById('p2p-host-view');
   if (joinView) joinView.style.display = 'block';
   if (hostView) hostView.style.display = 'none';
   const input = document.getElementById('p2p-join-input');
-  if (input) input.placeholder = 'Ask ' + hostName + ' for their room code...';
+  p2pNetwork.fetchOffer(hostName).then((offer) => {
+    if (!offer) {
+      if (input) input.placeholder = 'Ask ' + hostName + ' for their room code...';
+      addChatLine('No auto-invite found — ask ' + hostName + ' to tap their code to copy it.', '#fa0');
+      return;
+    }
+    if (input) input.value = offer;
+    addChatLine('Invite found — answering automatically...', '#5f5');
+    document.getElementById('btn-p2p-join-go')?.click();
+  });
 };
 
 // Re-broadcast locally-saved servers to the WS server so other devices can see them
@@ -8485,9 +8497,68 @@ function initMenu() {
     ui.showMenu('p2p');
   });
 
+  // ── P2P shared host setup: answer box, peer list, directory publish ──
+  function p2pRefreshPeers() {
+    let peers = [];
+    try { if (p2pNetwork._peers) p2pNetwork._peers.forEach((_, n) => peers.push(n)); } catch (_) {}
+    const label = peers.length ? peers.map((n) => '● ' + n).join('   ') : 'Just you (so far)';
+    for (const id of ['p2p-peer-names', 'p2p-ig-names']) {
+      const el = document.getElementById(id);
+      if (el) el.textContent = label;
+    }
+    for (const id of ['p2p-peer-list', 'p2p-ig-peers']) {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'block';
+    }
+  }
+
+  function p2pAfterOffer(offerCode) {
+    const ansWrap = document.getElementById('p2p-answer-wrap');
+    if (ansWrap) ansWrap.style.display = 'block';
+    p2pRefreshPeers();
+    // Publish for one-click directory joins + auto-accept incoming answers
+    try {
+      p2pNetwork.publishOffer(offerCode);
+      p2pNetwork.stopWatchingAnswers();
+      p2pNetwork.watchAnswers((joinerName, answerCode) => {
+        if (p2pNetwork.acceptAnswer(answerCode)) {
+          addChatLine(joinerName + ' is connecting...', '#5f5');
+        }
+      });
+    } catch (_) {}
+    // Every friend gets a fresh single-use offer after each successful join
+    p2pNetwork.onPlayerJoin = (name) => {
+      try { p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount()); } catch (_) {}
+      addChatLine(name + ' joined your world!', '#5f5');
+      p2pRefreshPeers();
+      try {
+        p2pNetwork.createOfferForJoiner('__waiting__').then((code) => {
+          const box = document.getElementById('p2p-code-box');
+          if (box) box.textContent = code;
+          p2pNetwork.publishOffer(code);
+        });
+      } catch (_) {}
+    };
+    p2pNetwork.onPlayerLeave = (name) => {
+      try { p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount()); } catch (_) {}
+      addChatLine(name + ' left.', '#fa0');
+      p2pRefreshPeers();
+    };
+  }
+
+  // Host: paste a friend's answer code to finish connecting them
+  document.getElementById('btn-p2p-answer-go')?.addEventListener('click', () => {
+    const input = document.getElementById('p2p-answer-input');
+    const code = cleanP2PCode(input ? input.value : '');
+    if (!code) { addChatLine('Paste your friend\'s answer code first.', '#fa0'); return; }
+    if (p2pNetwork.acceptAnswer(code)) {
+      addChatLine('Answer accepted — connecting...', '#5f5');
+      if (input) input.value = '';
+    }
+  });
+
   // Dev P2P Host — creates a P2P server visible in Firebase directory
-  document.getElementById('btn-dev-p2p-host')?.addEventListener('click', () => {
-    const seed = Math.floor(Math.random() * 999999) + 1;
+  document.getElementById('btn-dev-p2p-host')?.addEventListener('click', () => {    const seed = Math.floor(Math.random() * 999999) + 1;
     const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
 
     // Register in Firebase directory so anyone can discover it
@@ -8518,6 +8589,7 @@ function initMenu() {
       }
       const statusEl = document.getElementById('p2p-host-status');
       if (statusEl) statusEl.textContent = 'Your world is live! Share the code below with your friend.';
+      p2pAfterOffer(offerCode);
 
       _activeNetwork = 'p2p';
       _p2pHostSeed = seed;
@@ -8527,14 +8599,6 @@ function initMenu() {
       startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
       isMultiplayer = true;
       serverName = 'P2P: ' + playerName;
-
-      // Update directory player count as peers connect
-      p2pNetwork.onPlayerJoin = (name) => {
-        p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
-      };
-      p2pNetwork.onPlayerLeave = (name) => {
-        p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
-      };
     });
   });
 
@@ -8588,6 +8652,7 @@ function initMenu() {
       }
       const statusEl = document.getElementById('p2p-host-status');
       if (statusEl) statusEl.textContent = 'Room listed in server browser. Share the code below with your friend.';
+      p2pAfterOffer(offerCode);
 
       _activeNetwork = 'p2p';
       _p2pHostSeed = seed;
@@ -8597,32 +8662,60 @@ function initMenu() {
       startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
       isMultiplayer = true;
       serverName = 'P2P: ' + playerName;
-
-      // Update directory player count
-      p2pNetwork.onPlayerJoin = () => p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
-      p2pNetwork.onPlayerLeave = () => p2pDirectory.updatePlayerCount(p2pNetwork.getPlayerCount());
     });
   });
   document.getElementById('btn-p2p-join-go')?.addEventListener('click', () => {
     const input = document.getElementById('p2p-join-input');
-    const code = input ? input.value.trim() : '';
+    const code = cleanP2PCode(input ? input.value : '');
     if (!code) { addChatLine('Paste an offer code first.', '#fa0'); return; }
+    const offer = p2pNetwork.peekCode(code);
+    if (!offer || !offer.o) { addChatLine('That code didn\'t scan — check for missing characters.', '#f55'); return; }
+    const hostName = offer.h || 'host';
+    const seed = offer.s || 42;
+    const mode = offer.m || 'survival';
     _activeNetwork = 'p2p';
-    p2pNetwork.joinRoomByCode(code, playerName);
-    // Process the offer code to generate an answer
+    addChatLine('Answering ' + hostName + '\'s world...', '#5f5');
+    // Process the offer code to generate an answer (no separate room-code step)
     p2pNetwork.acceptOfferCode(code).then((answerCode) => {
-      addChatLine('Answer code generated! Share it with the host.', '#5f5');
+      addChatLine('Answer ready! If your friend is NOT using one-click join, send them this code:', '#5f5');
       // Show answer code in the input for easy copying
       if (input) {
         input.value = answerCode;
         input.style.borderColor = '#5f5';
-        addChatLine('Copy the answer code above and send it to the host.', '#5f5');
       }
       window._p2pAnswerCode = answerCode;
+      // Assisted flow: submit the answer through the directory so the host
+      // auto-accepts — no manual paste needed on either side
+      try { p2pNetwork.submitAnswer(hostName, playerName, answerCode); } catch (_) {}
+      // Enter the world now; positions sync the moment the channel opens
+      p2pEnterWorld(hostName, seed, mode);
     }).catch((e) => {
       addChatLine('Failed to connect: ' + e.message, '#f55');
     });
   });
+
+  // Joiner: enter the shared world (called on demand; safe to call once)
+  let _p2pEntered = false;
+  function p2pEnterWorld(hostName, seed, mode) {
+    if (_p2pEntered || gameRunning) return;
+    _p2pEntered = true;
+    _p2pHostSeed = seed;
+    _p2pHostReady = true;
+    startGame('p2p_' + hostName, seed, mode, 'normal', {});
+    isMultiplayer = true;
+    serverName = 'P2P: ' + hostName;
+    addChatLine('Entering ' + hostName + '\'s world — linking...', '#5f5');
+    p2pNetwork.onConnected = () => {
+      addChatLine('Connected to ' + hostName + '!', '#5f5');
+      p2pRefreshPeers();
+    };
+    p2pNetwork.onDisconnect = () => {
+      addChatLine('Disconnected from ' + hostName + '.', '#fa0');
+      _p2pEntered = false;
+    };
+  }
+  // Reset the join guard whenever the P2P lobby opens (fresh attempt)
+  document.getElementById('btn-p2p-play')?.addEventListener('click', () => { _p2pEntered = false; }, true);
 
   // Invite link button — friends feature coming soon
   document.getElementById('btn-invite-link')?.addEventListener('click', () => {
@@ -9210,6 +9303,67 @@ function initMenu() {
       adError() { audio.setMuted(false); if (isParkour || isOneBlock || isBedwars || isBlockZones || isNights || isGunAffair || isSkyblock) showMinigames(); else showWorldList(); },
     });
   });
+
+  // ── In-game P2P / Friends panel ──
+  function p2pRefreshIngame() {
+    const status = document.getElementById('p2p-ig-status');
+    if (status) {
+      status.textContent = p2pNetwork.isHost
+        ? 'Hosting as ' + (p2pNetwork.playerName || 'host')
+        : (p2pNetwork.connected ? 'Connected to ' + (serverName || 'host') : 'Connecting...');
+    }
+    p2pRefreshPeers();
+    const isHost = !!p2pNetwork.isHost;
+    const codeBox = document.getElementById('p2p-code-box');
+    const igCode = document.getElementById('p2p-ig-code');
+    const inviteWrap = document.getElementById('p2p-ig-invite-wrap');
+    if (isHost && codeBox && codeBox.textContent) {
+      if (inviteWrap) inviteWrap.style.display = 'block';
+      if (igCode) igCode.textContent = codeBox.textContent;
+    } else if (inviteWrap) inviteWrap.style.display = 'none';
+    const ansWrap = document.getElementById('p2p-ig-answer-wrap');
+    if (ansWrap) ansWrap.style.display = isHost ? 'block' : 'none';
+  }
+  document.getElementById('btn-pause-p2p')?.addEventListener('click', () => {
+    p2pRefreshIngame();
+    const p = document.getElementById('p2p-ingame');
+    if (p) p.style.display = 'flex';
+  });
+  document.getElementById('btn-p2p-ig-close')?.addEventListener('click', () => {
+    const p = document.getElementById('p2p-ingame');
+    if (p) p.style.display = 'none';
+  });
+  document.getElementById('p2p-ig-code')?.addEventListener('click', () => {
+    const el = document.getElementById('p2p-ig-code');
+    try { if (el && el.textContent) navigator.clipboard.writeText(el.textContent); addChatLine('Invite code copied!', '#5f5'); } catch (_) {}
+  });
+  document.getElementById('btn-p2p-ig-answer-go')?.addEventListener('click', () => {
+    const input = document.getElementById('p2p-ig-answer');
+    const code = cleanP2PCode(input ? input.value : '');
+    if (!code) { addChatLine('Paste your friend\'s answer code first.', '#fa0'); return; }
+    if (p2pNetwork.acceptAnswer(code)) {
+      addChatLine('Answer accepted — connecting...', '#5f5');
+      if (input) input.value = '';
+      p2pRefreshPeers();
+    }
+  });
+  document.getElementById('btn-p2p-ig-leave')?.addEventListener('click', () => {
+    try { p2pNetwork.stopWatchingAnswers(); } catch (_) {}
+    try { p2pDirectory.unregisterRoom(); } catch (_) {}
+    try { p2pNetwork.disconnect(); } catch (_) {}
+    _activeNetwork = '';
+    isMultiplayer = false;
+    const p = document.getElementById('p2p-ingame');
+    if (p) p.style.display = 'none';
+    addChatLine('Left the P2P session — your world keeps running locally.', '#fa0');
+  });
+  // Show the pause P2P button only while in a P2P session
+  setInterval(() => {
+    try {
+      const b = document.getElementById('btn-pause-p2p');
+      if (b) b.style.display = (_activeNetwork === 'p2p' && gameRunning) ? '' : 'none';
+    } catch (_) {}
+  }, 2000);
 
   // --- Dev error log (view + copy captured errors) ---
   const errorLogPanel = document.getElementById('error-log-panel');
@@ -12609,7 +12763,7 @@ function drawMiniCustomSkin(cvs, dataUrl) {
   img.onload = () => {
     ctx.clearRect(0, 0, cvs.width, cvs.height);
     const draw = (sx, sy, sw, sh, dx, dy) => { try { ctx.drawImage(img, sx, sy, sw, sh, dx, dy, sw, sh); } catch (_) { console.warn("icon rendering failed"); } };
-    // Front faces from the standard MC layout, composed into a 16x32 avatar.
+    // Front faces from the standard BlockForge layout, composed into a 16x32 avatar.
     draw(8, 8, 8, 8, 4, 0);    // head
     draw(20, 20, 8, 12, 4, 8); // body
     draw(44, 20, 4, 12, 0, 8); // right arm

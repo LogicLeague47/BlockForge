@@ -9,7 +9,7 @@ import { CHUNK_SIZE } from './world.js';
 const _IS_MOBILE = ('ontouchstart' in window && navigator.maxTouchPoints > 0);
 const _LOW_END = _IS_MOBILE || (navigator.deviceMemory || 8) <= 4 || (navigator.hardwareConcurrency || 4) <= 4;
 
-// Minecraft-style chunk states:
+// BlockForge-style chunk states:
 //   loaded   — within radius: generated + meshed + ticked (rendered world)
 //   lazy     — ring past radius: data cached (instant re-entry, edits safe)
 //              but no mesh and no ticks
@@ -83,7 +83,7 @@ export class ChunkLoader {
     this.queue = list.map(l => ({ key: l.cx + ',' + l.cz, cx: l.cx, cz: l.cz }));
   }
 
-  // State of one chunk column relative to the player (Minecraft-style).
+  // State of one chunk column relative to the player (BlockForge-style).
   chunkState(cx, cz) {
     const dx = Math.abs(cx - this.lastPCX), dz = Math.abs(cz - this.lastPCZ);
     const d = Math.max(dx, dz);

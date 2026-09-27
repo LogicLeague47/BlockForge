@@ -166,7 +166,7 @@ function step(x, y, z) {
     // Water meeting lava hardens into cobblestone (classic skyblock generator).
     if (convertLava(x, y, z)) return;
 
-    // Fall: drop into air below (level preserved, like MC).
+    // Fall: drop into air below (level preserved, like BlockForge).
     const below = world.getBlock(x, y - 1, z);
     if (below === BLOCK.AIR) {
       world.setBlock(x, y - 1, z, here);

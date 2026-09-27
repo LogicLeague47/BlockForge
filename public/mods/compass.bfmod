@@ -74,7 +74,7 @@ export function onTick(dt, api) {
   if (!enabled || !p) { _el.style.display = 'none'; return; }
   _el.style.display = '';
 
-  // MC convention: yaw 0 faces -Z (north). Canvas offset so viewer-facing abscissa.
+  // BlockForge convention: yaw 0 faces -Z (north). Canvas offset so viewer-facing abscissa.
   const yawDeg = ((p.yaw * 180) / Math.PI + 360) % 360;
   // Offset the strip so the world rotates opposite to your turn.
   const worldOffset = yawDeg;

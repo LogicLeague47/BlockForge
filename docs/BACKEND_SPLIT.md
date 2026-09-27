@@ -55,7 +55,7 @@ fly deploy --remote-only --config fly.ws.toml -a blockforge-ws
 fly secrets set BAN_SYNC_SECRET=<same as Render> UPSTREAM_BACKEND_URL=wss://blockforge-social.fly.dev -a blockforge-ws
 ```
 
-(HidenCloud was evaluated and dropped: free tier is Minecraft-only, BOT is
+(HidenCloud was evaluated and dropped: free tier is BlockForge-only, BOT is
 pre-made Discord bots, SOFTWARE runtimes are paid. A second Fly app replaced
 it — same account/region, in-region relay, deploys from here.)
 

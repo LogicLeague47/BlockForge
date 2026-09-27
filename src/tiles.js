@@ -3250,7 +3250,7 @@ function _tileCanvas(atlasCanvas, name) {
 }
 
 // 3D isometric block icon on a 64x64 canvas (2x supersampled silhouette +
-// full-detail 32px faces, Minecraft-style crispness): top rhombus + 2 faces.
+// full-detail 32px faces, BlockForge-style crispness): top rhombus + 2 faces.
 // Verified mapping (32x32 tile upscaled 2x -> destination quads):
 //   top:   (0,0)->(32,2)   (64,0)->(62,16) (0,64)->(2,16)  (64,64)->(32,30)
 //   left:  (0,0)->(2,16)   (64,0)->(32,30) (0,64)->(2,48)  (64,64)->(32,62)

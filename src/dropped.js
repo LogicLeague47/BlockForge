@@ -14,9 +14,9 @@ const COLLECT_RANGE = 1.5;
 const MAGNET_RANGE = 3.0; // start drifting toward player at this distance
 const MAGNET_SPEED = 0.5; // blocks/second — slow, deliberate drift toward player
 const FLOAT_HEIGHT = 0.3;
-const SPIN_SPEED = 1.0; // MC Java ground-item spin (~1 rad/s)
-const BOB_SPEED = 2.0; // MC bob: sin(age * 2π/π)
-const BOB_AMP = 0.1; // MC bob amplitude (~0.1 block)
+const SPIN_SPEED = 1.0; // BlockForge Java ground-item spin (~1 rad/s)
+const BOB_SPEED = 2.0; // BlockForge bob: sin(age * 2π/π)
+const BOB_AMP = 0.1; // BlockForge bob amplitude (~0.1 block)
 const DESPAWN_TIME = 60; // seconds
 
 export class DroppedItem {
@@ -61,10 +61,10 @@ export class DroppedItem {
         this.group.add(mesh);
       }
     } else {
-      // Non-block items: single MC-style extruded mesh (1 draw call),
+      // Non-block items: single BlockForge-style extruded mesh (1 draw call),
       // shared + cached per item — replaces the old crossed-box pair.
       const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), 0.4);
-      mesh.rotation.x = -Math.PI / 2 + 0.35; // MC ground tilt: mostly flat, slight tip
+      mesh.rotation.x = -Math.PI / 2 + 0.35; // BlockForge ground tilt: mostly flat, slight tip
       this.group.add(mesh);
     }
 
@@ -255,7 +255,7 @@ export class DroppedItem {
       }
     } else {
       const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), 0.4);
-      mesh.rotation.x = -Math.PI / 2 + 0.35; // MC ground tilt: mostly flat, slight tip
+      mesh.rotation.x = -Math.PI / 2 + 0.35; // BlockForge ground tilt: mostly flat, slight tip
       this.group.add(mesh);
     }
     this.group.renderOrder = 1;

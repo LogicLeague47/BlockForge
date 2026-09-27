@@ -42,7 +42,7 @@ god rays post-processing.
 - Add shadow map uniform to opaque shader
 - Sample shadow map in fragment shader for directional shadows
 - Use `bias` and `normalBias` already set on the light
-- For transparent blocks: skip shadow receiving (too expensive, MC doesn't do it)
+- For transparent blocks: skip shadow receiving (too expensive, BlockForge doesn't do it)
 
 ## 3. Leaf Retexture (`src/tiles.js`)
 

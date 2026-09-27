@@ -107,7 +107,7 @@ const FACE_SHADE = {
   bottom: 0.45,
   side: 0.75,
 };
-// E/W sides brighter, N/S sides slightly darker (like MC)
+// E/W sides brighter, N/S sides slightly darker (like BlockForge)
 const SIDE_SHADE_AXIS = { '0': 0.88, '1': 0.88, '2': 0.68, '3': 0.68, '4': 0.82, '5': 0.82 };
 
 // Block-specific color tints for visual variety
@@ -459,7 +459,7 @@ function _attachDir(sample, wx, y, wz) {
   return 'floor';
 }
 
-// Two perpendicular vertical quads (Minecraft-style "crossed" billboard).
+// Two perpendicular vertical quads (BlockForge-style "crossed" billboard).
 function pushCrossedBillboard(target, wx, y, wz, uv) {
   const uvp = [[uv.u0, uv.v0], [uv.u1, uv.v0], [uv.u1, uv.v1], [uv.u0, uv.v1]];
   for (let q = 0; q < 2; q++) {

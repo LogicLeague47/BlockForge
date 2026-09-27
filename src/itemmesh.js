@@ -1,4 +1,4 @@
-// Minecraft-style extruded item meshes ("item/generated" + "item/handheld").
+// BlockForge-style extruded item meshes ("item/generated" + "item/handheld").
 //
 // Java Edition does NOT hand-build tools out of boxes. Every non-block item —
 // swords, pickaxes, ingots, food — is the 16x16 pixel-art icon EXTRUDED to one
@@ -8,7 +8,7 @@
 //
 //   - front/back: full-texture quads, alphaTest-cut, full-bright vertex color
 //   - sides: one quad per exposed texel edge, UV pinned to the edge texel so
-//     sides look like dark pixel streaks (0.55x vertex shade, like MC)
+//     sides look like dark pixel streaks (0.55x vertex shade, like BlockForge)
 //
 // Geometry + material are cached per (itemId, size) and SHARED across all
 // meshes. Never dispose a mesh flagged with userData.sharedItemMesh — the
@@ -53,7 +53,7 @@ function _buildEntry(iconCanvas, size) {
     x >= 0 && y >= 0 && x < N && y < H && img[(y * N + x) * 4 + 3] > 128;
 
   const px = size / N;
-  const thick = px; // MC thickness = 1 texel, centered on z=0
+  const thick = px; // BlockForge thickness = 1 texel, centered on z=0
   const z1 = thick / 2, z0 = -thick / 2;
   const h = (size * H) / N;
 
@@ -89,7 +89,7 @@ function _buildEntry(iconCanvas, size) {
   );
 
   // Silhouette side walls, one quad per exposed texel edge.
-  // UV pinned to the edge texel center; shaded 0.55 like MC side lighting.
+  // UV pinned to the edge texel center; shaded 0.55 like BlockForge side lighting.
   const SHADE = 0.55;
   for (let y = 0; y < H; y++) {
     for (let x = 0; x < N; x++) {
@@ -129,7 +129,7 @@ function _buildEntry(iconCanvas, size) {
   tex.colorSpace = THREE.SRGBColorSpace;
 
   // Lambert + vertexColors: front/back render full-bright white, silhouette
-  // walls render darkened — matches MC's textured-faces / solid-sides look.
+  // walls render darkened — matches BlockForge's textured-faces / solid-sides look.
   // DoubleSide so hand-rolled windings can never cull a wall.
   const material = new THREE.MeshLambertMaterial({
     map: tex,

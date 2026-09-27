@@ -1,6 +1,6 @@
 #!/bin/bash
 # Updates DuckDNS with current public IP. Called by start-blockforge.sh.
-DIR="/Users/wiggillton/Documents/Minecraft clone"
+DIR="/Users/wiggillton/Documents/BlockForge clone"
 source "$DIR/duckdns.conf"
 if [ "$DUCKDNS_TOKEN" = "PASTE_YOUR_TOKEN_HERE" ]; then
   echo "[$(date)] DuckDNS not configured (edit duckdns.conf)" >> "$DIR/.blockforge.log"

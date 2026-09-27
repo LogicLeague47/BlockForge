@@ -1,6 +1,6 @@
 #!/bin/bash
 # Updates Dynu DDNS with current public IP. Called by start-blockforge.sh.
-DIR="/Users/wiggillton/Documents/Minecraft clone"
+DIR="/Users/wiggillton/Documents/BlockForge clone"
 source "$DIR/dynu.conf"
 if [ "$DYNU_PASSWORD" = "PASTE_IP_UPDATE_PASSWORD_HERE" ]; then
   echo "[$(date)] Dynu not configured (edit dynu.conf)" >> "$DIR/.blockforge.log"

@@ -97,7 +97,7 @@ export class PlayerAnimData {
     this.swimFactor = lerp(this.swimFactor, swimTarget, Math.min(1, dt * 6));
 
     // Limb swing accumulation — FA+ style.
-    // MC: swim strokes cycle faster than a walk; treading water is slow sculling.
+    // BlockForge: swim strokes cycle faster than a walk; treading water is slow sculling.
     if (this.moving || this.inWater) {
       const targetSpeed = this.inWater
         ? (this.moving ? 11 : 3)
@@ -112,11 +112,11 @@ export class PlayerAnimData {
     this._limbSpeed = lerp(this._limbSpeed, rawSpeed, Math.min(1, dt * 12));
 
     // Swim stroke factor — 1 while actively swimming, low while treading water.
-    // MC only goes fully prone when you're moving through the water.
+    // BlockForge only goes fully prone when you're moving through the water.
     const strokeTarget = (this.inWater && this.moving) ? 1 : 0;
     this.swimStroke = lerp(this.swimStroke || 0, strokeTarget, Math.min(1, dt * 5));
 
-    // Smoothed crouch factor — MC eases into the sneak pose rather than snapping
+    // Smoothed crouch factor — BlockForge eases into the sneak pose rather than snapping
     this.crouchFactor = lerp(this.crouchFactor || 0, this.crouching ? 1 : 0, Math.min(1, dt * 12));
 
     // Mine phase — runs while breaking
@@ -286,7 +286,7 @@ function calcBodyPose(state) {
     const stroke = state.swimStroke !== undefined ? state.swimStroke : (state.moving ? 1 : 0);
     const tread = swim * (1 - stroke);
 
-// Prone pitch with spine undulation (nose down, MC-style dive)
+// Prone pitch with spine undulation (nose down, BlockForge-style dive)
     bodyRx += rad(-72) * swim * stroke;
     bodyRz += Math.sin(ls * 0.5) * rad(11) * swim * stroke;
     bodyRy += Math.sin(ls * 0.5) * rad(6) * swim * stroke;

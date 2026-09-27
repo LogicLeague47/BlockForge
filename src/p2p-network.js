@@ -20,8 +20,21 @@ const ICE_SERVERS = [
 
 const MAX_PLAYERS = 1000;
 
-function b64(o) { try { return btoa(JSON.stringify(o)); } catch (e) { return ''; } }
-function unb64(s) { try { return JSON.parse(atob(s)); } catch (e) { return null; } }
+function b64(o) {
+  try {
+    // URL-safe base64 (no +/=): survives chat apps, QR codes, Firebase keys
+    return btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) { return ''; }
+}
+// Strip whitespace/chat-app wrapping + accept both standard and URL-safe alphabets
+export function cleanP2PCode(s) { return String(s || '').replace(/\s+/g, ''); }
+function unb64(s) {
+  try {
+    let t = cleanP2PCode(s).replace(/-/g, '+').replace(/_/g, '/');
+    while (t.length % 4) t += '=';
+    return JSON.parse(atob(t));
+  } catch (e) { return null; }
+}
 
 function waitICE(pc) {
   return new Promise((resolve) => {
@@ -89,7 +102,82 @@ export class P2PNetwork {
 
     this._lastJoinInfo = null;
     this._connectedCallbacks = [];
+    this._signalDB = null;
+    this._answerWatchers = [];
   }
+
+  // Firebase signaling assist (one-click friend join): shares the same
+  // p2p_rooms entries as the directory. No-ops without Firebase configured.
+  _signalDB() {
+    if (this._signalDB) return this._signalDB;
+    try {
+      if (!window.FIREBASE_CONFIG || !window.FIREBASE_CONFIG.apiKey) return null;
+      if (typeof firebase === 'undefined') return null;
+      if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+      this._signalDB = firebase.database();
+      return this._signalDB;
+    } catch (_) { return null; }
+  }
+
+  // Host: publish current offer so directory joiners can grab it
+  publishOffer(offerCode) {
+    try {
+      const db = this._signalDB();
+      if (!db || !this.playerName) return;
+      db.ref('p2p_rooms').child(this.playerName).child('offer')
+        .set({ code: offerCode, ts: Date.now() });
+    } catch (_) {}
+  }
+
+  // Joiner: fetch the host's published offer (null when absent)
+  fetchOffer(hostName) {
+    return new Promise((resolve) => {
+      try {
+        const db = this._signalDB();
+        if (!db) { resolve(null); return; }
+        db.ref('p2p_rooms').child(hostName).child('offer').once('value', (snap) => {
+          const v = snap.val();
+          resolve(v && v.code ? v.code : null);
+        }).catch(() => resolve(null));
+      } catch (_) { resolve(null); }
+    });
+  }
+
+  // Joiner: submit our answer for the host to pick up
+  submitAnswer(hostName, joinerName, answerCode) {
+    try {
+      const db = this._signalDB();
+      if (!db) return;
+      db.ref('p2p_rooms').child(hostName).child('answers').child(joinerName)
+        .set({ code: answerCode, ts: Date.now() });
+    } catch (_) {}
+  }
+
+  // Host: watch for incoming answers → callback(joinerName, answerCode).
+  // Consumed answers are removed so each fires once.
+  watchAnswers(callback) {
+    try {
+      const db = this._signalDB();
+      if (!db || !this.playerName) return;
+      const ref = db.ref('p2p_rooms').child(this.playerName).child('answers');
+      const listener = ref.on('child_added', (snap) => {
+        const v = snap.val();
+        snap.ref.remove();
+        if (v && v.code && callback) callback(snap.key, v.code);
+      });
+      this._answerWatchers.push({ ref, listener });
+    } catch (_) {}
+  }
+
+  stopWatchingAnswers() {
+    try {
+      for (const w of this._answerWatchers) w.ref.off('child_added', w.listener);
+    } catch (_) {}
+    this._answerWatchers = [];
+  }
+
+  // Read an offer/room code without side effects (for the join flow)
+  peekCode(code) { return unb64(code); }
 
   // ═══════════════════════════════════════════════════════════════════════
   //  HOST — create room
@@ -125,12 +213,14 @@ export class P2PNetwork {
     this._pendingOffers.set(joinerName, peerObj);
 
     dc.onopen = () => {
-      console.log('[P2P] Peer connected:', joinerName);
-      this._peers.set(joinerName, peerObj);
-      this._pendingOffers.delete(joinerName);
+      const nm = peerObj.name;
+      console.log('[P2P] Peer connected:', nm);
+      this._peers.set(nm, peerObj);
+      this._pendingOffers.delete(nm);
+      this._pendingOffers.delete('__waiting__');
       peerObj.ready = true;
 
-      this._sendToPeer(joinerName, {
+      this._sendToPeer(nm, {
         _t: 'joined',
         room: this.roomName,
         seed: this._lastJoinInfo?.seed || 42,
@@ -140,19 +230,20 @@ export class P2PNetwork {
         maxPlayers: this._maxPlayers,
       });
 
-      if (this.onPlayerJoin) this.onPlayerJoin(joinerName, 'player', 0);
+      if (this.onPlayerJoin) this.onPlayerJoin(nm, 'player', 0);
       this._broadcastPlayerList();
     };
 
     dc.onclose = () => {
-      console.log('[P2P] Peer disconnected:', joinerName);
-      this._peers.delete(joinerName);
-      this._pendingOffers.delete(joinerName);
-      if (this.onPlayerLeave) this.onPlayerLeave(joinerName);
+      const nm = peerObj.name;
+      console.log('[P2P] Peer disconnected:', nm);
+      this._peers.delete(nm);
+      this._pendingOffers.delete(nm);
+      if (this.onPlayerLeave) this.onPlayerLeave(nm);
       this._broadcastPlayerList();
     };
 
-    dc.onerror = (e) => console.error('[P2P] DC error:', joinerName, e);
+    dc.onerror = (e) => console.error('[P2P] DC error:', peerObj.name, e);
 
     this._setupDC(dc, joinerName);
 
@@ -177,7 +268,16 @@ export class P2PNetwork {
       return false;
     }
     const joinerName = data.n;
-    const peerObj = this._pendingOffers.get(joinerName);
+    // Exact-name match first; fall back to the generic '__waiting__' offer
+    // (directory/manual flow: the host doesn't know the joiner in advance).
+    // The peer is renamed to the real joiner name so later offers stay routable.
+    let peerObj = this._pendingOffers.get(joinerName);
+    if (!peerObj && this._pendingOffers.has('__waiting__')) {
+      peerObj = this._pendingOffers.get('__waiting__');
+      this._pendingOffers.delete('__waiting__');
+      peerObj.name = joinerName;
+      this._pendingOffers.set(joinerName, peerObj);
+    }
     if (!peerObj) {
       if (this.onError) this.onError('No pending connection for ' + joinerName + '. Create an offer first.');
       return false;

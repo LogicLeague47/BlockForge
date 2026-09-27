@@ -1,7 +1,7 @@
 # BlockForge Server
 
 Host your **own** BlockForge multiplayer world for free. You run it, your friends
-join by typing your IP — just like a Minecraft Java server.
+join by typing your IP — just like a BlockForge Java server.
 
 The official "Official SMP" world is run by the BlockForge team. Every other
 server is hosted by a player like you.
@@ -19,11 +19,11 @@ node server.js
 ```
 The server prints its address. By default it listens on port `4000`.
 
-The server answers a **status ping** (like Minecraft's Server List Ping):
+The server answers a **status ping** (like BlockForge's Server List Ping):
 it replies with its name, description (MOTD), player count, and version
 *without* anyone joining — so clients can show a live server list.
 
-## Let friends join (Minecraft-Java style)
+## Let friends join (BlockForge-Java style)
 1. Find your **public IP** — e.g. visit https://api.ipify.org
 2. Forward port `4000` (TCP) on your router to this machine
    (or use a tunnel such as `cloudflared`, `ngrok`, or `playit.gg`)
@@ -32,7 +32,7 @@ it replies with its name, description (MOTD), player count, and version
    ws://YOUR_PUBLIC_IP:4000
    ```
    The game pings it directly and shows live players / MOTD — just like
-   Minecraft's multiplayer menu. You can also use **Direct Connect** to join
+   BlockForge's multiplayer menu. You can also use **Direct Connect** to join
    instantly without saving.
 
 > **HTTPS note:** if the game is opened over `https://`, browsers block `ws://`

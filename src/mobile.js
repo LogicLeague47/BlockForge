@@ -123,7 +123,7 @@ export function initMobileControls(playerRef, input, callbacks) {
     </div>
     <div class="bf-camera-zone"></div>
     <div class="bf-main-btns">
-      <button class="mc-btn bf-btn-jump" data-action="jump">&#9650;</button>
+      <button class="bf-btn bf-btn-jump" data-action="jump">&#9650;</button>
     </div>
     <div class="bf-side-btns">
       <button class="bf-btn-mid bf-btn-sprint" data-action="sprint">&#187;</button>

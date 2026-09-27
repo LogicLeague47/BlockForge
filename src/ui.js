@@ -1947,7 +1947,7 @@ export class UI {
 
   // --- status bars ----------------------------------------------------------
   updateStatusBars(player) {
-    // Armor bar (MC style) — 10 chestplate icons above the hearts, 1 icon = 2 points
+    // Armor bar (BlockForge style) — 10 chestplate icons above the hearts, 1 icon = 2 points
     if (this.armorRowEl) {
       const points = player.inventory ? totalArmorDefense(player.inventory.armor) : 0;
       if (points > 0) {
@@ -1963,7 +1963,7 @@ export class UI {
         }
         this.armorRowEl.style.display = '';
       } else if (this._lastArmorPoints !== 0) {
-        // MC hides the armor bar entirely when you have no armor
+        // BlockForge hides the armor bar entirely when you have no armor
         this._lastArmorPoints = 0;
         this.armorRowEl.innerHTML = '';
         this.armorRowEl.style.display = 'none';
@@ -2400,7 +2400,7 @@ export class UI {
     this._updateScreenOpen();
   }
 
-  // MC behavior: clicking outside any inventory slot drops the cursor item
+  // BlockForge behavior: clicking outside any inventory slot drops the cursor item
   dropCursorItem() {
     if (!this.cursorItem) return;
     const stacks = [{ item: this.cursorItem.item, count: this.cursorItem.count }];
@@ -2798,7 +2798,7 @@ export class UI {
     this._updateCursorVisual();
   }
 
-  // Right-click: place 1 item from cursor into crafting slot (like MC)
+  // Right-click: place 1 item from cursor into crafting slot (like BlockForge)
   _onCraftSlotRightClick(i) {
     const grid = this.craftingGrid;
     if (!this.cursorItem) {
@@ -2847,7 +2847,7 @@ export class UI {
     const grid = this.craftingGrid;
     const out = grid.output;
     if (!out) return;
-    // Shift+click: craft directly into inventory (like MC)
+    // Shift+click: craft directly into inventory (like BlockForge)
     if (shiftKey && this._inventoryRef) {
       const left = this._inventoryRef.add(out.id, out.count);
       if (left > 0) return; // inventory full, don't consume ingredients

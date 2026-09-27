@@ -833,7 +833,7 @@ export function blockHarvestLevel(blockId) {
 // Item id to drop. `harvestLevel` is the player's tool harvest level (0 = hand).
 // If the block requires a higher harvest level than the tool provides, it drops
 // nothing (0). Default = the block itself; explicit `drop` overrides.
-// Leaf blocks drop a matching sapling 1/10 of the time (like classic MC).
+// Leaf blocks drop a matching sapling 1/10 of the time (like classic BlockForge).
 // LEAVES is shared by oak + jungle trees; default to the oak sapling.
 const LEAF_SAPLING = {
   [BLOCK.LEAVES]: BLOCK.OAK_SAPLING,

@@ -1,6 +1,6 @@
 #!/bin/bash
 # Updates No-IP DDNS with current public IP. Called by start-blockforge.sh.
-DIR="/Users/wiggillton/Documents/Minecraft clone"
+DIR="/Users/wiggillton/Documents/BlockForge clone"
 source "$DIR/noip.conf"
 if [ "$NOIP_PASSWORD" = "PASTE_NOIP_PASSWORD_HERE" ]; then
   echo "[$(date)] No-IP not configured (edit noip.conf)" >> "$DIR/.blockforge.log"

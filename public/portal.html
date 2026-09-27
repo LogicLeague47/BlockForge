@@ -867,7 +867,7 @@
     </div>
   </div>
 
-  <footer>BlockForge is an original voxel sandbox — not affiliated with Mojang AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
+  <footer>BlockForge is an original voxel sandbox — not affiliated with BlockForge AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
 
   <div id="toasts"></div>
 
@@ -1514,12 +1514,12 @@
         },
         {
           hash: 'PENDING',
-          heading: 'Minecraft-style terrain + true 3D items',
-          desc: 'Terrain reshaped like MC: plains hug the sea, rolling hills, real mountain peaks, sloping beaches, lake valleys, flooded caves with surface entrances. Held tools and dropped items are now true extruded 3D pixel models instead of flat boxes. Swamp biome actually generates now.',
+          heading: 'BlockForge-style terrain + true 3D items',
+          desc: 'Terrain reshaped like BlockForge: plains hug the sea, rolling hills, real mountain peaks, sloping beaches, lake valleys, flooded caves with surface entrances. Held tools and dropped items are now true extruded 3D pixel models instead of flat boxes. Swamp biome actually generates now.',
           date: 'Sep 27',
           bugs: ['terrain was plateau-everywhere floating above the sea', 'swamp biome never generated', 'beaches almost never formed', 'river channels mismatched their biome', 'held tools were chunky boxes not matching icons', 'drops were double-box crosses', 'caves never breached surface, sub-sea caves hung as air pockets', 'underground lake pattern repeated per chunk'],
           updates: ['terrain height retune (plains +2..+7, hills, peaks)', 'single shared river field for carve + biome', 'aquifer-lite cave flooding + surface entrances', 'triangular ore distribution', '3-layer bedrock floor + deepslate blend', 'underwater sand/gravel/clay mix', 'snowy grass tops', '2x2 jungle/dark-oak trunks, spruce cones, oak plus-tips', 'duplicate raycast + item-name DOM thrash fixed'],
-          features: ['Extruded 3D item models (hand, third-person, drops)', 'Swamp biome', 'MC-style drop spin and bob'],
+          features: ['Extruded 3D item models (hand, third-person, drops)', 'Swamp biome', 'BlockForge-style drop spin and bob'],
         },
         {
           hash: 'PENDING',
@@ -1712,20 +1712,20 @@
         },
         {
           hash: 'PENDING',
-          heading: 'YT Forge: full-Minecraft profiles',
-          desc: 'The whole artist profile is Minecraft now — video rows, avatars and bio box included, not just the header.',
+          heading: 'YT Forge: full-BlockForge profiles',
+          desc: 'The whole artist profile is BlockForge now — video rows, avatars and bio box included, not just the header.',
           date: 'Sep 10',
           bugs: [],
-          updates: ['minecraft video rows'],
+          updates: ['BlockForge video rows'],
           features: [],
         },
         {
           hash: 'PENDING',
-          heading: 'YT Forge: working Shorts + Minecraft profiles + OG player',
-          desc: 'Shorts feed is live (menu + profile tab) instead of coming-soon. Artist profiles reskinned Minecraft-style: grass-top dirt panel, square avatar, blocky buttons. Plus an OG player variant matching the exact config that played twice on legacy.',
+          heading: 'YT Forge: working Shorts + BlockForge profiles + OG player',
+          desc: 'Shorts feed is live (menu + profile tab) instead of coming-soon. Artist profiles reskinned BlockForge-style: grass-top dirt panel, square avatar, blocky buttons. Plus an OG player variant matching the exact config that played twice on legacy.',
           date: 'Sep 10',
           bugs: [],
-          updates: ['shorts feed', 'minecraft profiles', 'OG embed variant'],
+          updates: ['shorts feed', 'BlockForge profiles', 'OG embed variant'],
           features: ['shorts'],
         },
         {
@@ -2001,7 +2001,7 @@
         {
           hash: '971c0ef',
           heading: 'PaperForge inventory works like the OG now',
-          desc: 'Rebuilt the inventory screen to mirror BlockForge: MC-grey panels, armor + offhand column, 36 slots with hotbar numbers, cursor stack with count, and full OG mouse rules. The crafting button is gone — craft 4 planks into a workbench in the 2×2 grid, place it, right-click it for 3×3, right-click food to eat.',
+          desc: 'Rebuilt the inventory screen to mirror BlockForge: BlockForge-grey panels, armor + offhand column, 36 slots with hotbar numbers, cursor stack with count, and full OG mouse rules. The crafting button is gone — craft 4 planks into a workbench in the 2×2 grid, place it, right-click it for 3×3, right-click food to eat.',
           date: 'Sep 5',
           bugs: ['inventory looked and behaved nothing like the OG game', 'crafting lived behind a magic button instead of a workbench', 'clicking food in a menu ate it (not OG)', 'no offhand, no quick-move, no place-1/take-half'],
           updates: ['left/right/shift/double-click slot rules, cursor stack, SORT, tooltips, hotbar numbers, F offhand swap'],
@@ -2153,12 +2153,12 @@
         },
         {
           hash: '421e2a4',
-          heading: 'Item icons, MC held items, top slabs, chunk states',
-          desc: 'Filled the missing inventory textures (13 dyes, echo shard, grapple, frost/ember gear, compass, 5 discs, potion, boat, minecart, hoe), fixed blank offhand-slot blocks, restyled held items Minecraft-style (diagonal 3D tools, extruded sprites, hoe/trident builders), added top-half slabs with face-based placement and full collision/UI support, and formalized loaded/lazy/unloaded chunk states with HUD counts.',
+          heading: 'Item icons, BlockForge held items, top slabs, chunk states',
+          desc: 'Filled the missing inventory textures (13 dyes, echo shard, grapple, frost/ember gear, compass, 5 discs, potion, boat, minecart, hoe), fixed blank offhand-slot blocks, restyled held items BlockForge-style (diagonal 3D tools, extruded sprites, hoe/trident builders), added top-half slabs with face-based placement and full collision/UI support, and formalized loaded/lazy/unloaded chunk states with HUD counts.',
           date: 'Sep 3',
           bugs: ['13 dyes and 9 gear items showed the gray placeholder icon', 'blocks in the offhand HUD slot rendered blank', 'held items were flat or edge-on planes', 'no top-half slabs', 'chunk eviction decoded negative coordinates wrong, leaking memory'],
-          updates: ['9 new icon painters + 24 switch cases + hoe tool head', 'offhand icons use the block painter for blocks', 'MC diagonal pose, extruded-sprite items, 3D hoe and trident', '8 top-slab blocks (IDs 242-249), MC placement/merge rules, range collision, top-half outline/ghost/crack/icons', 'loaded/lazy/unloaded states, mesh hold +1, data hold +4, HUD shows lazy count'],
-          features: ['top-half slabs', 'chunk state system with lazy ring', 'Minecraft-style held items'],
+          updates: ['9 new icon painters + 24 switch cases + hoe tool head', 'offhand icons use the block painter for blocks', 'BlockForge diagonal pose, extruded-sprite items, 3D hoe and trident', '8 top-slab blocks (IDs 242-249), BlockForge placement/merge rules, range collision, top-half outline/ghost/crack/icons', 'loaded/lazy/unloaded states, mesh hold +1, data hold +4, HUD shows lazy count'],
+          features: ['top-half slabs', 'chunk state system with lazy ring', 'BlockForge-style held items'],
         },
         {
           hash: 'c31f789',
@@ -2189,12 +2189,12 @@
         },
         {
           hash: '1e2ca54',
-          heading: 'Mobile controls: tap fix + Minecraft layout',
-          desc: 'Fixed the root cause of glitchy mobile UI: the full-screen camera touch layer sat above the chat box, so taps on chat (and emoji panels) triggered look/place instead. Chat and emoji now sit above it. Layout is Minecraft-style: persistent chat + pause buttons top-right, sneak next to the big jump button, and opening chat kills any mining hold and freezes the joystick.',
+          heading: 'Mobile controls: tap fix + BlockForge layout',
+          desc: 'Fixed the root cause of glitchy mobile UI: the full-screen camera touch layer sat above the chat box, so taps on chat (and emoji panels) triggered look/place instead. Chat and emoji now sit above it. Layout is BlockForge-style: persistent chat + pause buttons top-right, sneak next to the big jump button, and opening chat kills any mining hold and freezes the joystick.',
           date: 'Sep 3',
           bugs: ['taps on the chat field hit the camera layer (looked around / placed blocks instead of typing)', 'emoji panels tied with the controls layer for taps', 'chat/command buried behind the gear toggle', 'sneak + sprint floated center-screen over the hotbar', 'mining hold kept breaking blocks while typing'],
           updates: ['chat HUD and emoji panels render above the mobile controls layer', 'persistent top-right chat + pause buttons, always visible', 'sneak moved next to jump, bottom-right cluster', 'opening chat stops mining holds and ignores joystick/camera/buttons until closed'],
-          features: ['Minecraft-style mobile button layout'],
+          features: ['BlockForge-style mobile button layout'],
         },
         {
           hash: '86e1562',
@@ -2235,9 +2235,9 @@
         {
           hash: '7897561',
           heading: 'Bug fixes: sway, collisions, animations, copyright cleanup',
-          desc: 'Fixed multiple visual and gameplay bugs. Leaf sway now only affects plants/trees, not solid blocks. Stairs and slabs auto-step-up when walking into them. Campfire and void portal blocks have animated shader effects. Inventory icons fixed. Creeper and phantom mobs removed (Minecraft copyright).',
+          desc: 'Fixed multiple visual and gameplay bugs. Leaf sway now only affects plants/trees, not solid blocks. Stairs and slabs auto-step-up when walking into them. Campfire and void portal blocks have animated shader effects. Inventory icons fixed. Creeper and phantom mobs removed (BlockForge copyright).',
           date: 'Sep 2',
-          bugs: ['all blocks had leaf sway animation (shader heuristic too permissive)', 'could not walk up stairs or slabs without jumping', '3D isometric inventory icons were glitched', 'campfire and void portal had no visual animation', 'creeper and phantom were Minecraft-copyrighted mobs'],
+          bugs: ['all blocks had leaf sway animation (shader heuristic too permissive)', 'could not walk up stairs or slabs without jumping', '3D isometric inventory icons were glitched', 'campfire and void portal had no visual animation', 'creeper and phantom were BlockForge-copyrighted mobs'],
           updates: ['leaf sway shader only applies to cutout/trans materials (leaves, plants), not opaque blocks', 'fixed vertex shader: pos.x was modified before Z displacement calculation', 'added auto-step-up for slabs and stairs (0.5 block step height)', 'inventory icons show flat texture with depth shading instead of glitched isometric', 'campfire has flickering glow + orange emission animation in shader', 'void portal has pulsing glow + swirling purple animation in shader', 'removed creeper mob, textures, AI, and spawn egg', 'removed phantom mob (already removed)', 'added terrainVertNoSway shader for opaque blocks'],
           features: ['campfire shader animation (flicker + glow)', 'void portal shader animation (pulse + swirl)', 'auto-step-up for slabs and stairs'],
         },
@@ -2271,7 +2271,7 @@
         {
           hash: '175d6df',
           heading: 'World render fix, dark grass, Bedwars fix',
-          desc: 'Fixed the world not rendering on initial load (players had to break a block first). Darkened grass textures to match Minecraft-style muted greens. Fixed Bedwars preview kicking players when alone due to stale room edits.',
+          desc: 'Fixed the world not rendering on initial load (players had to break a block first). Darkened grass textures to match BlockForge-style muted greens. Fixed Bedwars preview kicking players when alone due to stale room edits.',
           date: 'Aug 26',
           bugs: ['world not rendering on load until a block was broken', 'grass textures too bright/lime green', 'Bedwars preview kicking player when alone'],
           updates: ['chunk meshing now works on initial load (buildOrRefresh sets _dirty)', 'grass_side, short_grass, tall_grass darkened to muted greens', 'Bedwars bed integrity re-scanned after flushing pending room edits'],
@@ -2307,7 +2307,7 @@
         {
           hash: '639e2e1',
           heading: 'Torch light, grass retexture, mod system expansion',
-          desc: 'Three big features: (1) Torches, lava, and crystal prisms now emit real dynamic point lights (capped at 48 for performance) so caves and nights actually light up; (2) Grass side blocks retextured with asymmetric connected blades in 5 green shades with per-block variation — no two blocks look the same; short and tall grass also repainted with darker Minecraft-style greens; (3) Mod system massively expanded — mods can now register custom blocks, items, mobs, add menu buttons, set blocks, spawn mobs, and chat. Mods with gameplay features are automatically blocked from joining multiplayer to keep servers fair.',
+          desc: 'Three big features: (1) Torches, lava, and crystal prisms now emit real dynamic point lights (capped at 48 for performance) so caves and nights actually light up; (2) Grass side blocks retextured with asymmetric connected blades in 5 green shades with per-block variation — no two blocks look the same; short and tall grass also repainted with darker BlockForge-style greens; (3) Mod system massively expanded — mods can now register custom blocks, items, mobs, add menu buttons, set blocks, spawn mobs, and chat. Mods with gameplay features are automatically blocked from joining multiplayer to keep servers fair.',
           date: 'Aug 25',
           bugs: [],
           updates: ['torches emit real PointLights (warm yellow, range scales with luminance)', 'grass side has asymmetric connected blades with 5-shade palette, per-block variation', 'short/tall grass repainted with darker muted greens + per-blade lightness variation', 'mod API: registerBlock, registerItem, registerMob, addButton, removeButton, spawnMob, chat, getWorld.setBlock', 'gameplay mods blocked from joining multiplayer', 'mod buttons appear in main menu'],
@@ -2486,12 +2486,12 @@
         },
         {
           hash: '568b4e9',
-          heading: 'Plants render upright like Minecraft',
-          desc: 'Grass, flowers and saplings (and all other 2D decorations) now render as upright crossed billboards like Minecraft — never skewed or diagonal. Also the world meshes the spawn area immediately on load so it is visible right away.',
+          heading: 'Plants render upright like BlockForge',
+          desc: 'Grass, flowers and saplings (and all other 2D decorations) now render as upright crossed billboards like BlockForge — never skewed or diagonal. Also the world meshes the spawn area immediately on load so it is visible right away.',
           date: 'Aug 24',
           bugs: ['All 2D decorations were skewed/diagonal', 'World could stay blank until the first block was broken'],
           updates: ['plant:true blocks (grass, flowers, saplings, torches, ladders, signs, paintings, buttons, levers, pressure plates, flower pots, carpets) rendered as two perpendicular vertical quads', 'Spawn 3x3 area force-meshed on world load so terrain is visible immediately'],
-          features: ['Upright crossed-billboard plants/decorations (Minecraft style)'],
+          features: ['Upright crossed-billboard plants/decorations (BlockForge style)'],
         },
         {
           hash: '22c31fe',
@@ -2507,7 +2507,7 @@
           heading: 'Crystal Geodes & de-branding pass',
           desc: 'Underground crystal geodes now generate, and the last trademarked proper nouns were scrubbed from the codebase.',
           date: 'Aug 24',
-          bugs: ['No crystal geodes in world gen', 'Lingering Minecraft/Creeper/Nether strings in code + UI'],
+          bugs: ['No crystal geodes in world gen', 'Lingering BlockForge/Creeper/Nether strings in code + UI'],
           updates: ['Crystal geodes (obsidian shell, crystal-ore rim, prism core)', 'Scrubbed Brimstone Run, Crimson Wart Block, Blower sympathizer, Rift Eye'],
           features: ['Crystal geodes'],
         },
@@ -2685,7 +2685,7 @@
         {
           hash: '39c0927',
           heading: 'Chest/furnace sounds + fixed button click',
-          desc: 'Added missing container sounds: chest and furnace now play a wooden creak when opened and a door-close thud when exited. Furnace plays a soft fire crackle each time an item finishes smelting. Button click sound replaced with proper Minecraft-style wooden tock.',
+          desc: 'Added missing container sounds: chest and furnace now play a wooden creak when opened and a door-close thud when exited. Furnace plays a soft fire crackle each time an item finishes smelting. Button click sound replaced with proper BlockForge-style wooden tock.',
           date: 'Aug 22',
           bugs: ['chests and furnaces had no open/close sounds', 'furnace had no cooking completion sound', 'button click sounded like a soft beep instead of wooden tock'],
           updates: ['Chest open plays creak1-3 sample', 'Chest/furnace close plays doorClose_1-4 sample', 'Furnace smelt completion plays fire crackle', 'Button click uses interface_click_004/005 + white-noise wooden tock fallback', 'Added door/book samples to SFX_FILES'],
@@ -2694,19 +2694,19 @@
         {
           hash: 'ff4f63f',
           heading: 'CrazyGames compliance + button click sound',
-          desc: 'Full CrazyGames TOS compliance audit: hosting, mods, consent notice, and footer links are now handled in-game instead of opening external tabs or links. Added Minecraft-style button click sound to all UI buttons.',
+          desc: 'Full CrazyGames TOS compliance audit: hosting, mods, consent notice, and footer links are now handled in-game instead of opening external tabs or links. Added BlockForge-style button click sound to all UI buttons.',
           date: 'Aug 22',
           bugs: ['HOST SERVER opened external page on CG (TOS violation)', 'Mods button opened external page on CG (TOS violation)', 'Consent notice had external links on CG (TOS violation)', 'Footer Terms/Privacy links 404\'d on CG domain', 'UI buttons had no click sound'],
           updates: ['HOST SERVER shows in-game popup on CG directing to official site', 'Mods button shows in-game message on CG directing to official website', 'Consent notice uses inline text on CG (no external links)', 'Footer Terms/Privacy hidden on CG', 'Added buttonClick() to AudioManager (click_002 sample + procedural fallback)', 'Global click listener plays click sound on all buttons'],
-          features: ['Minecraft-style button click sound on all UI elements'],
+          features: ['BlockForge-style button click sound on all UI elements'],
         },
         {
           hash: '9736bfe',
-          heading: 'Mobile: responsive grids + removed Minecraft references',
-          desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "Minecraft" and "minecraft clone" references from the codebase, comments, package name, and portal changelogs.',
+          heading: 'Mobile: responsive grids + removed BlockForge references',
+          desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "BlockForge" and "BlockForge clone" references from the codebase, comments, package name, and portal changelogs.',
           date: 'Aug 22',
-          bugs: ['inventory/chest/furnace grids overflowed on phones 400-768px wide', 'chest and furnace grids were not responsive at all', 'codebase still referenced Minecraft throughout'],
-          updates: ['All 9-col grids use minmax(28px, 42px) and fit any screen', 'Chest/furnace grids are now responsive (were hardcoded 42px)', 'Skin selector grid uses minmax(80px, 100px)', 'Slots inside grids auto-size to fill their column', 'Renamed package to "blockforge", removed Minecraft refs everywhere'],
+          bugs: ['inventory/chest/furnace grids overflowed on phones 400-768px wide', 'chest and furnace grids were not responsive at all', 'codebase still referenced BlockForge throughout'],
+          updates: ['All 9-col grids use minmax(28px, 42px) and fit any screen', 'Chest/furnace grids are now responsive (were hardcoded 42px)', 'Skin selector grid uses minmax(80px, 100px)', 'Slots inside grids auto-size to fill their column', 'Renamed package to "blockforge", removed BlockForge refs everywhere'],
           features: [],
         },
         {
@@ -2748,10 +2748,10 @@
         {
           hash: '66fdc5a',
           heading: 'Original & compliant: BlockForge is now a clear destination',
-          desc: 'BlockForge is now explicitly framed as an original voxel sandbox — not Minecraft and not affiliated with Mojang AB — across the portal and game, strengthening originality for platform review. The portal login now explains how your CrazyGames progress carries over: your CrazyGames account is the same BlockForge account, so you can set a password in-game (Account → Link Credentials) and sign in on the portal. On our own domain (not on CrazyGames, per their rules) the in-game Account menu now links straight to the BlockForge Portal, giving players a compliant path from the game to the community hub, server browser, updates and account tools.',
+          desc: 'BlockForge is now explicitly framed as an original voxel sandbox — not BlockForge and not affiliated with BlockForge AB — across the portal and game, strengthening originality for platform review. The portal login now explains how your CrazyGames progress carries over: your CrazyGames account is the same BlockForge account, so you can set a password in-game (Account → Link Credentials) and sign in on the portal. On our own domain (not on CrazyGames, per their rules) the in-game Account menu now links straight to the BlockForge Portal, giving players a compliant path from the game to the community hub, server browser, updates and account tools.',
           date: 'Aug 22',
           bugs: [],
-          updates: ['Portal footer states BlockForge is an original voxel sandbox, not affiliated with Mojang', 'Portal login explains CrazyGames → BlockForge account carry-over + how to set a password', 'In-game Account menu links to the BlockForge Portal on our own domain (suppressed on CrazyGames)'],
+          updates: ['Portal footer states BlockForge is an original voxel sandbox, not affiliated with BlockForge', 'Portal login explains CrazyGames → BlockForge account carry-over + how to set a password', 'In-game Account menu links to the BlockForge Portal on our own domain (suppressed on CrazyGames)'],
           features: ['Compliant game → portal funnel via identity (no off-platform links on CrazyGames)', 'Clear originality / non-affiliation messaging'],
         },
         {
@@ -2765,8 +2765,8 @@
         },
         {
           hash: '98a501d',
-          heading: 'Servers auto-connect like Minecraft + game is online on launch',
-          desc: 'The Multiplayer menu now behaves like Minecraft Java: the moment you open it your saved servers are pinged for live status, and they keep re-pinging every few seconds while the menu is open so you always see current players / MOTD without pressing refresh. On top of that, BlockForge now opens already connected to the official backend (like Minecraft\'s always-online main menu), so your friends list, DMs and account are live the instant the game loads — you no longer have to log in first to see social. Joining a server or backing out of Multiplayer stops the background pings cleanly.',
+          heading: 'Servers auto-connect like BlockForge + game is online on launch',
+          desc: 'The Multiplayer menu now behaves like BlockForge Java: the moment you open it your saved servers are pinged for live status, and they keep re-pinging every few seconds while the menu is open so you always see current players / MOTD without pressing refresh. On top of that, BlockForge now opens already connected to the official backend (like BlockForge\'s always-online main menu), so your friends list, DMs and account are live the instant the game loads — you no longer have to log in first to see social. Joining a server or backing out of Multiplayer stops the background pings cleanly.',
           date: 'Aug 21',
           bugs: ['the Multiplayer list only refreshed when you pressed the button', 'social (friends/DMs) only came online after you logged in'],
           updates: ['Multiplayer auto-pings saved servers on open and re-pings every few seconds while open (.mc)', 'game connects to the official backend on launch, so social is live immediately', 'background pings stop when you join a server or leave Multiplayer'],
@@ -2784,10 +2784,10 @@
         {
           hash: '8ed90df',
           heading: 'Multiplayer redone BlockForge-style: save servers, ping for live status',
-          desc: 'The in-game server list now works exactly like Minecraft Java: vanilla Minecraft has no central directory — the client stores servers locally (Add Server with name + IP) and pings each one directly for live status (name, MOTD, players, version). BlockForge now does the same: in Multiplayer you "Add Server" (saved on your device), "Direct Connect" to join instantly, and every saved server is pinged directly so you see live players / MOTD / version before joining. The server answers a Server List Ping (a status request) without requiring a join or login — just like Minecraft\'s handshake. The portal\'s "Servers" tab is now an optional public "Community Servers" directory; the real per-server status lives in the game. Host-your-own is unchanged: "Host a Server" opens the download/host page and you run the server files on your machine.',
+          desc: 'The in-game server list now works exactly like BlockForge Java: vanilla BlockForge has no central directory — the client stores servers locally (Add Server with name + IP) and pings each one directly for live status (name, MOTD, players, version). BlockForge now does the same: in Multiplayer you "Add Server" (saved on your device), "Direct Connect" to join instantly, and every saved server is pinged directly so you see live players / MOTD / version before joining. The server answers a Server List Ping (a status request) without requiring a join or login — just like BlockForge\'s handshake. The portal\'s "Servers" tab is now an optional public "Community Servers" directory; the real per-server status lives in the game. Host-your-own is unchanged: "Host a Server" opens the download/host page and you run the server files on your machine.',
           date: 'Aug 21',
-          bugs: ['the in-game list used a central directory instead of per-server status pings like Minecraft', 'servers could not report live name/MOTD/players without someone joining', 'there was no way to save a friend\'s server by name on your device'],
-          updates: ['in-game server list is now local (saved on your device) like Minecraft\'s multiplayer menu', '"Add Server" (name + address) and "Direct Connect" to join instantly', 'each saved server is pinged directly for live name / MOTD / players / version (Server List Ping)', 'server answers a status ping with no join or auth required', 'portal "Servers" tab relabeled "Community Servers" (optional public directory)', 'host-your-own flow ("Host a Server" page + downloadable server package) unchanged'],
+          bugs: ['the in-game list used a central directory instead of per-server status pings like BlockForge', 'servers could not report live name/MOTD/players without someone joining', 'there was no way to save a friend\'s server by name on your device'],
+          updates: ['in-game server list is now local (saved on your device) like BlockForge\'s multiplayer menu', '"Add Server" (name + address) and "Direct Connect" to join instantly', 'each saved server is pinged directly for live name / MOTD / players / version (Server List Ping)', 'server answers a status ping with no join or auth required', 'portal "Servers" tab relabeled "Community Servers" (optional public directory)', 'host-your-own flow ("Host a Server" page + downloadable server package) unchanged'],
           features: ['BlockForge saved servers with live status pings', 'player-hosted servers joinable by IP'],
         },
         {
@@ -2805,7 +2805,7 @@
           desc: 'The time-of-day HUD clock was ~4 hours ahead of what was actually on screen: it assumed midnight sat at the start of the day cycle, but the sun is highest at dayTime 0.3125 and sets at 0.625. The clock is now mapped to the real solar cycle — sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00 — and it stays in sync with the sky, fog and lighting. The /time cheat commands were wrong too: /time day started the world at 01:xx in the dark, /time noon set late afternoon, and /time midnight set sunrise. Each command now jumps to the correct part of the day and accepts standard tick values (1000/6000/13000/18000) as well.',
           date: 'Aug 20',
           bugs: ['HUD clock showed ~4h ahead of the actual sun position (midnight was mapped to the start of the cycle instead of dayTime 0.8125)', '/time day set the world to just-past-midnight dawn (still dark)', '/time noon set late afternoon and /time midnight set sunrise'],
-          updates: ['clock mapped to the real solar cycle: sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00', '/time day → morning with the sun up', '/time noon → sun at its highest', '/time midnight → true night', '/time accepts Minecraft tick values too (/time 1000, 6000, 13000, 18000)'],
+          updates: ['clock mapped to the real solar cycle: sunrise ≈ 04:30, noon 12:00, sunset ≈ 19:30, midnight 00:00', '/time day → morning with the sun up', '/time noon → sun at its highest', '/time midnight → true night', '/time accepts BlockForge tick values too (/time 1000, 6000, 13000, 18000)'],
           features: [],
         },
         {
@@ -2874,7 +2874,7 @@
         {
           hash: 'f1d54b1',
           heading: 'Mobile block fix, real voids, reload-safe edits, adventure status bars',
-          desc: 'Fixes the mobile exploit where the last block in a hotbar stack never ran out (consumption cleared the offhand slot instead of the hotbar slot, so you could place forever). Void worlds (OneBlock, Skyblock, Bedwars, BlockZones...) are now a true void: the invisible bedrock floor below y=0 is removed, so you actually fall into the void and the minigame respawns you. World edits are now reapplied on reload/regeneration (previously saved builds could vanish when chunks regenerated). Health/hunger bars also show in adventure mode, matching Minecraft.',
+          desc: 'Fixes the mobile exploit where the last block in a hotbar stack never ran out (consumption cleared the offhand slot instead of the hotbar slot, so you could place forever). Void worlds (OneBlock, Skyblock, Bedwars, BlockZones...) are now a true void: the invisible bedrock floor below y=0 is removed, so you actually fall into the void and the minigame respawns you. World edits are now reapplied on reload/regeneration (previously saved builds could vanish when chunks regenerated). Health/hunger bars also show in adventure mode, matching BlockForge.',
           date: 'Aug 19',
           bugs: ['mobile: placing the last block in a hotbar stack never consumed it (infinite blocks)', 'void minigame worlds had an invisible bedrock floor at y=0, so you could not fall into the void', 'saved block edits were lost when chunks regenerated after reload (edits indexed only in the wrong map)', 'health/hunger bars were cleared in adventure mode even though it uses survival rules'],
           updates: ['mobile block placement now consumes the correct slot (hotbar or offhand)', 'void worlds return AIR below y=0, minigame void-fall respawn takes over', 'loadEdits also indexes edits by chunk so regenerated chunks reapply saved builds', 'status bars render in adventure mode'],
@@ -2964,7 +2964,7 @@
         {
           hash: 'ed323fa',
           heading: 'Leaves redesign, mobile UI overhaul, dynamic shadows, river biome',
-          desc: 'Wire up custom shaders; add dynamic entity shadows, river biome, ocean/river waves; redesign leaves texture multiple times to match Minecraft; mobile UI overhaul with edge joystick',
+          desc: 'Wire up custom shaders; add dynamic entity shadows, river biome, ocean/river waves; redesign leaves texture multiple times to match BlockForge; mobile UI overhaul with edge joystick',
           date: 'Jul 25',
           bugs: ['shader compilation error and login bypass vulnerability', 'shadow rendering, water waves, leaf clumps', 'ghost blocks from previous world persisting', 'mobile crash: guard exitPointerLock', 'volume slider on mobile'],
           updates: ['Switch from GitHub Actions to Render static site', 'Redo block break cracks: deterministic web pattern', 'Redesign leaves texture: overlapping circular clusters (.mc)', 'Mobile: jump/sprint/crouch/inventory always-visible, bigger buttons', 'Mobile UI: move joystick to screen edge, shrink buttons'],
@@ -3012,7 +3012,7 @@
           desc: 'Fix all arm swing directions (1st/3rd person); entity interpolation buffer eliminates remote player teleporting; CrazyGames readiness',
           date: 'Jul 20',
           bugs: ['3D items, bigger tools, offhand visibility, 3rd-person swing', 'held items: flat sprites not black 3D cubes', 'first-person arm swing direction', '3rd-person held item z-direction', 'mobile controls (tap-to-break, toggle panel)', 'critical bugs: empty img src, duplicate IDs, fall tunneling', 'mobile offer banner buttons'],
-          updates: ['Entity interpolation buffer — 100ms delay eliminates remote player jank', 'MC-style arm (single 4x12x4 box), enhanced eating animation', 'CrazyGames readiness: stream heavy assets from Render server', 'Remove leaked No-IP credentials from repo'],
+          updates: ['Entity interpolation buffer — 100ms delay eliminates remote player jank', 'BlockForge-style arm (single 4x12x4 box), enhanced eating animation', 'CrazyGames readiness: stream heavy assets from Render server', 'Remove leaked No-IP credentials from repo'],
           features: [],
         },
         {
@@ -3031,15 +3031,15 @@
           date: 'Jul 18',
           bugs: ['multiplayer crash (infinite kick-rejoin loop)', 'multiplayer stability - keepalive ping', 'NIGHT_COLOR reference before definition', 'ghost blocks in survival', 'server crash from async handleDevGetAccount', 'dev panel scope error', 'ROLE_DEV level mismatch', 'block cheat commands in multiplayer', 'audio.place(itemId) crash', 'particleGeo shared disposal', 'XSS via world/server names', 'WebSocket rate limiting'],
           updates: ['voice panel redesign with Settings/Groups tabs + player avatars'],
-          features: ['WebRTC voice chat with settings panel (V key)', 'mobile voice & exit buttons', 'full dev panel with account list, stats, tag/role management', '/pm private message command', 'rewrite parkour with Minecraft-accurate physics + checkpoints + timer'],
+          features: ['WebRTC voice chat with settings panel (V key)', 'mobile voice & exit buttons', 'full dev panel with account list, stats, tag/role management', '/pm private message command', 'rewrite parkour with BlockForge-accurate physics + checkpoints + timer'],
         },
         {
           hash: '3eec014',
-          heading: 'Parkour map overhaul, 200+ block types, MC block mappings',
-          desc: 'Convert MC world to binary format; 200+ block types mapped to game equivalents; parkour map with 53 distinct block types',
+          heading: 'Parkour map overhaul, 200+ block types, BlockForge block mappings',
+          desc: 'Convert BlockForge world to binary format; 200+ block types mapped to game equivalents; parkour map with 53 distinct block types',
           date: 'Jul 17',
           bugs: ['parkour map rendering', 'wool block IDs (30→69)', 'spawn at spiral entrance', 'strip spiral interior walls (76% reduction)'],
-          updates: ['new block types: blockscrap, stone_bricks, deepslate, concrete, slime, prismarine, purpur', 'comprehensive MC block mappings: 200+ block types'],
+          updates: ['new block types: blockscrap, stone_bricks, deepslate, concrete, slime, prismarine, purpur', 'comprehensive BlockForge block mappings: 200+ block types'],
           features: ['real recorded footstep sounds + strip minigame from parkour', 'comprehensive sound effects library'],
         },
         {
@@ -3049,7 +3049,7 @@
           date: 'Jul 16',
           bugs: ['animation hierarchy (head/arms children of body)', 'held block size/position in 3rd person', 'parkour level position XZ distance check', 'walk animation speed'],
           updates: ['Performance: cache raycast, reuse THREE.Color, O(1) chunk edits lookup', 'Redo zombie/skeleton textures + add 7 new block sound families'],
-          features: ['load Parkour Paradise Minecraft world in parkour mode', 'procedural WAV footstep sounds for all 12 block materials', 'multiplayer entity sync'],
+          features: ['load Parkour Paradise BlockForge world in parkour mode', 'procedural WAV footstep sounds for all 12 block materials', 'multiplayer entity sync'],
         },
         {
           hash: 'fd1543f',
@@ -3081,10 +3081,10 @@
         {
           hash: 'a49045e',
           heading: 'BlockForge launched: multiplayer, LAN, achievements, XP',
-          desc: 'BlockForge: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics; static file server; auto-detect MP server host',
+          desc: 'BlockForge: BlockForge clone with multiplayer, LAN, achievements, XP, and full game mechanics; static file server; auto-detect MP server host',
           date: 'Jul 11',
           bugs: [],
-          updates: ['BlockForge: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics', 'Server serves the game itself (from-scratch static file server) + LAN mode', 'Auto-detect MP server host from current origin', 'LAN mode ensures default OfficialSMP room so server list is never empty'],
+          updates: ['BlockForge: BlockForge clone with multiplayer, LAN, achievements, XP, and full game mechanics', 'Server serves the game itself (from-scratch static file server) + LAN mode', 'Auto-detect MP server host from current origin', 'LAN mode ensures default OfficialSMP room so server list is never empty'],
           features: [],
         },
         {
@@ -3592,7 +3592,7 @@
 
         // Live server directory — every server that's currently up (Official SMP
         // + player-hosted) registers here. We list them with name, IP, description
-        // and player count (Minecraft-Java style server browser).
+        // and player count (BlockForge-Java style server browser).
         var api = (SRV_WS || '').replace(/^wss?:\/\//, 'https://') + '/api/servers';
         fetch(api, { headers: { 'Accept': 'application/json' } })
           .then(function(r) { return r.json(); })

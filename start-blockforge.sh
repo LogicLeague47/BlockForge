@@ -3,7 +3,7 @@
 # Run from Terminal:  ./start-blockforge.sh
 # The public URL is saved to ~/blockforge-url.txt and printed at the end.
 
-DIR="/Users/wiggillton/Documents/Minecraft clone"
+DIR="/Users/wiggillton/Documents/BlockForge clone"
 NODE="/Users/wiggillton/.local/bin/node"
 CF="/opt/homebrew/bin/cloudflared"
 LOG="$DIR/.blockforge.log"
