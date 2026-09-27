@@ -113,6 +113,9 @@ export const ITEM = {
   MEMORY_SHARD: 701,
   PARADOX_CORE: 702,
   ECHO_SHARD: 710,
+  // The Sundered Hour — endgame (711+)
+  SUNDIAL_CORE: 711,
+  CROWN_OF_HOURS: 712,
   // Spawn Eggs (800+)
   COW_SPAWN_EGG: 800,
   PIG_SPAWN_EGG: 801,
@@ -333,6 +336,8 @@ const NONBLOCK_ITEMS = {
   [ITEM.MEMORY_SHARD]: { name: 'Memory Shard', stack: 64 },
   [ITEM.PARADOX_CORE]: { name: 'Paradox Core', stack: 16 },
   [ITEM.ECHO_SHARD]: { name: 'Echo Shard', stack: 64 },
+  [ITEM.SUNDIAL_CORE]: { name: 'Sundial Core', stack: 1 },
+  [ITEM.CROWN_OF_HOURS]: { name: 'Crown of Hours', stack: 1 },
   [ITEM.COW_SPAWN_EGG]: { name: 'Cow Spawn Egg', stack: 64 },
   [ITEM.PIG_SPAWN_EGG]: { name: 'Pig Spawn Egg', stack: 64 },
   [ITEM.SHEEP_SPAWN_EGG]: { name: 'Sheep Spawn Egg', stack: 64 },
@@ -579,6 +584,8 @@ const ITEM_RARITY = {
   [ITEM.PRISMITE_LEGS]: 'LEGENDARY',
   [ITEM.PRISMITE_BOOTS]: 'LEGENDARY',
   [ITEM.DRAGON_BLADE]: 'MYTHIC',
+  [ITEM.SUNDIAL_CORE]: 'MYTHIC',
+  [ITEM.CROWN_OF_HOURS]: 'MYTHIC',
   [ITEM.DRAGON_SCALES]: 'EPIC',
   [ITEM.DRAGON_HEART]: 'LEGENDARY',
   [ITEM.PORTAL_ORB]: 'EPIC',

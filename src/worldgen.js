@@ -1,7 +1,7 @@
 // World generation - height, biomes, features, ores, caves.
 // All pure functions. world.js calls into this module.
 
-import { BLOCK } from './blocks.js';
+import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 
 // Ore vein specs for cluster-based generation

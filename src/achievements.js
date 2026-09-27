@@ -408,6 +408,31 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.dimensionTraversals >= 1,
   },
+  // ── The Sundered Hour (endgame) ──
+  {
+    id: 'mend_the_dial',
+    name: 'Mend the Dial',
+    desc: 'Craft the Sundial Core: a paradox, a heart, four echoes',
+    icon: ITEM.SUNDIAL_CORE,
+    category: 'story',
+    check: s => (s.crafted[`${ITEM.SUNDIAL_CORE}`] || 0) >= 1,
+  },
+  {
+    id: 'outside_time',
+    name: 'Outside Time',
+    desc: 'Step into the Sundered Hour where the Chronarch nests',
+    icon: ITEM.SUNDIAL_CORE,
+    category: 'story',
+    check: s => s.enteredHour >= 1,
+  },
+  {
+    id: 'eater_of_hours_slain',
+    name: 'Eater of Hours, Slain',
+    desc: 'Defeat the Chronarch and mend the broken Hour. You beat the game.',
+    icon: ITEM.CROWN_OF_HOURS,
+    category: 'story',
+    check: s => s.chronarchSlain >= 1,
+  },
 ];
 
 // Categories for display ordering

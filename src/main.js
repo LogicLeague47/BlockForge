@@ -769,6 +769,13 @@ let _portalOrbs = [];
 
 // Boss state
 let bossActive = false, bossEntity = null, bossSpawnTimer = 0, bossAttackTimer = 0;
+// ── The Sundered Hour (endgame boss chain) ──
+const HOUR = { x: 12000, y: 140, z: 12000, r: 16 };
+let hourActive = false, hourEntity = null, hourPhase = 0;
+let hourSummonTimer = 0, hourAttackTimer = 0, hourRewindTimer = 0, hourStasisTimer = 0;
+let hourStasisActive = 0, hourVictoryTimer = 0, hourReturnPos = null;
+let hourPosBuffer = [], hourPosBufTimer = 0, hourCrownCooldown = 0;
+let hourEndingShown = false;
 let _portalRings = [];      // up to 2 linked portal rings ({ entry, exit })
 let _portalRingCooldown = 0; // prevents instant re-teleport loops
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
@@ -1892,6 +1899,28 @@ document.addEventListener('mousedown', (e) => {
           if (audio) audio.portalOpen?.();
           used = true;
         }
+      }
+
+      // Sundial Core: tear open the way to the Sundered Hour (endgame).
+      // Not consumed — death in the Hour sends you home, and you can try again.
+      if (!used && slot && slot.item === ITEM.SUNDIAL_CORE) {
+        enterSunderedHour();
+        used = true;
+      }
+
+      // Crown of Hours: Nova Mend — a full heal, once per minute.
+      if (!used && slot && slot.item === ITEM.CROWN_OF_HOURS) {
+        if (hourCrownCooldown > 0) {
+          addChatLine('The Crown is still drinking in time (' + Math.ceil(hourCrownCooldown) + 's)...', '#fa5');
+        } else if (player) {
+          player.health = player.maxHealth;
+          if (player.hunger != null) player.hunger = 20;
+          hourCrownCooldown = 60;
+          if (audio) audio.levelup?.() || audio.teleport?.();
+          addChatLine('Nova Mend — your wounds close as the hours pour back in.', '#ffd75a');
+          try { achievements.incrementStat('novaMends'); } catch (_) {}
+        }
+        used = true;
       }
 
       // Grapple Hook: pull the player to the targeted surface
