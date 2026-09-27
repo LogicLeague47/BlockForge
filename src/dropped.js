@@ -6,6 +6,7 @@ import { isBlockItem, itemDef } from './items.js';
 import { makeIcon } from './tiles.js';
 import { TILES, tileNameFor, BLOCKS, BLOCK } from './blocks.js';
 import { makeItemIconCanvas } from './ui.js';
+import { getExtrudedItemMesh, isSharedItemMesh } from './itemmesh.js';
 import { CHUNK_SIZE, WORLD_HEIGHT } from './constants.js';
 // Blob shadows removed — real shadow map shadows used instead
 
@@ -13,9 +14,9 @@ const COLLECT_RANGE = 1.5;
 const MAGNET_RANGE = 3.0; // start drifting toward player at this distance
 const MAGNET_SPEED = 0.5; // blocks/second — slow, deliberate drift toward player
 const FLOAT_HEIGHT = 0.3;
-const SPIN_SPEED = 2.0;
-const BOB_SPEED = 2.5;
-const BOB_AMP = 0.08;
+const SPIN_SPEED = 1.0; // MC Java ground-item spin (~1 rad/s)
+const BOB_SPEED = 2.0; // MC bob: sin(age * 2π/π)
+const BOB_AMP = 0.1; // MC bob amplitude (~0.1 block)
 const DESPAWN_TIME = 60; // seconds
 
 export class DroppedItem {
@@ -60,21 +61,11 @@ export class DroppedItem {
         this.group.add(mesh);
       }
     } else {
-      // Non-block items: two crossed flat boxes (BlockForge-style, visible from all angles while spinning)
-      const canvas = makeItemIconCanvas(itemId);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      tex.minFilter = THREE.NearestFilter;
-      tex.generateMipmaps = false;
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
-      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-      const geo = new THREE.BoxGeometry(0.35, 0.35, 1 / 16);
-      const front = new THREE.Mesh(geo, mats);
-      this.group.add(front);
-      const back = new THREE.Mesh(geo, mats);
-      back.rotation.y = Math.PI / 2;
-      this.group.add(back);
+      // Non-block items: single MC-style extruded mesh (1 draw call),
+      // shared + cached per item — replaces the old crossed-box pair.
+      const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), 0.4);
+      mesh.rotation.x = -Math.PI / 2 + 0.35; // MC ground tilt: mostly flat, slight tip
+      this.group.add(mesh);
     }
 
     this.group.renderOrder = 1;
@@ -231,6 +222,7 @@ export class DroppedItem {
     this.group.rotation.y = 0;
     this.group.scale.set(1, 1, 1);
     this.group.traverse(c => {
+      if (isSharedItemMesh(c)) return;
       if (c.geometry) c.geometry.dispose();
       if (c.material) {
         const mats = Array.isArray(c.material) ? c.material : [c.material];
@@ -262,20 +254,9 @@ export class DroppedItem {
         this.group.add(mesh);
       }
     } else {
-      const canvas = makeItemIconCanvas(itemId);
-      const tex = new THREE.CanvasTexture(canvas);
-      tex.magFilter = THREE.NearestFilter;
-      tex.minFilter = THREE.NearestFilter;
-      tex.generateMipmaps = false;
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
-      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-      const geo = new THREE.BoxGeometry(0.35, 0.35, 1 / 16);
-      const front = new THREE.Mesh(geo, mats);
-      this.group.add(front);
-      const back = new THREE.Mesh(geo, mats);
-      back.rotation.y = Math.PI / 2;
-      this.group.add(back);
+      const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), 0.4);
+      mesh.rotation.x = -Math.PI / 2 + 0.35; // MC ground tilt: mostly flat, slight tip
+      this.group.add(mesh);
     }
     this.group.renderOrder = 1;
     this.scene.add(this.group);
@@ -288,6 +269,7 @@ export class DroppedItem {
     if (this.group) {
       this.scene.remove(this.group);
       this.group.traverse(c => {
+        if (isSharedItemMesh(c)) return;
         if (c.geometry) c.geometry.dispose();
         if (c.material) {
           const mats = Array.isArray(c.material) ? c.material : [c.material];

@@ -1505,6 +1505,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Minecraft-style terrain + true 3D items',
+          desc: 'Terrain reshaped like MC: plains hug the sea, rolling hills, real mountain peaks, sloping beaches, lake valleys, flooded caves with surface entrances. Held tools and dropped items are now true extruded 3D pixel models instead of flat boxes. Swamp biome actually generates now.',
+          date: 'Sep 27',
+          bugs: ['terrain was plateau-everywhere floating above the sea', 'swamp biome never generated', 'beaches almost never formed', 'river channels mismatched their biome', 'held tools were chunky boxes not matching icons', 'drops were double-box crosses', 'caves never breached surface, sub-sea caves hung as air pockets', 'underground lake pattern repeated per chunk'],
+          updates: ['terrain height retune (plains +2..+7, hills, peaks)', 'single shared river field for carve + biome', 'aquifer-lite cave flooding + surface entrances', 'triangular ore distribution', '3-layer bedrock floor + deepslate blend', 'underwater sand/gravel/clay mix', 'snowy grass tops', '2x2 jungle/dark-oak trunks, spruce cones, oak plus-tips', 'duplicate raycast + item-name DOM thrash fixed'],
+          features: ['Extruded 3D item models (hand, third-person, drops)', 'Swamp biome', 'MC-style drop spin and bob'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Multiplayer flags protocol + GIF fix',
           desc: 'Crouch, sprint, swim, fly animations now sync between players via binary flags byte. GIF picker switched from dead Giphy API to Tenor.',
           date: 'Sep 17',

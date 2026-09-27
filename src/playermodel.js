@@ -1,7 +1,8 @@
 import * as THREE from 'three';
-import { isBlockItem, isTool, itemDef } from './items.js';
-import { TOOL_PALETTES, makeItemIconCanvas } from './ui.js';
+import { isBlockItem, isTool } from './items.js';
+import { makeItemIconCanvas } from './ui.js';
 import { TILES, tileNameFor, BLOCKS } from './blocks.js';
+import { getExtrudedItemMesh, isSharedItemMesh } from './itemmesh.js';
 import { PlayerAnimData, calculatePose } from './animations.js';
 // Blob shadows removed — real shadow map shadows used instead
 
@@ -517,7 +518,6 @@ export class PlayerModel {
     }
     if (itemId == null) return;
 
-    const mkMat = (color) => new THREE.MeshLambertMaterial({ color, fog: false });
     const wrap = new THREE.Group();
 
     if (isBlockItem(itemId)) {
@@ -549,67 +549,12 @@ export class PlayerModel {
         const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(5), px(5), px(5)), mats);
         wrap.add(mesh);
       }
-    } else if (isTool(itemId)) {
-      const def = itemDef(itemId);
-      const p = TOOL_PALETTES[def?.tool?.woodType || def?.tool?.material] || TOOL_PALETTES.IRON;
-      const type = def?.tool?.type || 'sword';
-
-      if (type === 'sword') {
-        const gripY = px(2.5);
-        const blade = new THREE.Mesh(new THREE.BoxGeometry(px(1), px(11), px(0.5)), [mkMat(p.lit), mkMat(p.mid), mkMat(p.head), mkMat(p.head), mkMat(p.lit), mkMat(p.mid)]);
-        blade.position.y = px(6) + gripY;
-        wrap.add(blade);
-        const guard = new THREE.Mesh(new THREE.BoxGeometry(px(3), px(0.8), px(1)), mkMat('#8a6a3c'));
-        guard.position.y = px(-0.5) + gripY;
-        wrap.add(guard);
-        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(3), px(0.8)), mkMat('#6e5230'));
-        handle.position.y = px(-2.5) + gripY;
-        wrap.add(handle);
-      } else if (type === 'pickaxe') {
-        const gripY = px(1);
-        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
-        handle.position.y = px(-1) + gripY;
-        wrap.add(handle);
-        const headBar = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(1.5), px(1)), [mkMat(p.head), mkMat(p.dark), mkMat(p.lit), mkMat(p.mid), mkMat(p.head), mkMat(p.head)]);
-        headBar.position.y = px(4) + gripY;
-        wrap.add(headBar);
-      } else if (type === 'axe') {
-        const gripY = px(1);
-        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
-        handle.position.y = px(-1) + gripY;
-        wrap.add(handle);
-        const axeHead = new THREE.Mesh(new THREE.BoxGeometry(px(4), px(4.5), px(1)), [mkMat(p.lit), mkMat(p.dark), mkMat(p.head), mkMat(p.mid), mkMat(p.head), mkMat(p.head)]);
-        axeHead.position.set(px(-0.8), px(4.5) + gripY, 0);
-        wrap.add(axeHead);
-      } else if (type === 'shovel') {
-        const gripY = px(1);
-        const handle = new THREE.Mesh(new THREE.BoxGeometry(px(0.8), px(9), px(0.8)), mkMat('#6e5230'));
-        handle.position.y = px(-1) + gripY;
-        wrap.add(handle);
-        const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(px(3), px(3), px(0.8)), [mkMat(p.mid), mkMat(p.dark), mkMat(p.head), mkMat(p.lit), mkMat(p.head), mkMat(p.head)]);
-        shovelHead.position.y = px(5) + gripY;
-        wrap.add(shovelHead);
-      } else {
-        // trident / other: flat sprite
-        const canvas = this._getItemCanvas(itemId);
-        const tex = this._canvasTex(canvas);
-        const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-        const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
-        const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-        const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), 1 / 16), mats);
-        wrap.add(mesh);
-      }
-
-      wrap.rotation.x = -Math.PI / 2;
     } else {
-      // Non-block, non-tool items: flat sprite like BlockForge
-      const canvas = this._getItemCanvas(itemId);
-      const tex = this._canvasTex(canvas);
-      const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
-      const sideMat = new THREE.MeshBasicMaterial({ color: 0x111111, fog: false });
-      const mats = [sideMat, sideMat, sideMat, sideMat, mat, mat];
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(px(8), px(8), 1 / 16), mats);
+      // Tools AND any other non-block item: Minecraft-style extruded icon,
+      // shared + cached, so third-person hands match first-person + drops.
+      const mesh = getExtrudedItemMesh(itemId, this._getItemCanvas(itemId), 0.5);
       wrap.add(mesh);
+      if (isTool(itemId)) wrap.rotation.x = -Math.PI / 2;
     }
 
     // Position at the bottom of the arm (the hand), pushed forward (-Z = character front)
@@ -644,6 +589,8 @@ export class PlayerModel {
 
   _disposeMesh(m) {
     m.traverse?.((o) => {
+      // Shared extruded item meshes are cache-owned — never dispose them.
+      if (isSharedItemMesh(o)) return;
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -834,6 +781,7 @@ export class PlayerModel {
   dispose() {
     this.scene.remove(this.group);
     this.group.traverse((o) => {
+      if (isSharedItemMesh(o)) return;
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import { TILES, tileNameFor, BLOCKS } from './blocks.js';
-import { isBlockItem, isTool, itemDef } from './items.js';
-import { makeItemIconCanvas, TOOL_PALETTES } from './ui.js';
+import { isBlockItem, isTool } from './items.js';
+import { makeItemIconCanvas } from './ui.js';
+import { getExtrudedItemMesh, isSharedItemMesh } from './itemmesh.js';
 import { ViewAnimData, lerp, Easing } from './animations.js';
 
 const TILE = 32;
@@ -169,6 +170,8 @@ export class ViewModel {
 
   _disposeMesh(m) {
     m.traverse?.((o) => {
+      // Shared extruded item meshes are cache-owned — never dispose them.
+      if (isSharedItemMesh(o)) return;
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];
@@ -203,158 +206,21 @@ export class ViewModel {
     return wrap;
   }
 
-  // Extruded 2D sprite (Minecraft item-model look): icon texture on the two
-  // broad faces, dark edge material on the thin sides.
-  _extrudedSprite(itemId, w = 0.5, h = 0.5, depth = 0.07) {
-    const canvas = makeItemIconCanvas(itemId);
-    const tex = new THREE.CanvasTexture(canvas);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    tex.generateMipmaps = false;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const face = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, fog: false });
-    const edge = new THREE.MeshLambertMaterial({ color: 0x241c12, fog: false });
-    const mesh = new THREE.Mesh(
-      new THREE.BoxGeometry(w, h, depth),
-      [edge, edge, edge, edge, face, face]
-    );
+  // Extruded pixel-art sprite, Minecraft item/generated style: the 16x16
+  // icon extruded to 1 texel thick with darkened silhouette walls.
+  // Single shared mesh (1 draw call), cached per item.
+  _extrudedSprite(itemId, w = 0.5) {
+    const mesh = getExtrudedItemMesh(itemId, makeItemIconCanvas(itemId), w);
     const wrap = new THREE.Group();
     wrap.add(mesh);
     return this._mcPose(wrap, 1.15);
   }
 
-  // Tools / weapons (id >= 512): proper 3D shape with head + handle
+  // Tools / weapons: Minecraft renders these as extruded icons too
+  // (item/handheld parent). Route everything through the shared builder so
+  // held tools match their inventory icons and drops pixel-for-pixel.
   _buildToolMesh(itemId) {
-    const def = itemDef(itemId);
-    if (!def?.tool) return this._buildItemMesh(itemId);
-    const p = TOOL_PALETTES[def.tool.woodType || def.tool.material] || TOOL_PALETTES.IRON;
-    const wrap = new THREE.Group();
-
-    const mkMat = (color) => new THREE.MeshLambertMaterial({ color, fog: false });
-    const headMat = mkMat(p.head);
-    const darkMat = mkMat(p.dark);
-    const midMat = mkMat(p.mid);
-    const litMat = mkMat(p.lit);
-    const stickMat = mkMat('#6e5230');
-    const stickLit = mkMat('#8a6a3c');
-
-    const type = def.tool.type;
-
-    if (type === 'sword') {
-      // Blade: tall thin box
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.56, 0.02), [litMat, midMat, headMat, headMat, litMat, midMat]);
-      blade.position.y = 0.36;
-      wrap.add(blade);
-      // Crossguard: wide flat box (top meets blade bottom at y=0.08)
-      const guard = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.03, 0.05), mkMat('#8a6a3c'));
-      guard.position.y = 0.065;
-      wrap.add(guard);
-      // Handle (top meets guard bottom at y=0.05)
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.13, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.015;
-      wrap.add(handle);
-      // Pommel (top meets handle bottom at y=-0.08)
-      const pommel = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.05), darkMat);
-      pommel.position.y = -0.095;
-      wrap.add(pommel);
-      return this._mcPose(wrap);
-
-    } else if (type === 'pickaxe') {
-      // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.48, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.10;
-      wrap.add(handle);
-      // Head: horizontal bar
-      const headBar = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.07, 0.045), [headMat, darkMat, litMat, midMat, headMat, headMat]);
-      headBar.position.y = 0.19;
-      wrap.add(headBar);
-      // Left prong
-      const lProng = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.045), darkMat);
-      lProng.position.set(-0.20, 0.13, 0);
-      wrap.add(lProng);
-      // Right prong
-      const rProng = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.09, 0.045), darkMat);
-      rProng.position.set(0.20, 0.13, 0);
-      wrap.add(rProng);
-      // Binding
-      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.03, 0.05), darkMat);
-      binding.position.y = 0.14;
-      wrap.add(binding);
-      return this._mcPose(wrap);
-
-    } else if (type === 'axe') {
-      // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.50, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.10;
-      wrap.add(handle);
-      // Axe head: thick chunk on the left
-      const axeHead = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.23, 0.045), [litMat, darkMat, headMat, midMat, headMat, headMat]);
-      axeHead.position.set(-0.04, 0.23, 0);
-      wrap.add(axeHead);
-      // Sharp edge (front face of axe, slightly lighter)
-      const edge = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.17, 0.05), litMat);
-      edge.position.set(-0.13, 0.24, 0);
-      wrap.add(edge);
-      // Binding
-      const binding = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.025, 0.05), darkMat);
-      binding.position.y = 0.09;
-      wrap.add(binding);
-      return this._mcPose(wrap);
-
-    } else if (type === 'shovel') {
-      // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.48, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.08;
-      wrap.add(handle);
-      // Shovel head: wider flat box at top
-      const shovelHead = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.03), [midMat, darkMat, headMat, litMat, headMat, headMat]);
-      shovelHead.position.y = 0.24;
-      wrap.add(shovelHead);
-      // Socket
-      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.065, 0.03, 0.045), midMat);
-      socket.position.y = 0.15;
-      wrap.add(socket);
-      return this._mcPose(wrap);
-
-    } else if (type === 'hoe') {
-      // Handle
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.50, 0.045), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      handle.position.y = -0.10;
-      wrap.add(handle);
-      // Hoe blade: horizontal plate jutting left at the top
-      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.20, 0.06, 0.045), [headMat, darkMat, litMat, midMat, headMat, headMat]);
-      blade.position.set(-0.09, 0.19, 0);
-      wrap.add(blade);
-      // Socket
-      const socket = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.05, 0.05), midMat);
-      socket.position.set(0.0, 0.16, 0);
-      wrap.add(socket);
-      return this._mcPose(wrap);
-
-    } else if (type === 'trident') {
-      // Shaft
-      const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.56, 0.04), [stickMat, stickLit, stickMat, stickMat, stickLit, stickMat]);
-      shaft.position.y = -0.08;
-      wrap.add(shaft);
-      // Crossbar
-      const bar = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.035, 0.04), midMat);
-      bar.position.y = 0.20;
-      wrap.add(bar);
-      // Three prongs
-      for (const px of [-0.09, 0, 0.09]) {
-        const prong = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.22, 0.035), [litMat, midMat, headMat, headMat, litMat, midMat]);
-        prong.position.set(px, 0.30, 0);
-        wrap.add(prong);
-        const tip = new THREE.Mesh(new THREE.BoxGeometry(0.035, 0.05, 0.035), litMat);
-        tip.position.set(px, 0.43, 0);
-        wrap.add(tip);
-      }
-      return this._mcPose(wrap);
-
-    } else {
-      // Anything else with a tool record: extruded sprite in MC pose.
-      return this._extrudedSprite(itemId, 0.55, 0.55);
-    }
+    return this._extrudedSprite(itemId, 0.55);
   }
 
   // Food / materials / other items: extruded sprite, Minecraft held-item look.
@@ -583,6 +449,7 @@ export class ViewModel {
     if (this.heldMesh) this._disposeMesh(this.heldMesh);
     if (this.offhandMesh) this._disposeMesh(this.offhandMesh);
     this.scene.traverse((o) => {
+      if (isSharedItemMesh(o)) return;
       if (o.geometry) o.geometry.dispose();
       if (o.material) {
         const mats = Array.isArray(o.material) ? o.material : [o.material];
