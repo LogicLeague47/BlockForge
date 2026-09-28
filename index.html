@@ -2497,6 +2497,20 @@
         .mode-select { flex-wrap: wrap; }
         #terrain-select { grid-template-columns: 1fr 1fr !important; }
       }
+      /* Small portrait phones: everything steps down so buttons stop
+         dominating the screen */
+      @media (max-width: 480px) {
+        .menu-logo { font-size: 28px !important; letter-spacing: 3px !important; }
+        .menu-logo-mark { width: 48px !important; height: 48px !important; margin-bottom: 6px !important; }
+        .menu-logo-wrap { margin-bottom: 16px !important; }
+        .menu-tagline { display: none !important; }
+        .menu-splash { font-size: 11px !important; top: -6px !important; right: -8px !important; }
+        .menu-btn { padding: 10px 0 !important; font-size: 13px !important; margin-bottom: 6px !important; }
+        .menu-btn-play { padding: 12px 0 !important; font-size: 15px !important; }
+        .menu-grid { gap: 6px !important; }
+        .menu-grid .menu-btn { font-size: 11px !important; padding: 9px 0 !important; }
+        .menu-foot-row { gap: 6px !important; }
+      }
       @media (orientation: landscape) and (max-height: 480px) {
         /* Compact menu: hide the logo mark, tighten everything, let it scroll */
         .menu-logo-mark { display: none !important; }
@@ -2794,7 +2808,7 @@
           <div class="menu-logo">BLOCKFORGE</div>
           <div class="menu-splash">Welcome!</div>
         </div>
-        <div style="max-width:420px;width:100%;background:rgba(8,8,16,0.55);border:1px solid rgba(100,140,255,0.1);border-radius:10px;padding:20px 24px;box-shadow:0 0 0 1px rgba(100,160,255,0.04),0 16px 48px rgba(0,0,0,0.3);">
+        <div style="max-width:420px;width:100%;background:rgba(8,8,16,0.85);border:1px solid rgba(100,140,255,0.1);border-radius:10px;padding:20px 24px;box-shadow:0 0 0 1px rgba(100,160,255,0.04),0 16px 48px rgba(0,0,0,0.3);">
           <div id="login-account-section">
             <div style="font:bold 9px monospace;color:#7ab;letter-spacing:2px;margin-bottom:10px;text-shadow:1px 1px 0 #000;">ACCOUNT</div>
             <input id="login-username" type="text" value="" maxlength="16" spellcheck="false" autocomplete="off" placeholder="Username" style="width:100%;padding:10px 12px;background:rgba(0,0,0,0.55);color:#fff;border:1px solid rgba(100,100,100,0.45);border-radius:4px;font:14px monospace;outline:none;margin-bottom:8px;box-sizing:border-box;" onfocus="this.style.borderColor='#5af'" onblur="this.style.borderColor='rgba(100,100,100,0.45)'" />
