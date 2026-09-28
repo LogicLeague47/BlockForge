@@ -1958,6 +1958,7 @@ export class UI {
           for (let i = 0; i < 10; i++) {
             const val = capped - i * 2;
             const full = val >= 2, half = val >= 1;
+            ah += full ? '🛡️' : (half ? '<span style="opacity:.45">🛡️</span>' : '<span style="opacity:.18">🛡️</span>');
           }
           this.armorRowEl.innerHTML = ah;
         }
@@ -1975,6 +1976,7 @@ export class UI {
     for (let i = 9; i >= 0; i--) {
       const val = player.health - i * 2;
       const full = val >= 2, half = val >= 1;
+      hh += full ? '❤️' : (half ? '💔' : '🖤');
     }
     this.healthBar.innerHTML = hh;
 
@@ -1983,6 +1985,7 @@ export class UI {
     for (let i = 0; i < 10; i++) {
       const val = player.hunger - i * 2;
       const full = val >= 2, half = val >= 1;
+      fh += full ? '🍗' : (half ? '<span style="opacity:.45">🍗</span>' : '<span style="opacity:.18">🍗</span>');
     }
     this.hungerBar.innerHTML = fh;
     // Hunger warning pulse when below 3 drumsticks (6 hunger)

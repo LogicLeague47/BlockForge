@@ -1091,8 +1091,15 @@
       #chest-grid .inv-slot canvas,
       #chest-inv-grid .inv-slot canvas,
       #chest-hotbar-grid .inv-slot canvas,
-      #furnace-inv-grid .inv-slot canvas {
-        width: 80%; height: 80%;
+      #furnace-inv-grid .inv-slot canvas,
+      #inventory-grid .inv-slot img,
+      #chest-grid .inv-slot img,
+      #chest-inv-grid .inv-slot img,
+      #chest-hotbar-grid .inv-slot img,
+      #furnace-inv-grid .inv-slot img {
+        /* Absolute so icons can never stretch the aspect-ratio slot */
+        position: absolute; top: 12%; left: 12%;
+        width: 76% !important; height: 76% !important;
       }
       #inventory-grid .inv-slot .inv-count,
       #chest-grid .inv-slot .inv-count,
