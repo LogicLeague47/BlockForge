@@ -621,6 +621,24 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     previewOverlay.style.display = 'none';
   }
 
+  // Auto-handoff: when the iframe path definitively fails (embed disabled
+  // or stalled on BOTH hosts), open YouTube itself — once per video. When
+  // the iframe works this never runs, so YouTube is never touched.
+  var handoffDoneFor = null;
+  function handoffYouTube() {
+    var id = currentVid;
+    if (!id || handoffDoneFor === id) return;
+    handoffDoneFor = id;
+    var shortHandoff = false;
+    try { shortHandoff = isShortCtx(curType, curLenSec); } catch (_) {}
+    var url = (curWatchUrl && curWatchUrl.indexOf('http') === 0) ? curWatchUrl
+      : (shortHandoff ? 'https://www.youtube.com/shorts/' + id
+        : 'https://m.youtube.com/watch?v=' + id);
+    dbg('handoff yt');
+    setStatus('Opening YouTube…');
+    location.href = url;
+  }
+
   function showFail(msg) {
     clearTimer();
     classicframe.src = '';
@@ -630,6 +648,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
     blockText.textContent = msg || "Video wouldn't play.";
     blockMsg.style.display = 'flex';
     dbg('fail');
+    handoffYouTube();
   }
 
   function loadStream(id) {
@@ -832,6 +851,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
   function showPreview(id, title, author, authorId, viewCount, lenSec, vtype) {
     currentVid = id;
+    handoffDoneFor = null;
     curLenSec = lenSec || '';
     curType = vtype || '';
     curAuthor = author || '';

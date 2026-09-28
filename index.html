@@ -137,7 +137,14 @@
             if (window.__devErrors.length > 200) window.__devErrors.splice(0, window.__devErrors.length - 200);
           } catch (_) {}
         }
+        // Cross-origin scripts (CDN ads/SDKs) report only the sanitized
+        // "Script error." with no file, line or stack — unactionable noise,
+        // especially on legacy WebKit. Never store or banner it.
+        function isNoiseError(msg) {
+          try { return /^\s*script error\.?\s*$/i.test(String(msg || '')); } catch (_) { return false; }
+        }
         window.addEventListener('error', function(e) {
+          if (isNoiseError(e.message)) { try { e.preventDefault(); } catch (_) {} return; }
           logErrorToStore(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack, e.error && e.error.name);
           if (!isDevViewer()) { console.error(e.message); return; }
           showErrorBanner(e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack, e.error && e.error.name);
@@ -145,6 +152,7 @@
         window.addEventListener('unhandledrejection', function(e) {
           var reason = e.reason;
           var msg = (reason && reason.message) ? reason.message : String(reason);
+          if (isNoiseError(msg)) { try { e.preventDefault(); } catch (_) {} return; }
           var stack = (reason && reason.stack) ? reason.stack : '';
           // Ignore pointer lock rejections (Safari bug: .catch() doesn't suppress unhandledrejection)
           if (/pointer lock/i.test(msg)) { e.preventDefault(); return; }
