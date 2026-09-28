@@ -63,7 +63,9 @@ export function calcHeight(n, wx, wz, mode, _cache) {
   let hCoast = SEA_LEVEL + 1 + tCoast * 3 + depth * 3 + oceanDetail * 2;
   if (hCoast < SEA_LEVEL + 1) hCoast = SEA_LEVEL + 1;
   const tPlain = cont / 0.30;
-  let hPlain = SEA_LEVEL + 2 + tPlain * 5 + detailUp * 4 * (1 - erosion * 0.5);
+  // Plains stay SIMPLE: gentle ±1 swells, not quilt jitter. Detail amplitude
+  // ramps up only toward the hills band (tPlain → 1).
+  let hPlain = SEA_LEVEL + 2 + tPlain * 5 + detailUp * (1.5 + tPlain * 2.5) * (1 - erosion * 0.5);
   hPlain -= Math.max(0, erosion - 0.25) * 8;
   if (hPlain < SEA_LEVEL) hPlain = SEA_LEVEL;
   // Hills: rolling base steepening inland + gated ridge peaks + jagged spikes.
@@ -95,8 +97,9 @@ export function calcHeight(n, wx, wz, mode, _cache) {
     }
   }
 
-  // Fine detail everywhere
-  h += n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5) * 2;
+  // Fine detail: whisper-quiet (±1) so flat ground doesn't quilt into
+  // 1-block steps everywhere. Hills get their roughness from detailUp instead.
+  h += n.fbm2(n.detail, wx * 0.04, wz * 0.04, 3, 2, 0.5) * 1;
 
   // Terrain mode modifiers
   if (mode === 'amplified') {
@@ -169,9 +172,9 @@ export function calcBiome(n, wx, wz, h, _cache) {
   if (cont < -0.50) return BIOMES.DEEP_OCEAN;
   if (cont < -0.30) return BIOMES.OCEAN;
   
-  // BlockForge beach: near sea level on coast (window matches the clamped coast
-  // heights in calcHeight so beaches can actually form)
-  if (h >= SEA_LEVEL && h <= SEA_LEVEL + 4 && cont < 0.1) return BIOMES.BEACH;
+  // BlockForge beach: hugs the waterline only (narrow window = no inland
+  // sand blobs on flat plains).
+  if (h >= SEA_LEVEL && h <= SEA_LEVEL + 2 && cont < 0.1) return BIOMES.BEACH;
   
   // BlockForge Stony Peaks: high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
@@ -793,8 +796,9 @@ export function plantTree(chunk, x, y, z, rng, type) {
       trunkBlock = BLOCK.WOOD; leafBlock = BLOCK.LEAVES;
       trunkH = 6 + ((rng() * 2) | 0); leafRadius = 2; break;
     case 'dead':
+      // Dead bush snag: short stump, never a bare pillar
       trunkBlock = BLOCK.WOOD; leafBlock = null;
-      trunkH = 3 + ((rng() * 4) | 0); leafRadius = 0; break;
+      trunkH = 1 + ((rng() * 2) | 0); leafRadius = 0; break;
     case 'dark_oak':
       trunkBlock = BLOCK.DARK_OAK_WOOD; leafBlock = BLOCK.DARK_OAK_LEAVES;
       trunkH = 5 + ((rng() * 3) | 0); leafRadius = 2; doubleTrunk = true; break;
@@ -808,7 +812,9 @@ export function plantTree(chunk, x, y, z, rng, type) {
   for (const bx of tx) {
     for (const bz of tz) {
       for (let i = 0; i < trunkH; i++) {
-        if (y + i < WORLD_HEIGHT) chunk.set(bx, y + i, bz, trunkBlock);
+        // Trunks only replace air/leaves — never punch dirt pillars through
+        // terrain or other structures.
+        if (y + i < WORLD_HEIGHT && canOverwrite(bx, y + i, bz)) chunk.set(bx, y + i, bz, trunkBlock);
       }
     }
   }
@@ -900,7 +906,10 @@ export function growTreeInWorld(world, x, y, z, saplingBlock) {
 
   for (let i = 0; i < trunkH; i++) {
     if (y + i >= WORLD_HEIGHT) break;
-    world.setBlock(x, y + i, z, trunkBlock);
+    // Trunks replace air or the sapling itself — never punch dirt pillars up
+    const cur = world.getBlock(x, y + i, z);
+    const cd = BLOCKS[cur];
+    if (cur === BLOCK.AIR || (cd && cd.plant)) world.setBlock(x, y + i, z, trunkBlock);
   }
   if (!leafBlock) return;
   const top = y + trunkH;

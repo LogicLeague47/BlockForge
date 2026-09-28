@@ -1505,6 +1505,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'World preview restored + terrain smoothing',
+          desc: 'The main-menu 3D diorama is back — it was buried inside its own hills, drowned in fog, and sealed behind an opaque overlay. Terrain now rolls smooth instead of quilting, beaches hug the water, dead trees are stumps, and the world-creation map uses the real generator. Menus stay readable on phones in both orientations.',
+          date: 'Sep 28',
+          bugs: ['menu diorama invisible (buried camera, fog, opaque overlay)', 'terrain quilt steps + inland sand blobs + dirt pillar trees', 'creation preview used a stale mini-formula', 'landscape menus microscopic, portrait overflow', 'APK update banner never fired'],
+          updates: ['diorama from real terrain, camera pulled clear, fog rescaled', 'plains smoothing, shoreline-locked beaches, trunk guards', 'fit-scale floor with scroll fallback + compact landscape CSS', 'APK banner keyed to asset date'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'P2P create menu, APK login fix, 3D logo + icons',
           desc: 'Hosting a P2P world now opens an options menu (seed, survival/creative, public list or private code-only). The Android app no longer strands you on login — it skips the reload gate and falls back to offline singleplayer without internet. New 3D grass-block logo, favicons and app icons, plus true-3D block icons across inventory, hotbar and crafting.',
           date: 'Sep 28',

@@ -309,7 +309,7 @@ setInterval(() => { try { fitCanvas(); } catch (_) {} }, 2000);
 import { Noise, hashSeed } from './noise.js';
 const menuBgScene = new THREE.Scene();
 const menuBgCamera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 500);
-menuBgScene.fog = new THREE.Fog(0x87ceeb, 20, 55);
+menuBgScene.fog = new THREE.Fog(0x87ceeb, 70, 220);
 menuBgScene.background = new THREE.Color(0x78b9e8);
 const menuBgSun = new THREE.DirectionalLight(0xfff8e7, 1.6);
 menuBgSun.position.set(40, 80, 30);
@@ -325,8 +325,8 @@ menuBgSun.shadow.camera.bottom = -40;
 menuBgSun.shadow.bias = -0.001;
 menuBgSun.shadow.camera.updateProjectionMatrix();
 menuBgScene.add(menuBgSun);
-menuBgScene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
-menuBgScene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
+menuBgScene.add(new THREE.AmbientLight(0xc8d8ff, 0.9));
+menuBgScene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.7));
 let menuBgTime = 0;
 let menuBgDiorama = null;
 const _menuBgGeo = new THREE.BoxGeometry(1, 1, 1);
@@ -10408,27 +10408,30 @@ function initMenu() {
     } catch (_) { console.warn("operation failed"); }
   }
 
-  // Android APK auto-update: check GitHub for new version, show update banner
+  // Android APK auto-update: check GitHub for new version, show update banner.
+  // Version key = the APK asset's updated_at (the rolling `binaries` release
+  // tag carries no build number, so tag parsing would never fire).
   try {
     const isAndroid = /android/i.test(navigator.userAgent);
     if (isAndroid) {
-      const lastSeen = localStorage.getItem('bf_apk_latest_build') || '0';
+      const lastSeen = localStorage.getItem('bf_apk_latest_build') || '';
       fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
         .then(r => r.json())
         .then(d => {
           if (!d || !d.assets) return;
           const apk = d.assets.find(a => /\.apk$/i.test(a.name));
-          if (!apk || !apk.browser_download_url) return;
-          const buildMatch = (d.tag_name || '').match(/(\d+)/);
-          const latestBuild = buildMatch ? buildMatch[1] : '0';
+          if (!apk || !apk.browser_download_url || !apk.updated_at) return;
+          const latestBuild = apk.updated_at;
           if (latestBuild === lastSeen) return;
           localStorage.setItem('bf_apk_latest_build', latestBuild);
           const menu = document.getElementById('menu');
           if (!menu) return;
+          const when = latestBuild.slice(0, 10);
+          const mb = apk.size ? ' (' + Math.round(apk.size / 1048576) + ' MB)' : '';
           const bar = document.createElement('div');
           bar.id = 'apk-update-bar';
           bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:210;background:linear-gradient(90deg,#1a4a2a,#0d2818);border-bottom:1px solid #3a8a5a;color:#7f7;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font:13px monospace;gap:12px;';
-          bar.innerHTML = '<span>📱 Update available (build ' + latestBuild + ')</span>';
+          bar.innerHTML = '<span>📱 New BlockForge APK — ' + when + mb + '</span>';
           const dlBtn = document.createElement('button');
           dlBtn.textContent = 'DOWNLOAD';
           dlBtn.style.cssText = 'background:#3a8a5a;color:#fff;border:none;padding:6px 16px;border-radius:6px;font:bold 12px monospace;cursor:pointer;white-space:nowrap;';
@@ -10952,8 +10955,10 @@ function _gameFrame() {
 
   if (!gameRunning) {
     menuBgTime += dt * 0.07;
-    const r = 36;
-    menuBgCamera.position.set(Math.cos(menuBgTime) * r, 26 + Math.sin(menuBgTime * 0.2) * 3, Math.sin(menuBgTime) * r);
+    const r = 48;
+    // Explicit sky clear: autoClear is off globally, so paint it here.
+    renderer.setClearColor(0x78b9e8, 1);
+    menuBgCamera.position.set(Math.cos(menuBgTime) * r, 34 + Math.sin(menuBgTime * 0.2) * 3, Math.sin(menuBgTime) * r);
     menuBgCamera.lookAt(0, 10, 0);
     renderer.render(menuBgScene, menuBgCamera);
     return;

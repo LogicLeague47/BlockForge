@@ -158,7 +158,7 @@
     <style>
       :root {
         --bg-overlay: #000;
-        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.4) 80%, rgba(0,0,0,0.7) 100%);
+        --bg-overlay-vignette: radial-gradient(ellipse at center, transparent 35%, rgba(0,0,0,0.25) 80%, rgba(0,0,0,0.5) 100%);
         --bg-screen: rgba(0,0,0,0.65);
         --bg-panel: rgba(8,8,16,0.65);
         --bg-panel-border: rgba(100,140,255,0.15);
@@ -1435,7 +1435,9 @@
         position: fixed; top: 0; left: 0; right: 0; bottom: 0; z-index: 50;
         display: flex; flex-direction: column;
         align-items: center;
-        background: #0b1020;
+        /* NOTE: no opaque background here — the live 3D diorama renders
+           beneath this overlay. Page rubber-banding is prevented by the
+           fixed body + overscroll containment instead. */
         overscroll-behavior: contain;
         -webkit-overflow-scrolling: touch;
         touch-action: pan-y;
@@ -2479,6 +2481,9 @@
         .create-left { width: 100% !important; min-width: 0 !important; border-right: none !important; border-bottom: 1px solid var(--bg-panel-border); }
         .create-right { padding: 16px !important; }
         .menu-screen { max-width: 96vw; width: 96vw; }
+        .menu-grid { max-width: 100%; }
+        .menu-logo-mark { width: 64px !important; height: 64px !important; }
+        .menu-tagline { letter-spacing: 2px; }
         /* Never let a child panel force horizontal overflow on small screens. */
         .menu-screen > *, .menu-panel, .settings-panel, .create-section, .create-right, .create-left { max-width: 100%; box-sizing: border-box; }
         .settings-row { flex-wrap: wrap; }
@@ -2486,6 +2491,15 @@
         #terrain-select { grid-template-columns: 1fr 1fr !important; }
       }
       @media (orientation: landscape) and (max-height: 480px) {
+        /* Compact menu: hide the logo mark, tighten everything, let it scroll */
+        .menu-logo-mark { display: none !important; }
+        .menu-logo-wrap { margin-bottom: 10px !important; }
+        .menu-logo { font-size: 30px !important; letter-spacing: 4px !important; }
+        .menu-tagline { display: none !important; }
+        .menu-splash { font-size: 12px !important; top: -8px; right: -10px; }
+        .menu-btn { padding: 9px 0 !important; font-size: 13px !important; margin-bottom: 6px !important; }
+        .menu-btn-play { padding: 11px 0 !important; }
+        .menu-grid { margin-bottom: 6px !important; }
         .bf-joystick-zone { width: 32%; height: 40%; padding: 6px 4px; }
         .bf-joystick-base { width: 85px; height: 85px; border-width: 2px; }
         .bf-joystick-knob { width: 36px; height: 36px; border-width: 2px; }
@@ -2502,8 +2516,7 @@
         .bf-btn-ap.bf-btn-f3 { font-size: 10px; }
       }
       /* Small phone portrait (<=400px): scale down HUD and controls to fit */
-      @media (max-width: 400px) {
-        /* Hotbar: shrink slots from 36px to 30px */
+      @media (max-width: 400px) {        /* Hotbar: shrink slots from 36px to 30px */
         .slot { width: 30px !important; height: 30px !important; }
         .slot .slot-count { font-size: 8px !important; }
         /* Status bars, XP bar, armor row: use 90vw instead of fixed 350px */

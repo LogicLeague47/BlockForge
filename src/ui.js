@@ -2113,7 +2113,12 @@ export class UI {
     const vw = window.innerWidth, vh = window.innerHeight;
     const w = screen.offsetWidth, h = screen.offsetHeight;
     if (!w || !h) return;
-    const scale = Math.min(1, (vw - pad) / w, (vh - pad) / h);
+    // Width must always fit (no horizontal clipping); height may scroll.
+    // Floor the shrink at 0.7 so landscape phones get a readable menu with
+    // scrolling instead of a microscopic fully-shrunk one.
+    const scaleW = (vw - pad) / w;
+    const scaleH = (vh - pad) / h;
+    const scale = Math.min(1, scaleW, Math.max(scaleH, 0.7));
     if (scale >= 1) return;
     screen.style.transformOrigin = 'top center';
     screen.style.transform = `scale(${scale})`;
