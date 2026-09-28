@@ -1179,30 +1179,42 @@
         if (heroPlay) heroPlay.href = playUrl;
       }
 
-      // Android APK: fetch latest release from GitHub, copy link on click
+      // Android APK: fetch latest release from GitHub, download on click.
+      // Prefer the CI-built BlockForge-android.apk by exact name — the
+      // release also carries an old app-debug.apk that must NOT win.
       (function() {
         var apkBtn = document.getElementById('hero-apk-btn');
         if (!apkBtn) return;
         var apkUrl = null;
+        apkBtn.title = 'Android APK — checking for build...';
         fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
           .then(function(r) { return r.json(); })
           .then(function(d) {
             if (d && d.assets && d.assets.length) {
-              var apk = d.assets.find(function(a) { return /\.apk$/i.test(a.name); });
+              var apks = d.assets.filter(function(a) { return /\.apk$/i.test(a.name); });
+              var apk = null;
+              for (var i = 0; i < apks.length; i++) {
+                if (/^BlockForge-android\.apk$/i.test(apks[i].name)) { apk = apks[i]; break; }
+              }
+              if (!apk) {
+                apks.sort(function(a, b) { return new Date(b.updated_at) - new Date(a.updated_at); });
+                apk = apks[0];
+              }
               if (apk) {
                 apkUrl = apk.browser_download_url;
-                apkBtn.title = 'Android APK — tap to copy link';
+                var when = (apk.updated_at || '').slice(0, 10);
+                var mb = apk.size ? ' · ' + Math.round(apk.size / 1048576) + ' MB' : '';
+                apkBtn.title = 'Android APK (' + apk.name + ', ' + when + ') — tap to download';
+                apkBtn.innerHTML = '📱 Android APK <span style="opacity:.65;font-size:.8em;">' + when + mb + '</span>';
                 console.log('[APK] latest:', apkUrl);
               }
             }
-          }).catch(function() {});
+            if (!apkUrl) apkBtn.title = 'Android APK — build in progress, try again soon';
+          }).catch(function() { apkBtn.title = 'Android APK — offline, try again soon'; });
         apkBtn.addEventListener('click', function() {
           if (!apkUrl) { alert('No APK available yet — build is in progress.'); return; }
-          if (navigator.clipboard) {
-            navigator.clipboard.writeText(apkUrl).then(function() { alert('APK link copied to clipboard:\n' + apkUrl); });
-          } else {
-            prompt('Copy this APK link:', apkUrl);
-          }
+          // Direct download; long-press/copy from the address bar if needed.
+          window.location.href = apkUrl;
         });
       })();
 
@@ -1503,6 +1515,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Correct APK download + menu fit fixes',
+          desc: 'The portal APK button was handing out a stale debug build (first asset match) — it now picks BlockForge-android.apk exactly, downloads directly, and shows the build date. Menus no longer double-shrink: width always fits, height scrolls past a readable floor, with compact landscape styling.',
+          date: 'Sep 28',
+          bugs: ['portal served stale app-debug.apk', 'menu scale transform fought fluid layout (double-shrink)'],
+          updates: ['exact-name APK pick with newest fallback + direct download', 'scale-only fit math with 0.7 floor', 'compact landscape menu CSS'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'Full mob remodels + HUD/hotbar fixes',

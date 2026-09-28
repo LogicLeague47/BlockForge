@@ -2109,23 +2109,23 @@ export class UI {
   _fitMenuToScreen() {
     const screen = this.overlayEl && this.overlayEl.querySelector('.menu-screen.active');
     if (!screen) return;
+    // Reset to natural fluid layout before measuring (no width hacks — the
+    // stylesheet already makes screens fluid; shrinking the layout box AND
+    // scaling visually double-shrinks and breaks centering).
     screen.classList.remove('menu-fit');
     screen.style.transform = '';
-    screen.style.width = '';
     const pad = 24;
     const vw = window.innerWidth, vh = window.innerHeight;
     const w = screen.offsetWidth, h = screen.offsetHeight;
     if (!w || !h) return;
-    // Width must always fit (no horizontal clipping); height may scroll.
-    // Floor the shrink at 0.7 so landscape phones get a readable menu with
-    // scrolling instead of a microscopic fully-shrunk one.
+    // Width must always fit (no horizontal clipping); height may scroll, so
+    // floor the shrink instead of crushing landscape menus to nothing.
     const scaleW = (vw - pad) / w;
     const scaleH = (vh - pad) / h;
     const scale = Math.min(1, scaleW, Math.max(scaleH, 0.7));
     if (scale >= 1) return;
     screen.style.transformOrigin = 'top center';
     screen.style.transform = `scale(${scale})`;
-    screen.style.width = `${Math.ceil(w * scale)}px`;
     screen.classList.add('menu-fit');
   }
 
