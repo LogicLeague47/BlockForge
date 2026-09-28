@@ -219,6 +219,120 @@ window.dispatchEvent(new Event('done'));
   }
   console.log('[build-textures] saved ' + mn + ' mob texture PNGs');
 
+  // ── 3. 3D logo + isometric block icons (real three.js, headless GL) ──
+  console.log('[build-textures] rendering 3D logo + isometric block icons...');
+  writeFileSync(join(ROOT, '_gen.html'), `<!DOCTYPE html>
+<html><head><meta charset="utf-8"></head><body>
+<script type="module">
+import * as THREE from '/node_modules/three/build/three.module.js';
+import { BLOCK, BLOCKS, TILES, tileNameFor } from '/blocks.js';
+import { buildAtlas, TILE } from '/tiles.js';
+
+const atlas = buildAtlas(1337);
+const tileTex = (name) => {
+  const t = TILES[name];
+  const c = document.createElement('canvas');
+  c.width = TILE; c.height = TILE;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  if (t) ctx.drawImage(atlas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+  const tex = new THREE.CanvasTexture(c);
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestFilter;
+  tex.generateMipmaps = false;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+};
+const grassMats = ['side', 'side', 'top', 'bottom', 'side', 'side'].map((f, i) => {
+  const face = ['side', 'side', 'top', 'bottom', 'side', 'side'][i];
+  return new THREE.MeshLambertMaterial({ map: tileTex(tileNameFor(BLOCK.GRASS, face)) });
+});
+
+function isoShot(mats, size, cross, plantTex) {
+  const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
+  renderer.setSize(size, size);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const scene = new THREE.Scene();
+  const cam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+  cam.position.set(2, 1.8, 2);
+  cam.lookAt(0, 0, 0);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.75));
+  const key = new THREE.DirectionalLight(0xffffff, 1.1);
+  key.position.set(2, 4, 3);
+  scene.add(key);
+  const rim = new THREE.DirectionalLight(0x88aaff, 0.35);
+  rim.position.set(-3, 1, -2);
+  scene.add(rim);
+  if (cross) {
+    const mat = new THREE.MeshLambertMaterial({ map: plantTex, transparent: true, alphaTest: 0.5, side: THREE.DoubleSide });
+    const g = new THREE.Group();
+    const p1 = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), mat);
+    p1.rotation.y = Math.PI / 4;
+    const p2 = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), mat);
+    p2.rotation.y = -Math.PI / 4;
+    g.add(p1); g.add(p2);
+    scene.add(g);
+  } else {
+    scene.add(new THREE.Mesh(new THREE.BoxGeometry(1.15, 1.15, 1.15), mats));
+  }
+  renderer.render(scene, cam);
+  const url = renderer.domElement.toDataURL('image/png');
+  renderer.dispose();
+  return url;
+}
+
+const out = {};
+// Hero logo: big grass cube
+out.logo1024 = isoShot(grassMats, 1024, false, null);
+// Per-block isometric icons (96px)
+const ids = [];
+for (const [name, id] of Object.entries(BLOCK)) {
+  if (typeof id !== 'number' || id <= 0 || id > 255) continue;
+  const def = BLOCKS[id];
+  if (!def || !def.faces) continue;
+  ids.push(id);
+}
+out.items = {};
+for (const id of ids) {
+  const def = BLOCKS[id];
+  let url;
+  if (def.plant) {
+    url = isoShot(null, 96, true, tileTex(tileNameFor(id, 'side')));
+  } else {
+    const mats = ['side', 'side', 'top', 'bottom', 'side', 'side'].map((f, i) => {
+      const face = ['side', 'side', 'top', 'bottom', 'side', 'side'][i];
+      const tx = tileTex(tileNameFor(id, face));
+      return new THREE.MeshLambertMaterial({ map: tx });
+    });
+    url = isoShot(mats, 96, false, null);
+  }
+  out.items[id] = url;
+}
+out.blockCount = ids.length;
+window.__isoResult = out;
+window.dispatchEvent(new Event('done'));
+<\/script></body></html>`);
+
+  await page.goto('http://127.0.0.1:' + port + '/_gen.html', { waitUntil: 'networkidle' });
+  await page.waitForFunction(() => window.__isoResult, { timeout: 120000 });
+  const iso = await page.evaluate(() => window.__isoResult);
+  console.log('[build-textures] isometric icons for ' + iso.blockCount + ' blocks');
+
+  const b64png = (dataUrl, fp) => writeFileSync(fp, Buffer.from(dataUrl.split(',')[1], 'base64'));
+  // Logo masters
+  const logoDir = join(OUT, '..', 'logo-tmp');
+  mkdirSync(logoDir, { recursive: true });
+  b64png(iso.logo1024, join(logoDir, 'logo-1024.png'));
+
+  const itemsDir = join(OUT, 'items3d');
+  mkdirSync(itemsDir, { recursive: true });
+  let in3 = 0;
+  for (const [id, url] of Object.entries(iso.items)) {
+    b64png(url, join(itemsDir, id + '.png'));
+    in3++;
+  }
+  console.log('[build-textures] saved ' + in3 + ' isometric item PNGs');
+
   // ── Cleanup ─────────────────────────────────────────────────────────
   await browser.close();
   srv.close();

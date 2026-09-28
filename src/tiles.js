@@ -3294,7 +3294,12 @@ function drawIsoBlockIcon(ctx, blockId, atlasCanvas) {
 // Render a single block's "icon" for UI (64x64 canvas; callers scale it
 // into slots, so the 2x resolution just makes edges/details crisper).
 export function makeIcon(blockId, atlasCanvas) {
-  const key = blockId + '_' + (atlasCanvas ? '1' : '0');
+  // Pre-rendered true-3D isometric PNGs (built by scripts/build-textures.mjs)
+  // take precedence once loaded — every block item renders as a real 3D cube
+  // in inventory, hotbar, crafting and toasts. Falls back to the procedural
+  // icon until the PNG arrives.
+  const img3D = window.__BF_ITEM3D ? window.__BF_ITEM3D.get(blockId) : null;
+  const key = blockId + '_' + (atlasCanvas ? '1' : '0') + (img3D ? '_3d' : '');
   const cached = _makeIconCache.get(key);
   if (cached) {
     const c2 = document.createElement('canvas');
@@ -3306,6 +3311,9 @@ export function makeIcon(blockId, atlasCanvas) {
   c.width = ICON_SIZE; c.height = ICON_SIZE;
   const ctx = c.getContext('2d');
   ctx.imageSmoothingEnabled = false;
+  if (img3D) {
+    ctx.drawImage(img3D, 0, 0, ICON_SIZE, ICON_SIZE);
+  } else {
   const def = BLOCKS[blockId];
 
   if (def && (def.slab || def.stair)) {
@@ -3334,6 +3342,7 @@ export function makeIcon(blockId, atlasCanvas) {
       ctx.fillStyle = 'rgba(255,255,255,0.10)';
       ctx.fillRect(0, 0, ICON_SIZE, 3);
     }
+  }
   }
 
   if (_makeIconCache.size >= _MAKE_ICON_CACHE_MAX) {

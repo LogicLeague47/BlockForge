@@ -64,16 +64,19 @@ export function calcHeight(n, wx, wz, mode, _cache) {
   if (hCoast < SEA_LEVEL + 1) hCoast = SEA_LEVEL + 1;
   const tPlain = cont / 0.30;
   let hPlain = SEA_LEVEL + 2 + tPlain * 5 + detailUp * 4 * (1 - erosion * 0.5);
-  hPlain -= Math.max(0, erosion - 0.25) * 14;
-  if (hPlain < SEA_LEVEL - 1) hPlain = SEA_LEVEL - 1;
-  // Hills: rolling base steepening inland + gated ridge peaks + jagged spikes
+  hPlain -= Math.max(0, erosion - 0.25) * 8;
+  if (hPlain < SEA_LEVEL) hPlain = SEA_LEVEL;
+  // Hills: rolling base steepening inland + gated ridge peaks + jagged spikes.
+  // Peak amplitude scales with inland-ness and the total is hard-capped, so
+  // high ground forms broad mountain masses — never stone pillars.
   const erosionFactor = 1 - erosion * 0.6;
   let hHill = SEA_LEVEL + 7 + (cont - 0.30) * 45 + detailUp * 5 * erosionFactor + ridge * 6 * erosionFactor;
   // BlockForge gate: peaks need high-cont AND low-erosion AND ridge crest, else nothing
-  const peakGate = sstep(0.35, 0.45, cont) * sstep(0.2, 0.05, erosion);
-  hHill += peakGate * ridge * ridge * 100;
-  // Jaggedness: extra spikes only on the very crests (vanilla-style)
-  if (ridge > 0.75) hHill += peakGate * (ridge - 0.75) * 60;
+  const peakGate = sstep(0.32, 0.50, cont) * sstep(0.25, 0.0, erosion);
+  hHill += peakGate * ridge * ridge * (cont - 0.30) * 120;
+  // Jaggedness: extra teeth only on the very crests, scaled the same way
+  if (ridge > 0.70) hHill += peakGate * (ridge - 0.70) * (cont - 0.30) * 60;
+  if (hHill > SEA_LEVEL + 55) hHill = SEA_LEVEL + 55;
 
   // Blend across every boundary — no terrace walls
   let h = hDeep;
@@ -201,8 +204,10 @@ export function calcBiome(n, wx, wz, h, _cache) {
 
 // BlockForge surface_rule: top block for a column.
 export function surfBlock(biome, h, wx = 0, wz = 0) {
-  // BlockForge rule: underwater terrain mixes sand/gravel/clay by noise, not pure sand
-  if (h < SEA_LEVEL) {
+  // BlockForge rule: true underwater terrain mixes sand/gravel/clay.
+  // Near-shore columns (SEA-1 and up) keep their biome surface so beaches
+  // grade into grass instead of starting as sand pits.
+  if (h < SEA_LEVEL - 1) {
     const m = ((wx * 73856093) ^ (wz * 19349663)) >>> 0;
     const r = (m % 100) / 100;
     if (r < 0.12) return BLOCK.GRAVEL;
@@ -314,12 +319,14 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
       const ravX = n.cave(wx * 0.01, y * 0.15, wz * 0.06);
       const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
       const ravDepth = n.cave(wx * 0.008, y * 0.005, wz * 0.008);
-      if (Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
+      // Ravines stay dry canyons: only carve above the waterline so their
+      // floors don't become sand-and-water pits.
+      if (y > SEA_LEVEL - 4 && Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
     }
 
-    // BlockForge aquifer-lite: sub-sea-level caves flood instead of hanging as air
-    // pockets under the ocean.
-    if (b === BLOCK.AIR && y <= SEA_LEVEL && y >= 1) b = BLOCK.WATER;
+    // BlockForge aquifer-lite: only DEEP sub-sea caves flood. Near-surface
+    // crevices stay dry so ravine floors aren't water pits.
+    if (b === BLOCK.AIR && y <= SEA_LEVEL - 4 && y >= 1) b = BLOCK.WATER;
 
     chunk.set(x, y, z, b);
     if (b !== BLOCK.AIR && b !== BLOCK.WATER) topSolid = y;

@@ -33,7 +33,9 @@
     <meta http-equiv="Expires" content="0" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>BlockForge</title>
-    <link rel="icon" type="image/png" href="BlockForge.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
     <script>
       // WebGL detection — show friendly error if unsupported
       (function() {
@@ -153,7 +155,6 @@
         window.isDevViewer = isDevViewer;
       })();
     </script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' fill='%238B6B3B'/%3E%3Crect y='0' width='16' height='5' fill='%235B8C2A'/%3E%3Crect y='5' width='16' height='2' fill='%236B4B2B'/%3E%3Crect x='2' y='1' width='2' height='2' fill='%234A7A1A'/%3E%3Crect x='8' y='2' width='3' height='2' fill='%234A7A1A'/%3E%3Crect x='5' y='0' width='2' height='1' fill='%234A7A1A'/%3E%3C/svg%3E" />
     <style>
       :root {
         --bg-overlay: #000;
@@ -1512,7 +1513,37 @@
       .menu-logo-wrap {
         position: relative;
         margin-bottom: 30px;
+        display: flex; flex-direction: column; align-items: center;
       }
+      .menu-logo-mark {
+        width: 96px; height: 96px;
+        image-rendering: pixelated;
+        filter: drop-shadow(0 10px 24px rgba(0,0,0,0.55)) drop-shadow(0 0 28px rgba(120,200,120,0.25));
+        animation: logoFloat 3.2s ease-in-out infinite;
+        margin-bottom: 10px;
+      }
+      #menu-login .menu-logo-mark { width: 72px; height: 72px; }
+      @keyframes logoFloat {
+        0%, 100% { transform: translateY(0) rotate(-2deg); }
+        50% { transform: translateY(-8px) rotate(2deg); }
+      }
+      .menu-tagline {
+        font: bold 10px monospace; letter-spacing: 4px; color: #7ab;
+        text-shadow: 1px 1px 0 #000; margin-top: 8px;
+      }
+      .menu-grid {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        width: 100%; max-width: 420px; margin-bottom: 8px;
+      }
+      .menu-grid .menu-btn { min-width: 0; font-size: 12px; }
+      .menu-btn-play {
+        font-size: 17px !important; padding: 14px 0 !important;
+        border-color: rgba(120,220,120,0.5) !important;
+        background: linear-gradient(180deg,rgba(70,160,90,0.85),rgba(45,125,65,0.9),rgba(30,100,50,0.92)) !important;
+        box-shadow: 0 0 24px rgba(80,220,120,0.25), inset 0 1px 0 rgba(255,255,255,0.15) !important;
+      }
+      .menu-foot-row { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+      .menu-btn-small { font-size: 11px !important; padding: 6px 20px !important; min-width: 0 !important; }
       .menu-logo {
         font-family: monospace;
         font-size: 64px; font-weight: 900; letter-spacing: 10px;
@@ -2739,6 +2770,7 @@
       <!-- Screen: Login / Create Account -->
       <div id="menu-login" class="menu-screen active">
         <div class="menu-logo-wrap">
+          <img class="menu-logo-mark" src="logo.png" alt="BlockForge" width="72" height="72" />
           <div class="menu-logo">BLOCKFORGE</div>
           <div class="menu-splash">Welcome!</div>
         </div>
@@ -2776,19 +2808,25 @@
 
       <div id="menu-main" class="menu-screen">
         <div class="menu-logo-wrap">
+          <img class="menu-logo-mark" src="logo.png" alt="BlockForge" width="96" height="96" />
           <div class="menu-logo">BLOCKFORGE</div>
+          <div class="menu-tagline">MINE · BUILD · SURVIVE · ACROSS TIME</div>
           <div class="menu-splash" id="main-splash"></div>
         </div>
-        <button class="menu-btn" id="btn-play">Play</button>
-        <button class="menu-btn" id="btn-multiplayer">Multiplayer</button>
-        <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
-        <button class="menu-btn" id="btn-mods" style="border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);">🧩 Mods & Addons</button>
-        <button class="menu-btn" id="btn-other-games" style="border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#152a4a 60%,#0a1a35 100%);">🎲 Other Games</button>
-        <button class="menu-btn" id="btn-achievements">Advancements</button>
-        <button class="menu-btn" id="btn-settings">Settings</button>
-        <button class="menu-btn" id="btn-credits" style="font-size:11px;padding:6px 20px;">Credits</button>
-        <button class="menu-btn" id="btn-dev-panel" style="display:none;font-size:11px;padding:6px 20px;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
-        <button class="menu-btn" id="btn-dev-world" style="display:none;font-size:11px;padding:6px 20px;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
+        <button class="menu-btn menu-btn-play" id="btn-play">▶&nbsp; Play</button>
+        <div class="menu-grid">
+          <button class="menu-btn" id="btn-multiplayer">🌐 Multiplayer</button>
+          <button class="menu-btn" id="btn-minigames" style="border-color:#fa0;background:linear-gradient(180deg,#6a4a1a 0%,#5a3a0d 40%,#4a300a 60%,#3a2005 100%);">🎮 Minigames</button>
+          <button class="menu-btn" id="btn-mods" style="border-color:#a8f;background:linear-gradient(180deg,#4a3a6b 0%,#3a2a5b 40%,#302050 60%,#201040 100%);">🧩 Mods &amp; Addons</button>
+          <button class="menu-btn" id="btn-other-games" style="border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#152a4a 60%,#0a1a35 100%);">🎲 Other Games</button>
+        </div>
+        <button class="menu-btn" id="btn-achievements">🏆 Advancements</button>
+        <button class="menu-btn" id="btn-settings">⚙ Settings</button>
+        <div class="menu-foot-row">
+          <button class="menu-btn menu-btn-small" id="btn-credits">Credits</button>
+          <button class="menu-btn menu-btn-small" id="btn-dev-panel" style="display:none;border-color:#5af;background:linear-gradient(180deg,#2a4a6b 0%,#1a3a5b 40%,#1a3050 60%,#0a2040 100%);">Dev Panel</button>
+          <button class="menu-btn menu-btn-small" id="btn-dev-world" style="display:none;border-color:#0ff;background:linear-gradient(180deg,#1a4a4a 0%,#0d3a3a 40%,#0a3030 60%,#052020 100%);">🛠 Dev World</button>
+        </div>
         <div id="mod-buttons-container"></div>
         <button class="menu-btn" id="btn-menu-errors" style="display:none;font-size:11px;padding:6px 20px;border-color:#f88;background:linear-gradient(180deg,#4a2a2a 0%,#3a1a1a 40%,#301515 60%,#200a0a 100%);">⚠ View Errors</button>
         <div id="other-games-popup" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;z-index:1000;align-items:center;justify-content:center;background:rgba(0,0,0,0.6);">
@@ -3342,8 +3380,7 @@
           <!-- Host View -->
           <div id="p2p-host-view">
             <button id="btn-p2p-findmatch" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:linear-gradient(135deg,#2a7,#185);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">FIND RANDOM OPPONENT</button>
-            <button id="btn-p2p-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:rgba(30,30,50,0.9);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">HOST A WORLD (share code with friend)</button>
-            <div id="p2p-code-box" style="display:none;background:#0a0a14;border:1px solid rgba(80,180,100,0.4);border-radius:8px;padding:14px;margin-bottom:12px;word-break:break-all;font:bold 16px monospace;color:#5f5;text-align:center;letter-spacing:2px;cursor:pointer" title="Tap to copy"></div>
+            <button id="btn-p2p-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:rgba(30,30,50,0.9);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:12px;">HOST A WORLD (share code with friend)</button>            <div id="p2p-code-box" style="display:none;background:#0a0a14;border:1px solid rgba(80,180,100,0.4);border-radius:8px;padding:14px;margin-bottom:12px;word-break:break-all;font:bold 16px monospace;color:#5f5;text-align:center;letter-spacing:2px;cursor:pointer" title="Tap to copy"></div>
             <div id="p2p-qr" style="text-align:center;margin-bottom:12px"></div>
             <div id="p2p-host-status" style="font:11px monospace;color:#888;text-align:center;margin-bottom:12px;"></div>
             <!-- Host: paste the joiner's answer code to complete the connection -->
@@ -3369,6 +3406,28 @@
             <button id="btn-p2p-show-join" style="flex:1;padding:10px;font:12px monospace;color:#5f5;background:rgba(0,0,0,0.3);border:1px solid rgba(80,180,100,0.3);border-radius:4px;cursor:pointer;">JOIN A FRIEND</button>
             <button id="btn-p2p-cancel" style="flex:1;padding:10px;font:12px monospace;color:#aaa;background:rgba(0,0,0,0.3);border:1px solid rgba(80,80,80,0.3);border-radius:4px;cursor:pointer;">BACK</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Screen: P2P Create (host options before going live) -->
+      <div id="menu-p2p-create" class="menu-screen" style="background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:0;">
+        <div style="max-width:440px;width:92%;background:rgba(20,20,30,0.97);border:1px solid rgba(80,180,100,0.45);border-radius:10px;padding:24px 26px;box-shadow:0 10px 40px rgba(0,0,0,0.6);">
+          <div style="font:bold 20px monospace;color:#5f5;text-align:center;margin-bottom:6px;text-shadow:1px 1px 0 #000;">⚙ HOST OPTIONS</div>
+          <div style="font:11px monospace;color:#7a8;text-align:center;margin-bottom:16px;">Set up your world before friends join.</div>
+          <label style="display:block;font:bold 11px monospace;color:#9ab;letter-spacing:1px;margin-bottom:4px;">WORLD SEED (blank = random)</label>
+          <input id="input-p2p-seed" type="text" placeholder="e.g. 12345" maxlength="20" spellcheck="false" autocomplete="off" style="width:100%;padding:9px 12px;background:rgba(0,0,0,0.5);color:#ddd;border:1px solid rgba(100,100,100,0.35);border-radius:4px;font:13px monospace;outline:none;box-sizing:border-box;margin-bottom:12px;" />
+          <label style="display:block;font:bold 11px monospace;color:#9ab;letter-spacing:1px;margin-bottom:4px;">GAME MODE</label>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button id="p2p-mode-survival" class="menu-btn selected" style="flex:1;font-size:12px;padding:9px;">SURVIVAL</button>
+            <button id="p2p-mode-creative" class="menu-btn" style="flex:1;font-size:12px;padding:9px;">CREATIVE</button>
+          </div>
+          <label style="display:block;font:bold 11px monospace;color:#9ab;letter-spacing:1px;margin-bottom:4px;">WHO CAN FIND IT</label>
+          <div style="display:flex;gap:8px;margin-bottom:16px;">
+            <button id="p2p-list-public" class="menu-btn selected" style="flex:1;font-size:12px;padding:9px;">🌐 PUBLIC LIST</button>
+            <button id="p2p-list-private" class="menu-btn" style="flex:1;font-size:12px;padding:9px;">🔒 CODE ONLY</button>
+          </div>
+          <button id="btn-p2p-start-host" style="width:100%;padding:14px;font:bold 15px monospace;color:#fff;background:linear-gradient(135deg,#2a7,#185);border:1px solid rgba(80,180,100,0.5);border-radius:6px;cursor:pointer;margin-bottom:8px;">START HOSTING →</button>
+          <button id="btn-p2p-create-back" style="width:100%;padding:10px;font:12px monospace;color:#aaa;background:rgba(0,0,0,0.3);border:1px solid rgba(80,80,80,0.3);border-radius:4px;cursor:pointer;">BACK</button>
         </div>
       </div>
 

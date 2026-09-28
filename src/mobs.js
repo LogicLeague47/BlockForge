@@ -1131,6 +1131,10 @@ class Mob {
     if (this.type === 'dragon') return this._dragonTextures(def);
     if (this.type === 'wanderer') return this._wandererTextures(def);
     if (this.type === 'pixie') return this._pixieTextures(def);
+    if (this.type === 'crystal_golem') return this._crystal_golemTextures(def);
+    if (this.type === 'shadow_stalker') return this._shadow_stalkerTextures(def);
+    if (this.type === 'wind_spirit') return this._wind_spiritTextures(def);
+    if (this.type === 'cave_bat') return this._cave_batTextures(def);
     return this._genericTextures(def);
   }
 
@@ -1814,143 +1818,104 @@ class Mob {
   }
 
   _zombieTextures(def) {
+    // Drowned Husk: deep sea-rot teal skin, dark navy sailor coat, glowing
+    // cyan eyes, barnacle crust, ribs showing through a torn chest.
     const s = 64;
-    // BlockForge bog rotter: sickly moss-green skin, ragged brown shirt, torn pants
-    const SKIN = 0x7fa03c;
-    const SHIRT = 0x6a4a2a;
-    const PANTS = 0x3a3230;
+    const SKIN = 0x3f7a6a, COAT = 0x232f45, PANTS = 0x1d2230;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const botDark = (ctx) => { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fillRect(0, s - 6, s, 6); ctx.fillRect(s - 6, 0, 6, s); };
+    const barnacles = (ctx, n, seed) => {
+      ctx.fillStyle = '#cfd6cf';
+      let a = seed;
+      for (let i = 0; i < n; i++) {
+        a = (a * 16807) % 2147483647;
+        const bx = a % (s - 8), by = (a >> 8) % (s - 8);
+        ctx.fillRect(bx, by, 5, 4);
+        ctx.fillStyle = '#8a948a';
+        ctx.fillRect(bx + 1, by + 1, 3, 2);
+        ctx.fillStyle = '#cfd6cf';
+      }
+    };
 
     // ── HEAD ──
     const skinSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 12);
-      // Hair strands on sides
-      ctx.fillStyle = 'rgba(60,40,25,0.6)';
-      ctx.fillRect(0, 0, s, 6);
-      ctx.fillRect(0, 0, 4, s);
-      ctx.fillRect(s - 4, 0, 4, s);
+      ctx.fillStyle = '#3f7a6a'; ctx.fillRect(0, 0, s, s); N(ctx, SKIN, 7); topLight(ctx);
+      // kelp hair mats
+      ctx.fillStyle = '#22331f';
+      ctx.fillRect(0, 0, s, 7); ctx.fillRect(0, 0, 5, 22); ctx.fillRect(s - 5, 0, 5, 22);
+      ctx.fillStyle = '#31482a';
+      ctx.fillRect(0, 7, s, 2);
+      barnacles(ctx, 3, 12345);
     });
     const skinTop = this._tex(s, s, (ctx) => {
-      // Hair on top (dark brown)
-      ctx.fillStyle = '#3a2515';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x3a2515, 10);
+      ctx.fillStyle = '#22331f'; ctx.fillRect(0, 0, s, s); N(ctx, 0x22331f, 6);
+      ctx.fillStyle = '#31482a'; ctx.fillRect(8, 8, s - 16, 4); ctx.fillRect(8, 40, s - 16, 4);
     });
     const skinBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#35685c'; ctx.fillRect(0, 0, s, s); botDark(ctx);
     });
     const skinFront = this._tex(s, s, (ctx) => {
-      // Face: teal skin
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 10);
-      // Hair fringe on top
-      ctx.fillStyle = '#3a2515';
-      ctx.fillRect(0, 0, s, 8);
-      ctx.fillRect(0, 0, 6, 18);
-      ctx.fillRect(s - 6, 0, 6, 18);
-      // Eyes: white sclera
-      const eyeY = 20;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(8, eyeY, 18, 12);
-      ctx.fillRect(38, eyeY, 18, 12);
-      // Pupils (amber undead glow)
-      ctx.fillStyle = '#111';
-      ctx.fillRect(14, eyeY + 3, 8, 7);
-      ctx.fillRect(44, eyeY + 3, 8, 7);
-      ctx.fillStyle = '#ffb020';
-      ctx.fillRect(16, eyeY + 5, 4, 3);
-      ctx.fillRect(46, eyeY + 5, 4, 3);
-      // Cheek scar
-      ctx.fillStyle = 'rgba(30,60,45,0.7)';
-      ctx.fillRect(8, 36, 10, 2);
-      // Eye bags (sunken, undead look)
-      ctx.fillStyle = 'rgba(40,70,55,0.5)';
-      ctx.fillRect(8, eyeY + 10, 18, 4);
-      ctx.fillRect(38, eyeY + 10, 18, 4);
-      // Mouth (open, dark interior)
-      ctx.fillStyle = '#1a0a05';
-      ctx.fillRect(18, 42, 28, 14);
-      // Teeth (top and bottom rows)
-      ctx.fillStyle = '#ddd';
-      for (let x = 18; x < 46; x += 6) {
-        ctx.fillRect(x, 42, 3, 3);
-        ctx.fillRect(x, 53, 3, 3);
-      }
+      ctx.fillStyle = '#3f7a6a'; ctx.fillRect(0, 0, s, s); N(ctx, SKIN, 7); topLight(ctx);
+      // kelp fringe
+      ctx.fillStyle = '#22331f'; ctx.fillRect(0, 0, s, 9);
+      ctx.fillRect(0, 0, 7, 20); ctx.fillRect(s - 7, 0, 7, 20);
+      // deep glowing eye pits
+      ctx.fillStyle = '#0d1a18';
+      ctx.fillRect(7, 19, 20, 14); ctx.fillRect(37, 19, 20, 14);
+      ctx.fillStyle = '#4df3ff';
+      ctx.fillRect(12, 23, 10, 6); ctx.fillRect(42, 23, 10, 6);
+      ctx.fillStyle = '#d8feff';
+      ctx.fillRect(14, 24, 4, 3); ctx.fillRect(44, 24, 4, 3);
+      // torn cheek + snarl
+      ctx.fillStyle = '#1c0f08';
+      ctx.fillRect(16, 42, 32, 15);
+      ctx.fillStyle = '#e8e4d2';
+      for (let x = 18; x < 46; x += 7) { ctx.fillRect(x, 42, 4, 4); ctx.fillRect(x, 53, 4, 4); }
+      ctx.fillStyle = 'rgba(20,40,38,0.8)'; ctx.fillRect(6, 36, 12, 3);
     });
     const skinBack = this._tex(s, s, (ctx) => {
-      // Hair covers back of head
-      ctx.fillStyle = '#3a2515';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x3a2515, 10);
-      // Neck exposed at bottom
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(18, s - 12, 28, 12);
+      ctx.fillStyle = '#22331f'; ctx.fillRect(0, 0, s, s); N(ctx, 0x22331f, 7);
+      ctx.fillStyle = '#3f7a6a'; ctx.fillRect(20, s - 12, 24, 12);
     });
     const head = [skinSide, skinSide, skinTop, skinBot, skinBack, skinFront];
 
-    // ── BODY (blue shirt) ──
+    // ── BODY (dark navy coat, brass buttons, torn chest) ──
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a4a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SHIRT, 14);
-      // Torn shirt edges
-      ctx.fillStyle = 'rgba(40,60,90,0.5)';
-      ctx.fillRect(0, s * 0.65, s, s * 0.35);
-      // Shirt seam
-      ctx.fillStyle = 'rgba(30,50,80,0.3)';
-      ctx.fillRect(s / 2 - 1, 0, 2, s);
+      ctx.fillStyle = '#232f45'; ctx.fillRect(0, 0, s, s); N(ctx, COAT, 7); topLight(ctx); botDark(ctx);
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(s - 10, 6, 4, s - 12);
+      ctx.fillStyle = 'rgba(10,14,24,0.6)'; ctx.fillRect(0, s - 14, s, 14);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a4a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SHIRT, 10);
+      ctx.fillStyle = '#2c3a56'; ctx.fillRect(0, 0, s, s); N(ctx, 0x2c3a56, 6);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a3230';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#1d2230'; ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a4a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SHIRT, 12);
-      // Collar / neckline
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(20, 0, 24, 6);
-      // Shirt buttons / center line
-      ctx.fillStyle = 'rgba(30,50,80,0.4)';
-      ctx.fillRect(30, 10, 4, 50);
-      // Torn holes showing rotted skin beneath
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(8, 18, 10, 8);
-      ctx.fillRect(46, 34, 10, 8);
-      ctx.fillStyle = 'rgba(40,60,20,0.6)';
-      ctx.fillRect(8, 24, 10, 2);
-      ctx.fillRect(46, 40, 10, 2);
-      // Moss patches on shoulders
-      ctx.fillStyle = 'rgba(70,130,40,0.75)';
-      ctx.fillRect(4, 6, 12, 5);
-      ctx.fillRect(48, 8, 12, 5);
-      ctx.fillRect(24, 52, 16, 6);
+      ctx.fillStyle = '#232f45'; ctx.fillRect(0, 0, s, s); N(ctx, COAT, 7); topLight(ctx);
+      // coat collar + skin throat
+      ctx.fillStyle = '#3f7a6a'; ctx.fillRect(22, 0, 20, 7);
+      ctx.fillStyle = '#161d2e'; ctx.fillRect(14, 0, 8, 12); ctx.fillRect(42, 0, 8, 12);
+      // brass buttons
+      ctx.fillStyle = '#c8a83a';
+      for (let y = 14; y < 56; y += 12) { ctx.fillRect(29, y, 6, 6); ctx.fillStyle = '#ffe08a'; ctx.fillRect(30, y + 1, 2, 2); ctx.fillStyle = '#c8a83a'; }
+      // torn chest: ribs through the coat
+      ctx.fillStyle = '#10141f'; ctx.fillRect(6, 30, 20, 26);
+      ctx.fillStyle = '#e8e4d2';
+      for (let y = 32; y < 54; y += 6) ctx.fillRect(7, y, 18, 3);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
-    // ── LEGS (dark blue pants) ──
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a3230';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PANTS, 10);
-      // Shoe at bottom (darker)
-      ctx.fillStyle = '#241f1c';
-      ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#1d2230'; ctx.fillRect(0, 0, s, s); N(ctx, PANTS, 7); botDark(ctx);
+      ctx.fillStyle = '#12141d'; ctx.fillRect(0, s - 12, s, 12);
+      ctx.fillStyle = '#3a3f52'; ctx.fillRect(0, s - 12, s, 3);
     });
-    // Arms use same skin color as head
     const armTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#7fa03c';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 10);
+      ctx.fillStyle = '#232f45'; ctx.fillRect(0, 0, s, s); N(ctx, COAT, 7); topLight(ctx);
+      ctx.fillStyle = '#3f7a6a'; ctx.fillRect(0, s - 16, s, 16);
+      N(ctx, SKIN, 5);
     });
     const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
@@ -1958,395 +1923,260 @@ class Mob {
   }
 
   _skeletonTextures(def) {
+    // Ashen Warden: smoke-charred bone, ember soul-glow, gold brow band,
+    // split ribs over a hollow dark chest.
     const s = 64;
-    const BONE = 0xe8e4d8;
-    const BONE_LIGHT = 0xf0ece0;
-    const BONE_DARK = 0xc8c4b8;
+    const BONE = 0x4a4550, LIGHT = 0x6a6578, DARK = 0x2a2733;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const botDark = (ctx) => { ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, s - 6, s, 6); ctx.fillRect(s - 6, 0, 6, s); };
 
-    // ── HEAD (skull) ──
+    // ── HEAD (charred skull) ──
     const boneSide = this._tex(s, s, (ctx) => {
-      // Skull side — rounded bone shape
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 10);
-      // Temporal bone indent
-      ctx.fillStyle = 'rgba(180,175,165,0.4)';
-      ctx.fillRect(8, 16, 12, 20);
-      ctx.fillRect(s - 20, 16, 12, 20);
-      // Jaw line
-      ctx.fillStyle = 'rgba(160,155,145,0.5)';
-      ctx.fillRect(4, s - 18, s - 8, 3);
-      // Moss creeping over the temple
-      ctx.fillStyle = 'rgba(70,130,40,0.8)';
-      ctx.fillRect(8, 16, 12, 6);
-      ctx.fillRect(s - 20, 36, 12, 6);
-      ctx.fillStyle = 'rgba(50,100,30,0.8)';
-      ctx.fillRect(10, 18, 8, 2);
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s); N(ctx, BONE, 7); topLight(ctx);
+      ctx.fillStyle = 'rgba(20,18,26,0.55)';
+      ctx.fillRect(10, 18, 12, 20); ctx.fillRect(s - 22, 18, 12, 20);
+      ctx.fillStyle = 'rgba(10,8,14,0.7)';
+      ctx.fillRect(4, s - 16, s - 8, 3);
+      // ash cracks glowing at the temple
+      ctx.fillStyle = '#ff7a2e';
+      ctx.fillRect(14, 8, 2, 10); ctx.fillRect(s - 16, 40, 2, 10);
     });
     const boneTop = this._tex(s, s, (ctx) => {
-      // Top of skull — smooth bone
-      ctx.fillStyle = '#f0ece0';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE_LIGHT, 8);
-      // Cranial ridge
-      ctx.fillStyle = 'rgba(200,195,185,0.4)';
-      ctx.fillRect(s / 2 - 4, 0, 8, s);
+      ctx.fillStyle = '#6a6578'; ctx.fillRect(0, 0, s, s); N(ctx, LIGHT, 6);
+      ctx.fillStyle = 'rgba(30,28,38,0.5)'; ctx.fillRect(s / 2 - 4, 0, 8, s);
     });
     const boneBot = this._tex(s, s, (ctx) => {
-      // Bottom of skull / jaw
-      ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE_DARK, 8);
-      // Jaw hinge points
-      ctx.fillStyle = 'rgba(160,155,145,0.5)';
-      ctx.fillRect(6, 10, 8, 8);
-      ctx.fillRect(s - 14, 10, 8, 8);
+      ctx.fillStyle = '#2a2733'; ctx.fillRect(0, 0, s, s); N(ctx, DARK, 6);
+      ctx.fillStyle = 'rgba(12,10,16,0.7)';
+      ctx.fillRect(6, 10, 8, 8); ctx.fillRect(s - 14, 10, 8, 8);
     });
     const boneFront = this._tex(s, s, (ctx) => {
-      // Skull face — detailed
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-
-      // Forehead / brow ridge
-      ctx.fillStyle = 'rgba(200,195,185,0.5)';
-      ctx.fillRect(0, 8, s, 6);
-      // Lightning crack across the skull
-      ctx.fillStyle = 'rgba(110,105,95,0.9)';
-      ctx.fillRect(20, 0, 2, 12);
-      ctx.fillRect(22, 10, 8, 2);
-      ctx.fillRect(28, 4, 2, 8);
-      ctx.fillStyle = 'rgba(70,130,40,0.7)';
-      ctx.fillRect(44, 2, 14, 6);
-
-      // Eye sockets (deep, dark)
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(8, 18, 18, 16);
-      ctx.fillRect(38, 18, 18, 16);
-      // Inner eye shadow
-      ctx.fillStyle = '#2a2a2a';
-      ctx.fillRect(10, 20, 14, 12);
-      ctx.fillRect(40, 20, 14, 12);
-      // Soul-glow pupils (BlockForge void theme)
-      ctx.fillStyle = '#6ef3ff';
-      ctx.fillRect(16, 24, 4, 4);
-      ctx.fillRect(46, 24, 4, 4);
-      // Skull crack
-      ctx.fillStyle = 'rgba(120,115,105,0.8)';
-      ctx.fillRect(52, 8, 2, 14);
-      ctx.fillRect(48, 20, 6, 2);
-
-      // Nose cavity (inverted triangle)
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(26, 34, 12, 8);
-      ctx.fillStyle = '#222';
-      ctx.fillRect(28, 36, 8, 6);
-
-      // Cheekbones
-      ctx.fillStyle = 'rgba(200,195,185,0.4)';
-      ctx.fillRect(4, 28, 6, 12);
-      ctx.fillRect(s - 10, 28, 6, 12);
-
-      // Teeth row (upper)
-      ctx.fillStyle = '#f5f0e5';
-      ctx.fillRect(16, 44, 32, 6);
-      // Tooth gaps
-      ctx.fillStyle = '#1a1a1a';
-      for (let x = 16; x < 48; x += 4) {
-        ctx.fillRect(x, 44, 1, 6);
-      }
-      // Lower jaw
-      ctx.fillStyle = '#ddd8c8';
-      ctx.fillRect(14, 50, 36, 8);
-      // Lower teeth
-      ctx.fillStyle = '#f5f0e5';
-      ctx.fillRect(16, 50, 32, 4);
-      ctx.fillStyle = '#1a1a1a';
-      for (let x = 16; x < 48; x += 4) {
-        ctx.fillRect(x, 50, 1, 4);
-      }
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s); N(ctx, BONE, 7); topLight(ctx);
+      // gold death-mask brow band
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(0, 6, s, 7);
+      ctx.fillStyle = '#ffe08a'; ctx.fillRect(0, 6, s, 2);
+      ctx.fillStyle = '#7a5a10'; ctx.fillRect(20, 6, 4, 7); ctx.fillRect(40, 6, 4, 7);
+      // deep sockets with ember souls
+      ctx.fillStyle = '#08070c';
+      ctx.fillRect(8, 18, 18, 17); ctx.fillRect(38, 18, 18, 17);
+      ctx.fillStyle = '#ff7a2e';
+      ctx.fillRect(14, 24, 7, 7); ctx.fillRect(44, 24, 7, 7);
+      ctx.fillStyle = '#ffd75a';
+      ctx.fillRect(16, 26, 3, 3); ctx.fillRect(46, 26, 3, 3);
+      // nasal slit
+      ctx.fillStyle = '#08070c'; ctx.fillRect(27, 35, 10, 8);
+      // grinning teeth plate
+      ctx.fillStyle = '#d8d2c2'; ctx.fillRect(14, 45, 36, 7);
+      ctx.fillStyle = '#08070c';
+      for (let x = 16; x < 48; x += 5) ctx.fillRect(x, 45, 2, 7);
+      ctx.fillStyle = '#b8b2a2'; ctx.fillRect(12, 52, 40, 7);
     });
     const boneBack = this._tex(s, s, (ctx) => {
-      // Back of skull + spine
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-      // Occipital bone
-      ctx.fillStyle = 'rgba(180,175,165,0.3)';
-      ctx.fillRect(12, 8, s - 24, s - 16);
-      // Spine (vertebrae)
-      ctx.fillStyle = '#d0ccc0';
-      ctx.fillRect(26, 0, 12, s);
-      this._noiseTex(ctx, s, s, BONE_DARK, 6);
-      // Individual vertebrae lines
-      ctx.fillStyle = 'rgba(160,155,145,0.6)';
-      for (let y = 0; y < s; y += 8) {
-        ctx.fillRect(24, y, 16, 1);
-      }
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s); N(ctx, BONE, 7);
+      ctx.fillStyle = '#35313e'; ctx.fillRect(12, 8, s - 24, s - 16);
+      // spine plates
+      ctx.fillStyle = '#6a6578'; ctx.fillRect(26, 0, 12, s);
+      ctx.fillStyle = 'rgba(20,18,26,0.6)';
+      for (let y = 0; y < s; y += 9) ctx.fillRect(24, y, 16, 2);
     });
     const head = [boneSide, boneSide, boneTop, boneBot, boneBack, boneFront];
 
-    // ── BODY (ribcage) ──
-    const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-      // Sternum (center chest bone)
-      ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(28, 4, 8, 48);
-      // Ribs (curved lines from sternum outward)
-      ctx.strokeStyle = '#b8b4a8';
-      ctx.lineWidth = 3;
-      for (let y = 8; y < 52; y += 7) {
-        // Left rib
-        ctx.beginPath();
-        ctx.moveTo(28, y);
-        ctx.quadraticCurveTo(16, y + 2, 4, y + 4);
-        ctx.stroke();
-        // Right rib
-        ctx.beginPath();
-        ctx.moveTo(36, y);
-        ctx.quadraticCurveTo(48, y + 2, 60, y + 4);
-        ctx.stroke();
+    // ── BODY (split ribcage over hollow dark) ──
+    const rib = (ctx) => {
+      ctx.fillStyle = '#35313e'; ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#6a6578';
+      ctx.fillRect(28, 2, 8, 52);
+      ctx.strokeStyle = '#8a8598'; ctx.lineWidth = 4;
+      for (let y = 8; y < 54; y += 8) {
+        ctx.beginPath(); ctx.moveTo(28, y); ctx.quadraticCurveTo(15, y + 3, 3, y + 5); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(36, y); ctx.quadraticCurveTo(49, y + 3, 61, y + 5); ctx.stroke();
       }
-      // Rib tips (lighter)
-      ctx.fillStyle = '#f0ece0';
-      for (let y = 10; y < 54; y += 7) {
-        ctx.fillRect(2, y, 4, 2);
-        ctx.fillRect(58, y, 4, 2);
-      }
-      // Moss growing between ribs
-      ctx.fillStyle = 'rgba(70,130,40,0.75)';
-      ctx.fillRect(6, 14, 8, 5);
-      ctx.fillRect(50, 28, 8, 5);
-      ctx.fillRect(8, 42, 8, 5);
-      ctx.fillStyle = 'rgba(140,180,80,0.6)';
-      ctx.fillRect(7, 15, 3, 2);
-      ctx.fillRect(51, 29, 3, 2);
-    });
+      ctx.fillStyle = '#ff7a2e';
+      ctx.fillRect(29, 24, 6, 6); ctx.fillStyle = '#ffd75a'; ctx.fillRect(30, 25, 4, 4);
+    };
+    const bodyFront = this._tex(s, s, (ctx) => { rib(ctx); topLight(ctx); });
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-      // Side ribs (curved)
-      ctx.strokeStyle = '#b8b4a8';
-      ctx.lineWidth = 3;
-      for (let y = 8; y < 52; y += 7) {
-        ctx.beginPath();
-        ctx.moveTo(s, y);
-        ctx.quadraticCurveTo(s / 2, y + 3, 0, y + 5);
-        ctx.stroke();
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s); N(ctx, BONE, 7); topLight(ctx); botDark(ctx);
+      ctx.strokeStyle = '#35313e'; ctx.lineWidth = 4;
+      for (let y = 8; y < 54; y += 8) {
+        ctx.beginPath(); ctx.moveTo(s, y); ctx.quadraticCurveTo(s / 2, y + 3, 0, y + 5); ctx.stroke();
       }
-      // Spine visible on side edge
-      ctx.fillStyle = '#d0ccc0';
-      ctx.fillRect(s - 8, 0, 8, s);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e8e4d8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 6);
-      // Collar bones
-      ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(4, s / 2 - 2, s - 8, 4);
+      ctx.fillStyle = '#6a6578'; ctx.fillRect(0, 0, s, s); N(ctx, LIGHT, 6);
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(4, s / 2 - 3, s - 8, 6);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#d8d4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE_DARK, 6);
+      ctx.fillStyle = '#2a2733'; ctx.fillRect(0, 0, s, s);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
-    // ── LEGS (thin bone limbs) ──
-    const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e0dcd0';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-      // Knee joint
-      ctx.fillStyle = '#d0ccc0';
-      ctx.fillRect(0, s / 2 - 4, s, 8);
-      // Shin bone detail
-      ctx.fillStyle = 'rgba(180,175,165,0.4)';
-      ctx.fillRect(s / 2 - 2, 0, 4, s);
+    const limb = () => this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a4550'; ctx.fillRect(0, 0, s, s); N(ctx, BONE, 7); topLight(ctx);
+      ctx.fillStyle = '#35313e'; ctx.fillRect(0, s / 2 - 4, s, 8);
+      ctx.fillStyle = '#6a6578'; ctx.fillRect(s / 2 - 2, 0, 4, s);
     });
+    const legTex = limb(), armTex = limb();
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-
-    // ── ARMS (thin bone) ──
-    const armTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e0dcd0';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BONE, 8);
-      // Elbow joint
-      ctx.fillStyle = '#d0ccc0';
-      ctx.fillRect(0, s / 2 - 3, s, 6);
-    });
     const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
     return { body, head, leg, arm };
   }
 
   _chickenTextures(def) {
+    // Amber Hen: rich copper-brown plumage, cream breast, crimson comb,
+    // sharp beak, scaled amber shanks.
     const s = 64;
-    const WHITE = 0xf8f8f8;
-    const CREAM = 0xf0e8d8;
-    const RED = 0xcc2222;
+    const PLUME = 0x9a6230, DARK = 0x6e421e, CREAM = 0xe8d5b0;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,240,220,0.12)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const botDark = (ctx) => { ctx.fillStyle = 'rgba(40,20,8,0.22)'; ctx.fillRect(0, s - 6, s, 6); ctx.fillRect(s - 6, 0, 6, s); };
+    const feathers = (ctx, x0, y0, w, rows) => {
+      for (let r = 0; r < rows; r++) {
+        for (let i = 0; i < w; i++) {
+          const fx = x0 + i * 6 + (r % 2) * 3, fy = y0 + r * 8;
+          ctx.fillStyle = 'rgba(60,35,15,0.55)';
+          ctx.fillRect(fx, fy + 5, 4, 2);
+          ctx.fillStyle = 'rgba(255,230,190,0.35)';
+          ctx.fillRect(fx, fy, 4, 2);
+        }
+      }
+    };
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2e4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, WHITE, 12);
-      // Wing detail — layered feather strokes
-      ctx.fillStyle = 'rgba(224,214,200,0.45)';
-      ctx.beginPath();
-      ctx.ellipse(16, 26, 12, 18, 0.15, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = 'rgba(250,246,240,0.5)';
-      for (let i = 0; i < 4; i++) {
-        ctx.fillRect(8, 12 + i * 9, 20, 4);
-      }
-      // Amber wing band + brown speckles
-      ctx.fillStyle = 'rgba(220,140,40,0.65)';
-      ctx.fillRect(6, 34, 24, 5);
-      ctx.fillStyle = 'rgba(140,95,50,0.7)';
-      ctx.fillRect(12, 8, 3, 3);
-      ctx.fillRect(40, 14, 3, 3);
-      ctx.fillRect(24, 48, 3, 3);
-      ctx.fillRect(50, 40, 3, 3);
-      ctx.fillRect(32, 22, 3, 3);
+      ctx.fillStyle = '#9a6230'; ctx.fillRect(0, 0, s, s); N(ctx, PLUME, 7); topLight(ctx); botDark(ctx);
+      // folded wing: layered arcs
+      ctx.fillStyle = '#7a4c24';
+      ctx.beginPath(); ctx.ellipse(30, 32, 16, 22, 0.2, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#8f5a2c';
+      ctx.beginPath(); ctx.ellipse(28, 30, 12, 17, 0.2, 0, Math.PI * 2); ctx.fill();
+      feathers(ctx, 16, 18, 4, 4);
+      // copper gloss band
+      ctx.fillStyle = 'rgba(230,150,60,0.5)'; ctx.fillRect(8, 44, 34, 4);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2e4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, WHITE, 10);
-      // Chest feather patch
-      ctx.fillStyle = 'rgba(240,232,216,0.6)';
-      ctx.beginPath();
-      ctx.ellipse(32, 30, 16, 20, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillStyle = '#9a6230'; ctx.fillRect(0, 0, s, s); N(ctx, PLUME, 7); topLight(ctx);
+      // cream breast
+      ctx.fillStyle = '#e8d5b0';
+      ctx.beginPath(); ctx.ellipse(32, 36, 17, 22, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#d8c49c';
+      ctx.beginPath(); ctx.ellipse(32, 44, 11, 13, 0, 0, Math.PI * 2); ctx.fill();
     });
     const bodyTail = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2e4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, WHITE, 12);
-      // Tail feathers fanning up
-      ctx.fillStyle = 'rgba(224,214,200,0.5)';
+      ctx.fillStyle = '#6e421e'; ctx.fillRect(0, 0, s, s); N(ctx, DARK, 7); topLight(ctx);
+      // tail fan: dark sickle feathers
+      ctx.fillStyle = '#4e2e14';
       for (let i = 0; i < 5; i++) {
-        const bx = 6 + i * 12;
-        ctx.beginPath();
-        ctx.ellipse(bx, 16, 6, 16, (i - 2) * 0.25, 0, Math.PI * 2);
-        ctx.fill();
+        const bx = 8 + i * 11;
+        ctx.beginPath(); ctx.ellipse(bx, 20, 6, 20, (i - 2) * 0.28, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#9a6230';
+      for (let i = 0; i < 5; i++) {
+        const bx = 8 + i * 11;
+        ctx.fillRect(bx - 1, 8, 2, 10);
       }
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2e4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, WHITE, 8);
+      ctx.fillStyle = '#a86e36'; ctx.fillRect(0, 0, s, s); N(ctx, 0xa86e36, 6);
+      feathers(ctx, 10, 10, 7, 5);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f0e8d8';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#e8d5b0'; ctx.fillRect(0, 0, s, s);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#f2e4c8';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, WHITE, 10);
-      // Eyes with shine
-      ctx.fillStyle = '#111';
-      ctx.fillRect(12, 20, 6, 6);
-      ctx.fillRect(46, 20, 6, 6);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(13, 21, 2, 2);
-      ctx.fillRect(47, 21, 2, 2);
-      // Beak — pointed with highlight
-      ctx.fillStyle = '#e8a020';
-      ctx.fillRect(24, 32, 16, 8);
-      ctx.fillStyle = '#d09018';
-      ctx.fillRect(26, 34, 12, 4);
-      ctx.fillStyle = '#ffe0a0';
-      ctx.fillRect(26, 32, 12, 2);
-      // Wattle (dewlap)
-      ctx.fillStyle = '#cc2222';
+      ctx.fillStyle = '#9a6230'; ctx.fillRect(0, 0, s, s); N(ctx, PLUME, 7); topLight(ctx);
+      // comb: three crimson peaks
+      ctx.fillStyle = '#c02828';
       ctx.beginPath();
-      ctx.ellipse(32, 46, 6, 9, 0, 0, Math.PI * 2);
+      ctx.arc(18, 12, 8, Math.PI, 0); ctx.arc(32, 7, 9, Math.PI, 0); ctx.arc(46, 12, 8, Math.PI, 0);
       ctx.fill();
-      // Comb — three bumps
-      ctx.fillStyle = '#cc2222';
-      ctx.beginPath();
-      ctx.arc(18, 10, 7, Math.PI, 0);
-      ctx.arc(32, 6, 8, Math.PI, 0);
-      ctx.arc(46, 10, 7, Math.PI, 0);
-      ctx.fill();
+      ctx.fillStyle = '#e85050'; ctx.fillRect(14, 4, 36, 3);
+      // fierce amber eyes
+      ctx.fillStyle = '#14100a';
+      ctx.fillRect(10, 20, 9, 9); ctx.fillRect(45, 20, 9, 9);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(11, 21, 7, 7); ctx.fillRect(46, 21, 7, 7);
+      ctx.fillStyle = '#111'; ctx.fillRect(13, 23, 3, 5); ctx.fillRect(48, 23, 3, 5);
+      // hooked beak
+      ctx.fillStyle = '#e8a020'; ctx.fillRect(22, 32, 20, 9);
+      ctx.fillStyle = '#c07818'; ctx.fillRect(22, 37, 20, 4);
+      ctx.fillStyle = '#ffe0a0'; ctx.fillRect(24, 32, 16, 2);
+      ctx.fillStyle = '#c07818'; ctx.fillRect(28, 41, 8, 5);
+      // wattle
+      ctx.fillStyle = '#c02828';
+      ctx.beginPath(); ctx.ellipse(32, 50, 7, 10, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e85050'; ctx.fillRect(29, 44, 6, 3);
     });
     const head = [bodySide, bodySide, bodyTop, bodyBot, bodySide, headFront];
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyTail];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#e8a020';
-      ctx.fillRect(0, 0, s, s);
-      // Scaled shank stripes
-      ctx.fillStyle = '#c08020';
-      for (let y = 4; y < s - 8; y += 8) ctx.fillRect(0, y, s, 3);
-      // Toe darkening
-      ctx.fillStyle = '#a06818';
-      ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillStyle = '#e8a020'; ctx.fillRect(0, 0, s, s); N(ctx, 0xe8a020, 6);
+      ctx.fillStyle = '#b07818';
+      for (let y = 6; y < s - 10; y += 9) ctx.fillRect(0, y, s, 4);
+      ctx.fillStyle = '#8a5a10'; ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#ffe0a0'; ctx.fillRect(0, 0, 5, s);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
   }
 
   _slimeTextures(def) {
+    // Prism Jelly: saturated teal-gold jelly, bright core w/ orbiting seeds,
+    // hard gloss bar, bubble trails, dripping base skirt.
     const s = 64;
-    const GREEN = 0x40c040;
-    const GREEN_DARK = 0x2a8a2a;
-    const GREEN_LIGHT = 0x60e060;
+    const JELLY = 0x2ab8a0, DEEP = 0x147a6e, GOLD = 0xf5c542;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
 
     const bodySide = this._tex(s, s, (ctx) => {
-      // Translucent green slime
       const grad = ctx.createLinearGradient(0, 0, 0, s);
-      grad.addColorStop(0, 'rgba(64,192,64,0.85)');
-      grad.addColorStop(0.7, 'rgba(42,138,42,0.9)');
-      grad.addColorStop(1, 'rgba(30,100,30,0.95)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 20);
-      // Inner core visible through slime
-      ctx.fillStyle = 'rgba(20,70,20,0.45)';
-      ctx.fillRect(20, 20, 24, 24);
-      ctx.fillStyle = 'rgba(140,255,140,0.5)';
-      ctx.fillRect(22, 22, 8, 8);
-      // Glossy highlight streak
-      ctx.fillStyle = 'rgba(220,255,220,0.55)';
-      ctx.fillRect(8, 8, 6, 22);
-      // Trapped bubbles
-      ctx.fillStyle = 'rgba(220,255,220,0.7)';
-      ctx.fillRect(44, 12, 4, 4);
-      ctx.fillRect(14, 44, 3, 3);
-      ctx.fillRect(48, 46, 5, 5);
-      ctx.fillStyle = 'rgba(255,255,255,0.8)';
-      ctx.fillRect(44, 12, 2, 2);
-      ctx.fillRect(48, 46, 2, 2);
+      grad.addColorStop(0, 'rgba(64,220,196,0.9)');
+      grad.addColorStop(0.65, 'rgba(32,150,138,0.92)');
+      grad.addColorStop(1, 'rgba(16,100,92,0.96)');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, s, s);
+      N(ctx, JELLY, 12);
+      // hard gloss bar (light from top-left)
+      ctx.fillStyle = 'rgba(230,255,250,0.75)'; ctx.fillRect(7, 6, 7, 30);
+      ctx.fillStyle = 'rgba(230,255,250,0.4)'; ctx.fillRect(16, 10, 3, 18);
+      // golden core + orbiting seeds
+      ctx.fillStyle = 'rgba(10,60,54,0.55)'; ctx.fillRect(18, 18, 28, 28);
+      ctx.fillStyle = '#f5c542'; ctx.fillRect(26, 26, 12, 12);
+      ctx.fillStyle = '#ffe08a'; ctx.fillRect(27, 27, 5, 5);
+      ctx.fillStyle = '#f5c542';
+      ctx.fillRect(20, 14, 4, 4); ctx.fillRect(42, 34, 4, 4); ctx.fillRect(30, 46, 4, 4);
+      // bubble trail rising right
+      ctx.fillStyle = 'rgba(230,255,250,0.8)';
+      ctx.fillRect(46, 8, 5, 5); ctx.fillRect(50, 22, 4, 4); ctx.fillRect(44, 36, 3, 3);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(46, 8, 2, 2);
+      // dripping base skirt
+      ctx.fillStyle = 'rgba(16,100,92,0.9)';
+      ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillRect(10, s - 13, 6, 5); ctx.fillRect(30, s - 14, 6, 6); ctx.fillRect(48, s - 12, 6, 4);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgba(80,220,80,0.8)';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN_LIGHT, 15);
+      ctx.fillStyle = 'rgba(90,230,208,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, 0x5ae6d0, 10);
+      ctx.fillStyle = 'rgba(230,255,250,0.6)';
+      ctx.beginPath(); ctx.ellipse(22, 22, 14, 9, -0.4, 0, Math.PI * 2); ctx.fill();
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgba(30,100,30,0.9)';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(12,80,72,0.95)'; ctx.fillRect(0, 0, s, s);
     });
     const faceFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgba(64,192,64,0.85)';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, GREEN, 15);
-      // Eyes
-      ctx.fillStyle = '#111';
-      ctx.fillRect(14, 20, 10, 10);
-      ctx.fillRect(40, 20, 10, 10);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(16, 22, 4, 4);
-      ctx.fillRect(42, 22, 4, 4);
-      // Mouth
-      ctx.fillStyle = '#2a6a2a';
-      ctx.fillRect(22, 42, 20, 6);
+      ctx.fillStyle = 'rgba(42,184,160,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, JELLY, 12);
+      ctx.fillStyle = 'rgba(230,255,250,0.7)'; ctx.fillRect(7, 6, 7, 26);
+      // grumpy gold-flecked eyes
+      ctx.fillStyle = '#0d2a26';
+      ctx.fillRect(13, 19, 12, 12); ctx.fillRect(39, 19, 12, 12);
+      ctx.fillStyle = '#f5c542';
+      ctx.fillRect(16, 22, 6, 6); ctx.fillRect(42, 22, 6, 6);
+      ctx.fillStyle = '#0d2a26'; ctx.fillRect(18, 24, 3, 4); ctx.fillRect(44, 24, 3, 4);
+      ctx.fillStyle = '#0d2a26';
+      ctx.fillRect(10, 15, 15, 3); ctx.fillRect(39, 15, 15, 3);
+      // wobble mouth
+      ctx.fillStyle = '#0d3a34'; ctx.fillRect(22, 43, 20, 7);
+      ctx.fillStyle = '#5ae6d0'; ctx.fillRect(24, 43, 16, 2);
     });
     const head = [bodySide, bodySide, bodyTop, bodyBot, bodySide, faceFront];
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, faceFront];
@@ -2354,133 +2184,113 @@ class Mob {
   }
 
   _villagerTextures(def) {
+    // Master Trader: sun-weathered skin, heavy brow, grand nose, full braided
+    // beard, embroidered robe with trader trim, strapped boots. Def-driven.
     const s = 64;
     const SKIN = def.headColor || 0xD9A57A;
     const TUNIC = def.bodyColor || 0x7C6A4B;
     const BELT = def.beltColor || 0x4E3523;
     const BOOTS = def.legColor || 0x5A4632;
     const HOOD = def.hoodColor || 0x5D503D;
+    const hex = (v) => '#' + v.toString(16).padStart(6, '0');
+    const N = (ctx, c, v) => this._noiseTex(ctx, s, s, c, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,250,240,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const botDark = (ctx) => { ctx.fillStyle = 'rgba(20,10,5,0.20)'; ctx.fillRect(0, s - 6, s, 6); ctx.fillRect(s - 6, 0, 6, s); };
 
     const skinSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + SKIN.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 12);
+      ctx.fillStyle = hex(SKIN); ctx.fillRect(0, 0, s, s); N(ctx, SKIN, 7); topLight(ctx);
+      // sideburn + ear
+      ctx.fillStyle = '#6e5230'; ctx.fillRect(0, 0, s, 5); ctx.fillRect(0, 0, 5, s);
+      ctx.fillStyle = hex(SKIN); ctx.fillRect(24, 24, 16, 16);
+      N(ctx, SKIN, 5);
+      ctx.fillStyle = 'rgba(120,80,50,0.6)'; ctx.fillRect(28, 28, 8, 8);
     });
 
     const skinTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + HOOD.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, HOOD, 10);
+      ctx.fillStyle = hex(HOOD); ctx.fillRect(0, 0, s, s); N(ctx, HOOD, 6);
+      // turban wrap rings
+      ctx.fillStyle = 'rgba(255,250,240,0.14)';
+      ctx.fillRect(0, 12, s, 4); ctx.fillRect(0, 28, s, 4); ctx.fillRect(0, 44, s, 4);
+      ctx.fillStyle = '#d8a830'; ctx.fillRect(s / 2 - 3, 24, 6, 12);
     });
 
     const skinFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + SKIN.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, SKIN, 10);
-      // Eyebrow furrows (villager's grumpy brow)
-      ctx.fillStyle = '#8a6a4a';
-      ctx.fillRect(8, 16, 22, 5);
-      ctx.fillRect(34, 16, 22, 5);
-      // Eyes — big white with brown pupil
-      const eyeY = 24;
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(10, eyeY, 14, 12);
-      ctx.fillRect(40, eyeY, 14, 12);
-      ctx.fillStyle = '#3a2510';
-      ctx.fillRect(14, eyeY + 2, 8, 8);
-      ctx.fillRect(44, eyeY + 2, 8, 8);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(16, eyeY + 3, 3, 3);
-      ctx.fillRect(46, eyeY + 3, 3, 3);
-      // Big nose (villager's signature)
-      ctx.fillStyle = '#c0906a';
-      ctx.fillRect(28, 32, 8, 6);
-      ctx.fillStyle = '#b08060';
-      ctx.fillRect(30, 38, 4, 4);
-      // Mouth
-      ctx.fillStyle = '#8b6340';
-      ctx.fillRect(24, 40, 16, 4);
-      // Beard (was defined but never painted)
-      ctx.fillStyle = '#8B7355';
-      ctx.fillRect(22, 44, 20, 4);
-      ctx.fillRect(24, 48, 16, 4);
-      ctx.fillRect(26, 52, 12, 4);
-      ctx.fillStyle = '#a88f6a';
-      ctx.fillRect(24, 44, 4, 8);
+      ctx.fillStyle = hex(SKIN); ctx.fillRect(0, 0, s, s); N(ctx, SKIN, 7); topLight(ctx);
+      // turban brow wrap
+      ctx.fillStyle = hex(HOOD); ctx.fillRect(0, 0, s, 12); N(ctx, HOOD, 4);
+      ctx.fillStyle = '#d8a830'; ctx.fillRect(0, 10, s, 3);
+      ctx.fillStyle = '#2fae5a'; ctx.fillRect(s / 2 - 4, 2, 8, 8);
+      ctx.fillStyle = '#7dffab'; ctx.fillRect(s / 2 - 2, 4, 4, 4);
+      // heavy disappointed brow
+      ctx.fillStyle = '#6e5230'; ctx.fillRect(6, 15, 24, 6); ctx.fillRect(34, 15, 24, 6);
+      // deep-set amber eyes
+      ctx.fillStyle = '#2a1a0c';
+      ctx.fillRect(9, 23, 15, 13); ctx.fillRect(40, 23, 15, 13);
+      ctx.fillStyle = '#ffb020';
+      ctx.fillRect(13, 26, 7, 7); ctx.fillRect(44, 26, 7, 7);
+      ctx.fillStyle = '#1a0e04'; ctx.fillRect(15, 28, 3, 5); ctx.fillRect(46, 28, 3, 5);
+      ctx.fillStyle = '#fff'; ctx.fillRect(14, 27, 2, 2); ctx.fillRect(45, 27, 2, 2);
+      // grand nose with nostrils + highlight
+      ctx.fillStyle = '#b08060'; ctx.fillRect(26, 34, 12, 10);
+      ctx.fillStyle = hex(SKIN); ctx.fillRect(28, 34, 8, 3);
+      ctx.fillStyle = '#5a3a22'; ctx.fillRect(28, 41, 3, 3); ctx.fillRect(33, 41, 3, 3);
+      // braided beard
+      ctx.fillStyle = '#6e5230'; ctx.fillRect(20, 46, 24, 18);
+      ctx.fillStyle = '#8a6a3c';
+      for (let y = 46; y < 62; y += 4) ctx.fillRect(22, y, 20, 2);
+      ctx.fillStyle = '#d8a830'; ctx.fillRect(28, 60, 8, 4);
     });
 
     const skinBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + HOOD.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, HOOD, 10);
+      ctx.fillStyle = hex(HOOD); ctx.fillRect(0, 0, s, s); N(ctx, HOOD, 7);
+      ctx.fillStyle = 'rgba(255,250,240,0.12)';
+      ctx.fillRect(0, 12, s, 4); ctx.fillRect(0, 32, s, 4); ctx.fillRect(0, 52, s, 3);
     });
 
     const head = [skinSide, skinSide, skinTop, skinSide, skinBack, skinFront];
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, TUNIC, 15);
-      // Belt stripe
-      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
-      ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillStyle = hex(TUNIC); ctx.fillRect(0, 0, s, s); N(ctx, TUNIC, 7); topLight(ctx); botDark(ctx);
+      ctx.fillStyle = '#d8a830'; ctx.fillRect(0, 8, s, 3);
+      ctx.fillStyle = hex(BELT); ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(0, s - 10, s, 2);
     });
 
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, TUNIC, 15);
-      // Lighter apron panel down the front with gold trader trim
-      ctx.fillStyle = 'rgba(240,238,230,0.35)';
-      ctx.fillRect(14, 14, 36, 36);
+      ctx.fillStyle = hex(TUNIC); ctx.fillRect(0, 0, s, s); N(ctx, TUNIC, 7); topLight(ctx);
+      // embroidered festival panel
+      ctx.fillStyle = 'rgba(245,240,225,0.30)'; ctx.fillRect(13, 12, 38, 40);
       ctx.fillStyle = '#d8a830';
-      ctx.fillRect(14, 14, 36, 2);
-      ctx.fillRect(14, 48, 36, 2);
-      ctx.fillRect(14, 14, 2, 36);
-      ctx.fillRect(48, 14, 2, 36);
-      // Satchel pouch on the hip
-      ctx.fillStyle = '#6a4a2a';
-      ctx.fillRect(40, 34, 12, 10);
-      ctx.fillStyle = '#8a6238';
-      ctx.fillRect(40, 34, 12, 2);
-      ctx.fillStyle = '#d8a830';
-      ctx.fillRect(44, 38, 4, 4);
-      // Apron cross straps
-      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
-      ctx.fillRect(14, 14, 36, 6);
-      ctx.fillRect(14, 26, 6, 24);
-      ctx.fillRect(44, 26, 6, 24);
-      // Belt stripe
-      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
-      ctx.fillRect(0, s - 8, s, 8);
-      // Emerald trade badge
-      ctx.fillStyle = '#2fae5a';
-      ctx.fillRect(s - 16, 18, 8, 10);
-      ctx.fillStyle = '#7dffab';
-      ctx.fillRect(s - 14, 20, 4, 4);
+      ctx.fillRect(13, 12, 38, 3); ctx.fillRect(13, 49, 38, 3);
+      ctx.fillRect(13, 12, 3, 40); ctx.fillRect(48, 12, 3, 40);
+      // diamond stitch
+      ctx.fillStyle = '#8a6a3c';
+      for (let y = 18; y < 48; y += 8) { ctx.fillRect(30, y, 4, 4); ctx.fillRect(22, y + 4, 4, 4); ctx.fillRect(38, y + 4, 4, 4); }
+      // coin belt + emerald badge
+      ctx.fillStyle = hex(BELT); ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#c8a83a';
+      for (let x = 4; x < s - 4; x += 10) ctx.fillRect(x, s - 8, 5, 5);
+      ctx.fillStyle = '#2fae5a'; ctx.fillRect(s - 18, 20, 10, 12);
+      ctx.fillStyle = '#7dffab'; ctx.fillRect(s - 16, 22, 4, 5);
     });
 
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + TUNIC.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, TUNIC, 10);
+      ctx.fillStyle = hex(TUNIC); ctx.fillRect(0, 0, s, s); N(ctx, TUNIC, 6);
+      ctx.fillStyle = '#d8a830'; ctx.fillRect(0, s / 2 - 2, s, 4);
     });
 
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BELT, 8);
+      ctx.fillStyle = hex(BELT); ctx.fillRect(0, 0, s, s); N(ctx, BELT, 6);
     });
 
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodyFront];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#' + BOOTS.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, BOOTS, 12);
-      // Boot top
-      ctx.fillStyle = '#' + BELT.toString(16).padStart(6,'0');
-      ctx.fillRect(0, 0, s, 8);
+      ctx.fillStyle = hex(BOOTS); ctx.fillRect(0, 0, s, s); N(ctx, BOOTS, 7); botDark(ctx);
+      // wrapped straps + iron toe
+      ctx.fillStyle = hex(BELT); ctx.fillRect(0, 10, s, 5); ctx.fillRect(0, 30, s, 5);
+      ctx.fillStyle = '#3a3f4a'; ctx.fillRect(0, s - 12, s, 12);
+      ctx.fillStyle = '#6a6f7a'; ctx.fillRect(0, s - 12, s, 3);
     });
 
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
@@ -2670,347 +2480,331 @@ class Mob {
   }
 
   _blowerTextures(def) {
+    // Furnace Brute: cast-iron plated hull, rivet seams, roaring furnace
+    // window with coal bed, brass pressure gauge, cannon snout with heat rings.
     const s = 64;
-    // Copper boiler blower: patina-streaked copper hull, orange hazard bands,
-    // and a cannon-barrel snout that lobs lit TNT at the player.
-    const IRON = 0xb0703a, IRON_DARK = 0x6a4526, ORANGE = 0xd86820;
+    const IRON = 0x3d3a44, PLATE = 0x54505c, DARK = 0x232228;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const rivets = (ctx, y) => {
+      ctx.fillStyle = '#1a191e';
+      for (let x = 6; x < s; x += 14) { ctx.fillRect(x, y, 5, 5); ctx.fillStyle = '#8a8694'; ctx.fillRect(x + 1, y + 1, 2, 2); ctx.fillStyle = '#1a191e'; }
+    };
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#b0703a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 14);
-      // Metal panel rivets
-      ctx.fillStyle = 'rgba(20,20,20,0.5)';
-      ctx.fillRect(0, s * 0.45, s, 3);
-      ctx.fillRect(0, s * 0.55, s, 3);
-      // Hazard chevron stripe
-      ctx.save();
-      ctx.translate(s / 2, s * 0.5);
-      ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = '#3d3a44'; ctx.fillRect(0, 0, s, s); N(ctx, IRON, 7); topLight(ctx);
+      // plate seams + rivets
+      ctx.fillStyle = 'rgba(15,14,18,0.7)'; ctx.fillRect(0, 20, s, 3); ctx.fillRect(0, 42, s, 3);
+      rivets(ctx, 12); rivets(ctx, 34);
+      // hazard chevrons low
       ctx.fillStyle = '#d86820';
-      ctx.fillRect(-s * 0.2, -6, s * 0.4, 12);
-      ctx.fillRect(-s * 0.65, -6, s * 0.3, 12);
-      ctx.fillRect(s * 0.35, -6, s * 0.3, 12);
-      ctx.restore();
+      for (let x = 2; x < s; x += 16) { ctx.fillRect(x, 50, 8, 8); }
+      ctx.fillStyle = '#1a191e';
+      for (let x = 10; x < s; x += 16) { ctx.fillRect(x, 50, 8, 8); }
+      // heat blush near furnace
+      ctx.fillStyle = 'rgba(255,110,30,0.25)'; ctx.fillRect(0, 8, 10, 30);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#b0703a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 10);
+      ctx.fillStyle = '#54505c'; ctx.fillRect(0, 0, s, s); N(ctx, PLATE, 6);
+      ctx.fillStyle = 'rgba(15,14,18,0.6)'; ctx.fillRect(0, s / 2 - 2, s, 4);
+      rivets(ctx, 8); rivets(ctx, 48);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a4526';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#232228'; ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#b0703a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 12);
-      // Glowing TNT-core window (bigger, hotter)
-      ctx.fillStyle = '#7a2a10';
-      ctx.fillRect(16, 12, 32, 30);
-      ctx.fillStyle = '#ff5a20';
-      ctx.fillRect(20, 16, 24, 22);
-      ctx.fillStyle = '#ffb020';
-      ctx.fillRect(24, 20, 16, 14);
-      ctx.fillStyle = '#ffe080';
-      ctx.fillRect(28, 22, 8, 6);
-      // Verdigris patina streaks on copper
-      ctx.fillStyle = 'rgba(60,160,130,0.5)';
-      ctx.fillRect(6, 8, 4, 40);
-      ctx.fillRect(54, 12, 4, 36);
-      // Core cracks
-      ctx.fillStyle = '#c84000';
-      ctx.fillRect(30, 20, 3, 14);
-      ctx.fillRect(24, 26, 16, 3);
-      // Chest vent slots
-      ctx.fillStyle = '#222';
-      ctx.fillRect(24, 42, 16, 3);
-      ctx.fillRect(24, 50, 16, 3);
-      // Rust streaks
-      ctx.fillStyle = 'rgba(150,80,30,0.4)';
-      ctx.fillRect(8, 10, 3, 30);
-      ctx.fillRect(53, 12, 3, 26);
+      ctx.fillStyle = '#3d3a44'; ctx.fillRect(0, 0, s, s); N(ctx, IRON, 7); topLight(ctx);
+      // furnace window: iron frame, firebrick, coal bed, flame tongues
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(13, 9, 38, 34);
+      ctx.fillStyle = '#5a2a12'; ctx.fillRect(16, 12, 32, 28);
+      ctx.fillStyle = '#ff5a20'; ctx.fillRect(20, 16, 24, 20);
+      ctx.fillStyle = '#ffb020'; ctx.fillRect(24, 20, 16, 14);
+      ctx.fillStyle = '#ffe080'; ctx.fillRect(28, 24, 8, 8);
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(22, 30, 6, 5); ctx.fillRect(34, 28, 7, 5); ctx.fillRect(28, 34, 5, 4);
+      ctx.fillStyle = '#ffb020'; ctx.fillRect(30, 13, 4, 6); ctx.fillRect(24, 15, 3, 5);
+      // brass pressure gauge
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(46, 44, 12, 12);
+      ctx.fillStyle = '#f0ead0'; ctx.fillRect(48, 46, 8, 8);
+      ctx.fillStyle = '#c02020'; ctx.fillRect(51, 47, 2, 6);
+      // ash vent slots
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(8, 48, 20, 4); ctx.fillRect(8, 55, 20, 4);
+      rivets(ctx, 2);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#c08048';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 12);
-      // Ear bolts
-      ctx.fillStyle = '#333';
-      ctx.fillRect(6, 10, 8, 8);
-      ctx.fillRect(50, 10, 8, 8);
+      ctx.fillStyle = '#4a4652'; ctx.fillRect(0, 0, s, s); N(ctx, 0x4a4652, 7); topLight(ctx);
+      // riveted ear cap
+      ctx.fillStyle = '#232228'; ctx.fillRect(4, 8, 12, 12);
+      ctx.fillStyle = '#8a8694'; ctx.fillRect(8, 12, 4, 4);
+      // stoke hatch
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(s - 18, 40, 14, 12);
+      ctx.fillStyle = '#ff7a2e'; ctx.fillRect(s - 16, 42, 10, 3);
     });
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#c08048';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 10);
+      ctx.fillStyle = '#54505c'; ctx.fillRect(0, 0, s, s); N(ctx, PLATE, 6);
+      // exhaust stack base ring
+      ctx.fillStyle = '#232228'; ctx.fillRect(20, 20, 24, 24);
+      ctx.fillStyle = '#0e0d11'; ctx.fillRect(25, 25, 14, 14);
     });
     const headBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a3a3a';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#232228'; ctx.fillRect(0, 0, s, s);
     });
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#b0703a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 10);
+      ctx.fillStyle = '#3d3a44'; ctx.fillRect(0, 0, s, s); N(ctx, IRON, 7);
+      ctx.fillStyle = 'rgba(15,14,18,0.6)'; ctx.fillRect(0, 20, s, 3); ctx.fillRect(0, 42, s, 3);
+      rivets(ctx, 10);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#c08048';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 10);
-      // Dark goggles over the eyes
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(10, 22, 18, 14);
-      ctx.fillRect(36, 22, 18, 14);
-      // Glowing amber eye dots
-      ctx.fillStyle = '#ffa030';
-      ctx.fillRect(16, 26, 6, 6);
-      ctx.fillRect(42, 26, 6, 6);
+      ctx.fillStyle = '#4a4652'; ctx.fillRect(0, 0, s, s); N(ctx, 0x4a4652, 7); topLight(ctx);
+      // armored visor slit with furnace glow
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(6, 22, 52, 16);
+      ctx.fillStyle = '#ff5a20'; ctx.fillRect(9, 25, 46, 10);
+      ctx.fillStyle = '#ffb020'; ctx.fillRect(14, 27, 36, 6);
+      ctx.fillStyle = '#ffe080'; ctx.fillRect(24, 28, 16, 4);
+      // visor bolts
+      ctx.fillStyle = '#8a8694';
+      ctx.fillRect(6, 22, 4, 4); ctx.fillRect(54, 22, 4, 4); ctx.fillRect(6, 34, 4, 4); ctx.fillRect(54, 34, 4, 4);
+      // brow plate + chin grill
+      ctx.fillStyle = '#35323c'; ctx.fillRect(0, 0, s, 14);
+      rivets(ctx, 4);
+      ctx.fillStyle = '#232228'; ctx.fillRect(18, 46, 28, 12);
+      ctx.fillStyle = '#54505c';
+      for (let x = 20; x < 44; x += 6) ctx.fillRect(x, 46, 3, 12);
     });
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
 
-    // Cannon barrel snout — dark bronze with a glowing orange muzzle
+    // Cannon snout: rifled muzzle with heat rings
     const snoutTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#4a3020';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON_DARK, 10);
-      // Muzzle ring
-      ctx.fillStyle = '#d86820';
-      ctx.fillRect(0, 0, s, 14);
-      ctx.fillStyle = '#ffb020';
-      ctx.fillRect(0, 0, s, 4);
-      // Barrel bands
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(0, 30, s, 4);
-      ctx.fillRect(0, 46, s, 4);
-      // Heat glow near the muzzle
-      ctx.fillStyle = 'rgba(255,120,30,0.5)';
-      ctx.fillRect(0, 14, s, 6);
+      ctx.fillStyle = '#35323c'; ctx.fillRect(0, 0, s, s); N(ctx, 0x35323c, 7);
+      ctx.fillStyle = '#d86820'; ctx.fillRect(0, 0, s, 16);
+      ctx.fillStyle = '#ffb020'; ctx.fillRect(0, 0, s, 5);
+      ctx.fillStyle = '#7a2a10'; ctx.fillRect(0, 16, s, 5);
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(0, 34, s, 5); ctx.fillRect(0, 50, s, 5);
+      ctx.fillStyle = '#8a8694'; ctx.fillRect(0, 34, s, 1); ctx.fillRect(0, 50, s, 1);
+      ctx.fillStyle = 'rgba(255,120,30,0.4)'; ctx.fillRect(0, 21, s, 6);
     });
     const snout = [snoutTex, snoutTex, snoutTex, snoutTex, snoutTex, snoutTex];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a4526';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON_DARK, 10);
-      // Metal feet
-      ctx.fillStyle = '#1a1a1a';
-      ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillStyle = '#35323c'; ctx.fillRect(0, 0, s, s); N(ctx, 0x35323c, 7);
+      ctx.fillStyle = 'rgba(15,14,18,0.6)'; ctx.fillRect(0, 20, s, 3); ctx.fillRect(0, 42, s, 3);
+      ctx.fillStyle = '#1a191e'; ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#54505c'; ctx.fillRect(0, s - 10, s, 3);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    // Arms use the same iron skin as the body (for the throw swing animation)
     const armTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#b0703a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, IRON, 10);
+      ctx.fillStyle = '#3d3a44'; ctx.fillRect(0, 0, s, s); N(ctx, IRON, 7); topLight(ctx);
+      ctx.fillStyle = '#d86820'; ctx.fillRect(0, s - 14, s, 5);
     });
     const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
     return { body, head, leg, snout, arm };
   }
 
   _portalmanTextures(def) {
+    // Rift Walker: starfield indigo robe, event-horizon chest core with an
+    // accretion ring, antenna crown, vertical slit eyes.
     const s = 64;
-    // Void herald: near-black indigo robes traced with live cyan circuits,
-    // a ringed portal core, crown-spiked hood and burning cyan eyes.
-    const VOID = 0x160a26, VOID_DARK = 0x0d0518, CYAN = 0x40e0ff;
+    const VOID = 0x1b0f33, DEEP = 0x0d0618;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(180,140,255,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const stars = (ctx, n, seed) => {
+      let a = seed;
+      ctx.fillStyle = '#cfe8ff';
+      for (let i = 0; i < n; i++) {
+        a = (a * 16807) % 2147483647;
+        const sx = a % s, sy = (a >> 7) % s;
+        ctx.fillRect(sx, sy, 2, 2);
+      }
+    };
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 14);
-      // Live circuit traces (bright cyan)
-      ctx.fillStyle = 'rgba(64,224,255,0.7)';
-      ctx.fillRect(10, 20, 3, 18);
-      ctx.fillRect(50, 28, 3, 14);
-      ctx.fillStyle = 'rgba(150,240,255,0.9)';
-      ctx.fillRect(10, 20, 3, 3);
-      ctx.fillRect(50, 28, 3, 3);
-      ctx.fillStyle = 'rgba(180,120,255,0.55)';
-      ctx.fillRect(20, 8, 2, 30);
-      ctx.fillRect(42, 26, 2, 24);
-      // Hem glow
-      ctx.fillStyle = 'rgba(64,224,255,0.35)';
-      ctx.fillRect(0, s - 4, s, 4);
+      ctx.fillStyle = '#1b0f33'; ctx.fillRect(0, 0, s, s); N(ctx, VOID, 7); topLight(ctx);
+      stars(ctx, 14, 777);
+      // rift seam splitting the robe
+      ctx.fillStyle = '#05030c'; ctx.fillRect(s / 2 - 2, 6, 4, s - 12);
+      ctx.fillStyle = '#40e0ff'; ctx.fillRect(s / 2 - 1, 10, 2, s - 20);
+      ctx.fillStyle = '#c0f8ff'; ctx.fillRect(s / 2 - 1, 14, 2, 6);
+      // hem fade into void
+      ctx.fillStyle = 'rgba(64,224,255,0.20)'; ctx.fillRect(0, s - 5, s, 5);
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 10);
-      // Collar circuit ring
-      ctx.fillStyle = 'rgba(64,224,255,0.6)';
-      ctx.fillRect(8, 8, 48, 3);
-      ctx.fillRect(8, 53, 48, 3);
+      ctx.fillStyle = '#241544'; ctx.fillRect(0, 0, s, s); N(ctx, 0x241544, 6);
+      stars(ctx, 8, 313);
+      ctx.fillStyle = 'rgba(64,224,255,0.55)'; ctx.fillRect(6, 6, 52, 3); ctx.fillRect(6, 55, 52, 3);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#0d0618'; ctx.fillRect(0, 0, s, s);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 12);
-      // Ringed portal core on the chest (bigger, hotter)
-      ctx.fillStyle = '#0e2a3a';
-      ctx.fillRect(10, 12, 44, 44);
-      const g = ctx.createRadialGradient(32, 34, 2, 32, 34, 20);
-      g.addColorStop(0, '#c0f8ff');
-      g.addColorStop(0.45, '#40d0f0');
-      g.addColorStop(1, 'rgba(30,80,120,0)');
+      ctx.fillStyle = '#1b0f33'; ctx.fillRect(0, 0, s, s); N(ctx, VOID, 7); topLight(ctx);
+      stars(ctx, 10, 505);
+      // event horizon core: black disc, cyan photon ring, accretion arc
+      ctx.fillStyle = '#05030c';
+      ctx.beginPath(); ctx.arc(32, 32, 19, 0, Math.PI * 2); ctx.fill();
+      const g = ctx.createRadialGradient(32, 32, 14, 32, 32, 19);
+      g.addColorStop(0, 'rgba(64,224,255,0)');
+      g.addColorStop(1, 'rgba(64,224,255,0.9)');
       ctx.fillStyle = g;
-      ctx.beginPath();
-      ctx.arc(32, 34, 20, 0, Math.PI * 2);
-      ctx.fill();
-      // Outer containment ring
-      ctx.strokeStyle = 'rgba(120,240,255,0.85)';
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.arc(32, 34, 21, 0, Math.PI * 2);
-      ctx.stroke();
-      // Swirl streak
-      ctx.strokeStyle = 'rgba(230,255,255,0.8)';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(32, 34, 10, 0, Math.PI * 1.3);
-      ctx.stroke();
+      ctx.beginPath(); ctx.arc(32, 32, 19, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = '#c0f8ff'; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(32, 32, 19, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#ff9fe8'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.ellipse(32, 32, 26, 9, -0.35, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(30, 30, 4, 4);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 12);
-      // Temple circuit
-      ctx.fillStyle = 'rgba(64,224,255,0.65)';
-      ctx.fillRect(20, 24, 24, 3);
-      ctx.fillRect(30, 14, 3, 12);
+      ctx.fillStyle = '#1b0f33'; ctx.fillRect(0, 0, s, s); N(ctx, VOID, 7); topLight(ctx);
+      stars(ctx, 6, 909);
+      // ear antenna nub
+      ctx.fillStyle = '#0d0618'; ctx.fillRect(4, 26, 8, 8);
+      ctx.fillStyle = '#40e0ff'; ctx.fillRect(6, 28, 4, 4);
     });
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 10);
-      // Crown spikes with cyan tips
-      ctx.fillStyle = '#0d0518';
-      ctx.fillRect(8, 20, 8, 24);
-      ctx.fillRect(28, 14, 8, 30);
-      ctx.fillRect(48, 20, 8, 24);
+      ctx.fillStyle = '#1b0f33'; ctx.fillRect(0, 0, s, s); N(ctx, VOID, 6);
+      // triple antenna crown
+      ctx.fillStyle = '#0d0618';
+      ctx.fillRect(10, 22, 7, 22); ctx.fillRect(28, 14, 8, 30); ctx.fillRect(47, 22, 7, 22);
       ctx.fillStyle = '#40e0ff';
-      ctx.fillRect(8, 20, 8, 4);
-      ctx.fillRect(28, 14, 8, 4);
-      ctx.fillRect(48, 20, 8, 4);
+      ctx.fillRect(10, 22, 7, 4); ctx.fillRect(28, 14, 8, 4); ctx.fillRect(47, 22, 7, 4);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(12, 22, 3, 2); ctx.fillRect(30, 14, 4, 2); ctx.fillRect(49, 22, 3, 2);
     });
     const headBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#0d0618'; ctx.fillRect(0, 0, s, s);
     });
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#22133a';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#241544'; ctx.fillRect(0, 0, s, s); N(ctx, 0x241544, 7);
+      stars(ctx, 10, 414);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#160a26';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 10);
-      // Void face — pitch dark, with big burning cyan eyes
-      ctx.fillStyle = '#05030c';
-      ctx.fillRect(6, 16, 52, 38);
+      ctx.fillStyle = '#1b0f33'; ctx.fillRect(0, 0, s, s); N(ctx, VOID, 7); topLight(ctx);
+      // shadowed visage
+      ctx.fillStyle = '#05030c'; ctx.fillRect(8, 14, 48, 42);
+      // vertical slit eyes, white-hot cores
       ctx.fillStyle = '#40e0ff';
-      ctx.fillRect(10, 24, 18, 14);
-      ctx.fillRect(36, 24, 18, 14);
-      ctx.fillStyle = '#c0f8ff';
-      ctx.fillRect(13, 27, 7, 7);
-      ctx.fillRect(39, 27, 7, 7);
+      ctx.fillRect(13, 22, 9, 20); ctx.fillRect(42, 22, 9, 20);
       ctx.fillStyle = '#ffffff';
-      ctx.fillRect(15, 29, 3, 3);
-      ctx.fillRect(41, 29, 3, 3);
-      // Jagged void grin
-      ctx.fillStyle = '#40e0ff';
-      for (let x = 16; x < 48; x += 8) {
-        ctx.fillRect(x, 44, 4, 4);
-      }
+      ctx.fillRect(15, 26, 5, 12); ctx.fillRect(44, 26, 5, 12);
+      ctx.fillStyle = '#0d3a4a';
+      ctx.fillRect(16, 28, 3, 8); ctx.fillRect(45, 28, 3, 8);
+      // breathing slits below
+      ctx.fillStyle = 'rgba(64,224,255,0.7)';
+      ctx.fillRect(24, 48, 4, 4); ctx.fillRect(32, 50, 4, 4); ctx.fillRect(40, 48, 4, 4);
     });
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID_DARK, 10);
-      // Fading robe bottom
-      ctx.fillStyle = 'rgba(64,224,255,0.15)';
-      ctx.fillRect(0, s - 10, s, 10);
+      ctx.fillStyle = '#0d0618'; ctx.fillRect(0, 0, s, s); N(ctx, DEEP, 6);
+      stars(ctx, 6, 222);
+      ctx.fillStyle = 'rgba(64,224,255,0.18)'; ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillStyle = 'rgba(64,224,255,0.5)'; ctx.fillRect(s / 2 - 1, 8, 2, s - 16);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
   }
 
   _witchTextures(def) {
+    // Bog Queen: moss-velvet emerald gown, gold potion bandolier, wide-brim
+    // shadow hat, violet slit eyes, hooked wart nose, thorn brooch.
     const s = 64;
-    const PURPLE = 0x5a2a3a, DARK = 0x3a1a2a;
+    const GOWN = 0x1f5a34, DARK = 0x123a22, GOLD = 0xc8a83a;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(200,255,210,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const botDark = (ctx) => { ctx.fillStyle = 'rgba(4,12,7,0.25)'; ctx.fillRect(0, s - 6, s, 6); ctx.fillRect(s - 6, 0, 6, s); };
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a2a3a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PURPLE, 12);
-      // Belt
-      ctx.fillStyle = '#2a1018';
-      ctx.fillRect(0, s * 0.5, s, 6);
-      // Potion bottles on belt
-      ctx.fillStyle = '#80ff80';
-      ctx.fillRect(14, s * 0.5 - 4, 5, 5);
-      ctx.fillStyle = '#ff4040';
-      ctx.fillRect(40, s * 0.5 - 4, 5, 5);
+      ctx.fillStyle = '#1f5a34'; ctx.fillRect(0, 0, s, s); N(ctx, GOWN, 7); topLight(ctx); botDark(ctx);
+      // velvet fold shadows
+      ctx.fillStyle = 'rgba(8,30,16,0.5)';
+      ctx.fillRect(12, 0, 5, s); ctx.fillRect(34, 0, 5, s); ctx.fillRect(52, 0, 4, s);
+      // gold hem runes
+      ctx.fillStyle = '#c8a83a';
+      for (let x = 4; x < s; x += 12) { ctx.fillRect(x, s - 8, 5, 4); }
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a2a3a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PURPLE, 10);
+      ctx.fillStyle = '#2a7042'; ctx.fillRect(0, 0, s, s); N(ctx, 0x2a7042, 6);
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(0, s / 2 - 2, s, 4);
     });
-    const bodyBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#3a1a2a'; ctx.fillRect(0, 0, s, s); });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#123a22'; ctx.fillRect(0, 0, s, s);
+    });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#5a2a3a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PURPLE, 12);
+      ctx.fillStyle = '#1f5a34'; ctx.fillRect(0, 0, s, s); N(ctx, GOWN, 7); topLight(ctx);
+      // laced bodice
+      ctx.fillStyle = '#123a22'; ctx.fillRect(24, 4, 16, 34);
+      ctx.fillStyle = '#c8a83a';
+      for (let y = 6; y < 36; y += 6) { ctx.fillRect(25, y, 4, 3); ctx.fillRect(35, y, 4, 3); }
+      ctx.fillStyle = '#ffe08a';
+      for (let y = 6; y < 36; y += 6) { ctx.fillRect(29, y + 1, 6, 1); }
+      // potion bandolier: 3 vials
+      ctx.fillStyle = '#0e2a18'; ctx.fillRect(6, 40, 52, 14);
+      const vials = [[12, '#80ff80'], [27, '#ff5a5a'], [42, '#b08aff']];
+      for (const [vx, col] of vials) {
+        ctx.fillStyle = '#0a0a0a'; ctx.fillRect(vx, 38, 10, 18);
+        ctx.fillStyle = col; ctx.fillRect(vx + 1, 44, 8, 10);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(vx + 2, 45, 3, 3);
+        ctx.fillStyle = '#8a6a3c'; ctx.fillRect(vx + 2, 36, 6, 3);
+      }
+      // thorn brooch
+      ctx.fillStyle = '#c8a83a';
+      ctx.fillRect(28, 56, 8, 5);
+      ctx.fillStyle = '#2fae5a'; ctx.fillRect(30, 55, 4, 4);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a3a4a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x6a3a4a, 12);
+      ctx.fillStyle = '#8a5f3d'; ctx.fillRect(0, 0, s, s); N(ctx, 0x8a5f3d, 7); topLight(ctx);
+      // hat brim shadow + hair fall
+      ctx.fillStyle = 'rgba(10,8,5,0.55)'; ctx.fillRect(0, 0, s, 14);
+      ctx.fillStyle = '#3a3a3a'; ctx.fillRect(0, 14, 10, s - 14);
+      ctx.fillStyle = '#5a5a5a'; ctx.fillRect(0, 14, 3, s - 14);
     });
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a1a2a';
-      ctx.fillRect(0, 0, s, s);
+      // hat crown: deep violet-black + gold hatband
+      ctx.fillStyle = '#1a1226'; ctx.fillRect(0, 0, s, s); N(ctx, 0x1a1226, 6);
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(0, 44, s, 8);
+      ctx.fillStyle = '#2fae5a'; ctx.fillRect(28, 44, 8, 8);
     });
-    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#6a3a4a'; ctx.fillRect(0, 0, s, s); });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#8a5f3d'; ctx.fillRect(0, 0, s, s); });
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a3a4a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x6a3a4a, 10);
+      ctx.fillStyle = '#8a5f3d'; ctx.fillRect(0, 0, s, s); N(ctx, 0x8a5f3d, 7);
+      ctx.fillStyle = 'rgba(10,8,5,0.55)'; ctx.fillRect(0, 0, s, 14);
+      // long grey hair down the back
+      ctx.fillStyle = '#6a6a6a'; ctx.fillRect(14, 20, 36, s - 20);
+      ctx.fillStyle = '#8a8a8a';
+      for (let x = 16; x < 48; x += 8) ctx.fillRect(x, 20, 3, s - 20);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#6a3a4a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x6a3a4a, 12);
-      // Green glowing eyes
-      ctx.fillStyle = '#80ff80';
-      ctx.fillRect(12, 24, 10, 8);
-      ctx.fillRect(42, 24, 10, 8);
-      ctx.fillStyle = '#c0ffc0';
-      ctx.fillRect(14, 26, 4, 4);
-      ctx.fillRect(44, 26, 4, 4);
-      // Big nose
-      ctx.fillStyle = '#7a4a5a';
-      ctx.fillRect(28, 32, 8, 10);
+      ctx.fillStyle = '#8a5f3d'; ctx.fillRect(0, 0, s, s); N(ctx, 0x8a5f3d, 7); topLight(ctx);
+      // hat brim shadow
+      ctx.fillStyle = 'rgba(10,8,5,0.6)'; ctx.fillRect(0, 0, s, 13);
+      ctx.fillStyle = '#1a1226'; ctx.fillRect(0, 4, s, 6);
+      // violet slit eyes
+      ctx.fillStyle = '#0e0a14';
+      ctx.fillRect(9, 22, 15, 11); ctx.fillRect(40, 22, 15, 11);
+      ctx.fillStyle = '#b08aff';
+      ctx.fillRect(12, 25, 9, 5); ctx.fillRect(43, 25, 9, 5);
+      ctx.fillStyle = '#0e0a14'; ctx.fillRect(15, 25, 3, 5); ctx.fillRect(46, 25, 3, 5);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(13, 26, 2, 2); ctx.fillRect(44, 26, 2, 2);
+      // hooked wart nose
+      ctx.fillStyle = '#7a5233'; ctx.fillRect(27, 32, 10, 14);
+      ctx.fillStyle = '#93714d'; ctx.fillRect(28, 32, 4, 14);
+      ctx.fillStyle = '#2fae5a'; ctx.fillRect(29, 36, 3, 3); ctx.fillRect(33, 41, 3, 3);
+      ctx.fillStyle = '#4a2f1a'; ctx.fillRect(28, 44, 4, 2); ctx.fillRect(32, 44, 4, 2);
+      // thin wicked grin
+      ctx.fillStyle = '#3a2412'; ctx.fillRect(20, 50, 24, 4);
+      ctx.fillStyle = '#e8d8b0'; ctx.fillRect(24, 50, 4, 4); ctx.fillRect(36, 50, 4, 4);
     });
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
 
     const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#3a1a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 10);
+      ctx.fillStyle = '#123a22'; ctx.fillRect(0, 0, s, s); N(ctx, DARK, 7); botDark(ctx);
+      ctx.fillStyle = '#0a2012'; ctx.fillRect(0, s - 12, s, 12);
+      ctx.fillStyle = '#2a7042'; ctx.fillRect(0, s - 12, s, 3);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
@@ -3110,83 +2904,97 @@ class Mob {
   }
 
   _dragonTextures(def) {
+    // Prismite Matriarch: wine-dark plated scales with ember seams, molten
+    // core breast, horned war-mask face, furnace jaw.
     const s = 64;
-    const DARK = 0x1a0a2a, PURPLE = 0x2a1a4a, RED = 0xff3300, ORANGE = 0xff6600;
-
-    const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 16);
-      // Scale pattern
-      ctx.fillStyle = 'rgba(60,20,80,0.4)';
-      for (let y = 4; y < s; y += 8) {
-        for (let x = (y % 16 === 4 ? 0 : 4); x < s; x += 8) {
-          ctx.fillRect(x, y, 6, 6);
-          ctx.fillStyle = 'rgba(40,10,60,0.3)';
-          ctx.fillRect(x + 1, y + 1, 4, 4);
+    const HIDE = 0x3a0f24, PLATE = 0x5a1830, BELLY = 0xd86a28;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,150,120,0.10)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const scales = (ctx, x0, y0, w, h, step) => {
+      for (let y = y0; y < y0 + h; y += step) {
+        for (let x = x0 + ((y / step) % 2) * step / 2; x < x0 + w; x += step) {
+          ctx.fillStyle = 'rgba(20,5,12,0.55)';
+          ctx.fillRect(x, y, step - 1, step - 1);
+          ctx.fillStyle = 'rgba(255,120,90,0.30)';
+          ctx.fillRect(x, y, step - 1, 2);
         }
       }
-      // Belly stripe
-      ctx.fillStyle = 'rgba(80,30,100,0.5)';
-      ctx.fillRect(0, s * 0.3, s, s * 0.4);
+    };
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#3a0f24'; ctx.fillRect(0, 0, s, s); N(ctx, HIDE, 7); topLight(ctx);
+      scales(ctx, 4, 4, s - 8, s - 8, 9);
+      // ember seams between plates
+      ctx.fillStyle = '#ff5a20';
+      ctx.fillRect(8, 20, 2, 26); ctx.fillRect(s - 10, 30, 2, 22);
+      ctx.fillStyle = '#ffb020'; ctx.fillRect(8, 24, 2, 8);
+      // dorsal ridge plates
+      ctx.fillStyle = '#8a2438';
+      for (let x = 6; x < s; x += 14) { ctx.fillRect(x, 0, 8, 10); ctx.fillRect(x + 2, 0, 4, 6); }
     });
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 12);
+      ctx.fillStyle = '#5a1830'; ctx.fillRect(0, 0, s, s); N(ctx, PLATE, 6);
+      scales(ctx, 2, 2, s - 4, s - 4, 10);
+      ctx.fillStyle = '#8a2438'; ctx.fillRect(s / 2 - 5, 0, 10, s);
     });
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1040';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#7a3a18'; ctx.fillRect(0, 0, s, s); N(ctx, 0x7a3a18, 6);
     });
     const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#1a0a2a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, DARK, 14);
-      // Chest glow
-      const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 24);
-      g.addColorStop(0, 'rgba(255,51,0,0.5)');
-      g.addColorStop(1, 'rgba(100,20,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, s, s);
+      // molten core breast: furnace glow with dark plate frame
+      ctx.fillStyle = '#2a0a18'; ctx.fillRect(0, 0, s, s);
+      const g = ctx.createRadialGradient(32, 32, 4, 32, 32, 26);
+      g.addColorStop(0, '#ffe080');
+      g.addColorStop(0.4, '#ff7a20');
+      g.addColorStop(1, 'rgba(120,20,0,0)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = '#3a0f24';
+      ctx.fillRect(0, 0, s, 8); ctx.fillRect(0, s - 8, s, 8);
+      ctx.fillRect(0, 0, 8, s); ctx.fillRect(s - 8, 0, 8, s);
+      ctx.fillStyle = '#8a2438';
+      ctx.fillRect(0, 0, s, 3); ctx.fillRect(0, s - 3, s, 3);
     });
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PURPLE, 12);
+      ctx.fillStyle = '#3a0f24'; ctx.fillRect(0, 0, s, s); N(ctx, HIDE, 7); topLight(ctx);
+      scales(ctx, 4, 30, s - 8, s - 34, 9);
+      // swept horn
+      ctx.fillStyle = '#e8dcc0'; ctx.fillRect(8, 4, 10, 26);
+      ctx.fillStyle = '#b8ac90'; ctx.fillRect(8, 4, 4, 26);
+      ctx.fillStyle = '#ff5a20'; ctx.fillRect(8, 26, 10, 4);
     });
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#2a1a4a';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, PURPLE, 10);
-      // Eyes
+      ctx.fillStyle = '#3a0f24'; ctx.fillRect(0, 0, s, s); N(ctx, HIDE, 7); topLight(ctx);
+      // war-mask brow plate
+      ctx.fillStyle = '#5a1830'; ctx.fillRect(0, 0, s, 18);
+      ctx.fillStyle = '#8a2438'; ctx.fillRect(0, 16, s, 3);
+      ctx.fillStyle = '#c8a83a'; ctx.fillRect(28, 4, 8, 10);
+      // burning eyes under the plate
+      ctx.fillStyle = '#0e0408';
+      ctx.fillRect(7, 21, 19, 14); ctx.fillRect(38, 21, 19, 14);
       ctx.fillStyle = '#ff3300';
-      ctx.fillRect(8, 22, 16, 12);
-      ctx.fillRect(40, 22, 16, 12);
+      ctx.fillRect(10, 24, 13, 8); ctx.fillRect(41, 24, 13, 8);
       ctx.fillStyle = '#ffaa00';
-      ctx.fillRect(12, 24, 8, 6);
-      ctx.fillRect(44, 24, 8, 6);
-      // Pupils
-      ctx.fillStyle = '#000';
-      ctx.fillRect(14, 26, 3, 4);
-      ctx.fillRect(48, 26, 3, 4);
-      // Nostrils
-      ctx.fillStyle = '#ff2200';
-      ctx.fillRect(22, 42, 8, 6);
-      ctx.fillRect(34, 42, 8, 6);
-      // Fire glow
-      const g = ctx.createRadialGradient(32, 50, 2, 32, 50, 14);
-      g.addColorStop(0, 'rgba(255,100,0,0.6)');
+      ctx.fillRect(13, 26, 7, 4); ctx.fillRect(44, 26, 7, 4);
+      ctx.fillStyle = '#000'; ctx.fillRect(15, 27, 3, 3); ctx.fillRect(46, 27, 3, 3);
+      // armored snout + flared nostrils
+      ctx.fillStyle = '#5a1830'; ctx.fillRect(18, 37, 28, 12);
+      ctx.fillStyle = '#ff4400';
+      ctx.fillRect(21, 39, 7, 6); ctx.fillRect(36, 39, 7, 6);
+      ctx.fillStyle = '#7a2000'; ctx.fillRect(22, 40, 5, 4); ctx.fillRect(37, 40, 5, 4);
+      // furnace jaw glow
+      const g = ctx.createRadialGradient(32, 56, 2, 32, 56, 14);
+      g.addColorStop(0, 'rgba(255,120,0,0.7)');
       g.addColorStop(1, 'rgba(255,50,0,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(18, 36, 28, 20);
+      ctx.fillStyle = g; ctx.fillRect(16, 42, 32, 22);
+      ctx.fillStyle = '#e8dcc0';
+      for (let x = 20; x < 44; x += 6) ctx.fillRect(x, 49, 3, 5);
     });
-    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#2a1040'; ctx.fillRect(0, 0, s, s); });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#7a3a18'; ctx.fillRect(0, 0, s, s); });
     const head = [headSide, headSide, headSide, headBot, headSide, headFront];
 
-    const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#1a0a2a'; ctx.fillRect(0, 0, 8, 8); });
+    const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#3a0f24'; ctx.fillRect(0, 0, 8, 8); });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
   }
@@ -3305,97 +3113,439 @@ class Mob {
   }
 
   _pixieTextures(def) {
+    // Glimmer Wisp: paper-lantern body with a filament core, petal crown,
+    // huge dewy eyes, trailing light wisps.
     const s = 32;
-    const BASE = 0x50e0c0, DARK = 0x20a080, EDGE = 0x9ff0dc, GLOW = 0xb8fff0;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
 
     const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(40,140,120)';
-      ctx.fillRect(0, 0, s, s);
-      // Soft fairy body gradient
+      // lantern paper: warm mint glow, darker ribs
       const grad = ctx.createLinearGradient(0, 0, 0, s);
-      grad.addColorStop(0, 'rgba(120,255,230,0.4)');
-      grad.addColorStop(0.5, 'rgba(60,180,155,0.2)');
-      grad.addColorStop(1, 'rgba(25,90,75,0.5)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, s, s);
-      // Tiny sparkle dots
-      ctx.fillStyle = 'rgba(200,255,245,0.6)';
-      for (let i = 0; i < 4; i++) {
-        const x = 4 + Math.floor(Math.random() * 24);
-        const y = 4 + Math.floor(Math.random() * 24);
-        ctx.fillRect(x, y, 1, 1);
-      }
+      grad.addColorStop(0, 'rgba(190,255,240,0.95)');
+      grad.addColorStop(0.55, 'rgba(90,220,190,0.9)');
+      grad.addColorStop(1, 'rgba(30,130,110,0.95)');
+      ctx.fillStyle = grad; ctx.fillRect(0, 0, s, s);
+      // bamboo ribs
+      ctx.fillStyle = 'rgba(20,90,75,0.6)';
+      for (let x = 4; x < s; x += 8) ctx.fillRect(x, 0, 2, s);
+      // filament core glow
+      ctx.fillStyle = '#fff8e0';
+      ctx.fillRect(s / 2 - 2, 10, 4, 12);
+      ctx.fillStyle = 'rgba(255,240,180,0.7)';
+      ctx.fillRect(s / 2 - 5, 8, 10, 16);
+      // trailing wisps
+      ctx.fillStyle = 'rgba(220,255,245,0.55)';
+      ctx.fillRect(4, 24, 3, 5); ctx.fillRect(24, 27, 3, 4);
     });
 
     const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(65,175,155)';
-      ctx.fillRect(0, 0, s, s);
-      const grad = ctx.createRadialGradient(s/2, s/2, 2, s/2, s/2, s/2);
-      grad.addColorStop(0, 'rgba(200,255,245,0.5)');
-      grad.addColorStop(1, 'rgba(40,120,100,0.2)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(190,255,240,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, 0xbefff0, 8);
+      // hanging cap ring
+      ctx.fillStyle = 'rgba(20,90,75,0.7)';
+      ctx.fillRect(4, 4, s - 8, 3); ctx.fillRect(4, s - 7, s - 8, 3);
     });
 
     const bodyBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(22,80,68)';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(20,90,75,0.95)'; ctx.fillRect(0, 0, s, s);
     });
 
     const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(48,155,135)';
-      ctx.fillRect(0, 0, s, s);
-      const grad = ctx.createLinearGradient(0, 0, 0, s);
-      grad.addColorStop(0, 'rgba(150,255,240,0.35)');
-      grad.addColorStop(1, 'rgba(30,100,85,0.4)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(120,225,200,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, 0x78e1c8, 8);
+      ctx.fillStyle = 'rgba(20,90,75,0.5)'; ctx.fillRect(0, 0, s, 4);
     });
 
     const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(75,180,160)';
-      ctx.fillRect(0, 0, s, s);
-      // Crown glow
-      const grad = ctx.createRadialGradient(s/2, s/2, 1, s/2, s/2, s/2);
-      grad.addColorStop(0, 'rgba(220,255,250,0.6)');
-      grad.addColorStop(1, 'rgba(60,150,130,0.1)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(150,235,215,0.9)'; ctx.fillRect(0, 0, s, s);
+      // petal crown: 5 glowing petals
+      ctx.fillStyle = '#e8fff8';
+      for (let i = 0; i < 5; i++) {
+        const px = 4 + i * 5;
+        ctx.fillRect(px, 8, 3, 9);
+        ctx.fillRect(px - 1, 11, 5, 4);
+      }
+      ctx.fillStyle = '#ffd75a';
+      ctx.fillRect(s / 2 - 2, 13, 4, 4);
     });
 
     const headBot = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(28,90,78)';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(25,95,80,0.95)'; ctx.fillRect(0, 0, s, s);
     });
 
     const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(38,120,105)';
-      ctx.fillRect(0, 0, s, s);
+      ctx.fillStyle = 'rgba(90,200,175,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, 0x5ac8af, 8);
+      // wing buds
+      ctx.fillStyle = 'rgba(220,255,245,0.6)';
+      ctx.fillRect(4, 10, 5, 12); ctx.fillRect(23, 10, 5, 12);
     });
 
     const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = 'rgb(55,160,140)';
-      ctx.fillRect(0, 0, s, s);
-      // Big fairy eyes (larger, more expressive)
-      ctx.fillStyle = '#001a14';
-      ctx.fillRect(5, 10, 5, 8);   // left eye (bigger)
-      ctx.fillRect(22, 10, 5, 8);   // right eye (bigger)
-      // Cyan iris glow
-      ctx.fillStyle = 'rgba(80,240,210,0.95)';
-      ctx.fillRect(6, 12, 3, 5);
-      ctx.fillRect(23, 12, 3, 5);
-      // White highlight
-      ctx.fillStyle = 'rgba(255,255,255,0.9)';
-      ctx.fillRect(6, 12, 1, 2);
-      ctx.fillRect(23, 12, 1, 2);
-      // Tiny smile
-      ctx.fillStyle = 'rgba(180,255,245,0.5)';
-      ctx.fillRect(13, 22, 6, 1);
+      ctx.fillStyle = 'rgba(120,225,200,0.9)'; ctx.fillRect(0, 0, s, s);
+      N(ctx, 0x78e1c8, 8);
+      // huge dewy night eyes
+      ctx.fillStyle = '#06231d';
+      ctx.fillRect(4, 9, 7, 11); ctx.fillRect(21, 9, 7, 11);
+      ctx.fillStyle = '#0e4a3e';
+      ctx.fillRect(5, 11, 5, 7); ctx.fillRect(22, 11, 5, 7);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(5, 11, 2, 3); ctx.fillRect(22, 11, 2, 3);
+      ctx.fillStyle = '#9ff0dc';
+      ctx.fillRect(6, 16, 3, 2); ctx.fillRect(23, 16, 3, 2);
+      // blush + tiny smile
+      ctx.fillStyle = 'rgba(255,150,180,0.55)';
+      ctx.fillRect(3, 21, 4, 2); ctx.fillRect(25, 21, 4, 2);
+      ctx.fillStyle = '#0e4a3e'; ctx.fillRect(13, 24, 6, 1);
     });
 
     const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodySide];
     const head = [headSide, headSide, headTop, headBot, headBack, headFront];
     return { body, head, leg: [bodySide, bodySide, bodySide, bodySide, bodySide, bodySide] };
+  }
+
+  _crystal_golemTextures(def) {
+    // Frostbite Colossus: faceted glacier plates, glowing core seams, snow
+    // shoulders, rune-carved brow.
+    const s = 64;
+    const ICE = 0x7fd6ff, DEEP = 0x2a7ab8, SNOW = 0xeaf6ff;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const topLight = (ctx) => { ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(0, 0, s, 6); ctx.fillRect(0, 0, 6, s); };
+    const facets = (ctx, x0, y0, w, h, step) => {
+      for (let y = y0; y < y0 + h; y += step) {
+        for (let x = x0 + ((y / step) % 2) * step / 2; x < x0 + w; x += step) {
+          ctx.fillStyle = 'rgba(20,70,110,0.5)';
+          ctx.fillRect(x, y, step - 1, step - 1);
+          ctx.fillStyle = 'rgba(255,255,255,0.45)';
+          ctx.fillRect(x, y, step - 1, 2);
+        }
+      }
+    };
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7); topLight(ctx);
+      facets(ctx, 4, 8, s - 8, s - 16, 10);
+      // glowing core seams
+      ctx.fillStyle = '#33ddff'; ctx.fillRect(10, 20, 3, 26); ctx.fillRect(s - 13, 28, 3, 22);
+      ctx.fillStyle = '#d8f8ff'; ctx.fillRect(10, 24, 3, 6);
+      // snow shoulder caps
+      ctx.fillStyle = '#eaf6ff'; ctx.fillRect(0, 0, 14, 8); ctx.fillRect(s - 14, 0, 14, 8);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#aff0ff'; ctx.fillRect(0, 0, s, s); N(ctx, 0xaff0ff, 6);
+      facets(ctx, 2, 2, s - 4, s - 4, 11);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#2a7ab8'; ctx.fillRect(0, 0, s, s);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7); topLight(ctx);
+      facets(ctx, 4, 4, s - 8, 22, 10);
+      // great core diamond
+      ctx.fillStyle = '#0e3a52'; ctx.fillRect(20, 26, 24, 24);
+      ctx.fillStyle = '#33ddff'; ctx.fillRect(23, 29, 18, 18);
+      ctx.fillStyle = '#bff4ff'; ctx.fillRect(23, 29, 18, 5);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(28, 29, 8, 8);
+      ctx.fillStyle = '#0e3a52'; ctx.fillRect(30, 44, 4, 12);
+      // snow pectorals
+      ctx.fillStyle = '#eaf6ff'; ctx.fillRect(6, 8, 14, 6); ctx.fillRect(s - 20, 8, 14, 6);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7); topLight(ctx);
+      facets(ctx, 4, 10, s - 8, s - 20, 10);
+      ctx.fillStyle = '#eaf6ff'; ctx.fillRect(0, 0, 12, 8);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#eaf6ff'; ctx.fillRect(0, 0, s, s); N(ctx, SNOW, 6);
+      // ice crown spikes
+      ctx.fillStyle = '#7fd6ff';
+      ctx.fillRect(10, 30, 8, 20); ctx.fillRect(28, 24, 8, 26); ctx.fillRect(46, 30, 8, 20);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(10, 30, 8, 4); ctx.fillRect(28, 24, 8, 4); ctx.fillRect(46, 30, 8, 4);
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#4aa6d6'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7);
+      facets(ctx, 4, 4, s - 8, s - 8, 11);
+    });
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7); topLight(ctx);
+      // rune-carved brow
+      ctx.fillStyle = '#2a7ab8'; ctx.fillRect(0, 6, s, 10);
+      ctx.fillStyle = '#33ddff';
+      for (let x = 8; x < s - 4; x += 12) { ctx.fillRect(x, 8, 6, 6); }
+      // deep visor with cyan burn
+      ctx.fillStyle = '#0a2030';
+      ctx.fillRect(8, 22, 48, 16);
+      ctx.fillStyle = '#33ddff';
+      ctx.fillRect(13, 26, 14, 8); ctx.fillRect(37, 26, 14, 8);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(16, 28, 4, 4); ctx.fillRect(40, 28, 4, 4);
+      // grated jaw
+      ctx.fillStyle = '#2a7ab8'; ctx.fillRect(18, 44, 28, 14);
+      ctx.fillStyle = '#0a2030';
+      for (let x = 20; x < 44; x += 6) ctx.fillRect(x, 44, 3, 14);
+      ctx.fillStyle = '#33ddff'; ctx.fillRect(18, 44, 28, 2);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const limb = () => this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#7fd6ff'; ctx.fillRect(0, 0, s, s); N(ctx, ICE, 7); topLight(ctx);
+      facets(ctx, 2, 6, s - 4, s - 16, 11);
+      ctx.fillStyle = '#33ddff'; ctx.fillRect(s / 2 - 2, 10, 4, s - 20);
+      ctx.fillStyle = '#eaf6ff'; ctx.fillRect(0, 0, s, 7);
+      ctx.fillStyle = '#2a7ab8'; ctx.fillRect(0, s - 9, s, 9);
+    });
+    const legTex = limb(), armTex = limb();
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    const arm = [armTex, armTex, armTex, armTex, armTex, armTex];
+    return { body, head, leg, arm };
+  }
+
+  _shadow_stalkerTextures(def) {
+    // Nightmare Lurker: smoke-black wisp body, violet slit eyes, claw
+    // streaks, ember cracks that breathe.
+    const s = 64;
+    const SMOKE = 0x241f38, DEEP = 0x121020;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const wisps = (ctx, seed) => {
+      let a = seed;
+      ctx.fillStyle = 'rgba(120,100,180,0.35)';
+      for (let i = 0; i < 7; i++) {
+        a = (a * 16807) % 2147483647;
+        const wx = a % (s - 6), wh = 8 + ((a >> 9) % 18);
+        ctx.fillRect(wx, s - wh, 4, wh);
+      }
+    };
+
+    const smoky = (base) => (ctx) => {
+      ctx.fillStyle = base; ctx.fillRect(0, 0, s, s); N(ctx, SMOKE, 9);
+      ctx.fillStyle = 'rgba(150,130,220,0.10)'; ctx.fillRect(0, 0, 6, s);
+      ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fillRect(s - 6, 0, 6, s);
+      wisps(ctx, 4243);
+    };
+    const bodySide = this._tex(s, s, (ctx) => {
+      smoky('#241f38')(ctx);
+      // ember cracks
+      ctx.fillStyle = '#9b5cff'; ctx.fillRect(12, 14, 2, 30); ctx.fillRect(s - 14, 26, 2, 24);
+      ctx.fillStyle = '#d8b8ff'; ctx.fillRect(12, 18, 2, 6);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      smoky('#2e2748')(ctx);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#121020'; ctx.fillRect(0, 0, s, s); });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      smoky('#241f38')(ctx);
+      // claw streaks across the chest
+      ctx.fillStyle = 'rgba(10,8,18,0.8)';
+      for (let i = 0; i < 3; i++) {
+        const y = 16 + i * 12;
+        ctx.fillRect(10, y, 44, 3);
+      }
+      ctx.fillStyle = '#9b5cff';
+      ctx.fillRect(10, 17, 44, 1); ctx.fillRect(10, 29, 44, 1);
+      // heart ember
+      ctx.fillStyle = '#9b5cff'; ctx.fillRect(28, 44, 8, 8);
+      ctx.fillStyle = '#e8d8ff'; ctx.fillRect(30, 46, 4, 4);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headFront = this._tex(s, s, (ctx) => {
+      smoky('#241f38')(ctx);
+      // huge violet slit eyes
+      ctx.fillStyle = '#0a0812';
+      ctx.fillRect(8, 20, 18, 22); ctx.fillRect(38, 20, 18, 22);
+      ctx.fillStyle = '#9b5cff';
+      ctx.fillRect(14, 22, 6, 18); ctx.fillRect(44, 22, 6, 18);
+      ctx.fillStyle = '#e8d8ff';
+      ctx.fillRect(15, 24, 4, 6); ctx.fillRect(45, 24, 6, 4);
+      // needle fangs
+      ctx.fillStyle = '#d8d0e8';
+      ctx.fillRect(22, 46, 3, 8); ctx.fillRect(29, 46, 3, 10); ctx.fillRect(36, 46, 3, 8);
+      // brow horns nubs
+      ctx.fillStyle = '#121020'; ctx.fillRect(6, 8, 8, 10); ctx.fillRect(50, 8, 8, 10);
+      ctx.fillStyle = '#9b5cff'; ctx.fillRect(6, 8, 8, 3); ctx.fillRect(50, 8, 8, 3);
+    });
+    const headSide = this._tex(s, s, (ctx) => {
+      smoky('#241f38')(ctx);
+      ctx.fillStyle = '#9b5cff'; ctx.fillRect(24, 24, 10, 4);
+    });
+    const headTop = this._tex(s, s, (ctx) => { smoky('#2e2748')(ctx); });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#121020'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => { smoky('#1c1830')(ctx); });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(s, s, (ctx) => {
+      smoky('#1c1830')(ctx);
+      ctx.fillStyle = '#9b5cff'; ctx.fillRect(s / 2 - 1, 20, 2, s - 20);
+    });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
+  _wind_spiritTextures(def) {
+    // Gale Warden: translucent pearl-white swirl robes, sky-rune bands,
+    // storm-core eyes, cloud cuffs. (Legs unused — it flies.)
+    const s = 64;
+    const PEARL = 0xdceeff, SKY = 0x8ac8f0;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const swirls = (ctx, seed) => {
+      let a = seed;
+      ctx.strokeStyle = 'rgba(90,160,220,0.5)'; ctx.lineWidth = 3;
+      for (let i = 0; i < 4; i++) {
+        a = (a * 16807) % 2147483647;
+        const sy = 8 + ((a >> 4) % (s - 16));
+        ctx.beginPath(); ctx.arc(a % s, sy, 6 + (a % 8), 0, Math.PI * 1.6); ctx.stroke();
+      }
+    };
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s); N(ctx, PEARL, 6);
+      swirls(ctx, 991);
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fillRect(0, 0, 5, s);
+      ctx.fillStyle = 'rgba(70,130,190,0.35)'; ctx.fillRect(s - 5, 0, 5, s);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#eef7ff'; ctx.fillRect(0, 0, s, s); N(ctx, 0xeef7ff, 5);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      // ragged cloud hem
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s - 10);
+      ctx.fillStyle = 'rgba(220,238,255,0.7)';
+      ctx.fillRect(4, s - 14, 8, 6); ctx.fillRect(20, s - 12, 10, 5); ctx.fillRect(44, s - 14, 8, 6);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s); N(ctx, PEARL, 6);
+      swirls(ctx, 733);
+      // sky-rune storm band
+      ctx.fillStyle = '#3a7ab8'; ctx.fillRect(8, 26, 48, 12);
+      ctx.fillStyle = '#bfe4ff';
+      for (let x = 11; x < 53; x += 8) { ctx.fillRect(x, 28, 4, 8); }
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(11, 28, 4, 2);
+      // cloud collar
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(14, 4, 36, 8);
+      ctx.fillStyle = '#bfe4ff'; ctx.fillRect(14, 10, 36, 3);
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s); N(ctx, PEARL, 6);
+      ctx.fillStyle = 'rgba(255,255,255,0.4)'; ctx.fillRect(0, 0, s, 8);
+      // storm-core spiral eyes
+      for (const ex of [12, 40]) {
+        ctx.fillStyle = '#3a7ab8'; ctx.fillRect(ex, 22, 12, 12);
+        ctx.fillStyle = '#bfe4ff'; ctx.fillRect(ex + 2, 24, 8, 8);
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(ex + 4, 26, 4, 4);
+        ctx.fillStyle = '#3a7ab8'; ctx.fillRect(ex + 5, 27, 2, 2);
+      }
+      // whistling mouth + cheek swirls
+      ctx.fillStyle = '#3a7ab8'; ctx.fillRect(28, 44, 8, 6);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(29, 45, 6, 2);
+      ctx.strokeStyle = 'rgba(90,160,220,0.7)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(10, 46, 5, 0, Math.PI * 1.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(54, 46, 5, Math.PI * 0.5, Math.PI * 2); ctx.stroke();
+    });
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s); N(ctx, PEARL, 6);
+      swirls(ctx, 517);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#eef7ff'; ctx.fillRect(0, 0, s, s);
+      // halo ring
+      ctx.strokeStyle = '#ffd75a'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(s / 2, s / 2, 18, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s / 2, s / 2, 18, -0.4, 0.6); ctx.stroke();
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#bfe4ff'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, s, s); N(ctx, PEARL, 6);
+      swirls(ctx, 331);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#dceeff'; ctx.fillRect(0, 0, 8, 8); });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
+  }
+
+  _cave_batTextures(def) {
+    // Gloomflap: umber fur, huge radar ears, ruby eyes, fanged snout,
+    // veined wing membranes. (Legs unused — it flies.)
+    const s = 64;
+    const FUR = 0x4a3423, DARK = 0x2b1f14;
+    const N = (ctx, hex, v) => this._noiseTex(ctx, s, s, hex, v);
+    const fur = (ctx) => {
+      ctx.fillStyle = 'rgba(30,20,12,0.5)';
+      for (let y = 4; y < s; y += 7) {
+        for (let x = ((y / 7) % 2) * 4; x < s; x += 8) ctx.fillRect(x, y, 3, 3);
+      }
+    };
+
+    const bodySide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, s, s); N(ctx, FUR, 7); fur(ctx);
+      ctx.fillStyle = 'rgba(255,220,180,0.12)'; ctx.fillRect(0, 0, 5, s);
+      // folded wing ridge
+      ctx.fillStyle = '#2b1f14'; ctx.fillRect(8, 14, 40, 26);
+      ctx.fillStyle = '#5a4230'; ctx.fillRect(10, 16, 36, 3);
+      ctx.fillStyle = 'rgba(150,110,80,0.5)'; ctx.fillRect(12, 22, 32, 2); ctx.fillRect(12, 30, 32, 2);
+    });
+    const bodyTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a4230'; ctx.fillRect(0, 0, s, s); N(ctx, 0x5a4230, 6); fur(ctx);
+    });
+    const bodyBot = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#8a6a48'; ctx.fillRect(0, 0, s, s); N(ctx, 0x8a6a48, 6);
+    });
+    const bodyFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, s, s); N(ctx, FUR, 7); fur(ctx);
+      // pale chest bib
+      ctx.fillStyle = '#8a6a48';
+      ctx.beginPath(); ctx.ellipse(32, 40, 14, 18, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#a8825c';
+      ctx.beginPath(); ctx.ellipse(32, 44, 8, 11, 0, 0, Math.PI * 2); ctx.fill();
+    });
+    const body = [bodySide, bodySide, bodyTop, bodyBot, bodyFront, bodyFront];
+
+    const headFront = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, s, s); N(ctx, FUR, 7); fur(ctx);
+      // huge radar ears
+      ctx.fillStyle = '#5a4230'; ctx.fillRect(2, 0, 14, 26); ctx.fillRect(48, 0, 14, 26);
+      ctx.fillStyle = '#c08080'; ctx.fillRect(5, 3, 8, 18); ctx.fillRect(51, 3, 8, 18);
+      ctx.fillStyle = '#8a5050'; ctx.fillRect(6, 12, 6, 6); ctx.fillRect(52, 12, 6, 6);
+      // ruby eyes
+      ctx.fillStyle = '#140c06';
+      ctx.fillRect(12, 26, 13, 13); ctx.fillRect(39, 26, 13, 13);
+      ctx.fillStyle = '#ff3333';
+      ctx.fillRect(14, 28, 9, 9); ctx.fillRect(41, 28, 9, 9);
+      ctx.fillStyle = '#140c06'; ctx.fillRect(17, 30, 3, 5); ctx.fillRect(44, 30, 3, 5);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(15, 29, 2, 2); ctx.fillRect(42, 29, 2, 2);
+      // fanged snout
+      ctx.fillStyle = '#6a4c34'; ctx.fillRect(22, 40, 20, 12);
+      ctx.fillStyle = '#140c06'; ctx.fillRect(26, 42, 4, 3); ctx.fillRect(34, 42, 4, 3);
+      ctx.fillStyle = '#f0e8d8';
+      ctx.fillRect(24, 48, 4, 9); ctx.fillRect(32, 48, 4, 11); ctx.fillRect(28, 50, 3, 6);
+    });
+    const headSide = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, s, s); N(ctx, FUR, 7); fur(ctx);
+      ctx.fillStyle = '#5a4230'; ctx.fillRect(0, 0, 12, 22);
+      ctx.fillStyle = '#c08080'; ctx.fillRect(2, 2, 7, 14);
+      ctx.fillStyle = '#ff3333'; ctx.fillRect(30, 26, 8, 8);
+      ctx.fillStyle = '#140c06'; ctx.fillRect(32, 28, 3, 4);
+    });
+    const headTop = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#5a4230'; ctx.fillRect(0, 0, s, s); N(ctx, 0x5a4230, 6); fur(ctx);
+    });
+    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#8a6a48'; ctx.fillRect(0, 0, s, s); });
+    const headBack = this._tex(s, s, (ctx) => {
+      ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, s, s); N(ctx, FUR, 7); fur(ctx);
+    });
+    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
+
+    const legTex = this._tex(8, 8, (ctx) => { ctx.fillStyle = '#4a3423'; ctx.fillRect(0, 0, 8, 8); });
+    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
+    return { body, head, leg };
   }
 
   _genericTextures(def) {

@@ -17,7 +17,7 @@ import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteW
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
 import { MobManager, MOB_TYPES, Arrow, preloadMobTextures } from './mobs.js';
-import { calcBiome, growTreeInWorld } from './worldgen.js';
+import { calcBiome, calcHeight, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
 import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowAccountLinkPrompt, cgGetUser, cgGetUserToken, cgIsAccountAvailable, cgOnAuthChange, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
 
@@ -83,6 +83,15 @@ function crazyGamesSDK() {
 // Whether we are running on the CrazyGames platform.
 function isOnCrazyGames() {
   return /crazygames/i.test(location.hostname);
+}
+
+// Whether we run inside the native Android/iOS app shell (Capacitor).
+// The WebView has no popups/OAuth and reload-based flows are fragile, so the
+// app skips the bot-gate reload and can fall back to offline singleplayer.
+function isNativeApp() {
+  try {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  } catch (_) { return false; }
 }
 
 // Open an external (off-platform) page. On CrazyGames, developer terms prohibit
@@ -319,6 +328,8 @@ menuBgScene.add(menuBgSun);
 menuBgScene.add(new THREE.AmbientLight(0xc8d8ff, 0.55));
 menuBgScene.add(new THREE.HemisphereLight(0x87ceeb, 0x556b2f, 0.45));
 let menuBgTime = 0;
+let menuBgDiorama = null;
+const _menuBgGeo = new THREE.BoxGeometry(1, 1, 1);
 
 function mulberry32(a) {
   return function() {
@@ -330,33 +341,43 @@ function mulberry32(a) {
 }
 
 function buildMenuBackground() {
+  // Rebuild-safe: drop the previous diorama (PNG atlas swap calls us twice)
+  if (menuBgDiorama) {
+    menuBgScene.remove(menuBgDiorama);
+    menuBgDiorama.traverse((o) => {
+      if (o.geometry && o.geometry !== _menuBgGeo) o.geometry.dispose();
+      if (o.material) {
+        const mats = Array.isArray(o.material) ? o.material : [o.material];
+        for (const m of mats) { if (m.map) m.map.dispose(); m.dispose(); }
+      }
+    });
+    menuBgDiorama = null;
+  }
   const SEED = 'menu_' + (Math.random() * 99999 | 0);
   const noise = new Noise(SEED);
-  const GRID = 64, SEA = 16;
+  // Diorama uses the REAL terrain generator (same heights/biomes as worlds),
+  // compressed 2:1 into a tabletop. Camera stays above the tallest peak.
+  const GRID = 64, SEA = 4;
   const heightMap = [], biomeMap = [];
   for (let x = 0; x < GRID; x++) {
     heightMap[x] = [];
     biomeMap[x] = [];
     for (let z = 0; z < GRID; z++) {
-      const cont = noise.fbm2(noise.continentalness, x * 0.025, z * 0.025, 5, 2, 0.5);
-      const ridge = 1 - Math.abs(noise.fbm2(noise.ridge, x * 0.03 + 100, z * 0.03 + 100, 4, 2, 0.5));
-      const detail = noise.fbm2(noise.detail, x * 0.08, z * 0.08, 4, 2, 0.5);
-      let h;
-      if (cont < -0.1) {
-        h = SEA - 4 + cont * 10 + detail * 3;
-      } else if (cont < 0.15) {
-        h = SEA + (cont + 0.1) * 12 + detail * 4;
-      } else {
-        h = SEA + 2 + (cont - 0.15) * 18 + detail * 5;
-        if (cont > 0.4 && ridge > 0.55) h += ridge * (cont - 0.4) * 50;
-        h += ridge * 3;
-      }
-      heightMap[x][z] = Math.max(1, Math.min(44, Math.floor(h)));
-      const t = noise.fbm2(noise.temp, x * 0.02 + 200, z * 0.02 + 200, 4, 2, 0.5);
-      const hu = noise.fbm2(noise.humid, x * 0.02 + 300, z * 0.02 + 300, 4, 2, 0.5);
-      biomeMap[x][z] = t < -0.4 ? 'snow' : t < 0.1 ? (hu > 0.1 ? 'taiga' : 'forest') :
-        t < 0.4 ? (hu > 0.2 ? 'dark_forest' : 'forest') : t < 0.6 ? (hu > 0.15 ? 'jungle' : 'savanna') :
-        hu < -0.1 ? 'desert' : 'savanna';
+      const wx = (x - GRID / 2) * 2, wz = (z - GRID / 2) * 2;
+      const hReal = calcHeight(noise, wx, wz, 'normal', null);
+      const h = Math.max(1, Math.min(28, Math.floor((hReal - 24) * 0.5)));
+      heightMap[x][z] = h;
+      const b = calcBiome(noise, wx, wz, hReal, null);
+      const t = noise.fbm2(noise.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
+      const hu = noise.fbm2(noise.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
+      biomeMap[x][z] =
+        b === BIOMES.SNOWY ? 'snow' :
+        b === BIOMES.DESERT ? 'desert' :
+        b === BIOMES.JUNGLE ? 'jungle' :
+        b === BIOMES.DARK_FOREST ? 'dark_forest' :
+        b === BIOMES.TAIGA ? 'taiga' :
+        b === BIOMES.BEACH ? (t < 0.4 ? 'forest' : 'savanna') :
+        t < 0.4 ? 'forest' : (hu < -0.1 ? 'desert' : 'savanna');
     }
   }
 
@@ -420,7 +441,7 @@ function buildMenuBackground() {
     }
   }
 
-  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const geo = _menuBgGeo;
 
   function atlasTex(tileName) {
     const t = TILES[tileName];
@@ -444,6 +465,7 @@ function buildMenuBackground() {
     bedrock: BLOCK.BEDROCK, coal_ore: BLOCK.COAL_ORE, iron_ore: BLOCK.IRON_ORE,
   };
 
+  menuBgDiorama = new THREE.Group();
   for (const [type, count] of Object.entries(counts)) {
     if (count === 0 || !(type in BLOCK_MAP)) continue;
     if (type === 'water') continue; // water rendered as flat plane above
@@ -493,7 +515,7 @@ function buildMenuBackground() {
     }
     mesh.instanceMatrix.needsUpdate = true;
     mesh.receiveShadow = true;
-    menuBgScene.add(mesh);
+    menuBgDiorama.add(mesh);
   }
   // Build water as a single flat plane (no grid lines)
   {
@@ -504,14 +526,15 @@ function buildMenuBackground() {
     const waterMesh = new THREE.Mesh(waterGeo, waterMat);
     waterMesh.rotation.x = -Math.PI / 2;
     waterMesh.position.set(0, SEA + 0.01, 0);
-    menuBgScene.add(waterMesh);
+    menuBgDiorama.add(waterMesh);
   }
+  menuBgScene.add(menuBgDiorama);
 
   menuBgScene.add(menuBgSun.target);
   menuBgSun.target.position.set(0, 0, 0);
 
-  menuBgCamera.position.set(0, 22, 32);
-  menuBgCamera.lookAt(0, 8, 0);
+  menuBgCamera.position.set(0, 30, 44);
+  menuBgCamera.lookAt(0, 9, 0);
 }
 // buildMenuBackground deferred until atlasCanvas is ready (see below)
 
@@ -635,6 +658,32 @@ const viewmodel = new ViewModel(renderer, atlasCanvas);
 
 // Pre-load mob textures from PNGs (async, non-blocking)
 preloadMobTextures().catch(() => {});
+
+// Pre-load true-3D isometric block icons (built by scripts/build-textures.mjs)
+// in small background batches. makeIcon() swaps to them automatically once
+// each PNG arrives; hotbar/inventory re-renders pick them up on next refresh.
+window.__BF_ITEM3D = new Map();
+(function preloadItem3D() {
+  let ids = [];
+  try {
+    for (const id of Object.values(BLOCK)) {
+      if (typeof id === 'number' && id > 0 && id <= 255 && BLOCKS[id] && BLOCKS[id].faces) ids.push(id);
+    }
+  } catch (_) { return; }
+  let i = 0;
+  function batch() {
+    const end = Math.min(ids.length, i + 12);
+    for (; i < end; i++) {
+      const id = ids[i];
+      const img = new Image();
+      img.onload = () => { try { window.__BF_ITEM3D.set(id, img); } catch (_) {} };
+      img.onerror = () => {};
+      img.src = '/textures/items3d/' + id + '.png';
+    }
+    if (i < ids.length) setTimeout(batch, 400);
+  }
+  setTimeout(batch, 2500);
+})();
 
 // --- selection highlight ---
 const hlGeo = new THREE.BoxGeometry(1.002, 1.002, 1.002);
@@ -5563,6 +5612,13 @@ function setupNetworkHandlers() {
         if (isOnCrazyGames()) {
           _identityAuthPending = false;
           ui.showMenu('main');
+        } else if (isNativeApp()) {
+          // Native app: no bot-gate reload (fragile in WebViews and pointless
+          // without bots) — the live WS session is already authenticated.
+          _identityAuthPending = false;
+          window._autoLoggingIn = false;
+          showToast(msg.created ? 'Account created! Welcome, ' + playerName + '!' : 'Welcome, ' + playerName + '!', '#5f5', 3);
+          ui.showMenu('main');
         } else if (_identityAuthPending) {
           // Identity (OAuth) login on the website: the session is already
           // authenticated on this WS connection, so go straight to the game.
@@ -8558,48 +8614,9 @@ function initMenu() {
   });
 
   // Dev P2P Host — creates a P2P server visible in Firebase directory
-  document.getElementById('btn-dev-p2p-host')?.addEventListener('click', () => {    const seed = Math.floor(Math.random() * 999999) + 1;
-    const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
-
-    // Register in Firebase directory so anyone can discover it
-    p2pDirectory.registerRoom(playerName, seed, 'survival', 1000, 1);
-
-    // Create offer for first joiner
-    p2pNetwork.createOfferForJoiner('__waiting__').then((offerCode) => {
-      // Show the room code in the P2P lobby
-      ui.showMenu('p2p');
-      const codeBox = document.getElementById('p2p-code-box');
-      if (codeBox) {
-        codeBox.style.display = 'block';
-        codeBox.textContent = offerCode;
-        codeBox.onclick = () => {
-          try { navigator.clipboard.writeText(offerCode); addChatLine('Offer code copied!', '#5f5'); } catch (e) {}
-        };
-      }
-      const qrDiv = document.getElementById('p2p-qr');
-      if (qrDiv) {
-        qrDiv.innerHTML = '';
-        try {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=' + encodeURIComponent(offerCode);
-          img.style.borderRadius = '8px';
-          qrDiv.appendChild(img);
-        } catch (e) {}
-      }
-      const statusEl = document.getElementById('p2p-host-status');
-      if (statusEl) statusEl.textContent = 'Your world is live! Share the code below with your friend.';
-      p2pAfterOffer(offerCode);
-
-      _activeNetwork = 'p2p';
-      _p2pHostSeed = seed;
-      _p2pHostReady = true;
-
-      // Start game as host
-      startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
-      isMultiplayer = true;
-      serverName = 'P2P: ' + playerName;
-    });
+  document.getElementById('btn-dev-p2p-host')?.addEventListener('click', () => {
+    // Dev quick-host goes through the same creation menu
+    ui.showMenu('p2p-create');
   });
 
   // Show/hide dev P2P host button based on role
@@ -8621,12 +8638,31 @@ function initMenu() {
       joinV.style.display = showingJoin ? 'none' : 'block';
     }
   });
-  document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
-    const seed = Math.floor(Math.random() * 999999) + 1;
-    const roomCode = p2pNetwork.createRoomOnP2P(playerName, seed, 'survival');
-
-    // Register in Firebase directory so others can discover this room
-    p2pDirectory.registerRoom(playerName, seed, 'survival', 1000, 1);
+  // ── P2P creation menu: options first, hosting second ──
+  function p2pSeedFromInput() {
+    const raw = (document.getElementById('input-p2p-seed')?.value || '').trim();
+    if (!raw) return Math.floor(Math.random() * 999999) + 1;
+    if (/^-?\d+$/.test(raw)) return parseInt(raw, 10) || 42;
+    let h = 0;
+    for (let i = 0; i < raw.length; i++) h = (Math.imul(h, 31) + raw.charCodeAt(i)) | 0;
+    return Math.abs(h) % 999999 + 1;
+  }
+  function p2pModeFromInput() {
+    return document.getElementById('p2p-mode-creative')?.classList.contains('selected') ? 'creative' : 'survival';
+  }
+  function p2pListedFromInput() {
+    return !document.getElementById('p2p-list-private')?.classList.contains('selected');
+  }
+  // Shared host flow: create room, optional directory listing, first offer, start
+  function p2pStartHosting(seed, gameMode, listed) {
+    p2pNetwork.createRoomOnP2P(playerName, seed, gameMode);
+    // Register in Firebase directory only for public listings; private
+    // worlds stay code-only.
+    if (listed) {
+      try { p2pDirectory.registerRoom(playerName, seed, gameMode, 1000, 1); } catch (_) {}
+    } else {
+      try { p2pDirectory.unregisterRoom(); } catch (_) {}
+    }
 
     // Now create an offer for the first joiner
     p2pNetwork.createOfferForJoiner('__waiting__').then((offerCode) => {
@@ -8651,7 +8687,9 @@ function initMenu() {
         } catch (e) {}
       }
       const statusEl = document.getElementById('p2p-host-status');
-      if (statusEl) statusEl.textContent = 'Room listed in server browser. Share the code below with your friend.';
+      if (statusEl) statusEl.textContent = listed
+        ? 'Room listed in server browser. Share the code below with your friend.'
+        : 'Private world live! Only friends with your code can join.';
       p2pAfterOffer(offerCode);
 
       _activeNetwork = 'p2p';
@@ -8659,10 +8697,35 @@ function initMenu() {
       _p2pHostReady = true;
 
       // Start the game as host
-      startGame('p2p_' + playerName, seed, 'survival', 'normal', {});
+      startGame('p2p_' + playerName, seed, gameMode, 'normal', {});
       isMultiplayer = true;
       serverName = 'P2P: ' + playerName;
     });
+  }
+  document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
+    ui.showMenu('p2p-create');
+  });
+  document.getElementById('btn-p2p-create-back')?.addEventListener('click', () => {
+    ui.showMenu('p2p');
+  });
+  document.getElementById('p2p-mode-survival')?.addEventListener('click', () => {
+    document.getElementById('p2p-mode-survival')?.classList.add('selected');
+    document.getElementById('p2p-mode-creative')?.classList.remove('selected');
+  });
+  document.getElementById('p2p-mode-creative')?.addEventListener('click', () => {
+    document.getElementById('p2p-mode-creative')?.classList.add('selected');
+    document.getElementById('p2p-mode-survival')?.classList.remove('selected');
+  });
+  document.getElementById('p2p-list-public')?.addEventListener('click', () => {
+    document.getElementById('p2p-list-public')?.classList.add('selected');
+    document.getElementById('p2p-list-private')?.classList.remove('selected');
+  });
+  document.getElementById('p2p-list-private')?.addEventListener('click', () => {
+    document.getElementById('p2p-list-private')?.classList.add('selected');
+    document.getElementById('p2p-list-public')?.classList.remove('selected');
+  });
+  document.getElementById('btn-p2p-start-host')?.addEventListener('click', () => {
+    p2pStartHosting(p2pSeedFromInput(), p2pModeFromInput(), p2pListedFromInput());
   });
   document.getElementById('btn-p2p-join-go')?.addEventListener('click', () => {
     const input = document.getElementById('p2p-join-input');
@@ -9042,15 +9105,12 @@ function initMenu() {
       const SEA_LV = 32;
       for (let px = 0; px < pw; px++) {
         for (let py = 0; py < ph; py++) {
-          const wx = px * 4, wz = py * 4;
-          const cont = noise.fbm2(noise.continentalness, wx * 0.003, wz * 0.003, 4, 2, 0.5);
-          const detail = noise.fbm2(noise.detail, wx * 0.02, wz * 0.02, 3, 2, 0.5);
-          const t = noise.fbm2(noise.temp, wx * 0.002 + 200, wz * 0.002 + 200, 3, 2, 0.5);
-          const hu = noise.fbm2(noise.humid, wx * 0.002 + 300, wz * 0.002 + 300, 3, 2, 0.5);
-          let h;
-          if (cont < -0.1) h = SEA_LV - 6 + cont * 12 + detail * 3;
-          else if (cont < 0.15) h = SEA_LV + (cont + 0.1) * 10 + detail * 4;
-          else h = SEA_LV + 2 + (cont - 0.15) * 14 + detail * 5;
+          const wx = (px - pw / 2) * 8, wz = (py - ph / 2) * 8;
+          // Real generator — same height + biome the world will actually use
+          const h = calcHeight(noise, wx, wz, 'normal', null);
+          const biome = calcBiome(noise, wx, wz, h, null);
+          const t = noise.fbm2(noise.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
+          const hu = noise.fbm2(noise.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
           let col;
           if (h < SEA_LV) {
             const depth = Math.min(1, (SEA_LV - h) / 8);
@@ -9058,9 +9118,15 @@ function initMenu() {
             const g = Math.floor(0x6a - depth * 30);
             const b = Math.floor(0xb5 - depth * 20);
             col = `rgb(${r},${g},${b})`;
-          } else if (t < -0.3) {
+          } else if (biome === 12 || (t < -0.3 && h > SEA_LV + 2)) {
             col = '#e8f0e8';
             if (h > SEA_LV + 3) col = '#d0d8d0';
+          } else if (biome === 8) {
+            col = '#c4b080';
+          } else if (biome === 2) {
+            col = '#d4c890';
+          } else if (biome === 9) {
+            col = '#2a6a2a';
           } else if (t < 0.1) {
             col = hu > 0.1 ? '#2a6a2a' : '#3a7a2a';
           } else if (t < 0.4) {
@@ -9074,6 +9140,8 @@ function initMenu() {
           if (h >= SEA_LV && h < SEA_LV + 2 && t > -0.2) col = '#d4c890';
           // Snow caps
           if (h > SEA_LV + 8 && t < -0.2) col = '#f0f4f0';
+          // Mountain rock
+          if (h > SEA_LV + 22) col = '#8a8580';
           previewCtx.fillStyle = col;
           previewCtx.fillRect(px, py, 1, 1);
         }
@@ -9906,6 +9974,19 @@ function initMenu() {
     setLoginDisabled(false);
   }
 
+  function enterNativeOffline() {
+    // Native app with no server reach: enter restricted offline singleplayer
+    // instead of stranding the user on the login screen.
+    try {
+      playerName = 'Player';
+      cloudSet('bf_player_name', playerName);
+      window.__OFFLINE_MODE = true;
+      ui.showMenu('main');
+      applyOfflineMenuRestrictions();
+      showToast('Offline mode — singleplayer only. Reconnect to log in.', '#fa0', 4);
+    } catch (_) { showOfflineFallback(); }
+  }
+
   function doLogin(mode) {
     clearToast();
     _identityAuthPending = false; // a password login is never an identity auth
@@ -9925,7 +10006,11 @@ function initMenu() {
     if (!network.connected) {
       network.connect(GAME_WS_URL);
       network.onConnectedOnce(attempt);
-      setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+      setTimeout(() => {
+        if (network.connected) return;
+        if (isNativeApp()) enterNativeOffline();
+        else showOfflineFallback();
+      }, 6000);
     } else {
       attempt();
     }
@@ -10261,7 +10346,11 @@ function initMenu() {
     if (!network.connected) {
       network.connect(GAME_WS_URL);
       network.onConnectedOnce(attempt);
-      setTimeout(() => { if (!network.connected) showOfflineFallback(); }, 6000);
+      setTimeout(() => {
+        if (network.connected) return;
+        if (isNativeApp()) enterNativeOffline();
+        else showOfflineFallback();
+      }, 6000);
     } else {
       attempt();
     }
@@ -10283,6 +10372,17 @@ function initMenu() {
       if (terms) { terms.href = './terms.html'; terms.textContent = 'Terms'; }
       if (privacy) { privacy.href = './privacy.html'; privacy.textContent = 'Privacy Policy'; }
     } catch (_) { console.warn("update footer links failed"); }
+  }
+
+  // Native app shell: OAuth popups don't work in the WebView — hide the
+  // GitHub/Google buttons (account + guest login remain).
+  if (isNativeApp()) {
+    try {
+      const ghBtn = document.getElementById('btn-login-github');
+      if (ghBtn) ghBtn.style.display = 'none';
+      const glBtn = document.getElementById('btn-login-google');
+      if (glBtn) glBtn.style.display = 'none';
+    } catch (_) {}
   }
 
   // CrazyGames account rules: "Logging out in the game and allowing login with
