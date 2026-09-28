@@ -12725,7 +12725,7 @@ function _gameFrame() {
   }
 
   // Flush block update batches every ~50ms
-  _blockBatchTimer = (_blockBatchTimer || 0) + dt;
+  _blockBatchTimer += dt;
   if (_blockBatchTimer >= 0.05) {
     _blockBatchTimer = 0;
     var _net = _activeNetwork === 'p2p' ? p2pNetwork : network;
@@ -13055,7 +13055,7 @@ const _shadowLookAt = new THREE.Matrix4();
 const _shadowLocalPos = new THREE.Vector3();
 const _shadowOffset = new THREE.Vector3();
 const _shadowInvMat = new THREE.Matrix4();
-let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true, _mpSendTimer = 0;
+let _lastMpArmorKey = '', _lastMpYaw = 0, _mpForceSend = true, _mpSendTimer = 0, _blockBatchTimer = 0;
 const _lastMpPos = { x: 0, y: 0, z: 0 };
 let _lastMpCrouch = 0;
 function facingName(yaw) {
