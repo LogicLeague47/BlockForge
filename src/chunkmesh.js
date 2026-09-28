@@ -155,7 +155,7 @@ export class ChunkMeshManager {
       cutoutMesh.frustumCulled = true;
       cutoutMesh.matrixAutoUpdate = false;
       cutoutMesh.updateMatrix();
-      cutoutMesh.castShadow = true;
+      cutoutMesh.castShadow = false; // leaves/glass in the shadow map cost a full extra pass for zero visual gain
       cutoutMesh.receiveShadow = true;
       group.add(cutoutMesh);
     }
@@ -173,7 +173,7 @@ export class ChunkMeshManager {
       transMesh.matrixAutoUpdate = false;
       transMesh.updateMatrix();
       transMesh.renderOrder = 1;
-      transMesh.castShadow = true;
+      transMesh.castShadow = false; // transparent layers never show in shadows
       transMesh.receiveShadow = true;
       group.add(transMesh);
     }

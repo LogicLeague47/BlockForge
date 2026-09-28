@@ -514,9 +514,33 @@ async function loadAccounts() {
     // Source accounts override Redis so they always come from the committed file.
     accounts = { ...redisAccounts, ...fileAccounts };
     console.log(`[Data] Accounts: ${Object.keys(redisAccounts).length} from Redis + ${Object.keys(fileAccounts).length} from source`);
+    demoteCopycatDevs();
     return;
   }
   accounts = { ...fileAccounts };
+  demoteCopycatDevs();
+}
+
+// Boot-time cleanup: strip privileged roles from lookalike accounts. Before
+// reserved-name registration was blocked, anyone could register a
+// case-variant of a dev/owner name (e.g. "LOGICLEAGUE") and inherit dev via
+// resolveRole(). Only exact canonical staff names keep powers.
+function demoteCopycatDevs() {
+  const keep = new Set([...DEV_USERNAMES, OWNER_USERNAME]);
+  let demoted = [];
+  for (const [name, acc] of Object.entries(accounts)) {
+    if (!acc || (acc.role !== ROLE_DEV && acc.role !== ROLE_GAMEDEV && acc.role !== ROLE_OWNER && acc.role !== ROLE_ADMIN)) continue;
+    if (keep.has(name)) continue;
+    const lower = name.toLowerCase();
+    if (DEV_USERNAMES.has(lower) || (OWNER_USERNAME && lower === OWNER_USERNAME.toLowerCase())) {
+      acc.role = ROLE_PLAYER;
+      demoted.push(name);
+    }
+  }
+  if (demoted.length) {
+    console.log('[Data] Demoted copycat dev accounts:', demoted.join(', '));
+    try { saveAccounts(); } catch (_) {}
+  }
 }
 
 function saveAccounts() {
@@ -647,10 +671,12 @@ async function authAccount(username, password, mode, identity) {
     if (!username) return { ok: false, reason: 'Username required.' };
     let safeName = filterProfanity(username).replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16);
     if (safeName.length < 2) safeName = 'Player';
-    // If name is taken by another account, append a number
+    // Reserved dev/owner names may never be auto-created (see password path).
+    const isReserved = DEV_USERNAMES.has(safeName.toLowerCase()) || (OWNER_USERNAME && safeName.toLowerCase() === OWNER_USERNAME.toLowerCase());
+    // If name is taken by another account (or reserved), append a number
     let finalName = safeName;
     let counter = 1;
-    while (accounts[finalName] && !accounts[finalName].identities?.[identity.provider]) {
+    while ((accounts[finalName] && !accounts[finalName].identities?.[identity.provider]) || (isReserved && counter === 1)) {
       finalName = Array.from(safeName).slice(0, 14).join('') + String(counter);
       counter++;
       if (counter > 100) { finalName = 'Player' + Date.now().toString(36); break; }
@@ -664,6 +690,12 @@ async function authAccount(username, password, mode, identity) {
   if (!username || !password) return { ok: false, reason: 'Username and password required.' };
   if (username.length < 2 || username.length > 16) return { ok: false, reason: 'Username must be 2-16 characters.' };
   if (!/^[a-zA-Z0-9_]+$/.test(username)) return { ok: false, reason: 'Username may only contain letters, numbers, and underscores.' };
+  // Reserved names: case-variants of dev/owner names must never be registrable —
+  // resolveRole() grants dev case-insensitively, so without this anyone could
+  // register e.g. "LOGICLEAGUE" and inherit developer powers.
+  if (DEV_USERNAMES.has(username.toLowerCase()) || (OWNER_USERNAME && username.toLowerCase() === OWNER_USERNAME.toLowerCase())) {
+    if (!accounts[username]) return { ok: false, reason: 'That name is reserved.' };
+  }
   if (password.length < 3) return { ok: false, reason: 'Password must be at least 3 characters.' };
   const existing = accounts[username];
   if (mode === 'register') {
@@ -3295,7 +3327,9 @@ const LEADERBOARD_METRICS = {
 
 function handleLeaderboardGet(ws, msg) {
   const pd = ws._playerData;
-  if (!pd) return;
+  // Leaderboard is public: logged-out portal visitors (no _playerData yet)
+  // still get the board, just without a highlighted self row.
+  const selfName = pd ? pd.name : ((msg && msg.playerName) || null);
   const metric = (msg && LEADERBOARD_METRICS[msg.metric]) ? msg.metric : 'playTime';
   const limit = Math.min(parseInt((msg && msg.limit), 10) || 50, 100);
   Promise.all(Object.keys(accounts).map(async (u) => {
@@ -3308,10 +3342,14 @@ function handleLeaderboardGet(ws, msg) {
     const sorted = rows.filter(Boolean).filter(r => r.value > 0).sort((a, b) => b.value - a.value);
     const entries = sorted.slice(0, limit).map((r, i) => ({ rank: i + 1, name: r.name, value: r.value, level: r.level }));
     let self = null;
-    const selfIdx = sorted.findIndex(r => r.name === pd.name);
+    const selfIdx = selfName ? sorted.findIndex(r => r.name === selfName) : -1;
     if (selfIdx !== -1) self = { rank: selfIdx + 1, name: sorted[selfIdx].name, value: sorted[selfIdx].value, level: sorted[selfIdx].level };
     safeSend(ws, JSON.stringify({ type: 'leaderboard', metric, entries, self }));
-  }).catch(err => { console.warn('[Data] handleLeaderboardGet failed:', err); });
+  }).catch(err => {
+    console.warn('[Data] handleLeaderboardGet failed:', err);
+    // Never leave the client hanging on "Loading…" — send an empty board.
+    try { safeSend(ws, JSON.stringify({ type: 'leaderboard', metric, entries: [], self: null, error: true })); } catch (_) {}
+  });
 }
 
 function handlePlayerSettingsGet(ws, msg) {

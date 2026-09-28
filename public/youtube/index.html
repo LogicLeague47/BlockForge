@@ -31,7 +31,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
 
 .player-box{position:relative;width:100%;padding-bottom:56.25%;background:#000;border-radius:10px;overflow:hidden;margin-bottom:4px;display:none}
 .player-box video{position:absolute;top:0;left:0;width:100%;height:100%;background:#000}
-.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none}
+.player-box iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:none;-webkit-transform:translate3d(0,0,0)}
 
 .preview-overlay{position:absolute;top:0;left:0;width:100%;height:100%;z-index:3;cursor:pointer;display:none;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
 .preview-overlay img{position:absolute;top:0;left:0;width:100%;height:100%;-o-object-fit:cover;object-fit:cover}
@@ -256,7 +256,7 @@ body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:
       <div class="preview-title" id="preview-title"></div>
       <div class="preview-hint" id="preview-hint">Tap to play</div>
     </div>
-    <iframe id="classicframe" style="display:none" allow="autoplay; encrypted-media; fullscreen" allowfullscreen playsinline referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <iframe id="classicframe" style="display:none" scrolling="no" allow="autoplay; encrypted-media; fullscreen" allowfullscreen playsinline referrerpolicy="no-referrer-when-downgrade"></iframe>
     <div class="loader" id="player-loader"><div class="spin"></div></div>
     <div class="block-msg" id="block-msg">
       <div class="icon">&#9888;</div>

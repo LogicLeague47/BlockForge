@@ -1971,23 +1971,32 @@ export class UI {
       }
     }
 
-    // Health hearts (left side) — no background panel, just icons
-    let hh = '';
-    for (let i = 9; i >= 0; i--) {
-      const val = player.health - i * 2;
-      const full = val >= 2, half = val >= 1;
-      hh += full ? '❤️' : (half ? '💔' : '🖤');
+    // Health hearts (left side) — no background panel, just icons.
+    // Change-guarded: emoji string rebuilt only when health actually changes.
+    const hpKey = Math.ceil(player.health);
+    if (hpKey !== this._lastHpKey) {
+      this._lastHpKey = hpKey;
+      let hh = '';
+      for (let i = 9; i >= 0; i--) {
+        const val = player.health - i * 2;
+        const full = val >= 2, half = val >= 1;
+        hh += full ? '❤️' : (half ? '💔' : '🖤');
+      }
+      this.healthBar.innerHTML = hh;
     }
-    this.healthBar.innerHTML = hh;
 
-    // Hunger drumsticks (right side)
-    let fh = '';
-    for (let i = 0; i < 10; i++) {
-      const val = player.hunger - i * 2;
-      const full = val >= 2, half = val >= 1;
-      fh += full ? '🍗' : (half ? '<span style="opacity:.45">🍗</span>' : '<span style="opacity:.18">🍗</span>');
+    // Hunger drumsticks (right side) — guarded the same way.
+    const huKey = Math.ceil(player.hunger);
+    if (huKey !== this._lastHuKey) {
+      this._lastHuKey = huKey;
+      let fh = '';
+      for (let i = 0; i < 10; i++) {
+        const val = player.hunger - i * 2;
+        const full = val >= 2, half = val >= 1;
+        fh += full ? '🍗' : (half ? '<span style="opacity:.45">🍗</span>' : '<span style="opacity:.18">🍗</span>');
+      }
+      this.hungerBar.innerHTML = fh;
     }
-    this.hungerBar.innerHTML = fh;
     // Hunger warning pulse when below 3 drumsticks (6 hunger)
     if (player.hunger <= 6) this.hungerBar.classList.add('hunger-warn');
     else this.hungerBar.classList.remove('hunger-warn');
@@ -2303,18 +2312,24 @@ export class UI {
       this.hudEl.appendChild(this._hudLine1);
       this.hudEl.appendChild(this._hudCoordDiv);
       this.hudEl.appendChild(this._hudLine3);
+      this._hudCache = {};
     }
+    // Change-guarded: DOM writes only when the text actually differs.
+    // Throttled upstream to ~10Hz (see _hudTick accumulator in main loop).
+    const C = this._hudCache;
+    const setText = (node, key, val) => { if (C[key] !== val) { C[key] = val; node.textContent = val; } };
     if (showFps !== false) {
-      this._hudFpsSpan.textContent = fps + ' FPS';
-      this._hudFpsSpan.style.display = '';
-    } else {
+      setText(this._hudFpsSpan, 'fps', fps + ' FPS');
+      if (C.fpsVis !== 1) { C.fpsVis = 1; this._hudFpsSpan.style.display = ''; }
+    } else if (C.fpsVis !== 0) {
+      C.fpsVis = 0;
       this._hudFpsSpan.style.display = 'none';
     }
-    this._hudModeSpan.textContent = '[' + mode + ']';
-    this._hudCoordDiv.textContent = 'XYZ: ' + pos.x.toFixed(1) + ' / ' + pos.y.toFixed(1) + ' / ' + pos.z.toFixed(1);
-    this._hudBiomeSpan.textContent = biome;
-    this._hudFacingNode.textContent = facing;
-    this._hudChunksNode.textContent = loadedChunks + ' chunks' + (lazyChunks > 0 ? ' +' + lazyChunks + ' lazy' : '');
+    setText(this._hudModeSpan, 'mode', '[' + mode + ']');
+    setText(this._hudCoordDiv, 'coord', 'XYZ: ' + pos.x.toFixed(1) + ' / ' + pos.y.toFixed(1) + ' / ' + pos.z.toFixed(1));
+    setText(this._hudBiomeSpan, 'biome', biome);
+    setText(this._hudFacingNode, 'facing', facing);
+    setText(this._hudChunksNode, 'chunks', loadedChunks + ' chunks' + (lazyChunks > 0 ? ' +' + lazyChunks + ' lazy' : ''));
   }
 
   // --- water overlay --------------------------------------------------------
@@ -2324,15 +2339,22 @@ export class UI {
 
   // --- XP bar (real leveling system) ----------------------------------------
   updateXpBar(progress, level) {
-    if (this.xpFill) {
-      this.xpFill.style.width = `${Math.round(Math.min(1, progress) * 100)}%`;
+    const pct = Math.round(Math.min(1, progress) * 100) + '%';
+    if (this.xpFill && this._lastXpPct !== pct) {
+      this._lastXpPct = pct;
+      this.xpFill.style.width = pct;
     }
     const lvlEl = this._xpLevelEl;
     if (lvlEl) {
       if (level > 0 || progress > 0) {
-        lvlEl.textContent = `${level}`;
-        lvlEl.classList.add('visible');
+        const t = `${level}`;
+        if (this._lastXpLvl !== t) {
+          this._lastXpLvl = t;
+          lvlEl.textContent = t;
+        }
+        if (!lvlEl.classList.contains('visible')) lvlEl.classList.add('visible');
       } else {
+        this._lastXpLvl = null;
         lvlEl.classList.remove('visible');
       }
     }

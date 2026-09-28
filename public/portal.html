@@ -14,6 +14,22 @@
     window.BF_WEB  = 'https://blockforge-1.onrender.com';
     window.BF_WS   = 'wss://blockforge-server.onrender.com';
   </script>
+  <script>
+    // Firebase SDK for the community gallery + leaderboard (same setup as the
+    // game page; skipped on legacy browsers that can't parse the SDK).
+    window._fbAvailable = false;
+    try {
+      var _fbTest = new Function('return async function(){}');
+      window._fbAvailable = true;
+    } catch(_e) {}
+  </script>
+  <script>
+    if (window._fbAvailable) {
+      document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"><\/script>');
+      document.write('<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"><\/script>');
+    }
+  </script>
+  <script>window.FIREBASE_CONFIG={apiKey:"AIzaSyBQhY3_QdpcsL9lFV6BhCx4fQ0bGPG-bA4",authDomain:"blockforge-42cf0.firebaseapp.com",databaseURL:"https://blockforge-42cf0-default-rtdb.firebaseio.com",projectId:"blockforge-42cf0",storageBucket:"blockforge-42cf0.firebasestorage.app",messagingSenderId:"1088660217205",appId:"1:1088660217205:web:255c95d09a8bd337f3473c",measurementId:"G-HN3HXG945B"};</script>
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     :root{
@@ -236,6 +252,11 @@
     .news-media{width:100%;background:#000}
     .news-media img,.news-media video{display:block;width:100%;max-height:420px;object-fit:contain}
     .news-media iframe{display:block;width:100%;aspect-ratio:16/9;border:0}
+    /* iOS 10.3.4 legacy: WebKit ignores aspect-ratio and expands iframes to
+       content size. Padding-hack box forces 16:9 everywhere, wrapper gets
+       momentum scrolling, iframe gets GPU repaint layer + no scrollbars. */
+    .news-media .ios-iframe-wrapper{position:relative;width:100%;height:0;padding-bottom:56.25%;overflow:auto;-webkit-overflow-scrolling:touch;background:#000}
+    .news-media .ios-iframe-wrapper iframe{position:absolute;top:0;left:0;width:100% !important;height:100% !important;aspect-ratio:auto;border:0;-webkit-transform:translate3d(0,0,0)}
     .news-body{padding:16px 18px}
     .news-title{font-size:16px;font-weight:700;background:linear-gradient(90deg,var(--text),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:6px}
     .news-desc{font:13px/1.55 'Inter',monospace;color:var(--muted);white-space:pre-wrap}
@@ -1515,6 +1536,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Stats, speed, uploads, roles, dev world',
+          desc: 'Leaderboard can never stick on Loading again (public reads for guests, empty-board fallback, timeouts with retry). Big speed pass: smaller shadow maps, no shadow casting for glass/leaves, throttled guarded HUD, cheaper rain/cracks/projection updates. Portal uploads fixed (Firebase SDK was never loaded on the portal page). Impersonation hole closed: dev-name lookalikes can no longer register into powers, and existing copycats are demoted on boot. Dev worlds get /spawn for every mob plus a placeable hour_arena.',
+          date: 'Sep 28',
+          bugs: ['leaderboard hung on Loading for logged-out viewers', 'portal community uploads dead (no Firebase SDK)', 'double-bound upload buttons', 'video upload hung with no timeout', 'case-variant dev names registrable into dev role', 'stale /spawn mob list'],
+          updates: ['public leaderboard reads + always-reply + client timeout/retry', '2048 shadow maps, trans/cutout castShadow off', '10Hz guarded HUD, quantized cooldown ring + cracks, sliced rain checks', 'reserved-name registration block + boot demotion', '/spawn all 21 mobs, hour_arena structure'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'Portrait menu sizing + readable login card',
@@ -3274,7 +3304,7 @@
         var url = item.mediaUrl;
         if (item.mediaType === 'video') {
           var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{6,})/);
-          if (yt) return '<div class="news-media"><iframe src="https://www.youtube.com/embed/' + yt[1] + '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>';
+          if (yt) return '<div class="news-media"><div class="ios-iframe-wrapper"><iframe src="https://www.youtube.com/embed/' + yt[1] + '" scrolling="no" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div></div>';
           return '<div class="news-media"><video controls preload="metadata" src="' + url + '"></video></div>';
         }
         return '<div class="news-media"><img src="' + url + '" alt="' + esc(item.title) + '" loading="lazy" onclick="window.open(this.src)"></div>';
@@ -3571,8 +3601,15 @@
           var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
           if (oauthProv && oauthId) { headers['x-bf-identity-type'] = oauthProv; headers['x-bf-identity-id'] = oauthId; }
           var base = SRV_WS.replace(/^wss:/, 'https:');
-          fetch(base + '/api/upload', { method: 'POST', headers: headers, body: f })
-            .then(function(r) { return r.json(); })
+          var ctrl = null, timer = null;
+          try {
+            if (typeof AbortController !== 'undefined') {
+              ctrl = new AbortController();
+              timer = setTimeout(function() { try { ctrl.abort(); } catch (_) {} }, 120000);
+            }
+          } catch (_) {}
+          fetch(base + '/api/upload', { method: 'POST', headers: headers, body: f, signal: ctrl ? ctrl.signal : undefined })
+            .then(function(r) { if (timer) clearTimeout(timer); return r.json(); })
             .then(function(res) {
               if (res && res.ok && res.url) {
                 if (urlInput) urlInput.value = res.url;
@@ -3876,8 +3913,9 @@
         });
       }
 
-      setupUpload('skin-upload-btn', 'skin-file-input', 'skin-grid', 'bf_uploads_skins', true);
-      setupUpload('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false);
+      // NOTE: plain setupUpload() is intentionally NOT called — the gallery
+      // versions below supersede it. Calling both double-binds the buttons
+      // (double file dialogs, double Firebase pushes).
       if (userName) {
         renderUploads('skin-grid', 'bf_uploads_skins', true);
         renderUploads('tex-grid', 'bf_uploads_textures', false);
@@ -4090,6 +4128,7 @@
             var onlineEl = chatStatusEl ? chatStatusEl.querySelector('span:last-child') : null;
             if (onlineEl && chatConnected) onlineEl.textContent = 'Online — ' + (msg.count || 0) + ' in chat';
           } else if (msg.type === 'leaderboard') {
+            clearTimeout(requestLeaderboard._timer);
             renderLeaderboard(msg);
           }
         };
@@ -4120,6 +4159,17 @@
         mobKillsAny: function(v) { return String(v); }
       };
       function requestLeaderboard() {
+        var list = document.getElementById('lb-list');
+        // Request token + timeout: a dropped reply must NEVER leave the
+        // board stuck on "Loading…" — show an error instead.
+        var token = ++requestLeaderboard._seq;
+        clearTimeout(requestLeaderboard._timer);
+        requestLeaderboard._timer = setTimeout(function() {
+          if (token !== requestLeaderboard._seq) return;
+          if (list) list.innerHTML = '<div style="color:var(--dim);font-size:12px;">Couldn\'t load stats — server may be offline. <a href="#" id="lb-retry" style="color:var(--accent);">Retry</a></div>';
+          var retry = document.getElementById('lb-retry');
+          if (retry) retry.onclick = function(e) { e.preventDefault(); requestLeaderboard(); };
+        }, 8000);
         // Try Firebase first (works always, even if server is down)
         if (window._fbAvailable && window.FIREBASE_CONFIG && window.firebase && firebase.apps && firebase.apps.length) {
           try {
@@ -4127,6 +4177,8 @@
             var metric = lbMetric;
             var fmt = lbFmt[metric] || lbFmt.playTime;
             db.ref('leaderboard').orderByChild(metric).limitToLast(20).once('value', function(snap) {
+              if (token !== requestLeaderboard._seq) return;
+              clearTimeout(requestLeaderboard._timer);
               var entries = [];
               snap.forEach(function(child) {
                 var v = child.val();
@@ -4135,12 +4187,24 @@
               entries.reverse();
               entries.forEach(function(e, i) { e.rank = i + 1; });
               renderLeaderboard({ metric: metric, entries: entries, self: null });
-            }).catch(function() {});
+            }).catch(function() {
+              if (token !== requestLeaderboard._seq) return;
+              clearTimeout(requestLeaderboard._timer);
+              requestLeaderboardWS(token);
+            });
             return;
           } catch (_) {}
         }
         // Fall back to server WebSocket
-        if (!chatWs || chatWs.readyState !== 1) return;
+        requestLeaderboardWS(token);
+      }
+      requestLeaderboard._seq = 0;
+      function requestLeaderboardWS(token) {
+        if (!chatWs || chatWs.readyState !== 1) {
+          // Socket not open yet — retry shortly instead of dropping silently.
+          setTimeout(function() { if (token === requestLeaderboard._seq) requestLeaderboard(); }, 1500);
+          return;
+        }
         chatWs.send(JSON.stringify({ type: 'leaderboard_get', metric: lbMetric }));
       }
       function renderLeaderboard(msg) {

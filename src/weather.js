@@ -233,6 +233,9 @@ export class WeatherSystem {
     const half = RAIN_HALF;
     const killY = py - 2;
     const respawnY = py + RAIN_HEIGHT;
+    // Terrain collision: test a rotating quarter of the drops each frame
+    // (full sweep every 4 frames) — same visuals, 1/4 the heightAt lookups.
+    this._rainSlice = ((this._rainSlice || 0) + 1) % 4;
 
     for (let i = 0; i < RAIN_COUNT; i++) {
       const i3 = i * 3;
@@ -246,7 +249,7 @@ export class WeatherSystem {
         pos[i3 + 2] = pz + (Math.random() - 0.5) * half * 2;
         continue;
       }
-      if (worldRef) {
+      if (worldRef && (i % 4) === this._rainSlice) {
         const bx = Math.floor(pos[i3]), bz = Math.floor(pos[i3 + 2]);
         const surfaceY = worldRef.heightAt(bx, bz);
         if (surfaceY > 0 && pos[i3 + 1] <= surfaceY + 0.5) {

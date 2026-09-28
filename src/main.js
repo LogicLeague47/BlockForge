@@ -542,8 +542,8 @@ function buildMenuBackground() {
 const sun = new THREE.DirectionalLight(0xffffff, 1.0);
 sun.position.set(50, 100, 30);
 sun.castShadow = true;
- sun.shadow.mapSize.width = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
- sun.shadow.mapSize.height = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 4096));
+ sun.shadow.mapSize.width = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 2048));
+ sun.shadow.mapSize.height = IS_MOBILE ? 512 : (VERY_LOW_END ? 1024 : (LOW_END ? 2048 : 2048));
 sun.shadow.camera.near = 0.5;
 sun.shadow.camera.far = IS_MOBILE ? 300 : (VERY_LOW_END ? 400 : 700);
 sun.shadow.camera.left = IS_MOBILE ? -25 : (VERY_LOW_END ? -35 : -50);
@@ -727,8 +727,14 @@ scene.add(ghostMesh);
 function updateBreaking(progress, hit) {
   if (progress <= 0 || !hit) { crackPlane.visible = false; return; }
   crackPlane.visible = true;
-  drawCrack(crackCanvas, Math.min(1, progress));
-  crackTexture.needsUpdate = true;
+  // Quantize crack redraws to 10 stages: canvas redraw + GPU texture upload
+  // only when the visible stage actually changes, not every frame.
+  const stage = Math.min(9, Math.floor(Math.min(1, progress) * 10));
+  if (stage !== updateBreaking._stage) {
+    updateBreaking._stage = stage;
+    drawCrack(crackCanvas, Math.min(1, progress));
+    crackTexture.needsUpdate = true;
+  }
   // Position crack flush on the face that was hit
   const nx = hit.normal.x, ny = hit.normal.y, nz = hit.normal.z;
   const slabDef = BLOCKS[world.getBlock(hit.x, hit.y, hit.z)];
@@ -4402,7 +4408,7 @@ function submitChat() {
       return;
     }
     // Dev spawn animal commands (dev world + cheats only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer', 'witch', 'dragon', 'chronarch', 'cave_bat', 'crystal_golem', 'shadow_stalker', 'wind_spirit'];
     if (isDevWorld && cheatsEnabled && cmdPart === 'spawn') {
       const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
@@ -12505,7 +12511,9 @@ function _gameFrame() {
   const baseTarget = (player && player.cameraMode !== 0) ? baseFov - 5 : baseFov;
   const targetFov = player && player.sprinting ? baseTarget + 5 : baseTarget;
   camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 8);
-  camera.updateProjectionMatrix();
+  // Recompute the projection matrix only while the FOV is still settling —
+  // every frame otherwise is pure matrix churn.
+  if (Math.abs(targetFov - camera.fov) > 0.01) camera.updateProjectionMatrix();
 
   // Update shadow camera to follow player. The light's own position (cap-added
   // below) is used directly so the snapped shadow matrix always matches what the
@@ -12522,9 +12530,14 @@ function _gameFrame() {
     const distToPlayer = sun.position.distanceTo(p);
     const reach = 90; // covers the ±50 ortho bounds + a safety margin
     const sc = sun.shadow.camera;
-    sc.near = Math.max(0.5, distToPlayer - reach);
-    sc.far = distToPlayer + reach;
-    sc.updateProjectionMatrix();
+    // Skip the projection recompute when nothing moved since last frame.
+    const near = Math.max(0.5, distToPlayer - reach);
+    const far = distToPlayer + reach;
+    if (Math.abs(sc.near - near) > 0.5 || Math.abs(sc.far - far) > 0.5) {
+      sc.near = near;
+      sc.far = far;
+      sc.updateProjectionMatrix();
+    }
 
     // Snap shadow camera to texel grid to prevent shimmer
     const tW = (sc.right - sc.left) / sun.shadow.mapSize.width;
@@ -12555,67 +12568,96 @@ function _gameFrame() {
   renderer.render(scene, camera);
 
   // --- Attack cooldown indicator (ring around crosshair) ---
-  const cooldownEl = document.getElementById('attack-cooldown');
+  // Cached element + quantized redraw: a conic-gradient string rebuild every
+  // frame forces style recalc + paint at 60Hz for a 0.4s animation.
+  if (!_cooldownEl) _cooldownEl = document.getElementById('attack-cooldown');
+  const cooldownEl = _cooldownEl;
   if (cooldownEl && pointerLocked) {
     const cdProg = Math.min(1, (_playerAttackTimer || 0) / 0.4);
     if (cdProg < 1) {
-      cooldownEl.style.opacity = '1';
-      const deg = cdProg * 360;
-      cooldownEl.style.background = `conic-gradient(rgba(255,255,255,0.8) ${deg}deg, transparent ${deg}deg)`;
-    } else {
+      if (_cooldownVisible !== 1) { _cooldownVisible = 1; cooldownEl.style.opacity = '1'; }
+      const deg = Math.round(cdProg * 360 / 6) * 6; // 6° steps
+      if (deg !== _cooldownDeg) {
+        _cooldownDeg = deg;
+        cooldownEl.style.background = `conic-gradient(rgba(255,255,255,0.8) ${deg}deg, transparent ${deg}deg)`;
+      }
+    } else if (_cooldownVisible !== 0) {
+      _cooldownVisible = 0;
       cooldownEl.style.opacity = '0';
     }
   }
 
   // --- Mob health bar tooltip ---
-  const mobHealthEl = document.getElementById('mob-health');
+  // --- Mob health bar tooltip (element refs hoisted + change-guarded) ---
+  if (!_mobHealthEls) {
+    _mobHealthEls = {
+      root: document.getElementById('mob-health'),
+      name: document.getElementById('mob-health-name'),
+      fill: document.getElementById('mob-health-fill'),
+      hearts: document.getElementById('mob-health-hearts'),
+    };
+  }
+  const mobHealthEl = _mobHealthEls.root;
   if (mobHealthEl) {
     if (mobManager && player && pointerLocked) {
       const dir = _mobHealthDir;
       camera.getWorldDirection(dir);
       const targeted = mobManager.hitTest(camera.position, dir, REACH);
       if (targeted && !targeted.dead) {
-        const nameEl = document.getElementById('mob-health-name');
-        const fillEl = document.getElementById('mob-health-fill');
-        const heartsEl = document.getElementById('mob-health-hearts');
+        const nameEl = _mobHealthEls.name;
+        const fillEl = _mobHealthEls.fill;
+        const heartsEl = _mobHealthEls.hearts;
         const def = MOB_TYPES[targeted.type];
         if (def) {
-          if (nameEl) nameEl.textContent = def.name;
-          if (fillEl) fillEl.style.width = ((targeted.hp / targeted.maxHp) * 100) + '%';
+          if (nameEl && _mobHealthName !== def.name) { _mobHealthName = def.name; nameEl.textContent = def.name; }
+          const pct = Math.round((targeted.hp / targeted.maxHp) * 100) + '%';
+          if (fillEl && _mobHealthPct !== pct) { _mobHealthPct = pct; fillEl.style.width = pct; }
           if (heartsEl) {
-            const fullHearts = Math.floor(targeted.hp / 2);
-            const halfHeart = targeted.hp % 2 === 1;
-            const maxHearts = Math.ceil(targeted.maxHp / 2);
-            let h = '';
-            for (let i = 0; i < maxHearts; i++) {
-              if (i < fullHearts) h += '❤';
-              else if (i === fullHearts && halfHeart) h += '💔';
-              else h += '🖤';
+            const hpKey = targeted.type + ':' + Math.ceil(targeted.hp);
+            if (hpKey !== _mobHealthHearts) {
+              _mobHealthHearts = hpKey;
+              const fullHearts = Math.floor(targeted.hp / 2);
+              const halfHeart = targeted.hp % 2 === 1;
+              const maxHearts = Math.ceil(targeted.maxHp / 2);
+              let h = '';
+              for (let i = 0; i < maxHearts; i++) {
+                if (i < fullHearts) h += '❤';
+                else if (i === fullHearts && halfHeart) h += '💔';
+                else h += '🖤';
+              }
+              heartsEl.textContent = h;
             }
-            heartsEl.textContent = h;
           }
           // Project mob head position to screen
           const mobPos = _mobHealthPos.set(targeted.position.x, targeted.position.y + (def.legH + def.bodyH + def.headH) + 0.6, targeted.position.z);
           mobPos.project(camera);
           const hw = window.innerWidth / 2;
           const hh = window.innerHeight / 2;
-          const sx = mobPos.x * hw + hw;
-          const sy = -(mobPos.y * hh) + hh;
+          const sx = Math.round(mobPos.x * hw + hw);
+          const sy = Math.round(-(mobPos.y * hh) + hh);
           // Only show if in front of camera
           if (mobPos.z < 1) {
-            mobHealthEl.style.display = 'block';
-            mobHealthEl.style.left = sx + 'px';
-            mobHealthEl.style.top = (sy - 10) + 'px';
-          } else {
+            if (_mobHealthShown !== 1) { _mobHealthShown = 1; mobHealthEl.style.display = 'block'; }
+            const posKey = sx + ',' + sy;
+            if (posKey !== _mobHealthXY) {
+              _mobHealthXY = posKey;
+              mobHealthEl.style.left = sx + 'px';
+              mobHealthEl.style.top = (sy - 10) + 'px';
+            }
+          } else if (_mobHealthShown !== 0) {
+            _mobHealthShown = 0;
             mobHealthEl.style.display = 'none';
           }
-        } else {
+        } else if (_mobHealthShown !== 0) {
+          _mobHealthShown = 0;
           mobHealthEl.style.display = 'none';
         }
-      } else {
+      } else if (_mobHealthShown !== 0) {
+        _mobHealthShown = 0;
         mobHealthEl.style.display = 'none';
       }
-    } else {
+    } else if (_mobHealthShown !== 0) {
+      _mobHealthShown = 0;
       mobHealthEl.style.display = 'none';
     }
   }
@@ -12649,8 +12691,11 @@ function _gameFrame() {
     viewmodel.renderOverlay();
   }
 
-  // HUD update — each subsystem is isolated so a single failure (e.g. a bad
-  // slot reference) can never starve the status bars or the rest of the HUD.
+  // HUD update — text HUD throttled to ~10Hz (change-guarded inside);
+  // per-frame DOM writes at 60Hz were pure layout churn.
+  _hudTick += dt;
+  if (_hudTick >= 0.1) {
+    _hudTick = 0;
   try { ui.updateHud({
     fps,
     pos: player.position,
@@ -12660,14 +12705,15 @@ function _gameFrame() {
       Math.floor(player.position.y)
     ),
     loadedChunks: loader.loadedCount(),
-    lazyChunks: loader.lazyCount ? loader.lazyCount() : 0,
+    lazyChunks: loader.lazyCount ? _lazyCountCached(loader) : 0,
     facing: facingName(player.yaw),
     gamemode: player.gamemode,
     showFps,
   }); } catch (e) { console.warn('HUD update failed:', e); }
+  try { ui.updateXpBar(player.getXpProgress(), player.level); } catch (e) { console.warn('XP bar update failed:', e); }
+  }
   try { ui.updateItemName(player.inventory, player.isCreative()); } catch (e) { console.warn('Item-name update failed:', e); }
   try { ui.setUnderwater(eye === BLOCK.WATER); } catch (e) { console.warn('Underwater update failed:', e); }
-  try { ui.updateXpBar(player.getXpProgress(), player.level); } catch (e) { console.warn('XP bar update failed:', e); }
 
   // Furnace tick — ticks all world furnaces (background cooking)
   try { ui.tickFurnace(dt, (id) => SMELTING[id], (id) => fuelValue(id), (id) => SMELT_TIME[id] ?? SMELT_TIME_DEFAULT); } catch (e) { console.warn('Furnace tick failed:', e); }
@@ -13048,7 +13094,19 @@ document.getElementById('btn-close-chest')?.addEventListener('click', () => {
 });
 
 
-let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, climbTimer = 0, swimTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false, _mobSpawnTimer = 0;
+let statusBarTimer = 0, autoSaveTimer = 0, stepTimer = 0, climbTimer = 0, swimTimer = 0, prevDamageTimer = 0, mobAttackTimer = 0, _playerAttackTimer = 0, _cameraShakeIntensity = 0, _deathTracked = false, _mobSpawnTimer = 0, _hudTick = 0;
+let _cooldownEl = null, _cooldownDeg = -1, _cooldownVisible = -1;
+let _mobHealthEls = null, _mobHealthShown = -1, _mobHealthName = '', _mobHealthPct = '', _mobHealthHearts = '', _mobHealthXY = '';
+// lazyCount() walks every chunk — cache at 2Hz, HUD only needs it at 10Hz.
+let _lazyCountVal = 0, _lazyCountTimer = 0;
+function _lazyCountCached(loader) {
+  _lazyCountTimer -= 1;
+  if (_lazyCountTimer <= 0) {
+    _lazyCountTimer = 12;
+    try { _lazyCountVal = loader.lazyCount(); } catch (_) {}
+  }
+  return _lazyCountVal;
+}
 const _prevPlayerPos = new THREE.Vector3();
 const _shadowLightDir = new THREE.Vector3();
 const _shadowLookAt = new THREE.Matrix4();

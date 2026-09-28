@@ -811,6 +811,36 @@ function getRuinedForge(rx, rz, noise, seed) {
   return { cx, cz, baseY };
 }
 
+// Demo copy of the Sundered Hour arena for dev-world inspection (no boss).
+// Mirrors main.js buildHourArena at a placeable origin.
+function buildHourArenaDemo(set, ox, oy, oz) {
+  const r = 16;
+  for (let dx = -r - 1; dx <= r + 1; dx++) {
+    for (let dz = -r - 1; dz <= r + 1; dz++) {
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > r + 0.4) continue;
+      set(ox + dx, oy, oz + dz, BLOCK.BEDROCK);
+      let top = BLOCK.BEDROCK;
+      if (d <= r) {
+        top = BLOCK.BEDROCK;
+        if (d > r - 3 && d <= r - 1) top = BLOCK.VOIDSTONE;
+        if (Math.abs(Math.abs(dx) - Math.abs(dz)) < 1 && d < r - 3) top = BLOCK.OBSIDIAN;
+      }
+      set(ox + dx, oy + 1, oz + dz, top);
+      if (d > r - 0.6) set(ox + dx, oy + 2, oz + dz, BLOCK.BEDROCK);
+    }
+  }
+  for (const [px, pz] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) {
+    for (let i = 0; i < 7; i++) set(ox + px, oy + 2 + i, oz + pz, BLOCK.OBSIDIAN);
+    set(ox + px, oy + 9, oz + pz, BLOCK.CRYSTAL_PRISM_1);
+  }
+  set(ox, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
+  set(ox + 1, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
+  set(ox - 1, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
+  set(ox, oy + 1, oz + 1, BLOCK.COMPRESSED_VOIDSTONE);
+  set(ox, oy + 1, oz - 1, BLOCK.COMPRESSED_VOIDSTONE);
+}
+
 function buildRuinedForge(set, ox, oy, oz) {
   const rng = makeRng(ox * 31 + oz * 17);
   const W = 7, D = 7, H = 4;
@@ -886,12 +916,17 @@ export function placeStructure(world, type, ox, oy, oz) {
       bb = { minX: ox, maxX: ox + 7, minZ: oz, maxZ: oz + 7 };
       break;
     }
+    case 'hour_arena': {
+      buildHourArenaDemo(set, ox, oy, oz);
+      bb = { minX: ox - 18, maxX: ox + 18, minZ: oz - 18, maxZ: oz + 18 };
+      break;
+    }
     default: return null;
   }
   return bb;
 }
 
-export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft', 'ruined_forge'];
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft', 'ruined_forge', 'hour_arena'];
 
 function buildBossArena(set, ox, y, oz) {
   // Massive obsidian boss arena: 32x32 floor, 20-high walls, obsidian pillars
