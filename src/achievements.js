@@ -562,6 +562,7 @@ export class AchievementManager {
       const json = JSON.stringify({
         unlocked: Array.from(this.unlocked),
         stats: this.stats,
+        total: ACHIEVEMENTS.length,
       });
       localStorage.setItem('mc-clone-achievements', json);
       // Cloud sync via CrazyGames SDK

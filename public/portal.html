@@ -888,7 +888,7 @@
     </div>
   </div>
 
-  <footer>BlockForge is an original voxel sandbox — not affiliated with BlockForge AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
+  <footer>BlockForge is an original voxel sandbox — not affiliated with Mojang AB. · Account data stored on BlockForge servers · <a href="privacy.html" target="_blank" rel="noopener">Privacy</a> · <a href="terms.html" target="_blank" rel="noopener">Terms</a></footer>
 
   <div id="toasts"></div>
 
@@ -918,9 +918,11 @@
         H = canvas.height = window.innerHeight;
       }
       resize();
-      // ── Cursor sparkle trail ──────────────────────────────────────────
+      // ── Cursor sparkle trail (mouse only — touch devices get no hover) ──
       var CURSOR_SPARKS = [];
-      document.addEventListener('mousemove', function(e) {
+      var hasFinePointer = true;
+      try { hasFinePointer = window.matchMedia && window.matchMedia('(pointer: fine)').matches; } catch (_) {}
+      if (hasFinePointer !== false) document.addEventListener('mousemove', function(e) {
         if (Math.random() > 0.75) return;
         var s = document.createElement('div');
         s.style.cssText = 'position:fixed;width:6px;height:6px;border-radius:50%;pointer-events:none;z-index:9999;background:var(--accent);box-shadow:0 0 8px var(--accent);opacity:1;left:' + e.clientX + 'px;top:' + e.clientY + 'px;transition:transform .7s ease,opacity .7s ease;';
@@ -1025,8 +1027,10 @@
           hue: Math.random(), rot: Math.random() * 0.5
         };
       }
-      for (var i = 0; i < 22; i++) cubes.push(makeCube());
-      for (var i = 0; i < 50; i++) prts.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2.2 + 0.6, vy: 0.3 + Math.random() * 0.8, a: Math.random() * 0.5 + 0.1, tw: Math.random() * 6.28, hue: Math.random() });
+      // Small screens get fewer background elements (same look, less fill).
+      var smallScreen = Math.min(window.innerWidth, window.innerHeight) < 500;
+      for (var i = 0; i < (smallScreen ? 10 : 22); i++) cubes.push(makeCube());
+      for (var i = 0; i < (smallScreen ? 24 : 50); i++) prts.push({ x: Math.random() * W, y: Math.random() * H, s: Math.random() * 2.2 + 0.6, vy: 0.3 + Math.random() * 0.8, a: Math.random() * 0.5 + 0.1, tw: Math.random() * 6.28, hue: Math.random() });
 
       function pickColor(hue) {
         var keys = ['a', 'b', 'c'];
@@ -1085,6 +1089,10 @@
       }
 
       function draw() {
+        // Half-rate background animation (30fps): identical look, ~half the
+        // canvas + compositing cost. Skipped entirely under reduced-motion.
+        draw._n = (draw._n || 0) + 1;
+        if (draw._skip || (draw._n % 2 === 0)) { requestAnimationFrame(draw); return; }
         // follow theme accent changes
         if (++colorTick % 40 === 0) readColors();
 
@@ -1130,7 +1138,10 @@
         }
 
         ctx.globalAlpha = 1;
-        requestAnimationFrame(draw);
+      requestAnimationFrame(draw);
+      try {
+        if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) draw._skip = true;
+      } catch (_) {}
       }
 
       requestAnimationFrame(draw);
@@ -1506,10 +1517,15 @@
         ta.remove();
       });
 
-      // Auto-refresh live dashboard every 60s
+      // Auto-refresh live dashboard every 60s, progress every 15s, and
+      // instantly when the game tab writes new stats (same-browser play).
       setInterval(function() {
         if (userName && !document.querySelector('.page.active')) { refreshStats(); refreshServerStatus(); }
       }, 60000);
+      setInterval(function() { loadPlayerProgress(); }, 15000);
+      window.addEventListener('storage', function(e) {
+        if (e && e.key === 'mc-clone-achievements') loadPlayerProgress();
+      });
 
       // ── Player progress (from game achievements) ───────────────────────
       function loadPlayerProgress() {
@@ -1519,7 +1535,7 @@
           var data = JSON.parse(raw);
           var stats = data.stats || {};
           var unlocked = (data.unlocked && data.unlocked.length) || 0;
-          var total = 44;
+          var total = data.total || 44;
           var lvl = stats.level || 0;
           var playtime = stats.playTime || 0;
           var kills = stats.mobKillsAny || 0;
@@ -1536,6 +1552,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Live portal stats + faster portal, fixed legal line',
+          desc: 'Dashboard playtime/progress now refreshes every 15s and instantly when the game saves (was frozen at page-load values). Portal background animation runs at half rate with fewer elements on phones, and cursor sparkles are mouse-only. Also fixed the footer and legal pages naming "BlockForge AB" — a brand-purge artifact — back to Mojang AB/Microsoft.',
+          date: 'Sep 29',
+          bugs: ['dashboard timer stuck (progress read once, never refreshed)', 'portal canvas loop full-rate on all devices', 'affiliation line named BlockForge AB instead of Mojang AB'],
+          updates: ['15s progress refresh + storage-event live sync', '30fps background, reduced mobile counts, reduced-motion respect', 'legal names restored in footer, terms, mods, data pages'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'Smooth terrain + classic mob looks',
@@ -2799,7 +2824,7 @@
         {
           hash: '9736bfe',
           heading: 'Mobile: responsive grids + removed BlockForge references',
-          desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "BlockForge" and "BlockForge clone" references from the codebase, comments, package name, and portal changelogs.',
+          desc: 'All 9-column inventory/chest/furnace grids now use responsive minmax sizing so they fit any phone width without overflow or cropping — no more flipping to landscape. The skin selector grid is also responsive. Removed all "Minecraft" and "Minecraft clone" references from the codebase, comments, package name, and portal changelogs.',
           date: 'Aug 22',
           bugs: ['inventory/chest/furnace grids overflowed on phones 400-768px wide', 'chest and furnace grids were not responsive at all', 'codebase still referenced BlockForge throughout'],
           updates: ['All 9-col grids use minmax(28px, 42px) and fit any screen', 'Chest/furnace grids are now responsive (were hardcoded 42px)', 'Skin selector grid uses minmax(80px, 100px)', 'Slots inside grids auto-size to fill their column', 'Renamed package to "blockforge", removed BlockForge refs everywhere'],
@@ -2844,10 +2869,10 @@
         {
           hash: '66fdc5a',
           heading: 'Original & compliant: BlockForge is now a clear destination',
-          desc: 'BlockForge is now explicitly framed as an original voxel sandbox — not BlockForge and not affiliated with BlockForge AB — across the portal and game, strengthening originality for platform review. The portal login now explains how your CrazyGames progress carries over: your CrazyGames account is the same BlockForge account, so you can set a password in-game (Account → Link Credentials) and sign in on the portal. On our own domain (not on CrazyGames, per their rules) the in-game Account menu now links straight to the BlockForge Portal, giving players a compliant path from the game to the community hub, server browser, updates and account tools.',
+          desc: 'BlockForge is now explicitly framed as an original voxel sandbox — not Minecraft and not affiliated with Mojang AB — across the portal and game, strengthening originality for platform review. The portal login now explains how your CrazyGames progress carries over: your CrazyGames account is the same BlockForge account, so you can set a password in-game (Account → Link Credentials) and sign in on the portal. On our own domain (not on CrazyGames, per their rules) the in-game Account menu now links straight to the BlockForge Portal, giving players a compliant path from the game to the community hub, server browser, updates and account tools.',
           date: 'Aug 22',
           bugs: [],
-          updates: ['Portal footer states BlockForge is an original voxel sandbox, not affiliated with BlockForge', 'Portal login explains CrazyGames → BlockForge account carry-over + how to set a password', 'In-game Account menu links to the BlockForge Portal on our own domain (suppressed on CrazyGames)'],
+          updates: ['Portal footer states BlockForge is an original voxel sandbox, not affiliated with Mojang', 'Portal login explains CrazyGames → BlockForge account carry-over + how to set a password', 'In-game Account menu links to the BlockForge Portal on our own domain (suppressed on CrazyGames)'],
           features: ['Compliant game → portal funnel via identity (no off-platform links on CrazyGames)', 'Clear originality / non-affiliation messaging'],
         },
         {
@@ -3177,10 +3202,10 @@
         {
           hash: 'a49045e',
           heading: 'BlockForge launched: multiplayer, LAN, achievements, XP',
-          desc: 'BlockForge: BlockForge clone with multiplayer, LAN, achievements, XP, and full game mechanics; static file server; auto-detect MP server host',
+          desc: 'Minecraft: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics; static file server; auto-detect MP server host',
           date: 'Jul 11',
           bugs: [],
-          updates: ['BlockForge: BlockForge clone with multiplayer, LAN, achievements, XP, and full game mechanics', 'Server serves the game itself (from-scratch static file server) + LAN mode', 'Auto-detect MP server host from current origin', 'LAN mode ensures default OfficialSMP room so server list is never empty'],
+          updates: ['Minecraft: Minecraft clone with multiplayer, LAN, achievements, XP, and full game mechanics', 'Server serves the game itself (from-scratch static file server) + LAN mode', 'Auto-detect MP server host from current origin', 'LAN mode ensures default OfficialSMP room so server list is never empty'],
           features: [],
         },
         {
