@@ -317,7 +317,9 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
       const c4 = n.cave2(wx * 0.018, y * 0.025, wz * 0.018);
 
       if (Math.abs(spPath) < 0.07 && Math.abs(y - spFloor) < 2.5) b = BLOCK.AIR;
-      else if (Math.abs(c3) < 0.085 && Math.abs(c4) < 0.085) b = BLOCK.AIR;
+      // Small pockets stay fully buried (tubes + ravines make the entrances),
+      // so the surface isn't pocked with random pits.
+      else if (y <= h - 4 && Math.abs(c3) < 0.085 && Math.abs(c4) < 0.085) b = BLOCK.AIR;
 
       const ravX = n.cave(wx * 0.01, y * 0.15, wz * 0.06);
       const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
@@ -328,8 +330,9 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
     }
 
     // BlockForge aquifer-lite: only DEEP sub-sea caves flood. Near-surface
-    // crevices stay dry so ravine floors aren't water pits.
-    if (b === BLOCK.AIR && y <= SEA_LEVEL - 4 && y >= 1) b = BLOCK.WATER;
+    // carves (tube mouths, ravines, pockets) stay dry, so the landscape
+    // isn't pocked with sand-bottomed water pits everywhere.
+    if (b === BLOCK.AIR && y <= SEA_LEVEL - 6 && y >= 1) b = BLOCK.WATER;
 
     chunk.set(x, y, z, b);
     if (b !== BLOCK.AIR && b !== BLOCK.WATER) topSolid = y;

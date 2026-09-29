@@ -1549,10 +1549,10 @@
         text-shadow: 1px 1px 0 #000; margin-top: 8px;
       }
       .menu-grid {
-        display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
         width: 100%; max-width: 420px; margin-bottom: 8px;
       }
-      .menu-grid .menu-btn { min-width: 0; font-size: 12px; }
+      .menu-grid .menu-btn { min-width: 0; width: 100%; max-width: none; font-size: 12px; }
       .menu-btn-play {
         font-size: 17px !important; padding: 14px 0 !important;
         border-color: rgba(120,220,120,0.5) !important;
@@ -2504,6 +2504,9 @@
         .settings-row { flex-wrap: wrap; }
         .mode-select { flex-wrap: wrap; }
         #terrain-select { grid-template-columns: 1fr 1fr !important; }
+        /* Direct-connect row: keep the button from pushing past the panel */
+        #btn-direct-connect { padding: 9px 10px !important; font-size: 11px !important; flex-shrink: 0; width: auto !important; }
+        #input-direct-connect { min-width: 0 !important; }
       }
       /* Small portrait phones: everything steps down so buttons stop
          dominating the screen */
@@ -2544,7 +2547,7 @@
         .bf-btn-ap { width: 32px; height: 32px; font-size: 12px; }
         .bf-btn-ap.bf-btn-f3 { font-size: 10px; }
       }
-      /* Small phone portrait (<=400px): scale down HUD and controls to fit */
+            /* Small phone portrait (<=400px): scale down HUD and controls to fit */
       @media (max-width: 400px) {        /* Hotbar: shrink slots from 36px to 30px */
         .slot { width: 30px !important; height: 30px !important; }
         .slot .slot-count { font-size: 8px !important; }

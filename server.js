@@ -1086,6 +1086,56 @@ async function icAskAI(a, b) {
 const UPLOADS_DIR = join(__dirname, 'uploads');
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024; // 64MB cap
 const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.mov', '.ogv']);
+
+// Community gallery store (Redis-backed, memory fallback).
+const GALLERY_MAX_ITEM = 1500 * 1024; // 1.5MB per item (dataURL)
+const GALLERY_MAX_ITEMS = 100;
+let _galleryMem = { skins: [], textures: [] };
+async function galleryList(type) {
+  if (USE_REDIS) {
+    try {
+      const raw = await redisCmd(['LRANGE', 'bf:gallery:' + type, 0, 49]);
+      if (Array.isArray(raw)) {
+        const items = [];
+        for (const s of raw) { try { items.push(JSON.parse(s)); } catch (_) {} }
+        if (items.length) return items;
+      }
+    } catch (_) {}
+  }
+  return (_galleryMem[type] || []).slice(0, 50);
+}
+async function galleryPush(type, item) {
+  if (USE_REDIS) {
+    try {
+      await redisCmd(['LPUSH', 'bf:gallery:' + type, JSON.stringify(item)]);
+      await redisCmd(['LTRIM', 'bf:gallery:' + type, 0, GALLERY_MAX_ITEMS - 1]);
+      return true;
+    } catch (_) {}
+  }
+  const arr = _galleryMem[type] || (_galleryMem[type] = []);
+  arr.unshift(item);
+  if (arr.length > GALLERY_MAX_ITEMS) arr.length = GALLERY_MAX_ITEMS;
+  return true;
+}
+async function galleryAuth(req) {
+  const name = req.headers['x-bf-name'] || '';
+  const pass = req.headers['x-bf-pass'] || '';
+  const idType = req.headers['x-bf-identity-type'] || '';
+  const idId = req.headers['x-bf-identity-id'] || '';
+  if (name && pass) {
+    try {
+      const a = await authAccount(name, pass, 'login');
+      if (a.ok) return a.username || name;
+    } catch (_) {}
+  }
+  if (idType && idId) {
+    try {
+      const linked = findAccountByIdentity(idType, idId);
+      if (linked) return linked;
+    } catch (_) {}
+  }
+  return null;
+}
 function _videoMime(fname) { return MIME[extname(fname).toLowerCase()] || 'video/mp4'; }
 
 // ── Community mod store ──────────────────────────────────────────────
@@ -1663,6 +1713,69 @@ const server = http.createServer((req, res) => {
   // The portal uploads a raw video body (Content-Type: video/*) with dev
   // credentials in custom headers; on success it stores the file under
   // /uploads/ and returns a public URL the news card can embed.
+  // ── Community gallery (skins/textures) backed by the linked account ──
+  // Any authenticated account may post; reads are public. Survives backend
+  // restarts via Redis, with an in-memory fallback.
+  // (Gallery routes live just below, beside /api/upload.)
+  if (pathname === '/api/gallery' && req.method === 'GET') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    };
+    (async () => {
+      try {
+        const u = new URL(req.url, 'http://x');
+        const type = u.searchParams.get('type') === 'textures' ? 'textures' : 'skins';
+        res.writeHead(200, h);
+        res.end(JSON.stringify({ ok: true, items: await galleryList(type) }));
+      } catch (_) {
+        try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Gallery unavailable.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  if (pathname === '/api/gallery' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, x-bf-name, x-bf-pass, x-bf-identity-type, x-bf-identity-id',
+    };
+    (async () => {
+      const who = await galleryAuth(req);
+      if (!who) {
+        res.writeHead(403, h);
+        res.end(JSON.stringify({ ok: false, reason: 'Log in to share with the community.' }));
+        return;
+      }
+      let body = '';
+      req.on('data', c => {
+        body += c;
+        if (body.length > GALLERY_MAX_ITEM * 2) req.destroy();
+      });
+      req.on('end', async () => {
+        try {
+          const p = JSON.parse(body);
+          const type = p.type === 'textures' ? 'textures' : 'skins';
+          const name = String(p.name || 'upload').slice(0, 64);
+          const data = String(p.data || '');
+          if (!/^data:image\/(png|jpeg|gif);base64,/.test(data) || data.length > GALLERY_MAX_ITEM || data.length < 100) {
+            res.writeHead(400, h);
+            res.end(JSON.stringify({ ok: false, reason: 'That file is not a supported image.' }));
+            return;
+          }
+          await galleryPush(type, { name, data, uploader: who, date: Date.now() });
+          res.writeHead(200, h);
+          res.end(JSON.stringify({ ok: true }));
+        } catch (_) {
+          try { res.writeHead(400, h); res.end(JSON.stringify({ ok: false, reason: 'Invalid upload.' })); } catch (_) {}
+        }
+      });
+    })().catch(() => { try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Upload failed.' })); } catch (_) {} });
+    return;
+  }
+
   if (pathname === '/api/upload' && req.method === 'POST') {
     const h = {
       'Content-Type': 'application/json',
@@ -3308,7 +3421,18 @@ function handlePlayerStatsSet(ws, msg) {
   const pd = ws._playerData;
   if (!pd) return;
   getPlayerData(pd.name).then(data => {
-    Object.assign(data.stats, msg.stats ?? {});
+    // Device-driven merge: the player's device is the source of truth, but
+    // sessions can arrive out of order (old save pushed late), so cumulative
+    // numeric counters only ever move forward — never regress.
+    const incoming = msg.stats ?? {};
+    data.stats = data.stats || {};
+    for (const [k, v] of Object.entries(incoming)) {
+      if (typeof v === 'number' && typeof data.stats[k] === 'number') {
+        data.stats[k] = Math.max(data.stats[k], v);
+      } else {
+        data.stats[k] = v;
+      }
+    }
     return setPlayerData(pd.name, data);
   }).catch(err => { console.warn('[Data] handlePlayerStatsSet failed:', err); });
 }

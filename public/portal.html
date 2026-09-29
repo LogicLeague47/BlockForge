@@ -1554,6 +1554,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Hand-drawn HUD icons',
+          desc: 'Hearts, hunger drumsticks and armor icons are now custom BlockForge pixel art instead of emoji, prerendered once and swapped on change.',
+          date: 'Sep 29',
+          bugs: [],
+          updates: ['wired existing pixel-icon painters into the status bars'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Live portal stats + faster portal, fixed legal line',
           desc: 'Dashboard playtime/progress now refreshes every 15s and instantly when the game saves (was frozen at page-load values). Portal background animation runs at half rate with fewer elements on phones, and cursor sparkles are mouse-only. Also fixed the footer and legal pages naming "BlockForge AB" — a brand-purge artifact — back to Mojang AB/Microsoft.',
           date: 'Sep 29',
@@ -3955,53 +3964,64 @@
         renderUploads('tex-grid', 'bf_uploads_textures', false);
       }
 
-      // ── Firebase Community Gallery (upload to internet for everyone) ───
-      function fbInit() {
-        if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') return false;
-        try {
-          var cfg = window.FIREBASE_CONFIG;
-          if (!cfg || !cfg.apiKey) return false;
-          if (!firebase.apps.length) firebase.initializeApp(cfg);
-          return true;
-        } catch (_) { return false; }
+      // ── Server Community Gallery (Redis-backed, linked to your account) ──
+      // Uploads go to the game server with your account credentials — no
+      // Firebase rules needed. Reads are public.
+      function galleryBase() {
+        try { return SRV_WS.replace(/^wss:/, 'https:'); } catch (_) { return ''; }
+      }
+      function galleryAuthHeaders() {
+        var headers = { 'Content-Type': 'application/json' };
+        var name = localStorage.getItem('bf_portal_user') || localStorage.getItem('bf_player_name') || '';
+        if (name) headers['x-bf-name'] = name;
+        var encoded = localStorage.getItem('bf_login_pass') || '';
+        var pass = '';
+        for (var c = 0; c < encoded.length; c++) pass += String.fromCharCode(encoded.charCodeAt(c) ^ 0x5A);
+        if (pass) headers['x-bf-pass'] = pass;
+        var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
+        var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
+        if (oauthProv && oauthId) { headers['x-bf-identity-type'] = oauthProv; headers['x-bf-identity-id'] = oauthId; }
+        return headers;
       }
       function fbUploadToGallery(type, name, dataUrl, cb) {
-        if (!fbInit()) { cb('Firebase not available'); return; }
-        var db = firebase.database();
-        var ref = db.ref('community/' + type).push();
-        var uploader = userName || 'Anonymous';
-        ref.set({ name: name, data: dataUrl, uploader: uploader, date: Date.now() }, function(err) {
-          if (err) cb('Upload failed: ' + err.message);
-          else cb(null, ref.key);
-        });
+        var base = galleryBase();
+        if (!base) { cb('Server unavailable'); return; }
+        fetch(base + '/api/gallery', {
+          method: 'POST', headers: galleryAuthHeaders(),
+          body: JSON.stringify({ type: type, name: name, data: dataUrl }),
+        }).then(function(r) { return r.json(); }).then(function(res) {
+          if (res && res.ok) cb(null, true);
+          else cb((res && res.reason) || 'Upload rejected');
+        }).catch(function() { cb('Could not reach the server'); });
       }
       function fbLoadGallery(type, gridId, statusId, isImage) {
         var grid = document.getElementById(gridId);
         var status = document.getElementById(statusId);
         if (!grid) return;
-        if (!fbInit()) {
+        var base = galleryBase();
+        if (!base) {
           grid.innerHTML = '<div style="color:var(--dim);font-size:12px;text-align:center;padding:12px;">Offline — community gallery unavailable.</div>';
           if (status) status.style.display = 'none';
           return;
         }
-        var db = firebase.database();
-        db.ref('community/' + type).orderByChild('date').limitToLast(50).once('value', function(snap) {
-          if (status) status.style.display = 'none';
-          var items = [];
-          snap.forEach(function(child) { items.unshift(child.val()); });
-          if (items.length === 0) {
-            grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No community uploads yet. Be the first!</div>';
-            return;
-          }
-          grid.innerHTML = items.map(function(item) {
-            var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '<div style="font-size:11px;color:var(--dim);padding:8px;">' + esc(item.name) + '</div>';
-            var equipBtn = isImage ? '<button class="equip-btn" onclick="window._equipCommunitySkin(this)" data-data="' + item.data.replace(/"/g, '&quot;') + '">Equip in BlockForge</button>' : '';
-            var dlBtn = '<a class="btn" href="' + item.data + '" download="' + esc(item.name) + '" style="font-size:10px;padding:4px 8px;margin-top:4px;">Download</a>';
-            return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '<br><span style="font-size:10px;color:var(--dim);">by ' + esc(item.uploader) + '</span></div>' + equipBtn + dlBtn + '</div>';
-          }).join('');
-        }).catch(function() {
-          if (status) status.textContent = 'Could not load community gallery.';
-        });
+        fetch(base + '/api/gallery?type=' + encodeURIComponent(type), { mode: 'cors' })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (status) status.style.display = 'none';
+            var items = (res && res.ok && res.items) || [];
+            if (items.length === 0) {
+              grid.innerHTML = '<div style="color:var(--dim);font-size:13px;grid-column:1/-1;text-align:center;padding:20px;">No community uploads yet. Be the first!</div>';
+              return;
+            }
+            grid.innerHTML = items.map(function(item) {
+              var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '<div style="font-size:11px;color:var(--dim);padding:8px;">' + esc(item.name) + '</div>';
+              var equipBtn = isImage ? '<button class="equip-btn" onclick="window._equipCommunitySkin(this)" data-data="' + item.data.replace(/"/g, '&quot;') + '">Equip in BlockForge</button>' : '';
+              var dlBtn = '<a class="btn" href="' + item.data + '" download="' + esc(item.name) + '" style="font-size:10px;padding:4px 8px;margin-top:4px;">Download</a>';
+              return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '<br><span style="font-size:10px;color:var(--dim);">by ' + esc(item.uploader) + '</span></div>' + equipBtn + dlBtn + '</div>';
+            }).join('');
+          }).catch(function() {
+            if (status) status.textContent = 'Could not load community gallery.';
+          });
       }
       window._equipCommunitySkin = function(btn) {
         var data = btn.getAttribute('data-data');
@@ -4036,8 +4056,8 @@
                 renderUploads(gridId, storageKey, isImage);
               });
             });
-            // Also upload to Firebase community gallery
-            if (galleryType && fbInit()) {
+            // Community upload goes to the game server (account-linked).
+            if (galleryType) {
               fbUploadToGallery(galleryType, file.name, dataUrl, function(err) {
                 if (err) { toast('Saved locally but community upload failed: ' + err, 'error'); return; }
                 toast('Uploaded ' + file.name + ' to community gallery!', 'ok');

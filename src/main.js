@@ -5599,6 +5599,14 @@ function setupNetworkHandlers() {
       const nameTag = document.getElementById('menu-player-name');
       if (nameTag) nameTag.textContent = playerName;
       _refreshDevButtons();
+      // Device-driven stats: publish this device's progress on every login,
+      // so the account carries current stats no matter which server/session.
+      try {
+        if (network && network.connected && achievements && achievements.stats) {
+          network._send({ type: 'player_stats_set', stats: achievements.stats });
+        }
+      } catch (_) {}
+      try { _syncLeaderboardStats(); } catch (_) {}
       // Only jump to the main menu when this auth came from the login screen —
       // not from a background re-auth (e.g. opening the Friends menu).
       if (_backgroundAuth) {
@@ -7634,8 +7642,9 @@ function _syncLeaderboardStats() {
 
 function saveCurrentWorld() {
   if (isDevWorld || isParkour || isSkyblock) return;
-  // Upload stats to server for dev panel
-  if (isMultiplayer && network && network.connected && achievements && achievements.stats) {
+  // Upload stats from THIS DEVICE whenever connected — not just in
+  // multiplayer rooms, so singleplayer/P2P progress follows the account.
+  if (network && network.connected && achievements && achievements.stats) {
     network._send({ type: 'player_stats_set', stats: achievements.stats });
   }
   if (!currentWorldId || !world || !player) return;

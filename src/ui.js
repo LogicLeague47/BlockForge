@@ -1946,6 +1946,8 @@ export class UI {
   }
 
   // --- status bars ----------------------------------------------------------
+  // Custom pixel-art icons (prerendered once to dataURLs, then pure string
+  // concat — no per-frame canvas work).
   updateStatusBars(player) {
     // Armor bar (BlockForge style) — 10 chestplate icons above the hearts, 1 icon = 2 points
     if (this.armorRowEl) {
@@ -1958,7 +1960,7 @@ export class UI {
           for (let i = 0; i < 10; i++) {
             const val = capped - i * 2;
             const full = val >= 2, half = val >= 1;
-            ah += full ? '🛡️' : (half ? '<span style="opacity:.45">🛡️</span>' : '<span style="opacity:.18">🛡️</span>');
+            ah += `<img src="${drawArmorUrl(full, half)}" width="18" height="18" alt="">`;
           }
           this.armorRowEl.innerHTML = ah;
         }
@@ -1971,8 +1973,7 @@ export class UI {
       }
     }
 
-    // Health hearts (left side) — no background panel, just icons.
-    // Change-guarded: emoji string rebuilt only when health actually changes.
+    // Health hearts (left side) — custom pixel icons, rebuilt only on change.
     const hpKey = Math.ceil(player.health);
     if (hpKey !== this._lastHpKey) {
       this._lastHpKey = hpKey;
@@ -1980,7 +1981,7 @@ export class UI {
       for (let i = 9; i >= 0; i--) {
         const val = player.health - i * 2;
         const full = val >= 2, half = val >= 1;
-        hh += full ? '❤️' : (half ? '💔' : '🖤');
+        hh += `<img src="${drawHeartUrl(full, half)}" width="18" height="18" alt="">`;
       }
       this.healthBar.innerHTML = hh;
     }
@@ -1993,7 +1994,7 @@ export class UI {
       for (let i = 0; i < 10; i++) {
         const val = player.hunger - i * 2;
         const full = val >= 2, half = val >= 1;
-        fh += full ? '🍗' : (half ? '<span style="opacity:.45">🍗</span>' : '<span style="opacity:.18">🍗</span>');
+        fh += `<img src="${drawDrumstickUrl(full, half)}" width="18" height="18" alt="">`;
       }
       this.hungerBar.innerHTML = fh;
     }
