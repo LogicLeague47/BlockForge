@@ -371,10 +371,14 @@
       #status-bars {
         position: fixed; bottom: 56px; left: 50%;
         transform: translateX(-50%);
-        width: 350px; z-index: 10;
+        width: min(350px, 62vw); z-index: 10;
         pointer-events: none;
         display: flex; justify-content: space-between;
         align-items: flex-end;
+      }
+      /* Crisp dark outline so pixel icons read at small sizes */
+      #status-bars img, #armor-row img {
+        filter: drop-shadow(1px 0 0 rgba(0,0,0,.85)) drop-shadow(-1px 0 0 rgba(0,0,0,.85)) drop-shadow(0 1px 0 rgba(0,0,0,.85)) drop-shadow(0 -1px 0 rgba(0,0,0,.85));
       }
       @keyframes hungerPulse {
         0%, 100% { opacity: 1; }
@@ -2523,6 +2527,10 @@
         .menu-foot-row { gap: 6px !important; }
       }
       @media (orientation: landscape) and (max-height: 480px) {
+        /* Short landscape: stack side buttons vertically so they clear the
+           hunger row, and lift jump above the hotbar */
+        .bf-side-btns { flex-direction: column !important; gap: 6px !important; right: 68px !important; bottom: 96px !important; }
+        .bf-main-btns { bottom: 96px !important; }
         /* Compact menu: hide the logo mark, tighten everything, let it scroll */
         .menu-logo-mark { display: none !important; }
         .menu-logo-wrap { margin-bottom: 10px !important; }

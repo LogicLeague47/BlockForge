@@ -11,10 +11,10 @@ import { HOTBAR_SLOTS, TOTAL } from './inventory.js';
 import { CraftingGrid } from './crafting.js';
 import { matchRecipe } from './recipes.js';
 
-const HEART_COLS = '#b00', HEART_HALF_L = '#b00', HEART_HALF_R = '#633';
-const HEART_EMPTY = '#411';
-const DRUM_COLS = '#b87333', DRUM_HALF_L = '#b87333', DRUM_HALF_R = '#7a4a20';
-const DRUM_EMPTY = '#3a2210';
+const HEART_COLS = '#e53232', HEART_HALF_L = '#e53232', HEART_HALF_R = '#7a1a1a';
+const HEART_EMPTY = '#472022';
+const DRUM_COLS = '#c07a35', DRUM_HALF_L = '#c07a35', DRUM_HALF_R = '#7a4a20';
+const DRUM_EMPTY = '#40301c';
 // BlockForge armor bar — light-grey chestplate on a dark empty plate
 const ARMOR_COLS = '#e0e0e0', ARMOR_HALF_L = '#e0e0e0', ARMOR_HALF_R = '#4a4a4a';
 const ARMOR_EMPTY = '#2b2b2b';
@@ -88,11 +88,15 @@ function drawPixelIcon(pixels, fullCol, halfL, halfR, emptyCol, full, half, cach
 }
 
 function drawHeart(full, half) {
-  return drawPixelIcon(HEART_PIXELS, HEART_COLS, HEART_HALF_L, HEART_HALF_R, HEART_EMPTY, full, half, _heartCache);
+  const c = drawPixelIcon(HEART_PIXELS, HEART_COLS, HEART_HALF_L, HEART_HALF_R, HEART_EMPTY, full, half, _heartCache);
+  if (full) { const x = c.getContext('2d'); x.fillStyle = '#ffd7d7'; x.fillRect(1, 1, 2, 1); }
+  return c;
 }
 
 function drawDrumstick(full, half) {
-  return drawPixelIcon(DRUM_PIXELS, DRUM_COLS, DRUM_HALF_L, DRUM_HALF_R, DRUM_EMPTY, full, half, _drumCache);
+  const c = drawPixelIcon(DRUM_PIXELS, DRUM_COLS, DRUM_HALF_L, DRUM_HALF_R, DRUM_EMPTY, full, half, _drumCache);
+  if (full) { const x = c.getContext('2d'); x.fillStyle = '#ffe0b0'; x.fillRect(2, 1, 2, 1); }
+  return c;
 }
 
 function drawHeartUrl(full, half) {
