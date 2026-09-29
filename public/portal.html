@@ -1538,6 +1538,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Smooth terrain + classic mob looks',
+          desc: 'Plains roll smooth instead of quilting, beaches hug the waterline, dead trees are stumps, and ravines stay dry. Zombie, Skeleton, Slime and Chicken are back to their classic looks with all 14 remodels intact.',
+          date: 'Sep 28',
+          bugs: ['plains quilted into 1-block steps', 'inland sand blobs', 'tall dead-tree pillars'],
+          updates: ['band-aware detail amplitude', 'shoreline-locked beaches', 'dry ravines', 'classic retextures for the big four'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Stats, speed, uploads, roles, dev world',
           desc: 'Leaderboard can never stick on Loading again (public reads for guests, empty-board fallback, timeouts with retry). Big speed pass: smaller shadow maps, no shadow casting for glass/leaves, throttled guarded HUD, cheaper rain/cracks/projection updates. Portal uploads fixed (Firebase SDK was never loaded on the portal page). Impersonation hole closed: dev-name lookalikes can no longer register into powers, and existing copycats are demoted on boot. Dev worlds get /spawn for every mob plus a placeable hour_arena.',
           date: 'Sep 28',
