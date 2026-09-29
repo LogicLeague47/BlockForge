@@ -18,11 +18,12 @@ const ORE_VEINS = [
 
 // Shared river-field helper: BOTH calcHeight (carving) and calcBiome (RIVER
 // tag) must sample the identical field, or carved channels lose their biome.
+// Built from rough single-octave noise (not smoothed fbm): rivers are narrow
+// meandering zero-crossings, so the field must actually REACH zero-crossings
+// instead of hovering near its mean.
 export function riverStrength(n, wx, wz) {
-  const octaves = 4;
-  const riverRaw = n.river(wx * 0.012, wz * 0.012) / octaves;
-  const riverVal = (riverRaw + n.fbm2(n.river, wx * 0.025, wz * 0.025, octaves, 2, 0.5) * 0.5) / 1.5;
-  return 1 - Math.abs(riverVal) * 4;
+  const raw = n.river(wx * 0.006, wz * 0.006) * 0.7 + n.river(wx * 0.021 + 99, wz * 0.021 + 99) * 0.3;
+  return 1 - Math.abs(raw) * 3;
 }
 
 export function calcHeight(n, wx, wz, mode, _cache) {
@@ -67,7 +68,9 @@ export function calcHeight(n, wx, wz, mode, _cache) {
   // ramps up only toward the hills band (tPlain → 1).
   let hPlain = SEA_LEVEL + 2 + tPlain * 5 + detailUp * (1.5 + tPlain * 2.5) * (1 - erosion * 0.5);
   hPlain -= Math.max(0, erosion - 0.25) * 8;
-  if (hPlain < SEA_LEVEL) hPlain = SEA_LEVEL;
+  // Valley bottoms may dip to small lakes — but never into a shelf, or the
+  // whole lowland band reads as beach.
+  if (hPlain < SEA_LEVEL - 1) hPlain = SEA_LEVEL - 1;
   // Hills: rolling base steepening inland + gated ridge peaks + jagged spikes.
   // Peak amplitude scales with inland-ness and the total is hard-capped, so
   // high ground forms broad mountain masses — never stone pillars.
@@ -153,7 +156,7 @@ export function spawnFitness(climate) {
   return dist;
 }
 
-export function calcBiome(n, wx, wz, h, _cache) {
+export function calcBiome(n, wx, wz, h, _cache, mode) {
   // BlockForge-style climate parameters: temperature, humidity, continentalness, erosion
   const t = _cache ? _cache.temp : n.fbm2(n.temp, wx * 0.002, wz * 0.002, 4, 2, 0.5);
   const hu = _cache ? _cache.humid : n.fbm2(n.humid, wx * 0.002, wz * 0.002, 4, 2, 0.5);
@@ -172,32 +175,43 @@ export function calcBiome(n, wx, wz, h, _cache) {
   if (cont < -0.50) return BIOMES.DEEP_OCEAN;
   if (cont < -0.30) return BIOMES.OCEAN;
   
-  // BlockForge beach: hugs the waterline only (narrow window = no inland
-  // sand blobs on flat plains).
-  if (h >= SEA_LEVEL && h <= SEA_LEVEL + 2 && cont < 0.1) return BIOMES.BEACH;
+  // BlockForge beach: hugs the waterline only. Height + continentalness
+  // alone can't tell shoreline from low plains (only ~1 in 8 candidates
+  // actually touches water), so candidates must border a sub-sea column.
+  // Neighbor sampling runs ONLY for candidates, so full-map cost is ~nil.
+  if (h >= SEA_LEVEL && h <= SEA_LEVEL + 1 && cont < 0.0) {
+    const nh1 = calcHeight(n, wx + 8, wz, mode, null);
+    const nh2 = calcHeight(n, wx - 8, wz, mode, null);
+    const nh3 = calcHeight(n, wx, wz + 8, mode, null);
+    const nh4 = calcHeight(n, wx, wz - 8, mode, null);
+    if (Math.min(nh1, nh2, nh3, nh4) < SEA_LEVEL) return BIOMES.BEACH;
+    // Inland low flat — falls through to climate biomes below, not sand.
+  }
   
   // BlockForge Stony Peaks: high continentalness + low erosion
   if (cont > 0.3 && erosion < 0.2) return BIOMES.MOUNTAINS;
   
-  // BlockForge cold biomes: low temperature
-  if (t < -0.4) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
+  // BlockForge cold biomes: low temperature (thresholds matched to the
+  // measured temp distribution, sd≈0.2)
+  if (t < -0.3) return hu > 0.1 ? BIOMES.TAIGA : BIOMES.SNOWY;
 
   // BlockForge swamp: warm-wet lowland flats near sea level (was defined but never returned)
-  if (hu > 0.45 && erosion > 0.3 && h <= SEA_LEVEL + 3 && h >= SEA_LEVEL - 1 && t > -0.2 && t < 0.35) {
+  if (hu > 0.25 && erosion > 0.3 && h <= SEA_LEVEL + 3 && h >= SEA_LEVEL - 1 && t > -0.2 && t < 0.35) {
     return BIOMES.SWAMP;
   }
-  
-  // BlockForge forest biomes: cool to mild with humidity
+
+  // BlockForge forest biomes: cool to mild with humidity (thresholds matched
+  // to the measured humidity distribution)
   if (t < 0.15 && hu > 0.1) {
-    if (hu > 0.4) return BIOMES.DARK_FOREST;
+    if (hu > 0.3) return BIOMES.DARK_FOREST;
     if (hu > 0.2) return BIOMES.FOREST;
     if (hu > 0.1) return BIOMES.BIRCH_FOREST;
   }
-  
+
   // BlockForge warm biomes: high temperature
-  if (t >= 0.15 && t < 0.5) {
+  if (t >= 0.12 && t < 0.5) {
     if (hu < -0.1) return BIOMES.DESERT;
-    if (hu > 0.3) return BIOMES.JUNGLE;
+    if (hu > 0.15) return BIOMES.JUNGLE;
     if (hu > 0.05) return BIOMES.SAVANNA;
   }
   

@@ -58,8 +58,11 @@ export class ViewModel {
   }
 
   _buildArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
-    const mat = new THREE.MeshBasicMaterial({ color: skinColor, fog: false });
-    const matDark = new THREE.MeshBasicMaterial({ color: skinDark, fog: false });
+    // Lambert (not Basic): the hand sits 0.7m from the camera, so flat
+    // shading reads as a solid slab. The overlay scene is tiny — 2 boxes —
+    // so per-pixel lighting here costs nothing measurable.
+    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
 
     this._armGroup = new THREE.Group();
 
@@ -75,8 +78,8 @@ export class ViewModel {
   }
 
   _buildOffhandArmMesh(skinColor = 0xc0906a, skinDark = 0xa87850) {
-    const mat = new THREE.MeshBasicMaterial({ color: skinColor, fog: false });
-    const matDark = new THREE.MeshBasicMaterial({ color: skinDark, fog: false });
+    const mat = new THREE.MeshLambertMaterial({ color: skinColor, fog: false });
+    const matDark = new THREE.MeshLambertMaterial({ color: skinDark, fog: false });
 
     this._ohArmGroup = new THREE.Group();
 
