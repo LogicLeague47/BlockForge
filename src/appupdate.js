@@ -72,7 +72,9 @@ function showPill(asset, plat) {
   pill.id = 'bf-update-pill';
   // int32-max z-index: the main-menu overlay sits above normal UI layers and
   // would otherwise swallow taps on the pill ("tap does nothing").
-  pill.style.cssText = 'position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#1a4a2a,#0d2818);border:1px solid #3a8a5a;border-radius:999px;padding:6px 8px 6px 14px;font:bold 12px monospace;color:#7f7;box-shadow:0 2px 12px rgba(0,0,0,.5);';
+  // Below the notch/status area: top-center pills under the status bar are
+  // unreachable on notched phones ("too high to tap").
+  pill.style.cssText = 'position:fixed;top:max(52px, env(safe-area-inset-top, 0px) + 12px);left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#1a4a2a,#0d2818);border:1px solid #3a8a5a;border-radius:999px;padding:6px 8px 6px 14px;font:bold 12px monospace;color:#7f7;box-shadow:0 2px 12px rgba(0,0,0,.5);';
   const isIOS = plat === 'ios';
   // iOS can't install an IPA from inside the app — open the release page so
   // the file can be saved for AltStore/Sideloadly. Android gets the direct
