@@ -71,6 +71,8 @@ export class PlayerAnimData {
     // Timers
     this.hurtTimer = 0;
     this.celebrateTimer = 0;
+    this.emote = null;   // 'wave' | 'cheer' (player-triggered)
+    this.emoteT = 0;
     this.deathTimer = 0;
     this.landTimer = 0;
     this.fallTimer = 0;
@@ -147,6 +149,7 @@ export class PlayerAnimData {
     // Decay timers
     if (this.hurtTimer > 0) this.hurtTimer = Math.max(0, this.hurtTimer - dt * 4);
     if (this.celebrateTimer > 0) this.celebrateTimer -= dt;
+    if (this.emoteT > 0) { this.emoteT -= dt; if (this.emoteT <= 0) this.emote = null; }
     if (this.landTimer > 0) this.landTimer = Math.max(0, this.landTimer - dt * 4);
 
     // Attack swing timer
@@ -531,6 +534,20 @@ function calcArmPose(state, side) {
     const pump = Math.sin(t * 14) * rad(15);
     armRx = rad(-130) + pump;
     armRz = (isRight ? 1 : -1) * rad(30);
+  }
+
+  // ── Player emote (G key): wave or cheer, overrides other arm poses ──
+  if (state.emote && state.emoteT > 0) {
+    const et = state.emoteT;
+    if (state.emote === 'wave' && isRight) {
+      armRx = rad(-150) + Math.sin(et * 10) * rad(12);
+      armRy = 0;
+      armRz = rad(-15);
+    } else if (state.emote === 'cheer') {
+      armRx = rad(-160) + Math.sin(et * 12) * rad(10);
+      armRy = 0;
+      armRz = (isRight ? 1 : -1) * rad(20);
+    }
   }
 
   // ── Climb ──

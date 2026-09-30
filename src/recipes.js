@@ -530,6 +530,9 @@ export const RECIPES = [
   shaped({ out: { id: I.CHRONO_COIL, count: 1 },
     pattern: [' E ', 'EPE', ' E '], key: { E: I.ECHO_SHARD, P: I.PARADOX_CORE } }),
   shapeless({ out: { id: I.TIME_CELL, count: 2 }, ingredients: [I.ECHO_SHARD, I.PRISMITE] }),
+  // Rift Spark: a pocket rift, no frame required. Single use — right-click
+  // to tear a small rift that lasts ~90 seconds. Step in to dial a year.
+  shapeless({ out: { id: I.RIFT_SPARK, count: 2 }, ingredients: [I.ECHO_SHARD, I.TIME_CELL] }),
 
   // ---- Boat (rideable) ----
   shaped({ out: { id: I.BOAT, count: 1 },

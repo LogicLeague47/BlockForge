@@ -707,6 +707,13 @@ export class PlayerModel {
     this.animData.celebrateTimer = 2.0;
   }
 
+  // Trigger a social emote: 'wave' (right hand) or 'cheer' (both arms).
+  triggerEmote(type) {
+    if (type !== 'wave' && type !== 'cheer') return;
+    this.animData.emote = type;
+    this.animData.emoteT = type === 'wave' ? 2.2 : 1.6;
+  }
+
   // ── Armour overlay rendering ──────────────────────────────────────────
   // armourSlots: [helmetId, chestId, leggingsId, bootsId] (null = empty)
   setArmor(armorSlots, ARMOR) {

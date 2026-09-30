@@ -1362,6 +1362,12 @@ document.addEventListener('mousemove', (e) => {
     toggleReplayMode();
     return;
   }
+  // G = wave emote (rebindable). Visible to you in 3rd person.
+  if (e.code === kb.emote && gameRunning && !ui.inventoryOpen && !chatOpen && playerModel) {
+    e.preventDefault();
+    playerModel.triggerEmote('wave');
+    return;
+  }
   // F5 = cycle camera (1st person → 3rd person back → 3rd person front)
   if (e.code === kb.perspective) {
     e.preventDefault();
@@ -1968,6 +1974,25 @@ document.addEventListener('mousedown', (e) => {
           used = true;
         } else if (hit) {
           addChatLine('No machine here: 5×6 obsidian ring with voidstone corners.', '#fa0');
+          used = true;
+        }
+      }
+
+      // Rift Spark: no frame needed — right-click tears a small pocket
+      // rift (1×2) that lasts ~90 seconds. Step in to open the year dial.
+      if (!used && slot && slot.item === ITEM.RIFT_SPARK) {
+        const hit = currentTarget();
+        if (hit && spawnSparkRift(hit)) {
+          if (player.isSurvival()) {
+            slot.count--;
+            if (slot.count <= 0) player.inventory.slots[player.inventory.selected] = null;
+            syncUIMode();
+          }
+          if (audio) audio.portalOpen?.();
+          addChatLine('⏳ A pocket rift tears open (90s). Step in to choose a year.', '#ffd75a');
+          used = true;
+        } else if (hit) {
+          addChatLine('No room for a rift here — aim at open ground.', '#fa0');
           used = true;
         }
       }
@@ -3125,7 +3150,6 @@ function tryIgniteTimeMachine(hit) {
       } else {
         if (bx !== RING || tx !== RING) return false;
       }
-      void corner;
     }
     for (let yy = y0 + 1; yy <= y0 + 4; yy++) {
       const lx = world.getBlock(sx, yy, sz);
@@ -3143,6 +3167,40 @@ function tryIgniteTimeMachine(hit) {
     }
     manager.refreshAround(Math.floor(sx / CHUNK_SIZE), Math.floor(sz / CHUNK_SIZE));
     return true;
+  }
+}
+
+// Pocket rifts torn by Rift Sparks: {x,y,z} feet cells + expiry seconds.
+// Session-scoped: orphans across a reload simply behave like machine rifts.
+let _sparkRifts = [];
+function spawnSparkRift(hit) {
+  if (!world || !hit || !hit.place) return false;
+  let px = Math.floor(hit.place.x), py = Math.floor(hit.place.y), pz = Math.floor(hit.place.z);
+  // Rise until two headroom cells are air (at most 4 up from the target).
+  for (let up = 0; up < 4; up++) {
+    if (world.getBlock(px, py, pz) === BLOCK.AIR && world.getBlock(px, py + 1, pz) === BLOCK.AIR) break;
+    py++;
+    if (up === 3) return false;
+  }
+  if (py + 1 >= WORLD_HEIGHT - 2) return false;
+  world.setBlock(px, py, pz, BLOCK.TIME_RIFT);
+  world.setBlock(px, py + 1, pz, BLOCK.TIME_RIFT);
+  try { manager.refreshAround(Math.floor(px / CHUNK_SIZE), Math.floor(pz / CHUNK_SIZE)); } catch (_) {}
+  _sparkRifts.push({ x: px, y: py, z: pz, t: 90 });
+  return true;
+}
+function tickSparkRifts(dt) {
+  if (!_sparkRifts.length || !world) return;
+  for (let i = _sparkRifts.length - 1; i >= 0; i--) {
+    const r = _sparkRifts[i];
+    r.t -= dt;
+    if (r.t > 0) continue;
+    try {
+      if (world.getBlock(r.x, r.y, r.z) === BLOCK.TIME_RIFT) world.setBlock(r.x, r.y, r.z, BLOCK.AIR);
+      if (world.getBlock(r.x, r.y + 1, r.z) === BLOCK.TIME_RIFT) world.setBlock(r.x, r.y + 1, r.z, BLOCK.AIR);
+      manager.refreshAround(Math.floor(r.x / CHUNK_SIZE), Math.floor(r.z / CHUNK_SIZE));
+    } catch (_) {}
+    _sparkRifts.splice(i, 1);
   }
 }
 
@@ -3385,7 +3443,7 @@ function questTick(dt) {
       questLog.done.length === 0 && !questLog.active) {
     _tlIntroShown = true;
     addChatLine('⏳ 6000 BC — the First Fields. Your story runs 8,000 years to 2020 AD.', '#ffd75a');
-    addChatLine('⛏ Gather and craft: a Chrono Coil lights a Time Machine (obsidian ring). Step into the rift to choose a year.', '#8af');
+    addChatLine('⛏ Gather and craft: a Chrono Coil lights a Time Machine (obsidian ring) — or spend a Rift Spark to tear a pocket rift anywhere. Step into the rift to choose a year.', '#8af');
     addChatLine('📖 Some years hold a quest — finish it to travel on. The Codex (button in the year dial) keeps every Testimony.', '#8af');
   }
   const aq = questLog.activeQuest();
@@ -3404,6 +3462,20 @@ function questTick(dt) {
   try { achievements.incrementStat('questsDone'); } catch (_) {}
   try { achievements.setStat('testimonies', questLog.testimonies.length); } catch (_) {}
   addChatLine('✅ Quest complete: ' + res.quest.title + ' (+' + cells + ' Time Cells). The year releases you.', '#5f5');
+  // Everyone celebrates: you cheer, and the nearest friendly face cheers too.
+  try { if (playerModel) playerModel.triggerEmote('cheer'); } catch (_) {}
+  try {
+    if (mobManager && player) {
+      let bestM = null, bestD = 144;
+      for (const m of mobManager.mobs) {
+        if (!m || m.dead || (m.type !== 'villager' && m.type !== 'traveler' && m.type !== 'wanderer')) continue;
+        const mdx = m.position.x - player.position.x, mdz = m.position.z - player.position.z;
+        const dd = mdx * mdx + mdz * mdz;
+        if (dd < bestD) { bestD = dd; bestM = m; }
+      }
+      if (bestM && bestM.playEmote) bestM.playEmote('cheer');
+    }
+  } catch (_) {}
   if (res.testimony) {
     addChatLine('📖 Testimony witnessed: ' + res.testimony.title + ' — ' + res.testimony.place + ', ' + formatYear(res.testimony.year) + '.', '#c084fc');
   }
@@ -3751,6 +3823,8 @@ function tickWheatGrowth(dt) {
 function openTravelerTrade(travelerMob) {
   const def = MOB_TYPES.traveler;
   if (!def || !def.trades) return;
+  // The traveler bows as trade opens.
+  try { if (travelerMob && travelerMob.playEmote) travelerMob.playEmote('bow'); } catch (_) {}
   document.exitPointerLock?.();
 
   // Build trade UI
@@ -4592,8 +4666,9 @@ function submitChat() {
       if (cmdPart === 'timekit') {
         player.inventory.add(ITEM.CHRONO_COIL, 1);
         player.inventory.add(ITEM.TIME_CELL, 4);
+        player.inventory.add(ITEM.RIFT_SPARK, 2);
         syncUIMode();
-        addChatLine('⏳ Timekit granted: Chrono Coil + 4 Time Cells.', '#5f5');
+        addChatLine('⏳ Timekit granted: Chrono Coil + 4 Time Cells + 2 Rift Sparks.', '#5f5');
         return;
       }
       if (cmdPart === 'codex') {
@@ -12829,6 +12904,8 @@ function _gameFrame() {
 
   // Timeline quest tick (throttled inside).
   try { questTick(dt); } catch (e) { console.warn('quest tick failed:', e); }
+  // Pocket-rift expiry.
+  try { tickSparkRifts(dt); } catch (e) { console.warn('spark rift tick failed:', e); }
 
   // Auto-save periodically
   autoSaveTimer += dt;

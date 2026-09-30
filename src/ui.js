@@ -236,6 +236,7 @@ export function makeItemIconCanvas(itemId) {
     case 710: drawEchoShard(x); break;
     case 713: drawChronoCoil(x); break;
     case 714: drawTimeCell(x); break;
+    case 715: drawRiftSpark(x); break;
     case 820: drawGrappleHook(x); break;
     case 821: drawFrostWand(x); break;
     case 822: drawEmberLauncher(x); break;
@@ -944,6 +945,18 @@ function drawTimeCell(x) {
   px(x, '#f5c542', 6, 7, 4, 3);     // charge glow
   px(x, '#ffe08a', 6, 7, 4, 1);
   px(x, '#ffffff', 6, 5, 1, 1);     // glint
+}
+function drawRiftSpark(x) {
+  // A cracked echo shard leaking a tiny amber rift-star.
+  px(x, '#3a2a4a', 5, 2, 6, 12);    // shard
+  px(x, '#5a3a6a', 5, 2, 6, 1);
+  px(x, '#241a30', 5, 12, 6, 2);
+  px(x, '#ff5a3c', 7, 4, 2, 1);     // crack ember
+  px(x, '#f5c542', 6, 6, 4, 4);     // rift-star core
+  px(x, '#ffe08a', 7, 7, 2, 2);
+  px(x, '#ffffff', 7, 7, 1, 1);     // glint
+  px(x, '#40e0ff', 4, 7, 1, 2);     // cold sparks
+  px(x, '#40e0ff', 11, 7, 1, 2);
 }
 function drawPrismiteGem(x) {
   // Angular red-green crystalline gem

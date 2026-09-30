@@ -3601,6 +3601,16 @@ class Mob {
     }
   }
 
+  // Trigger a social emote: wave / cheer / bow / hop / dance.
+  // Rendered by the animation block below; safe to call any time.
+  playEmote(type) {
+    if (this.dead) return;
+    const ok = type === 'wave' || type === 'cheer' || type === 'bow' || type === 'hop' || type === 'dance';
+    if (!ok) return;
+    this.emote = type;
+    this.emoteT = 0;
+  }
+
   update(dt, world, noise, playerPos) {
     // Lazy mesh creation: only build the (expensive) mesh once the mob is near
     // the camera. Far-off mobs stay invisible and cost nothing to render.
@@ -3701,6 +3711,16 @@ class Mob {
       } else {
         if (!this._lookAtX) this._lookAtX = 0;
         this._lookAtX *= 0.9;
+      }
+      // Friendly greeting: people mobs wave/bow when you walk up (cooldown).
+      if (!this.dead && !this.emote && (this.type === 'villager' || this.type === 'traveler' ||
+          this.type === 'wanderer' || this.type === 'pixie' || this.type === 'witch')) {
+        this._emoteCooldown = Math.max(0, (this._emoteCooldown || 0) - dt);
+        if (playerDistSq < 20 && this._emoteCooldown <= 0) {
+          this._emoteCooldown = 9 + Math.random() * 6;
+          this.playEmote(this.type === 'traveler' ? 'bow' : 'wave');
+          if (typeof this.onGreet === 'function') { try { this.onGreet(this); } catch (_) {} }
+        }
       }
     }
 
@@ -4079,6 +4099,47 @@ class Mob {
       const moveSway = isMoving ? Math.sin(this.walkPhase * 2) * 0.15 : 0;
       this.cape.rotation.x = windSway + moveSway;
       this.cape.position.y = (def.legH + def.bodyH * 0.45) + Math.sin(t * 1.8) * 0.02;
+    }
+
+    // ── Emotes: wave / cheer / bow / hop / dance (people mobs) ──
+    // Runs after swing/attack/hurt so the gesture reads clearly.
+    if (this.emote && !this.dead && bipedal && this.legs.length >= 4) {
+      const EDUR = { wave: 2.2, cheer: 1.6, bow: 1.4, hop: 0.7, dance: 3.0 };
+      const dur = EDUR[this.emote] || 1.5;
+      this.emoteT = (this.emoteT || 0) + dt;
+      const k = this.emoteT / dur;
+      const armR = this.legs[this.legs.length - 2];
+      const armL = this.legs[this.legs.length - 1];
+      if (this.emote === 'wave') {
+        armR.rotation.x = -2.2 + Math.sin(t * 10) * 0.35;
+        armR.rotation.z = -0.3;
+        headAnimRy += Math.sin(t * 5) * 0.12;
+      } else if (this.emote === 'cheer') {
+        const w = Math.sin(t * 12) * 0.25;
+        armR.rotation.x = -2.6 + w;
+        armL.rotation.x = -2.6 - w;
+        armR.rotation.z = -0.25;
+        armL.rotation.z = 0.25;
+        this.mesh.position.y += Math.abs(Math.sin(this.emoteT * 10)) * 0.22;
+        headAnimRx -= 0.2;
+      } else if (this.emote === 'bow') {
+        const bend = Math.sin(Math.min(1, k) * Math.PI) * 0.6;
+        if (bodyChild) bodyChild.rotation.x += bend;
+        armR.rotation.x = 0.25;
+        armL.rotation.x = 0.25;
+        headAnimRx += bend * 0.5;
+      } else if (this.emote === 'hop') {
+        this.mesh.position.y += Math.sin(Math.min(1, k) * Math.PI) * 0.4;
+        armR.rotation.z = -0.4;
+        armL.rotation.z = 0.4;
+      } else if (this.emote === 'dance') {
+        armR.rotation.x = -1.2 + Math.sin(t * 8) * 1.0;
+        armL.rotation.x = -1.2 - Math.sin(t * 8) * 1.0;
+        if (bodyChild) bodyChild.rotation.z = Math.sin(t * 4) * 0.15;
+        this.mesh.position.y += Math.abs(Math.sin(t * 8)) * 0.1;
+        headAnimRy += Math.sin(t * 4) * 0.2;
+      }
+      if (k >= 1) { this.emote = null; this.emoteT = 0; }
     }
 
     // ── Apply head rotation: combine look-at-player + animation offsets ──

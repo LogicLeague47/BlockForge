@@ -24,6 +24,7 @@ export const KEYBIND_ACTIONS = [
   { id: 'perspective', label: 'Toggle Perspective' },
   { id: 'debug',       label: 'Debug Overlay' },
   { id: 'voice',       label: 'Voice Chat Menu' },
+  { id: 'emote',       label: 'Wave Emote' },
   { id: 'replay',      label: 'Toggle Replay Camera' },
 ];
 
@@ -45,6 +46,7 @@ export const DEFAULT_KEYBINDS = {
   debug: 'F3',
   voice: 'KeyV',
   replay: 'KeyZ',
+  emote: 'KeyG',
 };
 
 let binds = loadBinds();

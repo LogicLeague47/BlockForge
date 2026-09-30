@@ -116,6 +116,7 @@ export const ITEM = {
   // The Long Now — time travel (713+)
   CHRONO_COIL: 713,
   TIME_CELL: 714,
+  RIFT_SPARK: 715,
   // Spawn Eggs (800+)
   COW_SPAWN_EGG: 800,
   PIG_SPAWN_EGG: 801,
@@ -338,6 +339,7 @@ const NONBLOCK_ITEMS = {
   [ITEM.ECHO_SHARD]: { name: 'Echo Shard', stack: 64 },
   [ITEM.CHRONO_COIL]: { name: 'Chrono Coil', stack: 1 },
   [ITEM.TIME_CELL]: { name: 'Time Cell', stack: 16 },
+  [ITEM.RIFT_SPARK]: { name: 'Rift Spark', stack: 16 },
   [ITEM.COW_SPAWN_EGG]: { name: 'Cow Spawn Egg', stack: 64 },
   [ITEM.PIG_SPAWN_EGG]: { name: 'Pig Spawn Egg', stack: 64 },
   [ITEM.SHEEP_SPAWN_EGG]: { name: 'Sheep Spawn Egg', stack: 64 },
@@ -586,6 +588,7 @@ const ITEM_RARITY = {
   [ITEM.DRAGON_BLADE]: 'MYTHIC',
   [ITEM.CHRONO_COIL]: 'MYTHIC',
   [ITEM.TIME_CELL]: 'EPIC',
+  [ITEM.RIFT_SPARK]: 'RARE',
   [ITEM.DRAGON_SCALES]: 'EPIC',
   [ITEM.DRAGON_HEART]: 'LEGENDARY',
   [ITEM.PORTAL_ORB]: 'EPIC',
