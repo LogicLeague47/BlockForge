@@ -1548,6 +1548,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Update button downloads in-app',
+          desc: 'The ⬆ UPDATE button now grabs the build itself: tap it and Android downloads the APK with a progress notification, then opens the installer — no browser detour. The pill also moved below the notch so it can actually be tapped.',
+          date: 'Sep 30',
+          bugs: ['tap did nothing on some installs (browser/custom-tab path unreliable)', 'pill sat under the notch/status area'],
+          updates: ['native DownloadManager + install prompt plugin', 'pill position + tap feedback'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Mods update themselves + build pipeline rule',
           desc: 'Official mods now show an ⬆ UPDATE button in the Mods menu when your installed copy lags behind — one tap pulls the fixed version (Java Bridge is now v1.1, pointed at the live backend). Also locked in the rule that every push auto-builds fresh APK/IPA releases, since the in-app updater depends on them.',
           date: 'Sep 30',

@@ -8,6 +8,7 @@
 // app. After a real update the new bundle's timestamp is >= the asset's, so
 // the pill never re-nags; ✕ snoozes that version.
 import { Browser } from '@capacitor/browser';
+import { registerPlugin } from '@capacitor/core';
 
 const REPO = 'LogicLeague47/BlockForge';
 const SEEN_KEY = 'bf_upd_seen';
@@ -58,12 +59,33 @@ function markSeen(asset) {
   try { localStorage.setItem(SEEN_KEY, asset.updated_at); } catch (_) {}
 }
 
-async function openDownload(url) {
+async function openDownload(url, fileName) {
+  const plat = nativePlatform();
+  // Android: grab the build directly inside the app (system DownloadManager
+  // + install prompt). No browser, no taps lost in Custom Tabs.
+  if (plat === 'android') {
+    try {
+      const BFUpdate = registerPlugin('BFUpdate');
+      await BFUpdate.downloadAndInstall({ url, fileName: fileName || 'BlockForge-android.apk' });
+      miniToast('Downloading update — tap the notification to install.');
+      return 'downloading';
+    } catch (_) { /* fall through to browser */ }
+  }
   try {
-    await Browser.open({ url, windowName: '_system' });
-    return;
+    await Browser.open({ url });
+    return 'opened';
   } catch (_) { /* fall through to in-page navigation */ }
-  try { window.location.href = url; } catch (_) {}
+  try { window.location.href = url; return 'navigated'; } catch (_) { return 'failed'; }
+}
+
+function miniToast(msg) {
+  try {
+    const t = document.createElement('div');
+    t.style.cssText = 'position:fixed;left:50%;bottom:70px;transform:translateX(-50%);z-index:2147483647;background:rgba(10,20,12,0.95);border:1px solid #3a8a5a;border-radius:10px;padding:8px 16px;font:bold 12px monospace;color:#7f7;box-shadow:0 2px 12px rgba(0,0,0,.5);';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => { try { t.remove(); } catch (_) {} }, 5000);
+  } catch (_) {}
 }
 
 function showPill(asset, plat) {
@@ -87,12 +109,22 @@ function showPill(asset, plat) {
     : 'New build available — downloads the APK so you can install the update';
   btn.style.cssText = 'background:#3a8a5a;color:#fff;border:none;padding:4px 12px;border-radius:999px;font:bold 12px monospace;cursor:pointer;';
   btn.onclick = () => {
-    btn.textContent = 'OPENING…';
+    btn.textContent = 'STARTING…';
     btn.disabled = true;
     markSeen(asset);
-    openDownload(url).then(() => {
-      btn.textContent = '⬆ UPDATE';
-      btn.disabled = false;
+    openDownload(url, asset.name).then((st) => {
+      if (st === 'downloading') {
+        // In-app download running — keep the pill as a live state chip.
+        btn.textContent = '⬇ DOWNLOADING…';
+        btn.disabled = false;
+        btn.onclick = () => { miniToast('Still downloading — check your notifications.'); };
+      } else if (st === 'failed') {
+        btn.textContent = '⬆ UPDATE';
+        btn.disabled = false;
+        miniToast('Could not open download. Try Settings → Check for updates.');
+      } else {
+        pill.remove();
+      }
     });
   };
   const x = document.createElement('button');
