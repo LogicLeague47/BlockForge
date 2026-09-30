@@ -3163,8 +3163,8 @@ function executeTimeJump(targetYear) {
   }
   // LOCK: an unclaimed quest in the CURRENT year holds you here.
   const lockQ = questLog.activeQuest() || (function () {
-    const qq = questForYear(world.year);
-    return (qq && !questLog.done.includes(qq.id)) ? qq : null;
+    const qq = questForYear(world.year, questLog.done);
+    return (qq && qq.lock !== false && !questLog.done.includes(qq.id)) ? qq : null;
   })();
   if (questLog.lockedFor(world.year) && lockQ) {
     addChatLine('⏳ The year holds you: finish "' + lockQ.title + '" first. (See Codex: ' + lockQ.objectives.map(o => o.text).join(' · ') + ')', '#fa5');

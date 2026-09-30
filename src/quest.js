@@ -6,7 +6,7 @@
 //
 // Quest state lives in the world save blob (see main.js save/load).
 
-import { QUESTS, questForYear, testimonyById, formatYear } from './timeline.js';
+import { QUESTS, ALL_QUESTS, questForYear, testimonyById, formatYear } from './timeline.js';
 
 function mapDelta(now, base) {
   let d = 0;
@@ -44,7 +44,7 @@ export class QuestLog {
   }
 
   questById(qid) {
-    return QUESTS.find(q => q.id === qid) || null;
+    return ALL_QUESTS.find(q => q.id === qid) || null;
   }
 
   // Called on arrival in a year. Returns the assigned quest, or null (free).
@@ -52,7 +52,7 @@ export class QuestLog {
     // Stale lock from a previous visit can never strand the player: if the
     // active quest belongs to a different year, keep tracking it but do not
     // block — only the CURRENT year's unclaimed quest locks departures.
-    const q = questForYear(year);
+    const q = questForYear(year, this.done);
     if (!q || this.done.includes(q.id)) return null;
     const s = stats || {};
     this.active = {
@@ -70,11 +70,12 @@ export class QuestLog {
     return this.questById(this.active.qid);
   }
 
-  // True while the CURRENT year holds an unclaimed quest.
-  // (Foreign active quests never block — see onArrive.)
+  // True while the CURRENT year holds an unclaimed LOCKING quest.
+  // (Foreign active quests never block — see onArrive. Optional wayfarer
+  // quests never lock: they pay cells but you may always travel on.)
   lockedFor(year) {
-    const q = questForYear(year);
-    return !!(q && !this.done.includes(q.id));
+    const q = questForYear(year, this.done);
+    return !!(q && q.lock !== false && !this.done.includes(q.id));
   }
 
   // Per-objective live progress. api: {invCount(item)->n}
