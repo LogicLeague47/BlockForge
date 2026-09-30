@@ -70,14 +70,29 @@ function showPill(asset, plat) {
   if (document.getElementById('bf-update-pill')) return;
   const pill = document.createElement('div');
   pill.id = 'bf-update-pill';
-  pill.style.cssText = 'position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:99999;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#1a4a2a,#0d2818);border:1px solid #3a8a5a;border-radius:999px;padding:6px 8px 6px 14px;font:bold 12px monospace;color:#7f7;box-shadow:0 2px 12px rgba(0,0,0,.5);';
+  // int32-max z-index: the main-menu overlay sits above normal UI layers and
+  // would otherwise swallow taps on the pill ("tap does nothing").
+  pill.style.cssText = 'position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:2147483647;display:flex;align-items:center;gap:8px;background:linear-gradient(180deg,#1a4a2a,#0d2818);border:1px solid #3a8a5a;border-radius:999px;padding:6px 8px 6px 14px;font:bold 12px monospace;color:#7f7;box-shadow:0 2px 12px rgba(0,0,0,.5);';
+  const isIOS = plat === 'ios';
+  // iOS can't install an IPA from inside the app — open the release page so
+  // the file can be saved for AltStore/Sideloadly. Android gets the direct
+  // APK (Custom Tabs auto-downloads it).
+  const url = isIOS ? 'https://github.com/' + REPO + '/releases/tag/binaries' : asset.browser_download_url;
   const btn = document.createElement('button');
   btn.textContent = '⬆ UPDATE';
-  btn.title = plat === 'ios'
-    ? 'New build available — opens in Safari so you can re-sideload it'
+  btn.title = isIOS
+    ? 'New build available — opens the release page so you can re-sideload it'
     : 'New build available — downloads the APK so you can install the update';
   btn.style.cssText = 'background:#3a8a5a;color:#fff;border:none;padding:4px 12px;border-radius:999px;font:bold 12px monospace;cursor:pointer;';
-  btn.onclick = () => { markSeen(asset); pill.remove(); openDownload(asset.browser_download_url); };
+  btn.onclick = () => {
+    btn.textContent = 'OPENING…';
+    btn.disabled = true;
+    markSeen(asset);
+    openDownload(url).then(() => {
+      btn.textContent = '⬆ UPDATE';
+      btn.disabled = false;
+    });
+  };
   const x = document.createElement('button');
   x.textContent = '✕';
   x.title = 'Dismiss this update';
@@ -116,6 +131,17 @@ function showWebBar(asset) {
 }
 
 export function checkAppUpdate() {
+  runCheck(false);
+}
+
+// Manual re-check (Settings button): bypasses the dismissed-version memory.
+export function forceCheckAppUpdate() {
+  try { localStorage.removeItem(SEEN_KEY); } catch (_) {}
+  try { const p = document.getElementById('bf-update-pill'); if (p) p.remove(); } catch (_) {}
+  runCheck(true);
+}
+
+function runCheck(manual) {
   try {
     if (/crazygames/i.test(location.hostname || '')) return;
     const plat = nativePlatform();

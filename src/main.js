@@ -55,7 +55,7 @@ import { buildSkyblockMap, clearSkyblock, SB_SPAWN, SB_VOID_BELOW, SB_STARTER_KI
 import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged } from './liquid.js';
 import { GreenstoneSystem } from './greenstone.js';
 import { initMods, bindModsMenu, modsTick, setAtlasTexture, hasGameplayMods, getModBlocks, getModItems, getModMobs, getModButtons } from './mods.js';
-import { checkAppUpdate } from './appupdate.js';
+import { checkAppUpdate, forceCheckAppUpdate } from './appupdate.js';
 import { perfTick, setCheapShadows, isCheapShadows, clearPerf } from './perfopt.js';
 import { matchmaker } from './matchmaker.js';
 import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
@@ -8583,6 +8583,13 @@ function initMenu() {
         showToast(e.target.checked ? 'Cheap shadows ON — blob shadows, faster.' : 'Cheap shadows OFF — real PCF shadows.', '#8f8', 3);
       });
     }
+  } catch (_) {}
+  // Manual update re-check (same pill, bypasses dismissal).
+  try {
+    document.getElementById('btn-check-update')?.addEventListener('click', () => {
+      showToast('Checking for updates…', '#8f8', 2);
+      try { forceCheckAppUpdate(); } catch (_) {}
+    });
   } catch (_) {}
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
