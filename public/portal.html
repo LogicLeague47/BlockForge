@@ -1213,7 +1213,7 @@
         if (!apkBtn) return;
         var apkUrl = null;
         apkBtn.title = 'Android APK — checking for build...';
-        fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
+        fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/tags/binaries', { mode: 'cors' })
           .then(function(r) { return r.json(); })
           .then(function(d) {
             if (d && d.assets && d.assets.length) {
@@ -1546,6 +1546,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Update button serves the right APK',
+          desc: 'The in-app updater and the portal download button now read the binaries release directly, so you always get the fresh official APK/IPA instead of whatever the latest CI tag happens to carry.',
+          date: 'Sep 30',
+          bugs: ['releases/latest usually points at an android-build tag (stale debug APK)'],
+          updates: ['updater + portal pin releases/tags/binaries with exact asset names'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'Backend is LIVE on Cloudflare + JOIN button',

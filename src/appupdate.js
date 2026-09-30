@@ -33,16 +33,13 @@ function buildTS() {
 
 function pickAsset(assets, plat) {
   if (!Array.isArray(assets) || !assets.length) return null;
-  const byDate = (list) => list.sort((a, b) => String(b.updated_at || '').localeCompare(String(a.updated_at || '')));
+  // Exact official binaries only — never fall back to CI debug artifacts
+  // (releases/latest is usually an android-build tag carrying app-debug.apk).
   if (plat === 'android' || plat === 'android-web') {
-    const exact = assets.find((a) => /^BlockForge-android\.apk$/i.test(a.name || ''));
-    if (exact) return exact;
-    return byDate(assets.filter((a) => /\.apk$/i.test(a.name || '')))[0] || null;
+    return assets.find((a) => /^BlockForge-android\.apk$/i.test(a.name || '')) || null;
   }
   if (plat === 'ios') {
-    const exact = assets.find((a) => /blockforge-iphone-ipa\.ipa$/i.test(a.name || ''));
-    if (exact) return exact;
-    return byDate(assets.filter((a) => /\.ipa$/i.test(a.name || '')))[0] || null;
+    return assets.find((a) => /blockforge-iphone-ipa\.ipa$/i.test(a.name || '')) || null;
   }
   return null;
 }
@@ -123,7 +120,7 @@ export function checkAppUpdate() {
     if (/crazygames/i.test(location.hostname || '')) return;
     const plat = nativePlatform();
     if (plat === 'other') return;
-    fetch('https://api.github.com/repos/' + REPO + '/releases/latest', { mode: 'cors' })
+    fetch('https://api.github.com/repos/' + REPO + '/releases/tags/binaries', { mode: 'cors' })
       .then((r) => r.json())
       .then((d) => {
         if (!d || !d.assets) return;
