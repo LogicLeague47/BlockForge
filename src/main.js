@@ -12,6 +12,8 @@ import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor, slabVariantFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
+import { QuestLog, questGreeting } from './quest.js';
+import { yearToEra, formatYear, questForYear, testimonyById, YEAR_MIN, YEAR_MAX, ERAS, TESTIMONIES } from './timeline.js';
 import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
@@ -828,6 +830,9 @@ let _portalOrbs = [];
 
 // Boss state
 let bossActive = false, bossEntity = null, bossSpawnTimer = 0, bossAttackTimer = 0;
+// ── The Long Now (time travel) ──
+const questLog = new QuestLog();
+let _timeDialYear = 2020; // year currently shown in the dial
 // ── The Sundered Hour (endgame boss chain) ──
 const HOUR = { x: 12000, y: 140, z: 12000, r: 16 };
 let hourActive = false, hourEntity = null, hourPhase = 0;
@@ -1956,6 +1961,20 @@ document.addEventListener('mousedown', (e) => {
             syncUIMode();
           }
           if (audio) audio.portalOpen?.();
+          used = true;
+        }
+      }
+
+      // Chrono Coil: light a 5x6 obsidian Time Machine frame (voidstone
+      // corners), then step into the rift to open the year dial.
+      if (!used && slot && slot.item === ITEM.CHRONO_COIL) {
+        const hit = currentTarget();
+        if (hit && tryIgniteTimeMachine(hit)) {
+          if (audio) audio.portalOpen?.();
+          addChatLine('⏳ The machine hums. Step into the rift to choose a year.', '#ffd75a');
+          used = true;
+        } else if (hit) {
+          addChatLine('No machine here: 5×6 obsidian ring with voidstone corners.', '#fa0');
           used = true;
         }
       }
@@ -3247,6 +3266,312 @@ function tryIgniteVoidPortal(hit) {
   }
 }
 
+// ── The Long Now: Time Machine ─────────────────────────────────────
+// 5-wide x 6-tall OBSIDIAN ring with COMPRESSED_VOIDSTONE corners.
+// Right-click the frame with a Chrono Coil to light a TIME_RIFT and open
+// the year dial. Stepping into the rift reopens the dial.
+function tryIgniteTimeMachine(hit) {
+  if (!world) return false;
+  const RING = BLOCK.OBSIDIAN, KEY = BLOCK.COMPRESSED_VOIDSTONE, P = BLOCK.TIME_RIFT;
+  for (const horizontal of [true, false]) {
+    const wx = horizontal ? 1 : 0;
+    const wz = horizontal ? 0 : 1;
+    for (let dx = -7; dx <= 7; dx++) {
+      for (let dy = -6; dy <= 5; dy++) {
+        const sx = hit.x + (horizontal ? dx : 0);
+        const sz = hit.z + (horizontal ? 0 : dx);
+        const y0 = hit.y + dy;
+        if (validateTimeFrame(sx, sz, y0, wx, wz)) return true;
+      }
+    }
+  }
+  return false;
+
+  function validateTimeFrame(sx, sz, y0, wx, wz) {
+    // 5 wide (x) x 6 tall (y0..y0+5): obsidian border, voidstone corners,
+    // 3x4 empty interior.
+    for (let i = 0; i < 5; i++) {
+      const bx = world.getBlock(sx + wx * i, y0, sz + wz * i);
+      const tx = world.getBlock(sx + wx * i, y0 + 5, sz + wz * i);
+      if (i === 0 || i === 4) {
+        if (bx !== KEY || tx !== KEY) return false;
+      } else {
+        if (bx !== RING || tx !== RING) return false;
+      }
+      void corner;
+    }
+    for (let yy = y0 + 1; yy <= y0 + 4; yy++) {
+      const lx = world.getBlock(sx, yy, sz);
+      const rx = world.getBlock(sx + wx * 4, yy, sz + wz * 4);
+      if (lx !== RING || rx !== RING) return false;
+      for (let i = 1; i < 4; i++) {
+        if (world.getBlock(sx + wx * i, yy, sz + wz * i) !== BLOCK.AIR) return false;
+      }
+    }
+    // Light it: fill the 3x4 interior with TIME_RIFT.
+    for (let yy = y0 + 1; yy <= y0 + 4; yy++) {
+      for (let i = 1; i < 4; i++) {
+        world.setBlock(sx + wx * i, yy, sz + wz * i, P);
+      }
+    }
+    manager.refreshAround(Math.floor(sx / CHUNK_SIZE), Math.floor(sz / CHUNK_SIZE));
+    return true;
+  }
+}
+
+function timeJumpCost(fromY, toY) {
+  return 1 + Math.floor(Math.abs(toY - fromY) / 2000);
+}
+
+function timelineLocked() {
+  return world && !world.dimension && questLog.lockedFor(world.year);
+}
+
+function executeTimeJump(targetYear) {
+  if (!world || !player) return;
+  targetYear = Math.max(YEAR_MIN, Math.min(YEAR_MAX, Math.round(targetYear)));
+  if (targetYear === world.year) {
+    addChatLine('The dial is already tuned here — ' + formatYear(world.year) + '.', '#8af');
+    return;
+  }
+  // LOCK: an unclaimed quest in the CURRENT year holds you here.
+  const lockQ = questLog.activeQuest() || (function () {
+    const qq = questForYear(world.year);
+    return (qq && !questLog.done.includes(qq.id)) ? qq : null;
+  })();
+  if (questLog.lockedFor(world.year) && lockQ) {
+    addChatLine('⏳ The year holds you: finish "' + lockQ.title + '" first. (See Codex: ' + lockQ.objectives.map(o => o.text).join(' · ') + ')', '#fa5');
+    if (audio && audio.deny) { try { audio.deny(); } catch (_) {} }
+    openCodex();
+    return;
+  }
+  const cost = timeJumpCost(world.year, targetYear);
+  const have = player.inventory ? player.inventory.count(ITEM.TIME_CELL) : 0;
+  if (have < cost) {
+    addChatLine('⏳ The machine needs ' + cost + ' Time Cell' + (cost > 1 ? 's' : '') + ' — you carry ' + have + '. Quest rewards and crafting pay cells.', '#fa5');
+    return;
+  }
+  player.inventory.remove(ITEM.TIME_CELL, cost);
+  try { syncUIMode(); } catch (_) {}
+  applyYearChange(targetYear);
+}
+
+// The effect half of a time jump (shared by paid jumps and dev jumps).
+function applyYearChange(targetYear) {
+  const fromYear = world.year;
+  world.swapEraEdits(fromYear, targetYear);
+  // Regenerate the world under the new year: drop cached chunks + meshes,
+  // then re-prime around the player (same spot, different millennium).
+  try {
+    if (manager) manager.clear();
+    world.chunks.clear();
+    const pcx = Math.floor(player.position.x / CHUNK_SIZE);
+    const pcz = Math.floor(player.position.z / CHUNK_SIZE);
+    for (let _dz = -2; _dz <= 2; _dz++)
+      for (let _dx = -2; _dx <= 2; _dx++) {
+        world.getChunk(pcx + _dx, pcz + _dz, true);
+        if (manager) manager.markDirty(pcx + _dx, pcz + _dz);
+      }
+    if (manager) manager.update();
+  } catch (e) { console.error('Era remesh failed:', e); }
+  player.velocity.set(0, 0, 0);
+  player.fallStartY = -1;
+  if (audio) { try { audio.portalOpen?.(); } catch (_) {} }
+  try { achievements.incrementStat('timeJumps'); } catch (_) {}
+  const era = yearToEra(targetYear);
+  addChatLine('⏳ ' + formatYear(fromYear) + ' → ' + formatYear(targetYear) + ' — ' + era.name + '. ' + era.note, '#ffd75a');
+  // Assign this year's quest (or travel free).
+  const q = questLog.onArrive(targetYear, achievements.stats, player.position.x, player.position.z);
+  if (q) {
+    const g = questGreeting(q, targetYear);
+    if (g) addChatLine(g, '#8af');
+    addChatLine('Complete it to leave this year. Reward: ' + (q.reward.cells || 1) + ' Time Cells, guaranteed way home.', '#8af');
+    try { achievements.incrementStat('questsTaken'); } catch (_) {}
+    openCodex();
+  }
+  try { saveCurrentWorld(); } catch (_) {}
+}
+
+// ── Year dial + Codex UI ───────────────────────────────────────────
+let _dialWired = false;
+
+function parseYearInput(str) {
+  if (!str) return null;
+  const s = String(str).trim().toUpperCase();
+  const m = s.match(/^(-?\d+)\s*(BC|AD|BCE|CE)?$/);
+  if (!m) return null;
+  let y = parseInt(m[1], 10);
+  const suffix = m[2] || '';
+  if (suffix.startsWith('B')) y = -Math.abs(y);
+  else if (y < 0) y = y; // explicit negative stays BC
+  else if (suffix === '' && y > 2020) return null;
+  if (y === 0) y = -1;
+  if (y < YEAR_MIN || y > YEAR_MAX) return null;
+  return y;
+}
+
+function refreshDialCost() {
+  const costEl = document.getElementById('time-dial-cost');
+  if (!costEl || !world) return;
+  const t = _timeDialYear;
+  if (t === world.year) {
+    costEl.textContent = 'Tuned here — ' + formatYear(world.year) + '. Pick another year to travel.';
+    return;
+  }
+  const cost = timeJumpCost(world.year, t);
+  const have = player && player.inventory ? player.inventory.count(ITEM.TIME_CELL) : 0;
+  const lock = questLog.lockedFor(world.year);
+  costEl.textContent = formatYear(world.year) + ' → ' + formatYear(t) + ' · ' + cost + ' cell' + (cost > 1 ? 's' : '') +
+    ' (carrying ' + have + ')' + (lock ? ' · ⏳ LOCKED: finish this year\'s quest first' : '');
+}
+
+function openTimeDial() {
+  const el = document.getElementById('time-dial');
+  if (!el || !world) return;
+  document.getElementById('time-dial-now').textContent = formatYear(world.year) + ' — ' + yearToEra(world.year).name;
+  _timeDialYear = Math.max(YEAR_MIN, Math.min(YEAR_MAX, _timeDialYear));
+  const box = document.getElementById('time-dial-eras');
+  if (box && !box.dataset.built) {
+    box.dataset.built = '1';
+    for (const e of ERAS) {
+      const b = document.createElement('button');
+      b.textContent = e.name;
+      b.title = formatYear(e.from) + ' – ' + formatYear(e.to);
+      b.style.cssText = 'padding:8px 6px;font:11px monospace;color:#e8dcc0;background:rgba(245,197,66,0.08);border:1px solid rgba(245,197,66,0.3);border-radius:6px;cursor:pointer;';
+      b.addEventListener('click', () => {
+        _timeDialYear = Math.round((e.from + e.to) / 2);
+        const inp = document.getElementById('time-dial-input');
+        if (inp) inp.value = String(_timeDialYear);
+        refreshDialCost();
+      });
+      box.appendChild(b);
+    }
+  }
+  refreshDialCost();
+  el.style.display = 'flex';
+  if (!_dialWired) {
+    _dialWired = true;
+    document.getElementById('time-dial-close')?.addEventListener('click', () => {
+      document.getElementById('time-dial').style.display = 'none';
+    });
+    document.getElementById('time-dial-codex')?.addEventListener('click', () => {
+      document.getElementById('time-dial').style.display = 'none';
+      openCodex();
+    });
+    document.getElementById('time-dial-input')?.addEventListener('input', (e) => {
+      const y = parseYearInput(e.target.value);
+      if (y != null) { _timeDialYear = y; refreshDialCost(); }
+    });
+    document.getElementById('time-dial-go')?.addEventListener('click', () => {
+      const inp = document.getElementById('time-dial-input');
+      const y = inp ? parseYearInput(inp.value) : null;
+      document.getElementById('time-dial').style.display = 'none';
+      executeTimeJump(y != null ? y : _timeDialYear);
+    });
+  }
+}
+
+function questApi() {
+  return {
+    invCount: (id) => (player && player.inventory) ? player.inventory.count(id) : 0,
+    stats: () => (achievements ? achievements.stats : {}),
+    biomeAt: () => {
+      try {
+        return calcBiome(world.noise, Math.floor(player.position.x), Math.floor(player.position.z),
+          Math.floor(player.position.y), null);
+      } catch (_) { return -1; }
+    },
+    distFromJump: () => {
+      const a = questLog.active;
+      if (!a || !player) return 0;
+      const dx = player.position.x - a.jumpX, dz = player.position.z - a.jumpZ;
+      return Math.sqrt(dx * dx + dz * dz);
+    },
+  };
+}
+
+function describeObjective(o, prog) {
+  const label = { collect: 'Gather', craft: 'Craft', kill: 'Defeat', place: 'Place', biome: 'Reach', travel: 'Travel' }[o.t] || 'Do';
+  const target = o.text || '';
+  const mark = prog.done ? '✓ ' : '· ';
+  const count = (o.t === 'collect' || o.t === 'craft' || o.t === 'kill' || o.t === 'place' || o.t === 'travel')
+    ? ` (${prog.have}/${o.n || o.dist})` : '';
+  return mark + label + ': ' + target + count;
+}
+
+function openCodex() {
+  const el = document.getElementById('time-codex');
+  if (!el || !world) return;
+  document.getElementById('codex-year').textContent = formatYear(world.year) + ' — ' + yearToEra(world.year).name;
+  const qbox = document.getElementById('codex-quest');
+  const aq = questLog.activeQuest();
+  if (qbox) {
+    if (aq) {
+      const prog = questLog.progress(aq, questApi());
+      qbox.innerHTML = '<b>📜 ' + aq.title + '</b><br>' + aq.brief +
+        '<br><br>' + prog.map(p => describeObjective(p, p)).join('<br>') +
+        '<br><br><i>Finish to leave this year. Reward: ' + (aq.reward.cells || 1) + ' Time Cells.</i>';
+    } else if (questLog.lockedFor(world.year)) {
+      qbox.innerHTML = '<b>⏳ This year holds you.</b><br>Speak to the Codex again after exploring — a task will find you.';
+    } else {
+      qbox.innerHTML = '<b>✦ Free years.</b><br>No quest binds this time. Travel as you please — jumps still cost cells.';
+    }
+  }
+  const list = document.getElementById('codex-list');
+  if (list) {
+    list.innerHTML = '';
+    for (const t of TESTIMONIES) {
+      const found = questLog.testimonies.includes(t.id);
+      const row = document.createElement('div');
+      row.style.cssText = 'background:rgba(150,100,255,0.06);border:1px solid rgba(150,100,255,0.25);border-radius:8px;padding:10px 12px;cursor:pointer;';
+      row.innerHTML = '<b style="color:' + (found ? '#ffe9b0' : '#6a6a88') + ';">' + (found ? '📖 ' : '◻ ') + t.title + '</b>' +
+        '<span style="color:#8a8074;font:11px monospace;"> — ' + t.place + ', ' + formatYear(t.year) + '</span>' +
+        (found ? '<div style="font:13px/1.6 Georgia,serif;color:#d8cbb2;margin-top:6px;">' + t.text + '</div>' +
+          '<div style="font:11px monospace;color:#8a8074;margin-top:4px;">See also: ' + t.refs.join(', ') + '</div>' : '');
+      if (found) {
+        const bodies = [...row.querySelectorAll('div')];
+        row.addEventListener('click', () => {
+          for (const d of bodies) d.style.display = d.style.display === 'none' ? '' : 'none';
+        });
+      }
+      list.appendChild(row);
+    }
+  }
+  el.style.display = 'flex';
+  const closeBtn = document.getElementById('time-codex-close');
+  if (closeBtn && !closeBtn.dataset.wired) {
+    closeBtn.dataset.wired = '1';
+    closeBtn.addEventListener('click', () => { el.style.display = 'none'; });
+  }
+}
+
+// Throttled quest check: progress, completion, rewards.
+let _questTick = 0;
+function questTick(dt) {
+  _questTick -= dt;
+  if (_questTick > 0 || !world || !player) return;
+  _questTick = 0.5;
+  const aq = questLog.activeQuest();
+  if (!aq) return;
+  let res = null;
+  try { res = questLog.checkDone(aq, questApi()); } catch (e) { console.warn('quest check failed:', e); }
+  if (!res) return;
+  const cells = (res.quest.reward && res.quest.reward.cells) || 1;
+  try {
+    const left = player.inventory.add(ITEM.TIME_CELL, cells);
+    if (left > 0 && droppedItemManager) {
+      droppedItemManager.drop(ITEM.TIME_CELL, left, player.position.x, player.position.y + 1, player.position.z);
+    }
+    syncUIMode();
+  } catch (_) {}
+  try { achievements.incrementStat('questsDone'); } catch (_) {}
+  addChatLine('✅ Quest complete: ' + res.quest.title + ' (+' + cells + ' Time Cells). The year releases you.', '#5f5');
+  if (res.testimony) {
+    addChatLine('📖 Testimony witnessed: ' + res.testimony.title + ' — ' + res.testimony.place + ', ' + formatYear(res.testimony.year) + '.', '#c084fc');
+  }
+  try { saveCurrentWorld(); } catch (_) {}
+}
+
 function placeBlock(slotOverride, targetHit) {
   if (player && player.isAdventure()) return;
   if (isBedwars && bwSpec) return; // bedwars spectator can't place
@@ -4407,10 +4732,67 @@ function submitChat() {
       addChatLine(`Placed ${name} at (${ox}, ${oy}, ${oz}).`, '#5f5');
       return;
     }
+    // ── The Long Now dev commands (dev world + cheats only) ──
+    // /year [y] · /quest [done|skip|reset] · /timekit · /codex
+    if (isDevWorld && cheatsEnabled && (cmdPart === 'year' || cmdPart === 'quest' || cmdPart === 'timekit' || cmdPart === 'codex')) {
+      const arg = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+      if (cmdPart === 'year' && !arg) {
+        const era = yearToEra(world.year);
+        addChatLine(`⏳ ${formatYear(world.year)} — ${era.name}. ${questLog.lockedFor(world.year) ? 'LOCKED: quest pending.' : 'Free travel.'}`, '#ffd75a');
+        return;
+      }
+      if (cmdPart === 'year' && arg) {
+        const y = parseYearInput(arg) ?? parseInt(arg, 10);
+        if (y == null || isNaN(y) || y < YEAR_MIN || y > YEAR_MAX) {
+          addChatLine('Usage: /year <-6000..2020> (e.g. /year -2560, /year 1969)', '#f55');
+          return;
+        }
+        applyYearChange(y);
+        addChatLine(`⏳ Dev jump → ${formatYear(y)}.`, '#ffd75a');
+        return;
+      }
+      if (cmdPart === 'timekit') {
+        player.inventory.add(ITEM.CHRONO_COIL, 1);
+        player.inventory.add(ITEM.TIME_CELL, 4);
+        syncUIMode();
+        addChatLine('⏳ Timekit granted: Chrono Coil + 4 Time Cells.', '#5f5');
+        return;
+      }
+      if (cmdPart === 'codex') {
+        openCodex();
+        return;
+      }
+      if (cmdPart === 'quest') {
+        const aq = questLog.activeQuest();
+        if (arg === 'done' || arg === 'skip' || arg === 'reset') {
+          if (!aq) { addChatLine('No active quest.', '#fa0'); return; }
+          if (arg === 'done') {
+            questLog.done.push(aq.id);
+            if (aq.testimony && !questLog.testimonies.includes(aq.testimony)) questLog.testimonies.push(aq.testimony);
+            player.inventory.add(ITEM.TIME_CELL, (aq.reward && aq.reward.cells) || 1);
+            syncUIMode();
+            questLog.active = null;
+            addChatLine(`✅ Quest force-completed: ${aq.title}. Year released.`, '#5f5');
+          } else if (arg === 'skip') {
+            questLog.active = null;
+            addChatLine(`⏭ Quest skipped: ${aq.title}. Year released (no reward).`, '#fa0');
+          } else {
+            questLog.active = null;
+            questLog.done = questLog.done.filter(id => id !== aq.id);
+            addChatLine(`🔁 Quest reset: ${aq.title} can trigger again.`, '#8af');
+          }
+          try { saveCurrentWorld(); } catch (_) {}
+          return;
+        }
+        if (!aq) { addChatLine('No active quest — this year is free.', '#8af'); return; }
+        const prog = questLog.progress(aq, questApi());
+        addChatLine(`📜 ${aq.title}: ` + prog.map(p => describeObjective(p, p)).join(' · '), '#8af');
+        return;
+      }
+    }
     // Dev spawn animal commands (dev world + cheats only)
     const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer', 'witch', 'dragon', 'chronarch', 'cave_bat', 'crystal_golem', 'shadow_stalker', 'wind_spirit'];
-    if (isDevWorld && cheatsEnabled && cmdPart === 'spawn') {
-      const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
+    if (isDevWorld && cheatsEnabled && cmdPart === 'spawn') {      const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
         addChatLine(`Usage: /spawn <${SPAWN_ANIMALS.join('|')}>`, '#f55');
         return;
@@ -6358,8 +6740,18 @@ function lerpColor(a, b, t) {
   return _lerpResult;
 }
 
-function updateSky(dt) {
-  const prevDayTime = dayTime;
+// Era daytime sky, cached per year (world.year changes only on time jump).
+const _eraDayCache = { y: null, c: 0x87ceeb };
+function eraDayColor() {
+  const y = world ? world.year : -6000;
+  if (_eraDayCache.y !== y) {
+    _eraDayCache.y = y;
+    try { _eraDayCache.c = yearToEra(y).sky; } catch (_) { _eraDayCache.c = 0x87ceeb; }
+  }
+  return _eraDayCache.c;
+}
+
+function updateSky(dt) {  const prevDayTime = dayTime;
   dayTime = (dayTime + dt / DAY_LENGTH) % 1;
   if (dayTime < prevDayTime) totalDays++;
 
@@ -6393,7 +6785,9 @@ function updateSky(dt) {
   // Sky color: piecewise based on sun position
   const NIGHT_COLOR = 0x0a0a2e;
   const DAWN_COLOR = 0xff7744;
-  const DAY_COLOR = 0x87ceeb;
+  // The Long Now: daytime sky carries its era's tint (dawn gold in deep
+  // BC, hazier blue in the machine ages). Cached per year — free.
+  const DAY_COLOR = (world && !world.dimension) ? eraDayColor() : 0x87ceeb;
   const DUSK_COLOR = 0xff5533;
 
   let skyColor;
@@ -6640,8 +7034,15 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 
   world = new World(seed, { flat: !!opts.flat, void: !!opts.void || !!opts.bedwars || !!opts.skyblock, parkour: !!opts.parkour, amplified: !!opts.amplified, weird: !!opts.weird });
   ui.world = world;
+  // The Long Now: peek the save first so a returning world boots straight
+  // into its saved year (default 6000 BC for new worlds).
   const saved = (!isParkour && !isOneBlock && !isBedwars && !isSkyblock) ? loadWorld(worldId) : (isOneBlock ? loadWorld(worldId) : null);
-  if (saved) world.loadEdits(saved);
+  if (saved) {
+    if (saved.year != null) world.year = saved.year;
+    if (saved.eraEdits) world.eraEdits = saved.eraEdits;
+    if (saved.quests) { try { questLog.load(saved.quests); } catch (_) {} }
+    world.loadEdits(saved);
+  }
 
   // The Shattered Echo dimension is part of every world (Echo-style), not a
   // world type: the main world is always the overworld, and the dimension is
@@ -7620,6 +8021,9 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
 var _lastLeaderboardSync = 0;
 function _syncLeaderboardStats() {
   if (!playerName || playerName.startsWith('Guest')) return;
+  // RTDB keys forbid . $ # [ ] / — skip sync for names containing them
+  // rather than writing to a broken path.
+  if (/[.$#[\]/]/.test(playerName)) return;
   if (typeof firebase === 'undefined' || typeof firebase.initializeApp !== 'function') return;
   try {
     var cfg = window.FIREBASE_CONFIG;
@@ -7671,6 +8075,9 @@ function saveCurrentWorld() {
     const dimEdits = _dimensionTarget.serializeEdits();
     saveData = {
       seed: world.seed,
+      year: world.year,
+      quests: questLog.serialize(),
+      eraEdits: world.eraEdits,
       overworldEdits: owEdits.edits,
       overworldChests: owEdits.chests,
       overworldFurnaces: owEdits.furnaces,
@@ -7680,7 +8087,7 @@ function saveCurrentWorld() {
       player: playerData,
     };
   } else {
-    saveData = { ...world.serializeEdits(), player: playerData };
+    saveData = { ...world.serializeEdits(), player: playerData, year: world.year, quests: questLog.serialize(), eraEdits: world.eraEdits };
   }
 
   // OneBlock worlds also persist their minigame progress (broken-block count,
@@ -12325,6 +12732,11 @@ function _gameFrame() {
   // ── DIMENSION SWITCH: swap between overworld and dimension worlds ──
   if (_isDimensionMode && _portalTriggered) {
     _portalTriggered = false;
+    // Timeline lock holds here too: no slipping out of a quest year sideways.
+    if (timelineLocked()) {
+      const lq = questLog.activeQuest();
+      addChatLine('⏳ Finish "' + (lq ? lq.title : 'this year\'s quest') + '" before leaving this year.', '#fa5');
+    } else {
     if (_activeDimension === 'overworld' && !_dimensionTarget) {
       // First trip through a Void portal: lazily generate the dimension world
       _dimensionTarget = new World(_dimensionSeed || world.seed, { dimension: true });
@@ -12468,10 +12880,11 @@ function _gameFrame() {
           _overworldSpawnPos = player.position.clone();
         }
       }
-      player.velocity.set(0, 0, 0);
-      player.spawnPoint.copy(player.position);
-      player.voidRespawnPos = player.position.clone();
+    player.velocity.set(0, 0, 0);
+    player.spawnPoint.copy(player.position);
+    player.voidRespawnPos = player.position.clone();
     }
+  }
   }
 
   // ── VOID PORTAL: standing in a lit portal teleports you between worlds ──
@@ -12480,6 +12893,14 @@ function _gameFrame() {
     const feet = Math.floor(pp.y);
     const b1 = world.getBlock(Math.floor(pp.x), feet, Math.floor(pp.z));
     const b2 = world.getBlock(Math.floor(pp.x), feet + 1, Math.floor(pp.z));
+    // Time rift contact: open the year dial (cooldown so it doesn't spam).
+    if (b1 === BLOCK.TIME_RIFT || b2 === BLOCK.TIME_RIFT) {
+      _timeDialCooldown = (_timeDialCooldown || 0) - dt;
+      if (_timeDialCooldown <= 0) {
+        _timeDialCooldown = 2.0;
+        openTimeDial();
+      }
+    }
     if (b1 === BLOCK.VOID_PORTAL || b2 === BLOCK.VOID_PORTAL) {
       _portalTeleportCooldown = (_portalTeleportCooldown || 0) - dt;
       if (_portalTeleportCooldown <= 0) {
@@ -12740,6 +13161,9 @@ function _gameFrame() {
     // Always update armor + offhand display in both modes
     ui.updateArmorSlots(player);
   }
+
+  // Timeline quest tick (throttled inside).
+  try { questTick(dt); } catch (e) { console.warn('quest tick failed:', e); }
 
   // Auto-save periodically
   autoSaveTimer += dt;
