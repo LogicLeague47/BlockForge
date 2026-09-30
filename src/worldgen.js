@@ -93,8 +93,8 @@ export function calcHeight(n, wx, wz, mode, _cache) {
   // River carving: only on land, near sea level
   if (cont > 0.05) {
     const riverStrengthVal = riverStrength(n, wx, wz);
-    if (riverStrengthVal > 0.65 && h > SEA_LEVEL - 3) {
-      const carve = (riverStrengthVal - 0.65) / 0.35;
+    if (riverStrengthVal > 0.74 && h > SEA_LEVEL - 3) {
+      const carve = (riverStrengthVal - 0.74) / 0.26;
       const targetY = SEA_LEVEL - 2 + (1 - carve) * 2;
       h = Math.min(h, Math.round(targetY + detail * 0.5));
     }
@@ -165,7 +165,7 @@ export function calcBiome(n, wx, wz, h, _cache, mode) {
 
   // BlockForge river: narrow water channels on land (same field as the carver)
   if (cont > 0.05 && h <= SEA_LEVEL && h >= SEA_LEVEL - 3) {
-    if (riverStrength(n, wx, wz) > 0.65) return BIOMES.RIVER;
+    if (riverStrength(n, wx, wz) > 0.74) return BIOMES.RIVER;
   }
 
   // BlockForge ocean biomes — matches calcHeight's continentalness thresholds:
@@ -240,12 +240,13 @@ export function surfBlock(biome, h, wx = 0, wz = 0) {
 
   switch (biome) {
     case BIOMES.BEACH:       return BLOCK.SAND;
-    case BIOMES.OCEAN:       return BLOCK.SAND;
-    case BIOMES.DEEP_OCEAN:  return BLOCK.SAND;
+    // Surface sand lives ONLY underwater, in deserts, and on beaches.
+    // Ocean columns above the waterline and all riverbeds grade to grass —
+    // true shores are already BEACH, submerged ground uses the underwater mix.
+    case BIOMES.OCEAN:       return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.GRASS;
+    case BIOMES.DEEP_OCEAN:  return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.GRASS;
     case BIOMES.DESERT:      return BLOCK.SAND;
-    // Riverbanks read as grass — sand only at/below the waterline, so
-    // rivers don't stripe every plain with sand ribbons.
-    case BIOMES.RIVER:       return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.GRASS;
+    case BIOMES.RIVER:       return BLOCK.GRASS;
     case BIOMES.SNOWY:       return BLOCK.SNOW_GRASS;
     case BIOMES.SWAMP:       return BLOCK.GRASS;
     // BlockForge stony peaks: bare stone above 25, dirt transition, grass below
@@ -273,9 +274,9 @@ export function fillBlock(biome, h) {
 
   switch (biome) {
     case BIOMES.BEACH:       return BLOCK.SAND;
-    case BIOMES.OCEAN:       return BLOCK.SAND;
-    case BIOMES.DEEP_OCEAN:  return BLOCK.SAND;
-    case BIOMES.RIVER:       return BLOCK.SAND;
+    case BIOMES.OCEAN:       return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.DIRT;
+    case BIOMES.DEEP_OCEAN:  return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.DIRT;
+    case BIOMES.RIVER:       return BLOCK.DIRT;
     case BIOMES.DESERT:      return BLOCK.SAND;
     case BIOMES.SWAMP:       return BLOCK.DIRT;
     // BlockForge stony peaks: bare stone up high, but dirt under the grass band —
@@ -347,9 +348,9 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
       const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
       const ravDepth = n.cave(wx * 0.008, y * 0.005, wz * 0.008);
       // Ravines stay dry canyons: only carve above the waterline so their
-      // floors don't become sand-and-water pits. Thresholds kept tight —
+      // floors don't become sand-and-water pits. Kept under 2% of land:
       // ravines are landmarks, not something every other chunk trips over.
-      if (y > SEA_LEVEL - 4 && Math.abs(ravX) < 0.028 && Math.abs(ravZ) < 0.028 && ravDepth > 0.32) b = BLOCK.AIR;
+      if (y > SEA_LEVEL - 4 && Math.abs(ravX) < 0.022 && Math.abs(ravZ) < 0.022 && ravDepth > 0.38) b = BLOCK.AIR;
     }
 
     // BlockForge aquifer-lite: only DEEP sub-sea caves flood. Near-surface

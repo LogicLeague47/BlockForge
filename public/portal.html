@@ -1548,6 +1548,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Ditches under 2%, sand with borders',
+          desc: 'Ditch-like terrain (ravines + river channels) now covers 1.32% of land, measured over 33k columns — ravines cut to 0.16%, rivers narrowed by a third. Surface sand exists only underwater, in deserts, and on beaches: riverbeds and above-water ocean edges are grass now. Land sand overall is down to 13.6%.',
+          date: 'Sep 30',
+          bugs: ['rivers striped plains with sand banks', 'above-water ocean columns rendered as sand patches'],
+          updates: ['river gate 0.65 to 0.74 (carver + biome tag together)', 'ravine thresholds 0.028/0.32 to 0.022/0.38', 'RIVER surface and fill are grass/dirt', 'OCEAN sand only at/below waterline'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Honest leaderboard + calmer terrain',
           desc: 'Leaderboard rows never regress now (login snapshots used to overwrite Days Survived with menu-time values) and the board shows how freshly each row synced. Portal shimmer animations are gone. Terrain: no more sandy OCEAN patches stranded on hillsides, riverbanks are grass again, deserts trimmed 10.6% to 8.7%, ravines ~40% rarer and deeper-gated.',
           date: 'Sep 30',
