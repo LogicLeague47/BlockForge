@@ -811,34 +811,176 @@ function getRuinedForge(rx, rz, noise, seed) {
   return { cx, cz, baseY };
 }
 
-// Demo copy of the Sundered Hour arena for dev-world inspection (no boss).
-// Mirrors main.js buildHourArena at a placeable origin.
-function buildHourArenaDemo(set, ox, oy, oz) {
-  const r = 16;
-  for (let dx = -r - 1; dx <= r + 1; dx++) {
-    for (let dz = -r - 1; dz <= r + 1; dz++) {
-      const d = Math.sqrt(dx * dx + dz * dz);
-      if (d > r + 0.4) continue;
-      set(ox + dx, oy, oz + dz, BLOCK.BEDROCK);
-      let top = BLOCK.BEDROCK;
-      if (d <= r) {
-        top = BLOCK.BEDROCK;
-        if (d > r - 3 && d <= r - 1) top = BLOCK.VOIDSTONE;
-        if (Math.abs(Math.abs(dx) - Math.abs(dz)) < 1 && d < r - 3) top = BLOCK.OBSIDIAN;
-      }
-      set(ox + dx, oy + 1, oz + dz, top);
-      if (d > r - 0.6) set(ox + dx, oy + 2, oz + dz, BLOCK.BEDROCK);
+// ── The Long Now: era monuments ─────────────────────────────────────
+// One signature structure per age band, scattered sparsely. Compact but
+// composed: real proportions (setbacks, colonnades, crenellations) read as
+// professional at voxel scale; fussy detail does not.
+const ERA_SITE_REGION = 320;
+
+function eraSiteFlat(noise, cx, cz, r) {
+  const baseY = calcHeight(noise, cx, cz);
+  if (baseY <= SEA_LEVEL + 1) return -1;
+  let hi = baseY, lo = baseY;
+  for (const [dx, dz] of [[r, 0], [-r, 0], [0, r], [0, -r]]) {
+    const h = calcHeight(noise, cx + dx, cz + dz);
+    if (h > hi) hi = h;
+    if (h < lo) lo = h;
+  }
+  return (hi - lo) <= 3 ? baseY : -1;
+}
+
+function getEraSite(rx, rz, noise, seed, year) {
+  if (rnd(rx, rz, seed ^ 0xEAA1) > 0.55) return null;
+  const cx = rx * ERA_SITE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xEBB2) * ERA_SITE_REGION);
+  const cz = rz * ERA_SITE_REGION + Math.floor(rnd(rx, rz, seed ^ 0xECC3) * ERA_SITE_REGION);
+  // Structure follows the visiting year, not the seed: same place, new age.
+  let type = null;
+  if (year <= -2000) type = 'pyramid';
+  else if (year <= 500) type = 'marble_temple';
+  else if (year <= 1400) type = 'castle_keep';
+  else type = 'observatory';
+  const reach = type === 'pyramid' ? 12 : 8;
+  const baseY = eraSiteFlat(noise, cx, cz, reach);
+  if (baseY < 0) return null;
+  return { cx, cz, baseY, type };
+}
+
+function buildPyramid(set, ox, oy, oz) {
+  // Stepped pyramid, 25 base, 6 tiers, capstone + burial shaft.
+  const H = 6, R = 12;
+  for (let t = 0; t < H; t++) {
+    const r = R - t * 2, y = oy + t;
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      if (Math.max(Math.abs(dx), Math.abs(dz)) > r) continue;
+      const edge = Math.max(Math.abs(dx), Math.abs(dz)) === r;
+      set(ox + dx, y, oz + dz, edge ? BLOCK.SANDSTONE : (t === 0 ? BLOCK.SANDSTONE : BLOCK.SANDSTONE));
     }
   }
-  for (const [px, pz] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) {
-    for (let i = 0; i < 7; i++) set(ox + px, oy + 2 + i, oz + pz, BLOCK.OBSIDIAN);
-    set(ox + px, oy + 9, oz + pz, BLOCK.CRYSTAL_PRISM_1);
+  // Capstone + shaft down the middle
+  set(ox, oy + H, oz, BLOCK.GOLD_BLOCK || BLOCK.SANDSTONE);
+  for (let y = oy - 6; y < oy; y++) set(ox, y, oz, BLOCK.AIR);
+  set(ox, oy - 6, oz, BLOCK.COBBLESTONE);
+  // Door stair on the south face
+  for (let i = 0; i < 4; i++) set(ox + i - 1, oy + 3 - i, oz + R - i, BLOCK.AIR);
+}
+
+function buildMarbleTemple(set, ox, oy, oz) {
+  // Classical peripteral temple: stepped stylobate, column ring, cella,
+  // pediment caps. 15 x 9 footprint.
+  const W = 7, D = 4;
+  for (let dx = -W; dx <= W; dx++) for (let dz = -D; dz <= D; dz++) {
+    set(ox + dx, oy, oz + dz, BLOCK.MARBLE);
+    set(ox + dx, oy - 1, oz + dz, BLOCK.MARBLE);
   }
-  set(ox, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
-  set(ox + 1, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
-  set(ox - 1, oy + 1, oz, BLOCK.COMPRESSED_VOIDSTONE);
-  set(ox, oy + 1, oz + 1, BLOCK.COMPRESSED_VOIDSTONE);
-  set(ox, oy + 1, oz - 1, BLOCK.COMPRESSED_VOIDSTONE);
+  // Column ring (skip corners for rhythm)
+  for (let dx = -W + 1; dx <= W - 1; dx += 2) {
+    for (const dz of [-D, D]) {
+      for (let y = 1; y <= 4; y++) set(ox + dx, oy + y, oz + dz, BLOCK.MARBLE);
+    }
+  }
+  for (let dz = -D + 2; dz <= D - 2; dz += 2) {
+    for (const dx of [-W, W]) {
+      for (let y = 1; y <= 4; y++) set(ox + dx, oy + y, oz + dz, BLOCK.MARBLE);
+    }
+  }
+  // Cella walls + altar + brazier
+  for (let dx = -3; dx <= 3; dx++) {
+    set(ox + dx, oy + 1, oz - 1, BLOCK.MARBLE); set(ox + dx, oy + 2, oz - 1, BLOCK.MARBLE);
+    set(ox + dx, oy + 1, oz + 1, BLOCK.MARBLE); set(ox + dx, oy + 2, oz + 1, BLOCK.MARBLE);
+  }
+  set(ox, oy + 1, oz, BLOCK.GOLD_BLOCK || BLOCK.MARBLE);
+  set(ox, oy + 2, oz, BLOCK.TORCH);
+  // Architrave + pediment
+  for (let dx = -W; dx <= W; dx++) for (let dz = -D; dz <= D; dz++) set(ox + dx, oy + 5, oz + dz, BLOCK.MARBLE);
+  for (let i = 0; i < 3; i++)
+    for (let dx = -W + 2 + i; dx <= W - 2 - i; dx++) {
+      set(ox + dx, oy + 6 + i, oz - D + 1 + i, BLOCK.MARBLE);
+      set(ox + dx, oy + 6 + i, oz + D - 1 - i, BLOCK.MARBLE);
+    }
+}
+
+function buildCastleKeep(set, ox, oy, oz) {
+  // Norman keep: 9x9 battered tower, crenellated crown, slit windows, oak door.
+  const R = 4, H = 9;
+  for (let y = 0; y < H; y++) {
+    const r = y < 2 ? R + 1 : R;
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      const edge = Math.max(Math.abs(dx), Math.abs(dz)) === r;
+      if (!edge) {
+        if (y === 0) set(ox + dx, oy + y, oz + dz, BLOCK.COBBLESTONE);
+        continue;
+      }
+      set(ox + dx, oy + y, oz + dz, (y % 3 === 2) ? BLOCK.MOSSY_COBBLESTONE : BLOCK.COBBLESTONE);
+    }
+  }
+  // Door (south) + slit windows
+  set(ox, oy + 1, oz + R, BLOCK.AIR); set(ox, oy + 2, oz + R, BLOCK.AIR);
+  set(ox, oy, oz + R + 1, BLOCK.PLANKS);
+  for (const yy of [3, 6]) {
+    set(ox - R, oy + yy, oz, BLOCK.AIR); set(ox + R, oy + yy, oz, BLOCK.AIR);
+    set(ox, oy + yy, oz - R, BLOCK.AIR);
+  }
+  // Crenellated crown + corner turrets + beacon
+  for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+    const edge = Math.max(Math.abs(dx), Math.abs(dz)) === R;
+    if (!edge) continue;
+    const merlon = ((dx + dz) % 2 === 0);
+    set(ox + dx, oy + H, oz + dz, BLOCK.COBBLESTONE);
+    if (merlon) set(ox + dx, oy + H + 1, oz + dz, BLOCK.COBBLESTONE);
+  }
+  set(ox, oy + H, oz, BLOCK.TORCH);
+}
+
+function buildObservatory(set, ox, oy, oz) {
+  // Stone drum, glass dome ring, brass telescope tube aimed skyward.
+  const R = 5, H = 4;
+  for (let y = 0; y < H; y++) {
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++) {
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > R + 0.4) continue;
+      if (d > R - 1.2) set(ox + dx, oy + y, oz + dz, BLOCK.STONE_BRICKS || BLOCK.STONE);
+      else if (y === 0) set(ox + dx, oy + y, oz + dz, BLOCK.PLANKS);
+    }
+  }
+  // Door + windows
+  set(ox, oy + 1, oz + R, BLOCK.AIR); set(ox, oy + 2, oz + R, BLOCK.AIR);
+  for (const [wx, wz] of [[-R, 0], [R, 0], [0, -R]]) set(ox + wx, oy + 2, oz + wz, BLOCK.GLASS);
+  // Glass dome: shrinking rings
+  for (let i = 0; i < 3; i++) {
+    const r = R - 1 - i, y = oy + H + i;
+    for (let dx = -r; dx <= r; dx++) for (let dz = -r; dz <= r; dz++) {
+      const d = Math.sqrt(dx * dx + dz * dz);
+      if (d > r + 0.4 || d < r - 1.4) continue;
+      set(ox + dx, y, oz + dz, BLOCK.SKYGLASS || BLOCK.GLASS);
+    }
+  }
+  // Brass telescope tube through the oculus
+  for (let i = 0; i < 4; i++) set(ox, oy + H + i, oz, BLOCK.GOLD_BLOCK || BLOCK.SANDSTONE);
+  set(ox, oy + H + 4, oz, BLOCK.GLASS);
+}
+
+export function generateEraSites(chunk, baseX, baseZ, n, year, seed) {
+  const reach = 16;
+  const minRX = Math.floor((baseX - reach) / ERA_SITE_REGION);
+  const maxRX = Math.floor((baseX + CHUNK_SIZE + reach) / ERA_SITE_REGION);
+  const minRZ = Math.floor((baseZ - reach) / ERA_SITE_REGION);
+  const maxRZ = Math.floor((baseZ + CHUNK_SIZE + reach) / ERA_SITE_REGION);
+  for (let rx = minRX; rx <= maxRX; rx++) {
+    for (let rz = minRZ; rz <= maxRZ; rz++) {
+      const s = getEraSite(rx, rz, n, seed, year);
+      if (!s) continue;
+      const set = (wx, wy, wz, b) => {
+        if (wx < baseX || wx >= baseX + CHUNK_SIZE) return;
+        if (wz < baseZ || wz >= baseZ + CHUNK_SIZE) return;
+        if (wy < 0 || wy >= WORLD_HEIGHT) return;
+        chunk.set(wx - baseX, wy, wz - baseZ, b);
+      };
+      if (s.type === 'pyramid') buildPyramid(set, s.cx, s.baseY, s.cz);
+      else if (s.type === 'marble_temple') buildMarbleTemple(set, s.cx, s.baseY, s.cz);
+      else if (s.type === 'castle_keep') buildCastleKeep(set, s.cx, s.baseY, s.cz);
+      else if (s.type === 'observatory') buildObservatory(set, s.cx, s.baseY, s.cz);
+    }
+  }
 }
 
 function buildRuinedForge(set, ox, oy, oz) {
@@ -916,17 +1058,12 @@ export function placeStructure(world, type, ox, oy, oz) {
       bb = { minX: ox, maxX: ox + 7, minZ: oz, maxZ: oz + 7 };
       break;
     }
-    case 'hour_arena': {
-      buildHourArenaDemo(set, ox, oy, oz);
-      bb = { minX: ox - 18, maxX: ox + 18, minZ: oz - 18, maxZ: oz + 18 };
-      break;
-    }
     default: return null;
   }
   return bb;
 }
 
-export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft', 'ruined_forge', 'hour_arena'];
+export const DEV_STRUCTURES = ['village', 'house', 'house_medium', 'blacksmith', 'well', 'farm', 'lamp', 'tower', 'desert_temple', 'jungle_temple', 'boss_arena', 'ruined_portal', 'abandoned_tower', 'mineshaft', 'ruined_forge'];
 
 function buildBossArena(set, ox, y, oz) {
   // Massive obsidian boss arena: 32x32 floor, 20-high walls, obsidian pillars

@@ -1982,6 +1982,37 @@ const PAINTERS = {
     ctx.fillRect(x0 + 5, y0 + 6, 5, 1);
     ctx.fillRect(x0 + 12, y0 + 16, 7, 1);
   },
+  time_rift(ctx, x0, y0, rng) {
+    // Swirling amber-and-cyan hourglass storm — a lit time-machine face.
+    // Distinct from the indigo void portal: warm time-sand + cold years.
+    ctx.clearRect(x0, y0, TILE, TILE);
+    noisy(ctx, x0, y0, [20, 30, 60], 0.35, rng);
+    for (let i = 0; i < 4; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const r = 5 + (rng() * 9 | 0);
+      ctx.fillStyle = `rgba(245,197,66,${0.22 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    for (let i = 0; i < 3; i++) {
+      const cx = (rng() * TILE) | 0, cy = (rng() * TILE) | 0;
+      const r = 4 + (rng() * 7 | 0);
+      ctx.fillStyle = `rgba(64,224,255,${0.22 + rng() * 0.3})`;
+      ctx.beginPath();
+      ctx.arc(x0 + cx, y0 + cy, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Brass rim + falling-sand streaks
+    ctx.fillStyle = 'rgba(200,168,58,0.9)';
+    ctx.fillRect(x0 + 2, y0 + 2, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + TILE - 3, TILE - 4, 1);
+    ctx.fillRect(x0 + 2, y0 + 2, 1, TILE - 4);
+    ctx.fillRect(x0 + TILE - 3, y0 + 2, 1, TILE - 4);
+    ctx.fillStyle = 'rgba(255,224,138,0.8)';
+    ctx.fillRect(x0 + 8, y0 + 4, 2, 9);
+    ctx.fillRect(x0 + 20, y0 + 18, 2, 10);
+  },
   compressed_voidstone(ctx, x0, y0, rng) {
     // Dense slate-purple brick, faint glowing cracks
     noisy(ctx, x0, y0, [70, 55, 105], 0.07, rng);

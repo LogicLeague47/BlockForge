@@ -524,10 +524,12 @@ export const RECIPES = [
   shapeless({ out: { id: B.COMPRESSED_VOIDSTONE, count: 1 }, ingredients: [B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, B.VOIDSTONE, I.NULL_SHARD] }),
   shapeless({ out: { id: I.PARADOX_CORE, count: 1 }, ingredients: [I.MEMORY_SHARD, I.NULL_SHARD, I.VOID_PEARL, B.EMBEROCK] }),
 
-  // ---- The Sundered Hour (endgame) ----
-  // The key outside time: a paradox engine, a dragon's heart, four echoes.
-  shaped({ out: { id: I.SUNDIAL_CORE, count: 1 },
-    pattern: [' E ', 'EPD', ' E '], key: { E: I.ECHO_SHARD, P: I.PARADOX_CORE, D: I.DRAGON_HEART } }),
+  // ---- The Long Now (time travel) ----
+  // Chrono Coil: the machine's key. Time Cell: its fuel (1 per jump + 1 per
+  // 2000 years). Quest completions always pay cells, so home is guaranteed.
+  shaped({ out: { id: I.CHRONO_COIL, count: 1 },
+    pattern: [' E ', 'EPE', ' E '], key: { E: I.ECHO_SHARD, P: I.PARADOX_CORE } }),
+  shapeless({ out: { id: I.TIME_CELL, count: 2 }, ingredients: [I.ECHO_SHARD, I.PRISMITE] }),
 
   // ---- Boat (rideable) ----
   shaped({ out: { id: I.BOAT, count: 1 },

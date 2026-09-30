@@ -33,6 +33,9 @@
     <meta http-equiv="Expires" content="0" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>BlockForge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Spectral:ital@0;1&display=swap" />
     <link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
     <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png" />
     <link rel="apple-touch-icon" href="apple-touch-icon.png" />
@@ -3794,25 +3797,34 @@
       </div>
     </div>
 
-    <!-- The Sundered Hour — ending screen -->
-    <div id="hour-ending" style="display:none;position:fixed;inset:0;z-index:200;background:radial-gradient(ellipse at 50% 35%,rgba(245,197,66,0.12) 0%,rgba(0,0,0,0.88) 65%);align-items:center;justify-content:center;">
-      <div style="background:rgba(8,8,14,0.92);border:1px solid rgba(245,197,66,0.35);border-radius:14px;padding:36px 48px;max-width:520px;width:92%;text-align:center;box-shadow:0 0 80px rgba(245,197,66,0.15),0 24px 64px rgba(0,0,0,0.7);">
-        <div style="font:700 13px monospace;color:#f5c542;letter-spacing:6px;margin-bottom:10px;">THE SUNDERED HOUR</div>
-        <div style="font:700 34px Georgia,serif;color:#ffe9b0;text-shadow:0 0 30px rgba(245,197,66,0.5);margin-bottom:10px;">TIMELINE SECURED</div>
-        <div style="font:13px/1.7 Georgia,serif;color:#b8a888;font-style:italic;margin-bottom:20px;">The Chronarch folds in on itself, and every stolen hour rushes home.<br/>Somewhere, a clock you never heard ticks forward again.<br/><b style="color:#ffe9b0;">You beat BlockForge.</b></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;font:12px monospace;color:#8a8074;">
-          <div>TIME PLAYED<br/><span id="hour-end-time" style="font:700 18px monospace;color:#ffe9b0;">—</span></div>
-          <div>DEATHS<br/><span id="hour-end-deaths" style="font:700 18px monospace;color:#ffe9b0;">—</span></div>
-          <div>MOBS SLAIN<br/><span id="hour-end-kills" style="font:700 18px monospace;color:#ffe9b0;">—</span></div>
-          <div>BLOCKS BROKEN<br/><span id="hour-end-blocks" style="font:700 18px monospace;color:#ffe9b0;">—</span></div>
+    <!-- The Long Now — year dial overlay -->
+    <div id="time-dial" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,0.72);align-items:center;justify-content:center;">
+      <div style="background:rgba(10,10,22,0.95);border:1px solid rgba(245,197,66,0.4);border-radius:14px;padding:28px 32px;max-width:460px;width:92%;text-align:center;box-shadow:0 0 60px rgba(245,197,66,0.15),0 24px 64px rgba(0,0,0,0.7);">
+        <div style="font:700 12px monospace;color:#f5c542;letter-spacing:5px;margin-bottom:6px;">TIME MACHINE</div>
+        <div id="time-dial-now" style="font:700 26px Georgia,serif;color:#ffe9b0;margin-bottom:12px;">6000 BC</div>
+        <div id="time-dial-eras" style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:12px;max-height:180px;overflow-y:auto;"></div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <input id="time-dial-input" type="text" inputmode="numeric" placeholder="Year — e.g. -2560 or 1969" autocomplete="off" spellcheck="false" style="flex:1;padding:10px 12px;font:14px monospace;background:rgba(0,0,0,0.4);border:1px solid rgba(245,197,66,0.3);border-radius:6px;color:#ffe9b0;outline:none;box-sizing:border-box;" />
+          <button id="time-dial-go" style="padding:10px 22px;font:700 14px monospace;background:linear-gradient(180deg,rgba(200,160,40,0.8),rgba(140,110,20,0.85));border:1px solid rgba(245,197,66,0.6);border-radius:6px;color:#1a1408;cursor:pointer;">JUMP</button>
         </div>
-        <div style="font:11px monospace;color:#8a8074;margin-bottom:18px;">👑 The <b style="color:#f5c542;">Crown of Hours</b> is yours — right-click it any time for a Nova Mend.</div>
-        <div style="display:flex;gap:10px;justify-content:center;">
-          <button id="hour-end-continue" onclick="document.getElementById('hour-ending').style.display='none'" style="padding:12px 28px;font:700 14px monospace;background:linear-gradient(180deg,rgba(245,197,66,0.35),rgba(160,120,20,0.4));border:1px solid rgba(245,197,66,0.6);border-radius:8px;color:#ffe9b0;cursor:pointer;">KEEP PLAYING</button>
-          <button id="hour-end-home" style="padding:12px 28px;font:700 14px monospace;background:rgba(60,80,120,0.4);border:1px solid rgba(100,140,255,0.4);border-radius:8px;color:#cfe0ff;cursor:pointer;">RETURN HOME</button>
-        </div>
+        <div id="time-dial-cost" style="font:12px monospace;color:#8af;margin-bottom:12px;">—</div>
+        <button id="time-dial-codex" style="width:100%;padding:10px;font:12px monospace;color:#c084fc;background:rgba(60,30,90,0.4);border:1px solid rgba(192,132,252,0.4);border-radius:6px;cursor:pointer;margin-bottom:8px;">📖 OPEN CODEX</button>
+        <button id="time-dial-close" style="width:100%;padding:10px;font:12px monospace;color:#aab;background:rgba(0,0,0,0.3);border:1px solid rgba(120,120,140,0.3);border-radius:6px;cursor:pointer;">CLOSE</button>
       </div>
     </div>
+
+    <!-- The Long Now — Codex overlay (testimonies, quest, timeline) -->
+    <div id="time-codex" style="display:none;position:fixed;inset:0;z-index:201;background:rgba(0,0,0,0.78);align-items:center;justify-content:center;">
+      <div style="background:rgba(12,10,24,0.96);border:1px solid rgba(192,132,252,0.4);border-radius:14px;padding:28px 32px;max-width:560px;width:94%;max-height:86vh;overflow-y:auto;text-align:left;box-shadow:0 0 60px rgba(150,100,255,0.12),0 24px 64px rgba(0,0,0,0.7);">
+        <div style="font:700 12px monospace;color:#c084fc;letter-spacing:5px;margin-bottom:4px;text-align:center;">THE CODEX</div>
+        <div id="codex-year" style="font:700 22px Georgia,serif;color:#ffe9b0;text-align:center;margin-bottom:12px;"></div>
+        <div id="codex-quest" style="background:rgba(245,197,66,0.07);border:1px solid rgba(245,197,66,0.3);border-radius:8px;padding:12px 14px;margin-bottom:12px;font:13px/1.6 Georgia,serif;color:#e8dcc0;"></div>
+        <div style="font:700 11px monospace;color:#8af;letter-spacing:3px;margin:14px 0 8px;">TESTIMONIES</div>
+        <div id="codex-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:12px;"></div>
+        <button id="time-codex-close" style="width:100%;padding:10px;font:12px monospace;color:#aab;background:rgba(0,0,0,0.3);border:1px solid rgba(120,120,140,0.3);border-radius:6px;cursor:pointer;">CLOSE</button>
+      </div>
+    </div>
+
     <!-- Chat HUD -->
     <div id="chat-hud" style="display:none;position:fixed;bottom:52px;left:8px;z-index:25;width:400px;max-width:calc(100vw - 16px);max-height:250px;pointer-events:none;transition:opacity 0.5s;">
       <div id="chat-messages" style="max-height:200px;overflow-y:auto;font:12px/1.4 monospace;color:#fff;text-shadow:1px 1px 0 #000;padding:4px;scrollbar-width:none;"></div>

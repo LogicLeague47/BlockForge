@@ -833,13 +833,6 @@ let bossActive = false, bossEntity = null, bossSpawnTimer = 0, bossAttackTimer =
 // ── The Long Now (time travel) ──
 const questLog = new QuestLog();
 let _timeDialYear = 2020; // year currently shown in the dial
-// ── The Sundered Hour (endgame boss chain) ──
-const HOUR = { x: 12000, y: 140, z: 12000, r: 16 };
-let hourActive = false, hourEntity = null, hourPhase = 0;
-let hourSummonTimer = 0, hourAttackTimer = 0, hourRewindTimer = 0, hourStasisTimer = 0;
-let hourStasisActive = 0, hourVictoryTimer = 0, hourReturnPos = null;
-let hourPosBuffer = [], hourPosBufTimer = 0, hourCrownCooldown = 0;
-let hourEndingShown = false;
 let _portalRings = [];      // up to 2 linked portal rings ({ entry, exit })
 let _portalRingCooldown = 0; // prevents instant re-teleport loops
 const _particleGeoMed = new THREE.BoxGeometry(0.06, 0.06, 0.06);
@@ -1979,28 +1972,6 @@ document.addEventListener('mousedown', (e) => {
         }
       }
 
-      // Sundial Core: tear open the way to the Sundered Hour (endgame).
-      // Not consumed — death in the Hour sends you home, and you can try again.
-      if (!used && slot && slot.item === ITEM.SUNDIAL_CORE) {
-        enterSunderedHour();
-        used = true;
-      }
-
-      // Crown of Hours: Nova Mend — a full heal, once per minute.
-      if (!used && slot && slot.item === ITEM.CROWN_OF_HOURS) {
-        if (hourCrownCooldown > 0) {
-          addChatLine('The Crown is still drinking in time (' + Math.ceil(hourCrownCooldown) + 's)...', '#fa5');
-        } else if (player) {
-          player.health = player.maxHealth;
-          if (player.hunger != null) player.hunger = 20;
-          hourCrownCooldown = 60;
-          if (audio) { try { audio.play('levelup'); } catch (_) { if (audio.teleport) audio.teleport(); } }
-          addChatLine('Nova Mend — your wounds close as the hours pour back in.', '#ffd75a');
-          try { achievements.incrementStat('novaMends'); } catch (_) {}
-        }
-        used = true;
-      }
-
       // Grapple Hook: pull the player to the targeted surface
       if (!used && slot && slot.item === ITEM.GRAPPLE_HOOK) {
         const hit = currentTarget();
@@ -2769,150 +2740,6 @@ function spawnPortalOrbParticles(pos) {
   }
 }
 
-// ── The Sundered Hour (endgame) ──────────────────────────────────────
-// Time broke the day the first portal tore the sky. Something crawled out
-// of the break and has been eating hours ever since. The Sundial Core drags
-// you to where it nests — outside time. Kill the Chronarch. Mend the Hour.
-
-function hourNova(pos, color, count, speed) {
-  if (!scene) return;
-  for (let i = 0; i < (count || 24); i++) {
-    const mat = new THREE.MeshBasicMaterial({ color: color || 0xf5c542, transparent: true, opacity: 0.9 });
-    const m = new THREE.Mesh(_particleGeoTiny, mat);
-    m.position.set(pos.x, (pos.y || 0) + 0.5, pos.z);
-    scene.add(m);
-    const sp = speed || 4;
-    _particles.push({ mesh: m, vx: (Math.random() - 0.5) * sp, vy: Math.random() * sp, vz: (Math.random() - 0.5) * sp, life: 1.2, maxLife: 1.2 });
-  }
-}
-
-function buildHourArena() {
-  if (!world) return;
-  const cx = HOUR.x, cy = HOUR.y, cz = HOUR.z, r = HOUR.r;
-  const B = BLOCK;
-  for (let dx = -r - 1; dx <= r + 1; dx++) {
-    for (let dz = -r - 1; dz <= r + 1; dz++) {
-      const d = Math.sqrt(dx * dx + dz * dz);
-      if (d <= r) {
-        // Floor: bedrock shell with a voidstone inlay ring + amber dial lines
-        let top = B.BEDROCK;
-        if (d > r - 3 && d <= r - 1) top = B.VOIDSTONE;
-        if (Math.abs(Math.abs(dx) - Math.abs(dz)) < 1 && d < r - 3) top = B.OBSIDIAN;
-        world.setBlock(cx + dx, cy, cz + dz, B.BEDROCK);
-        world.setBlock(cx + dx, cy + 1, cz + dz, top);
-        // Low bedrock rim so walk-offs are deliberate, not accidental
-        if (d > r - 0.6 && d <= r + 0.4) world.setBlock(cx + dx, cy + 2, cz + dz, B.BEDROCK);
-      }
-    }
-  }
-  // Four hourglass pillars at the diagonals, crystal prisms on top
-  for (const [px, pz] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) {
-    for (let i = 0; i < 7; i++) world.setBlock(cx + px, cy + 2 + i, cz + pz, B.OBSIDIAN);
-    world.setBlock(cx + px, cy + 9, cz + pz, B.CRYSTAL_PRISM_1);
-  }
-  // Center dial: compressed voidstone dais
-  world.setBlock(cx, cy + 1, cz, B.COMPRESSED_VOIDSTONE);
-  world.setBlock(cx + 1, cy + 1, cz, B.COMPRESSED_VOIDSTONE);
-  world.setBlock(cx - 1, cy + 1, cz, B.COMPRESSED_VOIDSTONE);
-  world.setBlock(cx, cy + 1, cz + 1, B.COMPRESSED_VOIDSTONE);
-  world.setBlock(cx, cy + 1, cz - 1, B.COMPRESSED_VOIDSTONE);
-}
-
-function summonChronarch() {
-  if (!mobManager || !world) return null;
-  const boss = mobManager.spawnAt('chronarch', HOUR.x, HOUR.y + 3, HOUR.z);
-  if (!boss) return null;
-  boss.maxHp = boss.hp;
-  hourActive = true;
-  hourEntity = boss;
-  hourPhase = 1;
-  // Phase I is melee + echoes: suppress TNT throws by shrinking throw range
-  // below the mob system's 6-block minimum throw distance.
-  try {
-    MOB_TYPES.chronarch.attackDamage = 16;
-    MOB_TYPES.chronarch.speed = 7;
-    MOB_TYPES.chronarch.throwRange = 5;
-    MOB_TYPES.chronarch.throwCooldown = 6.0;
-    boss.throwCooldown = 6.0;
-  } catch (_) {}
-  hourSummonTimer = 0;
-  hourAttackTimer = 2.0;
-  hourRewindTimer = 22;
-  hourStasisTimer = 0;
-  hourStasisActive = 0;
-  hourVictoryTimer = 0;
-  hourPosBuffer = [];
-  hourPosBufTimer = 0;
-  const nameEl = document.getElementById('boss-health-name');
-  if (nameEl) nameEl.textContent = 'CHRONARCH, EATER OF HOURS';
-  addChatLine('The Chronarch unfolds from the stopped moment. Time itself holds its breath.', '#f5c542');
-  addChatLine('Phase I — EPOCH OF DUST. It calls its echoes.', '#fa5');
-  if (audio && audio.explode) audio.explode();
-  hourNova(boss.position, 0xf5c542, 40, 6);
-  return boss;
-}
-
-function enterSunderedHour() {
-  if (!player || !world) return;
-  if (hourActive) { addChatLine('The Hour is already open. Finish it.', '#fa5'); return; }
-  if (player.isDead && player.isDead()) return;
-  const beaten = (achievements.stats.chronarchSlain || 0) >= 1;
-  hourReturnPos = { x: player.position.x, y: player.position.y, z: player.position.z };
-  buildHourArena();
-  // Arrive at the arena rim, facing the dial
-  player.position.set(HOUR.x + HOUR.r - 3, HOUR.y + 3, HOUR.z);
-  player.velocity.set(0, 0, 0);
-  player.fallStartY = -1;
-  hourNova(player.position, 0x40e0ff, 24, 4);
-  if (audio && audio.teleport) audio.teleport();
-  try { achievements.incrementStat('enteredHour'); } catch (_) {}
-  if (beaten) {
-    addChatLine('The Hour lies mended and silent. Your victory hums in the stone.', '#8af');
-    return;
-  }
-  // Give the arena a breath to stream in, then the boss unfolds
-  hourSummonTimer = 2.5;
-  hourActive = true;
-  hourEntity = null;
-  hourPhase = 0;
-  addChatLine('You step outside time. The sky here is the color of a held breath.', '#8af');
-}
-
-function hourReturnHome() {
-  hideHourEnding();
-  if (!player || !hourReturnPos) return;
-  player.position.set(hourReturnPos.x, hourReturnPos.y, hourReturnPos.z);
-  player.velocity.set(0, 0, 0);
-  player.fallStartY = -1;
-  hourNova(player.position, 0x40e0ff, 24, 4);
-  if (audio && audio.teleport) audio.teleport();
-}
-
-function showHourEnding() {
-  if (hourEndingShown) return;
-  hourEndingShown = true;
-  const el = document.getElementById('hour-ending');
-  if (!el) return;
-  try {
-    const s = achievements.stats || {};
-    const mins = s.playTime ? Math.round(s.playTime / 60) : 0;
-    const set = (id, v) => { const n = document.getElementById(id); if (n) n.textContent = v; };
-    set('hour-end-time', mins + 'm');
-    set('hour-end-deaths', s.deaths || 0);
-    set('hour-end-kills', s.mobKillsAny || 0);
-    set('hour-end-blocks', s.totalBlocksBroken || 0);
-  } catch (_) {}
-  el.style.display = 'flex';
-  const homeBtn = document.getElementById('hour-end-home');
-  if (homeBtn) homeBtn.onclick = hourReturnHome;
-  if (pointerLocked && document.exitPointerLock) { try { document.exitPointerLock(); } catch (_) {} }
-}
-
-function hideHourEnding() {
-  const el = document.getElementById('hour-ending');
-  if (el) el.style.display = 'none';
-}
-
 // ── Portal rings (dual-portal linking) ───────────────────────────────────
 // Throw the orb in 'portal' mode (sneak+use) to place a ring. The first ring
 // is the entry (cyan); the second becomes the exit (orange). Stepping into
@@ -3378,6 +3205,7 @@ function applyYearChange(targetYear) {
   player.fallStartY = -1;
   if (audio) { try { audio.portalOpen?.(); } catch (_) {} }
   try { achievements.incrementStat('timeJumps'); } catch (_) {}
+  if (targetYear >= YEAR_MAX) { try { achievements.setStat('reached2020', 1); } catch (_) {} }
   const era = yearToEra(targetYear);
   addChatLine('⏳ ' + formatYear(fromYear) + ' → ' + formatYear(targetYear) + ' — ' + era.name + '. ' + era.note, '#ffd75a');
   // Assign this year's quest (or travel free).
@@ -3547,10 +3375,19 @@ function openCodex() {
 
 // Throttled quest check: progress, completion, rewards.
 let _questTick = 0;
+let _tlIntroShown = false;
 function questTick(dt) {
   _questTick -= dt;
   if (_questTick > 0 || !world || !player) return;
   _questTick = 0.5;
+  // The Long Now intro: once per session, on a fresh world at the dawn year.
+  if (!_tlIntroShown && !world.dimension && world.year <= YEAR_MIN &&
+      questLog.done.length === 0 && !questLog.active) {
+    _tlIntroShown = true;
+    addChatLine('⏳ 6000 BC — the First Fields. Your story runs 8,000 years to 2020 AD.', '#ffd75a');
+    addChatLine('⛏ Gather and craft: a Chrono Coil lights a Time Machine (obsidian ring). Step into the rift to choose a year.', '#8af');
+    addChatLine('📖 Some years hold a quest — finish it to travel on. The Codex (button in the year dial) keeps every Testimony.', '#8af');
+  }
   const aq = questLog.activeQuest();
   if (!aq) return;
   let res = null;
@@ -3565,6 +3402,7 @@ function questTick(dt) {
     syncUIMode();
   } catch (_) {}
   try { achievements.incrementStat('questsDone'); } catch (_) {}
+  try { achievements.setStat('testimonies', questLog.testimonies.length); } catch (_) {}
   addChatLine('✅ Quest complete: ' + res.quest.title + ' (+' + cells + ' Time Cells). The year releases you.', '#5f5');
   if (res.testimony) {
     addChatLine('📖 Testimony witnessed: ' + res.testimony.title + ' — ' + res.testimony.place + ', ' + formatYear(res.testimony.year) + '.', '#c084fc');
@@ -4791,7 +4629,7 @@ function submitChat() {
       }
     }
     // Dev spawn animal commands (dev world + cheats only)
-    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer', 'witch', 'dragon', 'chronarch', 'cave_bat', 'crystal_golem', 'shadow_stalker', 'wind_spirit'];
+    const SPAWN_ANIMALS = ['cow', 'pig', 'sheep', 'chicken', 'spider', 'zombie', 'skeleton', 'slime', 'villager', 'blower', 'portalman', 'traveler', 'pixie', 'wanderer', 'witch', 'dragon', 'cave_bat', 'crystal_golem', 'shadow_stalker', 'wind_spirit'];
     if (isDevWorld && cheatsEnabled && cmdPart === 'spawn') {      const animal = (text.slice(1).trim().split(/\s+/)[1] || '').toLowerCase();
       if (!animal || !SPAWN_ANIMALS.includes(animal)) {
         addChatLine(`Usage: /spawn <${SPAWN_ANIMALS.join('|')}>`, '#f55');
@@ -4923,30 +4761,6 @@ function submitChat() {
       bossEntity = boss;
       bossAttackTimer = 2;
       addChatLine('The Prismite Dragon has appeared!', '#ff3');
-      return;
-    }
-    // /hour command — summon the Chronarch at your position (cheats only)
-    if (cmdPart === 'hour' && !inMultiplayer && cheatsEnabled) {
-      if (hourActive) { addChatLine('The Hour is already open!', '#f55'); return; }
-      if (!player || !mobManager || !scene) return;
-      hourReturnPos = { x: player.position.x, y: player.position.y, z: player.position.z };
-      const boss = mobManager.spawnAt('chronarch',
-        Math.round(player.position.x), Math.round(player.position.y + 2), Math.round(player.position.z));
-      if (!boss) { addChatLine('Failed to summon the Chronarch.', '#f55'); return; }
-      boss.maxHp = boss.hp;
-      hourActive = true;
-      hourEntity = boss;
-      hourPhase = 1;
-      try {
-        MOB_TYPES.chronarch.attackDamage = 16;
-        MOB_TYPES.chronarch.speed = 7;
-        MOB_TYPES.chronarch.throwRange = 5;
-        MOB_TYPES.chronarch.throwCooldown = 6.0;
-        boss.throwCooldown = 6.0;
-      } catch (_) {}
-      const nameEl = document.getElementById('boss-health-name');
-      if (nameEl) nameEl.textContent = 'CHRONARCH, EATER OF HOURS';
-      addChatLine('The Chronarch unfolds from the stopped moment.', '#f5c542');
       return;
     }
     // /weather command — singleplayer + cheats only
@@ -12372,169 +12186,6 @@ function _gameFrame() {
       bossEntity = null;
     }
 
-    // ── The Sundered Hour boss ──
-    // Summon delay after entry (lets the arena stream in)
-    if (hourActive && !hourEntity && hourPhase === 0) {
-      hourSummonTimer -= dt;
-      if (hourSummonTimer <= 0) summonChronarch();
-    }
-    // Record the player's trail for REWIND (Phase II+)
-    if (hourActive && hourEntity && !hourEntity.dead && player && !player.isDead()) {
-      hourPosBufTimer -= dt;
-      if (hourPosBufTimer <= 0) {
-        hourPosBufTimer = 0.25;
-        hourPosBuffer.push({ x: player.position.x, y: player.position.y, z: player.position.z });
-        if (hourPosBuffer.length > 30) hourPosBuffer.shift();
-      }
-    }
-    if (hourCrownCooldown > 0) hourCrownCooldown -= dt;
-    // STASIS: time holds the player — kill horizontal motion every frame
-    if (hourStasisActive > 0) {
-      hourStasisActive -= dt;
-      if (player) { player.velocity.x = 0; player.velocity.z = 0; }
-    }
-    if (hourActive && hourEntity && !hourEntity.dead) {
-      const hb = hourEntity;
-      const hfrac = hb.hp / hb.maxHp;
-      const fill = document.getElementById('boss-health-fill');
-      const text = document.getElementById('boss-health-text');
-      const bar = document.getElementById('boss-health-bar');
-      if (bar) bar.style.display = 'block';
-      if (fill) fill.style.width = Math.max(0, hfrac * 100) + '%';
-      if (text) text.textContent = Math.max(0, Math.ceil(hb.hp)) + ' / ' + hb.maxHp;
-      // Phase transitions (melee is handled by the mob system itself)
-      if (hourPhase === 1 && hfrac <= 0.66) {
-        hourPhase = 2;
-        hourRewindTimer = 8;
-        hourSummonTimer = 0;
-        try {
-          MOB_TYPES.chronarch.throwRange = 26;
-          MOB_TYPES.chronarch.throwCooldown = 4.0;
-          hb.throwCooldown = 4.0;
-        } catch (_) {}
-        addChatLine('Phase II — EPOCH OF TIDES. It hurls burning hours. It will UNMAKE your steps.', '#fa5');
-        if (audio && audio.explode) audio.explode();
-        hourNova(hb.position, 0xff5a3c, 40, 6);
-      } else if (hourPhase === 2 && hfrac <= 0.33) {
-        hourPhase = 3;
-        hourStasisTimer = 6;
-        try {
-          MOB_TYPES.chronarch.attackDamage = 20;
-          MOB_TYPES.chronarch.speed = 9;
-          MOB_TYPES.chronarch.throwRange = 30;
-          MOB_TYPES.chronarch.throwCooldown = 2.5;
-          hb.throwCooldown = Math.min(hb.throwCooldown || 0, 2.5);
-        } catch (_) {}
-        addChatLine('Phase III — EPOCH OF ASH. HASTENED. It will HOLD you still and break you.', '#f55');
-        if (audio && audio.explode) audio.explode();
-        hourNova(hb.position, 0xff5a3c, 60, 8);
-      }
-      // Minion summons: the eater calls its echoes (cap 4)
-      hourSummonTimer -= dt;
-      if (hourSummonTimer <= 0) {
-        hourSummonTimer = hourPhase >= 3 ? 18 : 25;
-        let minions = 0;
-        if (mobManager) for (const m of mobManager.mobs) if (m._hourMinion && !m.dead) minions++;
-        if (minions < 4 && mobManager && player) {
-          const kind = Math.random() < 0.5 ? 'zombie' : 'skeleton';
-          const a = Math.random() * Math.PI * 2;
-          const min = mobManager.spawnAt(kind,
-            Math.round(hb.position.x + Math.cos(a) * 8),
-            Math.round(hb.position.y + 1),
-            Math.round(hb.position.z + Math.sin(a) * 8));
-          if (min) {
-            min._hourMinion = true;
-            min.aggro = true;
-            addChatLine('An echo of the devoured crawls out of the stopped air...', '#a8f');
-            hourNova(min.position, 0x8a5adf, 16, 3);
-          }
-        }
-      }
-      // REWIND (Phase II+): snap the player to where they stood ~7s ago
-      if (hourPhase >= 2) {
-        hourRewindTimer -= dt;
-        if (hourRewindTimer <= 0 && player && !player.isDead()) {
-          hourRewindTimer = 22;
-          const old = hourPosBuffer.length > 0 ? hourPosBuffer[0] : null;
-          if (old) {
-            hourNova(player.position, 0x40e0ff, 20, 4);
-            player.position.set(old.x, old.y + 0.5, old.z);
-            player.velocity.set(0, 0, 0);
-            player.fallStartY = -1;
-            hourNova(player.position, 0xf5c542, 20, 4);
-            if (audio && audio.teleport) audio.teleport();
-            addChatLine('REWIND — the Chronarch unmakes your last steps.', '#40e0ff');
-          }
-        }
-      }
-      // STASIS (Phase III): hold the player still while the hours burn
-      if (hourPhase >= 3) {
-        hourStasisTimer -= dt;
-        if (hourStasisTimer <= 0 && player && !player.isDead()) {
-          hourStasisTimer = 15;
-          hourStasisActive = 2.5;
-          addChatLine('STASIS — time holds you. MOVE when it lets go.', '#f55');
-          if (audio && audio.explode) audio.explode();
-          hourNova(player.position, 0xf5c542, 30, 2);
-        }
-      }
-      // Amber ember ambience
-      if (Math.random() < 0.15) {
-        hourNova(hb.position, Math.random() < 0.5 ? 0xf5c542 : 0xff5a3c, 2, 2);
-      }
-    }
-    // Victory — the Hour mends
-    if (hourActive && hourEntity && hourEntity.dead) {
-      if (hourVictoryTimer <= 0) {
-        hourVictoryTimer = 3;
-        // Loot: crown + echoes (from the mob def drops)
-        try {
-          for (const drop of hourEntity.getDrops()) {
-            const c = Array.isArray(drop.count) ? drop.count[0] + Math.floor(Math.random() * (drop.count[1] - drop.count[0] + 1)) : (drop.count || 1);
-            droppedItemManager?.drop(drop.item, c, hourEntity.position.x + (Math.random() - 0.5) * 2, hourEntity.position.y + 1, hourEntity.position.z + (Math.random() - 0.5) * 2);
-          }
-        } catch (_) {}
-        // Collapse leftover echoes — they die with their eater
-        try {
-          if (mobManager) for (const m of mobManager.mobs) {
-            if (m._hourMinion && !m.dead) { m.hp = 0; m.dead = true; }
-          }
-        } catch (_) {}
-        addChatLine('The Chronarch folds in on itself — and the stolen hours RUSH back into the world.', '#ffd75a');
-        try { achievements.incrementStat('chronarchSlain'); } catch (_) {}
-        if (audio) { try { audio.play('levelup'); } catch (_) {} }
-        hourNova(hourEntity.position, 0xffd75a, 80, 10);
-        hourNova(hourEntity.position, 0x40e0ff, 60, 8);
-      } else {
-        hourVictoryTimer -= dt;
-        if (hourVictoryTimer <= 0) {
-          const bar = document.getElementById('boss-health-bar');
-          if (bar) bar.style.display = 'none';
-          const nameEl = document.getElementById('boss-health-name');
-          if (nameEl) nameEl.textContent = 'PRISMITE DRAGON';
-          try {
-            scene.remove(hourEntity.mesh);
-            hourEntity.dispose();
-            const idx = mobManager.mobs.indexOf(hourEntity);
-            if (idx >= 0) {
-              mobManager.mobs[idx] = mobManager.mobs[mobManager.mobs.length - 1];
-              mobManager.mobs.length--;
-            }
-          } catch (_) {}
-          hourActive = false;
-          hourEntity = null;
-          hourPhase = 0;
-          hourStasisActive = 0;
-          try {
-            MOB_TYPES.chronarch.attackDamage = 16;
-            MOB_TYPES.chronarch.speed = 7;
-            MOB_TYPES.chronarch.throwRange = 5;
-            MOB_TYPES.chronarch.throwCooldown = 6.0;
-          } catch (_) {}
-          showHourEnding();
-        }
-      }
-    }
   }
 
   // Update explosion particles

@@ -234,8 +234,8 @@ export function makeItemIconCanvas(itemId) {
     case 811: drawSpawnEgg(x, '#3a2a20', '#ff3333'); break; // Cave Bat
     case 813: drawSpawnEgg(x, '#5a2a3a', '#80ff80'); break; // Witch
     case 710: drawEchoShard(x); break;
-    case 711: drawSundialCore(x); break;
-    case 712: drawCrownOfHours(x); break;
+    case 713: drawChronoCoil(x); break;
+    case 714: drawTimeCell(x); break;
     case 820: drawGrappleHook(x); break;
     case 821: drawFrostWand(x); break;
     case 822: drawEmberLauncher(x); break;
@@ -919,33 +919,31 @@ function drawSpiderEye(x) {
   px(x, '#ff8888', 5, 4, 2, 1);
 }
 
-function drawSundialCore(x) {
-  // A brass ring holding a cracked hourglass of frozen amber time.
-  px(x, '#8a6a2a', 3, 3, 10, 10);   // brass ring
-  px(x, '#c8a83a', 3, 3, 10, 1);
-  px(x, '#c8a83a', 3, 3, 1, 10);
-  px(x, '#5a4515', 12, 3, 1, 10);
-  px(x, '#5a4515', 3, 12, 10, 1);
-  px(x, '#1a2233', 5, 5, 6, 6);     // glass
-  px(x, '#f5c542', 6, 6, 4, 1);     // top sand
-  px(x, '#f5c542', 7, 7, 2, 1);
-  px(x, '#7a5a10', 7, 8, 2, 1);     // neck
-  px(x, '#ffe08a', 6, 9, 4, 2);     // fallen sand glow
+function drawChronoCoil(x) {
+  // A brass gyroscope ring around a spinning amber time-kernel.
+  px(x, '#8a6a2a', 2, 2, 12, 12);   // outer ring
+  px(x, '#c8a83a', 2, 2, 12, 1);
+  px(x, '#c8a83a', 2, 2, 1, 12);
+  px(x, '#5a4515', 13, 2, 1, 12);
+  px(x, '#5a4515', 2, 13, 12, 1);
+  px(x, '#1a2233', 4, 4, 8, 8);     // glass
+  px(x, '#f5c542', 6, 6, 4, 4);     // kernel
+  px(x, '#ffe08a', 6, 6, 4, 1);
+  px(x, '#ff5a3c', 7, 8, 2, 2);     // spark
   px(x, '#ffffff', 5, 5, 1, 1);     // glint
-  px(x, '#ff5a3c', 7, 5, 2, 1);     // crack ember
+  px(x, '#c8a83a', 7, 1, 2, 1);     // crown contact
+  px(x, '#c8a83a', 7, 14, 2, 1);
 }
-function drawCrownOfHours(x) {
-  // A blackened circlet set with twelve amber hour-teeth.
-  px(x, '#2a2a3a', 2, 9, 12, 4);    // band
-  px(x, '#4a4a6a', 2, 9, 12, 1);    // top rim light
-  px(x, '#101018', 2, 12, 12, 1);   // bottom shade
-  for (let i = 0; i < 6; i++) {
-    const tx = 2 + i * 2;
-    px(x, '#f5c542', tx, 5, 1, 4);  // teeth
-    px(x, '#ffe08a', tx, 5, 1, 1);
-  }
-  px(x, '#ff5a3c', 7, 10, 2, 2);    // heart ember
-  px(x, '#ffffff', 3, 9, 1, 1);     // glint
+function drawTimeCell(x) {
+  // A stubby brass battery with a glowing amber charge window.
+  px(x, '#6a5a30', 5, 3, 6, 10);    // casing
+  px(x, '#c8a83a', 5, 3, 6, 1);
+  px(x, '#4a3c1c', 5, 12, 6, 1);
+  px(x, '#8a8a8a', 6, 1, 4, 2);     // terminal nub
+  px(x, '#1a2233', 6, 5, 4, 6);     // window
+  px(x, '#f5c542', 6, 7, 4, 3);     // charge glow
+  px(x, '#ffe08a', 6, 7, 4, 1);
+  px(x, '#ffffff', 6, 5, 1, 1);     // glint
 }
 function drawPrismiteGem(x) {
   // Angular red-green crystalline gem

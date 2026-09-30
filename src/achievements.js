@@ -408,30 +408,38 @@ export const ACHIEVEMENTS = [
     category: 'challenge',
     check: s => s.dimensionTraversals >= 1,
   },
-  // ── The Sundered Hour (endgame) ──
+  // ── The Long Now (time-travel timeline) ──
   {
-    id: 'mend_the_dial',
-    name: 'Mend the Dial',
-    desc: 'Craft the Sundial Core: a paradox, a heart, four echoes',
-    icon: ITEM.SUNDIAL_CORE,
+    id: 'time_traveler',
+    name: 'Time Traveler',
+    desc: 'Step through a Time Rift and land in another year',
+    icon: ITEM.TIME_CELL,
     category: 'story',
-    check: s => (s.crafted[`${ITEM.SUNDIAL_CORE}`] || 0) >= 1,
+    check: s => (s.timeJumps || 0) >= 1,
   },
   {
-    id: 'outside_time',
-    name: 'Outside Time',
-    desc: 'Step into the Sundered Hour where the Chronarch nests',
-    icon: ITEM.SUNDIAL_CORE,
+    id: 'year_keeper',
+    name: 'Year Keeper',
+    desc: 'Complete a timeline quest and release its year',
+    icon: ITEM.CHRONO_COIL,
     category: 'story',
-    check: s => s.enteredHour >= 1,
+    check: s => (s.questsDone || 0) >= 1,
   },
   {
-    id: 'eater_of_hours_slain',
-    name: 'Eater of Hours, Slain',
-    desc: 'Defeat the Chronarch and mend the broken Hour. You beat the game.',
-    icon: ITEM.CROWN_OF_HOURS,
+    id: 'witness_of_ages',
+    name: 'Witness of Ages',
+    desc: 'Gather 6 Testimonies in the Codex',
+    icon: BLOCK.TIME_RIFT,
     category: 'story',
-    check: s => s.chronarchSlain >= 1,
+    check: s => (s.testimonies || 0) >= 6,
+  },
+  {
+    id: 'the_long_now',
+    name: 'The Long Now',
+    desc: 'Travel the whole timeline and reach 2020 AD',
+    icon: ITEM.EMERALD,
+    category: 'story',
+    check: s => (s.reached2020 || 0) >= 1,
   },
 ];
 
@@ -486,6 +494,10 @@ export function createStats() {
     mobKillsCaveBat: 0,
     bedsSleptIn: 0,
     dimensionTraversals: 0,
+    timeJumps: 0,       // The Long Now: completed time jumps
+    questsDone: 0,      // timeline quests completed
+    testimonies: 0,     // testimonies witnessed (set, not incremented)
+    reached2020: 0,     // reached the final year
   };
 }
 

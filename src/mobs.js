@@ -9,6 +9,7 @@ import { BLOCK, BLOCKS } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
 import { PlayerModel, createSkinCanvas } from './playermodel.js';
+import { mobEraOk } from './timeline.js';
 import { ExplosionManager } from './explosions.js';
 // Blob shadows removed — real shadow map shadows used instead
 
@@ -385,45 +386,6 @@ export const MOB_TYPES = {
       { item: 322, count: [1, 1] }, // dragon heart (guaranteed 1)
     ],
     soundChance: 0.001,
-  },
-
-  chronarch: {
-    name: 'Chronarch, Eater of Hours',
-    hp: 650,
-    hostile: true,
-    bipedalLegs: true,
-    bodyW: 1.1, bodyH: 1.7, bodyD: 0.7,
-    headW: 0.8, headH: 0.8, headD: 0.75,
-    legW: 0.26, legH: 1.1, legD: 0.26,
-    headOffY: -0.7,
-    headOffZ: -0.1,
-    hasArms: true,
-    armW: 0.3, armH: 1.4, armD: 0.3, armColor: 0x14141f,
-    hasHood: true,
-    hoodColor: 0x0a0a12,
-    hasCrest: true,
-    crestColor: 0xf5c542,
-    hasWings: true,
-    wingSpan: 4.2,
-    wingColor: 0x1a1426,
-    hasEyes: true,
-    eyeColor: 0xffb52e,
-    bodyColor: 0x14141f,
-    headColor: 0xd8cfc0,
-    legColor: 0x0e0e16,
-    attackDamage: 16,
-    speed: 7,
-    attackRange: 3.4,
-    aggroRange: 60,
-    knockbackResist: 1.0,
-    isBlower: true,
-    throwRange: 26,
-    throwCooldown: 6.0,
-    drops: [
-      { item: 712, count: [1, 1] }, // Crown of Hours (guaranteed)
-      { item: 710, count: [4, 8] }, // echo shards
-    ],
-    soundChance: 0.002,
   },
 
   witch: {
@@ -1187,7 +1149,6 @@ class Mob {
     if (this.type === 'blower') return this._blowerTextures(def);
     if (this.type === 'portalman') return this._portalmanTextures(def);
     if (this.type === 'witch') return this._witchTextures(def);
-    if (this.type === 'chronarch') return this._chronarchTextures(def);
     if (this.type === 'dragon') return this._dragonTextures(def);
     if (this.type === 'wanderer') return this._wandererTextures(def);
     if (this.type === 'pixie') return this._pixieTextures(def);
@@ -2863,99 +2824,6 @@ class Mob {
       ctx.fillStyle = '#123a22'; ctx.fillRect(0, 0, s, s); N(ctx, DARK, 7); botDark(ctx);
       ctx.fillStyle = '#0a2012'; ctx.fillRect(0, s - 12, s, 12);
       ctx.fillStyle = '#2a7042'; ctx.fillRect(0, s - 12, s, 3);
-    });
-    const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
-    return { body, head, leg };
-  }
-
-  _chronarchTextures(def) {
-    // Eater of Hours: void-black robe split by a burning hourglass sigil,
-    // pale death-mask face with amber eyes, cracked dark limbs.
-    const s = 64;
-    const VOID = 0x14141f;
-
-    const bodySide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#14141f';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 14);
-      // amber crack veins
-      ctx.fillStyle = '#7a5a10';
-      ctx.fillRect(6, 4, 2, s - 8);
-      ctx.fillRect(s - 8, 10, 2, s - 14);
-      ctx.fillStyle = '#f5c542';
-      ctx.fillRect(6, 20, 2, 12);
-      ctx.fillRect(s - 8, 34, 2, 12);
-    });
-    const bodyTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#0a0a12';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const bodyBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#0a0a12'; ctx.fillRect(0, 0, s, s); });
-    const bodyFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#14141f';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, VOID, 14);
-      // hourglass sigil: two amber triangles + falling sand
-      ctx.fillStyle = '#f5c542';
-      ctx.fillRect(22, 8, 20, 3);
-      ctx.fillRect(24, 11, 16, 3);
-      ctx.fillRect(27, 14, 10, 3);
-      ctx.fillRect(30, 17, 4, 12);
-      ctx.fillRect(27, 29, 10, 3);
-      ctx.fillRect(24, 32, 16, 3);
-      ctx.fillRect(22, 35, 20, 3);
-      ctx.fillStyle = '#ffe08a';
-      ctx.fillRect(30, 20, 4, 6);
-      ctx.fillStyle = '#ff5a3c';
-      ctx.fillRect(22, 8, 20, 1);
-      ctx.fillRect(22, 37, 20, 1);
-    });
-    const body = [bodySide, bodySide, bodyTop, bodyBot, bodySide, bodyFront];
-
-    const headSide = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#d8cfc0';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0xd8cfc0, 8);
-      // mask crack
-      ctx.fillStyle = '#8a8074';
-      ctx.fillRect(30, 0, 3, s);
-    });
-    const headTop = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#0a0a12';
-      ctx.fillRect(0, 0, s, s);
-    });
-    const headBot = this._tex(s, s, (ctx) => { ctx.fillStyle = '#b8ae9e'; ctx.fillRect(0, 0, s, s); });
-    const headBack = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#c8beae';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0xc8beae, 8);
-    });
-    const headFront = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#d8cfc0';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0xd8cfc0, 8);
-      // burning amber eyes
-      ctx.fillStyle = '#ffb52e';
-      ctx.fillRect(10, 24, 12, 10);
-      ctx.fillRect(42, 24, 12, 10);
-      ctx.fillStyle = '#fff2c8';
-      ctx.fillRect(13, 27, 4, 4);
-      ctx.fillRect(45, 27, 4, 4);
-      // grim slit mouth
-      ctx.fillStyle = '#3a342c';
-      ctx.fillRect(20, 48, 24, 3);
-      // brow shadow
-      ctx.fillStyle = '#8a8074';
-      ctx.fillRect(8, 18, 48, 3);
-    });
-    const head = [headSide, headSide, headTop, headBot, headBack, headFront];
-
-    const legTex = this._tex(s, s, (ctx) => {
-      ctx.fillStyle = '#0e0e16';
-      ctx.fillRect(0, 0, s, s);
-      this._noiseTex(ctx, s, s, 0x0e0e16, 12);
-      ctx.fillStyle = '#7a5a10';
-      ctx.fillRect(28, 8, 2, s - 16);
     });
     const leg = [legTex, legTex, legTex, legTex, legTex, legTex];
     return { body, head, leg };
@@ -4772,6 +4640,12 @@ export class MobManager {
       spawnTypes.push('zombie', 'skeleton', 'spider', 'zombie', 'skeleton', 'spider', 'blower', 'portalman', 'witch',
         'crystal_golem', 'shadow_stalker', 'wind_spirit', 'cave_bat', 'cave_bat');
     }
+    // The Long Now: filter the pool by era — deep time gets golems instead
+    // of witches, machine ages get blowers/portalmen. Fall back to the full
+    // pool if the filter would leave nothing (never break spawning).
+    const wy = (this.world && typeof this.world.year === 'number') ? this.world.year : -6000;
+    const eraPool = spawnTypes.filter(t => { try { return mobEraOk(t, wy); } catch (_) { return true; } });
+    const pool = eraPool.length ? eraPool : spawnTypes;
     const placed = [];
 
     for (let i = 0; i < count; i++) {
@@ -4802,7 +4676,7 @@ export class MobManager {
         if (pdx * pdx + pdz * pdz < MIN_PLAYER_DIST * MIN_PLAYER_DIST) break;
       }
 
-      const type = spawnTypes[Math.floor(rng() * spawnTypes.length)];
+      const type = pool[Math.floor(rng() * pool.length)];
       const mob = new Mob(type, bestPos.x, bestPos.y, bestPos.z, this.scene);
       mob.entityId = this._allocEntityId();
       this.mobs.push(mob);

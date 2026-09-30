@@ -115,6 +115,7 @@ export function createWorld(name, seed, gamemode, difficulty, opts = {}) {
     amplified: !!opts.amplified,
     weird: !!opts.weird,
     oneblock: !!opts.oneblock,
+    year: (opts.year == null) ? -6000 : opts.year,
     createdAt: Date.now(),
   };
   if (opts.dev) {

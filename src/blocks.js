@@ -252,6 +252,7 @@ export const BLOCK = {
   SANDSTONE_SLAB_TOP: 247,
   NETHER_BRICK_SLAB_TOP: 248,
   DEEPSLATE_SLAB_TOP: 249,
+  TIME_RIFT: 250,          // lit time-machine interior — opens the year dial on contact
 };
 
 // Atlas tile name -> [tileX, tileY] in a 16x16 grid (tile 0,0 = top-left).
@@ -514,6 +515,7 @@ export const TILES = {
   soul_lantern:          [13, 11],
   // Stairs reuse existing textures (no new tiles needed)
   barrel:                [14, 11],
+  time_rift:            [14, 15],
 };
 
 // Per-block definition. `faces` is [top, bottom, side] tile names, or a single
@@ -641,6 +643,7 @@ export const BLOCKS = {
   [BLOCK.ACACIA_LEAVES]:  { name: 'Acacia Leaves', solid: true, transparent: true, cutout: true, hardness: 0.2, faces: 'acacia_leaves' },
   // Shattered Echo Dimension
   [BLOCK.VOID_PORTAL]: { name: 'Void Portal', solid: false, transparent: true, cutout: true, hardness: 0, unbreakable: true, drop: 0, faces: 'void_portal', portal: true },
+  [BLOCK.TIME_RIFT]: { name: 'Time Rift', solid: false, transparent: true, cutout: true, hardness: 0, unbreakable: true, drop: 0, faces: 'time_rift', portal: true },
   [BLOCK.COMPRESSED_VOIDSTONE]: { name: 'Compressed Voidstone', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'compressed_voidstone' },
   [BLOCK.ECHO_ORE]: { name: 'Echo Ore', solid: true, hardness: 3.0, tool: 'pickaxe', harvest: 1, faces: 'echo_ore', drop: 710 },
   [BLOCK.CRACKED_STONE_BRICKS]: { name: 'Cracked Stone Bricks', solid: true, hardness: 1.5, tool: 'pickaxe', harvest: 1, faces: 'cracked_stone_bricks' },

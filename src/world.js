@@ -5,7 +5,7 @@ import { Noise } from './noise.js';
 import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight, generateDimensionColumn, generateDimensionFeatures } from './worldgen.js';
-import { generateVillages } from './structures.js';
+import { generateVillages, generateEraSites } from './structures.js';
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
 export class Chunk {
@@ -38,6 +38,23 @@ export class World {
     this.amplified = !!opts.amplified;
     this.weird = !!opts.weird;
     this.dimension = !!opts.dimension;
+    // The Long Now: the calendar year this world currently sits in.
+    // Terrain shape is seed-stable; dressing (settlements, mobs, sky)
+    // follows the year. Edits are stored per era-year.
+    this.year = (opts.year == null) ? -6000 : opts.year;
+    this.eraEdits = {}; // year -> saved _chunkEdits array
+  }
+
+  // Stash live edits under one year and restore another's (fresh if unseen).
+  // Returns nothing; caller clears + remeshes chunks afterwards.
+  swapEraEdits(fromYear, toYear) {
+    const live = [];
+    for (const [k, m] of this._chunkEdits) live.push([k, [...m]]);
+    this.eraEdits[fromYear] = live;
+    this._chunkEdits = new Map();
+    const back = this.eraEdits[toYear];
+    if (back) for (const [k, arr] of back) this._chunkEdits.set(k, new Map(arr));
+    this.year = toYear;
   }
 
   getChest(x, y, z) {
@@ -266,6 +283,9 @@ export class World {
 
       if (!this.dimension) {
         try { generateVillages(chunk, baseX, baseZ, n, this.seed, this); } catch (e) { console.error('Village generation failed:', e); }
+        // The Long Now: one signature monument per age band, placed for the
+        // CURRENT year — same place, new age, on every visit.
+        try { generateEraSites(chunk, baseX, baseZ, n, this.year, this.seed); } catch (e) { console.error('Era site generation failed:', e); }
       }
     }
 
