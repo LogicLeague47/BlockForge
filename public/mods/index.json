@@ -1,0 +1,18 @@
+[
+  { "id": "bf-minimap", "icon": "🗺️", "name": "Minimap", "ver": "1.0", "desc": "Top-down terrain minimap, north-up, with a live facing arrow. Toggle with M.", "file": "minimap.bfmod" },
+  { "id": "bf-r3d-shaders", "icon": "✨", "name": "Real-Time Shaders", "ver": "1.1", "desc": "Custom GLSL terrain shaders: soft PCF shadows, animated water, wind sway, gradient fog.", "file": "r3d-shaders.bfmod" },
+  { "id": "bf-saturation-viewer", "icon": "🍗", "name": "Saturation Viewer", "ver": "1.0", "desc": "Shows exact hunger plus the hidden saturation reserve draining before hunger.", "file": "saturation.bfmod" },
+  { "id": "bf-nightvision", "icon": "🌙", "name": "Night Vision", "ver": "1.0", "desc": "Green-tinted low-light vision, auto-activates at night. Toggle with N.", "file": "nightvision.bfmod" },
+  { "id": "bf-block-outline", "icon": "🧱", "name": "Block Outline", "ver": "1.0", "desc": "Glowing wireframe around the block you are looking at. Toggle with O.", "file": "blockoutline.bfmod" },
+  { "id": "bf-sky-tint", "icon": "🌅", "name": "Sky Tint", "ver": "1.0", "desc": "Time-of-day color grading: warm dawns, purple dusks, deep nights. Toggle with Y.", "file": "skytint.bfmod" },
+  { "id": "bf-motion-fov", "icon": "💨", "name": "Motion FOV", "ver": "1.0", "desc": "Dynamic field of view that widens with speed for a cinematic feel. Toggle with G.", "file": "motionfov.bfmod" },
+  { "id": "bf-spyglass", "icon": "🔭", "name": "Spyglass", "ver": "1.0", "desc": "Hold Z to zoom in like a spyglass. Toggle the feature with K.", "file": "spyglass.bfmod" },
+  { "id": "bf-damage-fx", "icon": "❤️", "name": "Damage FX", "ver": "1.0", "desc": "Red screen flash on damage + low-health heartbeat pulse. Toggle with U.", "file": "damagefx.bfmod" },
+  { "id": "bf-compass", "icon": "🧭", "name": "Compass Bar", "ver": "1.0", "desc": "Top-of-screen compass showing your heading. Toggle with X.", "file": "compass.bfmod" },
+  { "id": "bf-crosshair", "icon": "🎯", "name": "Dynamic Crosshair", "ver": "1.0", "desc": "Animated crosshair with hit flash. Toggle with J.", "file": "crosshair.bfmod" },
+  { "id": "bf-coords", "icon": "📍", "name": "Position HUD", "ver": "1.0", "desc": "Live XYZ coords, heading and light level. Toggle with C.", "file": "coords.bfmod" },
+  { "id": "bf-fps-boost", "icon": "🚀", "name": "FPS Booster", "ver": "1.0", "desc": "Auto-tunes render resolution to hold your FPS target. Toggle with P.", "file": "fpsbooster.bfmod" },
+  { "id": "bf-fast-shadows", "icon": "⚡", "name": "Fast Shadows", "ver": "1.0", "desc": "Lower shadow resolution for a big frame-rate win. Toggle with H.", "file": "fastshadows.bfmod" },
+  { "id": "bf-pixel-vision", "icon": "👾", "name": "Pixel Vision", "ver": "1.0", "desc": "Retro pixelated low-res look + a huge FPS boost. Toggle with L.", "file": "pixelvision.bfmod" },
+  { "id": "java-bridge", "icon": "⛏️", "name": "Java Bridge", "ver": "1.0", "desc": "Verify your certified Minecraft Java account with Microsoft, then search any Java server IP for live status. Adds one ⛏️ button when enabled.", "file": "java-bridge.bfmod" }
+]

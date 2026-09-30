@@ -336,6 +336,50 @@ export function removeMod(id) {
 }
 
 // ---- Menu ---------------------------------------------------------------
+// ---- Official catalog (one-tap install, no file picker needed) ----------
+// public/mods/index.json mirrors the mods page. Installing fetches the
+// .bfmod text straight from the bundled dist — this works inside the native
+// app, where <input type=file> pickers and window.open('mods.html') are
+// unreliable.
+let _catalog = null;
+let _catalogLoading = false;
+function loadCatalog() {
+  if (_catalog || _catalogLoading) return;
+  _catalogLoading = true;
+  fetch('mods/index.json')
+    .then((r) => (r && r.ok ? r.json() : null))
+    .then((j) => { _catalog = Array.isArray(j) ? j : []; })
+    .catch(() => { _catalog = []; })
+    .finally(() => { _catalogLoading = false; try { renderModsList(); } catch (_) {} });
+}
+async function installFromCatalog(id) {
+  const e = (_catalog || []).find((x) => x && x.id === id);
+  if (!e || !e.file) { status('⚠ Mod file missing from catalog.', '#f88'); return; }
+  status('Installing ' + (e.name || id) + '…', '#aaa');
+  try {
+    const r = await fetch('mods/' + e.file);
+    if (!r || !r.ok) throw new Error('not bundled');
+    const code = await r.text();
+    importModCode(code, (ok, res) => {
+      if (ok) status('✅ ' + res.name + ' installed and enabled.', '#6f6');
+      else status('⚠ ' + (res || 'Import failed'), '#f88');
+    });
+  } catch (_) {
+    status('⚠ Not in this build — get it from the mods page.', '#f88');
+  }
+}
+function officialCard(e) {
+  return '<div style="background:rgba(150,120,255,0.06);border:1px solid rgba(150,120,255,0.3);border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
+    '<div style="display:flex;align-items:center;gap:10px;">' +
+      '<div style="font-size:26px;width:36px;text-align:center;">' + (e.icon || '📦') + '</div>' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font:bold 14px monospace;color:#e8e8ff;">' + esc(e.name) + ' <span style="color:#888;font-size:11px;">v' + esc(e.ver || '1.0') + '</span><span style="font:bold 9px monospace;color:#ffd;background:linear-gradient(135deg,#a8f,#7f7ff5);border:1px solid rgba(200,180,255,.4);padding:1px 6px;border-radius:5px;margin-left:6px;">OFFICIAL</span></div>' +
+        '<div style="font:11px monospace;color:#999;margin-top:2px;">' + esc(e.desc || '') + '</div>' +
+      '</div>' +
+      '<button data-mod-install="' + esc(e.id) + '" style="font:bold 11px monospace;padding:6px 12px;border-radius:6px;border:none;cursor:pointer;background:#3a3a9a;color:#fff;white-space:nowrap;">⬇ INSTALL</button>' +
+    '</div>' +
+  '</div>';
+}
 function status(msg, color) {
   const el = document.getElementById('mods-status');
   if (el) { el.textContent = msg || ''; el.style.color = color || '#aaa'; }
@@ -347,11 +391,8 @@ export function renderModsList() {
   const saveErr = modSaveError
     ? '<div style="background:rgba(200,60,60,0.15);border:1px solid rgba(255,100,100,0.5);border-radius:8px;padding:8px 12px;margin-bottom:8px;font:11px monospace;color:#f88;">⚠ ' + esc(modSaveError) + '</div>'
     : '';
-  if (!_mods.length) {
-    list.innerHTML = saveErr + '<div style="text-align:center;padding:22px 12px;color:#888;font:13px monospace;line-height:1.7;">No mods installed yet.<br>Download <b>.bfmod</b> files from the BlockForge website,<br>then tap "Import Mod" (or drag the file here).</div>';
-    return;
-  }
-  list.innerHTML = saveErr + _mods.map((m) => {
+  const installedIds = new Set(_mods.map((m) => m.id));
+  const installedHtml = _mods.length ? _mods.map((m) => {
     const on = m.enabled;
     const official = m.author === 'BlockForge Dev';
     const tag = official
@@ -372,7 +413,19 @@ export function renderModsList() {
       '</div>' +
       (on ? '' : '<div style="font:10px monospace;color:#fa0;margin-top:6px;">Disabled</div>') +
     '</div>';
-  }).join('');
+  }).join('')
+    : '<div style="text-align:center;padding:14px 12px;color:#888;font:13px monospace;line-height:1.7;">No mods installed yet.<br>Pick one below — no download needed.</div>';
+  let officialHtml = '';
+  if (_catalog && _catalog.length) {
+    const missing = _catalog.filter((e) => e && e.id && !installedIds.has(e.id));
+    officialHtml = '<div style="font:bold 11px monospace;color:#a8f;letter-spacing:1.5px;margin:14px 2px 8px;">⬇ OFFICIAL MODS — ONE-TAP INSTALL</div>' +
+      (missing.length
+        ? missing.map(officialCard).join('')
+        : '<div style="text-align:center;padding:8px;color:#6f6;font:12px monospace;">All official mods installed ✅</div>');
+  } else if (!_catalog) {
+    officialHtml = '<div style="text-align:center;padding:8px;color:#666;font:11px monospace;">Loading official catalog…</div>';
+  }
+  list.innerHTML = saveErr + installedHtml + officialHtml;
 }
 
 function esc(s) {
@@ -384,6 +437,7 @@ export function openModsMenu(ui) {
   if (ui && typeof ui.showMenu === 'function') ui.showMenu('mods');
   status('');
   renderModsList();
+  loadCatalog();
 }
 
 export function bindModsMenu(ui) {
@@ -405,6 +459,14 @@ export function bindModsMenu(ui) {
     if (input) input.click();
   });
   document.getElementById('btn-mod-browse')?.addEventListener('click', () => {
+    try {
+      // window.open() does nothing inside the native app shell — navigate the
+      // single WebView instead (mods.html has a BACK TO GAME link).
+      if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+        window.location.href = MODS_URL;
+        return;
+      }
+    } catch (_) {}
     window.open(MODS_URL, '_blank', 'noopener');
   });
   const input = document.getElementById('mod-file-input');
@@ -438,6 +500,11 @@ export function bindModsMenu(ui) {
   // Toggle / remove buttons (event delegation).
   const list = document.getElementById('mods-list');
   if (list) list.addEventListener('click', (e) => {
+    const ins = e.target.closest('[data-mod-install]');
+    if (ins) {
+      installFromCatalog(ins.getAttribute('data-mod-install'));
+      return;
+    }
     const t = e.target.closest('[data-mod-toggle]');
     if (t) {
       const id = t.getAttribute('data-mod-toggle');

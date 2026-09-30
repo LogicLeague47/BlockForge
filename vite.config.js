@@ -21,6 +21,10 @@ export default defineConfig(({ mode }) => {
       __CG__: JSON.stringify(mode === 'cg'),
       'process.env.BF_BACKEND_WS': JSON.stringify(process.env.BF_BACKEND_WS || ''),
       'process.env.BF_WEB_HOST': JSON.stringify(process.env.BF_WEB_HOST || ''),
+      // Build timestamp (ms) baked into every bundle — the in-app updater
+      // compares it against the GitHub release asset's updated_at so an
+      // updated install stops nagging without any server round-trip.
+      'process.env.BF_BUILD_TS': JSON.stringify(String(Date.now())),
     },
     build: {
       // Old devices (e.g. iPhone 5 / old Safari < iOS 11) don't support ES

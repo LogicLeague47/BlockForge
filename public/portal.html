@@ -1548,6 +1548,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'App update button + one-tap mods + MC name on join',
+          desc: 'The sideloaded app now shows a small ⬆ UPDATE pill at the top of the screen when a newer build is out — tap it and the APK/IPA opens in your browser to install. The in-game Mods menu lists every official mod with one-tap install (no file picking needed), and the mods page got a BACK TO GAME button. Java Bridge server search now falls back to a public ping so it works even with our server down, and verified players join multiplayer under their Minecraft username instead of their BlockForge name.',
+          date: 'Sep 30',
+          bugs: ['.bfmod picker showed nothing on Android (extension filter ate all files)', 'Browse Mods did nothing inside the app (window.open unsupported)', 'APK download button did nothing inside the app WebView'],
+          updates: ['update pill compares build stamp vs GitHub release, opens system browser on tap', 'official catalog in Mods menu with INSTALL buttons', 'Java Bridge: public ping fallback + offline message'],
+          features: ['one-tap official mod installs', 'Minecraft username on multiplayer join (toggle in mod)', 'BACK TO GAME link on mods page'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'NPC voices + Java Bridge mod',
           desc: 'Villagers speak: quest givers, testimonies, traveler deals and greeting barks are voiced (ElevenLabs, free browser voice fallback, NPC Voices toggle in settings). New official mod: Java Bridge — verify your certified Minecraft Java account with Microsoft and search any Java server IP for live status, all behind one button that appears when the mod is enabled. Verification runs through the open-source Sisu library as a server sidecar.',
           date: 'Sep 30',

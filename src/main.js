@@ -55,6 +55,7 @@ import { buildSkyblockMap, clearSkyblock, SB_SPAWN, SB_VOID_BELOW, SB_STARTER_KI
 import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged } from './liquid.js';
 import { GreenstoneSystem } from './greenstone.js';
 import { initMods, bindModsMenu, modsTick, setAtlasTexture, hasGameplayMods, getModBlocks, getModItems, getModMobs, getModButtons } from './mods.js';
+import { checkAppUpdate } from './appupdate.js';
 import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -950,6 +951,20 @@ const greenstoneSystem = new GreenstoneSystem();
 // --- multiplayer / chat state ---
 let playerName = 'Player';
 let playerRole = 'player';
+
+// Java Bridge mod: when a certified Minecraft account is verified, multiplayer
+// JOINS use the Minecraft username instead of the BlockForge account name
+// (the server auto-provisions the MC-name account on first join, with the
+// same password). Login/auth screens keep the BlockForge account — only the
+// join identity switches, and only while the mod's toggle is on.
+function mcJoinName() {
+  try {
+    if (localStorage.getItem('bf_java_join_as_mc') === '0') return playerName;
+    const v = JSON.parse(localStorage.getItem('bf_java_verify') || 'null');
+    if (v && typeof v.name === 'string' && /^[a-zA-Z0-9_]{2,16}$/.test(v.name)) return v.name;
+  } catch (_) {}
+  return playerName;
+}
 
 function _refreshDevButtons() {
   // Dev/gamedev/owner status comes ONLY from the server-verified role in
@@ -5336,7 +5351,7 @@ function syncLocalServersToNetwork() {
   if (!network.connected) return;
   const localServers = Server.listAll();
   for (const s of localServers) {
-    network.registerRoom(s.name, s.seed || 42, s.gameMode, s.maxPlayers, playerName, s.ownerSecret);
+    network.registerRoom(s.name, s.seed || 42, s.gameMode, s.maxPlayers, mcJoinName(), s.ownerSecret);
   }
 }
 
@@ -5394,11 +5409,14 @@ async function _doNetworkJoin(name, seed) {
   try { password = _xorDecode(localStorage.getItem('bf_login_pass') || '') || ''; } catch (_) { console.warn("localStorage read failed"); }
   const localServer = Server.load(name);
   const ownerSecret = localServer ? localServer.ownerSecret : null;
+  // Java Bridge: verified Minecraft account joins under its MC username.
+  const joinName = mcJoinName();
+  if (joinName !== playerName) showToast('Joining as Minecraft name: ' + joinName, '#8f8', 3);
   if (localServer) {
-    network.createRoom(name, localServer.seed || seed || 42, localServer.gameMode, localServer.maxPlayers, playerName, cgUsername, skinIdx, ownerSecret, password, localServer.isPrivate);
+    network.createRoom(name, localServer.seed || seed || 42, localServer.gameMode, localServer.maxPlayers, joinName, cgUsername, skinIdx, ownerSecret, password, localServer.isPrivate);
   } else {
     // Remote-only room (from server browser) — no owner secret, so no admin
-    network.joinRoom(name, playerName, cgUsername, skinIdx, null, password);
+    network.joinRoom(name, joinName, cgUsername, skinIdx, null, password);
   }
 }
 
@@ -8991,11 +9009,11 @@ function initMenu() {
   }
   // Shared host flow: create room, optional directory listing, first offer, start
   function p2pStartHosting(seed, gameMode, listed) {
-    p2pNetwork.createRoomOnP2P(playerName, seed, gameMode);
+    p2pNetwork.createRoomOnP2P(mcJoinName(), seed, gameMode);
     // Register in Firebase directory only for public listings; private
     // worlds stay code-only.
     if (listed) {
-      try { p2pDirectory.registerRoom(playerName, seed, gameMode, 1000, 1); } catch (_) {}
+      try { p2pDirectory.registerRoom(mcJoinName(), seed, gameMode, 1000, 1); } catch (_) {}
     } else {
       try { p2pDirectory.unregisterRoom(); } catch (_) {}
     }
@@ -10744,44 +10762,9 @@ function initMenu() {
     } catch (_) { console.warn("operation failed"); }
   }
 
-  // Android APK auto-update: check GitHub for new version, show update banner.
-  // Version key = the APK asset's updated_at (the rolling `binaries` release
-  // tag carries no build number, so tag parsing would never fire).
-  try {
-    const isAndroid = /android/i.test(navigator.userAgent);
-    if (isAndroid) {
-      const lastSeen = localStorage.getItem('bf_apk_latest_build') || '';
-      fetch('https://api.github.com/repos/LogicLeague47/BlockForge/releases/latest', { mode: 'cors' })
-        .then(r => r.json())
-        .then(d => {
-          if (!d || !d.assets) return;
-          const apk = d.assets.find(a => /\.apk$/i.test(a.name));
-          if (!apk || !apk.browser_download_url || !apk.updated_at) return;
-          const latestBuild = apk.updated_at;
-          if (latestBuild === lastSeen) return;
-          localStorage.setItem('bf_apk_latest_build', latestBuild);
-          const menu = document.getElementById('menu');
-          if (!menu) return;
-          const when = latestBuild.slice(0, 10);
-          const mb = apk.size ? ' (' + Math.round(apk.size / 1048576) + ' MB)' : '';
-          const bar = document.createElement('div');
-          bar.id = 'apk-update-bar';
-          bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:210;background:linear-gradient(90deg,#1a4a2a,#0d2818);border-bottom:1px solid #3a8a5a;color:#7f7;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font:13px monospace;gap:12px;';
-          bar.innerHTML = '<span>📱 New BlockForge APK — ' + when + mb + '</span>';
-          const dlBtn = document.createElement('button');
-          dlBtn.textContent = 'DOWNLOAD';
-          dlBtn.style.cssText = 'background:#3a8a5a;color:#fff;border:none;padding:6px 16px;border-radius:6px;font:bold 12px monospace;cursor:pointer;white-space:nowrap;';
-          dlBtn.onclick = function() { window.location.href = apk.browser_download_url; };
-          const dismissBtn = document.createElement('button');
-          dismissBtn.textContent = '✕';
-          dismissBtn.style.cssText = 'background:none;color:#7f7;border:1px solid #3a8a5a;padding:4px 8px;border-radius:4px;font:12px monospace;cursor:pointer;';
-          dismissBtn.onclick = function() { bar.remove(); };
-          bar.appendChild(dlBtn);
-          bar.appendChild(dismissBtn);
-          document.body.appendChild(bar);
-        }).catch(() => {});
-    }
-  } catch (_) { console.warn("operation failed"); }
+  // Sideloaded app self-update: small ⬆ pill at the top of the screen when a
+  // newer GitHub binary exists (Android APK / iOS IPA — see src/appupdate.js).
+  try { checkAppUpdate(); } catch (_) { /* never break boot for an update nag */ }
 }
 
 function showConsentNotice() {

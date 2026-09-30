@@ -32,6 +32,9 @@ function saveVerify(v) {
     else localStorage.removeItem(LS_VERIFY);
   } catch (_) {}
 }
+function joinAsMc() {
+  try { return localStorage.getItem('bf_java_join_as_mc') !== '0'; } catch (_) { return true; }
+}
 function loadRecent() {
   try { const r = JSON.parse(localStorage.getItem(LS_RECENT) || '[]'); return Array.isArray(r) ? r : []; } catch (_) { return []; }
 }
@@ -99,9 +102,11 @@ function renderAcct() {
     box.innerHTML =
       '<div style="margin-bottom:12px;padding:10px;border:1px solid #2a6a3a;border-radius:8px;background:rgba(40,180,80,0.08);">' +
       '<div>✅ <b>' + esc(v.name) + '</b> ' + (v.ownsJava ? '<span style="color:#8f8;">(owns Java ✓)</span>' : '<span style="color:#fa5;">(no Java license found)</span>') + '</div>' +
+      '<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#aaa;cursor:pointer;"><input type="checkbox" id="bf-java-joinmc"' + (joinAsMc() ? ' checked' : '') + '/> Join multiplayer as <b>' + esc(v.name) + '</b></label>' +
       '<button id="bf-java-out" style="margin-top:8px;background:#333;border:1px solid #555;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;">Sign out</button>' +
       '</div>';
     box.querySelector('#bf-java-out').onclick = () => { saveVerify(null); renderAcct(); };
+    box.querySelector('#bf-java-joinmc').onchange = (e) => { try { localStorage.setItem('bf_java_join_as_mc', e.target.checked ? '1' : '0'); } catch (_) {} };
   } else {
     box.innerHTML =
       '<div style="margin-bottom:12px;">' +
@@ -127,7 +132,7 @@ async function startVerify() {
   try { d = await api('/api/mc-device', {}); }
   catch (_) { d = null; }
   if (!d || !d.ok || !d.device_code) {
-    authBox.innerHTML = '<div style="color:#f55;">Couldn\u2019t reach Microsoft. Retry.</div>';
+    authBox.innerHTML = '<div style="color:#f55;">Backend offline — Microsoft sign-in needs the BlockForge server (coming back soon). Server search below still works.</div>';
     return;
   }
   authBox.innerHTML =
@@ -176,6 +181,34 @@ function parseHostPort(raw) {
   return { host, port };
 }
 
+// Public fallback ping via mcsrvstat.us (allows browser CORS, needs no
+// BlockForge server). Used when our backend is unreachable or stale.
+async function publicPing(hp) {
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(() => { try { ctl.abort(); } catch (_) {} }, 8000);
+    const resp = await fetch('https://api.mcsrvstat.us/3/' + encodeURIComponent(hp.host) + (hp.port === 25565 ? '' : ':' + hp.port), { signal: ctl.signal });
+    clearTimeout(to);
+    const j = await resp.json();
+    if (!j) return { ok: true, online: false, reason: 'no response.' };
+    if (!j.online) return { ok: true, online: false, reason: 'offline.' };
+    let motd = '';
+    try {
+      const m = j.motd || {};
+      const parts = m.clean || m.raw || [];
+      motd = (Array.isArray(parts) ? parts.join(' ') : String(parts)).replace(/§[0-9a-fk-or]/g, '').slice(0, 120);
+    } catch (_) {}
+    const ver = typeof j.version === 'string' ? j.version : ((j.version && j.version.name) || '');
+    return {
+      ok: true, online: true, src: 'public',
+      version: ver,
+      playersOnline: (j.players && j.players.online) || 0,
+      playersMax: (j.players && j.players.max) || 0,
+      motd, icon: j.icon || null,
+    };
+  } catch (_) { return { ok: true, online: false, reason: 'unreachable.' }; }
+}
+
 async function doSearch() {
   const input = _panel.querySelector('#bf-java-ip');
   const resBox = _panel.querySelector('#bf-java-results');
@@ -186,9 +219,19 @@ async function doSearch() {
   }
   const key = hp.host + (hp.port === 25565 ? '' : ':' + hp.port);
   resBox.innerHTML = '<div style="color:#aaa;">Pinging ' + esc(key) + '…</div>';
-  let r;
-  try { r = await api('/api/mc-ping', hp); }
-  catch (_) { r = null; }
+  let r = null;
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(() => { try { ctl.abort(); } catch (_) {} }, 4000);
+    const resp = await fetch(backend() + '/api/mc-ping', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(hp), signal: ctl.signal,
+    });
+    clearTimeout(to);
+    const j = await resp.json();
+    if (j && j.ok) r = j;
+  } catch (_) { r = null; }
+  if (!r || !r.ok || !r.online) r = await publicPing(hp);
   if (!r || !r.ok || !r.online) {
     resBox.innerHTML = '<div style="color:#f55;">⛔ ' + esc(key) + ' — ' + esc((r && r.reason) || 'offline.') + '</div>';
     return;
