@@ -8,12 +8,10 @@ import { cors } from 'hono/cors';
 import { mcDevice, mcPollOnce, mcRefreshToken, runChain } from './mc';
 import { icLookupKey, icEmojiFor } from './ic';
 import { IC_PATCH } from './ic-patch';
+import { getAccount as kvGetAccount, putAccount as kvPutAccount, findByIdentity as kvFindByIdentity, galleryList as kvGalleryList, galleryPush as kvGalleryPush, modsList as kvModsList, modsPut as kvModsPut, modsGetFile as kvModsGetFile } from './db';
 
 interface Env {
-  DB: D1Database;
   KV: KVNamespace;
-  R2_UPLOADS: R2Bucket;
-  R2_IC: R2Bucket;
   MC_CLIENT_ID: string;
   ELEVENLABS_VOICE_ID: string;
   ELEVENLABS_API_KEY?: string;
@@ -96,7 +94,7 @@ function oauthPage(provider: string, username: string, error: string | null, ori
   return `<html><body><script>(function(){ try { window.opener.postMessage(${data}, '${htmlEsc(origin)}'); } catch(e){} window.close(); })();</script><p>${error ? 'Auth failed' : 'Logged in as ' + htmlEsc(username || 'Guest')}. Close this window.</p></body></html>`;
 }
 
-// ─── accounts (D1) ───────────────────────────────────────────────────
+// ─── accounts (KV) ───────────────────────────────────────────────────
 // Fresh registry on the cutover: hashes are PBKDF2-SHA256 (Workers has no
 // scrypt, which the old Node server used — old password hashes can't be
 // verified here, so accounts were re-created).
@@ -108,19 +106,11 @@ async function pbkdf(password: string, saltHex: string): Promise<string> {
 }
 
 async function getAccount(env: Env, username: string): Promise<any | null> {
-  return env.DB.prepare('SELECT username, hash, salt, role, tag, identities FROM accounts WHERE username = ?').bind(username).first();
+  return kvGetAccount(env, username);
 }
 
 async function findByIdentity(env: Env, provider: string, providerId: string): Promise<string | null> {
-  if (!provider || !providerId) return null;
-  const { results } = await env.DB.prepare('SELECT username, identities FROM accounts').all();
-  for (const r of results || []) {
-    try {
-      const ids = JSON.parse((r as any).identities || '{}');
-      if (ids && ids[provider] === providerId) return (r as any).username;
-    } catch { /* skip */ }
-  }
-  return null;
+  return kvFindByIdentity(env, provider, providerId);
 }
 
 // mode: 'login' | 'register' | undefined (undefined = login-or-create, like join-time auth).
@@ -136,14 +126,14 @@ async function authAccount(env: Env, username: string, password: string, mode?: 
     if (existing) return { ok: false, reason: 'Username already taken. Please log in.' };
     const salt = randHex(16);
     const hash = await pbkdf(password, salt);
-    await env.DB.prepare("INSERT INTO accounts (username, hash, salt, role) VALUES (?, ?, ?, 'player')").bind(username, hash, salt).run();
+    await kvPutAccount(env, { username, hash, salt, role: 'player', tag: '', identities: {} });
     return { ok: true, username };
   }
   if (!existing) {
     if (mode === 'login') return { ok: false, reason: 'Account not found. Please create one.' };
     const salt = randHex(16);
     const hash = await pbkdf(password, salt);
-    await env.DB.prepare("INSERT INTO accounts (username, hash, salt, role) VALUES (?, ?, ?, 'player')").bind(username, hash, salt).run();
+    await kvPutAccount(env, { username, hash, salt, role: 'player', tag: '', identities: {} });
     return { ok: true, username };
   }
   const hash = await pbkdf(password, existing.salt);
@@ -285,25 +275,49 @@ app.post('/api/mc-ping', async (c) => {
     return c.json({ ok: true, online: false, reason: 'Bad address.' });
   }
   if (isPrivateLiteral(host)) return c.json({ ok: true, online: false, reason: 'Private address refused.' });
+  const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  const shape = (version: string, online: number, max: number, motd: string, icon: string | null) => ({
+    ok: true as const, online: true, version, playersOnline: online, playersMax: max, motd, icon,
+  });
   try {
-    const target = port === 25565 ? host : host + ':' + port;
-    const r = await fetch('https://api.mcsrvstat.us/3/' + encodeURIComponent(target), { signal: AbortSignal.timeout(10000) });
-    const j: any = await r.json();
-    if (!j || !j.online) return c.json({ ok: true, online: false, reason: 'offline.' });
-    let motd = '';
+    // Source 1: mcsrvstat (some edges block datacenter UAs — browser UA + fallback).
     try {
-      const m = j.motd || {};
-      const parts = m.clean || m.raw || [];
-      motd = cleanMotd(Array.isArray(parts) ? parts.join(' ') : String(parts));
-    } catch { /* keep empty */ }
-    return c.json({
-      ok: true, online: true,
-      version: typeof j.version === 'string' ? j.version : '',
-      playersOnline: (j.players && j.players.online) || 0,
-      playersMax: (j.players && j.players.max) || 0,
-      motd,
-      icon: typeof j.icon === 'string' ? j.icon.slice(0, 20000) : null,
+      const target = port === 25565 ? host : host + ':' + port;
+      const r = await fetch('https://api.mcsrvstat.us/3/' + encodeURIComponent(target), {
+        headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000),
+      });
+      const j: any = await r.json();
+      if (j && j.online) {
+        let motd = '';
+        try {
+          const m = j.motd || {};
+          const parts = m.clean || m.raw || [];
+          motd = cleanMotd(Array.isArray(parts) ? parts.join(' ') : String(parts));
+        } catch { /* keep empty */ }
+        return c.json(shape(
+          typeof j.version === 'string' ? j.version : '',
+          (j.players && j.players.online) || 0,
+          (j.players && j.players.max) || 0,
+          motd,
+          typeof j.icon === 'string' ? j.icon.slice(0, 20000) : null,
+        ));
+      }
+    } catch { /* fall through to minetools */ }
+    // Source 2: minetools ping API.
+    const r2 = await fetch(`https://api.minetools.eu/ping/${encodeURIComponent(host)}/${port}`, {
+      headers: { 'User-Agent': UA }, signal: AbortSignal.timeout(8000),
     });
+    const k: any = await r2.json();
+    if (k && !k.error) {
+      return c.json(shape(
+        (k.version && k.version.name) || '?',
+        (k.players && k.players.online) || 0,
+        (k.players && k.players.max) || 0,
+        cleanMotd(k.description || ''),
+        typeof k.favicon === 'string' ? k.favicon.slice(0, 20000) : null,
+      ));
+    }
+    return c.json({ ok: true, online: false, reason: 'offline.' });
   } catch { return c.json({ ok: true, online: false, reason: 'Unreachable.' }); }
 });
 
@@ -403,8 +417,7 @@ function parseModManifest(code: string): any {
 }
 
 app.get('/api/mods/community', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT id, name, version, description, author, icon, file, uploadedAt, updatedAt FROM mods ORDER BY updatedAt DESC LIMIT 200').all();
-  return c.json(results || []);
+  return c.json(await kvModsList(c.env));
 });
 
 app.post('/api/mods/upload', async (c) => {
@@ -425,11 +438,11 @@ app.post('/api/mods/upload', async (c) => {
     const id = meta.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
     if (!id) throw new Error('Invalid mod id.');
     const now = Date.now();
-    const prev: any = await c.env.DB.prepare('SELECT uploadedAt FROM mods WHERE id = ?').bind(id).first();
-    await c.env.R2_UPLOADS.put('community/' + id + '.bfmod', code, { httpMetadata: { contentType: 'text/plain; charset=utf-8' } });
-    await c.env.DB.prepare('INSERT INTO mods (id, name, version, description, author, icon, file, uploadedAt, updatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name=excluded.name, version=excluded.version, description=excluded.description, author=excluded.author, icon=excluded.icon, file=excluded.file, updatedAt=excluded.updatedAt')
-      .bind(id, String(meta.name).slice(0, 80), String(meta.version).slice(0, 16), String(meta.description).slice(0, 500), String(meta.author).slice(0, 48), String(meta.icon).slice(0, 8), id + '.bfmod', (prev && prev.uploadedAt) || now, now).run();
-    return c.json({ ok: true, mod: { id, name: meta.name, version: meta.version, description: meta.description, author: meta.author, icon: meta.icon, file: id + '.bfmod', uploadedAt: (prev && prev.uploadedAt) || now, updatedAt: now } });
+    const prevList = await kvModsList(c.env);
+    const prev = prevList.find((m: any) => m && m.id === id);
+    const rec = { id, name: String(meta.name).slice(0, 80), version: String(meta.version).slice(0, 16), description: String(meta.description).slice(0, 500), author: String(meta.author).slice(0, 48), icon: String(meta.icon).slice(0, 8), file: id + '.bfmod', uploadedAt: (prev && prev.uploadedAt) || now, updatedAt: now };
+    await kvModsPut(c.env, rec, code);
+    return c.json({ ok: true, mod: rec });
   } catch (e: any) {
     return c.json({ ok: false, reason: (e && e.message) || 'Invalid request' }, 400);
   }
@@ -437,9 +450,9 @@ app.post('/api/mods/upload', async (c) => {
 
 app.get('/api/mods/download/:id', async (c) => {
   const id = decodeURIComponent(c.req.param('id') || '').replace(/[^a-zA-Z0-9.-]/g, '').slice(0, 64);
-  const obj = await c.env.R2_UPLOADS.get('community/' + id + '.bfmod');
-  if (!obj) return c.json({ ok: false, reason: 'Mod not found' }, 404);
-  return new Response(obj.body, {
+  const code = await kvModsGetFile(c.env, id);
+  if (!code) return c.json({ ok: false, reason: 'Mod not found' }, 404);
+  return new Response(code, {
     headers: {
       'Content-Type': 'text/plain; charset=utf-8',
       'Content-Disposition': `attachment; filename="${id}.bfmod"`,
@@ -452,8 +465,7 @@ app.get('/api/mods/download/:id', async (c) => {
 app.get('/api/gallery', async (c) => {
   try {
     const type = new URL(c.req.url).searchParams.get('type') === 'textures' ? 'textures' : 'skins';
-    const { results } = await c.env.DB.prepare('SELECT name, data, uploader, date FROM gallery WHERE type = ? ORDER BY date DESC LIMIT 50').bind(type).all();
-    return c.json({ ok: true, items: (results || []).map((r: any) => ({ name: r.name, data: r.data, uploader: r.uploader, date: r.date })) });
+    return c.json({ ok: true, items: await kvGalleryList(c.env, type) });
   } catch { return c.json({ ok: false, reason: 'Gallery unavailable.' }, 500); }
 });
 
@@ -468,46 +480,20 @@ app.post('/api/gallery', async (c) => {
     return c.json({ ok: false, reason: 'That file is not a supported image.' }, 400);
   }
   try {
-    await c.env.DB.prepare('INSERT INTO gallery (type, name, data, uploader, date) VALUES (?, ?, ?, ?, ?)').bind(type, name, data, who.username, Date.now()).run();
-    await c.env.DB.prepare('DELETE FROM gallery WHERE type = ? AND id NOT IN (SELECT id FROM gallery WHERE type = ? ORDER BY date DESC LIMIT 100)').bind(type, type).run();
+    await kvGalleryPush(c.env, type, { name, data, uploader: who.username, date: Date.now() });
     return c.json({ ok: true });
   } catch { return c.json({ ok: false, reason: 'Invalid upload.' }, 400); }
 });
 
-// ─── News video upload (dev-only) + ranged serving ───────────────────
-const VIDEO_EXTS = new Set(['.mp4', '.m4v', '.webm', '.mov', '.ogv']);
-const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
-
+// ─── News video upload (dev-only) ────────────────────────────────────
+// R2 isn't enabled on the account yet, so video storage is unavailable.
+// Dev video posts fail closed with a clear message until R2 lands.
 app.post('/api/upload', async (c) => {
-  if (!String(c.req.header('content-type') || '').toLowerCase().startsWith('video/')) {
-    return c.json({ ok: false, reason: 'Only video files can be uploaded.' }, 400);
-  }
-  const who = await linkedOrPassword(c.env, c.req.header('x-bf-name') || '', c.req.header('x-bf-pass') || '', c.req.header('x-bf-identity-type') || '', c.req.header('x-bf-identity-id') || '');
-  if (!who || !isNewsPoster(who.role)) return c.json({ ok: false, reason: 'You need Developer permissions to upload videos.' }, 403);
-  const buf = new Uint8Array(await c.req.arrayBuffer());
-  if (!buf.length) return c.json({ ok: false, reason: 'Empty upload.' }, 400);
-  if (buf.length > MAX_UPLOAD_BYTES) return c.json({ ok: false, reason: 'Video is too large (max 64MB).' }, 413);
-  const raw = String(c.req.header('x-bf-filename') || 'video.mp4');
-  const dot = raw.lastIndexOf('.');
-  const ext = (dot >= 0 ? raw.slice(dot) : '.mp4').toLowerCase();
-  const fname = randHex(8) + (VIDEO_EXTS.has(ext) ? ext : '.mp4');
-  await c.env.R2_UPLOADS.put('uploads/' + fname, buf, { httpMetadata: { contentType: 'video/' + (ext === '.mp4' || ext === '.m4v' ? 'mp4' : ext.slice(1)) } });
-  const url = new URL(c.req.url);
-  return c.json({ ok: true, url: url.origin + '/uploads/' + fname, size: buf.length });
+  return c.json({ ok: false, reason: 'Video uploads are offline until storage is enabled.' }, 503);
 });
 
 app.get('/uploads/:fname', async (c) => {
-  const fname = c.req.param('fname').replace(/[^a-zA-Z0-9._-]/g, '').slice(0, 64);
-  if (!fname) return c.json({ error: 'Not found' }, 404);
-  const range = c.req.header('range');
-  const obj = await c.env.R2_UPLOADS.get('uploads/' + fname, range ? { range } : undefined);
-  if (!obj) return c.json({ error: 'Not found' }, 404);
-  const headers: Record<string, string> = { 'Content-Type': 'video/mp4', 'Accept-Ranges': 'bytes', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=86400' };
-  if (obj.range) {
-    headers['Content-Range'] = `bytes ${obj.range.offset}-${obj.range.end}/${obj.size}`;
-    return new Response(obj.body, { status: 206, headers });
-  }
-  return new Response(obj.body, { headers });
+  return c.json({ error: 'Not found' }, 404);
 });
 
 // ─── Global bans (sync feed for community hosts) ─────────────────────
@@ -744,7 +730,7 @@ app.post('/auth/cg-link', async (c) => {
         counter++;
         if (counter > 100) { finalName = 'Player' + Date.now().toString(36); break; }
       }
-      await c.env.DB.prepare("INSERT INTO accounts (username, hash, salt, role, identities) VALUES (?, '', '', 'player', ?)").bind(finalName, JSON.stringify({ crazygames: body.cgUserId || cgId })).run();
+      await kvPutAccount(c.env, { username: finalName, hash: '', salt: '', role: 'player', tag: '', identities: { crazygames: body.cgUserId || cgId } });
       username = finalName;
     }
     const linkToken = randHex(16);
@@ -859,10 +845,10 @@ app.get('/auth/:provider/callback', async (c) => {
       if (!targetAcc) {
         return new Response(oauthPage(provider, 'Guest', 'Account not found', gameOrigin, providerId, false), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
       }
-      let ids: any = {};
-      try { ids = JSON.parse(targetAcc.identities || '{}'); } catch { ids = {}; }
+      const ids = (targetAcc.identities && typeof targetAcc.identities === 'object' ? targetAcc.identities : {}) as Record<string, string>;
       ids[provider] = providerId;
-      await c.env.DB.prepare('UPDATE accounts SET identities = ? WHERE username = ?').bind(JSON.stringify(ids), target).run();
+      targetAcc.identities = ids;
+      await kvPutAccount(c.env, targetAcc);
       return new Response(oauthPage(provider, target, null, gameOrigin, providerId, true), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     }
     const existingName = await findByIdentity(c.env, provider, providerId);

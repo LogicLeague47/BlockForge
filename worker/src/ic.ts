@@ -1,54 +1,55 @@
-// InfiniteCraft dataset search over R2-hosted sorted TSVs.
-// by-key.tsv (key\tname\temoji, UTF-16 sorted) and by-name.tsv
-// (name\temoji, sorted) mirror the server's icSearch binary search, but over
-// HTTP Range reads: an offsets index (.offs, little-endian Uint32 per line,
-// built by scripts/seed-ic.mjs) is cached per isolate, then each probe reads
-// exactly one line's byte range — ~20 small sequential reads per lookup.
+// InfiniteCraft dataset search over KV line-chunks.
+// by-key.tsv (793K lines, key\tname\temoji, UTF-16 sorted) and by-name.tsv
+// are split into 2000-line chunks (`ick:<n>`, `icn:<n>`) by scripts/seed-ic.
+// Binary search fetches one small chunk per probe (~20 KV reads per lookup,
+// each ~80KB — fast, and hot chunks stay in the isolate cache).
 
 interface IcEnv {
-  R2_IC: R2Bucket;
+  KV: KVNamespace;
 }
 
-const memCache = new Map<string, { name: string; emoji: string } | null>();
-const offsCache = new Map<string, { offs: Uint32Array; size: number }>();
+const CHUNK = 2000;
+const chunkCache = new Map<string, string[]>();
+const countCache = new Map<string, number>();
 
-async function loadOffs(env: IcEnv, base: string): Promise<{ offs: Uint32Array; size: number } | null> {
-  const cached = offsCache.get(base);
-  if (cached) return cached;
-  const obj = await env.R2_IC.get(base + '.offs');
-  if (!obj) return null;
-  const buf = await obj.arrayBuffer();
-  const offs = new Uint32Array(buf);
-  const sizeObj = await env.R2_IC.head(base + '.tsv');
-  const entry = { offs, size: Number(sizeObj?.size || 0) };
-  offsCache.set(base, entry);
-  return entry;
+async function getCount(env: IcEnv, prefix: string): Promise<number> {
+  const ck = prefix + ':count';
+  if (countCache.has(ck)) return countCache.get(ck)!;
+  const n = Number((await env.KV.get(ck)) || 0);
+  countCache.set(ck, n);
+  return n;
 }
 
-async function readLine(env: IcEnv, base: string, idx: { offs: Uint32Array; size: number }, line: number): Promise<string | null> {
-  const start = idx.offs[line];
-  const end = line + 1 < idx.offs.length ? idx.offs[line + 1] : idx.size;
-  if (!(end > start) || end - start > 65536) return null;
-  const obj = await env.R2_IC.get(base + '.tsv', { range: { offset: start, length: end - start } });
-  if (!obj) return null;
-  let t = await obj.text();
-  if (t.endsWith('\n')) t = t.slice(0, -1);
-  if (t.endsWith('\r')) t = t.slice(0, -1);
-  return t;
+async function getChunk(env: IcEnv, prefix: string, n: number): Promise<string[] | null> {
+  const ck = `${prefix}:${n}`;
+  const hit = chunkCache.get(ck);
+  if (hit) return hit;
+  let t: string | null = null;
+  try { t = await env.KV.get(ck); } catch { t = null; }
+  if (t === null) return null;
+  const lines = t.split('\n');
+  if (chunkCache.size > 60) chunkCache.clear();
+  chunkCache.set(ck, lines);
+  return lines;
 }
 
-// Binary search field 0 with JS `<` (UTF-16 order — matches file generation).
-export async function icSearchLine(env: IcEnv, base: string, target: string): Promise<string | null> {
-  const idx = await loadOffs(env, base);
-  if (!idx || !idx.offs.length) return null;
-  let lo = 0, hi = idx.offs.length - 1;
+function field0(line: string): string {
+  const f1 = line.indexOf('\t');
+  return f1 < 0 ? line.replace(/\r$/, '') : line.substring(0, f1);
+}
+
+async function searchLines(env: IcEnv, prefix: string, target: string): Promise<string | null> {
+  const count = await getCount(env, prefix);
+  if (!count) return null;
+  let lo = 0, hi = count - 1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    const line = await readLine(env, base, idx, mid);
-    if (line === null) return null;
-    let f1 = line.indexOf('\t');
-    if (f1 < 0) f1 = line.length;
-    const f = line.substring(0, f1);
+    const lines = await getChunk(env, prefix, Math.floor(mid / CHUNK));
+    if (!lines) return null;
+    const raw = lines[mid % CHUNK];
+    if (raw === undefined) return null;
+    const line = raw.endsWith('\r') ? raw.slice(0, -1) : raw;
+    const f = field0(line);
     if (f === target) return line;
     if (f < target) lo = mid + 1;
     else hi = mid - 1;
@@ -56,10 +57,12 @@ export async function icSearchLine(env: IcEnv, base: string, target: string): Pr
   return null;
 }
 
+const memCache = new Map<string, { name: string; emoji: string } | null>();
+
 export async function icLookupKey(env: IcEnv, sk: string): Promise<{ name: string; emoji: string } | null> {
   const ck = 'k:' + sk;
   if (memCache.has(ck)) return memCache.get(ck) || null;
-  const line = await icSearchLine(env, 'by-key', sk);
+  const line = await searchLines(env, 'ick', sk);
   if (!line) { memCache.set(ck, null); return null; }
   const p1 = line.indexOf('\t');
   const p2 = line.indexOf('\t', p1 + 1);
@@ -71,7 +74,7 @@ export async function icLookupKey(env: IcEnv, sk: string): Promise<{ name: strin
 }
 
 export async function icEmojiFor(env: IcEnv, n: string): Promise<string | null> {
-  const line = await icSearchLine(env, 'by-name', n);
+  const line = await searchLines(env, 'icn', n);
   if (!line) return null;
   const p = line.indexOf('\t');
   if (p < 0) return null;

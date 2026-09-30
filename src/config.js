@@ -6,7 +6,7 @@
 //
 // `IS_CG_BUILD` is injected at build time via esbuild's `define`.
 
-export const BACKEND_URL = process.env.BF_BACKEND_WS || 'wss://blockforge-server.onrender.com';
+export const BACKEND_URL = process.env.BF_BACKEND_WS || 'https://blockforge-api.blockforge.workers.dev';
 
 // Game socket host (ROLE=ws). Everything real-time-game goes here;
 // HTTP APIs, auth and directory stay on BACKEND_URL (ROLE=main).

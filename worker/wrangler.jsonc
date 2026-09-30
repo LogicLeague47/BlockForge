@@ -6,27 +6,10 @@
     "MC_CLIENT_ID": "0000000048183522",
     "ELEVENLABS_VOICE_ID": "EXAVITQu4vr4xnSDxMaL"
   },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "blockforge-db",
-      "database_id": "<run: wrangler d1 create blockforge-db>"
-    }
-  ],
   "kv_namespaces": [
     {
       "binding": "KV",
-      "id": "<run: wrangler kv namespace create KV>"
-    }
-  ],
-  "r2_buckets": [
-    {
-      "binding": "R2_UPLOADS",
-      "bucket_name": "blockforge-uploads"
-    },
-    {
-      "binding": "R2_IC",
-      "bucket_name": "blockforge-ic"
+      "id": "3055ea19d70547b48f99834fa1c51c18"
     }
   ]
 }

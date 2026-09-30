@@ -1548,6 +1548,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Backend is LIVE on Cloudflare + JOIN button',
+          desc: 'The new backend is deployed and the game now talks to it: Microsoft verification issues real codes, server search returns live data, villager voices speak, and the 793K InfiniteCraft dataset answers from the cloud. The Java Bridge result card also grew a ⛏️ JOIN button that copies the IP and walks you to Minecraft Multiplayer.',
+          date: 'Sep 30',
+          bugs: ['mcsrvstat blocks datacenter IPs (minetools fallback added)', 'R2/D1 unavailable on this account (KV-only storage, videos paused)'],
+          updates: ['BACKEND_URL → blockforge-api.blockforge.workers.dev', 'IC dataset seeded to KV (397+397 chunks)', 'ElevenLabs + ban secrets set'],
+          features: ['live Microsoft device codes', 'live server ping with icons', 'JOIN button on mod results'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Backend moves to Cloudflare + perf modules wired',
           desc: 'Render is scrapped: the whole API (Microsoft verification, server search, voices, gallery, mods, directory, videos, IC dataset) now runs as a Cloudflare Worker. Also wired the five dormant perf modules: FIND RANDOM OPPONENT matchmaking is live in the P2P menu, chunk memory is pooled FerriteCore-style, chunk geometry gets Sodium static flags + throttled culling, the lag watchdog scales mesh budgets on low-RAM phones, and a new Cheap shadows setting swaps PCF for fast blob shadows.',
           date: 'Sep 30',

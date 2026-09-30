@@ -14,7 +14,7 @@ export const manifest = {
 const LS_VERIFY = 'bf_java_verify';
 const LS_RECENT = 'bf_java_recent';
 const LS_BACKEND = 'bf_java_backend';
-const DEFAULT_BACKEND = 'https://blockforge-server.onrender.com';
+const DEFAULT_BACKEND = 'https://blockforge-api.blockforge.workers.dev';
 
 function backend() {
   try {
@@ -209,6 +209,27 @@ async function publicPing(hp) {
   } catch (_) { return { ok: true, online: false, reason: 'unreachable.' }; }
 }
 
+function copyText(t) {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).catch(() => fallbackCopy(t));
+      return;
+    }
+  } catch (_) {}
+  fallbackCopy(t);
+}
+function fallbackCopy(t) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = t;
+    ta.style.cssText = 'position:fixed;opacity:0;';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  } catch (_) {}
+}
+
 async function doSearch() {
   const input = _panel.querySelector('#bf-java-ip');
   const resBox = _panel.querySelector('#bf-java-results');
@@ -249,13 +270,22 @@ async function doSearch() {
     '</div>' +
     '<div style="color:#8f8;">👥 ' + (r.playersOnline || 0) + '/' + (r.playersMax || 0) + '</div>' +
     '</a>' +
-    '<div style="font-size:11px;color:#888;">Tip: click the server to copy its IP for Minecraft Java.</div>';
+    '<button id="bf-java-join" style="background:#2a6a3a;color:#fff;border:none;border-radius:8px;padding:10px;font:bold 13px monospace;cursor:pointer;">⛏️ JOIN — copy server IP</button>' +
+    '<div style="font-size:11px;color:#888;">Browsers can\u2019t enter Java servers directly — JOIN copies the IP. Then open <b>Minecraft Java → Multiplayer → Add Server</b> and paste it.</div>';
   const hit = resBox.querySelector('#bf-java-hit');
+  const joinBtn = resBox.querySelector('#bf-java-join');
+  const doJoin = () => {
+    copyText(key);
+    const d = resBox.querySelector('#bf-java-detail');
+    if (d) d.textContent = 'IP copied! Minecraft Java → Multiplayer → Add Server → paste → Join Server.';
+  };
   hit.onclick = (e) => {
     e.preventDefault();
-    try { navigator.clipboard.writeText(key); } catch (_) {}
-    const d = resBox.querySelector('#bf-java-detail');
-    if (d) d.textContent = 'IP copied — paste it into Minecraft Java → Multiplayer.';
+    doJoin();
+  };
+  joinBtn.onclick = (e) => {
+    e.preventDefault();
+    doJoin();
   };
   renderRecent();
 }

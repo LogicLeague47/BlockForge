@@ -1,38 +1,38 @@
-// Seeds the InfiniteCraft dataset into R2 (run once after `wrangler login`):
-//   1. by-key.tsv + by-name.tsv → R2_IC bucket
-//   2. .offs line-offset indexes (little-endian Uint32) → R2_IC bucket
-// Usage: node scripts/seed-ic.mjs  (run from worker/)
+// Seeds the InfiniteCraft dataset into KV line-chunks via REST (run once):
+//   ick:<n> / icn:<n> — 2000-line TSV chunks, ick:count / icn:count totals.
+// Usage (from worker/): CLOUDFLARE_API_TOKEN=... node scripts/seed-ic.mjs
 import { readFileSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
 
-function buildOffs(text) {
-  const offs = [0];
-  for (let i = 0; i < text.length; i++) {
-    if (text.charCodeAt(i) === 10) offs.push(i + 1);
+const TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+const ACCOUNT = '1eaeadeaddaf9a61085e2dbca7d243cd';
+const NS = '3055ea19d70547b48f99834fa1c51c18';
+const CHUNK = 2000;
+if (!TOKEN) { console.error('CLOUDFLARE_API_TOKEN required'); process.exit(1); }
+
+async function put(key, value) {
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/storage/kv/namespaces/${NS}/values/${encodeURIComponent(key)}`, {
+    method: 'PUT',
+    headers: { Authorization: 'Bearer ' + TOKEN, 'Content-Type': 'text/plain' },
+    body: value,
+  });
+  if (!r.ok) throw new Error(`PUT ${key}: ${r.status} ${(await r.text()).slice(0, 120)}`);
+}
+
+for (const [base, prefix] of [['by-key', 'ick'], ['by-name', 'icn']]) {
+  const text = readFileSync(`../dist/ic/${base}.tsv`, 'utf8');
+  const lines = text.split('\n');
+  if (lines.length && lines[lines.length - 1] === '') lines.pop();
+  console.log(base, 'lines:', lines.length);
+  await put(`${prefix}:count`, String(lines.length));
+  const n = Math.ceil(lines.length / CHUNK);
+  // 25 parallel uploads at a time.
+  for (let s = 0; s < n; s += 25) {
+    const batch = [];
+    for (let i = s; i < Math.min(s + 25, n); i++) {
+      batch.push(put(`${prefix}:${i}`, lines.slice(i * CHUNK, (i + 1) * CHUNK).join('\n')));
+    }
+    await Promise.all(batch);
+    console.log(`  ${prefix} ${Math.min(s + 25, n)}/${n}`);
   }
-  let n = offs.length;
-  while (n > 0 && offs[n - 1] >= text.length) n--;
-  return { offs: offs.slice(0, n), count: n };
-}
-
-function putFile(local, remote) {
-  console.log('uploading', remote, '...');
-  execFileSync('npx', ['wrangler', 'r2', 'object', 'put', `blockforge-ic/${remote}`, '--file', local], { stdio: 'inherit' });
-}
-
-function putBuffer(buf, remote) {
-  console.log('uploading', remote, `(${(buf.length / 1048576).toFixed(1)}MB) ...`);
-  execFileSync('npx', ['wrangler', 'r2', 'object', 'put', `blockforge-ic/${remote}`, '--pipe'], { input: buf, stdio: ['pipe', 'inherit', 'inherit'] });
-}
-
-for (const base of ['by-key', 'by-name']) {
-  const local = `../dist/ic/${base}.tsv`;
-  const text = readFileSync(local, 'utf8');
-  const { offs, count } = buildOffs(text);
-  console.log(base, 'lines:', count);
-  const buf = Buffer.alloc(offs.length * 4);
-  for (let i = 0; i < offs.length; i++) buf.writeUInt32LE(offs[i], i * 4);
-  putBuffer(buf, `${base}.offs`);
-  putFile(local, `${base}.tsv`);
 }
 console.log('done.');
