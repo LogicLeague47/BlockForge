@@ -107,7 +107,10 @@ function xboxError(xerr: string): string {
 }
 
 // Full chain from an MSA access token → certified-account result.
-export async function runChain(msaAccess: string): Promise<{ data?: any; reason?: string }> {
+// Failures carry {step, status, xerr} so we can see exactly which hop
+// rejects us (surfaced to the client for bug reports; never any tokens).
+export async function runChain(msaAccess: string): Promise<{ data?: any; reason?: string; diag?: any }> {
+  const diag: any = {};
   // 1. Xbox Live user token (RPS).
   const xbl = await postJson('https://user.auth.xboxlive.com/user/authenticate', {
     RelyingParty: 'http://auth.xboxlive.com',
@@ -116,9 +119,12 @@ export async function runChain(msaAccess: string): Promise<{ data?: any; reason?
   });
   const xblToken = xbl.json && xbl.json.Token;
   const uhs = xbl.json && xbl.json.DisplayClaims && xbl.json.DisplayClaims.xui && xbl.json.DisplayClaims.xui[0] && xbl.json.DisplayClaims.xui[0].uhs;
+  diag.xblStatus = xbl.status;
   if (xbl.status !== 200 || !xblToken || !uhs) {
     const xerr = (xbl.json && (xbl.json.XErr || xbl.json.Xerr)) || '';
-    return { reason: xerr ? xboxError(String(xerr)) : 'Xbox sign-in failed. Retry.' };
+    diag.xblXerr = String(xerr);
+    try { console.log('[mc] xbl fail', xbl.status, String(xerr), JSON.stringify(xbl.json).slice(0, 200)); } catch { /* ignore */ }
+    return { reason: xerr ? xboxError(String(xerr)) : 'Xbox sign-in failed. Retry.', diag };
   }
   // 2. XSTS for the Minecraft RP.
   const xsts = await postJson('https://xsts.auth.xboxlive.com/xsts/authorize', {
@@ -127,16 +133,23 @@ export async function runChain(msaAccess: string): Promise<{ data?: any; reason?
     Properties: { SandboxId: 'RETAIL', UserTokens: [xblToken] },
   });
   const xstsToken = xsts.json && xsts.json.Token;
+  diag.xstsStatus = xsts.status;
   if (xsts.status !== 200 || !xstsToken) {
     const xerr = (xsts.json && (xsts.json.XErr || xsts.json.Xerr)) || '';
-    return { reason: xerr ? xboxError(String(xerr)) : 'Xbox sign-in failed. Retry.' };
+    diag.xstsXerr = String(xerr);
+    try { console.log('[mc] xsts fail', xsts.status, String(xerr), JSON.stringify(xsts.json).slice(0, 200)); } catch { /* ignore */ }
+    return { reason: xerr ? xboxError(String(xerr)) : 'Xbox sign-in failed. Retry.', diag };
   }
   // 3. Minecraft login_with_xbox.
   const login = await postJson('https://api.minecraftservices.com/authentication/login_with_xbox', {
     identityToken: `XBL3.0 x=${uhs};${xstsToken}`,
   });
   const mcAccess = login.json && login.json.access_token;
-  if (login.status !== 200 || !mcAccess) return { reason: 'Minecraft login failed. Retry.' };
+  diag.mcStatus = login.status;
+  if (login.status !== 200 || !mcAccess) {
+    try { console.log('[mc] login_with_xbox fail', login.status, JSON.stringify(login.json).slice(0, 200)); } catch { /* ignore */ }
+    return { reason: 'Minecraft login failed. Retry.', diag };
+  }
   // 4. Ownership = the actual "certified account" check.
   let ownsJava = false;
   try {

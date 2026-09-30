@@ -225,7 +225,7 @@ app.post('/api/mc-poll', async (c) => {
     if ('pending' in p) return c.json({ ok: true, done: false });
     if ('failed' in p) return c.json({ ok: true, done: false, failed: true, reason: p.reason });
     const ch = await runChain(p.access);
-    if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason });
+    if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason, diag: ch.diag || undefined });
     return c.json({ ok: true, done: true, ...ch.data, msRefresh: p.refresh || undefined });
   } catch { return c.json({ ok: false, reason: 'Verification failed.' }, 500); }
 });
@@ -240,7 +240,7 @@ app.post('/api/mc-refresh', async (c) => {
     if ('failed' in p) return c.json({ ok: true, done: false, failed: true, reason: p.reason });
     if ('pending' in p) return c.json({ ok: true, done: false });
     const ch = await runChain(p.access);
-    if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason });
+    if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason, diag: ch.diag || undefined });
     return c.json({ ok: true, done: true, ...ch.data, msRefresh: p.refresh || rt });
   } catch { return c.json({ ok: false, reason: 'Verification failed.' }, 500); }
 });
