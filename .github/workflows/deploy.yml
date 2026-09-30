@@ -14,8 +14,6 @@ env:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-    env:
-      RENDER_DEPLOY_URL: ${{ secrets.RENDER_DEPLOY_URL }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,10 +21,8 @@ jobs:
           node-version: 22
       - run: npm ci
       - run: npm run build
-      - name: Deploy to Render
-        run: |
-          URL="${RENDER_DEPLOY_URL:-https://api.render.com/deploy/srv-d9aa3v6cjfls739gj3rg?key=62rFnWWb5YM}"
-          curl -s -X POST "$URL" -H "Content-Type: application/json" || true
+      # NOTE: Render is retired (see AGENTS.md). The static client ships via
+      # GitHub Pages (pages.yml); the API runs on Cloudflare (worker/).
 
   build-mac-dmg:
     runs-on: macos-latest

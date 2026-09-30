@@ -3,6 +3,9 @@
 
 import * as THREE from 'three';
 
+// Module-level scratch (never allocate per chunk per frame in the hot loop).
+const _cullBox = new THREE.Box3(new THREE.Vector3(), new THREE.Vector3());
+
 export class SodiumRendererOptimizer {
   constructor(scene, camera) {
     this.scene = scene;
@@ -50,12 +53,9 @@ export class SodiumRendererOptimizer {
         continue;
       }
 
-      const chunkBox = new THREE.Box3(
-        new THREE.Vector3(pos.x, 0, pos.z),
-        new THREE.Vector3(pos.x + 16, 256, pos.z + 16)
-      );
-
-      const isVisible = this.frustum.intersectsBox(chunkBox);
+      _cullBox.min.set(pos.x, 0, pos.z);
+      _cullBox.max.set(pos.x + 16, 256, pos.z + 16);
+      const isVisible = this.frustum.intersectsBox(_cullBox);
       group.visible = isVisible;
       
       if (isVisible) {
@@ -117,3 +117,20 @@ export class SodiumRendererOptimizer {
 export function createMaxSodiumRenderer(scene, camera) {
   return new SodiumRendererOptimizer(scene, camera);
 }
+
+// Stateless helper for freshly built chunk geometry (wired into chunkmesh.js):
+// flags attributes static so the driver can place them in GPU-optimal memory.
+// NOTE: applyMaxPerformanceState() is intentionally NOT wired — it sets
+// renderer.autoClear = false, which blanks all rendering.
+let _staticMarked = 0;
+export function markGeometryStatic(geometry) {
+  if (!geometry) return;
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  for (const name in geometry.attributes) {
+    const attr = geometry.attributes[name];
+    if (attr && attr.array) { attr.usage = THREE.StaticDrawUsage; attr.needsUpdate = false; }
+  }
+  _staticMarked++;
+}
+export function getStaticMarked() { return _staticMarked; }

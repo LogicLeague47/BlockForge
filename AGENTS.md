@@ -1,20 +1,26 @@
 # AGENTS.md
 
-## Deploy minutes (Render free tier is capped)
+## Deploy (Cloudflare backend + GitHub Pages client — Render is RETIRED)
 
-- **Pipeline minutes are scarce — every deploy hook call burns them, failed
-  or not.** Batch work into as few deploys as possible. Never deploy twice
-  for the same commit, never re-fire a hook "just to check".
-- **Content-only deploys** (portal, YT Forge page, config, server.js logic —
-  anything that doesn't touch PaperForge/MoldKingdom/InfiniteCraft data or
-  downloads) must use the cheap pipeline: temporarily set the service
-  Build Command to `npm run build:lite` (skips minigame-legacy, ic-index,
-  downloads). Restore `npm run build` for full releases.
-- If the dashboard shows "pipeline minutes exhausted", STOP all deploy
-  activity and tell the user (monthly reset or billing decision is theirs).
-- Client ships to GitHub Pages too (`.github/workflows/pages.yml`, free
-  Actions quota) — page-only changes reach users without Render minutes.
-  Backend still needs Render pipeline.
+- **Render is scrapped.** `render.yaml` is deleted, the deploy-hook step is
+  gone from `.github/workflows/deploy.yml`, and no Render pipeline may be
+  fired for any reason. The old hosts (`blockforge-server.onrender.com`,
+  `blockforge-1.onrender.com`) are stale references only.
+- **Backend = Cloudflare Worker** (`worker/`, Hono + D1 + KV + R2, name
+  `blockforge-api`). Deploy with `wrangler deploy` from `worker/` (needs
+  `wrangler login` once per machine). Secrets via `wrangler secret put`
+  (`ELEVENLABS_API_KEY`, `GEMINI_API_KEY`, `BAN_SYNC_SECRET`,
+  `GITHUB_CLIENT_ID/SECRET`, `GOOGLE_CLIENT_ID/SECRET`). D1 schema in
+  `worker/schema.sql` (`npm run db:migrate`); R2 buckets `blockforge-uploads`
+  + `blockforge-ic`; IC dataset seeded with `npm run seed:ic`.
+- **Multiplayer WS still runs on the legacy host** until Durable Object rooms
+  land: `src/config.js` `GAME_WS_URL` stays `wss://blockforge-server.onrender.com`
+  (stale but live). HTTP APIs (`BACKEND_URL`) point at the Worker. Do NOT move
+  WS until DO rooms are implemented + tested.
+- **Client ships to GitHub Pages** (`.github/workflows/pages.yml`, free
+  Actions quota) — pushing `main` is the whole client deploy.
+- Content-only changes need no backend deploy at all; Worker deploys are
+  instant and free, so no batching rules.
 
 - **Always auto-commit and auto-push after completing any work.** Do not wait
   to be asked. Stage the relevant files, write a concise commit message
@@ -31,16 +37,13 @@
   game or portal behavior without a matching Updates entry — do it in the same
   commit, not a follow-up.
 
-## Infrastructure roadmap
+## Infrastructure (post-Render)
 
-- **Planned: migrate hosting from Render → Oracle Cloud** for better
-  performance/software. When we switch, update these hardcoded hosts:
-  - Game backend WS: `blockforge-server.onrender.com` → new Oracle host
-    - `src/config.js` (`BACKEND_URL`, drives `OFFICIAL_SMP_URL`/`DIRECTORY_URL`)
-    - `server.js` + `server-package/server.js` `UPSTREAM_URL` default and
-      `UPSTREAM_BACKEND_URL` env; `server-package/.env.example` `DIRECTORY_URL`
-    - `public/portal.html` `SRV_WS`
-  - Game web host: `blockforge-1.onrender.com` → new Oracle host
-    - `public/portal.html` (hero-play, dev panel, cards, playUrl, closeUrl, link,
-      skin equip, heroPlay) and `src/main.js` (`isOnCrazyGames()` onrender URL)
-  - Prefer making hosts env-driven at build time to avoid future hardcodes.
+- Game HTTP APIs: Worker URL (`https://blockforge-api.<account>.workers.dev`)
+  - `src/config.js` (`BACKEND_URL`, drives `OFFICIAL_SMP_URL`/`DIRECTORY_URL`)
+  - `public/mods/java-bridge.bfmod` (`DEFAULT_BACKEND`, overridable in-mod)
+  - `server-package/server.js` `UPSTREAM_URL` default, `server-package/.env.example` `DIRECTORY_URL`
+- Game web client: `https://logicleague47.github.io/BlockForge` (GitHub Pages)
+  - `public/portal.html` `window.BF_WEB`
+- Game WS multiplayer: legacy host until DO rooms (`GAME_WS_URL`, portal `SRV_WS`)
+- Prefer env-driven hosts at build time to avoid future hardcodes.

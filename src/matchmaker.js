@@ -304,6 +304,7 @@ export class Matchmaker {
 
       dc.onopen = () => {
         console.log('[Matchmaker] Peer connected:', opponent.name);
+        p2pNetwork.connected = true;
         p2pNetwork._peers.set(opponent.name, peerObj);
         p2pNetwork._pendingOffers.delete(opponent.name);
         peerObj.ready = true;
@@ -325,6 +326,7 @@ export class Matchmaker {
       dc.onclose = () => {
         p2pNetwork._peers.delete(opponent.name);
         p2pNetwork._pendingOffers.delete(opponent.name);
+        if (p2pNetwork._peers.size === 0) p2pNetwork.connected = false;
         if (p2pNetwork.onPlayerLeave) p2pNetwork.onPlayerLeave(opponent.name);
         p2pNetwork._broadcastPlayerList();
       };

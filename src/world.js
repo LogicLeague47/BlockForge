@@ -6,15 +6,18 @@ import { BLOCK } from './blocks.js';
 import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { generateColumn, generateFeatures, generateUnderground, calcBiome, calcHeight, generateDimensionColumn, generateDimensionFeatures } from './worldgen.js';
 import { generateVillages, generateEraSites } from './structures.js';
+import { borrowChunkArrays, releaseChunkArrays } from './memopt.js';
 export { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES };
 
 export class Chunk {
   constructor(cx, cz) {
     this.cx = cx; this.cz = cz;
-    this.data = new Uint8Array(CHUNK_SIZE * WORLD_HEIGHT * CHUNK_SIZE);
+    // FerriteCore pool: chunk arrays churn constantly while exploring.
+    const pooled = borrowChunkArrays();
+    this.data = pooled.data;
     this.generated = false;
-    this.surfaceMap = new Int16Array(CHUNK_SIZE * CHUNK_SIZE);
-    this.biomeMap = new Int8Array(CHUNK_SIZE * CHUNK_SIZE);
+    this.surfaceMap = pooled.surfaceMap;
+    this.biomeMap = pooled.biomeMap;
   }
   idx(x, y, z) { return (y * CHUNK_SIZE + z) * CHUNK_SIZE + x; }
   get(x, y, z) { return (y < 0 || y >= WORLD_HEIGHT) ? BLOCK.AIR : this.data[this.idx(x, y, z)]; }
@@ -179,6 +182,7 @@ export class World {
         try {
           this.generateChunk(c);
         } catch (e) {
+          releaseChunkArrays(c);
           this.chunks.delete(nk);
           if (!this._genFailWarned) this._genFailWarned = new Set();
           if (!this._genFailWarned.has(nk)) {
@@ -328,11 +332,12 @@ export class World {
   evictFar(pcx, pcz, limit) {
     // Edits live in edits/_chunkEdits (reapplied by generateChunk), so evicting
     // raw data is safe — player builds come back on regen.
-    for (const k of this.chunks.keys()) {
+    for (const [k, c] of this.chunks) {
       // Floor-div decode: JS % keeps the sign, which broke for negative cx.
       const cx = Math.floor(k / 32768);
       const cz = k - cx * 32768;
       if (Math.abs(cx - pcx) > limit || Math.abs(cz - pcz) > limit) {
+        releaseChunkArrays(c);
         this.chunks.delete(k);
       }
     }

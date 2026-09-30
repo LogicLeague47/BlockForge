@@ -56,6 +56,8 @@ import { initLiquid, clearLiquid, tickLiquid, registerSource, liquidBlockChanged
 import { GreenstoneSystem } from './greenstone.js';
 import { initMods, bindModsMenu, modsTick, setAtlasTexture, hasGameplayMods, getModBlocks, getModItems, getModMobs, getModButtons } from './mods.js';
 import { checkAppUpdate } from './appupdate.js';
+import { perfTick, setCheapShadows, isCheapShadows, clearPerf } from './perfopt.js';
+import { matchmaker } from './matchmaker.js';
 import { BreakParticles, AmbientParticles, CloudSystem, BLOCK_COLORS } from './particles.js';
 import { ExplosionManager } from './explosions.js';
 import { trackLogin, trackServerCreated, getDailyUsers, getMonthlyUsers, getTotalServersCreated, getTodayUsers, getThisMonthUsers } from './analytics.js';
@@ -6137,6 +6139,7 @@ isParkour = false;
   { const _ar = document.getElementById('armor-row'); if (_ar) _ar.style.display = ''; }
   if (player) { saveCurrentWorld(); }
   manager?.clear?.();
+  try { clearPerf(); } catch (_) {}
   if (mobManager) { mobManager.clear(); mobManager = null; }
   if (explosionManager) { explosionManager.clear(); explosionManager = null; }
   if (playerModel) { playerModel.dispose(); playerModel = null; }
@@ -6896,6 +6899,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     _importedParkourData = null;
     if (player) saveCurrentWorld();
     manager?.clear?.();
+    try { clearPerf(); } catch (_) {}
     if (mobManager) { mobManager.clear(); mobManager = null; }
     if (explosionManager) { explosionManager.clear(); explosionManager = null; }
     if (playerModel) { playerModel.dispose(); playerModel = null; }
@@ -8569,6 +8573,17 @@ function initMenu() {
       vEl.addEventListener('change', (e) => setVoiceMuted(e.target.value === '0'));
     }
   } catch (_) {}
+  // Cheap entity shadows (shadows.js blob path — big win on phones).
+  try {
+    const cEl = document.getElementById('set-cheap-shadows');
+    if (cEl) {
+      cEl.checked = isCheapShadows();
+      cEl.addEventListener('change', (e) => {
+        setCheapShadows(e.target.checked);
+        showToast(e.target.checked ? 'Cheap shadows ON — blob shadows, faster.' : 'Cheap shadows OFF — real PCF shadows.', '#8f8', 3);
+      });
+    }
+  } catch (_) {}
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
     window.__mouseSens = mouseSensitivity;
@@ -9059,6 +9074,42 @@ function initMenu() {
   document.getElementById('btn-p2p-host')?.addEventListener('click', () => {
     ui.showMenu('p2p-create');
   });
+  // Matchmaker (matchmaker.js + Firebase queue): pair with a random opponent
+  // over WebRTC — no codes to copy. Host path reuses the matchmaker's own
+  // peer connection (never createRoomOnP2P here — it would wipe it).
+  document.getElementById('btn-p2p-findmatch')?.addEventListener('click', () => {
+    const btn = document.getElementById('btn-p2p-findmatch');
+    const statusEl = document.getElementById('p2p-host-status');
+    if (playerName.startsWith('Guest')) {
+      addChatLine('Pick a username first (main menu → change name) so your opponent sees who you are.', '#fa0');
+      return;
+    }
+    if (btn) { btn.disabled = true; btn.textContent = 'SEARCHING… (BACK to cancel)'; }
+    if (statusEl) statusEl.textContent = 'In queue — waiting for a random opponent…';
+    addChatLine('Matchmaking… waiting for an opponent.', '#5f5');
+    const resetBtn = () => { if (btn) { btn.disabled = false; btn.textContent = 'FIND RANDOM OPPONENT'; } };
+    matchmaker.findMatch('base', mcJoinName(), {}).then((m) => {
+      resetBtn();
+      _activeNetwork = 'p2p';
+      _p2pHostSeed = m.seed;
+      _p2pHostReady = true;
+      if (m.isHost) {
+        try { p2pNetwork.connected = true; } catch (_) {}
+        startGame('p2p_' + mcJoinName(), m.seed, m.gameMode || 'survival', 'normal', {});
+        isMultiplayer = true;
+        serverName = 'P2P match vs ' + m.opponentName;
+        addChatLine('Matched with ' + m.opponentName + '! (you host)', '#5f5');
+      } else {
+        addChatLine('Matched with ' + m.opponentName + '! Joining…', '#5f5');
+        try { p2pEnterWorld(m.opponentName, m.seed, m.gameMode || 'survival'); }
+        catch (e) { addChatLine('Join failed: ' + ((e && e.message) || e), '#f55'); }
+      }
+    }).catch((e) => {
+      resetBtn();
+      if (statusEl) statusEl.textContent = '';
+      addChatLine('Matchmaking failed: ' + ((e && e.message) || e), '#f55');
+    });
+  });
   document.getElementById('btn-p2p-create-back')?.addEventListener('click', () => {
     ui.showMenu('p2p');
   });
@@ -9132,7 +9183,12 @@ function initMenu() {
     };
   }
   // Reset the join guard whenever the P2P lobby opens (fresh attempt)
-  document.getElementById('btn-p2p-play')?.addEventListener('click', () => { _p2pEntered = false; }, true);
+  document.getElementById('btn-p2p-play')?.addEventListener('click', () => {
+    _p2pEntered = false;
+    try { matchmaker.cancel(); } catch (_) {}
+    const btn = document.getElementById('btn-p2p-findmatch');
+    if (btn) { btn.disabled = false; btn.textContent = 'FIND RANDOM OPPONENT'; }
+  }, true);
 
   // Invite link button — friends feature coming soon
   document.getElementById('btn-invite-link')?.addEventListener('click', () => {
@@ -11904,6 +11960,15 @@ function _gameFrame() {
       modsTick(dt, { gameRunning, player, world, dayTime, mobManager, camera, sun, ambient, renderer, scene, manager, atlasTexture });
     } catch (_me) {
       if (window.__devErrors) window.__devErrors.push({ type: 'mods', msg: String((_me && _me.message) || _me), time: Date.now() });
+    }
+  }
+
+  // ── Perf wiring: lag watchdog, Sodium culling, blob shadows ───
+  if (world && player) {
+    try {
+      perfTick(dt, { scene, camera, manager, mobManager, player, sun });
+    } catch (_pe) {
+      if (window.__devErrors) window.__devErrors.push({ type: 'perf', msg: String((_pe && _pe.message) || _pe), time: Date.now() });
     }
   }
 

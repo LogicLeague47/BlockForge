@@ -1,0 +1,19 @@
+{
+  "name": "blockforge-api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute blockforge-db --file=./schema.sql",
+    "db:migrate:local": "wrangler d1 execute blockforge-db --local --file=./schema.sql",
+    "seed:ic": "node scripts/seed-ic.mjs"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "wrangler": "^3.80.0",
+    "@cloudflare/workers-types": "^4.20240924.0"
+  }
+}

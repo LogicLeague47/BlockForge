@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { CHUNK_SIZE } from './world.js';
 import { buildChunkGeometry } from './mesher.js';
+import { markGeometryStatic } from './renderopt.js';
 import { BLOCK, BLOCKS } from './blocks.js';
 import { BIOMES } from './constants.js';
 
@@ -130,6 +131,7 @@ export class ChunkMeshManager {
     og.setAttribute('color', new THREE.BufferAttribute(opaque.color, 3));
     og.setAttribute('normal', new THREE.BufferAttribute(opaque.normal, 3));
     if (opaque.index) og.setIndex(new THREE.BufferAttribute(opaque.index, 1));
+    markGeometryStatic(og); // Sodium-style: static usage flags for fresh geometry
 
     const opaqueMesh = new THREE.Mesh(og, this.opaqueMaterial);
     opaqueMesh.frustumCulled = true;
@@ -151,6 +153,7 @@ export class ChunkMeshManager {
       cg.setAttribute('color', new THREE.BufferAttribute(cutout.color, 3));
       cg.setAttribute('normal', new THREE.BufferAttribute(cutout.normal, 3));
       if (cutout.index) cg.setIndex(new THREE.BufferAttribute(cutout.index, 1));
+      markGeometryStatic(cg);
       cutoutMesh = new THREE.Mesh(cg, this.cutoutMaterial);
       cutoutMesh.frustumCulled = true;
       cutoutMesh.matrixAutoUpdate = false;
@@ -168,6 +171,7 @@ export class ChunkMeshManager {
       tg.setAttribute('color', new THREE.BufferAttribute(trans.color, 3));
       tg.setAttribute('normal', new THREE.BufferAttribute(trans.normal, 3));
       if (trans.index) tg.setIndex(new THREE.BufferAttribute(trans.index, 1));
+      markGeometryStatic(tg);
       transMesh = new THREE.Mesh(tg, this.transMaterial);
       transMesh.frustumCulled = true;
       transMesh.matrixAutoUpdate = false;
@@ -191,6 +195,7 @@ export class ChunkMeshManager {
       wg.setAttribute('color', new THREE.BufferAttribute(water.color, 3));
       wg.setAttribute('normal', new THREE.BufferAttribute(water.normal, 3));
       if (water.index) wg.setIndex(new THREE.BufferAttribute(water.index, 1));
+      markGeometryStatic(wg);
       waterMesh = new THREE.Mesh(wg, wMat);
       waterMesh.frustumCulled = true;
       waterMesh.matrixAutoUpdate = false;

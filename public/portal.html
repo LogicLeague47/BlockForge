@@ -11,7 +11,7 @@
     // ── Host configuration ──────────────────────────────────────────────
     // Change these two values to switch hosting providers. All links in the
     // portal and game client derive from them automatically.
-    window.BF_WEB  = 'https://blockforge-1.onrender.com';
+    window.BF_WEB  = 'https://logicleague47.github.io/BlockForge';
     window.BF_WS   = 'wss://blockforge-server.onrender.com';
   </script>
   <script>
@@ -1546,6 +1546,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Backend moves to Cloudflare + perf modules wired',
+          desc: 'Render is scrapped: the whole API (Microsoft verification, server search, voices, gallery, mods, directory, videos, IC dataset) now runs as a Cloudflare Worker. Also wired the five dormant perf modules: FIND RANDOM OPPONENT matchmaking is live in the P2P menu, chunk memory is pooled FerriteCore-style, chunk geometry gets Sodium static flags + throttled culling, the lag watchdog scales mesh budgets on low-RAM phones, and a new Cheap shadows setting swaps PCF for fast blob shadows.',
+          date: 'Sep 30',
+          bugs: ['matchmaker host never set p2p connected flag (positions never sent)', 'renderopt allocated Box3+Vector3 per chunk per frame', 'memopt/renderer/shadows/matchmaker/lagcontroller never wired'],
+          updates: ['worker/ API: full route parity with the old server', 'render.yaml + deploy hook deleted', 'hosts point at Worker + GitHub Pages'],
+          features: ['random-opponent matchmaking', 'Cheap shadows setting (auto-on for phones)', 'one-tap official mods (previous build)'],
+        },
         {
           hash: 'PENDING',
           heading: 'App update button + one-tap mods + MC name on join',
