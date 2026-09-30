@@ -1548,6 +1548,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Mods update themselves + build pipeline rule',
+          desc: 'Official mods now show an ⬆ UPDATE button in the Mods menu when your installed copy lags behind — one tap pulls the fixed version (Java Bridge is now v1.1, pointed at the live backend). Also locked in the rule that every push auto-builds fresh APK/IPA releases, since the in-app updater depends on them.',
+          date: 'Sep 30',
+          bugs: [],
+          updates: ['catalog version compare with UPDATE button', 'Java Bridge v1.1', 'AGENTS.md autobuild rule'],
+          features: ['one-tap official mod updates'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Update button serves the right APK',
           desc: 'The in-app updater and the portal download button now read the binaries release directly, so you always get the fresh official APK/IPA instead of whatever the latest CI tag happens to carry.',
           date: 'Sep 30',

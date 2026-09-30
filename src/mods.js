@@ -398,6 +398,13 @@ export function renderModsList() {
     const tag = official
       ? '<span style="font:bold 9px monospace;color:#ffd;background:linear-gradient(135deg,#a8f,#7f7ff5);border:1px solid rgba(200,180,255,.4);padding:1px 6px;border-radius:5px;margin-left:6px;">OFFICIAL</span>'
       : '<span style="font:bold 9px monospace;color:#7f7;background:rgba(80,200,120,.14);border:1px solid rgba(80,200,120,.35);padding:1px 6px;border-radius:5px;margin-left:6px;">3RD-PARTY</span>';
+    // Official mods ship updates through the catalog — offer one-tap UPDATE
+    // when the installed version lags the catalog (stale installs otherwise
+    // keep talking to dead backends forever).
+    const cat = (_catalog || []).find((e) => e && e.id === m.id);
+    const upd = (official && cat && cat.ver && cat.ver !== m.version)
+      ? '<button data-mod-update="' + esc(m.id) + '" style="font:bold 11px monospace;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:#3a8a5a;color:#fff;">⬆ UPDATE v' + esc(cat.ver) + '</button>'
+      : '';
     return '<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.15);border-radius:10px;padding:10px 12px;margin-bottom:8px;">' +
       '<div style="display:flex;align-items:center;gap:10px;">' +
         '<div style="font-size:26px;width:36px;text-align:center;">' + (m.icon || '📦') + '</div>' +
@@ -408,6 +415,7 @@ export function renderModsList() {
         '</div>' +
         '<div style="display:flex;flex-direction:column;gap:6px;">' +
           '<button data-mod-toggle="' + esc(m.id) + '" style="font:bold 11px monospace;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:' + (on ? '#5f5' : '#555') + ';color:' + (on ? '#111' : '#fff') + ';">' + (on ? 'ON' : 'OFF') + '</button>' +
+          upd +
           '<button data-mod-remove="' + esc(m.id) + '" style="font:11px monospace;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;background:rgba(200,60,60,0.8);color:#fff;">Remove</button>' +
         '</div>' +
       '</div>' +
@@ -500,9 +508,9 @@ export function bindModsMenu(ui) {
   // Toggle / remove buttons (event delegation).
   const list = document.getElementById('mods-list');
   if (list) list.addEventListener('click', (e) => {
-    const ins = e.target.closest('[data-mod-install]');
+    const ins = e.target.closest('[data-mod-install],[data-mod-update]');
     if (ins) {
-      installFromCatalog(ins.getAttribute('data-mod-install'));
+      installFromCatalog(ins.getAttribute('data-mod-install') || ins.getAttribute('data-mod-update'));
       return;
     }
     const t = e.target.closest('[data-mod-toggle]');

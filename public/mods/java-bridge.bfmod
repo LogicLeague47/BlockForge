@@ -5,7 +5,7 @@
 export const manifest = {
   id: 'java-bridge',
   name: 'Java Bridge',
-  version: '1.0',
+  version: '1.1',
   description: 'Verify your Java account with Microsoft, then search any Java server IP for live status.',
   author: 'BlockForge Dev',
   icon: '⛏️',

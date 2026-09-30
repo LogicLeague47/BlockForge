@@ -22,6 +22,18 @@
 - Content-only changes need no backend deploy at all; Worker deploys are
   instant and free, so no batching rules.
 
+## App builds (auto — do not break)
+
+- Every push to `main` auto-builds installable apps via GitHub Actions
+  (free quota): `Build Android APK` → `android-build-N` tags, and the
+  android/ios jobs in `Auto Deploy` → the `binaries` release
+  (`BlockForge-android.apk`, `BlockForge-iphone-ipa.ipa`).
+- The in-app ⬆ updater and the portal download button depend on FRESH
+  `binaries` assets. Never disable, skip, or gate these jobs; if `binaries`
+  goes stale the updater lies and sideloaded apps rot on dead backends.
+- Pre-existing `build-mac-dmg` / `build-windows-exe` failures are known and
+  unrelated — leave them alone, they don't block APK/IPA/Pages.
+
 - **Always auto-commit and auto-push after completing any work.** Do not wait
   to be asked. Stage the relevant files, write a concise commit message
   (repo uses conventional prefixes like `feat:`, `fix:`, `perf:`), push to
