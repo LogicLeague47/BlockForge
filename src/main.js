@@ -10,6 +10,7 @@ import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
+import { speak, setVoiceMuted, isVoiceMuted } from './voice.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor, slabVariantFor } from './blocks.js';
 import { isBlockItem, isTool, toolInfo, toolSpeedFor, toolHarvestLevel, isFood, foodValue, fuelValue, ITEM, itemDef, itemName, ARMOR, getItemRarity, SPAWN_EGG_MOBS } from './items.js';
 import { QuestLog, questGreeting } from './quest.js';
@@ -3272,6 +3273,7 @@ function applyYearChange(targetYear) {
     const g = questGreeting(q, targetYear);
     if (g) addChatLine(g, '#8af');
     addChatLine('Complete it to leave this year. Reward: ' + (q.reward.cells || 1) + ' Time Cells, guaranteed way home.', '#8af');
+    try { speak(q.brief, { priority: true }); } catch (_) {}
     try { achievements.incrementStat('questsTaken'); } catch (_) {}
     openCodex();
   }
@@ -3478,6 +3480,7 @@ function questTick(dt) {
   } catch (_) {}
   if (res.testimony) {
     addChatLine('📖 Testimony witnessed: ' + res.testimony.title + ' — ' + res.testimony.place + ', ' + formatYear(res.testimony.year) + '.', '#c084fc');
+    try { speak('Testimony witnessed. ' + res.testimony.title, { priority: true }); } catch (_) {}
   }
   try { saveCurrentWorld(); } catch (_) {}
 }
@@ -3825,6 +3828,7 @@ function openTravelerTrade(travelerMob) {
   if (!def || !def.trades) return;
   // The traveler bows as trade opens.
   try { if (travelerMob && travelerMob.playEmote) travelerMob.playEmote('bow'); } catch (_) {}
+  try { speak('Fine wares, friend. What will it be?'); } catch (_) {}
   document.exitPointerLock?.();
 
   // Build trade UI
@@ -8540,6 +8544,13 @@ function initMenu() {
     showFps = e.target.value !== '0';
     saveSetting('bf_fps', e.target.value);
   });
+  try {
+    const vEl = document.getElementById('set-voices');
+    if (vEl) {
+      vEl.value = isVoiceMuted() ? '0' : '1';
+      vEl.addEventListener('change', (e) => setVoiceMuted(e.target.value === '0'));
+    }
+  } catch (_) {}
   document.getElementById('set-sensitivity')?.addEventListener('input', (e) => {
     mouseSensitivity = Math.max(0.2, Math.min(2.0, parseInt(e.target.value) / 100));
     window.__mouseSens = mouseSensitivity;

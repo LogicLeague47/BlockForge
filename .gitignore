@@ -1,5 +1,8 @@
 node_modules/
 dist/
+# Local secrets — ElevenLabs + any other API keys live in env only, never here.
+.env
+.env.*
 release/
 build/
 .vite/

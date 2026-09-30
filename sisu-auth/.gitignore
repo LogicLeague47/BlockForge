@@ -1,0 +1,2 @@
+bin/*
+!bin/sisu-auth-linux-amd64

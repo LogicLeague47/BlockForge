@@ -10,6 +10,7 @@ import { CHUNK_SIZE, WORLD_HEIGHT, SEA_LEVEL, BIOMES } from './constants.js';
 import { calcBiome } from './worldgen.js';
 import { PlayerModel, createSkinCanvas } from './playermodel.js';
 import { mobEraOk } from './timeline.js';
+import { greetBark } from './voice.js';
 import { ExplosionManager } from './explosions.js';
 // Blob shadows removed — real shadow map shadows used instead
 
@@ -628,6 +629,9 @@ class Mob {
     this.legs = [];
     // Attack animation state
     this.attackAnim = 0; // arm swing progress (0 = idle, 1 = peak)
+    // Social voice: people mobs speak when greeted (approach wave/bow).
+    // greetBark no-ops for non-people types, so one default covers all.
+    this.onGreet = greetBark;
     // Lazy mesh creation: the (expensive) mesh is only built when the mob is
     // near the camera. Until then we keep an empty Group so it can still be
     // added to the scene / referenced without special-casing every caller.

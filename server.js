@@ -8,8 +8,11 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, createRea
 import { fileURLToPath } from 'url';
 import { dirname, join, extname, basename } from 'path';
 import { randomBytes, scrypt, timingSafeEqual, createHash, webcrypto } from 'crypto';
+import net from 'net';
+import dns from 'dns';
 import { runInNewContext } from 'vm';
 import { promisify } from 'util';
+import { spawn } from 'child_process';
 import { filterProfanity } from './src/profanity.js';
 const scryptAsync = promisify(scrypt);
 
@@ -989,6 +992,129 @@ const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL || '';
 const UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN || '';
 const GEMINI_KEY = process.env.GEMINI_API_KEY || '';
 const icMemCache = new Map(); // sortedKey -> { name, emoji }
+// ElevenLabs TTS: in-memory audio cache (sha1 -> mp3 Buffer, cap 300) and
+// per-IP rate-limit buckets. Key lives ONLY in env ELEVENLABS_API_KEY.
+const _ttsCache = new Map();
+const _ttsHits = new Map();
+// Java Bridge helpers: per-route rate buckets, bounded JSON bodies,
+// Sisu sidecar proxy + spawn, Java server list-ping.
+const _mcHits = new Map();
+function _mcHit(route, req, res, h, perMin) {
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+  const nowT = Date.now();
+  const k = route + '|' + ip;
+  const hits = (_mcHits.get(k) || []).filter(t => nowT - t < 60000);
+  _mcHits.set(k, hits);
+  if (hits.length >= perMin) {
+    try { res.writeHead(429, { ...h, 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, reason: 'Slow down.' })); } catch (_) {}
+    return false;
+  }
+  hits.push(nowT);
+  return true;
+}
+function _mcBody(req, max) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let total = 0;
+    req.on('data', c => { total += c.length; if (total > max) { try { req.destroy(); } catch (_) {} reject(new Error('big')); } else chunks.push(c); });
+    req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}')); } catch (_) { resolve({}); } });
+    req.on('error', reject);
+  });
+}
+function _sisuBase() {
+  return 'http://127.0.0.1:' + (process.env.SISU_PORT || '12737');
+}
+let _sisuProc = null;
+let _sisuReady = false;
+function _sisuDown() { return !_sisuReady; }
+async function _sisuFetch(path, body) {
+  if (!_sisuReady) return null;
+  try {
+    const ctl = new AbortController();
+    const to = setTimeout(() => { try { ctl.abort(); } catch (_) {} }, 25000);
+    let res;
+    try {
+      res = await fetch(_sisuBase() + path, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body || {}), signal: ctl.signal,
+      });
+    } finally { clearTimeout(to); }
+    if (!res || !res.ok) return null;
+    return await res.json().catch(() => null);
+  } catch (_) { return null; }
+}
+function _mcVarInt(n) {
+  const out = [];
+  n >>>= 0;
+  do { let b = n & 0x7f; n >>>= 7; if (n) b |= 0x80; out.push(b); } while (n);
+  return Buffer.from(out);
+}
+function _mcString(s) {
+  const b = Buffer.from(String(s), 'utf8');
+  return Buffer.concat([_mcVarInt(b.length), b]);
+}
+function _mcReadVarInt(buf, off) {
+  let n = 0, shift = 0, i = off;
+  for (; i < buf.length && i - off < 5; i++) {
+    const b = buf[i];
+    n |= (b & 0x7f) << shift;
+    shift += 7;
+    if (!(b & 0x80)) return [n, i + 1];
+  }
+  return null;
+}
+function _mcPrivateIP(ip) {
+  if (!net.isIP(ip)) return true;
+  if (ip.includes(':')) return ip === '::1' || ip.startsWith('fe80:') || ip.startsWith('fc') || ip.startsWith('fd');
+  const p = ip.split('.').map(Number);
+  return p[0] === 10 || p[0] === 127 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) ||
+    (p[0] === 192 && p[1] === 168) || (p[0] === 169 && p[1] === 254) || p[0] === 0;
+}
+// Real Java Edition Server List Ping (handshake + status request).
+function _mcPing(host, port) {
+  return new Promise((resolve) => {
+    const done = (info) => resolve(info);
+    dns.lookup(host, (err, ip) => {
+      if (err || !ip || _mcPrivateIP(ip)) { done({ online: false, reason: err ? 'No such server.' : 'Private address refused.' }); return; }
+      const sock = new net.Socket();
+      let buf = Buffer.alloc(0);
+      const kill = (info) => { try { sock.destroy(); } catch (_) {} done(info); };
+      const timer = setTimeout(() => kill({ online: false, reason: 'Timed out.' }), 8000);
+      sock.on('error', () => { clearTimeout(timer); kill({ online: false, reason: 'Unreachable.' }); });
+      sock.connect(port, ip, () => {
+        const hs = Buffer.concat([_mcVarInt(0), _mcVarInt(767), _mcString(host), Buffer.from([(port >> 8) & 255, port & 255]), _mcVarInt(1)]);
+        sock.write(Buffer.concat([_mcVarInt(hs.length), hs]));
+        const rq = Buffer.concat([_mcVarInt(0)]);
+        sock.write(Buffer.concat([_mcVarInt(rq.length), rq]));
+      });
+      sock.on('data', (c) => {
+        buf = Buffer.concat([buf, c]);
+        const l = _mcReadVarInt(buf, 0);
+        if (!l) return;
+        const [len, o1] = l;
+        if (buf.length < o1 + len) return;
+        const id = _mcReadVarInt(buf, o1);
+        if (!id || id[0] !== 0) { clearTimeout(timer); kill({ online: false, reason: 'Bad reply.' }); return; }
+        const sl = _mcReadVarInt(buf, id[1]);
+        if (!sl) { clearTimeout(timer); kill({ online: false, reason: 'Bad reply.' }); return; }
+        try {
+          const j = JSON.parse(buf.slice(sl[1], sl[1] + sl[0]).toString('utf8'));
+          const desc = typeof j.description === 'string' ? j.description
+            : (j.description && (j.description.text || '')) || '';
+          clearTimeout(timer);
+          kill({
+            online: true,
+            version: (j.version && j.version.name) || '?',
+            playersOnline: (j.players && j.players.online) || 0,
+            playersMax: (j.players && j.players.max) || 0,
+            motd: String(desc).slice(0, 200),
+            icon: typeof j.favicon === 'string' ? j.favicon.slice(0, 20000) : null,
+          });
+        } catch (_) { clearTimeout(timer); kill({ online: false, reason: 'Bad reply.' }); }
+      });
+    });
+  });
+}
 async function icCacheGet(sk) {
   if (icMemCache.has(sk)) return icMemCache.get(sk);
   if (!UPSTASH_URL || !UPSTASH_TOKEN) return undefined;
@@ -1735,8 +1861,223 @@ const server = http.createServer((req, res) => {
     })();
     return;
   }
-  if (pathname === '/api/gallery' && req.method === 'POST') {
+  // ── NPC voices (ElevenLabs TTS proxy) ─────────────────────────────
+  // POST /api/tts {text, voice?} → audio/mpeg. The API key never leaves
+  // the server: clients send plain text, we synthesize + cache by hash.
+  // Short texts only (280 chars) + per-IP rate limit: this is the shared
+  // monthly character pool (10k free), not a general TTS endpoint.
+  // Env: ELEVENLABS_API_KEY (required), ELEVENLABS_VOICE_ID (default Sarah).
+  if (pathname === '/api/tts' && req.method === 'POST') {
     const h = {
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+    (async () => {
+      try {
+        const chunks = [];
+        let total = 0;
+        await new Promise((resolve, reject) => {
+          req.on('data', c => { total += c.length; if (total > 4096) { req.destroy(); reject(new Error('too big')); } else chunks.push(c); });
+          req.on('end', resolve);
+          req.on('error', reject);
+        });
+        const body = JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}');
+        let text = String(body.text || '').replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}]/gu, '').trim();
+        if (!text || text.length > 280) {
+          res.writeHead(400, { ...h, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'Text must be 1-280 characters.' }));
+          return;
+        }
+        // Per-IP rate limit: 20 syntheses/minute (shared character pool).
+        const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
+        const nowT = Date.now();
+        if (!_ttsHits.has(ip)) _ttsHits.set(ip, []);
+        const hits = _ttsHits.get(ip).filter(t => nowT - t < 60000);
+        _ttsHits.set(ip, hits);
+        if (hits.length >= 20) {
+          res.writeHead(429, { ...h, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'Voice is resting. Try again shortly.' }));
+          return;
+        }
+        hits.push(nowT);
+        const apiKey = process.env.ELEVENLABS_API_KEY || '';
+        if (!apiKey) {
+          res.writeHead(503, { ...h, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'voice-unavailable' }));
+          return;
+        }
+        let voice = String(body.voice || process.env.ELEVENLABS_VOICE_ID || 'EXAVITQu4vr4xnSDxMaL');
+        if (!/^[A-Za-z0-9]{20}$/.test(voice)) voice = 'EXAVITQu4vr4xnSDxMaL';
+        const cacheKey = createHash('sha1').update(voice + '|' + text).digest('hex');
+        const cached = _ttsCache.get(cacheKey);
+        if (cached) {
+          _ttsCache.delete(cacheKey);
+          _ttsCache.set(cacheKey, cached); // LRU refresh
+          res.writeHead(200, { ...h, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400', 'X-TTS-Cache': 'hit' });
+          res.end(cached);
+          return;
+        }
+        const up = await fetch('https://api.elevenlabs.io/v1/text-to-speech/' + voice, {
+          method: 'POST',
+          headers: { 'xi-api-key': apiKey, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, model_id: 'eleven_turbo_v2_5', output_format: 'mp3_44100_64' }),
+        });
+        if (!up.ok) {
+          res.writeHead(502, { ...h, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'Voice service said no.' }));
+          return;
+        }
+        const buf = Buffer.from(await up.arrayBuffer());
+        if (!buf.length || buf.length > 1048576) {
+          res.writeHead(502, { ...h, 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ ok: false, reason: 'Bad voice audio.' }));
+          return;
+        }
+        _ttsCache.set(cacheKey, buf);
+        if (_ttsCache.size > 300) _ttsCache.delete(_ttsCache.keys().next().value);
+        res.writeHead(200, { ...h, 'Content-Type': 'audio/mpeg', 'Cache-Control': 'public, max-age=86400', 'X-TTS-Cache': 'miss' });
+        res.end(buf);
+      } catch (_) {
+        try { res.writeHead(500, { ...h, 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: false, reason: 'Voice failed.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  // ── Java Bridge mod: Microsoft verification via open-source Sisu ────
+  // The Xbox Live device-auth chain runs inside the REAL open-source Sisu
+  // library (github.com/df-mc/go-xsapi, MIT) as a localhost sidecar
+  // (sisu-auth/, spawned on boot). Node keeps rate limits + validation
+  // and proxies; tokens live only in the player's own browser, the server
+  // relays and forgets. Client ID defaults to the public Minecraft client
+  // (standard in open tooling), overridable via MC_CLIENT_ID.
+  // POST /api/mc-device {} → {user_code, verification_uri, device_code, expires_in, interval}
+  if (pathname === '/api/mc-device' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+    (async () => {
+      try {
+        if (!_mcHit('device', req, res, h, 10)) return;
+        const sj = await _sisuFetch('/device', {});
+        if (!sj || !sj.device_code) {
+          res.writeHead(502, h);
+          res.end(JSON.stringify({ ok: false, reason: _sisuDown() ? 'Verifier is starting — retry in 10s.' : 'Microsoft said no. Try again.' }));
+          return;
+        }
+        res.writeHead(200, h);
+        res.end(JSON.stringify({
+          ok: true, user_code: sj.user_code, verification_uri: sj.verification_uri || 'https://www.microsoft.com/link',
+          device_code: sj.device_code, expires_in: sj.expires_in || 900, interval: sj.interval || 5,
+        }));
+      } catch (_) {
+        try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Verification failed.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  // POST /api/mc-poll {device_code} → {done:false} while pending, or the
+  // full verification on success: {done:true, ownsJava, name, uuid, mcToken, msRefresh}.
+  if (pathname === '/api/mc-poll' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+    (async () => {
+      try {
+        if (!_mcHit('poll', req, res, h, 40)) return;
+        const body = await _mcBody(req, 2048);
+        const deviceCode = String((body && body.device_code) || '');
+        if (!deviceCode || deviceCode.length > 512) {
+          res.writeHead(400, h);
+          res.end(JSON.stringify({ ok: false, reason: 'Missing device code.' }));
+          return;
+        }
+        const sj = await _sisuFetch('/poll', { device_code: deviceCode });
+        if (!sj) {
+          res.writeHead(502, h);
+          res.end(JSON.stringify({ ok: false, reason: 'Verifier is starting — retry in 10s.' }));
+          return;
+        }
+        res.writeHead(200, h);
+        res.end(JSON.stringify({ ok: true, ...sj }));
+      } catch (_) {
+        try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Verification failed.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  // POST /api/mc-refresh {refresh_token} → silent re-verify, same shape.
+  if (pathname === '/api/mc-refresh' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+    (async () => {
+      try {
+        if (!_mcHit('refresh', req, res, h, 10)) return;
+        const body = await _mcBody(req, 4096);
+        const rt = String((body && body.refresh_token) || '');
+        if (!rt || rt.length > 4096) {
+          res.writeHead(400, h);
+          res.end(JSON.stringify({ ok: false, reason: 'Missing refresh token.' }));
+          return;
+        }
+        const sj = await _sisuFetch('/refresh', { refresh_token: rt });
+        if (!sj) {
+          res.writeHead(502, h);
+          res.end(JSON.stringify({ ok: false, reason: 'Verifier is starting — retry in 10s.' }));
+          return;
+        }
+        res.writeHead(200, h);
+        res.end(JSON.stringify({ ok: true, ...sj }));
+      } catch (_) {
+        try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Verification failed.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  // POST /api/mc-ping {host, port?} → live Java Edition server list ping:
+  // {online, version, playersOnline, playersMax, motd, icon?}. Real TCP
+  // from the backend (browsers can't open sockets). Private/loopback
+  // targets are refused (SSRF guard). No auth needed — any player can
+  // search any IP; verification is only for the certified-account badge.
+  if (pathname === '/api/mc-ping' && req.method === 'POST') {
+    const h = {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    };
+    (async () => {
+      try {
+        if (!_mcHit('ping', req, res, h, 20)) return;
+        const body = await _mcBody(req, 1024);
+        let host = String((body && body.host) || '').trim().toLowerCase();
+        let port = parseInt((body && body.port), 10);
+        if (!port || port < 1 || port > 65535) port = 25565;
+        if (!host || host.length > 253 || !/^[a-z0-9.-]+$/.test(host)) {
+          res.writeHead(400, h);
+          res.end(JSON.stringify({ ok: true, online: false, reason: 'Bad address.' }));
+          return;
+        }
+        const info = await _mcPing(host, port);
+        res.writeHead(200, h);
+        res.end(JSON.stringify({ ok: true, ...info }));
+      } catch (_) {
+        try { res.writeHead(500, h); res.end(JSON.stringify({ ok: false, reason: 'Ping failed.' })); } catch (_) {}
+      }
+    })();
+    return;
+  }
+  if (pathname === '/api/gallery' && req.method === 'POST') {    const h = {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': req.headers.origin || '*',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -3996,6 +4337,35 @@ let _hbInterval;
   }
   advertiseSelf();
   setInterval(advertiseSelf, 30 * 1000);
+
+  // Sisu verifier sidecar (open-source Xbox Live auth): spawn the platform
+  // binary if present; routes 503 until its /health answers.
+  try {
+    const plat = process.platform === 'linux' ? 'linux-amd64'
+      : (process.platform === 'darwin' ? 'darwin-arm64' : null);
+    const bin = plat ? join(__dirname, 'sisu-auth', 'bin', 'sisu-auth-' + plat) : null;
+    if (bin && existsSync(bin)) {
+      _sisuProc = spawn(bin, [], {
+        env: { ...process.env, SISU_PORT: process.env.SISU_PORT || '12737' },
+        stdio: 'ignore',
+      });
+      _sisuProc.on('error', () => { _sisuReady = false; });
+      _sisuProc.on('exit', () => { _sisuReady = false; _sisuProc = null; });
+      const probe = async () => {
+        for (let i = 0; i < 20; i++) {
+          try {
+            const r = await fetch(_sisuBase() + '/health');
+            if (r && r.ok) { _sisuReady = true; console.log('  Sisu:    verifier sidecar ready'); break; }
+          } catch (_) {}
+          await new Promise(r => setTimeout(r, 500));
+        }
+        if (!_sisuReady) console.warn('  Sisu:    sidecar unreachable — /api/mc-* will 503');
+      };
+      probe();
+    } else {
+      console.warn('  Sisu:    no sidecar binary — /api/mc-* will 503');
+    }
+  } catch (e) { console.warn('  Sisu:    spawn failed — /api/mc-* will 503'); }
 
   server.listen(PORT, () => {
     console.log(`\n  BlockForge Server`);

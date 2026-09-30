@@ -1,6 +1,7 @@
 // Voice chat via WebRTC peer-to-peer audio.
 // Uses the game's existing WebSocket for signaling (SDP + ICE).
 import { cloudSet } from './storage.js';
+import { BACKEND_URL } from './config.js';
 
 const STATES = { OFF: 0, ON_MUTED: 1, ON_UNMUTED: 2 };
 
@@ -572,4 +573,155 @@ export class VoiceChat {
     document.addEventListener('keydown', this._pttKeyHandler);
     document.addEventListener('keyup', this._pttKeyHandler);
   }
+}
+
+// ── NPC voices (ElevenLabs TTS via the official backend /api/tts) ───────
+// Separate from player voice chat above: quest givers, testimonies and
+// villager barks speak through the server-side TTS proxy (the API key
+// never touches the client), with a free browser voice as fallback.
+// Cost control: short lines only, session blob cache, barks never pile up
+// (max 3 queued, new barks drop while one plays), server caps 20/min/IP.
+
+const NPC_MUTE_KEY = 'bf_voices_muted';
+let _npcMuted = false;
+try { _npcMuted = localStorage.getItem(NPC_MUTE_KEY) === '1'; } catch (_) {}
+
+const _npcBlobCache = new Map(); // text -> blob URL (this session)
+let _npcQueue = [];
+let _npcPlaying = false;
+let _npcEl = null;
+
+export function isVoiceMuted() { return _npcMuted; }
+export function setVoiceMuted(m) {
+  _npcMuted = !!m;
+  try { localStorage.setItem(NPC_MUTE_KEY, _npcMuted ? '1' : '0'); } catch (_) {}
+  if (_npcMuted) stopVoice();
+}
+export function stopVoice() {
+  _npcQueue = [];
+  _npcPlaying = false;
+  try { if (_npcEl) { _npcEl.pause(); _npcEl.removeAttribute('src'); } } catch (_) {}
+}
+
+function _cleanText(s) {
+  return String(s || '')
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function _ttsUrl() {
+  try {
+    return BACKEND_URL.replace(/^wss?:\/\//, 'https://') + 'api/tts';
+  } catch (_) { return null; }
+}
+
+// Speak a line. priority=true jumps the queue (quest + testimony beats);
+// ordinary barks drop silently while a line is playing.
+export function speak(text, opts) {
+  const t = _cleanText(text);
+  if (!t || _npcMuted) return;
+  const pri = !!(opts && opts.priority);
+  if (_npcPlaying && !pri && _npcQueue.length >= 2) return;
+  if (pri) _npcQueue.unshift(t);
+  else _npcQueue.push(t);
+  if (_npcQueue.length > 3) _npcQueue.splice(0, _npcQueue.length - 3);
+  _npcPump();
+}
+
+async function _npcPump() {
+  if (_npcPlaying || !_npcQueue.length || _npcMuted) return;
+  _npcPlaying = true;
+  const t = _npcQueue.shift();
+  try {
+    await _npcPlayServer(t);
+  } catch (_) {
+    try { await _npcPlayBrowser(t); }
+    catch (_) { await new Promise(r => setTimeout(r, 400)); }
+  }
+  _npcPlaying = false;
+  if (_npcQueue.length && !_npcMuted) _npcPump();
+}
+
+async function _npcPlayServer(t) {
+  const url = _ttsUrl();
+  if (!url) throw new Error('no backend');
+  let blobUrl = _npcBlobCache.get(t);
+  if (!blobUrl) {
+    const ctl = new AbortController();
+    const to = setTimeout(() => { try { ctl.abort(); } catch (_) {} }, 15000);
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: t }),
+        signal: ctl.signal,
+      });
+    } finally { clearTimeout(to); }
+    if (!res || !res.ok) throw new Error('tts ' + (res ? res.status : 'fail'));
+    const blob = await res.blob();
+    if (!blob || !blob.size) throw new Error('empty audio');
+    blobUrl = URL.createObjectURL(blob);
+    _npcBlobCache.set(t, blobUrl);
+    if (_npcBlobCache.size > 60) {
+      const first = _npcBlobCache.keys().next().value;
+      try { URL.revokeObjectURL(_npcBlobCache.get(first)); } catch (_) {}
+      _npcBlobCache.delete(first);
+    }
+  }
+  await _npcPlayUrl(blobUrl);
+}
+
+function _npcPlayUrl(blobUrl) {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!_npcEl) _npcEl = new Audio();
+      _npcEl.pause();
+      _npcEl.src = blobUrl;
+      _npcEl.onended = () => resolve();
+      _npcEl.onerror = () => reject(new Error('audio error'));
+      const p = _npcEl.play();
+      if (p && p.catch) p.catch(() => reject(new Error('play blocked')));
+    } catch (e) { reject(e); }
+  });
+}
+
+function _npcPlayBrowser(t) {
+  return new Promise((resolve) => {
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth || !window.SpeechSynthesisUtterance) {
+        setTimeout(resolve, Math.min(4000, 600 + t.split(' ').length * 350));
+        return;
+      }
+      try { synth.cancel(); } catch (_) {}
+      const u = new SpeechSynthesisUtterance(t);
+      u.rate = 1.0;
+      u.pitch = 1.0;
+      let done = false;
+      const fin = () => { if (!done) { done = true; resolve(); } };
+      u.onend = fin;
+      u.onerror = fin;
+      synth.speak(u);
+      setTimeout(fin, Math.min(12000, 1000 + t.split(' ').length * 450));
+    } catch (_) { resolve(); }
+  });
+}
+
+// Short greeting barks for people mobs (each new line synthesizes once,
+// then serves from cache forever). Called from the mob greet hook.
+const NPC_BARKS = {
+  villager: ['Good day!', 'Mind the crops!', 'Fine weather we are having!'],
+  traveler: ['Well met!', 'Roads are long, friend.'],
+  wanderer: ['Hello there!', 'Seen the sights?'],
+  pixie: ['Hee!', 'Follow the lights!'],
+  witch: ['Hee hee!', 'Careful, dearie!'],
+};
+export function greetBark(mob) {
+  try {
+    const lines = NPC_BARKS[mob && mob.type];
+    if (!lines || !lines.length) return;
+    speak(lines[(Math.random() * lines.length) | 0]);
+  } catch (_) {}
 }
