@@ -58,10 +58,8 @@
     /* ── Subtle scanlines + vignette for a game-feel ──────────────────── */
     body::after{content:'';position:fixed;top:0;left:0;right:0;bottom:0;z-index:3;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.03) 0 1px,transparent 1px 3px);mix-blend-mode:overlay}
     .vignette{position:fixed;top:0;left:0;right:0;bottom:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at 50% 42%,transparent 55%,rgba(0,0,0,.42) 100%)}
-    /* ── Animated count-up shimmer ────────────────────────────────────── */
+    /* ── Live stat values ─────────────────────────────────────────────── */
     .stat .v{position:relative}
-    .stat .v::after{content:'';position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.25) 50%,transparent 70%);background-size:220% 100%;animation:shimmer 3.4s ease-in-out infinite;-webkit-background-clip:initial;opacity:.5}
-    @keyframes shimmer{0%,100%{background-position:200% 0}50%{background-position:-20% 0}}
     #bg-canvas{position:fixed;top:0;left:0;right:0;bottom:0;z-index:0;pointer-events:none}
     header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(120,160,255,.4),rgba(200,100,230,.4),transparent)}
     .brand{display:flex;align-items:center;gap:12px;margin-right:auto}
@@ -396,11 +394,7 @@
     .card:hover,.card:focus-visible{border-color:transparent;background:linear-gradient(rgba(36,36,70,.92),rgba(36,36,70,.92)) padding-box,conic-gradient(from var(--angle),var(--accent),var(--accent2),var(--accent3),var(--accent)) border-box;animation:cardSpin 3.5s linear infinite}
     @keyframes cardSpin{to{--angle:360deg}}
 
-    /* ── Subtle section/nav shimmer ────────────────────────────────────── */
-    .section-title{background-size:220% 100%;animation:titleShift 6s ease-in-out infinite}
-    @keyframes titleShift{0%,100%{background-position:0% 0}50%{background-position:100% 0}}
-    .nav-tab.active{animation:navGlow 3s ease-in-out infinite}
-    @keyframes navGlow{0%,100%{box-shadow:0 0 8px rgba(100,140,255,.12)}50%{box-shadow:0 0 18px rgba(100,140,255,.35)}}
+    /* ── Section titles / active nav tab ─────────────────────────────── */
 
     /* ── Mobile / small-screen polish ──────────────────────────────────── */
     @media(max-width:768px){
@@ -1552,6 +1546,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Honest leaderboard + calmer terrain',
+          desc: 'Leaderboard rows never regress now (login snapshots used to overwrite Days Survived with menu-time values) and the board shows how freshly each row synced. Portal shimmer animations are gone. Terrain: no more sandy OCEAN patches stranded on hillsides, riverbanks are grass again, deserts trimmed 10.6% to 8.7%, ravines ~40% rarer and deeper-gated.',
+          date: 'Sep 30',
+          bugs: ['leaderboard values overwritten by stale login snapshots', '29% of OCEAN-biome columns sat 2+ blocks above sea level as sand patches'],
+          updates: ['max-merge leaderboard writes', '"synced Xs ago" note on the board', 'ocean biomes require waterline height', 'desert humidity gate -0.1 to -0.16', 'ravine thresholds tightened'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'The Long Now: 8,000 years of time travel',
@@ -4261,13 +4264,15 @@
               if (token !== requestLeaderboard._seq) return;
               clearTimeout(requestLeaderboard._timer);
               var entries = [];
+              var newest = 0;
               snap.forEach(function(child) {
                 var v = child.val();
                 entries.push({ name: v.name || child.key, value: v[metric] || 0 });
+                if (v.updated && v.updated > newest) newest = v.updated;
               });
               entries.reverse();
               entries.forEach(function(e, i) { e.rank = i + 1; });
-              renderLeaderboard({ metric: metric, entries: entries, self: null });
+              renderLeaderboard({ metric: metric, entries: entries, self: null, syncedAt: newest || null });
             }).catch(function() {
               if (token !== requestLeaderboard._seq) return;
               clearTimeout(requestLeaderboard._timer);
@@ -4296,7 +4301,13 @@
           list.innerHTML = '<div style="color:var(--dim);font-size:12px;">No stats yet — play BlockForge to climb the board!</div>';
           return;
         }
-        var html = msg.entries.map(function(e) {
+        var html = '';
+        if (msg.syncedAt) {
+          var ageS = Math.max(0, Math.round((Date.now() - msg.syncedAt) / 1000));
+          var ageT = ageS < 60 ? ageS + 's ago' : Math.floor(ageS / 60) + 'm ago';
+          html += '<div style="color:var(--dim);font-size:11px;margin-bottom:6px;">synced ' + ageT + ' — game pushes stats every 30s</div>';
+        }
+        html += msg.entries.map(function(e) {
           var medal = e.rank === 1 ? '🥇' : e.rank === 2 ? '🥈' : e.rank === 3 ? '🥉' : e.rank;
           var cls = (msg.self && msg.self.name === e.name) ? 'self' : '';
           return '<div class="lb-row ' + cls + '"><span class="lb-rank">' + medal + '</span>' +

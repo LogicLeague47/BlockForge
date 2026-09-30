@@ -172,8 +172,13 @@ export function calcBiome(n, wx, wz, h, _cache, mode) {
   //   cont < -0.50  → deep ocean
   //   -0.50 .. -0.30 → shallow ocean
   //   -0.30 .. 0.00 → coast (beach band near sea level)
-  if (cont < -0.50) return BIOMES.DEEP_OCEAN;
-  if (cont < -0.30) return BIOMES.OCEAN;
+  // Height must agree: continentalness alone strands sandy OCEAN columns on
+  // hillsides (~29% sat 2+ above sea level). Above the waterline, fall
+  // through to the climate biomes below.
+  if (h <= SEA_LEVEL + 1) {
+    if (cont < -0.50) return BIOMES.DEEP_OCEAN;
+    if (cont < -0.30) return BIOMES.OCEAN;
+  }
   
   // BlockForge beach: hugs the waterline only. Height + continentalness
   // alone can't tell shoreline from low plains (only ~1 in 8 candidates
@@ -208,9 +213,10 @@ export function calcBiome(n, wx, wz, h, _cache, mode) {
     if (hu > 0.1) return BIOMES.BIRCH_FOREST;
   }
 
-  // BlockForge warm biomes: high temperature
+  // BlockForge warm biomes: high temperature. Deserts kept uncommon —
+  // dry-but-not-driest warmth falls through to savanna/plains instead.
   if (t >= 0.12 && t < 0.5) {
-    if (hu < -0.1) return BIOMES.DESERT;
+    if (hu < -0.16) return BIOMES.DESERT;
     if (hu > 0.15) return BIOMES.JUNGLE;
     if (hu > 0.05) return BIOMES.SAVANNA;
   }
@@ -237,7 +243,9 @@ export function surfBlock(biome, h, wx = 0, wz = 0) {
     case BIOMES.OCEAN:       return BLOCK.SAND;
     case BIOMES.DEEP_OCEAN:  return BLOCK.SAND;
     case BIOMES.DESERT:      return BLOCK.SAND;
-    case BIOMES.RIVER:       return BLOCK.SAND;
+    // Riverbanks read as grass — sand only at/below the waterline, so
+    // rivers don't stripe every plain with sand ribbons.
+    case BIOMES.RIVER:       return h <= SEA_LEVEL ? BLOCK.SAND : BLOCK.GRASS;
     case BIOMES.SNOWY:       return BLOCK.SNOW_GRASS;
     case BIOMES.SWAMP:       return BLOCK.GRASS;
     // BlockForge stony peaks: bare stone above 25, dirt transition, grass below
@@ -339,8 +347,9 @@ export function generateColumn(n, chunk, x, z, wx, wz, mode) {
       const ravZ = n.cave2(wx * 0.06, y * 0.15, wz * 0.01);
       const ravDepth = n.cave(wx * 0.008, y * 0.005, wz * 0.008);
       // Ravines stay dry canyons: only carve above the waterline so their
-      // floors don't become sand-and-water pits.
-      if (y > SEA_LEVEL - 4 && Math.abs(ravX) < 0.035 && Math.abs(ravZ) < 0.035 && ravDepth > 0.2) b = BLOCK.AIR;
+      // floors don't become sand-and-water pits. Thresholds kept tight —
+      // ravines are landmarks, not something every other chunk trips over.
+      if (y > SEA_LEVEL - 4 && Math.abs(ravX) < 0.028 && Math.abs(ravZ) < 0.028 && ravDepth > 0.32) b = BLOCK.AIR;
     }
 
     // BlockForge aquifer-lite: only DEEP sub-sea caves flood. Near-surface

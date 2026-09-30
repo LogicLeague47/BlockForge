@@ -7845,7 +7845,10 @@ function _syncLeaderboardStats() {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
     var db = firebase.database();
     var s = achievements.stats || {};
-    var entry = {
+    // Never regress the board: login/menu-time snapshots carry a stale
+    // per-world daysSurvived (and possibly a dropped level), so max-merge
+    // every numeric counter against the stored row before writing.
+    var fresh = {
       playTime: Math.floor(s.playTime || 0),
       level: s.level || 0,
       mobKillsAny: s.mobKillsAny || 0,
@@ -7854,7 +7857,18 @@ function _syncLeaderboardStats() {
       name: playerName,
       updated: Date.now()
     };
-    db.ref('leaderboard/' + playerName).set(entry);
+    var lbRef = db.ref('leaderboard/' + playerName);
+    try {
+      lbRef.once('value').then(function (snap) {
+        try {
+          var prev = (snap && snap.val()) || {};
+          for (const k of ['playTime', 'level', 'mobKillsAny', 'totalBlocksBroken', 'daysSurvived']) {
+            if (typeof prev[k] === 'number' && prev[k] > (fresh[k] || 0)) fresh[k] = Math.floor(prev[k]);
+          }
+          lbRef.set(fresh);
+        } catch (_) { try { lbRef.set(fresh); } catch (_) {} }
+      }).catch(function () { try { lbRef.set(fresh); } catch (_) {} });
+    } catch (_) { try { lbRef.set(fresh); } catch (_) {} }
   } catch (_) {}
 }
 
