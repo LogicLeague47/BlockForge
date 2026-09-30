@@ -109,14 +109,54 @@ function xboxError(xerr: string): string {
 // Full chain from an MSA access token → certified-account result.
 // Failures carry {step, status, xerr} so we can see exactly which hop
 // rejects us (surfaced to the client for bug reports; never any tokens).
+//
+// Xbox probe: several RPS shapes are tried in ONE call (ticket prefix and
+// contract-version header variants) so a single user approval tests them all.
+const XBL_HEADERS: Record<string, string> = {
+  'Content-Type': 'application/json',
+  Accept: 'application/json',
+  'x-xbl-contract-version': '1',
+};
+
+async function xblAuthenticate(msaAccess: string): Promise<{ status: number; json: any; variant: string }> {
+  const variants = [
+    { name: 'd+cv1', ticket: 'd=' + msaAccess, headers: XBL_HEADERS },
+    { name: 't+cv1', ticket: 't=' + msaAccess, headers: XBL_HEADERS },
+    { name: 'd+plain', ticket: 'd=' + msaAccess, headers: { 'Content-Type': 'application/json', Accept: 'application/json' } },
+    { name: 'd+cv2', ticket: 'd=' + msaAccess, headers: { ...XBL_HEADERS, 'x-xbl-contract-version': '2' } },
+  ];
+  let last: { status: number; json: any; variant: string } = { status: 0, json: null, variant: 'none' };
+  for (const v of variants) {
+    try {
+      const r = await fetch('https://user.auth.xboxlive.com/user/authenticate', {
+        method: 'POST',
+        headers: v.headers,
+        body: JSON.stringify({
+          RelyingParty: 'http://auth.xboxlive.com',
+          TokenType: 'JWT',
+          Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: v.ticket },
+        }),
+        signal: AbortSignal.timeout(15000),
+      });
+      const t = await r.text();
+      let json: any = null;
+      try { json = JSON.parse(t); } catch { /* keep null */ }
+      last = { status: r.status, json, variant: v.name };
+      try { console.log('[mc] xbl variant', v.name, r.status, t.slice(0, 160)); } catch { /* ignore */ }
+      const tok = json && json.Token;
+      const u = json && json.DisplayClaims && json.DisplayClaims.xui && json.DisplayClaims.xui[0] && json.DisplayClaims.xui[0].uhs;
+      if (r.status === 200 && tok && u) return last;
+    } catch (e: any) {
+      last = { status: -1, json: { error: String((e && e.message) || e) }, variant: v.name };
+    }
+  }
+  return last;
+}
+
 export async function runChain(msaAccess: string): Promise<{ data?: any; reason?: string; diag?: any }> {
   const diag: any = {};
-  // 1. Xbox Live user token (RPS).
-  const xbl = await postJson('https://user.auth.xboxlive.com/user/authenticate', {
-    RelyingParty: 'http://auth.xboxlive.com',
-    TokenType: 'JWT',
-    Properties: { AuthMethod: 'RPS', SiteName: 'user.auth.xboxlive.com', RpsTicket: 'd=' + msaAccess },
-  });
+  // 1. Xbox Live user token (RPS probe).
+  const xbl = await xblAuthenticate(msaAccess);
   const xblToken = xbl.json && xbl.json.Token;
   const uhs = xbl.json && xbl.json.DisplayClaims && xbl.json.DisplayClaims.xui && xbl.json.DisplayClaims.xui[0] && xbl.json.DisplayClaims.xui[0].uhs;
   diag.xblStatus = xbl.status;
