@@ -5,7 +5,7 @@
 import { transformFileSync } from '@babel/core';
 import presetEnv from '@babel/preset-env';
 import { execSync } from 'node:child_process';
-import { writeFileSync } from 'node:fs';
+import { unlinkSync, writeFileSync } from 'node:fs';
 
 function buildOne(input, output) {
   console.log('[build-chess-legacy] transpiling ' + input + ' ...');
@@ -16,8 +16,14 @@ function buildOne(input, output) {
     babelrc: false,
     configFile: false
   });
-  writeFileSync(output + '.babel.js', res.code);
-  execSync('npx esbuild ' + output + '.babel.js --minify --outfile=' + output, { stdio: 'inherit' });
+  var mid = output + '.babel.js';
+  try {
+    writeFileSync(mid, res.code);
+    execSync('npx esbuild ' + mid + ' --minify --outfile=' + output, { stdio: 'inherit' });
+  } finally {
+    // never leave the intermediate in public/ — it would ship to dist/
+    try { unlinkSync(mid); } catch (_) {}
+  }
   console.log('[build-chess-legacy] wrote ' + output);
 }
 
