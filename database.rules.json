@@ -1,0 +1,42 @@
+{
+  "rules": {
+    // Leaderboard: public read (portal + parkour panel read top scores),
+    // any client may write ONLY its own player entry. Entry shape is a flat
+    // object of numeric stats + name + updated timestamp (see
+    // _syncLeaderboardStats in src/main.js). Deletes are allowed so players
+    // can wipe their own row.
+    "leaderboard": {
+      ".read": true,
+      "$player": {
+        ".write": true,
+        ".validate": "!newData.exists() || (newData.hasChild('updated') && newData.child('updated').isNumber() && newData.hasChild('name') && newData.child('name').isString())",
+        "playTime": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() < 100000000)" },
+        "level": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() < 10000)" },
+        "mobKillsAny": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() < 100000000)" },
+        "totalBlocksBroken": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() < 100000000)" },
+        "daysSurvived": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() >= 0 && newData.val() < 100000)" },
+        "name": { ".validate": "!newData.exists() || (newData.isString() && newData.val().length > 0 && newData.val().length < 32)" },
+        "updated": { ".validate": "!newData.exists() || (newData.isNumber() && newData.val() > 0)" },
+        "$other": { ".validate": "!newData.exists() || newData.val().length < 200" }
+      }
+    },
+    // P2P one-click join assist: ephemeral signaling rooms + queue.
+    // Open read/write (no auth in game client); entries are short-lived and
+    // removed by onDisconnect. No validation beyond "must be an object" so
+    // future signaling fields don't get blocked by stale rules.
+    "matchmaking": {
+      ".read": true,
+      ".write": true
+    },
+    // Public/private P2P room bars (room listings).
+    "p2p_rooms": {
+      ".read": true,
+      ".write": true
+    },
+    // Voice chat WebRTC signaling (ephemeral SDP/ICE blobs).
+    "voice_signals": {
+      ".read": true,
+      ".write": true
+    }
+  }
+}
