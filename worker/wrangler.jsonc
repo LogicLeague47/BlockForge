@@ -3,7 +3,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2025-09-23",
   "vars": {
-    "MC_CLIENT_ID": "0000000048183522",
+    "MC_CLIENT_ID": "00000000402b5328",
     "ELEVENLABS_VOICE_ID": "EXAVITQu4vr4xnSDxMaL"
   },
   "kv_namespaces": [

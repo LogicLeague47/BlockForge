@@ -12,6 +12,15 @@ const LIVE_TOKEN = 'https://login.live.com/oauth20_token.srf';
 const SCOPE = 'service::user.auth.xboxlive.com::MBI_SSL';
 const UA = 'XAL Android 2025.04.20250326.000';
 
+// Mojang 403s unknown Azure apps at login_with_xbox (empty-body 403), so
+// this MUST be a first-party Minecraft client ID. 00000000402b5328 is the
+// Minecraft: Java Edition client (desktop redirect); other clients use the
+// ms-xal custom scheme.
+function redirectUri(clientId: string): string {
+  if (clientId === '00000000402b5328') return 'https://login.live.com/oauth20_desktop.srf';
+  return `ms-xal-${clientId}://auth`;
+}
+
 function form(params: Record<string, string>): { body: string; headers: Record<string, string> } {
   return {
     body: new URLSearchParams(params).toString(),
@@ -48,7 +57,7 @@ export async function mcDevice(clientId: string) {
     client_id: clientId,
     response_type: 'device_code',
     scope: SCOPE,
-    redirect_uri: `ms-xal-${clientId}://auth`,
+    redirect_uri: redirectUri(clientId),
   });
   if (!d || !d.device_code || !d.user_code) {
     return { ok: false as const, reason: 'Microsoft said no. Try again.' };
