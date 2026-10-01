@@ -187,8 +187,14 @@ export async function runChain(msaAccess: string): Promise<{ data?: any; reason?
   const mcAccess = login.json && login.json.access_token;
   diag.mcStatus = login.status;
   if (login.status !== 200 || !mcAccess) {
-    try { console.log('[mc] login_with_xbox fail', login.status, JSON.stringify(login.json).slice(0, 200)); } catch { /* ignore */ }
-    return { reason: 'Minecraft login failed. Retry.', diag };
+    let detail = '';
+    try {
+      const lj = login.json || {};
+      detail = String(lj.errorMessage || lj.error || lj.reason || '').slice(0, 120);
+      console.log('[mc] login_with_xbox fail', login.status, JSON.stringify(login.json).slice(0, 200));
+    } catch { /* ignore */ }
+    const suffix = detail ? ` (${login.status}: ${detail})` : ` (${login.status})`;
+    return { reason: 'Minecraft login failed' + suffix + '. Retry.', diag };
   }
   // 4. Ownership = the actual "certified account" check.
   let ownsJava = false;

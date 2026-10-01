@@ -420,6 +420,16 @@ app.get('/api/mods/community', async (c) => {
   return c.json(await kvModsList(c.env));
 });
 
+// ── Official mod version registry (KV `modversions`: {id: {ver, file?}}) ──
+// The game merges this over its bundled catalog: any installed mod older
+// than the registry grows an UPDATE button — no app release needed to ship
+// a mod fix. Update it on release: wrangler kv key put modversions '<json>'.
+app.get('/api/mods/versions', async (c) => {
+  let v: any = {};
+  try { v = JSON.parse((await c.env.KV.get('modversions')) || '{}'); } catch { v = {}; }
+  return c.json(v, 200, { 'Cache-Control': 'public, max-age=300' });
+});
+
 app.post('/api/mods/upload', async (c) => {
   let code = '';
   try {

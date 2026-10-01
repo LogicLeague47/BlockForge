@@ -34,6 +34,16 @@
 - Pre-existing `build-mac-dmg` / `build-windows-exe` failures are known and
   unrelated — leave them alone, they don't block APK/IPA/Pages.
 
+## Official mod releases (no app build needed)
+
+- The in-game Mods menu merges the bundled `public/mods/index.json` with the
+  live registry `GET /api/mods/versions` (KV `modversions`, backend wins).
+  Any installed official mod older than the registry grows an ⬆ UPDATE
+  button — mod fixes ship without an app release.
+- To release a mod update: bump `version` in `public/mods/<x>.bfmod` +
+  `public/mods/index.json` (+ `public/mods.html` OFFICIAL_MODS), push, then
+  `wrangler kv key put modversions '<full-json>' --namespace-id <KV_ID>`.
+
 - **Always auto-commit and auto-push after completing any work.** Do not wait
   to be asked. Stage the relevant files, write a concise commit message
   (repo uses conventional prefixes like `feat:`, `fix:`, `perf:`), push to

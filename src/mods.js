@@ -336,6 +336,8 @@ export function removeMod(id) {
 }
 
 // ---- Menu ---------------------------------------------------------------
+import { BACKEND_URL } from './config.js';
+
 // ---- Official catalog (one-tap install, no file picker needed) ----------
 // public/mods/index.json mirrors the mods page. Installing fetches the
 // .bfmod text straight from the bundled dist — this works inside the native
@@ -348,9 +350,34 @@ function loadCatalog() {
   _catalogLoading = true;
   fetch('mods/index.json')
     .then((r) => (r && r.ok ? r.json() : null))
-    .then((j) => { _catalog = Array.isArray(j) ? j : []; })
+    .then((j) => {
+      _catalog = Array.isArray(j) ? j : [];
+      // Live version sync: the backend registry wins over the bundled file,
+      // so a mod fix ships an UPDATE button without an app release.
+      return syncCatalogVersions().catch(() => {});
+    })
     .catch(() => { _catalog = []; })
     .finally(() => { _catalogLoading = false; try { renderModsList(); } catch (_) {} });
+}
+// GET {id: {ver, file?}} — installed mods older than this grow UPDATE buttons.
+async function syncCatalogVersions() {
+  if (!_catalog || !_catalog.length) return;
+  const base = String(BACKEND_URL || '').replace(/^wss?:\/\//, 'https://').replace(/\/+$/, '');
+  if (!base) return;
+  const ctl = new AbortController();
+  const to = setTimeout(() => { try { ctl.abort(); } catch (_) {} }, 6000);
+  try {
+    const r = await fetch(base + '/api/mods/versions', { signal: ctl.signal });
+    clearTimeout(to);
+    if (!r || !r.ok) return;
+    const v = await r.json();
+    if (!v || typeof v !== 'object') return;
+    for (const e of _catalog) {
+      if (!e || !e.id || !v[e.id] || typeof v[e.id] !== 'object') continue;
+      if (v[e.id].ver) e.ver = String(v[e.id].ver);
+      if (v[e.id].file) e.file = String(v[e.id].file);
+    }
+  } catch (_) { try { clearTimeout(to); } catch (_) {} }
 }
 async function installFromCatalog(id) {
   const e = (_catalog || []).find((x) => x && x.id === id);
