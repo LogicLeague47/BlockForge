@@ -16,6 +16,12 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.io.File;
+import java.io.InputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 
 // In-app updater: downloads an APK with the system DownloadManager (works
 // inside the WebView where <a download>/navigation can't) and fires the
@@ -79,8 +85,56 @@ public class BFUpdatePlugin extends Plugin {
     }
   }
 
-  private void promptInstall(Context ctx) {
+  // Native HTTPS POST/GET with no WebView CORS rules and the phone's own
+  // network (residential/mobile egress). Used by the Java Bridge mod for the
+  // Mojang calls api.minecraftservices.com blocks from datacenter IPs.
+  // Params: { url, method?, body?, bearer? } → { status, body }.
+  @PluginMethod
+  public void mcPost(PluginCall call) {
+    String url = call.getString("url");
+    String method = call.getString("method", "POST");
+    String body = call.getString("body", "");
+    String bearer = call.getString("bearer", "");
+    if (url == null || url.isEmpty()) { call.reject("Missing url"); return; }
+    if (!url.startsWith("https://api.minecraftservices.com/")) { call.reject("URL not allowed"); return; }
+    HttpURLConnection conn = null;
     try {
+      URL u = new URL(url);
+      conn = (HttpURLConnection) u.openConnection();
+      conn.setRequestMethod(method.toUpperCase().startsWith("G") ? "GET" : "POST");
+      conn.setConnectTimeout(20000);
+      conn.setReadTimeout(20000);
+      conn.setRequestProperty("Content-Type", "application/json");
+      conn.setRequestProperty("Accept", "application/json");
+      if (!bearer.isEmpty()) conn.setRequestProperty("Authorization", "Bearer " + bearer);
+      byte[] out = body.getBytes(StandardCharsets.UTF_8);
+      if (out.length > 0 && !conn.getRequestMethod().equals("GET")) {
+        conn.setDoOutput(true);
+        conn.setFixedLengthStreamingMode(out.length);
+        try (OutputStream os = conn.getOutputStream()) { os.write(out); }
+      }
+      int status = conn.getResponseCode();
+      InputStream is = (status >= 200 && status < 300) ? conn.getInputStream() : conn.getErrorStream();
+      ByteArrayOutputStream bos = new ByteArrayOutputStream();
+      byte[] buf = new byte[8192];
+      int total = 0, n;
+      while ((n = is.read(buf)) != -1) {
+        total += n;
+        if (total > 1048576) break;
+        bos.write(buf, 0, n);
+      }
+      JSObject ret = new JSObject();
+      ret.put("status", status);
+      ret.put("body", new String(bos.toByteArray(), StandardCharsets.UTF_8));
+      call.resolve(ret);
+    } catch (Exception e) {
+      call.reject("Request failed: " + e.getMessage());
+    } finally {
+      if (conn != null) conn.disconnect();
+    }
+  }
+
+  private void promptInstall(Context ctx) {    try {
       File apk = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), lastFileName);
       Uri uri;
       if (Build.VERSION.SDK_INT >= 24) {

@@ -5,7 +5,7 @@
 
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { mcDevice, mcPollOnce, mcRefreshToken, runChain } from './mc';
+import { mcDevice, mcPollOnce, mcRefreshToken, runXboxStage } from './mc';
 import { icLookupKey, icEmojiFor } from './ic';
 import { IC_PATCH } from './ic-patch';
 import { getAccount as kvGetAccount, putAccount as kvPutAccount, findByIdentity as kvFindByIdentity, galleryList as kvGalleryList, galleryPush as kvGalleryPush, modsList as kvModsList, modsPut as kvModsPut, modsGetFile as kvModsGetFile } from './db';
@@ -224,7 +224,7 @@ app.post('/api/mc-poll', async (c) => {
     const p = await mcPollOnce(c.env.MC_CLIENT_ID || '0000000048183522', deviceCode);
     if ('pending' in p) return c.json({ ok: true, done: false });
     if ('failed' in p) return c.json({ ok: true, done: false, failed: true, reason: p.reason });
-    const ch = await runChain(p.access);
+    const ch = await runXboxStage(p.access);
     if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason, diag: ch.diag || undefined });
     return c.json({ ok: true, done: true, ...ch.data, msRefresh: p.refresh || undefined });
   } catch { return c.json({ ok: false, reason: 'Verification failed.' }, 500); }
@@ -239,7 +239,7 @@ app.post('/api/mc-refresh', async (c) => {
     const p = await mcRefreshToken(c.env.MC_CLIENT_ID || '0000000048183522', rt);
     if ('failed' in p) return c.json({ ok: true, done: false, failed: true, reason: p.reason });
     if ('pending' in p) return c.json({ ok: true, done: false });
-    const ch = await runChain(p.access);
+    const ch = await runXboxStage(p.access);
     if (ch.reason) return c.json({ ok: true, done: false, failed: true, reason: ch.reason, diag: ch.diag || undefined });
     return c.json({ ok: true, done: true, ...ch.data, msRefresh: p.refresh || rt });
   } catch { return c.json({ ok: false, reason: 'Verification failed.' }, 500); }

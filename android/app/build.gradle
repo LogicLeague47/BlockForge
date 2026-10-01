@@ -17,9 +17,24 @@ android {
         }
     }
     buildTypes {
+        debug {
+            // Pinned shared debug keystore (android/app/debug.keystore) so
+            // every CI build carries the SAME signer — otherwise Android
+            // treats each build as a hostile "new signer" and blocks updates.
+            signingConfig signingConfigs.debug
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+    signingConfigs {
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeType 'pkcs12'
         }
     }
 }

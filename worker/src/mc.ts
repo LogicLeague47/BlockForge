@@ -115,12 +115,12 @@ function xboxError(xerr: string): string {
   return 'Xbox sign-in failed. Retry.';
 }
 
-// Full chain from an MSA access token → certified-account result.
-// Failures carry {step, status, xerr} so we can see exactly which hop
-// rejects us (surfaced to the client for bug reports; never any tokens).
-//
-// Xbox probe: several RPS shapes are tried in ONE call (ticket prefix and
-// contract-version header variants) so a single user approval tests them all.
+// Xbox stage only (device token → XBL → XSTS). The Mojang calls
+// (login_with_xbox, entitlements, profile) MUST run on the player's device:
+// api.minecraftservices.com edge-blocks Cloudflare egress IPs (empty 403)
+// and sends no CORS headers, so neither the worker nor any browser/WebView
+// can call it. The native app posts them directly (see BFUpdate.mcPost);
+// the web client shows an app-required message for this step.
 const XBL_HEADERS: Record<string, string> = {
   'Content-Type': 'application/json',
   Accept: 'application/json',
@@ -162,7 +162,7 @@ async function xblAuthenticate(msaAccess: string): Promise<{ status: number; jso
   return last;
 }
 
-export async function runChain(msaAccess: string): Promise<{ data?: any; reason?: string; diag?: any }> {
+export async function runXboxStage(msaAccess: string): Promise<{ data?: any; reason?: string; diag?: any }> {
   const diag: any = {};
   // 1. Xbox Live user token (RPS probe).
   const xbl = await xblAuthenticate(msaAccess);
@@ -189,53 +189,9 @@ export async function runChain(msaAccess: string): Promise<{ data?: any; reason?
     try { console.log('[mc] xsts fail', xsts.status, String(xerr), JSON.stringify(xsts.json).slice(0, 200)); } catch { /* ignore */ }
     return { reason: xerr ? xboxError(String(xerr)) : 'Xbox sign-in failed. Retry.', diag };
   }
-  // 3. Minecraft login_with_xbox.
-  const login = await postJson('https://api.minecraftservices.com/authentication/login_with_xbox', {
-    identityToken: `XBL3.0 x=${uhs};${xstsToken}`,
-  });
-  const mcAccess = login.json && login.json.access_token;
-  diag.mcStatus = login.status;
-  if (login.status !== 200 || !mcAccess) {
-    let detail = '';
-    try {
-      const lj = login.json || {};
-      detail = String(lj.errorMessage || lj.error || lj.reason || '').slice(0, 120);
-      console.log('[mc] login_with_xbox fail', login.status, JSON.stringify(login.json).slice(0, 200));
-    } catch { /* ignore */ }
-    const suffix = detail ? ` (${login.status}: ${detail})` : ` (${login.status})`;
-    return { reason: 'Minecraft login failed' + suffix + '. Retry.', diag };
-  }
-  // 4. Ownership = the actual "certified account" check.
-  let ownsJava = false;
-  try {
-    const r = await fetch('https://api.minecraftservices.com/entitlements/mcstore', {
-      headers: { Authorization: 'Bearer ' + mcAccess },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (r.ok) {
-      const e: any = await r.json();
-      const items = (e && e.items) || [];
-      ownsJava = items.some((it: any) => it && (it.name === 'game_minecraft' || it.name === 'product_minecraft'));
-    }
-  } catch { /* ownership unknown → false */ }
-  // 5. Profile (name + uuid).
-  let name = '', uuid = '';
-  try {
-    const r = await fetch('https://api.minecraftservices.com/minecraft/profile', {
-      headers: { Authorization: 'Bearer ' + mcAccess },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (r.ok) {
-      const p: any = await r.json();
-      name = (p && p.name) || '';
-      uuid = (p && p.id) || '';
-    }
-  } catch { /* nameless account */ }
+  // 3. Hand the XSTS token to the client — it completes the Mojang steps
+  // on-device (see above). Response matches what the client needs to finish.
   return {
-    data: {
-      ownsJava, name, uuid,
-      mcToken: mcAccess,
-      expiresIn: (login.json && login.json.expires_in) || 86400,
-    },
+    data: { xstsToken, uhs, stage: 'xsts' },
   };
 }

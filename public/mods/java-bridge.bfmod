@@ -5,7 +5,7 @@
 export const manifest = {
   id: 'java-bridge',
   name: 'Java Bridge',
-  version: '1.1',
+  version: '1.2',
   description: 'Verify your Java account with Microsoft, then search any Java server IP for live status.',
   author: 'BlockForge Dev',
   icon: '⛏️',
@@ -154,6 +154,13 @@ async function startVerify() {
     }
     if (p.done) {
       clearInterval(_pollTimer); _pollTimer = null;
+      // The worker stops at the Xbox stage (Mojang's edge blocks datacenter
+      // IPs and sends no CORS headers). The phone finishes the last three
+      // calls natively — no browser rules, home/mobile network.
+      if (p.stage === 'xsts' && p.xstsToken && p.uhs) {
+        finishMojang(p, authBox);
+        return;
+      }
       saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || null, at: Date.now() });
       authBox.style.display = 'none';
       renderAcct();
@@ -161,10 +168,86 @@ async function startVerify() {
   }, iv);
 }
 
+function nativeBridge() {
+  try {
+    const pl = window.Capacitor && window.Capacitor.Plugins;
+    const b = pl && pl.BFUpdate;
+    if (b && typeof b.mcPost === 'function') return b;
+  } catch (_) {}
+  return null;
+}
+
+async function mcNative(path, bearer, body) {
+  const nat = nativeBridge();
+  if (!nat) throw new Error('no-native');
+  const r = await nat.mcPost({
+    url: 'https://api.minecraftservices.com' + path,
+    method: body ? 'POST' : 'GET',
+    body: body ? JSON.stringify(body) : '',
+    bearer: bearer || '',
+  });
+  let j = null;
+  try { j = JSON.parse(r.body || 'null'); } catch (_) {}
+  return { status: r.status, json: j };
+}
+
+// Completes verification on the phone: login → ownership → profile.
+async function finishMojang(p, authBox) {
+  const show = (html) => { if (authBox) { authBox.style.display = 'block'; authBox.innerHTML = html; } };
+  if (!nativeBridge()) {
+    show('<div style="color:#fa5;">Xbox approved! One last step needs the <b>BlockForge Android app</b> (browsers are blocked from calling Mojang). Open this mod in the app and verify there — your code still works for a few minutes, or grab a fresh one.</div>');
+    return;
+  }
+  show('<div style="color:#aaa;">Xbox approved — asking Mojang…</div>');
+  try {
+    const login = await mcNative('/authentication/login_with_xbox', '', { identityToken: 'XBL3.0 x=' + p.uhs + ';' + p.xstsToken });
+    const mcToken = login.json && login.json.access_token;
+    if (login.status !== 200 || !mcToken) throw new Error('mojang-says-no');
+    let ownsJava = false;
+    try {
+      const ent = await mcNative('/entitlements/mcstore', mcToken, null);
+      const items = (ent.json && ent.json.items) || [];
+      ownsJava = items.some((it) => it && (it.name === 'game_minecraft' || it.name === 'product_minecraft'));
+    } catch (_) {}
+    let name = '', uuid = '';
+    try {
+      const prof = await mcNative('/minecraft/profile', mcToken, null);
+      if (prof.status === 200 && prof.json) { name = prof.json.name || ''; uuid = prof.json.id || ''; }
+    } catch (_) {}
+    saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || null, at: Date.now() });
+    if (authBox) authBox.style.display = 'none';
+    renderAcct();
+  } catch (_) {
+    show('<div style="color:#f55;">Mojang refused the login. Retry with a fresh code.</div>');
+  }
+}
+
 async function silentRefresh(v) {
   try {
     const p = await api('/api/mc-refresh', { refresh_token: v.msRefresh });
     if (p && p.ok && p.done) {
+      if (p.stage === 'xsts' && p.xstsToken && p.uhs) {
+        // Quiet finish on-device; failures stay silent until next open.
+        try {
+          const login = await mcNative('/authentication/login_with_xbox', '', { identityToken: 'XBL3.0 x=' + p.uhs + ';' + p.xstsToken });
+          const mcToken = login.json && login.json.access_token;
+          if (login.status === 200 && mcToken) {
+            let ownsJava = !!v.ownsJava, name = v.name || '', uuid = v.uuid || '';
+            try {
+              const ent = await mcNative('/entitlements/mcstore', mcToken, null);
+              const items = (ent.json && ent.json.items) || [];
+              ownsJava = items.some((it) => it && (it.name === 'game_minecraft' || it.name === 'product_minecraft'));
+            } catch (_) {}
+            try {
+              const prof = await mcNative('/minecraft/profile', mcToken, null);
+              if (prof.status === 200 && prof.json) { name = prof.json.name || name; uuid = prof.json.id || uuid; }
+            } catch (_) {}
+            saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || v.msRefresh, at: Date.now() });
+            renderAcct();
+          }
+        } catch (_) {}
+        return;
+      }
       saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || v.msRefresh, at: Date.now() });
       renderAcct();
     }
