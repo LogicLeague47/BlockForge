@@ -13,8 +13,16 @@ export const manifest = {
 
 const LS_VERIFY = 'bf_java_verify';
 const LS_RECENT = 'bf_java_recent';
+const LS_SAVED = 'bf_java_saved';
 const LS_BACKEND = 'bf_java_backend';
 const DEFAULT_BACKEND = 'https://blockforge-api.blockforge.workers.dev';
+
+// The BlockForge account this device plays as (for the MC↔BF link badge).
+function bfName() {
+  try {
+    return localStorage.getItem('bf_player_name') || localStorage.getItem('bf_login_user') || localStorage.getItem('bf_portal_user') || 'Guest';
+  } catch (_) { return 'Guest'; }
+}
 
 function backend() {
   try {
@@ -40,6 +48,12 @@ function loadRecent() {
 }
 function saveRecent(r) {
   try { localStorage.setItem(LS_RECENT, JSON.stringify(r.slice(0, 8))); } catch (_) {}
+}
+function loadSaved() {
+  try { const r = JSON.parse(localStorage.getItem(LS_SAVED) || '[]'); return Array.isArray(r) ? r.filter(x => x && x.key) : []; } catch (_) { return []; }
+}
+function saveSaved(r) {
+  try { localStorage.setItem(LS_SAVED, JSON.stringify((r || []).slice(0, 30))); } catch (_) {}
 }
 function esc(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -99,9 +113,13 @@ function renderAcct() {
   if (!box) return;
   const v = loadVerify();
   if (v && v.name) {
+    const link = v.linkBf && v.linkBf !== v.name
+      ? '<div style="font-size:11px;color:#8af;margin-top:4px;">🔗 tied to BlockForge account <b>' + esc(v.linkBf) + '</b></div>'
+      : '';
     box.innerHTML =
       '<div style="margin-bottom:12px;padding:10px;border:1px solid #2a6a3a;border-radius:8px;background:rgba(40,180,80,0.08);">' +
       '<div>✅ <b>' + esc(v.name) + '</b> ' + (v.ownsJava ? '<span style="color:#8f8;">(owns Java ✓)</span>' : '<span style="color:#fa5;">(no Java license found)</span>') + '</div>' +
+      link +
       '<label style="display:flex;align-items:center;gap:6px;margin-top:8px;font-size:11px;color:#aaa;cursor:pointer;"><input type="checkbox" id="bf-java-joinmc"' + (joinAsMc() ? ' checked' : '') + '/> Join multiplayer as <b>' + esc(v.name) + '</b></label>' +
       '<button id="bf-java-out" style="margin-top:8px;background:#333;border:1px solid #555;color:#fff;border-radius:6px;padding:4px 10px;cursor:pointer;">Sign out</button>' +
       '</div>';
@@ -161,7 +179,7 @@ async function startVerify() {
         finishMojang(p, authBox);
         return;
       }
-      saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || null, at: Date.now() });
+      saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || null, at: Date.now(), linkBf: bfName() });
       authBox.style.display = 'none';
       renderAcct();
     }
@@ -214,7 +232,7 @@ async function finishMojang(p, authBox) {
       const prof = await mcNative('/minecraft/profile', mcToken, null);
       if (prof.status === 200 && prof.json) { name = prof.json.name || ''; uuid = prof.json.id || ''; }
     } catch (_) {}
-    saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || null, at: Date.now() });
+    saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || null, at: Date.now(), linkBf: bfName() });
     if (authBox) authBox.style.display = 'none';
     renderAcct();
   } catch (_) {
@@ -242,13 +260,13 @@ async function silentRefresh(v) {
               const prof = await mcNative('/minecraft/profile', mcToken, null);
               if (prof.status === 200 && prof.json) { name = prof.json.name || name; uuid = prof.json.id || uuid; }
             } catch (_) {}
-            saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || v.msRefresh, at: Date.now() });
+            saveVerify({ name, uuid, ownsJava, mcToken, msRefresh: p.msRefresh || v.msRefresh, at: Date.now(), linkBf: bfName() });
             renderAcct();
           }
         } catch (_) {}
         return;
       }
-      saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || v.msRefresh, at: Date.now() });
+      saveVerify({ name: p.name, uuid: p.uuid, ownsJava: !!p.ownsJava, mcToken: p.mcToken || null, msRefresh: p.msRefresh || v.msRefresh, at: Date.now(), linkBf: bfName() });
       renderAcct();
     }
   } catch (_) {}
@@ -354,9 +372,13 @@ async function doSearch() {
     '<div style="color:#8f8;">👥 ' + (r.playersOnline || 0) + '/' + (r.playersMax || 0) + '</div>' +
     '</a>' +
     '<button id="bf-java-join" style="background:#2a6a3a;color:#fff;border:none;border-radius:8px;padding:10px;font:bold 13px monospace;cursor:pointer;">⛏️ JOIN — copy server IP</button>' +
+    '<div style="display:flex;gap:8px;align-items:center;">' +
+    '<button id="bf-java-save" style="flex:1;background:#333;border:1px solid #555;color:#fff;border-radius:8px;padding:8px;font:bold 12px monospace;cursor:pointer;">💾 SAVE SERVER</button>' +
+    '</div>' +
     '<div style="font-size:11px;color:#888;">Browsers can\u2019t enter Java servers directly — JOIN copies the IP. Then open <b>Minecraft Java → Multiplayer → Add Server</b> and paste it.</div>';
   const hit = resBox.querySelector('#bf-java-hit');
   const joinBtn = resBox.querySelector('#bf-java-join');
+  const saveBtn = resBox.querySelector('#bf-java-save');
   const doJoin = () => {
     copyText(key);
     const d = resBox.querySelector('#bf-java-detail');
@@ -370,10 +392,58 @@ async function doSearch() {
     e.preventDefault();
     doJoin();
   };
+  saveBtn.onclick = (e) => {
+    e.preventDefault();
+    const saved = loadSaved();
+    if (!saved.some((s) => s.key === key)) {
+      saved.unshift({ name: key, key });
+      saveSaved(saved);
+    }
+    const d = resBox.querySelector('#bf-java-detail');
+    if (d) d.textContent = 'Saved! Find it under Saved Servers below.';
+    renderSaved();
+  };
   renderRecent();
 }
 
+function renderSaved() {
+  if (!_panel) return;
+  let box = _panel.querySelector('#bf-java-saved');
+  if (!box) {
+    const resBox = _panel.querySelector('#bf-java-results');
+    if (!resBox) return;
+    box = document.createElement('div');
+    box.id = 'bf-java-saved';
+    resBox.parentNode.insertBefore(box, resBox);
+  }
+  const saved = loadSaved();
+  if (!saved.length) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div style="color:#888;font-size:11px;margin:8px 0 4px;">💾 Saved Servers:</div>' +
+    saved.map((s, i) => '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;">' +
+      '<a href="#" data-i="' + i + '" class="bf-java-saved" style="flex:1;color:#8f8;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + esc(s.name) + '</a>' +
+      '<a href="#" data-del="' + i + '" class="bf-java-unsave" style="color:#f88;font-size:11px;">✕</a></div>').join('');
+  box.querySelectorAll('.bf-java-saved').forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      const s = loadSaved()[parseInt(a.dataset.i, 10)];
+      if (!s) return;
+      _panel.querySelector('#bf-java-ip').value = s.key;
+      doSearch();
+    };
+  });
+  box.querySelectorAll('.bf-java-unsave').forEach((a) => {
+    a.onclick = (e) => {
+      e.preventDefault();
+      const cur = loadSaved();
+      cur.splice(parseInt(a.dataset.del, 10), 1);
+      saveSaved(cur);
+      renderSaved();
+    };
+  });
+}
+
 function renderRecent() {
+  renderSaved();
   if (!_panel) return;
   const resBox = _panel.querySelector('#bf-java-results');
   if (!resBox || resBox.querySelector('#bf-java-hit')) return;

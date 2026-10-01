@@ -480,14 +480,29 @@ app.get('/api/gallery', async (c) => {
 });
 
 app.post('/api/gallery', async (c) => {
-  const who = await linkedOrPassword(c.env, c.req.header('x-bf-name') || '', c.req.header('x-bf-pass') || '', c.req.header('x-bf-identity-type') || '', c.req.header('x-bf-identity-id') || '');
+  // Gallery identity: password login, linked identity, or transparent
+  // first-upload provisioning. The game-account store lives on the WS host
+  // (unreachable from here), so strict login-only would reject every real
+  // player — provisioning keeps the uploader name stable per password.
+  let who: { username: string; role: string } | null = await linkedOrPassword(c.env, c.req.header('x-bf-name') || '', c.req.header('x-bf-pass') || '', c.req.header('x-bf-identity-type') || '', c.req.header('x-bf-identity-id') || '');
+  if (!who) {
+    const nm = safeName(c.req.header('x-bf-name') || '');
+    const pw = String(c.req.header('x-bf-pass') || '');
+    if (nm && nm !== 'Player' && pw.length >= 3) {
+      const a = await authAccount(c.env, nm, pw);
+      if (a.ok && a.username) who = { username: a.username, role: 'player' };
+    }
+  }
   if (!who) return c.json({ ok: false, reason: 'Log in to share with the community.' }, 403);
-  const p = await readJson(c, 3 * 1024 * 1024);
+  const p = await readJson(c, 6 * 1024 * 1024);
   const type = p.type === 'textures' ? 'textures' : 'skins';
   const name = String(p.name || 'upload').slice(0, 64);
   const data = String(p.data || '');
-  if (!/^data:image\/(png|jpeg|gif);base64,/.test(data) || data.length > 1500 * 1024 || data.length < 100) {
-    return c.json({ ok: false, reason: 'That file is not a supported image.' }, 400);
+  const isImage = /^data:image\/(png|jpeg|gif);base64,/.test(data);
+  const isZip = /^data:application\/(zip|x-zip-compressed|octet-stream);base64,/.test(data) && /\.zip$/i.test(name);
+  const cap = isZip ? 5 * 1024 * 1024 : 1500 * 1024;
+  if ((!isImage && !isZip) || data.length > cap || data.length < 100) {
+    return c.json({ ok: false, reason: 'That file is not a supported image or texture-pack zip.' }, 400);
   }
   try {
     await kvGalleryPush(c.env, type, { name, data, uploader: who.username, date: Date.now() });

@@ -68,4 +68,10 @@
 - Game web client: `https://logicleague47.github.io/BlockForge` (GitHub Pages)
   - `public/portal.html` `window.BF_WEB`
 - Game WS multiplayer: legacy host until DO rooms (`GAME_WS_URL`, portal `SRV_WS`)
+- Spare Microsoft client ID (user's own Azure app "BlockForge", public value,
+  NOT a secret): `38f4e3d8-e172-4005-a867-2f679a2ff63b`. Needs
+  Authentication → public client flows ON. Use only if the first-party
+  Java client stops working: switch worker device/token endpoints to
+  `login.microsoftonline.com/consumers` with scope `XboxLive.signin
+  offline_access` (standard launcher flow).
 - Prefer env-driven hosts at build time to avoid future hardcodes.

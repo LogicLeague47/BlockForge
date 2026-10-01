@@ -35,7 +35,7 @@ function _xorDecode(str) {
   for (let i = 0; i < str.length; i++) out += String.fromCharCode(str.charCodeAt(i) ^ 0x5A);
   return out;
 }
-import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, deleteCustomSkin, setSelectedCustomSkin, setSkinUser, getStoredSkinIndex } from './skins.js';
+import { SKIN_PRESETS, getSelectedSkin, setSelectedSkin, getCustomSkins, addCustomSkin, deleteCustomSkin, setSelectedCustomSkin, setSkinUser, getStoredSkinIndex } from './skins.js';
 import { PlayerModel } from './playermodel.js';
 import { SkinEditor } from './skineditor.js';
 import { getKeybinds, setKeybind, resetKeybinds, keyName, KEYBIND_ACTIONS } from './keybinds.js';
@@ -11289,8 +11289,165 @@ document.getElementById('music-toggle')?.addEventListener('click', () => {
    if (window.__bfErr) window.__bfErr('initMenu threw: ' + (e && e.stack || e));
    console.error('initMenu threw', e);
  }
+// ── 🎨 Customization: skins you wear + community texture packs ──────────
+function customStatus(msg, color) {
+  const el = document.getElementById('custom-status');
+  if (el) { el.textContent = msg || ''; el.style.color = color || '#aaa'; }
+}
+function galleryBaseUrl() {
+  try { return String(BACKEND_URL || '').replace(/^wss?:\/\//, 'https://').replace(/\/+$/, ''); }
+  catch (_) { return ''; }
+}
+function galleryCreds() {
+  const h = {};
+  try {
+    const nm = playerName && !String(playerName).startsWith('Guest') ? playerName : (localStorage.getItem('bf_player_name') || '');
+    if (nm) h['x-bf-name'] = nm;
+    const pass = _xorDecode(localStorage.getItem('bf_login_pass') || '') || '';
+    if (pass) h['x-bf-pass'] = pass;
+  } catch (_) {}
+  return h;
+}
+function openCustomMenu(ui) {
+  if (ui && typeof ui.showMenu === 'function') ui.showMenu('custom');
+  customStatus('');
+  renderCustomSkins();
+  renderCustomPacks();
+}
+function renderCustomSkins() {
+  const grid = document.getElementById('custom-skins');
+  const st = document.getElementById('custom-skins-status');
+  if (!grid) return;
+  let mine = [];
+  try { mine = getCustomSkins() || []; } catch (_) { mine = []; }
+  let sel = -1;
+  try {
+    const cur = getSelectedSkin();
+    if (cur && String(cur).startsWith('custom:')) sel = parseInt(String(cur).slice(7), 10);
+  } catch (_) {}
+  grid.innerHTML = mine.length ? mine.map((d, i) =>
+    '<div data-skin-i="' + i + '" style="cursor:pointer;border:2px solid ' + (i === sel ? '#5f5' : 'rgba(255,255,255,0.15)') + ';border-radius:8px;padding:6px;background:rgba(255,255,255,0.04);text-align:center;">' +
+    '<img src="' + String(d).replace(/"/g, '&quot;') + '" style="width:48px;height:48px;image-rendering:pixelated;" />' +
+    '<div style="font:9px monospace;color:' + (i === sel ? '#5f5' : '#888') + ';margin-top:2px;">' + (i === sel ? 'WORN ✓' : 'WEAR') + '</div></div>'
+  ).join('') : '<div style="grid-column:1/-1;color:#666;font:11px monospace;text-align:center;padding:8px;">No skins yet — upload one, or wear a community skin below.</div>';
+  grid.querySelectorAll('[data-skin-i]').forEach((el) => {
+    el.addEventListener('click', () => {
+      try {
+        setSelectedCustomSkin(parseInt(el.getAttribute('data-skin-i'), 10));
+        customStatus('✅ Skin equipped — applies in every world.', '#6f6');
+        renderCustomSkins();
+      } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+    });
+  });
+  // Community skins (tap any to save + wear).
+  if (st) st.textContent = 'Loading community skins…';
+  const base = galleryBaseUrl();
+  if (!base) { if (st) st.textContent = 'Offline — community skins unavailable.'; return; }
+  fetch(base + '/api/gallery?type=skins', { mode: 'cors' })
+    .then((r) => (r && r.ok ? r.json() : null))
+    .then((d) => {
+      const items = (d && d.ok && d.items) || [];
+      if (st) st.textContent = items.length ? '— COMMUNITY (' + items.length + ') —' : 'No community skins yet.';
+      if (!items.length) return;
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:8px;grid-column:1/-1;';
+      wrap.innerHTML = items.slice(0, 12).map((it, i) =>
+        '<div data-cskin-i="' + i + '" style="cursor:pointer;border:2px solid rgba(120,200,255,0.3);border-radius:8px;padding:6px;background:rgba(120,200,255,0.05);text-align:center;">' +
+        '<img src="' + String(it.data || '').replace(/"/g, '&quot;') + '" style="width:48px;height:48px;image-rendering:pixelated;" />' +
+        '<div style="font:9px monospace;color:#8af;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(String(it.name || 'skin')).slice(0, 14) + '</div></div>'
+      ).join('');
+      grid.appendChild(wrap);
+      wrap.querySelectorAll('[data-cskin-i]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const it = items[parseInt(el.getAttribute('data-cskin-i'), 10)];
+          if (!it || !it.data) return;
+          try {
+            const idx = addCustomSkin(it.data);
+            setSelectedCustomSkin(typeof idx === 'number' ? idx : (getCustomSkins() || []).length - 1);
+            customStatus('✅ Community skin equipped.', '#6f6');
+            renderCustomSkins();
+          } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+        });
+      });
+    })
+    .catch(() => { if (st) st.textContent = 'Community skins unavailable.'; });
+}
+function renderCustomPacks() {
+  const box = document.getElementById('custom-packs');
+  const st = document.getElementById('custom-packs-status');
+  if (!box) return;
+  box.innerHTML = '';
+  if (st) st.textContent = 'Loading community packs…';
+  const base = galleryBaseUrl();
+  if (!base) { if (st) st.textContent = 'Offline.'; return; }
+  fetch(base + '/api/gallery?type=textures', { mode: 'cors' })
+    .then((r) => (r && r.ok ? r.json() : null))
+    .then((d) => {
+      const items = (d && d.ok && d.items) || [];
+      if (st) st.textContent = items.length ? items.length + ' community pack' + (items.length === 1 ? '' : 's') : 'No packs yet — upload the first!';
+      box.innerHTML = items.map((it) => {
+        const nm = String(it.name || 'pack');
+        const kb = it.data ? Math.round(String(it.data).length / 1024) + 'KB' : '';
+        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(150,120,255,0.3);border-radius:8px;">' +
+          '<div style="font-size:20px;">🎨</div>' +
+          '<div style="flex:1;min-width:0;"><div style="font:bold 12px monospace;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(nm) + '</div>' +
+          '<div style="font:10px monospace;color:#888;">by ' + escHtml(String(it.uploader || '?')) + (kb ? ' · ' + kb : '') + '</div></div>' +
+          (it.data ? '<a href="' + String(it.data).replace(/"/g, '&quot;') + '" download="' + escHtml(nm) + '" style="font:bold 11px monospace;color:#fff;background:#3a3a9a;border-radius:6px;padding:6px 12px;text-decoration:none;">⬇ GET</a>' : '') +
+          '</div>';
+      }).join('');
+    })
+    .catch(() => { if (st) st.textContent = 'Community packs unavailable.'; });
+}
+function bindCustomMenu(ui) {
+  document.getElementById('btn-custom')?.addEventListener('click', () => openCustomMenu(ui));
+  document.getElementById('btn-custom-back')?.addEventListener('click', () => ui && ui.showMenu('main'));
+  document.getElementById('btn-custom-skin-upload')?.addEventListener('click', () => {
+    const i = document.getElementById('custom-skin-input');
+    if (i) i.click();
+  });
+  document.getElementById('btn-custom-pack-upload')?.addEventListener('click', () => {
+    const i = document.getElementById('custom-pack-input');
+    if (i) i.click();
+  });
+  const readFile = (input, isSkin) => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    customStatus('Uploading ' + f.name + '…', '#aaa');
+    const rd = new FileReader();
+    rd.onerror = () => { customStatus('⚠ Could not read file.', '#f88'); input.value = ''; };
+    rd.onload = () => {
+      const dataUrl = String(rd.result || '');
+      input.value = '';
+      if (isSkin) {
+        try { addCustomSkin(dataUrl); } catch (_) {}
+        renderCustomSkins();
+      }
+      const base = galleryBaseUrl();
+      if (!base) { customStatus('⚠ Saved locally (offline).', '#fa0'); return; }
+      fetch(base + '/api/gallery', {
+        method: 'POST', mode: 'cors',
+        headers: { 'Content-Type': 'application/json', ...galleryCreds() },
+        body: JSON.stringify({ type: isSkin ? 'skins' : 'textures', name: f.name, data: dataUrl }),
+      }).then((r) => r.json()).then((d) => {
+        if (d && d.ok) {
+          customStatus('✅ Shared with the community!', '#6f6');
+          if (isSkin) renderCustomSkins(); else renderCustomPacks();
+        } else customStatus('⚠ ' + ((d && d.reason) || 'Upload rejected'), '#f88');
+      }).catch(() => customStatus('⚠ Saved locally (server unreachable).', '#fa0'));
+    };
+    rd.readAsDataURL(f);
+  };
+  const si = document.getElementById('custom-skin-input');
+  if (si) si.addEventListener('change', () => readFile(si, true));
+  const pi = document.getElementById('custom-pack-input');
+  if (pi) pi.addEventListener('change', () => readFile(pi, false));
+}
+
  try { initMods(); } catch (_) {}
  try { bindModsMenu(ui); } catch (_) {}
+
+  // ── Customization menu: community skins (tap to wear) + texture packs ──
+  bindCustomMenu(ui);
  // Safety net: if no menu is showing, force the login screen.
  try {
    if (ui && ui.overlayEl && ui.overlayEl.classList.contains('hidden')) ui.showMenu('login');

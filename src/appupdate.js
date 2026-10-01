@@ -16,9 +16,28 @@ const SKEW_MS = 120000; // asset upload lands ~1-2 min after the build ran
 
 function nativePlatform() {
   try {
-    if (window.Capacitor && typeof window.Capacitor.getPlatform === 'function') {
-      const p = window.Capacitor.getPlatform();
-      if (p === 'android' || p === 'ios') return p;
+    const cap = window.Capacitor;
+    if (cap) {
+      // Prefer the explicit native flags (survive bridge-init races where
+      // getPlatform may briefly misreport) over UA sniffing.
+      try {
+        if (typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) {
+          if (typeof cap.getPlatform === 'function') {
+            const p = cap.getPlatform();
+            if (p === 'android' || p === 'ios') return p;
+          }
+          if (/android/i.test(navigator.userAgent || '')) return 'android';
+          return 'ios';
+        }
+      } catch (_) {}
+      if (cap.isNative === true) {
+        if (/android/i.test(navigator.userAgent || '')) return 'android';
+        return 'ios';
+      }
+      if (typeof cap.getPlatform === 'function') {
+        const p = cap.getPlatform();
+        if (p === 'android' || p === 'ios') return p;
+      }
     }
   } catch (_) {}
   if (/android/i.test(navigator.userAgent || '')) return 'android-web';
