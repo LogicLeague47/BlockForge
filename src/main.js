@@ -8,6 +8,7 @@ import { ChunkLoader } from './chunkloader.js';
 import { Player } from './player.js';
 import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
+import { unzipSync, strFromU8 } from 'fflate';
 import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
 import { AudioManager } from './audio.js';
 import { speak, setVoiceMuted, isVoiceMuted } from './voice.js';
@@ -653,6 +654,8 @@ atlasTexture.magFilter = THREE.NearestFilter;
 atlasTexture.minFilter = THREE.NearestFilter;
 atlasTexture.generateMipmaps = false;
 atlasTexture.colorSpace = THREE.SRGBColorSpace;
+// Re-apply the active texture pack (if any) once the atlas is live.
+try { maybeReapplyPack(); } catch (_) {}
 atlasTexture.wrapS = atlasTexture.wrapT = THREE.ClampToEdgeWrapping;
 setAtlasTexture(atlasTexture);
 try { buildMenuBackground(); } catch (e) { if (window.__bfErr) window.__bfErr('buildMenuBackground threw: ' + (e && e.stack || e)); console.error(e); }
@@ -1895,6 +1898,9 @@ document.addEventListener('mousedown', (e) => {
     } else if (hit && hit.block === BLOCK.CHEST) {
       const slots = world.getOrCreateChest(hit.x, hit.y, hit.z);
       ui.openChest(slots, player.inventory, hit.x, hit.y, hit.z);
+      document.exitPointerLock?.();
+    } else if (hit && hit.block === BLOCK.OAK_SIGN) {
+      openSignEditor(hit.x, hit.y, hit.z);
       document.exitPointerLock?.();
     } else if (hit && (hit.block === BLOCK.BED || hit.block === BLOCK.BED_FOOT)) {
       trySleep();
@@ -4210,6 +4216,7 @@ function doBreak(hit, b) {
       // small grey smoke puff
       spawnSmokePuff(hit.x + 0.5, hit.y + 0.5, hit.z + 0.5);
     }
+    if (b === BLOCK.OAK_SIGN) { try { removeSignAt(hit.x, hit.y, hit.z); } catch (_) {} }
     syncUIMode();
   }
   // Achievement stats: block broken
@@ -6140,6 +6147,7 @@ isParkour = false;
   if (player) { saveCurrentWorld(); }
   manager?.clear?.();
   try { clearPerf(); } catch (_) {}
+  try { clearSignSprites(); closeSignEditor(); } catch (_) {}
   if (mobManager) { mobManager.clear(); mobManager = null; }
   if (explosionManager) { explosionManager.clear(); explosionManager = null; }
   if (playerModel) { playerModel.dispose(); playerModel = null; }
@@ -6900,6 +6908,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
     if (player) saveCurrentWorld();
     manager?.clear?.();
     try { clearPerf(); } catch (_) {}
+  try { clearSignSprites(); closeSignEditor(); } catch (_) {}
     if (mobManager) { mobManager.clear(); mobManager = null; }
     if (explosionManager) { explosionManager.clear(); explosionManager = null; }
     if (playerModel) { playerModel.dispose(); playerModel = null; }
@@ -6982,6 +6991,7 @@ function startGame(worldId, seed, gamemode, difficulty, opts = {}) {
   loader = new ChunkLoader(world, manager, renderDist);
   explosionManager = new ExplosionManager(scene, world, audio);
   mobManager = new MobManager(scene, world, audio, explosionManager);
+  try { loadSignTexts(); } catch (_) {}
   mobManager._refreshFn = (bx, by, bz) => {
     if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
   };
@@ -11311,7 +11321,84 @@ function galleryCreds() {
 function openCustomMenu(ui) {
   if (ui && typeof ui.showMenu === 'function') ui.showMenu('custom');
   customStatus('');
+  _customSel = null;
+  renderCustomDetail();
   renderCustomSkins();
+  renderCustomPacks();
+}
+// Selected item detail: tap a skin/pack → it shows up here → WEAR/APPLY.
+let _customSel = null;
+function renderCustomDetail() {
+  const box = document.getElementById('custom-detail');
+  if (!box) return;
+  if (!_customSel) { box.innerHTML = ''; return; }
+  const s = _customSel;
+  const isSkin = s.kind === 'skin' || s.kind === 'cskin';
+  const title = isSkin ? '🎽 Skin' : '🎨 Texture Pack';
+  const nm = s.kind === 'skin' ? ('Skin #' + (s.i + 1)) : String(s.item?.name || s.name || 'pack');
+  const active = isSkin
+    ? (() => { try { const c = getSelectedSkin(); return String(c).startsWith('custom:') && parseInt(String(c).slice(7), 10) === s.i && s.kind === 'skin'; } catch (_) { return false; } })()
+    : (!!(_activePack && _activePack.name === nm));
+  const preview = isSkin && (s.kind === 'skin' ? (getCustomSkins() || [])[s.i] : s.item?.data)
+    ? '<img src="' + String(s.kind === 'skin' ? (getCustomSkins() || [])[s.i] : s.item.data).replace(/"/g, '&quot;') + '" style="width:96px;height:96px;image-rendering:pixelated;border:2px solid #4da;border-radius:8px;" />'
+    : '<div style="font-size:48px;">🎨</div>';
+  box.innerHTML = '<div style="background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.2);border-radius:10px;padding:10px 12px;margin-bottom:8px;display:flex;gap:12px;align-items:center;">' +
+    preview +
+    '<div style="flex:1;min-width:0;"><div style="font:bold 13px monospace;color:#e8e8ff;">' + title + '</div>' +
+    '<div style="font:12px monospace;color:#aaa;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(nm) + '</div>' +
+    (s.info ? '<div style="font:10px monospace;color:#888;margin-top:2px;">' + escHtml(s.info) + '</div>' : '') +
+    (active ? '<div style="font:bold 10px monospace;color:#5f5;margin-top:2px;">ACTIVE ✓</div>' : '') +
+    '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">' +
+    '<button id="custom-apply" style="font:bold 11px monospace;padding:6px 14px;border-radius:6px;border:none;cursor:pointer;background:' + (isSkin ? '#2a6a3a' : '#3a3a9a') + ';color:#fff;">' + (isSkin ? 'WEAR' : 'APPLY PACK') + '</button>' +
+    '<button id="custom-reset" style="font:11px monospace;padding:6px 14px;border-radius:6px;border:1px solid #555;background:#222;color:#ddd;cursor:pointer;">RESET TO DEFAULT</button>' +
+    '</div></div></div>';
+  document.getElementById('custom-apply')?.addEventListener('click', () => applyCustomSel());
+  document.getElementById('custom-reset')?.addEventListener('click', () => {
+    if (isSkin) {
+      try { setSelectedSkin(0); customStatus('✅ Default skin restored.', '#6f6'); } catch (_) {}
+    } else {
+      if (resetPack()) customStatus('✅ Default textures restored.', '#6f6');
+      else customStatus('⚠ Reset failed.', '#f88');
+    }
+    renderCustomDetail();
+    renderCustomSkins();
+    renderCustomPacks();
+  });
+}
+async function applyCustomSel() {
+  const s = _customSel;
+  if (!s) return;
+  if (s.kind === 'skin') {
+    try {
+      setSelectedCustomSkin(s.i);
+      customStatus('✅ Skin equipped — applies in every world.', '#6f6');
+    } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+    renderCustomDetail();
+    renderCustomSkins();
+    return;
+  }
+  if (s.kind === 'cskin' && s.item?.data) {
+    try {
+      const idx = addCustomSkin(s.item.data);
+      const n = typeof idx === 'number' ? idx : (getCustomSkins() || []).length - 1;
+      setSelectedCustomSkin(n);
+      customStatus('✅ Community skin equipped.', '#6f6');
+    } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+    renderCustomDetail();
+    renderCustomSkins();
+    return;
+  }
+  // Texture pack (community or local): apply tiles onto the live atlas.
+  const data = s.kind === 'pack-local' ? s.data : s.item?.data;
+  const nm = s.kind === 'pack-local' ? s.name : String(s.item?.name || 'pack');
+  if (!data) { customStatus('⚠ No pack data.', '#f88'); return; }
+  customStatus('Applying ' + nm + '…', '#aaa');
+  try {
+    const r = await applyPackDataUrl(nm, data, s.kind === 'pack-local' ? { kind: 'local', idx: s.idx } : { kind: 'gallery', name: nm });
+    if (r.applied > 0) customStatus('✅ Pack applied — ' + r.applied + ' textures live. Re-applies on boot.', '#6f6');
+    else customStatus('⚠ No usable tile PNGs found (need a .zip of tile-named PNGs).', '#f88');
+  } catch (_) { customStatus('⚠ Pack failed to apply.', '#f88'); }
+  renderCustomDetail();
   renderCustomPacks();
 }
 function renderCustomSkins() {
@@ -11332,11 +11419,8 @@ function renderCustomSkins() {
   ).join('') : '<div style="grid-column:1/-1;color:#666;font:11px monospace;text-align:center;padding:8px;">No skins yet — upload one, or wear a community skin below.</div>';
   grid.querySelectorAll('[data-skin-i]').forEach((el) => {
     el.addEventListener('click', () => {
-      try {
-        setSelectedCustomSkin(parseInt(el.getAttribute('data-skin-i'), 10));
-        customStatus('✅ Skin equipped — applies in every world.', '#6f6');
-        renderCustomSkins();
-      } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+      _customSel = { kind: 'skin', i: parseInt(el.getAttribute('data-skin-i'), 10) };
+      renderCustomDetail();
     });
   });
   // Community skins (tap any to save + wear).
@@ -11361,22 +11445,61 @@ function renderCustomSkins() {
         el.addEventListener('click', () => {
           const it = items[parseInt(el.getAttribute('data-cskin-i'), 10)];
           if (!it || !it.data) return;
-          try {
-            const idx = addCustomSkin(it.data);
-            setSelectedCustomSkin(typeof idx === 'number' ? idx : (getCustomSkins() || []).length - 1);
-            customStatus('✅ Community skin equipped.', '#6f6');
-            renderCustomSkins();
-          } catch (_) { customStatus('⚠ Could not equip.', '#f88'); }
+          _customSel = { kind: 'cskin', item: it };
+          renderCustomDetail();
         });
       });
     })
     .catch(() => { if (st) st.textContent = 'Community skins unavailable.'; });
+}
+function packInfo(data) {
+  // Usable-tile count without full extraction (header scan only).
+  try {
+    const u8 = dataUrlToU8(data);
+    const names = zipNames(u8);
+    let usable = 0;
+    for (const p of names) {
+      const base = String(p.split('/').pop() || '');
+      if (!/\.png$/i.test(base)) continue;
+      const tile = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      if (TILES[tile]) usable++;
+    }
+    return names.length + ' files · ' + usable + ' usable textures';
+  } catch (_) { return ''; }
 }
 function renderCustomPacks() {
   const box = document.getElementById('custom-packs');
   const st = document.getElementById('custom-packs-status');
   if (!box) return;
   box.innerHTML = '';
+  // Your local packs first (portal + in-game uploads share this key).
+  let local = [];
+  try { local = JSON.parse(localStorage.getItem('bf_uploads_textures') || '[]') || []; } catch (_) { local = []; }
+  const packRow = (nm, sub, active, attrs) =>
+    '<div ' + attrs + ' style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;background:rgba(255,255,255,0.04);border:1px solid ' + (active ? 'rgba(90,220,120,0.6)' : 'rgba(150,120,255,0.3)') + ';border-radius:8px;cursor:pointer;">' +
+    '<div style="font-size:20px;">🎨</div>' +
+    '<div style="flex:1;min-width:0;"><div style="font:bold 12px monospace;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(nm) + (active ? ' <span style="color:#5f5;font-size:10px;">ACTIVE ✓</span>' : '') + '</div>' +
+    '<div style="font:10px monospace;color:#888;">' + escHtml(sub) + '</div></div>' +
+    '<div style="font:bold 11px monospace;color:#a8f;">▸</div></div>';
+  let html = '';
+  if (local.length) {
+    html += '<div style="font:10px monospace;color:#888;margin:4px 2px;">YOUR PACKS:</div>';
+    html += local.map((it, idx) => {
+      const nm = String((it && it.name) || 'pack');
+      const act = !!(_activePack && _activePack.kind === 'local' && _activePack.idx === idx);
+      return packRow(nm, 'local' + (act ? ' · applied' : ''), act, 'data-plocal="' + idx + '"');
+    }).join('');
+  }
+  box.innerHTML = html + '<div style="font:10px monospace;color:#888;margin:8px 2px 4px;">COMMUNITY:</div><div id="custom-packs-comm"><div style="font:11px monospace;color:#666;">Loading…</div></div>';
+  box.querySelectorAll('[data-plocal]').forEach((el) => {
+    el.addEventListener('click', () => {
+      const idx = parseInt(el.getAttribute('data-plocal'), 10);
+      const it = (JSON.parse(localStorage.getItem('bf_uploads_textures') || '[]') || [])[idx];
+      if (!it) return;
+      _customSel = { kind: 'pack-local', name: it.name, data: it.data, idx, info: packInfo(it.data) };
+      renderCustomDetail();
+    });
+  });
   if (st) st.textContent = 'Loading community packs…';
   const base = galleryBaseUrl();
   if (!base) { if (st) st.textContent = 'Offline.'; return; }
@@ -11384,17 +11507,24 @@ function renderCustomPacks() {
     .then((r) => (r && r.ok ? r.json() : null))
     .then((d) => {
       const items = (d && d.ok && d.items) || [];
+      const comm = document.getElementById('custom-packs-comm');
       if (st) st.textContent = items.length ? items.length + ' community pack' + (items.length === 1 ? '' : 's') : 'No packs yet — upload the first!';
-      box.innerHTML = items.map((it) => {
+      if (!comm) return;
+      comm.innerHTML = items.map((it, i) => {
         const nm = String(it.name || 'pack');
+        const act = !!(_activePack && _activePack.kind === 'gallery' && _activePack.name === nm);
         const kb = it.data ? Math.round(String(it.data).length / 1024) + 'KB' : '';
-        return '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;background:rgba(255,255,255,0.04);border:1px solid rgba(150,120,255,0.3);border-radius:8px;">' +
-          '<div style="font-size:20px;">🎨</div>' +
-          '<div style="flex:1;min-width:0;"><div style="font:bold 12px monospace;color:#e8e8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(nm) + '</div>' +
-          '<div style="font:10px monospace;color:#888;">by ' + escHtml(String(it.uploader || '?')) + (kb ? ' · ' + kb : '') + '</div></div>' +
-          (it.data ? '<a href="' + String(it.data).replace(/"/g, '&quot;') + '" download="' + escHtml(nm) + '" style="font:bold 11px monospace;color:#fff;background:#3a3a9a;border-radius:6px;padding:6px 12px;text-decoration:none;">⬇ GET</a>' : '') +
-          '</div>';
-      }).join('');
+        const sub = 'by ' + String(it.uploader || '?') + (kb ? ' · ' + kb : '');
+        return packRow(nm, sub, act, 'data-pcomm="' + i + '"');
+      }).join('') || '<div style="font:11px monospace;color:#666;">None yet.</div>';
+      comm.querySelectorAll('[data-pcomm]').forEach((el) => {
+        el.addEventListener('click', () => {
+          const it = items[parseInt(el.getAttribute('data-pcomm'), 10)];
+          if (!it) return;
+          _customSel = { kind: 'pack', item: it, info: it.data ? packInfo(it.data) : '' };
+          renderCustomDetail();
+        });
+      });
     })
     .catch(() => { if (st) st.textContent = 'Community packs unavailable.'; });
 }
@@ -11421,6 +11551,15 @@ function bindCustomMenu(ui) {
       if (isSkin) {
         try { addCustomSkin(dataUrl); } catch (_) {}
         renderCustomSkins();
+      } else if (dataUrl.length < 2500000) {
+        // Stash small packs locally so boot re-apply works offline.
+        try {
+          const l = JSON.parse(localStorage.getItem('bf_uploads_textures') || '[]') || [];
+          if (!l.some((x) => x && x.name === f.name)) {
+            l.push({ name: f.name, data: dataUrl, date: Date.now() });
+            localStorage.setItem('bf_uploads_textures', JSON.stringify(l));
+          }
+        } catch (_) {}
       }
       const base = galleryBaseUrl();
       if (!base) { customStatus('⚠ Saved locally (offline).', '#fa0'); return; }
@@ -11441,6 +11580,246 @@ function bindCustomMenu(ui) {
   if (si) si.addEventListener('change', () => readFile(si, true));
   const pi = document.getElementById('custom-pack-input');
   if (pi) pi.addEventListener('change', () => readFile(pi, false));
+}
+
+// ── 🎨 Texture-pack engine (live atlas overrides) ───────────────────────
+// Pack format: a .zip of PNGs named by tile (grass_top.png → tile grass_top)
+// plus optional pack.json {"tiles":{"file.png":"tile_name"}} remap. Tiles are
+// painted straight onto the live atlas canvas — chunks need no rebuild, and
+// RESET repaints defaults. Active pack persists and re-applies on boot.
+function dataUrlToU8(dataUrl) {
+  const b64 = String(dataUrl || '').split(',')[1] || '';
+  const bin = atob(b64);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function loadTileImage(tile, u8) {
+  return new Promise((resolve) => {
+    try {
+      const blob = new Blob([u8], { type: 'image/png' });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
+      img.onload = () => { try { URL.revokeObjectURL(url); } catch (_) {} resolve({ tile, img }); };
+      img.onerror = () => { try { URL.revokeObjectURL(url); } catch (_) {} resolve({ tile, img: null }); };
+      img.src = url;
+    } catch (_) { resolve({ tile, img: null }); }
+  });
+}
+function zipNames(u8) {
+  // File list without a zip lib: scan local-file headers for names.
+  const names = [];
+  try {
+    const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    let o = 0;
+    while (o + 30 <= u8.length) {
+      if (dv.getUint32(o, true) !== 0x04034b50) break;
+      const nl = dv.getUint16(o + 26, true);
+      const el = dv.getUint16(o + 28, true);
+      const cl = dv.getUint32(o + 18, true);
+      let nm = '';
+      for (let i = 0; i < nl && o + 30 + i < u8.length; i++) nm += String.fromCharCode(u8[o + 30 + i]);
+      if (nm && !nm.endsWith('/')) names.push(nm);
+      o += 30 + nl + el + cl;
+      if (names.length > 2000) break;
+    }
+  } catch (_) {}
+  return names;
+}
+async function applyPackDataUrl(name, dataUrl, persist) {
+  let u8;
+  try { u8 = dataUrlToU8(dataUrl); } catch (_) { return { applied: 0, total: 0 }; }
+  let files = null;
+  try { files = unzipSync(u8); } catch (_) { return { applied: 0, total: 0 }; }
+  const entries = Object.entries(files || {});
+  let remap = {};
+  for (const [p, data] of entries) {
+    if (p.toLowerCase().endsWith('pack.json')) {
+      try { remap = JSON.parse(strFromU8(data)).tiles || {}; } catch (_) {}
+    }
+  }
+  const jobs = [];
+  for (const [p, data] of entries) {
+    const base = String(p.split('/').pop() || '');
+    if (!/\.png$/i.test(base) || !data || data.length > 1048576) continue;
+    let tile = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (remap[base]) tile = String(remap[base]);
+    if (!TILES[tile]) continue;
+    jobs.push(loadTileImage(tile, data));
+  }
+  const imgs = await Promise.all(jobs);
+  let applied = 0;
+  try {
+    const ctx = atlasCanvas.getContext('2d');
+    const prev = ctx.imageSmoothingEnabled;
+    ctx.imageSmoothingEnabled = false;
+    for (const { tile, img } of imgs) {
+      if (!img) continue;
+      const t = TILES[tile];
+      if (!t) continue;
+      ctx.clearRect(t[0] * TILE, t[1] * TILE, TILE, TILE);
+      ctx.drawImage(img, t[0] * TILE, t[1] * TILE, TILE, TILE);
+      applied++;
+    }
+    ctx.imageSmoothingEnabled = prev;
+    if (applied > 0 && atlasTexture) atlasTexture.needsUpdate = true;
+  } catch (_) { return { applied: 0, total: jobs.length }; }
+  if (applied > 0 && persist) {
+    _activePack = { name, ...persist };
+    try { localStorage.setItem('bf_active_tpack', JSON.stringify(_activePack)); } catch (_) {}
+  }
+  return { applied, total: jobs.length };
+}
+let _activePack = null;
+try { _activePack = JSON.parse(localStorage.getItem('bf_active_tpack') || 'null'); } catch (_) { _activePack = null; }
+function resetPack() {
+  try {
+    const fresh = buildAtlas(1337);
+    const ctx = atlasCanvas.getContext('2d');
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
+    ctx.drawImage(fresh, 0, 0);
+    if (atlasTexture) atlasTexture.needsUpdate = true;
+    _activePack = null;
+    try { localStorage.removeItem('bf_active_tpack'); } catch (_) {}
+    return true;
+  } catch (_) { return false; }
+}
+async function maybeReapplyPack() {
+  let ap = null;
+  try { ap = JSON.parse(localStorage.getItem('bf_active_tpack') || 'null'); } catch (_) {}
+  if (!ap) return;
+  try {
+    if (ap.kind === 'local' && typeof ap.idx === 'number') {
+      const list = JSON.parse(localStorage.getItem('bf_uploads_textures') || '[]') || [];
+      const it = list[ap.idx];
+      if (it && it.data) { await applyPackDataUrl(ap.name || 'pack', it.data, null); _activePack = ap; }
+    } else if (ap.kind === 'gallery' && ap.name) {
+      const base = galleryBaseUrl();
+      if (!base) return;
+      const r = await fetch(base + '/api/gallery?type=textures', { mode: 'cors' });
+      const d = r && r.ok ? await r.json() : null;
+      const items = (d && d.ok && d.items) || [];
+      const hit = items.find((x) => x && x.name === ap.name && x.data);
+      if (hit) { await applyPackDataUrl(ap.name, hit.data, null); _activePack = ap; }
+    }
+  } catch (_) {}
+}
+
+// ── 🪧 Signs: editable text (local-only) ────────────────────────────────
+const _signTexts = new Map(); // "x,y,z" -> [line1..line4]
+const _signSprites = new Map(); // "x,y,z" -> THREE.Sprite
+function signKey(x, y, z) { return x + ',' + y + ',' + z; }
+function signStoreKey() {
+  try {
+    const w = (typeof world !== 'undefined' && world) ? world : null;
+    const seed = w && w.seed != null ? w.seed : 'x';
+    const nm = (w && w.name) || (typeof serverName === 'string' && isMultiplayer ? serverName : 'world');
+    return 'bf_signs_' + seed + '_' + String(nm).slice(0, 40);
+  } catch (_) { return 'bf_signs_default'; }
+}
+function loadSignTexts() {
+  _signTexts.clear();
+  try {
+    const arr = JSON.parse(localStorage.getItem(signStoreKey()) || '[]') || [];
+    for (const e of arr) {
+      if (e && typeof e.k === 'string' && Array.isArray(e.t)) _signTexts.set(e.k, e.t.slice(0, 4).map((s) => String(s || '').slice(0, 24)));
+    }
+  } catch (_) {}
+  refreshAllSignSprites();
+}
+function saveSignTexts() {
+  try {
+    const arr = [];
+    for (const [k, t] of _signTexts) { arr.push({ k, t }); if (arr.length >= 300) break; }
+    localStorage.setItem(signStoreKey(), JSON.stringify(arr));
+  } catch (_) {}
+}
+function makeSignSprite(lines) {
+  const cv = document.createElement('canvas');
+  cv.width = 256; cv.height = 128;
+  const g = cv.getContext('2d');
+  g.fillStyle = 'rgba(20,14,8,0.92)';
+  g.fillRect(0, 0, 256, 128);
+  g.strokeStyle = '#8a6a3a'; g.lineWidth = 6; g.strokeRect(3, 3, 250, 122);
+  g.fillStyle = '#fff';
+  g.font = 'bold 22px monospace';
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  const ls = (lines || []).concat(['', '', '', '']).slice(0, 4);
+  for (let i = 0; i < 4; i++) g.fillText(String(ls[i] || '').slice(0, 22), 128, 20 + i * 30);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.scale.set(1.6, 0.8, 1);
+  return sp;
+}
+function refreshSignSprite(x, y, z) {
+  const k = signKey(x, y, z);
+  const old = _signSprites.get(k);
+  if (old) { try { scene.remove(old); old.material.map?.dispose(); old.material.dispose(); } catch (_) {} _signSprites.delete(k); }
+  const lines = _signTexts.get(k);
+  if (!lines || !lines.some((s) => s && s.trim())) return;
+  try {
+    const sp = makeSignSprite(lines);
+    sp.position.set(x + 0.5, y + 1.5, z + 0.5);
+    scene.add(sp);
+    _signSprites.set(k, sp);
+  } catch (_) {}
+}
+function refreshAllSignSprites() {
+  for (const [k] of _signSprites) {
+    try { const sp = _signSprites.get(k); if (sp) scene.remove(sp); } catch (_) {}
+  }
+  _signSprites.clear();
+  for (const k of _signTexts.keys()) {
+    const [x, y, z] = k.split(',').map(Number);
+    if (Number.isFinite(x)) refreshSignSprite(x, y, z);
+  }
+}
+function clearSignSprites() {
+  for (const [, sp] of _signSprites) { try { scene.remove(sp); } catch (_) {} }
+  _signSprites.clear();
+  _signTexts.clear();
+}
+function removeSignAt(x, y, z) {
+  const k = signKey(x, y, z);
+  if (_signTexts.has(k)) {
+    _signTexts.delete(k);
+    saveSignTexts();
+  }
+  const sp = _signSprites.get(k);
+  if (sp) { try { scene.remove(sp); } catch (_) {} _signSprites.delete(k); }
+}
+function openSignEditor(x, y, z) {
+  closeSignEditor();
+  const k = signKey(x, y, z);
+  const cur = _signTexts.get(k) || ['', '', '', ''];
+  const ov = document.createElement('div');
+  ov.id = 'sign-editor';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.55);';
+  ov.innerHTML = '<div style="background:#14141f;border:1px solid #8a6a3a;border-radius:12px;padding:18px;width:min(92vw,360px);font:13px monospace;color:#ddd;">' +
+    '<div style="font:bold 14px monospace;margin-bottom:10px;">🪧 Edit Sign <span style="color:#888;font-size:10px;">(local only)</span></div>' +
+    '<textarea id="sign-text" rows="4" maxlength="96" style="width:100%;box-sizing:border-box;background:#0a0a12;border:1px solid #4a4a6a;color:#fff;border-radius:6px;padding:8px;font:14px monospace;resize:none;" placeholder="4 lines…">' +
+    cur.map((s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')).join('\n') + '</textarea>' +
+    '<div style="display:flex;gap:8px;margin-top:10px;"><button id="sign-save" style="flex:1;background:#2a6a3a;color:#fff;border:none;border-radius:6px;padding:9px;font:bold 13px monospace;cursor:pointer;">SAVE</button>' +
+    '<button id="sign-cancel" style="flex:1;background:#333;border:1px solid #555;color:#fff;border-radius:6px;padding:9px;font:13px monospace;cursor:pointer;">CANCEL</button></div></div>';
+  document.body.appendChild(ov);
+  const ta = ov.querySelector('#sign-text');
+  if (ta) { ta.focus(); try { ta.setSelectionRange(ta.value.length, ta.value.length); } catch (_) {} }
+  ov.querySelector('#sign-save').onclick = () => {
+    const lines = String(ta ? ta.value : '').split('\n').concat(['', '', '', '']).slice(0, 4).map((s) => s.trim().slice(0, 24));
+    if (lines.some((s) => s)) _signTexts.set(k, lines);
+    else _signTexts.delete(k);
+    saveSignTexts();
+    refreshSignSprite(x, y, z);
+    closeSignEditor();
+  };
+  ov.querySelector('#sign-cancel').onclick = closeSignEditor;
+  ov.addEventListener('click', (e) => { if (e.target === ov) closeSignEditor(); });
+}
+function closeSignEditor() {
+  const ov = document.getElementById('sign-editor');
+  if (ov) ov.remove();
 }
 
  try { initMods(); } catch (_) {}
@@ -12743,6 +13122,7 @@ function _gameFrame() {
       } catch (e) { console.error('Dimension spawn meshing failed:', e); }
       explosionManager = new ExplosionManager(scene, world, audio);
       mobManager = new MobManager(scene, world, audio, explosionManager);
+  try { loadSignTexts(); } catch (_) {}
       mobManager._refreshFn = (bx, by, bz) => {
         if (manager) manager.refreshAround(Math.floor(bx / CHUNK_SIZE), Math.floor(bz / CHUNK_SIZE));
       };
