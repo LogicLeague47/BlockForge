@@ -50,7 +50,7 @@ export async function galleryList(env: KvEnv, type: string): Promise<any[]> {
   const out: any[] = [];
   for (const id of idx.slice(0, 50)) {
     const it = await kvJson(env, `gal:${type}:${id}`);
-    if (it) out.push({ name: it.name, data: it.data, uploader: it.uploader, date: it.date });
+    if (it) out.push({ name: it.name, data: it.data, uploader: it.uploader, date: it.date, vis: it.vis || 'public' });
   }
   return out;
 }

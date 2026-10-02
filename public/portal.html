@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Private texture packs',
+          desc: 'Texture uploads (portal + Customization menu) have a 🔒 private toggle now — private packs are visible only to you, with lock badges everywhere. Public packs stay shared. Fixed the filter bypass found in testing before it reached anyone.',
+          date: 'Oct 1',
+          bugs: ['private gallery items leaked to anonymous lists (vis dropped on read)'],
+          updates: ['vis field end-to-end', 'private toggle + badges', 'credentialed gallery fetches'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Mods can add creatures, blocks and items',
           desc: 'The mod API finally does what it promises: registerMob creatures spawn naturally day and night, render from your numbers, fight, drop loot; custom blocks mesh with existing tiles and show in creative; custom items resolve as drops. Includes the Critter Template mod — clone it to make your own. Texture packs verified end-to-end (upload, list, apply).',
           date: 'Oct 1',
