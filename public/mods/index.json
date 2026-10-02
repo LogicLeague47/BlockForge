@@ -15,5 +15,8 @@
   { "id": "bf-fast-shadows", "icon": "⚡", "name": "Fast Shadows", "ver": "1.0", "desc": "Lower shadow resolution for a big frame-rate win. Toggle with H.", "file": "fastshadows.bfmod" },
   { "id": "bf-pixel-vision", "icon": "👾", "name": "Pixel Vision", "ver": "1.0", "desc": "Retro pixelated low-res look + a huge FPS boost. Toggle with L.", "file": "pixelvision.bfmod" },
   { "id": "java-bridge", "icon": "⛏️", "name": "Java Bridge", "ver": "1.2", "desc": "Verify your certified Minecraft Java account with Microsoft, then search any Java server IP for live status. Adds one ⛏️ button when enabled.", "file": "java-bridge.bfmod" },
-  { "id": "example-critter", "icon": "🍄", "name": "Critter Template", "ver": "1.0", "desc": "Example creature mod: a Glimmercap that hops around by day and drops Glow Caps. Clone me to make your own mobs!", "file": "example-critter.bfmod" }
+  { "id": "example-critter", "icon": "🍄", "name": "Critter Template", "ver": "1.0", "desc": "Example creature mod: a Glimmercap that hops around by day and drops Glow Caps. Clone me to make your own mobs!", "file": "example-critter.bfmod" },
+  { "id": "aether-step", "icon": "🪽", "name": "Aether Step", "ver": "1.0", "desc": "Double-jump-ish: one free bounce per airtime. Jump again at the apex to fly higher.", "file": "aether-step.bfmod" },
+  { "id": "mossback", "icon": "🐢", "name": "Mossback", "ver": "1.0", "desc": "A gentle giant roaming the plains. Drops Moss Apples. Fully peaceful.", "file": "mossback.bfmod" },
+  { "id": "ember-lantern", "icon": "🏮", "name": "Ember Lantern", "ver": "1.0", "desc": "A placeable block that glows (light 15). Finds its own slot in creative.", "file": "ember-lantern.bfmod" }
 ]

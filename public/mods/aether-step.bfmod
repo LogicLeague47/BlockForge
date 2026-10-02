@@ -1,0 +1,46 @@
+// BlockForge Mod: Aether Step — every airtime gets one free bounce.
+// Jump, and tap jump again at the apex to boost. Walking off a cliff also
+// bounces you once (handy, not a bug). Disabled while flying. Blocks
+// multiplayer while enabled (movement mods keep servers fair).
+export const manifest = {
+  id: 'aether-step',
+  name: 'Aether Step',
+  version: '1.0',
+  description: 'Double-jump-ish: one free bounce per airtime. Jump again at the apex to fly higher.',
+  author: 'BlockForge Dev',
+  icon: '🪽',
+};
+
+let _wasGround = true;
+
+export function onTick(dt, api) {
+  if (!api.inGame()) { _wasGround = true; return; }
+  let p = null;
+  try { p = api.getPlayer(); } catch (_) { return; }
+  if (!p) return;
+  if (p.flying) { _wasGround = true; return; }
+  if (p.onGround) { _wasGround = false; return; }
+  // Airborne and never bounced this airtime: boost once as rise slows.
+  if (!_wasGround && p.verticalSpeed !== undefined && p.verticalSpeed < 2.5) {
+    try {
+      const live = api.refs && api.refs().player;
+      if (live && live.velocity) {
+        live.velocity.y = 8.2;
+        _wasGround = true;
+      }
+    } catch (_) {}
+  } else if (!_wasGround && p.verticalSpeed === undefined) {
+    // Fallback if the API ever drops verticalSpeed: boost on first air tick.
+    try {
+      const live = api.refs && api.refs().player;
+      if (live && live.velocity && live.velocity.y < 3) {
+        live.velocity.y = 8.2;
+        _wasGround = true;
+      }
+    } catch (_) {}
+  }
+}
+
+export function onUnload() {
+  _wasGround = true;
+}

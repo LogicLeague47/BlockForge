@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Block Snake — a LogicLeague game</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#0a0f0a;color:#e8f5e9;font-family:monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:14px;user-select:none}
+  h1{font-size:20px;letter-spacing:2px;margin:6px 0}
+  h1 small{font-size:11px;color:#7a9a7a;display:block;letter-spacing:1px;text-align:center}
+  #score{display:flex;gap:18px;font-size:14px;margin:8px 0;color:#a8d5a8}
+  #score b{color:#fff}
+  canvas{background:#101a10;border:3px solid #2a4a2a;border-radius:10px;touch-action:none;max-width:94vw}
+  #msg{font-size:15px;margin:10px 0;min-height:22px;color:#ffd75a;text-align:center}
+  #btn{padding:12px 34px;font:bold 15px monospace;background:linear-gradient(180deg,#3a7a3a,#2a5a2a);color:#fff;border:1px solid #5a9a5a;border-radius:10px;cursor:pointer;display:none}
+  #hint{font-size:11px;color:#5a7a5a;margin-top:10px;text-align:center;line-height:1.7}
+  a{color:#7ab87a;font-size:11px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>🐍 BLOCK SNAKE<small>EAT APPLES · DON'T BITE YOURSELF</small></h1>
+<div id="score"><span>SCORE <b id="s">0</b></span><span>BEST <b id="b">0</b></span></div>
+<canvas id="c" width="400" height="400"></canvas>
+<div id="msg"></div>
+<button id="btn">↻ PLAY AGAIN</button>
+<div id="hint">⬆⬇⬅➎ arrows / WASD / swipe<br>apples speed you up</div>
+<a href="../games.html">← all games</a>
+<script>
+(function(){
+  var N = 20, CELL = 20, cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  var sEl = document.getElementById('s'), bEl = document.getElementById('b');
+  var msg = document.getElementById('msg'), btn = document.getElementById('btn');
+  var best = 0;
+  try { best = parseInt(localStorage.getItem('bf_snake_best') || '0', 10) || 0; } catch (_) {}
+  bEl.textContent = best;
+  var snake, dir, ndir, apple, score, alive, speed, last;
+  function reset() {
+    snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
+    dir = { x: 1, y: 0 }; ndir = dir;
+    score = 0; alive = true; speed = 130; last = 0;
+    sEl.textContent = '0'; msg.textContent = ''; btn.style.display = 'none';
+    placeApple();
+  }
+  function placeApple() {
+    while (true) {
+      var p = { x: (Math.random() * N) | 0, y: (Math.random() * N) | 0 };
+      var hit = false;
+      for (var i = 0; i < snake.length; i++) if (snake[i].x === p.x && snake[i].y === p.y) { hit = true; break; }
+      if (!hit) { apple = p; return; }
+    }
+  }
+  function die() {
+    alive = false;
+    msg.textContent = '💀 Game over — score ' + score;
+    if (score > best) {
+      best = score;
+      try { localStorage.setItem('bf_snake_best', String(best)); } catch (_) {}
+      bEl.textContent = best;
+      msg.textContent += ' · NEW BEST! 🏆';
+    }
+    btn.style.display = '';
+  }
+  function step() {
+    dir = ndir;
+    var h = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+    if (h.x < 0 || h.y < 0 || h.x >= N || h.y >= N) return die();
+    for (var i = 0; i < snake.length; i++) if (snake[i].x === h.x && snake[i].y === h.y) return die();
+    snake.unshift(h);
+    if (h.x === apple.x && h.y === apple.y) {
+      score += 10;
+      sEl.textContent = score;
+      speed = Math.max(60, speed - 4);
+      placeApple();
+    } else snake.pop();
+  }
+  function draw() {
+    ctx.fillStyle = '#101a10';
+    ctx.fillRect(0, 0, 400, 400);
+    ctx.strokeStyle = 'rgba(90,160,90,0.12)';
+    ctx.lineWidth = 1;
+    for (var g = 1; g < N; g++) {
+      ctx.beginPath(); ctx.moveTo(g * CELL, 0); ctx.lineTo(g * CELL, 400); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, g * CELL); ctx.lineTo(400, g * CELL); ctx.stroke();
+    }
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('🍎', apple.x * CELL + 10, apple.y * CELL + 11);
+    for (var i = snake.length - 1; i >= 0; i--) {
+      var s = snake[i];
+      if (i === 0) { ctx.fillText('🟢', s.x * CELL + 10, s.y * CELL + 11); }
+      else {
+        ctx.fillStyle = i % 2 ? '#3a8a3a' : '#2a6a2a';
+        ctx.fillRect(s.x * CELL + 2, s.y * CELL + 2, CELL - 4, CELL - 4);
+      }
+    }
+  }
+  function loop(t) {
+    if (alive) {
+      if (!last) last = t;
+      if (t - last >= speed) { last = t; step(); }
+      draw();
+      requestAnimationFrame(loop);
+    } else draw();
+  }
+  function turn(x, y) {
+    if (x === -dir.x && y === -dir.y) return;
+    if (x === dir.x && y === dir.y) return;
+    ndir = { x: x, y: y };
+  }
+  document.addEventListener('keydown', function(e) {
+    var k = e.key.toLowerCase();
+    if (k === 'arrowup' || k === 'w') turn(0, -1);
+    else if (k === 'arrowdown' || k === 's') turn(0, 1);
+    else if (k === 'arrowleft' || k === 'a') turn(-1, 0);
+    else if (k === 'arrowright' || k === 'd') turn(1, 0);
+    else if ((k === ' ' || k === 'enter') && !alive) { reset(); requestAnimationFrame(loop); }
+    if (['arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(k) >= 0) e.preventDefault();
+  });
+  var tx = 0, ty = 0;
+  cv.addEventListener('touchstart', function(e) {
+    var t = e.changedTouches[0];
+    tx = t.clientX; ty = t.clientY;
+    e.preventDefault();
+  }, { passive: false });
+  cv.addEventListener('touchmove', function(e) { e.preventDefault(); }, { passive: false });
+  cv.addEventListener('touchend', function(e) {
+    var t = e.changedTouches[0];
+    var dx = t.clientX - tx, dy = t.clientY - ty;
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+    if (Math.abs(dx) > Math.abs(dy)) turn(dx > 0 ? 1 : -1, 0);
+    else turn(0, dy > 0 ? 1 : -1);
+    e.preventDefault();
+  }, { passive: false });
+  btn.addEventListener('click', function() { reset(); requestAnimationFrame(loop); });
+  reset();
+  requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ore Sweeper — a LogicLeague game</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#0d0d12;color:#e8e8f0;font-family:monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:14px;user-select:none}
+  h1{font-size:20px;letter-spacing:2px;margin:6px 0}
+  h1 small{font-size:11px;color:#8a8aa0;display:block;letter-spacing:1px;text-align:center}
+  #bar{display:flex;gap:14px;font-size:14px;margin:8px 0;align-items:center;color:#b8b8d0}
+  #bar b{color:#fff}
+  #flagmode{padding:8px 14px;font:bold 12px monospace;background:#222;border:1px solid #555;color:#ddd;border-radius:8px;cursor:pointer}
+  #flagmode.on{background:#5a3a10;border-color:#fa0;color:#ffd75a}
+  #grid{display:grid;grid-template-columns:repeat(9,1fr);gap:3px;background:#1a1a24;padding:8px;border-radius:10px;border:2px solid #33334a;touch-action:manipulation}
+  .cell{width:34px;height:34px;max-width:9.5vw;max-height:9.5vw;aspect-ratio:1;background:#2a2a3a;border:1px solid #3a3a52;border-radius:5px;font-size:17px;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .cell.open{background:#14141c;border-color:#222;cursor:default}
+  .cell.boom{background:#7a1010}
+  #msg{font-size:15px;margin:10px 0;min-height:22px;color:#ffd75a;text-align:center}
+  #btn{padding:12px 34px;font:bold 15px monospace;background:linear-gradient(180deg,#3a5a8a,#2a4a7a);color:#fff;border:1px solid #5a7aba;border-radius:10px;cursor:pointer;display:none}
+  #hint{font-size:11px;color:#6a6a80;margin-top:10px;text-align:center;line-height:1.7}
+  a{color:#8a8ac0;font-size:11px;margin-top:8px}
+</style>
+</head>
+<body>
+<h1>⛏️ ORE SWEEPER<small>CLEAR THE MINE · DODGE THE TNT</small></h1>
+<div id="bar"><span>💥 <b id="left">10</b></span><span>⏱ <b id="time">0</b>s</span><span>BEST <b id="best">—</b></span><button id="flagmode">🚩 FLAG: OFF</button></div>
+<div id="grid"></div>
+<div id="msg"></div>
+<button id="btn">↻ DIG AGAIN</button>
+<div id="hint">tap = dig · FLAG mode + tap = mark TNT<br>clear every safe block to win</div>
+<a href="../games.html">← all games</a>
+<script>
+(function(){
+  var N = 9, MINES = 10;
+  var grid = document.getElementById('grid');
+  var leftEl = document.getElementById('left'), timeEl = document.getElementById('time'), bestEl = document.getElementById('best');
+  var msg = document.getElementById('msg'), btn = document.getElementById('btn'), flagBtn = document.getElementById('flagmode');
+  var cells, mines, open, flags, over, won, started, secs, timer, flagMode = false;
+  var best = null;
+  try { best = parseInt(localStorage.getItem('bf_oresweep_best') || '', 10); if (!isFinite(best)) best = null; } catch (_) { best = null; }
+  if (best !== null) bestEl.textContent = best + 's';
+  function neighbors(i) {
+    var x = i % N, y = (i / N) | 0, out = [];
+    for (var dy = -1; dy <= 1; dy++) for (var dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue;
+      var nx = x + dx, ny = y + dy;
+      if (nx >= 0 && ny >= 0 && nx < N && ny < N) out.push(ny * N + nx);
+    }
+    return out;
+  }
+  function reset() {
+    cells = []; mines = {}; open = {}; flags = {};
+    over = false; won = false; started = false; secs = 0; flagMode = false;
+    flagBtn.textContent = '🚩 FLAG: OFF'; flagBtn.classList.remove('on');
+    leftEl.textContent = MINES; timeEl.textContent = '0'; msg.textContent = '';
+    btn.style.display = 'none';
+    clearInterval(timer);
+    grid.innerHTML = '';
+    var placed = 0;
+    while (placed < MINES) {
+      var i = (Math.random() * N * N) | 0;
+      if (!mines[i]) { mines[i] = true; placed++; }
+    }
+    for (var k = 0; k < N * N; k++) {
+      (function(idx) {
+        var d = document.createElement('div');
+        d.className = 'cell';
+        d.addEventListener('click', function() { tap(idx); });
+        grid.appendChild(d);
+        cells.push(d);
+      })(k);
+    }
+  }
+  function count(i) {
+    var c = 0, ns = neighbors(i);
+    for (var k = 0; k < ns.length; k++) if (mines[ns[k]]) c++;
+    return c;
+  }
+  var NUMCOL = ['', '#7ab8ff', '#7dd87d', '#ff8a8a', '#c08aff', '#ffb84d', '#4dd8d8', '#fff', '#aaa'];
+  function reveal(i) {
+    if (open[i] || flags[i]) return;
+    open[i] = true;
+    var el = cells[i];
+    el.classList.add('open');
+    var c = count(i);
+    if (c > 0) { el.textContent = c; el.style.color = NUMCOL[c] || '#fff'; }
+    else {
+      var ns = neighbors(i);
+      for (var k = 0; k < ns.length; k++) reveal(ns[k]);
+    }
+  }
+  function tap(i) {
+    if (over || won) return;
+    if (!started) {
+      started = true;
+      timer = setInterval(function() { secs++; timeEl.textContent = secs; }, 1000);
+      // First tap is always safe: move a mine away.
+      if (mines[i]) {
+        delete mines[i];
+        for (var k = 0; k < N * N; k++) if (!mines[k] && k !== i) { mines[k] = true; break; }
+      }
+    }
+    if (flagMode) {
+      if (open[i]) return;
+      if (flags[i]) { delete flags[i]; cells[i].textContent = ''; }
+      else { flags[i] = true; cells[i].textContent = '🚩'; }
+      var left = MINES - Object.keys(flags).length;
+      leftEl.textContent = left;
+      return;
+    }
+    if (flags[i] || open[i]) return;
+    if (mines[i]) return boom(i);
+    reveal(i);
+    checkWin();
+  }
+  function boom(i) {
+    over = true;
+    clearInterval(timer);
+    cells[i].classList.add('boom');
+    cells[i].textContent = '💥';
+    for (var k = 0; k < N * N; k++) {
+      if (mines[k] && !flags[k]) { cells[k].classList.add('open'); cells[k].textContent = '🧨'; }
+      if (!mines[k] && flags[k]) { cells[k].textContent = '❌'; }
+    }
+    msg.textContent = '💥 Boom! The mine got you.';
+    btn.style.display = '';
+  }
+  function checkWin() {
+    var opened = Object.keys(open).length;
+    if (opened === N * N - MINES) {
+      won = true;
+      clearInterval(timer);
+      for (var k = 0; k < N * N; k++) if (mines[k] && !flags[k]) { flags[k] = true; cells[k].textContent = '🚩'; }
+      leftEl.textContent = '0';
+      msg.textContent = '⛏️ Mine cleared in ' + secs + 's!';
+      if (best === null || secs < best) {
+        best = secs;
+        try { localStorage.setItem('bf_oresweep_best', String(best)); } catch (_) {}
+        bestEl.textContent = best + 's';
+        msg.textContent += ' NEW BEST! 🏆';
+      }
+      btn.style.display = '';
+    }
+  }
+  flagBtn.addEventListener('click', function() {
+    flagMode = !flagMode;
+    flagBtn.textContent = flagMode ? '🚩 FLAG: ON' : '🚩 FLAG: OFF';
+    flagBtn.classList.toggle('on', flagMode);
+  });
+  btn.addEventListener('click', reset);
+  reset();
+})();
+</script>
+</body>
+</html>

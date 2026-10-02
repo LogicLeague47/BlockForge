@@ -82,6 +82,8 @@ function normalizeBlockDef(def) {
   if (typeof def.tool === 'string') nd.tool = def.tool.slice(0, 16);
   if (Number.isInteger(Number(def.drop))) nd.drop = Number(def.drop) | 0;
   if (def.unbreakable) nd.unbreakable = true;
+  if (def.cutout) nd.cutout = true;
+  if (def.luminance !== undefined) nd.luminance = Math.min(15, Math.max(0, num(def.luminance, 0) | 0));
   return nd;
 }
 function normalizeItemDef(def) {

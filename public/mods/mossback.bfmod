@@ -1,0 +1,34 @@
+// BlockForge Mod: Mossback — a gentle giant that wanders the plains.
+// Peaceful, huge, drops Moss Apples. Clone me for your own creatures:
+// numbers = look, hostile = night pack, spawn = false for event-only mobs.
+export const manifest = {
+  id: 'mossback',
+  name: 'Mossback',
+  version: '1.0',
+  description: 'A gentle giant roaming the plains. Drops Moss Apples. Fully peaceful.',
+  author: 'BlockForge Dev',
+  icon: '🐢',
+};
+
+export function onLoad(api) {
+  api.registerItem(2002, { name: 'Moss Apple', stack: 16, food: 6 });
+  api.registerMob('mossback', {
+    name: 'Mossback',
+    hp: 40,
+    bodyW: 2.2, bodyH: 1.4, bodyD: 2.8,
+    headW: 1.2, headH: 1.0, headD: 1.2,
+    legW: 0.4, legH: 0.7, legD: 0.4,
+    headOffZ: -1.6, headOffY: -0.5,
+    bodyColor: 0x4a6a3a,
+    headColor: 0x6a8a4a,
+    tailColor: 0x3a5a2a,
+    hasEars: true,
+    hasTail: true,
+    drops: [{ item: 2002, count: [2, 4] }],
+    soundChance: 0.0004,
+  });
+}
+
+export function onUnload(api) {
+  // The game un-registers our creature and snack automatically.
+}

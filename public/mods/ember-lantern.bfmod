@@ -1,0 +1,26 @@
+// BlockForge Mod: Ember Lantern — a warm light block for builds.
+// Shows in the creative inventory automatically. Break it to pick it back
+// up. Blocks multiplayer while enabled (custom blocks keep servers fair).
+export const manifest = {
+  id: 'ember-lantern',
+  name: 'Ember Lantern',
+  version: '1.0',
+  description: 'A placeable block that glows (light 15). Finds its own slot in creative.',
+  author: 'BlockForge Dev',
+  icon: '🏮',
+};
+
+export function onLoad(api) {
+  api.registerBlock(2003, {
+    name: 'Ember Lantern',
+    solid: true,
+    hardness: 0.8,
+    tool: 'pickaxe',
+    luminance: 15,
+    faces: 'lantern',
+  });
+}
+
+export function onUnload(api) {
+  // The game un-registers our block automatically.
+}
