@@ -269,7 +269,7 @@ const TOOLS = {};
 // --- master ITEMS table -----------------------------------------------------
 // Every entry: { name, stack (maxStack), food?, fuel?, tool?, block? }
 // For blocks we lazily look up BLOCKS; this table holds the non-blocks.
-const NONBLOCK_ITEMS = {
+export const NONBLOCK_ITEMS = {
   [ITEM.STICK]:      { name: 'Stick', stack: 64, fuel: 5 },
   [ITEM.COAL]:       { name: 'Coal', stack: 64, fuel: 80 },
   [ITEM.CHARCOAL]:   { name: 'Charcoal', stack: 64, fuel: 80 },

@@ -1554,6 +1554,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Mods can add creatures, blocks and items',
+          desc: 'The mod API finally does what it promises: registerMob creatures spawn naturally day and night, render from your numbers, fight, drop loot; custom blocks mesh with existing tiles and show in creative; custom items resolve as drops. Includes the Critter Template mod — clone it to make your own. Texture packs verified end-to-end (upload, list, apply).',
+          date: 'Oct 1',
+          bugs: ['registerMob/Block/Item recorded but never entered the game (dead API)'],
+          updates: ['live content sync with clean unload', 'spawn-table integration', 'example critter mod + catalog entry'],
+          features: ['natural mod-creature spawns', 'mod blocks in creative', 'verified pack pipeline'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Rendering holes fixed + portal backend rewired',
           desc: 'Fixed see-through terrain: rebuild budgets are never starved on phones anymore, and chunk culling now pins the inner ring visible with NaN and teleport guards. Also rewired every portal page (gallery, server list, community mods, uploads) from the dead host to the live backend — that was the "loads of bugs".',
           date: 'Oct 1',

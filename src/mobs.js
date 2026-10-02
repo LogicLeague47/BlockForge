@@ -592,6 +592,23 @@ const WALK_SPEED = 1.2;
 const MAX_WANDER_DIST = 24;
 const CULL_DIST = CHUNK_SIZE * 8;
 
+// ── Mod mob spawning ─────────────────────────────────────────────────
+// Mods register here via registerModSpawn() (called by mods.js when a
+// content mod loads). Day list = peaceful critters, night list = hostiles.
+// Unregister on unload so disabled mods stop spawning.
+const MOD_SPAWN_DAY = [];
+const MOD_SPAWN_NIGHT = [];
+export function registerModSpawn(mobId, night) {
+  unregisterModSpawn(mobId);
+  (night ? MOD_SPAWN_NIGHT : MOD_SPAWN_DAY).push(mobId);
+}
+export function unregisterModSpawn(mobId) {
+  for (const list of [MOD_SPAWN_DAY, MOD_SPAWN_NIGHT]) {
+    const i = list.indexOf(mobId);
+    if (i >= 0) list.splice(i, 1);
+  }
+}
+
 // ── deterministic PRNG for spawning ─────────────────────────────────
 function mulberry32(a) {
   return function () {
@@ -4500,6 +4517,8 @@ export class MobManager {
     const rng = mulberry32(seed);
     const attempts = 4;
     const types = ['zombie', 'zombie', 'skeleton', 'skeleton', 'spider', 'spider', 'blower', 'portalman', 'witch'];
+    // Mod hostiles join the night pool.
+    for (const id of MOD_SPAWN_NIGHT) types.push(id);
     for (let i = 0; i < attempts && hostiles < MAX_NIGHT_HOSTILES; i++) {
       // Ring 24-40 blocks from the player.
       const ang = rng() * Math.PI * 2;
@@ -4690,6 +4709,8 @@ export class MobManager {
     count = Math.min(count, MAX_MOBS_PER_CHUNK, spawnPositions.length);
 
     const types = ['cow', 'pig', 'sheep'];
+    // Mod critters join the day pool (spawnable unless def.spawn === false).
+    for (const id of MOD_SPAWN_DAY) types.push(id);
     // Spiders spawn in dark biomes or at night — add them to pool for forests/caves
     const spawnTypes = [...types];
     if (dominantBiome === BIOMES.FOREST || dominantBiome === BIOMES.DARK_FOREST ||

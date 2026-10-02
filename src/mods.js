@@ -9,7 +9,9 @@
 // from joining multiplayer to keep servers fair.
 
 import * as THREE from 'three';
-import { BLOCK, BLOCKS } from './blocks.js';
+import { BLOCK, BLOCKS, TILES } from './blocks.js';
+import { MOB_TYPES, registerModSpawn, unregisterModSpawn } from './mobs.js';
+import { NONBLOCK_ITEMS } from './items.js';
 import LZString from 'lz-string';
 
 const MODS_KEY = 'bf_mods';
@@ -30,6 +32,122 @@ export function getModBlocks() { return _modBlocks; }
 export function getModItems() { return _modItems; }
 export function getModMobs() { return _modMobs; }
 export function getModButtons() { return _modButtons; }
+
+// ── Live content sync: mods' blocks/items/mobs actually enter the game ──
+// Registration (api.registerBlock/Item/Mob) only records intent. sync runs
+// after every load/unload and merges ENABLED mods' content into the live
+// registries (MOB_TYPES, BLOCKS, NONBLOCK_ITEMS) so creatures spawn, blocks
+// mesh, and drops resolve. Unload removes exactly what that mod added.
+const _applied = { mob: new Map(), block: new Map(), item: new Map() }; // key -> ownerModId
+
+function num(v, d) { const n = Number(v); return Number.isFinite(n) ? n : d; }
+function col(v) { const n = Number(v); return Number.isInteger(n) && n >= 0 && n <= 0xffffff ? n : -1; }
+
+const MOB_NUM_FIELDS = ['hp', 'bodyW', 'bodyH', 'bodyD', 'headW', 'headH', 'headD', 'legW', 'legH', 'legD', 'headOffZ', 'headOffY', 'soundChance', 'snoutW', 'snoutH', 'snoutD'];
+const MOB_BOOL_FIELDS = ['hostile', 'hostileAtNight', 'hasHorns', 'hasEars', 'hasTail', 'hasSnout', 'hasPigEars'];
+function normalizeMobDef(mobId, def) {
+  if (!def || typeof def !== 'object') return null;
+  const nd = { name: String(def.name || mobId).slice(0, 32) };
+  for (const k of MOB_NUM_FIELDS) if (def[k] !== undefined) nd[k] = num(def[k], undefined);
+  if (nd.hp !== undefined && !(nd.hp >= 1 && nd.hp <= 1000)) nd.hp = 10;
+  for (const k of MOB_BOOL_FIELDS) if (def[k] !== undefined) nd[k] = !!def[k];
+  for (const k of ['bodyColor', 'headColor', 'tailColor']) {
+    if (def[k] === undefined) continue;
+    const cc = col(def[k]);
+    if (cc >= 0) nd[k] = cc;
+  }
+  if (Array.isArray(def.drops)) {
+    nd.drops = def.drops.filter((d) => d && Number.isInteger(Number(d.item))).slice(0, 4).map((d) => {
+      const c = Array.isArray(d.count) ? d.count : [d.count ?? 1, d.count ?? 1];
+      return { item: Number(d.item) | 0, count: [Math.max(0, c[0] | 0), Math.max(0, c[1] | 0)] };
+    });
+  }
+  return nd;
+}
+function normalizeBlockDef(def) {
+  if (!def || typeof def !== 'object') return null;
+  const tileOk = (t) => typeof t === 'string' && !!TILES[t];
+  let faces = 'stone';
+  if (tileOk(def.faces)) faces = def.faces;
+  else if (def.faces && typeof def.faces === 'object' && tileOk(def.faces.top) && tileOk(def.faces.side) && tileOk(def.faces.bottom)) {
+    faces = { top: def.faces.top, bottom: def.faces.bottom, side: def.faces.side };
+  }
+  const nd = {
+    name: String(def.name || 'Mod block').slice(0, 32),
+    solid: def.solid !== false,
+    transparent: !!def.transparent,
+    hardness: Math.min(100, Math.max(-1, num(def.hardness, 1))),
+    faces,
+  };
+  if (typeof def.tool === 'string') nd.tool = def.tool.slice(0, 16);
+  if (Number.isInteger(Number(def.drop))) nd.drop = Number(def.drop) | 0;
+  if (def.unbreakable) nd.unbreakable = true;
+  return nd;
+}
+function normalizeItemDef(def) {
+  if (!def || typeof def !== 'object') return null;
+  const nd = { name: String(def.name || 'Mod item').slice(0, 32), stack: Math.min(64, Math.max(1, num(def.stack, 64) | 0)) };
+  if (def.food !== undefined) nd.food = Math.max(0, num(def.food, 0));
+  if (def.fuel !== undefined) nd.fuel = Math.max(0, num(def.fuel, 0));
+  return nd;
+}
+function purgeModContent(modId) {
+  for (const [mobId, def] of _modMobs) if (def && def.modId === modId) _modMobs.delete(mobId);
+  for (const [id, def] of _modBlocks) if (def && def.modId === modId) _modBlocks.delete(id);
+  for (const [id, def] of _modItems) if (def && def.modId === modId) _modItems.delete(id);
+}
+function modOwnsContent(modId) {
+  for (const [, d] of _modMobs) if (d && d.modId === modId) return true;
+  for (const [, d] of _modBlocks) if (d && d.modId === modId) return true;
+  for (const [, d] of _modItems) if (d && d.modId === modId) return true;
+  return false;
+}
+export function syncModContent() {
+  try {
+    const alive = new Set(_mods.filter((m) => m.enabled).map((m) => m.id));
+    for (const [id, owner] of _applied.mob) {
+      if (!alive.has(owner)) { try { delete MOB_TYPES[id]; } catch (_) {} try { unregisterModSpawn(id); } catch (_) {} _applied.mob.delete(id); }
+    }
+    for (const [id, owner] of _applied.block) {
+      if (!alive.has(owner)) { try { delete BLOCKS[id]; } catch (_) {} _applied.block.delete(id); }
+    }
+    for (const [id, owner] of _applied.item) {
+      if (!alive.has(owner)) { try { delete NONBLOCK_ITEMS[id]; } catch (_) {} _applied.item.delete(id); }
+    }
+    for (const m of _mods) {
+      if (!m.enabled) continue;
+      for (const [mobId, def] of _modMobs) {
+        if (!def || def.modId !== m.id || typeof mobId !== 'string' || !mobId) continue;
+        const cur = _applied.mob.get(mobId);
+        if (cur && cur !== m.id) continue; // first enabled mod wins on collision
+        const nd = normalizeMobDef(mobId, def);
+        if (!nd) continue;
+        MOB_TYPES[mobId] = nd;
+        _applied.mob.set(mobId, m.id);
+        if (def.spawn !== false) { try { registerModSpawn(mobId, !!(nd.hostile || nd.hostileAtNight)); } catch (_) {} }
+      }
+      for (const [bid, def] of _modBlocks) {
+        if (!def || def.modId !== m.id) continue;
+        const cur = _applied.block.get(bid);
+        if (cur && cur !== m.id) continue;
+        const nd = normalizeBlockDef(def);
+        if (!nd) continue;
+        BLOCKS[bid] = nd;
+        _applied.block.set(bid, m.id);
+      }
+      for (const [iid, def] of _modItems) {
+        if (!def || def.modId !== m.id) continue;
+        const cur = _applied.item.get(iid);
+        if (cur && cur !== m.id) continue;
+        const nd = normalizeItemDef(def);
+        if (!nd) continue;
+        NONBLOCK_ITEMS[iid] = nd;
+        _applied.item.set(iid, m.id);
+      }
+    }
+    _hasGameplayMods = _mods.some((m) => m.enabled && modOwnsContent(m.id));
+  } catch (e) { console.warn('[Mods] content sync failed', e); }
+}
 
 // Each mod is stored under its own key so one oversized mod can't blow the
 // localStorage quota for the whole collection (which silently dropped mods on
@@ -237,6 +355,8 @@ function unloadModule(m) {
   owned.forEach((el) => el.remove());
   m.module = null;
   m.api = null;
+  try { purgeModContent(m.id); } catch (_) {}
+  syncModContent();
 }
 
 async function reloadModule(m) {
@@ -247,8 +367,9 @@ async function reloadModule(m) {
     m.api = makeApi(m.id);
     m.errors = 0;
     if (typeof mod.onLoad === 'function') {
-      try { mod.onLoad(m.api); } catch (e) { modError(m, e); }
+      try { purgeModContent(m.id); mod.onLoad(m.api); } catch (e) { modError(m, e); }
     }
+    syncModContent();
   } catch (e) {
     console.warn('[Mods] Failed to load', m.id, e);
     m.enabled = false;
@@ -300,8 +421,9 @@ export async function importModCode(code, done) {
     _mods.push(entry);
     saveStore();
     if (typeof mod.onLoad === 'function') {
-      try { mod.onLoad(entry.api); } catch (e) { modError(entry, e); }
+      try { purgeModContent(entry.id); mod.onLoad(entry.api); } catch (e) { modError(entry, e); }
     }
+    syncModContent();
     done && done(true, entry);
   } catch (e) {
     done && done(false, e.message || String(e));
@@ -560,4 +682,5 @@ export function initMods() {
   for (const m of _mods) {
     if (m.enabled) reloadModule(m);
   }
+  syncModContent();
 }

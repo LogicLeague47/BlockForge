@@ -1,0 +1,39 @@
+// BlockForge Mod: Critter Template — adds a new creature (plus its snack).
+// Clone this file to make your own mobs: change the manifest, the look,
+// and the spawn rules. Creatures spawn naturally, render from your numbers,
+// take damage, drop loot, and block multiplayer while enabled (fair servers).
+export const manifest = {
+  id: 'example-critter',
+  name: 'Critter Template',
+  version: '1.0',
+  description: 'Example creature mod: a Glimmercap that hops around by day and drops Glow Caps. Clone me!',
+  author: 'BlockForge Dev',
+  icon: '🍄',
+};
+
+export function onLoad(api) {
+  // A snack first (item ids >= 2000 live in mod space).
+  api.registerItem(2001, { name: 'Glow Cap', stack: 16, food: 3 });
+  // The creature. Colors are hex numbers; sizes are in blocks.
+  // spawn defaults to day herds — set spawn:false for event-only mobs,
+  // or hostile:true to run with the night pack.
+  api.registerMob('glimmercap', {
+    name: 'Glimmercap',
+    hp: 8,
+    bodyW: 0.7, bodyH: 0.55, bodyD: 0.7,
+    headW: 0.55, headH: 0.5, headD: 0.55,
+    legW: 0.16, legH: 0.3, legD: 0.16,
+    headOffZ: -0.3, headOffY: -0.3,
+    bodyColor: 0x4a9a5a,
+    headColor: 0x7ac48a,
+    tailColor: 0x2a6a3a,
+    hasEars: true,
+    hasTail: true,
+    drops: [{ item: 2001, count: [1, 2] }],
+    soundChance: 0.001,
+  });
+}
+
+export function onUnload(api) {
+  // The game un-registers our creature, item and spawns automatically.
+}
