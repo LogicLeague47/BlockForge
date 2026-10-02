@@ -87,25 +87,60 @@ export function perfTick(dt, refs) {
     if (!_sodium && refs.scene && refs.camera) {
       try { _sodium = createMaxSodiumRenderer(refs.scene, refs.camera); } catch (_) { _sodium = null; }
     }
-    // 1Hz: heap watchdog + low-RAM mesh-budget scaling.
+    // 1Hz: heap watchdog. NOTE: we deliberately do NOT scale the mesh
+    // rebuild budget down on low-RAM phones anymore — starving rebuilds
+    // leaves visible holes (see-through terrain) while moving. The budget
+    // stays at whatever the engine chose; only the GC hint runs here.
     if (now - _lastLag > 1000) {
       _lastLag = now;
       try { masterLagSupervisor4k.update(); } catch (_) {}
-      try {
-        const mult = masterLagSupervisor4k.chunkMultiplier || 1;
-        if (refs.manager) {
-          if (!_baseMeshBudget) _baseMeshBudget = refs.manager.MESH_BUDGET_MS || 8;
-          refs.manager.MESH_BUDGET_MS = Math.max(2, _baseMeshBudget * mult);
-        }
-      } catch (_) {}
     }
-    // 5Hz: Sodium-style group-level frustum + distance culling.
-    if (_sodium && refs.manager && refs.manager.meshes && now - _lastCull > 200) {
-      _lastCull = now;
-      try { _sodium.updateCulling(refs.manager.meshes); } catch (_) {}
-    }
+    // 5Hz: Sodium-style group-level frustum + distance culling, with
+    // fail-safes (see tickCulling): inner ring pinned visible, NaN guard,
+    // skip hiding right after big camera moves.
+    tickCulling(refs, now);
     // Blob shadows (cheap-shadows mode only).
     if (refs.scene && refs.sun) tickBlobs(refs, now);
+  } catch (_) {}
+}
+
+let _lastCamPos = null;
+
+function tickCulling(refs, now) {
+  if (!_sodium || !refs.manager || !refs.manager.meshes) return;
+  if (now - _lastCull < 200) return;
+  _lastCull = now;
+  try {
+    const cam = refs.camera;
+    const px = cam?.position?.x, py = cam?.position?.y, pz = cam?.position?.z;
+    // NaN camera (physics glitch) would make the frustum hide EVERYTHING —
+    // fail open instead.
+    if (!Number.isFinite(px) || !Number.isFinite(py) || !Number.isFinite(pz)) return;
+    // Big camera jump since last cull (teleport/respawn/fast turn): matrices
+    // are stale, so only ALLOW showing this round, never hide.
+    let allowHide = true;
+    if (_lastCamPos) {
+      const dx = px - _lastCamPos.x, dy = py - _lastCamPos.y, dz = pz - _lastCamPos.z;
+      if (dx * dx + dy * dy + dz * dz > 64) allowHide = false;
+    }
+    _lastCamPos = { x: px, y: py, z: pz };
+    if (!allowHide) {
+      for (const [, entry] of refs.manager.meshes) {
+        try { if (entry && entry.group) entry.group.visible = true; } catch (_) {}
+      }
+      return;
+    }
+    _sodium.updateCulling(refs.manager.meshes);
+    // Inner ring (≤2 chunks from camera) is ALWAYS visible — guarantees no
+    // holes near the player even if frustum math is ever off.
+    for (const [, entry] of refs.manager.meshes) {
+      try {
+        if (!entry || !entry.group || !entry.group.position) continue;
+        const gx = entry.group.position.x + 8 - px;
+        const gz = entry.group.position.z + 8 - pz;
+        if (gx * gx + gz * gz <= 32 * 32) entry.group.visible = true;
+      } catch (_) {}
+    }
   } catch (_) {}
 }
 

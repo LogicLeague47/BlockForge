@@ -200,7 +200,7 @@
       const urls = [
         '/api/mods/community',
         'mods/community/index.json',
-        'https://blockforge-server.onrender.com/api/mods/community',
+        'https://blockforge-api.blockforge.workers.dev/api/mods/community',
       ];
       for (const u of urls) {
         try {
@@ -262,7 +262,7 @@
       setStatus('Uploading ' + file.name + '…');
       try {
         // Prefer backend; fall back to static host endpoint if it exists.
-        const endpoints = ['/api/mods/upload', 'https://blockforge-server.onrender.com/api/mods/upload'];
+        const endpoints = ['/api/mods/upload', 'https://blockforge-api.blockforge.workers.dev/api/mods/upload'];
         let done = null;
         for (const ep of endpoints) {
           try {

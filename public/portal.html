@@ -9,10 +9,11 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>
     // ── Host configuration ──────────────────────────────────────────────
-    // Change these two values to switch hosting providers. All links in the
+    // Change these values to switch hosting providers. All links in the
     // portal and game client derive from them automatically.
     window.BF_WEB  = 'https://logicleague47.github.io/BlockForge';
     window.BF_WS   = 'wss://blockforge-server.onrender.com';
+    window.BF_API  = 'https://blockforge-api.blockforge.workers.dev';
   </script>
   <script>
     // Firebase SDK for the community gallery + leaderboard (same setup as the
@@ -1418,6 +1419,11 @@
 
       // ── Live dashboard stats ───────────────────────────────────────────
       var SRV_WS = window.BF_WS || 'wss://blockforge-server.onrender.com';
+      // HTTP APIs live on the Cloudflare worker now — WS host is game traffic only.
+      function apiBase() {
+        try { return window.BF_API || 'https://blockforge-api.blockforge.workers.dev'; }
+        catch (_) { return 'https://blockforge-api.blockforge.workers.dev'; }
+      }
       function fmtUptime(sec) {
         if (!sec && sec !== 0) return '—';
         var d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
@@ -1546,6 +1552,15 @@
 
       // ── Updates ────────────────────────────────────────────────────────
       var UPDATE_SECTIONS = [
+        {
+          hash: 'PENDING',
+          heading: 'Rendering holes fixed + portal backend rewired',
+          desc: 'Fixed see-through terrain: rebuild budgets are never starved on phones anymore, and chunk culling now pins the inner ring visible with NaN and teleport guards. Also rewired every portal page (gallery, server list, community mods, uploads) from the dead host to the live backend — that was the "loads of bugs".',
+          date: 'Oct 1',
+          bugs: ['holes while moving on phones (budget starvation)', 'portal gallery/servers/mods pointed at dead Render host', 'culling could hide chunks on stale matrices'],
+          updates: ['fail-safe culling (inner ring, NaN, move-skip)', 'BF_API global for all portal HTTP', 'mesher + culling verified by headless tests'],
+          features: [],
+        },
         {
           hash: 'PENDING',
           heading: 'Customization detail view + working signs + pack apply',
@@ -3781,7 +3796,7 @@
           var oauthProv = localStorage.getItem('bf_oauth_provider') || '';
           var oauthId = localStorage.getItem('bf_oauth_provider_id') || '';
           if (oauthProv && oauthId) { headers['x-bf-identity-type'] = oauthProv; headers['x-bf-identity-id'] = oauthId; }
-          var base = SRV_WS.replace(/^wss:/, 'https:');
+          var base = apiBase();
           var ctrl = null, timer = null;
           try {
             if (typeof AbortController !== 'undefined') {
@@ -3868,7 +3883,7 @@
         // Live server directory — every server that's currently up (Official SMP
         // + player-hosted) registers here. We list them with name, IP, description
         // and player count (BlockForge-Java style server browser).
-        var api = (SRV_WS || '').replace(/^wss?:\/\//, 'https://') + '/api/servers';
+        var api = apiBase() + '/api/servers';
         fetch(api, { headers: { 'Accept': 'application/json' } })
           .then(function(r) { return r.json(); })
           .then(function(servers) {
@@ -4106,7 +4121,7 @@
       // Uploads go to the game server with your account credentials — no
       // Firebase rules needed. Reads are public.
       function galleryBase() {
-        try { return SRV_WS.replace(/^wss:/, 'https:'); } catch (_) { return ''; }
+        try { return apiBase(); } catch (_) { return ''; }
       }
       function galleryAuthHeaders() {
         var headers = { 'Content-Type': 'application/json' };
