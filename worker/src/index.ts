@@ -475,7 +475,19 @@ app.get('/api/mods/download/:id', async (c) => {
 app.get('/api/gallery', async (c) => {
   try {
     const type = new URL(c.req.url).searchParams.get('type') === 'textures' ? 'textures' : 'skins';
-    return c.json({ ok: true, items: await kvGalleryList(c.env, type) });
+    const items = await kvGalleryList(c.env, type);
+    // Private items are visible to their uploader only (by name or linked
+    // identity). Missing vis == public (back-compat).
+    let me: string | null = null;
+    try {
+      const nm = String(c.req.header('x-bf-name') || '');
+      if (nm) me = nm;
+      const idType = c.req.header('x-bf-identity-type') || '';
+      const idId = c.req.header('x-bf-identity-id') || '';
+      if (!me && idType && idId) me = await findByIdentity(c.env, idType, idId);
+    } catch (_) {}
+    const out = items.filter((it: any) => !it || it.vis !== 'private' || (me && it.uploader === me));
+    return c.json({ ok: true, items: out.map((r: any) => ({ name: r.name, data: r.data, uploader: r.uploader, date: r.date, vis: r.vis || 'public' })) });
   } catch { return c.json({ ok: false, reason: 'Gallery unavailable.' }, 500); }
 });
 
@@ -498,6 +510,7 @@ app.post('/api/gallery', async (c) => {
   const type = p.type === 'textures' ? 'textures' : 'skins';
   const name = String(p.name || 'upload').slice(0, 64);
   const data = String(p.data || '');
+  const vis = String((p as any).vis || 'public') === 'private' ? 'private' : 'public';
   const isImage = /^data:image\/(png|jpeg|gif);base64,/.test(data);
   const isZip = /^data:application\/(zip|x-zip-compressed|octet-stream);base64,/.test(data) && /\.zip$/i.test(name);
   const cap = isZip ? 5 * 1024 * 1024 : 1500 * 1024;
@@ -505,7 +518,7 @@ app.post('/api/gallery', async (c) => {
     return c.json({ ok: false, reason: 'That file is not a supported image or texture-pack zip.' }, 400);
   }
   try {
-    await kvGalleryPush(c.env, type, { name, data, uploader: who.username, date: Date.now() });
+    await kvGalleryPush(c.env, type, { name, data, uploader: who.username, date: Date.now(), vis });
     return c.json({ ok: true });
   } catch { return c.json({ ok: false, reason: 'Invalid upload.' }, 400); }
 });

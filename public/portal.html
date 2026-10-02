@@ -828,7 +828,8 @@
         <div class="comm-sub-page" id="comm-textures">
           <h3>Texture Packs</h3>
           <p>Upload texture packs to share with the community.</p>
-          <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button></p>
+          <p><button class="btn upload-btn" id="tex-upload-btn">Upload Texture Pack</button>
+          <label style="font:11px monospace;color:var(--dim);margin-left:10px;cursor:pointer;"><input type="checkbox" id="tex-private" style="vertical-align:-2px;" /> 🔒 private (only me)</label></p>
           <input type="file" accept=".zip,image/png" class="file-input-hidden" id="tex-file-input">
           <div style="font:10px monospace;color:var(--dim);margin-bottom:12px;">Your uploads (local):</div>
           <div class="upload-grid" id="tex-grid"></div>
@@ -4145,12 +4146,12 @@
         if (oauthProv && oauthId) { headers['x-bf-identity-type'] = oauthProv; headers['x-bf-identity-id'] = oauthId; }
         return headers;
       }
-      function fbUploadToGallery(type, name, dataUrl, cb) {
+      function fbUploadToGallery(type, name, dataUrl, cb, vis) {
         var base = galleryBase();
         if (!base) { cb('Server unavailable'); return; }
         fetch(base + '/api/gallery', {
           method: 'POST', headers: galleryAuthHeaders(),
-          body: JSON.stringify({ type: type, name: name, data: dataUrl }),
+          body: JSON.stringify({ type: type, name: name, data: dataUrl, vis: vis === 'private' ? 'private' : 'public' }),
         }).then(function(r) { return r.json(); }).then(function(res) {
           if (res && res.ok) cb(null, true);
           else cb((res && res.reason) || 'Upload rejected');
@@ -4179,7 +4180,7 @@
               var img = isImage ? '<img src="' + item.data + '" alt="' + esc(item.name) + '">' : '<div style="font-size:11px;color:var(--dim);padding:8px;">' + esc(item.name) + '</div>';
               var equipBtn = isImage ? '<button class="equip-btn" onclick="window._equipCommunitySkin(this)" data-data="' + item.data.replace(/"/g, '&quot;') + '">Equip in BlockForge</button>' : '';
               var dlBtn = '<a class="btn" href="' + item.data + '" download="' + esc(item.name) + '" style="font-size:10px;padding:4px 8px;margin-top:4px;">Download</a>';
-              return '<div class="upload-item">' + img + '<div>' + esc(item.name) + '<br><span style="font-size:10px;color:var(--dim);">by ' + esc(item.uploader) + '</span></div>' + equipBtn + dlBtn + '</div>';
+              return '<div class="upload-item">' + img + '<div>' + (item.vis === 'private' ? '🔒 ' : '') + esc(item.name) + '<br><span style="font-size:10px;color:var(--dim);">by ' + esc(item.uploader) + '</span></div>' + equipBtn + dlBtn + '</div>';
             }).join('');
           }).catch(function() {
             if (status) status.textContent = 'Could not load community gallery.';
@@ -4200,7 +4201,7 @@
         _skinInput.removeEventListener('change', _skinInput._changeHandler);
       }
       // Re-setup with Firebase push
-      function setupUploadWithGallery(btnId, inputId, gridId, storageKey, isImage, galleryType) {
+      function setupUploadWithGallery(btnId, inputId, gridId, storageKey, isImage, galleryType, visFn) {
         var btn = document.getElementById(btnId);
         var input = document.getElementById(inputId);
         if (!btn || !input) return;
@@ -4220,11 +4221,13 @@
             });
             // Community upload goes to the game server (account-linked).
             if (galleryType) {
+              var vis = 'public';
+              try { if (typeof visFn === 'function' && visFn()) vis = 'private'; } catch (_) {}
               fbUploadToGallery(galleryType, file.name, dataUrl, function(err) {
                 if (err) { toast('Saved locally but community upload failed: ' + err, 'error'); return; }
-                toast('Uploaded ' + file.name + ' to community gallery!', 'ok');
+                toast(vis === 'private' ? 'Uploaded privately — only you can see it.' : 'Uploaded ' + file.name + ' to community gallery!', 'ok');
                 fbLoadGallery(galleryType, galleryType === 'skins' ? 'skin-community-grid' : 'tex-community-grid', galleryType === 'skins' ? 'skin-community-status' : 'tex-community-status', isImage);
-              });
+              }, vis);
             } else {
               toast('Uploaded ' + file.name, 'ok');
             }
@@ -4250,7 +4253,10 @@
       }
       // Re-setup with gallery upload
       setupUploadWithGallery('skin-upload-btn', 'skin-file-input', 'skin-grid', 'bf_uploads_skins', true, 'skins');
-      setupUploadWithGallery('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false, 'textures');
+      setupUploadWithGallery('tex-upload-btn', 'tex-file-input', 'tex-grid', 'bf_uploads_textures', false, 'textures', function() {
+        var cb = document.getElementById('tex-private');
+        return !!(cb && cb.checked);
+      });
       // Load community galleries
       if (userName) {
         renderUploads('skin-grid', 'bf_uploads_skins', true);

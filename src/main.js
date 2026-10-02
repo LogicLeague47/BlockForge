@@ -11322,9 +11322,21 @@ function openCustomMenu(ui) {
   if (ui && typeof ui.showMenu === 'function') ui.showMenu('custom');
   customStatus('');
   _customSel = null;
+  renderPrivBtn();
   renderCustomDetail();
   renderCustomSkins();
   renderCustomPacks();
+}
+function uploadVis() {
+  try { return localStorage.getItem('bf_upload_private') === '1' ? 'private' : 'public'; }
+  catch (_) { return 'public'; }
+}
+function renderPrivBtn() {
+  const b = document.getElementById('btn-custom-priv');
+  if (!b) return;
+  const priv = uploadVis() === 'private';
+  b.textContent = priv ? '🔒 private' : '🔓 public';
+  b.style.borderColor = priv ? '#fa5' : '';
 }
 // Selected item detail: tap a skin/pack → it shows up here → WEAR/APPLY.
 let _customSel = null;
@@ -11427,7 +11439,7 @@ function renderCustomSkins() {
   if (st) st.textContent = 'Loading community skins…';
   const base = galleryBaseUrl();
   if (!base) { if (st) st.textContent = 'Offline — community skins unavailable.'; return; }
-  fetch(base + '/api/gallery?type=skins', { mode: 'cors' })
+  fetch(base + '/api/gallery?type=skins', { mode: 'cors', headers: { ...galleryCreds() } })
     .then((r) => (r && r.ok ? r.json() : null))
     .then((d) => {
       const items = (d && d.ok && d.items) || [];
@@ -11438,7 +11450,7 @@ function renderCustomSkins() {
       wrap.innerHTML = items.slice(0, 12).map((it, i) =>
         '<div data-cskin-i="' + i + '" style="cursor:pointer;border:2px solid rgba(120,200,255,0.3);border-radius:8px;padding:6px;background:rgba(120,200,255,0.05);text-align:center;">' +
         '<img src="' + String(it.data || '').replace(/"/g, '&quot;') + '" style="width:48px;height:48px;image-rendering:pixelated;" />' +
-        '<div style="font:9px monospace;color:#8af;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escHtml(String(it.name || 'skin')).slice(0, 14) + '</div></div>'
+        '<div style="font:9px monospace;color:#8af;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (it.vis === 'private' ? '🔒' : '') + escHtml(String(it.name || 'skin')).slice(0, 14) + '</div></div>'
       ).join('');
       grid.appendChild(wrap);
       wrap.querySelectorAll('[data-cskin-i]').forEach((el) => {
@@ -11503,7 +11515,7 @@ function renderCustomPacks() {
   if (st) st.textContent = 'Loading community packs…';
   const base = galleryBaseUrl();
   if (!base) { if (st) st.textContent = 'Offline.'; return; }
-  fetch(base + '/api/gallery?type=textures', { mode: 'cors' })
+  fetch(base + '/api/gallery?type=textures', { mode: 'cors', headers: { ...galleryCreds() } })
     .then((r) => (r && r.ok ? r.json() : null))
     .then((d) => {
       const items = (d && d.ok && d.items) || [];
@@ -11514,7 +11526,7 @@ function renderCustomPacks() {
         const nm = String(it.name || 'pack');
         const act = !!(_activePack && _activePack.kind === 'gallery' && _activePack.name === nm);
         const kb = it.data ? Math.round(String(it.data).length / 1024) + 'KB' : '';
-        const sub = 'by ' + String(it.uploader || '?') + (kb ? ' · ' + kb : '');
+        const sub = (it.vis === 'private' ? '🔒 ' : '') + 'by ' + String(it.uploader || '?') + (kb ? ' · ' + kb : '');
         return packRow(nm, sub, act, 'data-pcomm="' + i + '"');
       }).join('') || '<div style="font:11px monospace;color:#666;">None yet.</div>';
       comm.querySelectorAll('[data-pcomm]').forEach((el) => {
@@ -11538,6 +11550,15 @@ function bindCustomMenu(ui) {
   document.getElementById('btn-custom-pack-upload')?.addEventListener('click', () => {
     const i = document.getElementById('custom-pack-input');
     if (i) i.click();
+  });
+  document.getElementById('btn-custom-priv')?.addEventListener('click', () => {
+    try {
+      const next = uploadVis() === 'private' ? '' : '1';
+      if (next) localStorage.setItem('bf_upload_private', next);
+      else localStorage.removeItem('bf_upload_private');
+    } catch (_) {}
+    renderPrivBtn();
+    customStatus(uploadVis() === 'private' ? '🔒 Next uploads stay private.' : '🔓 Next uploads go public.', '#8f8', 2);
   });
   const readFile = (input, isSkin) => {
     const f = input.files && input.files[0];
@@ -11566,10 +11587,10 @@ function bindCustomMenu(ui) {
       fetch(base + '/api/gallery', {
         method: 'POST', mode: 'cors',
         headers: { 'Content-Type': 'application/json', ...galleryCreds() },
-        body: JSON.stringify({ type: isSkin ? 'skins' : 'textures', name: f.name, data: dataUrl }),
+        body: JSON.stringify({ type: isSkin ? 'skins' : 'textures', name: f.name, data: dataUrl, vis: uploadVis() }),
       }).then((r) => r.json()).then((d) => {
         if (d && d.ok) {
-          customStatus('✅ Shared with the community!', '#6f6');
+          customStatus(uploadVis() === 'private' ? '✅ Uploaded privately — only you can see it.' : '✅ Shared with the community!', '#6f6');
           if (isSkin) renderCustomSkins(); else renderCustomPacks();
         } else customStatus('⚠ ' + ((d && d.reason) || 'Upload rejected'), '#f88');
       }).catch(() => customStatus('⚠ Saved locally (server unreachable).', '#fa0'));
