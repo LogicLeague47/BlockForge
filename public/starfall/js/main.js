@@ -3,7 +3,7 @@
 (function() {
 'use strict';
 
-// ---------- BlockForge offshoot identity (same-origin localStorage) ----------
+// ---------- Shared hero identity (same-origin localStorage) ----------
 var BF_HERO = '';
 try {
   BF_HERO = localStorage.getItem('bf_player_name')
@@ -1495,7 +1495,7 @@ function toggleMute() {
 function refreshMenu() {
   var b = loadBest();
   el('best-line').textContent = b ? ('BEST — ' + fmtTime(b.time) + ' · Lv' + b.level + ' · ' + b.kills + ' kills') : 'No flights logged, pilot.';
-  var hero = BF_HERO ? ('🔗 BlockForge hero: ' + BF_HERO.toUpperCase().slice(0, 12) + (BF_DEV ? ' 👑DEV — Orbit Blades unlocked!' : '') + ' — good hunting!') : 'Tip: set a name in BlockForge and we’ll fill in your callsign!';
+  var hero = BF_HERO ? ('🔗 Hero: ' + BF_HERO.toUpperCase().slice(0, 12) + (BF_DEV ? ' 👑DEV — Orbit Blades unlocked!' : '') + ' — good hunting!') : 'Tip: set a name in your profile and we’ll fill in your callsign!';
   el('hero-line').textContent = hero;
 }
 refreshMenu();

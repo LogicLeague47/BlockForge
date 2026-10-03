@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Block Snake — a LogicLeague game</title>
+<title>Snake — a LogicLeague game</title>
 <style>
   *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{background:#0a0f0a;color:#e8f5e9;font-family:monospace;display:flex;flex-direction:column;align-items:center;min-height:100vh;padding:14px;user-select:none}
@@ -19,12 +19,12 @@
 </style>
 </head>
 <body>
-<h1>🐍 BLOCK SNAKE<small>EAT APPLES · DON'T BITE YOURSELF</small></h1>
-<div id="score"><span>SCORE <b id="s">0</b></span><span>BEST <b id="b">0</b></span></div>
+<h1>🐍 SNAKE<small>EAT APPLES · DON'T BITE YOURSELF</small></h1>
+<div id="score"><span>SCORE <b id="s">0</b></span><span>BEST <b id="b">0</b></span><button id="pausebtn" style="padding:4px 12px;font:bold 12px monospace;background:#1a2a1a;color:#a8d5a8;border:1px solid #2a4a2a;border-radius:8px;cursor:pointer;">⏸</button></div>
 <canvas id="c" width="400" height="400"></canvas>
 <div id="msg"></div>
 <button id="btn">↻ PLAY AGAIN</button>
-<div id="hint">⬆⬇⬅➎ arrows / WASD / swipe<br>apples speed you up</div>
+<div id="hint">⬆⬇⬅➎ arrows / WASD / swipe · P = pause<br>apples speed you up</div>
 <a href="../games.html">← all games</a>
 <script>
 (function(){
@@ -34,11 +34,12 @@
   var best = 0;
   try { best = parseInt(localStorage.getItem('bf_snake_best') || '0', 10) || 0; } catch (_) {}
   bEl.textContent = best;
-  var snake, dir, ndir, apple, score, alive, speed, last;
+  var snake, dir, ndir, apple, score, alive, speed, last, paused;
   function reset() {
     snake = [{ x: 10, y: 10 }, { x: 9, y: 10 }, { x: 8, y: 10 }];
     dir = { x: 1, y: 0 }; ndir = dir;
-    score = 0; alive = true; speed = 130; last = 0;
+    score = 0; alive = true; paused = false; speed = 130; last = 0;
+    document.getElementById('pausebtn').textContent = '⏸';
     sEl.textContent = '0'; msg.textContent = ''; btn.style.display = 'none';
     placeApple();
   }
@@ -96,12 +97,19 @@
     }
   }
   function loop(t) {
-    if (alive) {
+    if (alive && !paused) {
       if (!last) last = t;
       if (t - last >= speed) { last = t; step(); }
       draw();
       requestAnimationFrame(loop);
     } else draw();
+  }
+  function setPaused(on) {
+    if (!alive) return;
+    paused = !!on;
+    document.getElementById('pausebtn').textContent = paused ? '▶' : '⏸';
+    msg.textContent = paused ? '⏸ Paused — press P to resume' : '';
+    if (!paused) { last = 0; requestAnimationFrame(loop); }
   }
   function turn(x, y) {
     if (x === -dir.x && y === -dir.y) return;
@@ -115,6 +123,7 @@
     else if (k === 'arrowleft' || k === 'a') turn(-1, 0);
     else if (k === 'arrowright' || k === 'd') turn(1, 0);
     else if ((k === ' ' || k === 'enter') && !alive) { reset(); requestAnimationFrame(loop); }
+    else if (k === 'p' && alive) setPaused(!paused);
     if (['arrowup','arrowdown','arrowleft','arrowright',' '].indexOf(k) >= 0) e.preventDefault();
   });
   var tx = 0, ty = 0;
@@ -133,6 +142,8 @@
     e.preventDefault();
   }, { passive: false });
   btn.addEventListener('click', function() { reset(); requestAnimationFrame(loop); });
+  document.getElementById('pausebtn').addEventListener('click', function() { setPaused(!paused); });
+  document.addEventListener('visibilitychange', function() { if (document.hidden) setPaused(true); });
   reset();
   requestAnimationFrame(loop);
 })();

@@ -1,5 +1,5 @@
-// PAPERFORGE — 2D BlockForge.
-// Same blocks, items, textures, recipes and drop rules as BlockForge,
+// PAPERFORGE — 2D sandbox.
+// Same blocks, items, textures, recipes and drop rules,
 // rendered and played in 2D side view. Shared modules do the heavy lifting:
 // tiles.js (atlas painters), blocks.js (ids/defs/drops), items.js,
 // recipes.js + crafting.js (CraftingGrid), inventory.js (Inventory),
@@ -11,7 +11,7 @@ import { makeItemIconCanvas } from '../ui.js';
 import { CraftingGrid } from '../crafting.js';
 import { Inventory } from '../inventory.js';
 
-// ---------- BlockForge offshoot identity (same-origin localStorage) ----------
+// ---------- Shared hero identity (same-origin localStorage) ----------
 let BF_HERO = '';
 try {
   BF_HERO = localStorage.getItem('bf_player_name')
@@ -246,7 +246,7 @@ function genWorld(s) {
   }
 }
 
-// ---------- tile rendering (exact BlockForge atlas painters) ----------
+// ---------- tile rendering (exact atlas painters) ----------
 function drawTileFace(b, face, dx, dy, dw, dh, sx, sy, sw, sh) {
   const t = TILES[typeof face === 'string' ? face : 'stone'];
   if (!t) return;
@@ -650,7 +650,7 @@ function burst(x, y, col) {
   }
 }
 
-// ---------- mobs (same types, drops & palettes as BlockForge) ----------
+// ---------- mobs (same types, drops & palettes) ----------
 // Palettes mirror mobs.js redesigns: zombie moss #7fa03c/brown #6a4a2a,
 // skeleton bone #e8e4d8 + soul eyes #6ef3ff, spider violet #4a2a5a +
 // magenta eyes, chicken cream, slime #40c040.
@@ -887,7 +887,7 @@ function cursorIcon() {
 window.addEventListener('mousemove', (e) => {
   if (cursorEl) { cursorEl.style.left = (e.clientX + 12) + 'px'; cursorEl.style.top = (e.clientY + 12) + 'px'; }
 });
-// ---------- inventory + crafting screen (mirrors the OG BlockForge UI) ----------
+// ---------- inventory + crafting screen ----------
 // One screen: armor + offhand on the left, crafting grid + 36 slots right.
 // 2x2 grid from inventory, 3x3 at a workbench. Left-click moves stacks,
 // right-click places 1 / takes half, shift-click quick-moves, double-click
@@ -1300,8 +1300,8 @@ function refreshMenu() {
   const b = getBest();
   el('best-line').textContent = b ? `BEST — survived ${b.days} day(s)` : 'No expeditions logged yet.';
   el('hero-line').textContent = BF_HERO
-    ? `🔗 BlockForge hero: ${BF_HERO.toUpperCase().slice(0, 12)}${BF_DEV ? ' 👑DEV kit issued!' : ''}`
-    : 'Tip: set a name in BlockForge and we’ll fill it in!';
+    ? `🔗 Hero: ${BF_HERO.toUpperCase().slice(0, 12)}${BF_DEV ? ' 👑DEV kit issued!' : ''}`
+    : 'Tip: set a profile name and we’ll fill it in!';
 }
 
 // ---------- per-frame update ----------
@@ -1494,7 +1494,7 @@ function draw() {
   }
 }
 
-// ---------- entity drawing (BlockForge mob palettes, 2D side view) ----------
+// ---------- entity drawing (mob palettes, 2D side view) ----------
 function drawPlayer(ox, oy) {
   // py = FEET; true Steve proportions scaled to the 1.75-tile hitbox:
   // 21px legs + 21px torso + 14px head = 56px (OG HEAD/BODY/LEG = 8/12/12).
@@ -1606,7 +1606,7 @@ function drawMob(m, ox, oy) {
     ctx.fillStyle = '#f5f0e5';
     ctx.fillRect(px - 5, py - 50, 10, 2); // teeth
   } else if (m.type === 'spider') {
-    // BlockForge spider: body #4a2a5a, head #522e62, banded dark legs with
+    // spider: body #4a2a5a, head #522e62, banded dark legs with
     // ember joints, red eye cluster (#7a1a6a + #e05aff glow), pale fangs
     ctx.strokeStyle = '#33222a';
     ctx.lineWidth = 3;
@@ -1649,7 +1649,7 @@ function drawMob(m, ox, oy) {
     ctx.fillRect(px - 6, py - hpx + 9, 2, 2);
     ctx.fillRect(px + 3, py - hpx + 9, 2, 2);
   } else if (m.type === 'cow') {
-    // BlockForge cow: body #7a4a2e + white spots, TAN head, dark muzzle,
+    // cow: body #7a4a2e + white spots, TAN head, dark muzzle,
     // detailed eyes, cream horns, hooves, tail
     const D = m.dir >= 0 ? 1 : -1;
     ctx.fillStyle = '#7a4a2e';
@@ -1684,7 +1684,7 @@ function drawMob(m, ox, oy) {
     ctx.fillRect(px + (D > 0 ? 22 : -28), py - 25, 2, 2); // nostrils
     ctx.fillRect(px + (D > 0 ? 25 : -25), py - 25, 2, 2);
   } else if (m.type === 'pig') {
-    // BlockForge pig: pink #f5b5b5, darker shading, snout + nostrils,
+    // pig: pink #f5b5b5, darker shading, snout + nostrils,
     // #e08888 ears, detailed eye, curly tail
     const D = m.dir >= 0 ? 1 : -1;
     ctx.fillStyle = '#f5b5b5';
@@ -1715,7 +1715,7 @@ function drawMob(m, ox, oy) {
     ctx.fillRect(px - D * 19 - 2, py - 22, 5, 2); // curly tail
     ctx.fillRect(px - D * 22 - 2, py - 24, 2, 4);
   } else if (m.type === 'sheep') {
-    // BlockForge sheep: wool #f5f5f5 + shadow curls, GREY face #8a8a8a,
+    // sheep: wool #f5f5f5 + shadow curls, GREY face #8a8a8a,
     // expressive eyes (white + pupil + highlights), grey legs
     const D = m.dir >= 0 ? 1 : -1;
     ctx.fillStyle = '#f5f5f5';

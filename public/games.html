@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Other Games — Made by LL</title>
-<link rel="icon" type="image/png" href="BlockForge.png">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎲</text></svg>">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 body{background:#07070f;color:#e6e6f0;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:32px 16px}
@@ -31,20 +31,20 @@ a.card:hover{transform:translateY(-3px);box-shadow:0 8px 28px rgba(100,140,255,.
 <h1>🎲 Other Games</h1>
 <div class="sub">Offbranch games made by LL (LogicLeague).</div>
 <div class="grid" id="games-grid"></div>
-<a class="back" href="portal.html">← Back to BlockForge Portal</a>
-<div class="foot">Made by LogicLeague · BlockForge</div>
+<a class="back" href="portal.html">← Back to Portal</a>
+<div class="foot">Made by LogicLeague</div>
 <script>
 // To add a game: push { name, emoji, desc, url } here.
 var GAMES = [
-  { name: 'YT Forge', emoji: '📺', desc: 'YouTube frontend — search and watch any video.', url: 'youtube/index.html?v=3' },
-  { name: 'BlockChess', emoji: '🏆', desc: 'Full 3D chess vs 10 bots, pushover to nightmare. Illegal-move coach, clocks, hints.', url: 'chess/index.html' },
-  { name: 'BlockLife', emoji: '🧬', desc: 'Life simulator: born, school, career, crime, love, prison, death. Earn your ribbon.', url: 'blocklife/index.html' },
+  { name: 'YT', emoji: '📺', desc: 'YouTube frontend — search and watch any video.', url: 'youtube/index.html?v=3' },
+  { name: 'Chess', emoji: '🏆', desc: 'Full 3D chess vs 10 bots, pushover to nightmare. Illegal-move coach, clocks, hints.', url: 'chess/index.html' },
+  { name: 'Life', emoji: '🧬', desc: 'Life simulator: born, school, career, crime, love, prison, death. Earn your ribbon.', url: 'blocklife/index.html' },
   { name: 'Mold Kingdom', emoji: '🏃', desc: 'Run, jump and dodge through hand-made levels.', url: 'mold-kingdom/index.html?v=4' },
   { name: 'Starfall Vanguard', emoji: '🚀', desc: 'Top-down arena roguelite: orbit-blasters, XP cores, stacking ship mods.', url: 'starfall/index.html?v=9' },
-  { name: 'PaperForge', emoji: '🧱', desc: '2D BlockForge: same blocks, mobs and recipes — mine, build, survive the night.', url: 'paperforge.html' },
+  { name: 'Paper', emoji: '🧱', desc: '2D sandbox: same blocks, mobs and recipes — mine, build, survive the night.', url: 'paperforge.html' },
   { name: 'Skyhawk Flight Simulator', emoji: '🛩️', desc: 'Cessna-class trainer: 24 km island chain, 3 airstrips, quests + pilot shop, day/night. PC + mobile.', url: 'sky-sim/index.html?v=8' },
   { name: 'InfiniteCraft', emoji: '♾️', desc: 'Combine elements to discover 793K+ recipes — Fire + Fire = Volcano. Drag, drop, discover.', url: 'infinitecraft/index.html?v=5' },
-  { name: 'Block Snake', emoji: '🐍', desc: 'Eat apples, dodge yourself. Speeds up every bite — keyboard, WASD and swipe.', url: 'snake/index.html' },
+  { name: 'Snake', emoji: '🐍', desc: 'Eat apples, dodge yourself. Speeds up every bite — keyboard, WASD and swipe.', url: 'snake/index.html' },
   { name: 'Ore Sweeper', emoji: '⛏️', desc: 'Clear the 9×9 mine without waking the TNT. Flag mode, timer, best records.', url: 'oresweeper/index.html' },
 ];
 var grid = document.getElementById('games-grid');

@@ -151,11 +151,11 @@ window.STALE_Game = {
     this.state='win'; window._STATE='win';
     const t=P.time, d=P.deaths, s=P.sprGot;
     document.getElementById('final-stats').textContent=`Time ${STALE_Board.fmt(t)} · Deaths ${d} · ✨ ${s}`;
-    // hero name: remembered pilot → BlockForge name → PIP
+    // hero name: remembered pilot → saved hero name → PIP
     const bf=this.bfName();
     document.getElementById('name-input').value=(STALE_Settings.data.pilotName||bf||'PIP').toUpperCase().slice(0,12);
     const hint=document.getElementById('bf-hint');
-    if(hint) hint.textContent=bf?('🔗 BlockForge hero detected: '+bf.toUpperCase().slice(0,12)+(this.isDevName(bf)?' 👑DEV — all levels open!':'')+' — keep it or type your own!'):'Tip: set a name in BlockForge and we’ll fill it in next time!';
+    if(hint) hint.textContent=bf?('🔗 Hero detected: '+bf.toUpperCase().slice(0,12)+(this.isDevName(bf)?' 👑DEV — all levels open!':'')+' — keep it or type your own!'):'Tip: play once with a name and we’ll fill it in next time!';
     this.show('screen-name');
     this._pendingScore={level:'Mushroom Hollow',time:t,deaths:d,spr:s};
     STALE_Settings.data.unlocked=STALE_LEVELS.length; STALE_Settings.data.seenIntro=true; STALE_Settings.save();
@@ -173,8 +173,8 @@ window.STALE_Game = {
     this.loadLevel(li+1);
   },
 
-  // ---------- BlockForge offshoot identity ----------
-  // Your BlockForge hero name (localStorage bf_player_name) is reused here.
+  // ---------- Shared hero identity ----------
+  // Your saved hero name (same-origin localStorage) is reused here.
   bfName(){
     try{
       return localStorage.getItem('bf_player_name')
@@ -182,7 +182,7 @@ window.STALE_Game = {
         || localStorage.getItem('bf_cg_username') || '';
     }catch(e){ return ''; }
   },
-  // BlockForge convention: the LogicLeague account is the gamedev account.
+  // House convention: the LogicLeague account is the gamedev account.
   isDevName(n){ return (n||'').trim().toLowerCase()==='logicleague'; },
   devUnlock(){
     if(this.isDevName(STALE_Settings.data.pilotName||this.bfName())){
@@ -279,7 +279,7 @@ window.STALE_Game = {
     document.getElementById('s-controls').addEventListener('change',e=>{S.controls=e.target.value;STALE_Settings.save();this.updateTouchUI();this.toast('Controls: '+e.target.value);});
     this.bindTouch();
   },
-  // ---------- device detect + control mode (for BlockForge branch too: see window.STALE_Device) ----------
+  // ---------- device detect + control mode ----------
   detectTouch(){
     try{
       if('ontouchstart' in window && window.ontouchstart!==undefined) return true;
@@ -627,7 +627,7 @@ window.STALE_Game = {
 };
 addEventListener('load',()=>STALE_Game.init());
 
-// Mobile detector API — reuse this in your BlockForge branch:
+// Mobile detector API — reuse this in your own pages:
 //   STALE_Device.isTouch() → true if the device has touch/coarse pointer
 //   STALE_Device.mode()   → 'mobile' or 'pc' (respects Settings → Controls switch)
 window.STALE_Device = {

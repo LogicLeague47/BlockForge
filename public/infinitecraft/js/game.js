@@ -1,5 +1,5 @@
 const Game = {
-  API: 'https://blockforge-server.onrender.com',
+  API: 'https://blockforge-api.blockforge.workers.dev',
 
   EMOJIS: {
     Fire: "🔥", Water: "💧", Earth: "🌎", Wind: "🌬️",
@@ -7,7 +7,7 @@ const Game = {
 
   /* Server-side recipe lookup. cb(resultOrNull, ok).
      ok=false means the server couldn't be reached (NOT "no recipe").
-     Retries once: Render's free tier sleeps after 15 min idle and the
+     Retries once: serverless backends can cold-start after idle and the
      first request wakes it (~30-50s), which can outlast one timeout. */
   lookup(a, b, cb) {
     // Check local combos database first (instant, no server needed)

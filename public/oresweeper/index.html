@@ -29,7 +29,7 @@
 <div id="grid"></div>
 <div id="msg"></div>
 <button id="btn">↻ DIG AGAIN</button>
-<div id="hint">tap = dig · FLAG mode + tap = mark TNT<br>clear every safe block to win</div>
+<div id="hint">tap = dig · long-press / right-click = flag · FLAG mode + tap = mark TNT<br>clear every safe block to win</div>
 <a href="../games.html">← all games</a>
 <script>
 (function(){
@@ -37,7 +37,7 @@
   var grid = document.getElementById('grid');
   var leftEl = document.getElementById('left'), timeEl = document.getElementById('time'), bestEl = document.getElementById('best');
   var msg = document.getElementById('msg'), btn = document.getElementById('btn'), flagBtn = document.getElementById('flagmode');
-  var cells, mines, open, flags, over, won, started, secs, timer, flagMode = false;
+  var cells, mines, open, flags, over, won, started, secs, timer, flagMode = false, suppressTap = false;
   var best = null;
   try { best = parseInt(localStorage.getItem('bf_oresweep_best') || '', 10); if (!isFinite(best)) best = null; } catch (_) { best = null; }
   if (best !== null) bestEl.textContent = best + 's';
@@ -67,7 +67,22 @@
       (function(idx) {
         var d = document.createElement('div');
         d.className = 'cell';
-        d.addEventListener('click', function() { tap(idx); });
+        d.addEventListener('click', function() { if (!suppressTap) tap(idx); });
+        // Long-press (450ms) toggles a flag — mobile standard, no FLAG mode needed.
+        var lpTimer = null;
+        d.addEventListener('touchstart', function() {
+          suppressTap = false;
+          lpTimer = setTimeout(function() {
+            lpTimer = null;
+            suppressTap = true;
+            if (!started) tap(idx);
+            toggleFlag(idx);
+            try { if (navigator.vibrate) navigator.vibrate(15); } catch (_) {}
+          }, 450);
+        }, { passive: true });
+        d.addEventListener('touchend', function() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } });
+        d.addEventListener('touchmove', function() { if (lpTimer) { clearTimeout(lpTimer); lpTimer = null; } }, { passive: true });
+        d.addEventListener('contextmenu', function(e) { e.preventDefault(); toggleFlag(idx); });
         grid.appendChild(d);
         cells.push(d);
       })(k);
@@ -102,18 +117,17 @@
         for (var k = 0; k < N * N; k++) if (!mines[k] && k !== i) { mines[k] = true; break; }
       }
     }
-    if (flagMode) {
-      if (open[i]) return;
-      if (flags[i]) { delete flags[i]; cells[i].textContent = ''; }
-      else { flags[i] = true; cells[i].textContent = '🚩'; }
-      var left = MINES - Object.keys(flags).length;
-      leftEl.textContent = left;
-      return;
-    }
+    if (flagMode) { toggleFlag(i); return; }
     if (flags[i] || open[i]) return;
     if (mines[i]) return boom(i);
     reveal(i);
     checkWin();
+  }
+  function toggleFlag(i) {
+    if (over || won || open[i]) return;
+    if (flags[i]) { delete flags[i]; cells[i].textContent = ''; }
+    else { flags[i] = true; cells[i].textContent = '🚩'; }
+    leftEl.textContent = MINES - Object.keys(flags).length;
   }
   function boom(i) {
     over = true;
