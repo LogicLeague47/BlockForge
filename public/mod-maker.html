@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockForge — Become a Mod Maker</title>
+<link rel="icon" type="image/png" href="BlockForge.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070f;--card:rgba(24,24,48,.72);--panel:rgba(16,16,30,0.82);--border:rgba(90,90,140,.28);
+  --accent:#a8f;--accent2:#c084fc;--green:#4c4;--blue:#7af;--red:#f66;
+  --text:#e6e6f0;--muted:#9a9ac0;--dim:#6a6a88;
+}
+body{background:var(--bg);color:var(--text);font-family:'Inter',monospace;min-height:100vh;display:flex;flex-direction:column;overflow-x:hidden}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 30% 0,rgba(120,80,220,.16) 0,transparent 60%),radial-gradient(ellipse at 70% 100%,rgba(120,60,180,.12) 0,transparent 50%);pointer-events:none;z-index:0}
+header{display:flex;align-items:center;gap:12px;padding:16px 22px;position:relative;z-index:1}
+.brand{display:flex;align-items:center;gap:12px;margin-right:auto}
+.brand-logo{width:40px;height:40px;border-radius:10px;background:conic-gradient(from 40deg,#a8f,#c084fc,#7f7ff5,#a8f);display:grid;place-items:center;font-size:20px;box-shadow:0 0 18px rgba(170,130,255,.35)}
+.brand h1{font-size:20px;letter-spacing:4px;font-weight:800;background:linear-gradient(135deg,#fff 0%,#a8f 50%,#c084fc 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.brand .sub{font-size:10px;letter-spacing:3px;color:var(--accent2);font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:10px;border:1px solid rgba(150,120,255,.4);background:linear-gradient(135deg,#2a4a8a,#3a3a9a,#5a2a9a);color:#fff;font:600 12px 'Inter',monospace;cursor:pointer;text-decoration:none;transition:.2s;white-space:nowrap}
+.btn:hover{transform:translateY(-2px);box-shadow:0 10px 32px rgba(120,90,220,.35)}
+.btn.ghost{background:rgba(255,255,255,.04)}
+.btn.green{background:linear-gradient(135deg,#1a6a4a,#2a8a5a);border-color:rgba(90,210,140,.4)}
+.btn.danger{background:rgba(120,30,30,.35);border-color:rgba(255,100,100,.4)}
+.btn:disabled{opacity:.5;cursor:wait;transform:none}
+.container{max-width:920px;margin:10px auto 40px;padding:0 24px;flex:1;width:100%;position:relative;z-index:1}
+.hero{text-align:center;padding:26px 10px 8px}
+.hero .kicker{font-size:11px;letter-spacing:3px;color:var(--accent2);font-weight:700;margin-bottom:10px}
+.hero h2{font-size:30px;font-weight:800;letter-spacing:1px}
+.hero h2 span{background:linear-gradient(135deg,#a8f,#c084fc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.7;max-width:640px;margin-left:auto;margin-right:auto}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:22px 0}
+.step{border:1px solid var(--border);border-radius:12px;background:rgba(30,26,50,.55);padding:16px;font-size:12px;color:var(--muted);line-height:1.6}
+.step .num{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,#a8f,#c084fc);color:#10101a;font-weight:800;display:grid;place-items:center;font-size:13px;margin-bottom:10px}
+.step b{color:#fff}
+.card{border:1px solid var(--border);border-radius:14px;background:var(--card);padding:22px;margin-bottom:18px}
+.card h3{font-size:13px;letter-spacing:2px;color:var(--accent2);margin-bottom:14px;font-weight:700}
+.card h3 .tag{font-size:10px;color:var(--green);border:1px solid rgba(80,200,120,.4);border-radius:6px;padding:1px 8px;margin-left:8px;letter-spacing:1px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.provider-btn{flex:1;min-width:200px;display:flex;align-items:center;justify-content:center;gap:10px;padding:13px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:#fff;color:#111;font:700 13px 'Inter',monospace;cursor:pointer;transition:.2s}
+.provider-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(255,255,255,.12)}
+.provider-btn.dark{background:#16161e;color:#fff}
+.provider-btn .g{font-size:17px;font-weight:800}
+.field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+.field label{font-size:11px;color:var(--muted);letter-spacing:1px}
+.field input,.field textarea,.field select{background:rgba(0,0,0,.35);border:1px solid rgba(150,120,255,.3);border-radius:8px;color:#fff;font:13px 'Inter',monospace;padding:11px 12px;width:100%}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+hr.sep{border:none;border-top:1px solid var(--border);margin:18px 0}
+.muted{font-size:12px;color:var(--muted);line-height:1.7}
+.status{font-size:12px;margin-top:12px;min-height:18px;line-height:1.6}
+.status.ok{color:#6f6}.status.err{color:#f88}.status.info{color:#8af}
+table.mods{width:100%;border-collapse:collapse;font-size:12px}
+table.mods th{text-align:left;font-size:10px;letter-spacing:1.5px;color:var(--dim);padding:8px;border-bottom:1px solid var(--border)}
+table.mods td{padding:10px 8px;border-bottom:1px solid rgba(90,90,140,.15);vertical-align:middle}
+table.mods tr:hover td{background:rgba(150,120,255,.05)}
+.pill{font:bold 10px monospace;padding:2px 8px;border-radius:6px;background:rgba(170,130,255,.14);border:1px solid rgba(170,130,255,.3);color:#c084fc}
+.iconbtn{padding:7px 12px;border-radius:8px;border:1px solid rgba(150,120,255,.35);background:rgba(150,120,255,.1);color:#fff;font:600 11px 'Inter',monospace;cursor:pointer;margin-right:6px;white-space:nowrap}
+.iconbtn:hover{background:rgba(150,120,255,.25)}
+.iconbtn.del{border-color:rgba(255,100,100,.4);background:rgba(120,30,30,.3)}
+.iconbtn.del:hover{background:rgba(160,40,40,.45)}
+.iconbtn.go{border-color:rgba(90,210,140,.4);background:rgba(26,106,74,.35)}
+code.block{display:block;background:rgba(0,0,0,.45);border:1px solid rgba(150,120,255,.25);border-radius:10px;padding:14px;font:12px/1.7 monospace;color:#d8ccff;overflow-x:auto;white-space:pre;margin:10px 0}
+.req{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.req .step b{display:block;margin-bottom:4px}
+.stats{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.stat{flex:1;min-width:140px;border:1px solid var(--border);border-radius:10px;padding:12px 14px;background:rgba(0,0,0,.25)}
+.stat .v{font-size:22px;font-weight:800}
+.stat .k{font-size:10px;letter-spacing:2px;color:var(--dim);margin-top:2px}
+.hidden{display:none!important}
+footer{text-align:center;font-size:11px;color:var(--dim);padding:18px;position:relative;z-index:1}
+footer a{color:#a8f;text-decoration:none}
+@media(max-width:560px){.hero h2{font-size:23px}table.mods th:nth-child(4),table.mods td:nth-child(4){display:none}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><div class="brand-logo">🧑‍💻</div><div><h1>MOD MAKER</h1><div class="sub">PUBLISH · UPDATE · MANAGE</div></div></div>
+  <a class="btn ghost" href="mods.html">◀ Mods page</a>
+</header>
+
+<div class="container">
+  <div class="hero">
+    <div class="kicker">BLOCKFORGE MAKER PROGRAM</div>
+    <h2>Become a <span>Mod Maker</span></h2>
+    <p>Sign in with Google or GitHub, get a maker account, and publish <b>.bfmod</b> files to the community catalog. Update and delete your own mods anytime from your dashboard. Downloads stay public and free for every player.</p>
+  </div>
+
+  <div class="steps">
+    <div class="step"><div class="num">1</div><b>Sign in</b><br>Google or GitHub proves you own the identity. A maker account is created for you on first sign-in.</div>
+    <div class="step"><div class="num">2</div><b>Read the requirements</b><br>Manifest shape, hooks, id rules and limits — everything below. Clone an official mod to start fast.</div>
+    <div class="step"><div class="num">3</div><b>Publish</b><br>Upload your .bfmod from the dashboard. It appears instantly for every player to download.</div>
+  </div>
+
+  <div class="card" id="auth-card">
+    <h3>🔐 MAKER SIGN-IN <span class="tag hidden" id="auth-tag">SIGNED IN</span></h3>
+    <div id="auth-out">
+      <div class="row">
+        <button class="provider-btn dark" id="btn-github">⌨&nbsp; Continue with GitHub</button>
+        <button class="provider-btn" id="btn-google"><span class="g">G</span>&nbsp; Continue with Google</button>
+      </div>
+      <hr class="sep">
+      <p class="muted" style="margin-bottom:6px">Returning maker? Sign in with your maker username + password instead:</p>
+      <div class="row">
+        <div class="field" style="flex:1;min-width:160px;margin:0"><label>MAKER USERNAME</label><input id="login-name" maxlength="16" autocomplete="username" placeholder="yourname"></div>
+        <div class="field" style="flex:1;min-width:160px;margin:0"><label>PASSWORD</label><input id="login-pass" type="password" autocomplete="current-password" placeholder="••••••"></div>
+        <div style="align-self:flex-end"><button class="btn" id="btn-login">Sign in</button></div>
+      </div>
+      <div class="status" id="auth-status"></div>
+    </div>
+    <div id="auth-in" class="hidden">
+      <div class="row">
+        <div style="font-size:26px" id="auth-avatar">🧑‍💻</div>
+        <div style="flex:1"><div style="font-weight:700" id="auth-name">—</div><div class="muted" id="auth-sub">—</div></div>
+        <button class="btn ghost" id="btn-logout">Sign out</button>
+      </div>
+    </div>
+    <div id="register-box" class="hidden">
+      <hr class="sep">
+      <p class="muted">First time here with that identity — pick a maker username + password to finish your account:</p>
+      <div class="row">
+        <div class="field" style="flex:1;min-width:160px;margin:0"><label>MAKER USERNAME (2–16, letters/numbers/_)</label><input id="reg-name" maxlength="16" placeholder="coolmaker"></div>
+        <div class="field" style="flex:1;min-width:160px;margin:0"><label>PASSWORD (min 3)</label><input id="reg-pass" type="password" placeholder="••••••"></div>
+        <div style="align-self:flex-end"><button class="btn green" id="btn-register">Create maker account</button></div>
+      </div>
+      <p class="muted" style="margin-top:8px">Already have a maker account under a different name? <a href="#" id="link-instead" style="color:#a8f">Link this identity to it instead</a>.</p>
+      <div id="link-box" class="hidden">
+        <div class="row" style="margin-top:8px">
+          <div class="field" style="flex:1;min-width:160px;margin:0"><label>EXISTING MAKER USERNAME</label><input id="link-name" maxlength="16"></div>
+          <div class="field" style="flex:1;min-width:160px;margin:0"><label>PASSWORD</label><input id="link-pass" type="password"></div>
+          <div style="align-self:flex-end"><button class="btn" id="btn-link">Link identity</button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>📋 MAKER REQUIREMENTS</h3>
+    <div class="req">
+      <div class="step"><b>1 · File format</b>Plain-text ES-module <b>.bfmod</b>, max <b>512KB</b>. Must <b>export const manifest</b> — the page reads id, name, version, description, author and icon from it.</div>
+      <div class="step"><b>2 · Manifest</b>Unique <b>id</b> (lowercase letters/numbers/dashes). Bump <b>version</b> on every update so players get the ⬆ button in-game.</div>
+      <div class="step"><b>3 · Hooks</b><b>onLoad(api)</b> setup, <b>onTick(dt, api)</b> per frame, <b>onUnload()</b> cleanup. Use <b>api.registerBlock/Item/Mob</b> (ids ≥ 2000) and <b>api.hud</b> for overlays.</div>
+      <div class="step"><b>4 · Ownership</b>Only the uploader (or staff) can update or delete a mod. Taken ids are protected — pick your own.</div>
+      <div class="step"><b>5 · Content rules</b>No obfuscated code, no credential harvesting, no hate or explicit content. Broken mods auto-disable client-side; repeat offenders lose publishing.</div>
+      <div class="step"><b>6 · Account</b>Publishing needs a maker account with a linked <b>Google or GitHub</b> identity. Downloads never need an account.</div>
+    </div>
+    <code class="block">export const manifest = {
+  id: 'my-cool-mod',
+  name: 'My Cool Mod',
+  version: '1.0',
+  description: 'What it does, in one line.',
+  author: 'YourName',
+  icon: '✨',
+};
+
+export function onLoad(api) {
+  api.addButton('hello', '👋 Say hi', () => api.chat('Hello!'));
+}
+export function onTick(dt, api) { /* per-frame logic */ }
+export function onUnload(api) { api.removeButton('hello'); }</code>
+  </div>
+
+  <div class="card hidden" id="dash-card">
+    <h3>📦 YOUR MODS <span class="tag" id="dash-count">0</span></h3>
+    <div class="stats">
+      <div class="stat"><div class="v" id="stat-mods">0</div><div class="k">PUBLISHED</div></div>
+      <div class="stat"><div class="v" id="stat-bytes">0 KB</div><div class="k">TOTAL SIZE</div></div>
+      <div class="stat"><div class="v" id="stat-updated">—</div><div class="k">LAST UPDATE</div></div>
+    </div>
+    <div style="overflow-x:auto">
+    <table class="mods">
+      <thead><tr><th>MOD</th><th>VERSION</th><th>UPDATED</th><th>ACTIONS</th></tr></thead>
+      <tbody id="mods-body"><tr><td colspan="4" style="color:var(--dim)">Loading…</td></tr></tbody>
+    </table>
+    </div>
+    <div class="status" id="dash-status"></div>
+  </div>
+
+  <div class="card hidden" id="upload-card">
+    <h3>⬆ PUBLISH A NEW MOD</h3>
+    <div class="row">
+      <input type="file" id="mod-file" accept=".bfmod,.js,.txt" style="display:none">
+      <button class="btn green" id="btn-pick">📦 Choose .bfmod file</button>
+      <span class="muted" id="up-filename">No file chosen.</span>
+    </div>
+    <div id="manifest-preview" class="muted" style="margin-top:10px"></div>
+    <div class="row" style="margin-top:10px"><button class="btn green" id="btn-publish" disabled>Publish mod</button></div>
+    <div class="status" id="up-status"></div>
+  </div>
+
+  <p class="muted" style="text-align:center">Mods run sandboxed in every player's game and auto-disable on errors. You keep full ownership — update or delete anytime. Abuse loses publishing permanently.</p>
+</div>
+
+<footer>BlockForge Mod Maker · <a href="mods.html">Mods page</a> · <a href="https://github.com/LogicLeague47/BlockForge" target="_blank" rel="noopener">GitHub</a></footer>
+
+<script>
+(function(){
+  'use strict';
+  var API_BASES = (function(){
+    var origins = [];
+    try { origins.push(window.location.origin); } catch (_) {}
+    origins.push('https://blockforge-api.blockforge.workers.dev');
+    return origins.filter(function(o, i){ return o && origins.indexOf(o) === i; });
+  })();
+  var API = API_BASES[0];
+
+  function esc(s){ return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function $(id){ return document.getElementById(id); }
+  function status(el, msg, cls){ el.textContent = msg || ''; el.className = 'status' + (cls ? ' ' + cls : ''); }
+
+  // ---- session (localStorage, XOR-obfuscated like the portal) ----
+  function xor(s){ var o=''; for (var i=0;i<s.length;i++) o+=String.fromCharCode(s.charCodeAt(i)^0x5A); return o; }
+  function loadSession(){ try { return JSON.parse(localStorage.getItem('bf_maker') || 'null'); } catch (_) { return null; } }
+  function saveSession(s){ try { if (s) localStorage.setItem('bf_maker', JSON.stringify(s)); else localStorage.removeItem('bf_maker'); } catch (_) {} }
+
+  function authHeaders(){
+    var s = loadSession() || {};
+    var h = { 'Content-Type': 'application/json' };
+    if (s.type === 'password' && s.username && s.pass) { h['x-bf-name'] = s.username; h['x-bf-pass'] = xor(s.pass); }
+    else if (s.type === 'identity' && s.provider && s.providerId) { h['x-bf-identity-type'] = s.provider; h['x-bf-identity-id'] = s.providerId; }
+    return h;
+  }
+  function authed(){ var s = loadSession(); return !!(s && s.username); }
+
+  async function api(path, opts){
+    opts = opts || {};
+    var errs = [];
+    for (var i = 0; i < API_BASES.length; i++) {
+      try {
+        var r = await fetch(API_BASES[i] + path, opts);
+        var d = null;
+        try { d = await r.json(); } catch (_) {}
+        if (d) { API = API_BASES[i]; return d; }
+        errs.push(API_BASES[i] + ': bad response');
+      } catch (e) { errs.push(API_BASES[i] + ': unreachable'); }
+    }
+    return { ok: false, reason: 'Backend unreachable. Are you online?' };
+  }
+
+  // ---- OAuth popup (Google / GitHub) ----
+  var pendingMakerToken = '';
+  function oauth(provider){
+    status($('auth-status'), 'Opening ' + provider + '…', 'info');
+    var url = API + '/auth/' + provider + '?origin=' + encodeURIComponent(window.location.origin) + '&purpose=maker';
+    var w = window.open(url, 'bf-oauth', 'width=520,height=640');
+    if (!w) { status($('auth-status'), '⚠ Popup blocked — allow popups for this page.', 'err'); return; }
+  }
+  window.addEventListener('message', function(e){
+    var origin = String(e.origin || '');
+    var okOrigin = API_BASES.some(function(b){ try { return new URL(b).origin === origin; } catch (_) { return false; } });
+    if (!okOrigin || !e.data || typeof e.data !== 'object') return;
+    var d = e.data;
+    if (!d.provider || (d.provider !== 'github' && d.provider !== 'google')) return;
+    if (d.error) { status($('auth-status'), '⚠ ' + d.error, 'err'); return; }
+    if (d.linked && d.username) {
+      // Existing maker: identity headers alone authenticate mod calls.
+      saveSession({ type: 'identity', username: d.username, provider: d.provider, providerId: d.providerId });
+      renderAuth(); refreshMine();
+      status($('auth-status'), '', '');
+    } else if (d.makerToken) {
+      // Verified identity, no maker account yet — complete registration below.
+      pendingMakerToken = d.makerToken;
+      var sug = String(d.username || '').replace(/[^a-zA-Z0-9_]/g, '').slice(0, 16) || '';
+      $('register-box').classList.remove('hidden');
+      if (sug) $('reg-name').value = sug;
+      status($('auth-status'), '✅ ' + d.provider + ' verified — pick a maker username to finish.', 'ok');
+    } else {
+      status($('auth-status'), '⚠ Unexpected auth response. Try again.', 'err');
+    }
+  });
+
+  async function doRegister(){
+    var username = $('reg-name').value.trim();
+    var password = $('reg-pass').value;
+    if (!pendingMakerToken) { status($('auth-status'), '⚠ Sign in with Google or GitHub first.', 'err'); return; }
+    status($('auth-status'), 'Creating maker account…', 'info');
+    var d = await api('/api/mods/maker-register', { method: 'POST', body: JSON.stringify({ username: username, password: password, makerToken: pendingMakerToken }) });
+    if (d && d.ok) {
+      pendingMakerToken = '';
+      saveSession({ type: 'identity', username: d.username, provider: d.provider, providerId: d.providerId });
+      $('register-box').classList.add('hidden');
+      renderAuth(); refreshMine();
+    } else status($('auth-status'), '⚠ ' + ((d && d.reason) || 'Registration failed'), 'err');
+  }
+
+  async function doLogin(){
+    var username = $('login-name').value.trim();
+    var password = $('login-pass').value;
+    status($('auth-status'), 'Signing in…', 'info');
+    // Verify credentials against the maker endpoint (proves maker rights too).
+    var d = await api('/api/mods/mine', { headers: { 'Content-Type': 'application/json', 'x-bf-name': username, 'x-bf-pass': password } });
+    if (d && d.ok) {
+      saveSession({ type: 'password', username: d.username, pass: xor(password) });
+      renderAuth(); renderMine(d.mods || []);
+    } else status($('auth-status'), '⚠ ' + ((d && d.reason) || 'Sign-in failed'), 'err');
+  }
+
+  async function doLink(){
+    var username = $('link-name').value.trim();
+    var password = $('link-pass').value;
+    status($('auth-status'), 'Requesting link…', 'info');
+    var d = await api('/api/mods/maker-link-token', { method: 'POST', body: JSON.stringify({ username: username, password: password }) });
+    if (!(d && d.ok)) { status($('auth-status'), '⚠ ' + ((d && d.reason) || 'Link failed'), 'err'); return; }
+    // Re-run OAuth carrying the link token; the callback attaches the identity.
+    var prov = pendingProvider;
+    var url = API + '/auth/' + prov + '?origin=' + encodeURIComponent(window.location.origin) + '&linkToken=' + encodeURIComponent(d.linkToken);
+    var w = window.open(url, 'bf-oauth', 'width=520,height=640');
+    if (!w) status($('auth-status'), '⚠ Popup blocked — allow popups.', 'err');
+    else status($('auth-status'), 'Finish in the popup, then sign in again with the button above.', 'info');
+  }
+
+  var pendingProvider = 'github';
+
+  function renderAuth(){
+    var s = loadSession();
+    var has = !!(s && s.username);
+    $('auth-out').classList.toggle('hidden', has);
+    $('auth-in').classList.toggle('hidden', !has);
+    $('dash-card').classList.toggle('hidden', !has);
+    $('upload-card').classList.toggle('hidden', !has);
+    $('auth-tag').classList.toggle('hidden', !has);
+    if (has) {
+      $('auth-name').textContent = s.username;
+      $('auth-sub').textContent = s.type === 'identity' ? ('🔗 ' + s.provider + ' linked') : '🔑 password sign-in';
+      $('auth-avatar').textContent = s.type === 'identity' ? (s.provider === 'github' ? '⌨' : 'G') : '🔑';
+    }
+  }
+
+  function logout(){ saveSession(null); pendingMakerToken = ''; $('register-box').classList.add('hidden'); renderAuth(); }
+
+  // ---- dashboard ----
+  function fmtDate(t){ try { return new Date(t).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' ' + new Date(t).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); } catch (_) { return '—'; } }
+  function dlUrl(id){ return API + '/api/mods/download/' + encodeURIComponent(id); }
+
+  function renderMine(mods){
+    mods = mods || [];
+    $('dash-count').textContent = mods.length;
+    $('stat-mods').textContent = mods.length;
+    $('stat-updated').textContent = mods.length ? fmtDate(Math.max.apply(null, mods.map(function(m){ return m.updatedAt || 0; }))) : '—';
+    $('stat-bytes').textContent = '—';
+    var body = $('mods-body');
+    if (!mods.length) { body.innerHTML = '<tr><td colspan="4" style="color:var(--dim)">No mods yet — publish your first below. 🚀</td></tr>'; return; }
+    body.innerHTML = mods.map(function(m){
+      return '<tr><td><span style="font-size:18px">' + esc(m.icon || '📦') + '</span> <b>' + esc(m.name) + '</b><br><span style="color:var(--dim);font-size:11px">' + esc(m.id) + '</span></td>' +
+        '<td><span class="pill">v' + esc(m.version || '1.0') + '</span></td>' +
+        '<td style="white-space:nowrap">' + esc(fmtDate(m.updatedAt)) + '</td>' +
+        '<td style="white-space:nowrap"><button class="iconbtn go" data-upd="' + esc(m.id) + '">⬆ Update</button>' +
+        '<a class="iconbtn" style="text-decoration:none" href="' + dlUrl(m.id) + '">⬇</a>' +
+        '<button class="iconbtn del" data-del="' + esc(m.id) + '">🗑</button></td></tr>';
+    }).join('');
+    body.querySelectorAll('[data-del]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.getAttribute('data-del');
+        if (!confirm('Delete "' + id + '" for everyone? This cannot be undone.')) return;
+        delMod(id);
+      });
+    });
+    body.querySelectorAll('[data-upd]').forEach(function(b){
+      b.addEventListener('click', function(){
+        var id = b.getAttribute('data-upd');
+        var inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = '.bfmod,.js,.txt';
+        inp.onchange = function(){ if (inp.files && inp.files[0]) updateMod(id, inp.files[0]); };
+        inp.click();
+      });
+    });
+  }
+
+  async function refreshMine(){
+    status($('dash-status'), 'Loading your mods…', 'info');
+    var d = await api('/api/mods/mine', { headers: authHeaders() });
+    if (d && d.ok) { status($('dash-status'), '', ''); renderMine(d.mods || []); }
+    else {
+      status($('dash-status'), '⚠ ' + ((d && d.reason) || 'Could not load mods'), 'err');
+      if (d && d.reason && /sign-in|link/i.test(d.reason)) logout();
+    }
+  }
+
+  async function delMod(id){
+    status($('dash-status'), 'Deleting ' + id + '…', 'info');
+    var d = await api('/api/mods/delete', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: id }) });
+    if (d && d.ok) { status($('dash-status'), '🗑 Deleted.', 'ok'); refreshMine(); }
+    else status($('dash-status'), '⚠ ' + ((d && d.reason) || 'Delete failed'), 'err');
+  }
+
+  function parseManifest(code){
+    try {
+      if (!code || code.indexOf('export const manifest') < 0) return null;
+      var m = code.match(/export\s+const\s+manifest\s*=\s*\{([\s\S]*?)\};/);
+      if (!m) return null;
+      var body = m[1];
+      var field = function(n){ var r = body.match(new RegExp(n + '\\s*:\\s*[\'"]([^\'"]*)[\'"]')); return r ? r[1] : ''; };
+      return { id: field('id'), name: field('name'), version: field('version'), description: field('description'), author: field('author'), icon: field('icon') };
+    } catch (_) { return null; }
+  }
+
+  var pendingCode = '';
+  async function pickFile(file){
+    $('up-filename').textContent = file.name + ' (' + Math.round(file.size / 1024) + 'KB)';
+    var text = await file.text();
+    if (!text || text.length > 512 * 1024) { status($('up-status'), '⚠ File is empty or over 512KB.', 'err'); pendingCode = ''; $('btn-publish').disabled = true; return; }
+    var man = parseManifest(text);
+    if (!man || !man.id) { status($('up-status'), '⚠ No readable manifest (needs "export const manifest" with id).', 'err'); pendingCode = ''; $('btn-publish').disabled = true; return; }
+    pendingCode = text;
+    $('manifest-preview').innerHTML = (man.icon || '📦') + ' <b>' + esc(man.name || man.id) + '</b> <span class="pill">v' + esc(man.version || '1.0') + '</span><br><span style="font-size:11px">id: ' + esc(man.id) + ' · by ' + esc(man.author || '?') + '</span>';
+    status($('up-status'), '', '');
+    $('btn-publish').disabled = false;
+  }
+
+  async function publish(){
+    if (!pendingCode) return;
+    status($('up-status'), 'Publishing…', 'info');
+    var d = await api('/api/mods/upload', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ code: pendingCode }) });
+    if (d && d.ok) {
+      status($('up-status'), '✅ "' + d.mod.name + '" v' + d.mod.version + ' is live!', 'ok');
+      pendingCode = ''; $('btn-publish').disabled = true; $('up-filename').textContent = 'No file chosen.'; $('manifest-preview').innerHTML = '';
+      refreshMine();
+    } else status($('up-status'), '⚠ ' + ((d && d.reason) || 'Publish failed'), 'err');
+  }
+
+  async function updateMod(id, file){
+    status($('dash-status'), 'Updating ' + id + '…', 'info');
+    var text = await file.text();
+    var d = await api('/api/mods/update', { method: 'POST', headers: authHeaders(), body: JSON.stringify({ id: id, code: text }) });
+    if (d && d.ok) { status($('dash-status'), '✅ Updated to v' + d.mod.version + '.', 'ok'); refreshMine(); }
+    else status($('dash-status'), '⚠ ' + ((d && d.reason) || 'Update failed'), 'err');
+  }
+
+  // ---- wire up ----
+  $('btn-github').addEventListener('click', function(){ pendingProvider = 'github'; oauth('github'); });
+  $('btn-google').addEventListener('click', function(){ pendingProvider = 'google'; oauth('google'); });
+  $('btn-register').addEventListener('click', doRegister);
+  $('btn-login').addEventListener('click', doLogin);
+  $('btn-logout').addEventListener('click', logout);
+  $('btn-link').addEventListener('click', doLink);
+  $('link-instead').addEventListener('click', function(e){ e.preventDefault(); $('link-box').classList.toggle('hidden'); });
+  $('btn-pick').addEventListener('click', function(){ $('mod-file').click(); });
+  $('mod-file').addEventListener('change', function(){ if (this.files && this.files[0]) pickFile(this.files[0]); this.value = ''; });
+  $('btn-publish').addEventListener('click', publish);
+
+  renderAuth();
+  if (authed()) refreshMine();
+})();
+</script>
+</body>
+</html>

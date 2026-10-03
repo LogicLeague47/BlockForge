@@ -94,17 +94,15 @@
 
     <div class="section-title">🌐 COMMUNITY MODS — from players like you <span class="count" id="community-count"></span></div>
     <p class="intro">
-      Community mods are uploaded by the BlockForge community via the form below. They are
-      sandboxed exactly like official mods — a broken mod auto-disables and never harms your
-      worlds — but <b>you install them at your own risk</b>. To make one yourself, see the
-      upload box, or clone any official mod and change the <b>manifest</b>.
+      Community mods are published by registered <b>mod makers</b> and appear here instantly.
+      They are sandboxed exactly like official mods — a broken mod auto-disables and never harms your
+      worlds — but <b>you install them at your own risk</b>. To publish your own, you need a
+      maker account (Google/GitHub sign-in): hit the button below.
     </p>
-    <div class="upload-box" id="upload-box">
-      <h3>⬆ UPLOAD YOUR MOD</h3>
-      <p>Drop a <b>.bfmod</b> file anywhere in this box, or click to browse. The page validates the manifest and makes it downloadable for everyone.</p>
-      <button class="up-btn" id="up-btn">📦 Choose .bfmod file</button>
-      <input type="file" id="up-input" accept=".bfmod,.js,.txt" style="display:none;" />
-      <div class="upload-status" id="up-status"></div>
+    <div class="upload-box" id="maker-box" style="border-color:rgba(170,130,255,.45);background:rgba(30,24,60,.5)">
+      <h3 style="color:#c084fc">🧑‍💻 PUBLISH YOUR OWN MOD</h3>
+      <p>Become a mod maker: sign in, read the requirements, and manage your mods (upload, update, delete) from a professional dashboard. Publishing requires a maker account — anonymous uploads are disabled.</p>
+      <a class="up-btn" style="text-decoration:none;display:inline-block" href="mod-maker.html">🧑‍💻 Become a Mod Maker →</a>
     </div>
     <div class="dl-grid" id="community-grid"><div class="community-empty">Loading community mods…</div></div>
 
@@ -123,15 +121,16 @@
       <p style="font-size:12px;color:var(--muted);line-height:1.7">
         Mods are plain JavaScript ES-modules exporting a <b>manifest</b> and optional
         <b>onLoad()</b>, <b>onTick(dt, api)</b> and <b>onUnload()</b> hooks. Start from any
-        official mod file, read the game API in <b>src/mods.js</b>, then upload your creation below.
-        Community mods appear instantly on this page for everyone to download.
+        official mod file, read the game API in <b>src/mods.js</b>, then publish it from the
+        <a href="mod-maker.html" style="color:#c084fc">Mod Maker page</a> — it appears here
+        instantly for everyone to download.
       </p>
     </div>
 
     <div class="legal">
       <strong>Notes:</strong> on phones/tablets, downloads land in your Downloads folder — pick that file when the importer opens.
-      Mods are stored locally on your device and never uploaded to us — only mods you explicitly <b>upload</b> via the community box are shared.
-      Uploaded mods are sandboxed client-side. BlockForge is not affiliated with Mojang AB or Microsoft.
+      Mods are stored locally on your device and never uploaded to us — only mods you explicitly <b>publish</b> as a signed-in mod maker are shared.
+      Published mods are sandboxed client-side. BlockForge is not affiliated with Mojang AB or Microsoft.
     </div>
   </div>
 
@@ -218,8 +217,9 @@
     }
 
     function downloadURL(mod) {
-      // Prefer the dynamic backend download; fall back to a static file.
-      const base = window.location.origin;
+      // Prefer the dynamic backend download (works for every published mod);
+      // fall back to a static file for bundled community packs.
+      if (mod.id) return 'https://blockforge-api.blockforge.workers.dev/api/mods/download/' + encodeURIComponent(mod.id);
       if (mod.file && mod.url) return mod.url;
       if (mod.file) return 'mods/community/' + mod.file;
       return null;
@@ -230,7 +230,7 @@
       if (!grid) return;
       const list = await fetchCommunityMods();
       if (!list || !list.length) {
-        grid.innerHTML = '<div class="community-empty">No community mods yet. Be the first — upload one above! 🚀</div>';
+        grid.innerHTML = '<div class="community-empty">No community mods yet. <a href="mod-maker.html" style="color:#a8f">Become a mod maker</a> and publish the first! 🚀</div>';
         setCount('community-count', 0, 'uploaded');
         return;
       }
@@ -240,55 +240,9 @@
       setCount('community-count', list.length, 'uploaded');
     }
 
-    // ── Upload ─────────────────────────────────────────────────────────────
-    const box = document.getElementById('upload-box');
-    const input = document.getElementById('up-input');
-    const status = document.getElementById('up-status');
-    document.getElementById('up-btn').addEventListener('click', () => input.click());
-    input.addEventListener('change', () => { if (input.files && input.files[0]) uploadFile(input.files[0]); });
-    box.addEventListener('dragover', (e) => { e.preventDefault(); box.classList.add('dragover'); });
-    box.addEventListener('dragleave', () => box.classList.remove('dragover'));
-    box.addEventListener('drop', (e) => {
-      e.preventDefault();
-      box.classList.remove('dragover');
-      const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
-      if (f) uploadFile(f);
-    });
-
-    function setStatus(msg, ok) {
-      status.textContent = msg || '';
-      status.className = 'upload-status' + (ok == null ? '' : (ok ? ' ok' : ' err'));
-    }
-
-    async function uploadFile(file) {
-      setStatus('Reading ' + file.name + '…');
-      const text = await file.text();
-      setStatus('Uploading ' + file.name + '…');
-      try {
-        // Prefer backend; fall back to static host endpoint if it exists.
-        const endpoints = ['/api/mods/upload', 'https://blockforge-api.blockforge.workers.dev/api/mods/upload'];
-        let done = null;
-        for (const ep of endpoints) {
-          try {
-            const r = await fetch(ep, {
-              method: 'POST',
-              headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-              body: text,
-            });
-            const data = await r.json();
-            if (data && data.ok) { done = data; break; }
-            if (data && data.ok === false) { setStatus('⚠ ' + (data.reason || 'Upload rejected'), false); return; }
-          } catch (_) { /* try next */ }
-        }
-        if (!done) { setStatus('⚠ Could not reach the upload server. Are you online?', false); return; }
-        setStatus('✅ "' + done.mod.name + '" uploaded! Reloading community list…', true);
-        input.value = '';
-        renderCommunity();
-      } catch (e) {
-        setStatus('⚠ ' + (e && e.message ? e.message : 'Upload failed'), false);
-      }
-    }
-
+    // ── Community mods are published from the Mod Maker page ─────────────
+    // (upload/update/delete all require a maker account with a linked
+    // Google/GitHub identity). This page lists + downloads only.
     renderOfficial();
     renderCommunity();
   </script>

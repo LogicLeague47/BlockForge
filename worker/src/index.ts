@@ -8,7 +8,7 @@ import { cors } from 'hono/cors';
 import { mcDevice, mcPollOnce, mcRefreshToken, runXboxStage } from './mc';
 import { icLookupKey, icEmojiFor } from './ic';
 import { IC_PATCH } from './ic-patch';
-import { getAccount as kvGetAccount, putAccount as kvPutAccount, findByIdentity as kvFindByIdentity, galleryList as kvGalleryList, galleryPush as kvGalleryPush, modsList as kvModsList, modsPut as kvModsPut, modsGetFile as kvModsGetFile } from './db';
+import { getAccount as kvGetAccount, putAccount as kvPutAccount, findByIdentity as kvFindByIdentity, galleryList as kvGalleryList, galleryPush as kvGalleryPush, modsList as kvModsList, modsPut as kvModsPut, modsGetFile as kvModsGetFile, modsDelete as kvModsDelete } from './db';
 
 interface Env {
   KV: KVNamespace;
@@ -89,8 +89,8 @@ function htmlEsc(s: string): string {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function oauthPage(provider: string, username: string, error: string | null, origin: string, providerId: string, linked: boolean): string {
-  const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked }).replace(/<\//g, '<\\/').replace(/<!--/g, '<\\!--');
+function oauthPage(provider: string, username: string, error: string | null, origin: string, providerId: string, linked: boolean, makerToken?: string): string {
+  const data = JSON.stringify({ provider, username, error, providerId, linked: !!linked, makerToken: makerToken || '' }).replace(/<\//g, '<\\/').replace(/<!--/g, '<\\!--');
   return `<html><body><script>(function(){ try { window.opener.postMessage(${data}, '${htmlEsc(origin)}'); } catch(e){} window.close(); })();</script><p>${error ? 'Auth failed' : 'Logged in as ' + htmlEsc(username || 'Guest')}. Close this window.</p></body></html>`;
 }
 
@@ -400,6 +400,30 @@ app.post('/api/servers', async (c) => {
 });
 
 // ─── Community mods ──────────────────────────────────────────────────
+// Publishing requires a MAKER account: a game account with a linked GitHub
+// or Google identity (dev/owner bypass). Downloads stay public.
+function isDevish(role: string | null): boolean {
+  return role === 'dev' || role === 'gamedev' || role === 'owner' || role === 'admin';
+}
+
+async function makerAuth(env: Env, c: any): Promise<{ username: string; role: string; dev: boolean } | { error: string; status: number }> {
+  const who = await linkedOrPassword(env, c.req.header('x-bf-name') || '', c.req.header('x-bf-pass') || '', c.req.header('x-bf-identity-type') || '', c.req.header('x-bf-identity-id') || '');
+  if (!who) return { error: 'Mod-maker sign-in required.', status: 403 };
+  const acc = await getAccount(env, who.username);
+  if (!acc) return { error: 'Account not found.', status: 403 };
+  const role = resolveRole(env, who.username, acc.role);
+  if (isDevish(role)) return { username: who.username, role, dev: true };
+  const ids = (acc.identities && typeof acc.identities === 'object' ? acc.identities : {}) as Record<string, string>;
+  if (!ids.github && !ids.google) return { error: 'Link a Google or GitHub identity to publish mods.', status: 403 };
+  return { username: who.username, role, dev: false };
+}
+
+function validMakerName(username: string): string | null {
+  username = String(username || '');
+  if (username.length < 2 || username.length > 16) return 'Username must be 2-16 characters.';
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return 'Username may only contain letters, numbers, and underscores.';
+  return null;
+}
 function parseModManifest(code: string): any {
   if (typeof code !== 'string' || !code.includes('export const manifest')) throw new Error('Not a BlockForge mod: missing "export const manifest".');
   const m = code.match(/export\s+const\s+manifest\s*=\s*\{([\s\S]*?)\};/);
@@ -431,6 +455,10 @@ app.get('/api/mods/versions', async (c) => {
 });
 
 app.post('/api/mods/upload', async (c) => {
+  const ip = clientIp(c);
+  if (!(await rateLimit(c.env, 'mods-upload', ip, 10))) return c.json({ ok: false, reason: 'Too many uploads. Slow down.' }, 429);
+  const maker = await makerAuth(c.env, c);
+  if ('error' in maker) return c.json({ ok: false, reason: maker.error }, (maker as any).status || 403);
   let code = '';
   try {
     const ct = c.req.header('content-type') || '';
@@ -450,12 +478,124 @@ app.post('/api/mods/upload', async (c) => {
     const now = Date.now();
     const prevList = await kvModsList(c.env);
     const prev = prevList.find((m: any) => m && m.id === id);
-    const rec = { id, name: String(meta.name).slice(0, 80), version: String(meta.version).slice(0, 16), description: String(meta.description).slice(0, 500), author: String(meta.author).slice(0, 48), icon: String(meta.icon).slice(0, 8), file: id + '.bfmod', uploadedAt: (prev && prev.uploadedAt) || now, updatedAt: now };
+    if (prev && prev.uploader && prev.uploader !== maker.username && !maker.dev) throw new Error(`Mod id "${id}" is taken by ${prev.uploader}.`);
+    const rec = { id, name: String(meta.name).slice(0, 80), version: String(meta.version).slice(0, 16), description: String(meta.description).slice(0, 500), author: String(meta.author).slice(0, 48), icon: String(meta.icon).slice(0, 8), file: id + '.bfmod', uploader: (prev && prev.uploader) || maker.username, uploadedAt: (prev && prev.uploadedAt) || now, updatedAt: now };
     await kvModsPut(c.env, rec, code);
     return c.json({ ok: true, mod: rec });
   } catch (e: any) {
     return c.json({ ok: false, reason: (e && e.message) || 'Invalid request' }, 400);
   }
+});
+
+// Update an owned mod (new code file; id must match, version should change).
+app.post('/api/mods/update', async (c) => {
+  const ip = clientIp(c);
+  if (!(await rateLimit(c.env, 'mods-upload', ip, 20))) return c.json({ ok: false, reason: 'Too many uploads. Slow down.' }, 429);
+  const maker = await makerAuth(c.env, c);
+  if ('error' in maker) return c.json({ ok: false, reason: maker.error }, (maker as any).status || 403);
+  let body: any = {};
+  try { body = await readJson(c, 512 * 1024 + 1024); } catch { body = {}; }
+  const id = String(body.id || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  const code = String(body.code || body.mod || '');
+  try {
+    if (!id) throw new Error('Missing mod id.');
+    if (!code || code.length > 512 * 1024) throw new Error('Mod is empty or too large (max 512KB).');
+    const prevList = await kvModsList(c.env);
+    const prev = prevList.find((m: any) => m && m.id === id);
+    if (!prev) throw new Error('Mod not found. Upload it first.');
+    if (prev.uploader && prev.uploader !== maker.username && !maker.dev) throw new Error('Only the owner can update this mod.');
+    const meta = parseModManifest(code);
+    const parsedId = meta.id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+    if (parsedId !== id) throw new Error('Manifest id does not match.');
+    const now = Date.now();
+    const rec = { id, name: String(meta.name).slice(0, 80), version: String(meta.version).slice(0, 16), description: String(meta.description).slice(0, 500), author: String(meta.author).slice(0, 48), icon: String(meta.icon).slice(0, 8), file: id + '.bfmod', uploader: prev.uploader || maker.username, uploadedAt: prev.uploadedAt || now, updatedAt: now };
+    await kvModsPut(c.env, rec, code);
+    return c.json({ ok: true, mod: rec });
+  } catch (e: any) {
+    return c.json({ ok: false, reason: (e && e.message) || 'Invalid request' }, 400);
+  }
+});
+
+// Delete an owned mod (removes listing + file).
+app.post('/api/mods/delete', async (c) => {
+  const maker = await makerAuth(c.env, c);
+  if ('error' in maker) return c.json({ ok: false, reason: maker.error }, (maker as any).status || 403);
+  let body: any = {};
+  try { body = await readJson(c, 8192); } catch { body = {}; }
+  const id = String(body.id || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 48);
+  try {
+    if (!id) throw new Error('Missing mod id.');
+    const prevList = await kvModsList(c.env);
+    const prev = prevList.find((m: any) => m && m.id === id);
+    if (!prev) throw new Error('Mod not found.');
+    if (prev.uploader && prev.uploader !== maker.username && !maker.dev) throw new Error('Only the owner can delete this mod.');
+    await kvModsDelete(c.env, id);
+    return c.json({ ok: true, id });
+  } catch (e: any) {
+    return c.json({ ok: false, reason: (e && e.message) || 'Invalid request' }, 400);
+  }
+});
+
+// The maker's own mods (dashboard).
+app.get('/api/mods/mine', async (c) => {
+  const maker = await makerAuth(c.env, c);
+  if ('error' in maker) return c.json({ ok: false, reason: maker.error }, (maker as any).status || 403);
+  const list = await kvModsList(c.env);
+  const mine = maker.dev ? list : list.filter((m: any) => m && m.uploader === maker.username);
+  return c.json({ ok: true, username: maker.username, mods: mine });
+});
+
+// Register (or sign in to) a maker account with a verified provider token.
+// The token is issued by the OAuth callback after Google/GitHub verification,
+// so provider ids are never trusted from the client.
+app.post('/api/mods/maker-register', async (c) => {
+  const ip = clientIp(c);
+  if (!(await rateLimit(c.env, 'maker-register', ip, 10))) return c.json({ ok: false, reason: 'Too many attempts. Slow down.' }, 429);
+  let body: any = {};
+  try { body = await readJson(c, 8192); } catch { body = {}; }
+  const username = String(body.username || '');
+  const password = String(body.password || '');
+  const makerToken = String(body.makerToken || '');
+  try {
+    const nameErr = validMakerName(username);
+    if (nameErr) throw new Error(nameErr);
+    if (!password || password.length < 3) throw new Error('Password must be at least 3 characters.');
+    if (!makerToken) throw new Error('Missing verification. Sign in with Google or GitHub first.');
+    let tok: any = null;
+    try { tok = JSON.parse((await c.env.KV.get('mk:' + makerToken)) || 'null'); } catch { tok = null; }
+    if (!tok || (tok.provider !== 'github' && tok.provider !== 'google') || !tok.providerId) throw new Error('Verification expired. Sign in again.');
+    await c.env.KV.delete('mk:' + makerToken);
+    const provider = tok.provider, providerId = tok.providerId;
+    const linkedName = await findByIdentity(c.env, provider, providerId);
+    if (linkedName) {
+      if (linkedName !== username) throw new Error(`That ${provider} account is already linked to "${linkedName}".`);
+      const login = await authAccount(c.env, username, password, 'login');
+      if (!login.ok) throw new Error(login.reason || 'Sign-in failed.');
+      return c.json({ ok: true, username, provider, providerId });
+    }
+    const existing = await getAccount(c.env, username);
+    if (existing) throw new Error('Username already taken. Log in instead.');
+    const salt = randHex(16);
+    const hash = await pbkdf(password, salt);
+    const ids: Record<string, string> = {};
+    ids[provider] = providerId;
+    await kvPutAccount(c.env, { username, hash, salt, role: 'player', tag: '', identities: ids });
+    return c.json({ ok: true, username, provider, providerId });
+  } catch (e: any) {
+    return c.json({ ok: false, reason: (e && e.message) || 'Invalid request' }, 400);
+  }
+});
+
+// Issue a one-time link token for an existing password account so the maker
+// page can open /auth/:provider?linkToken=… and attach Google/GitHub to it.
+app.post('/api/mods/maker-link-token', async (c) => {
+  let body: any = {};
+  try { body = await readJson(c, 8192); } catch { body = {}; }
+  const login = await authAccount(c.env, String(body.username || ''), String(body.password || ''), 'login');
+  if (!login.ok || !login.username) return c.json({ ok: false, reason: login.reason || 'Sign-in failed.' }, 403);
+  const tok = randHex(16);
+  await c.env.KV.put('link:' + tok, JSON.stringify({ username: login.username }), { expirationTtl: 600 });
+  return c.json({ ok: true, linkToken: tok, username: login.username });
 });
 
 app.get('/api/mods/download/:id', async (c) => {
@@ -824,6 +964,7 @@ app.get('/auth/:provider', async (c) => {
   }
   const gameOrigin = qs.get('origin') || '*';
   const linkToken = qs.get('linkToken') || '';
+  const purpose = qs.get('purpose') || '';
   const url = new URL(c.req.url);
   const redirectUri = `${url.origin}/auth/${provider}/callback`;
   const state = randHex(16);
@@ -831,7 +972,7 @@ app.get('/auth/:provider', async (c) => {
   crypto.getRandomValues(verifierBytes);
   const verifier = b64urlEncode(verifierBytes.buffer);
   const challenge = b64urlEncode(await crypto.subtle.digest('SHA-256', te.encode(verifier)));
-  await c.env.KV.put('oauth:' + state, JSON.stringify({ origin: gameOrigin, linkToken, verifier, createdAt: Date.now() }), { expirationTtl: 600 });
+  await c.env.KV.put('oauth:' + state, JSON.stringify({ origin: gameOrigin, linkToken, purpose, verifier, createdAt: Date.now() }), { expirationTtl: 600 });
   const authUrl = `${cfg.authUrl}?client_id=${creds.id}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(cfg.scope)}&state=${state}&response_type=code&code_challenge=${challenge}&code_challenge_method=S256`;
   return c.redirect(authUrl, 302);
 });
@@ -868,6 +1009,14 @@ app.get('/auth/:provider/callback', async (c) => {
     const providerId = parsed.providerId || parsed.username || userData.sub || '';
     const rawUsername = parsed.username || '';
     const safe = rawUsername ? rawUsername.replace(/[^a-zA-Z0-9_ -]/g, '').slice(0, 20) : 'Player';
+    // Mod-maker registration: prove provider ownership with a single-use
+    // token instead of trusting client-supplied identity ids.
+    if (stored.purpose === 'maker' && (provider === 'github' || provider === 'google')) {
+      const mk = randHex(16);
+      await c.env.KV.put('mk:' + mk, JSON.stringify({ provider, providerId, createdAt: Date.now() }), { expirationTtl: 600 });
+      const existingMaker = await findByIdentity(c.env, provider, providerId);
+      return new Response(oauthPage(provider, existingMaker || safe, null, gameOrigin, providerId, !!existingMaker, mk), { headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    }
     if (stored.linkToken) {
       const sessRaw = await c.env.KV.get('link:' + stored.linkToken);
       if (!sessRaw) {

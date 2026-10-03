@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Mod Maker program: accounts + dashboard',
+          desc: 'New Mod Maker page: Google/GitHub sign-in, maker requirements with manifest template, and a dashboard to publish, update, delete and track your own mods. Publishing now requires a maker account with a linked identity — anonymous uploads are gone (mods page links over).',
+          date: 'Oct 3',
+          bugs: ['anyone could upload/overwrite any community mod id with no account', 'published-mod downloads could 404'],
+          updates: ['maker auth gate on upload/update/delete + id ownership', 'mods page upload box replaced by maker CTA', 'community downloads served from the backend'],
+          features: ['mod-maker.html dashboard', 'Google/GitHub maker registration', 'my-mods update/delete'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Held blocks rebuilt + tinted hands',
           desc: 'First-person held blocks now use exact per-face textures (no more stretched faces), classic smaller hold, and match world tints — grass and leaves in hand stay green with custom packs. Same tint fix for third-person held blocks.',
           date: 'Oct 3',

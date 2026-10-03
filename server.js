@@ -1799,13 +1799,21 @@ const server = http.createServer((req, res) => {
       'Content-Type': 'application/json',
       'Access-Control-Allow-Origin': corsOrigin,
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Headers': 'Content-Type, x-bf-name, x-bf-pass',
     });
     let body = '';
     let bodyBytes = 0;
     req.on('data', chunk => { body += chunk; bodyBytes += chunk.length; if (bodyBytes > 512 * 1024) { req.destroy(); } });
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
+        // Publishing requires a signed-in account — no anonymous uploads.
+        const upName = String(req.headers['x-bf-name'] || '');
+        const upPass = String(req.headers['x-bf-pass'] || '');
+        const auth = await authAccount(upName, upPass, 'login');
+        if (!auth.ok) {
+          res.end(JSON.stringify({ ok: false, reason: 'Mod-maker sign-in required.' }));
+          return;
+        }
         const result = addCommunityMod(body);
         res.end(JSON.stringify(result));
       } catch (e) {

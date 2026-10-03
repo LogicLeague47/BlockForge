@@ -89,3 +89,10 @@ export async function modsPut(env: KvEnv, meta: any, code: string): Promise<void
 export async function modsGetFile(env: KvEnv, id: string): Promise<string | null> {
   try { return await env.KV.get('modfile:' + id); } catch { return null; }
 }
+
+export async function modsDelete(env: KvEnv, id: string): Promise<void> {
+  try { await env.KV.delete('modfile:' + id); } catch { /* ignore */ }
+  let idx: any[] = (await kvJson(env, 'mods:index')) || [];
+  idx = idx.filter((m: any) => m && m.id !== id);
+  await env.KV.put('mods:index', JSON.stringify(idx));
+}
