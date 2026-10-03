@@ -16,6 +16,12 @@ npm run build
 - War chests: earned on wave/raid wins, Common→Legendary with pity (Epic every 10, Legendary every 25), loot = gold/elixir + leveled troops
 - Hero Starfall: big button + H key, 40s cooldown, meteors nuke swarm (defend) or defenses (raid)
 
+## P2 scope (this build)
+- Daily raid seed: same base for everyone each day (seeded RNG), 1 try/day, streak 🔥 bonus (+3🏆/streak, +15🪙/streak)
+- Leagues: Wood→Legend (6 tiers), loot bonus 0→50%, badge in topbar + next-league hint
+- Collection: 45 entries (towers/troops/waves/raids/chests), live % + milestone claims at 25/50/75/100%
+- Second builder: hire for 150🏆, true 2-slot parallel queue, all timers multi-slot
+
 ## Models / CC0
 All models are procedural cartoonish placeholders built in `src/models.js`.
 To swap to free CC0 packs later (no licensing risk):

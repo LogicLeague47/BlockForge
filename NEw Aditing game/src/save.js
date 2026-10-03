@@ -1,6 +1,6 @@
 // Standalone save — localStorage only, zero BlockForge deps.
-const KEY = 'mergekeep_p1_v1';
-const OLD_KEYS = ['mergekeep_p0_v1'];
+const KEY = 'mergekeep_p2_v1';
+const OLD_KEYS = ['mergekeep_p1_v1', 'mergekeep_p0_v1'];
 export const GRID = 16;
 
 export function defaultState() {
@@ -30,6 +30,13 @@ export function defaultState() {
     pity: 0,
     heroLevel: 1,
     lastSeen: Date.now(),
+    // P2
+    buildQueue: [], // [{kind,toLevel,finishesAt}]
+    buildersUnlocked: 1,
+    daily: { date: '', done: false, streak: 0, lastDate: '' },
+    seenChest: {}, // {Common: n, ...}
+    raidStars: {}, // {baseName: bestStars}
+    collClaimed: [], // [pct...]
     towers, walls,
     army: { grunt: { 1: 6 }, archer: { 1: 6 }, giant: { 1: 3 } },
     selected: null
@@ -40,13 +47,22 @@ function migrate(old) {
   const d = defaultState();
   const s = { ...d, ...old };
   s.th = { ...d.th, ...(old.th || {}) };
-  s.builder = old.builder || null;
+  // P1 single-builder -> P2 queue
+  if (Array.isArray(old.buildQueue)) s.buildQueue = old.buildQueue;
+  else if (old.builder) s.buildQueue = [old.builder];
+  else s.buildQueue = d.buildQueue;
+  s.builder = null;
   s.chests = Array.isArray(old.chests) ? old.chests : [];
   s.army = old.army || d.army;
   if (!s.thLevel) s.thLevel = 1;
   if (!s.mineLevel) s.mineLevel = 1;
   if (typeof s.pity !== 'number') s.pity = 0;
   if (typeof s.lastSeen !== 'number') s.lastSeen = Date.now();
+  if (!s.buildersUnlocked) s.buildersUnlocked = 1;
+  if (!s.daily) s.daily = d.daily;
+  if (!s.seenChest) s.seenChest = {};
+  if (!s.raidStars) s.raidStars = {};
+  if (!s.collClaimed) s.collClaimed = [];
   return s;
 }
 

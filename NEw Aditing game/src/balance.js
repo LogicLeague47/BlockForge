@@ -78,3 +78,48 @@ export function chestLoot(rarity) {
 }
 // ---- P1: Hero Starfall ----
 export const HERO = { cooldownSec: 40, defendDmg: 220, raidDmg: 320, healPct: 0 };
+
+// ---- P2: leagues / daily / collection / second builder ----
+export const LEAGUES = [
+  { min: 0,   name: 'Wood',    icon: '🪵', bonus: 0 },
+  { min: 50,  name: 'Bronze',  icon: '🥉', bonus: 0.05 },
+  { min: 120, name: 'Silver',  icon: '🥈', bonus: 0.10 },
+  { min: 250, name: 'Gold',    icon: '🥇', bonus: 0.20 },
+  { min: 450, name: 'Crystal', icon: '💎', bonus: 0.35 },
+  { min: 700, name: 'Legend',  icon: '👑', bonus: 0.50 },
+];
+export function leagueOf(trophies) {
+  let cur = LEAGUES[0];
+  for (const l of LEAGUES) if (trophies >= l.min) cur = l;
+  const idx = LEAGUES.indexOf(cur);
+  const next = LEAGUES[idx + 1] || null;
+  return { ...cur, next };
+}
+export const SECOND_BUILDER_TROPHIES = 150;
+// Seeded daily base: same map for everyone each day, scales with progress
+function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+function mulberry(seed) { let a = seed >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+export function todayKey(d = new Date()) { return d.toISOString().slice(0, 10); }
+export function dailyBase(dateKey, power = 1) {
+  const rnd = mulberry(hashStr('keep' + dateKey));
+  const types = ['arrow', 'cannon', 'frost'];
+  const n = 3 + Math.floor(rnd() * 3) + Math.min(2, Math.floor(power / 2));
+  const towers = []; const used = new Set(['7,7']);
+  for (let i = 0; i < n; i++) {
+    let gx = 4 + Math.floor(rnd() * 8), gz = 4 + Math.floor(rnd() * 8);
+    if (used.has(gx + ',' + gz)) continue;
+    used.add(gx + ',' + gz);
+    towers.push({ type: types[Math.floor(rnd() * types.length)], level: 1 + Math.floor(rnd() * Math.min(3, 1 + power)), x: gx, z: gz });
+  }
+  const walls = [];
+  for (let i = 0; i < 4; i++) walls.push({ x: 6 + Math.floor(rnd() * 4), z: 6 + Math.floor(rnd() * 4) });
+  return { name: `Daily ${dateKey}`, trophies: 25, towers, walls, daily: true };
+}
+// Collection catalog size: towers 3x5 + troops 3x5 + waves 8 + raids 3 + chests 4 = 45
+export const COLL_TOTAL = 3 * 5 + 3 * 5 + 8 + 3 + 4;
+export const COLL_MILESTONES = [
+  { pct: 25, gold: 300, elixir: 150 },
+  { pct: 50, gold: 700, elixir: 350 },
+  { pct: 75, gold: 1500, elixir: 800 },
+  { pct: 100, gold: 3000, elixir: 1500 },
+];

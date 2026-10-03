@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { GRID, load, save, uid } from './save.js';
-import { TOWERS, TROOPS, MAX_LVL, RAID_BASES, towerStats, TH_LEVELS, MAX_TH, MINE_LEVELS, MAX_MINE, rollChestRarity, chestLoot, HERO } from './balance.js';
+import { TOWERS, TROOPS, MAX_LVL, RAID_BASES, towerStats, TH_LEVELS, MAX_TH, MINE_LEVELS, MAX_MINE, rollChestRarity, chestLoot, HERO, LEAGUES, leagueOf, SECOND_BUILDER_TROPHIES, todayKey, dailyBase, COLL_TOTAL, COLL_MILESTONES } from './balance.js';
 import { makeCamera, lights } from './camera.js';
 import { BaseView } from './world.js';
 import { Battle } from './battle.js';
@@ -182,19 +182,26 @@ function renderDock() {
   }
   if (mode === 'build') {
     const thC = TH_LEVELS[state.thLevel || 1], thN = TH_LEVELS[Math.min(MAX_TH, (state.thLevel || 1) + 1)];
-    const h = mk(`🏰 Town Hall Lv${state.thLevel || 1} (cap ${thC.towerCap} towers)`);
+    const lg0 = leagueOf(state.trophies || 0);
+    const h = mk(`🏰 Town Hall Lv${state.thLevel || 1} (cap ${thC.towerCap}) ${lg0.icon}${lg0.name} +${Math.round(lg0.bonus * 100)}%`);
     if ((state.thLevel || 1) < MAX_TH) btn(h, `⬆ TH → Lv${(state.thLevel || 1) + 1} ${thN.costGold}🪙 ${thN.costElixir}🧪 ${thN.timeSec}s`, startTHUpgrade, { disabled: builderBusy() });
     else h.innerHTML += `<div style="font-size:12px;opacity:.8">MAXED 👑</div>`;
     const mi = MINE_LEVELS[state.mineLevel || 1];
-    const mיקה = mk(`⛏️ Mine Lv${state.mineLevel || 1} (+${mi.gold}🪙/5s)`);
+    const mineCard = mk(`⛏️ Mine Lv${state.mineLevel || 1} (+${mi.gold}🪙/5s)`);
     if ((state.mineLevel || 1) < MAX_MINE) {
       const nx = MINE_LEVELS[(state.mineLevel || 1) + 1];
-      btn(mיקה, `⬆ Mine → Lv${(state.mineLevel || 1) + 1} ${nx.costGold}🪙`, startMineUpgrade, { disabled: builderBusy() });
+      btn(mineCard, `⬆ Mine → Lv${(state.mineLevel || 1) + 1} ${nx.costGold}🪙`, startMineUpgrade, { disabled: builderBusy() });
     }
-    if (builderBusy()) {
-      const b = mk('🔨 Builder');
-      b.innerHTML += `<div style="font-size:12px">${builderLabel()}</div>`;
-      btn(b, '⚡ Finish now (🧪)', finishBuilderNow);
+    const bq = mk(`👷 Builders (${(state.buildQueue || []).length}/${builderSlots()})`);
+    if (builderBusy()) bq.innerHTML += `<div style="font-size:12px">${builderLabel()}</div>`;
+    btn(bq, '⚡ Finish first (🧪)', finishBuilderNow, { disabled: !(state.buildQueue || []).length });
+    if ((state.buildersUnlocked || 1) < 2) btn(bq, `👷 Hire 2nd (${SECOND_BUILDER_TROPHIES}🏆)`, unlockSecondBuilder);
+    else bq.innerHTML += `<div style="font-size:12px;opacity:.8">2 builders 👷👷</div>`;
+    const coll = collectionPct();
+    const cc = mk(`📚 Collection ${coll.pct}% (${coll.got}/${coll.total})`);
+    for (const mst of COLL_MILESTONES) {
+      const claimed = (state.collClaimed || []).includes(mst.pct);
+      btn(cc, claimed ? `✅ ${mst.pct}% claimed` : `Claim ${mst.pct}% +${mst.gold}🪙`, () => claimColl(mst.pct), { disabled: claimed || coll.pct < mst.pct });
     }
     const c = mk('🔨 Build (click tile)');
     const unlocked = new Set(thC.unlocks);
@@ -217,14 +224,25 @@ function renderDock() {
       btn(a, `${k}: ${txt} → merge`, () => mergeTroops(k));
     }
   } else if (mode === 'defend') {
+    const lg = leagueOf(state.trophies || 0);
     const next = Math.min(8, state.wave + 1);
-    const c = mk(`🌙 Swarm Nights — cleared ${state.wave}/8`);
+    const c = mk(`🌙 Swarm Nights — cleared ${state.wave}/8 ${lg.icon}${lg.name}`);
     btn(c, next > 8 ? 'All cleared! Replay N8' : `▶ Start Wave ${next}`, () => startDefend(next));
-    const t = mk('Tip');
-    t.innerHTML += `<div style="font-size:12px;opacity:.8">Merge towers first. Frost slows brutes. Cannons splash packs.</div>`;
+    const t = mk(`🏅 League ${lg.icon} ${lg.name} (+${Math.round(lg.bonus * 100)}% loot)`);
+    t.innerHTML += lg.next ? `<div style="font-size:12px;opacity:.8">Next: ${lg.next.icon} ${lg.next.name} at ${lg.next.min}🏆</div>` : `<div style="font-size:12px">MAX LEAGUE 👑</div>`;
+    const tp = mk('Tip');
+    tp.innerHTML += `<div style="font-size:12px;opacity:.8">Merge towers first. Frost slows brutes. Cannons splash packs.</div>`;
   } else {
-    const c = mk('⚔️ Raid ghosts (you deploy!)');
-    RAID_BASES.forEach((g, i) => btn(c, `${g.name} +${g.trophies}🏆`, () => startRaid(i)));
+    const lg2 = leagueOf(state.trophies || 0);
+    const dd = dailyStatus();
+    const dc = mk(`📅 Daily ${todayKey()} ${dd.done ? '✅' : ''} 🔥x${dd.streak || 0}`);
+    btn(dc, dd.done ? 'Cleared — back tomorrow!' : `▶ Play daily (+25🏆, streak bonus)`, startDaily, { disabled: dd.done || battling });
+    dc.innerHTML += `<div style="font-size:12px;opacity:.8">Same base for everyone today. 1 try.</div>`;
+    const c = mk(`⚔️ Raid ghosts ${lg2.icon}${lg2.name} (+${Math.round(lg2.bonus * 100)}%)`);
+    RAID_BASES.forEach((g, i) => {
+      const best = (state.raidStars || {})[g.name] || 0;
+      btn(c, `${g.name} +${g.trophies}🏆 ${best ? '★'.repeat(best) : ''}`, () => startRaid(i));
+    });
     const a = mk('Barracks');
     for (const k of Object.keys(TROOPS)) {
       const bag = state.army[k] || {};
@@ -278,32 +296,46 @@ function recruit(type) {
   sfx.coin(); persist();
 }
 
-// ---------- P1: builders / TH / mine ----------
-function builderBusy() { return !!(state.builder && state.builder.finishesAt > Date.now()); }
+// ---------- P1/P2: builders (multi-slot queue) ----------
+function builderSlots() { return state.buildersUnlocked || 1; }
+function pruneQueue() { state.buildQueue = (state.buildQueue || []).filter(Boolean); }
+function builderBusy() { pruneQueue(); return state.buildQueue.length >= builderSlots(); }
 function builderLabel() {
-  if (!state.builder) return null;
-  const s = Math.max(0, Math.ceil((state.builder.finishesAt - Date.now()) / 1000));
-  const nm = state.builder.kind === 'th' ? `TH → Lv${state.builder.toLevel}` : `Mine → Lv${state.builder.toLevel}`;
-  return `🔨 ${nm} — ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  pruneQueue();
+  if (!state.buildQueue.length) return null;
+  const parts = state.buildQueue.map(b => {
+    const s = Math.max(0, Math.ceil((b.finishesAt - Date.now()) / 1000));
+    const nm = b.kind === 'th' ? `TH→Lv${b.toLevel}` : `Mine→Lv${b.toLevel}`;
+    return `${nm} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  });
+  return `🔨 ${parts.join(' • ')} (${state.buildQueue.length}/${builderSlots()})`;
 }
 function tickBuilder() {
-  if (state.builder && state.builder.finishesAt <= Date.now()) {
-    const b = state.builder; state.builder = null;
-    if (b.kind === 'th') {
-      state.thLevel = b.toLevel;
-      state.th.hp = (TH_LEVELS[state.thLevel] || TH_LEVELS[1]).hp;
-      sfx.build(); toast(`🏰 Town Hall Lv${state.thLevel}! Unlocked: ${TH_LEVELS[state.thLevel].unlocks.join(', ')}`);
-    } else if (b.kind === 'mine') {
-      state.mineLevel = b.toLevel;
-      sfx.build(); toast(`⛏️ Mine Lv${state.mineLevel}! Income up`);
+  pruneQueue();
+  let changed = false;
+  const now = Date.now();
+  const done = state.buildQueue.filter(b => b.finishesAt <= now);
+  if (done.length) {
+    state.buildQueue = state.buildQueue.filter(b => b.finishesAt > now);
+    for (const b of done) {
+      if (b.kind === 'th') {
+        state.thLevel = b.toLevel;
+        state.th.hp = (TH_LEVELS[state.thLevel] || TH_LEVELS[1]).hp;
+        sfx.build(); toast(`🏰 Town Hall Lv${state.thLevel}! Unlocked: ${TH_LEVELS[state.thLevel].unlocks.join(', ')}`);
+      } else if (b.kind === 'mine') {
+        state.mineLevel = b.toLevel;
+        sfx.build(); toast(`⛏️ Mine Lv${state.mineLevel}! Income up`);
+      }
+      changed = true;
     }
     persist();
+    return;
   }
   const el = document.getElementById('builderbar');
   if (el) {
     const l = builderLabel();
     el.style.display = l ? 'block' : 'none';
-    if (l) el.textContent = l + ' • finish now with 🧪';
+    if (l) el.textContent = l + ' • tap: finish first with 🧪';
   }
   const hb = document.getElementById('herobtn');
   if (hb && battling) {
@@ -311,36 +343,128 @@ function tickBuilder() {
     hb.disabled = left > 0;
     hb.textContent = left > 0 ? `☄️ Starfall ${left}s` : '☄️ STARFALL (H)';
   }
+  void changed;
+}
+function queueBuild(kind, toLevel, timeSec) {
+  pruneQueue();
+  state.buildQueue.push({ kind, toLevel, finishesAt: Date.now() + timeSec * 1000 });
 }
 function startTHUpgrade() {
   const next = (state.thLevel || 1) + 1;
   if (next > MAX_TH) return toast('TH maxed!');
-  if (builderBusy()) return toast('Builder busy — tap builder bar to finish with 🧪');
+  if (builderBusy()) return toast('Builders busy — tap builder bar to finish with 🧪');
   const cfg = TH_LEVELS[next];
   if (state.gold < cfg.costGold || state.elixir < cfg.costElixir) return toast(`Need ${cfg.costGold}🪙 ${cfg.costElixir}🧪`);
   state.gold -= cfg.costGold; state.elixir -= cfg.costElixir;
-  state.builder = { kind: 'th', toLevel: next, finishesAt: Date.now() + cfg.timeSec * 1000 };
+  queueBuild('th', next, cfg.timeSec);
   sfx.build(); toast(`🔨 TH upgrading → Lv${next} (${cfg.timeSec}s)`); persist();
 }
 function startMineUpgrade() {
   const next = (state.mineLevel || 1) + 1;
   if (next > MAX_MINE) return toast('Mine maxed!');
-  if (builderBusy()) return toast('Builder busy');
+  if (builderBusy()) return toast('Builders busy');
   const cfg = MINE_LEVELS[next];
   if (state.gold < cfg.costGold || state.elixir < cfg.costElixir) return toast(`Need ${cfg.costGold}🪙 ${cfg.costElixir}🧪`);
   state.gold -= cfg.costGold; state.elixir -= cfg.costElixir;
-  state.builder = { kind: 'mine', toLevel: next, finishesAt: Date.now() + cfg.timeSec * 1000 };
+  queueBuild('mine', next, cfg.timeSec);
   sfx.build(); persist();
 }
 function finishBuilderNow() {
-  if (!state.builder) return;
-  const left = Math.max(1, Math.ceil((state.builder.finishesAt - Date.now()) / 1000));
+  pruneQueue();
+  if (!state.buildQueue.length) return;
+  state.buildQueue.sort((a, b) => a.finishesAt - b.finishesAt);
+  const first = state.buildQueue[0];
+  const left = Math.max(1, Math.ceil((first.finishesAt - Date.now()) / 1000));
   const cost = Math.ceil(left / 10);
   if (state.elixir < cost) return toast(`Need ${cost}🧪 to finish now`);
   state.elixir -= cost;
-  state.builder.finishesAt = Date.now();
+  first.finishesAt = Date.now();
   tickBuilder();
 }
+function unlockSecondBuilder() {
+  if ((state.buildersUnlocked || 1) >= 2) return toast('Already have 2 builders!');
+  if (state.trophies < SECOND_BUILDER_TROPHIES) return toast(`Need ${SECOND_BUILDER_TROPHIES}🏆 (you have ${state.trophies})`);
+  state.buildersUnlocked = 2;
+  sfx.build(); toast('👷 Second builder hired! Two upgrades at once.');
+  persist();
+}
+
+// ---------- P2: leagues ----------
+function leagueBonus() { return leagueOf(state.trophies || 0).bonus; }
+function bonusGold(n) { return Math.round(n * (1 + leagueBonus())); }
+
+// ---------- P2: daily seed + streaks ----------
+function dailyStatus() {
+  const key = todayKey();
+  const d = state.daily || (state.daily = { date: '', done: false, streak: 0, lastDate: '' });
+  if (d.date !== key) {
+    // new day: roll streak (continue if yesterday was lastDate)
+    const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+    d.streak = d.lastDate === y ? (d.streak || 0) : (d.done ? d.streak || 0 : 0);
+    // keep streak value until played; reset display only if gap > 1 day
+    if (d.lastDate !== y && d.date !== '' && d.date !== key) d.pendingStreak = 0;
+    d.date = key; d.done = false;
+  }
+  return d;
+}
+function dailyPower() { return Math.min(4, 1 + Math.floor((state.thLevel || 1) / 2) + Math.floor((state.trophies || 0) / 200)); }
+function startDaily() {
+  const d = dailyStatus();
+  if (d.done) return toast('Daily already cleared — come back tomorrow!');
+  const key = todayKey();
+  const g = dailyBase(key, dailyPower());
+  battling = true; dailyRun = g; renderDock(); showHero();
+  setWaveLabel(`Daily: ${key}`);
+  battle.startRaid(g);
+  toast(`📅 Daily raid — 1 try! Streak x${(d.streak || 0) + 1}. Deploy on edge!`);
+  battle.onEnd = ({ win, stars }) => {
+    battling = false; hideHero(); dailyRun = null;
+    const dd = dailyStatus();
+    dd.done = true;
+    if (win) {
+      const y = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+      dd.streak = dd.lastDate === y ? (dd.streak || 0) + 1 : 1;
+      dd.lastDate = todayKey();
+      const tr = Math.round((g.trophies + dd.streak * 3) * (stars / 3));
+      const gold = bonusGold(200 + stars * 80 + dd.streak * 15);
+      state.gold += gold; state.elixir += 90; state.trophies += tr; state.raidWins++;
+      state.raidStars[g.name] = Math.max(state.raidStars[g.name] || 0, stars);
+      if (stars >= 1) earnChest();
+      sfx.star(); toast(`📅 Daily ${'★'.repeat(stars)}! Streak ${dd.streak}🔥 +${gold}🪙 +${tr}🏆`);
+    } else {
+      dd.lastDate = dd.lastDate; // loss keeps streak pipeline but no increment
+      state.gold += 40; sfx.lose(); toast('Daily failed — streak kept for tomorrow, +40🪙');
+    }
+    state.th.hp = fullTHHp();
+    view.render(state); setWaveLabel('Base'); persist();
+  };
+}
+
+// ---------- P2: collection ----------
+function collectionPct() {
+  let got = 0;
+  for (const t of state.towers) got += 1; // distinct type+level pairs
+  const seen = new Set(state.towers.map(t => t.type + ':' + t.level));
+  got = seen.size;
+  const seenTr = new Set();
+  for (const [ty, bag] of Object.entries(state.army || {})) for (const [l, n] of Object.entries(bag)) if (n > 0) seenTr.add(ty + ':' + l);
+  got += seenTr.size;
+  got += Math.min(8, state.wave || 0);
+  got += Object.keys(state.raidStars || {}).length;
+  got += Object.keys(state.seenChest || {}).length;
+  return { got, total: COLL_TOTAL, pct: Math.min(100, Math.round(got / COLL_TOTAL * 100)) };
+}
+function claimColl(pct) {
+  if ((state.collClaimed || []).includes(pct)) return toast('Already claimed');
+  const c = collectionPct();
+  if (c.pct < pct) return toast(`Need ${pct}% (you have ${c.pct}%)`);
+  const m = COLL_MILESTONES.find(x => x.pct === pct);
+  state.collClaimed.push(pct);
+  state.gold += m.gold; state.elixir += m.elixir;
+  sfx.chest(); toast(`📚 Collection ${pct}%! +${m.gold}🪙 +${m.elixir}🧪`);
+  persist();
+}
+let dailyRun = null;
 
 // ---------- P1: war chests ----------
 function earnChest() {
@@ -354,6 +478,7 @@ function openChest(id) {
   const i = state.chests.findIndex(c => c.id === id);
   if (i < 0) return;
   const [c] = state.chests.splice(i, 1);
+  state.seenChest[c.rarity] = (state.seenChest[c.rarity] || 0) + 1;
   const loot = chestLoot(c.rarity);
   state.gold += loot.gold; state.elixir += loot.elixir;
   const types = Object.keys(TROOPS);
@@ -400,7 +525,7 @@ function startDefend(n) {
   battle.onEnd = ({ win }) => {
     battling = false; hideHero();
     if (win) {
-      const gold = 120 + n * 45, tr = 8 + n * 2;
+      const gold = bonusGold(120 + n * 45), tr = 8 + n * 2;
       state.gold += gold; state.elixir += 40 + n * 12; state.trophies += tr;
       state.wave = Math.max(state.wave, n);
       // heal base to TH max
@@ -425,8 +550,9 @@ function startRaid(i) {
     battling = false; hideHero();
     if (win) {
       const tr = Math.round(g.trophies * (stars / 3));
-      const gold = 150 + stars * 60;
+      const gold = bonusGold(150 + stars * 60);
       state.gold += gold; state.elixir += 60; state.trophies += tr; state.raidWins++;
+      state.raidStars[g.name] = Math.max(state.raidStars[g.name] || 0, stars);
       if (stars >= 1) earnChest();
       sfx.star(); toast(`🏆 ${'★'.repeat(stars)} Victory! +${gold}🪙 +${tr}🏆${stars >= 1 ? ' +🎁' : ''}`);
     } else {
@@ -455,7 +581,7 @@ addEventListener('keydown', e => {
 
 function persist() {
   state.lastSeen = Date.now();
-  save(state); setTopbar(state); view.render(state); renderDock(); tickBuilder();
+  save(state); setTopbar(state, leagueOf(state.trophies || 0)); view.render(state); renderDock(); tickBuilder();
 }
 
 // builder bar element (tap to finish with elixir)
@@ -467,13 +593,14 @@ function persist() {
   document.getElementById('app').appendChild(el);
 })();
 
-// passive income (mine-scaled) + builder tick + hero cooldown
+// passive income (mine-scaled, league-boosted) + builder tick + hero cooldown
 setInterval(() => {
   tickBuilder();
   if (!battling) {
     const rate = MINE_LEVELS[state.mineLevel || 1] || MINE_LEVELS[1];
-    state.gold += rate.gold; state.elixir += rate.elixir;
-    setTopbar(state); save(state);
+    state.gold += bonusGold(rate.gold); state.elixir += rate.elixir;
+    state.lastSeen = Date.now();
+    setTopbar(state, leagueOf(state.trophies || 0)); save(state);
   }
 }, 5000);
 setInterval(tickBuilder, 500);
@@ -490,4 +617,4 @@ function loop() {
   view.group.traverse(o => { if (o.name === 'crystal') o.rotation.y += dt * 2; });
   renderer.render(scene, camera);
 }
-setTopbar(state); renderDock(); persist(); loop();
+setTopbar(state, leagueOf(state.trophies || 0)); dailyStatus(); renderDock(); persist(); loop();
