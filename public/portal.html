@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Clear error for cloud-placeholder uploads',
+          desc: 'Uploading a Skin or Texture Pack that iCloud/Drive has not finished downloading now says exactly that ("download it to this device first") instead of the cryptic not-supported message.',
+          date: 'Oct 3',
+          bugs: ['empty cloud-placeholder uploads failed with "not a supported image or texture-pack zip"'],
+          updates: ['pre-read empty-file + empty-data guards on uploads'],
+          features: [],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Full texture packs: blocks + mobs + items',
           desc: 'Texture packs grow from tiles-only to full v2: tiles/ repaints the atlas (blocks + hands), mobs/ reskins every creature box, items/ replaces all 2D icons everywhere (hotbar, inventory, hands, cursor, drops). Old tile-only zips still apply. Reset restores everything.',
           date: 'Oct 3',

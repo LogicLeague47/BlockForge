@@ -11589,12 +11589,23 @@ function bindCustomMenu(ui) {
   const readFile = (input, isSkin) => {
     const f = input.files && input.files[0];
     if (!f) return;
+    // Cloud placeholders (iCloud/Google Drive not fully downloaded) read as
+    // 0 bytes and would fail server-side with a cryptic message — catch early.
+    if (!f.size) {
+      customStatus('⚠ That file is empty — if it lives in iCloud/Drive, download it to this device first, then upload.', '#f88');
+      input.value = '';
+      return;
+    }
     customStatus('Uploading ' + f.name + '…', '#aaa');
     const rd = new FileReader();
     rd.onerror = () => { customStatus('⚠ Could not read file.', '#f88'); input.value = ''; };
     rd.onload = () => {
       const dataUrl = String(rd.result || '');
       input.value = '';
+      if (dataUrl.length < 100) {
+        customStatus('⚠ That file could not be read (empty?) — download it to this device first, then upload.', '#f88');
+        return;
+      }
       if (isSkin) {
         try { addCustomSkin(dataUrl); } catch (_) {}
         renderCustomSkins();
@@ -11629,8 +11640,12 @@ function bindCustomMenu(ui) {
   if (pi) pi.addEventListener('change', () => readFile(pi, false));
 }
 
-// ── 🎨 Texture-pack engine (live atlas overrides) ───────────────────────
-// Pack format: a .zip of PNGs named by tile (grass_top.png → tile grass_top)
+// ── 🎨 Texture-pack engine (live atlas + mob/item overrides) ────────────
+// Pack v2 format: a .zip with folders (back-compat: root-level tile PNGs):
+//   tiles/<tile>.png            -> block atlas (blocks + hands use the atlas)
+//   mobs/<type>_<part>_<0-5>.png -> mob box textures
+//   items/<itemId>.png          -> 2D item icons (hotbar/inventory/hands/cursor)
+//   items3d/<blockId>.png       -> held 3D block icons
 // plus optional pack.json {"tiles":{"file.png":"tile_name"}} remap. Tiles are
 // painted straight onto the live atlas canvas — chunks need no rebuild, and
 // RESET repaints defaults. Active pack persists and re-applies on boot.
