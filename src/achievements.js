@@ -441,6 +441,14 @@ export const ACHIEVEMENTS = [
     category: 'story',
     check: s => (s.reached2020 || 0) >= 1,
   },
+  {
+    id: 'timeline_complete',
+    name: 'End of Time',
+    desc: 'Finish the 2020 finale and complete The Long Now',
+    icon: ITEM.DRAGON_HEART,
+    category: 'story',
+    check: s => (s.timelineComplete || 0) >= 1,
+  },
 ];
 
 // Categories for display ordering
@@ -498,6 +506,7 @@ export function createStats() {
     questsDone: 0,      // timeline quests completed
     testimonies: 0,     // testimonies witnessed (set, not incremented)
     reached2020: 0,     // reached the final year
+    timelineComplete: 0, // finished the 2020 finale (the ending)
   };
 }
 

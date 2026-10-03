@@ -284,6 +284,15 @@ export const QUESTS = [
       { t: 'collect', item: 7, n: 20, text: 'Scoop 20 red sand' },
       { t: 'travel', dist: 700, text: 'Rove 700 blocks' },
     ], reward: { cells: 2 } },
+  // ——— The finale (2020): eight thousand years end with you. The Dragon
+  // Heart drops only from the Prismite Dragon, which the game sends when this
+  // quest is accepted — finishing it rolls the ending (see main.js victory).
+  { id: 'q-the-long-now', testimony: null, year: 2020, kind: 'finale', title: 'The Long Now',
+    brief: 'Face the guardian out of time. Carry its heart home.',
+    objectives: [
+      { t: 'collect', item: 322, n: 1, text: 'Claim the Dragon Heart' },
+      { t: 'travel', dist: 200, text: 'Walk the quiet streets (200 blocks)' },
+    ], reward: { cells: 5 } },
 ];
 
 export function questForYear(year, skip) {

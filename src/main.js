@@ -3299,8 +3299,33 @@ function applyYearChange(targetYear) {
     try { speak(q.brief, { priority: true }); } catch (_) {}
     try { achievements.incrementStat('questsTaken'); } catch (_) {}
     openCodex();
+    // The finale sends its guardian: the year won't release you until the
+    // Dragon Heart is claimed, so the dragon comes to you.
+    if (q.id === 'q-the-long-now') {
+      addChatLine('🐉 Something ancient tears through the sky above 2020…', '#ff3');
+      try { speak('The guardian out of time has come.', { priority: true }); } catch (_) {}
+      spawnFinaleDragon();
+    }
   }
   try { saveCurrentWorld(); } catch (_) {}
+}
+
+// Spawn the finale guardian (works with or without cheats, single or
+// multiplayer-safe: only the local client sees its own finale fight).
+function spawnFinaleDragon() {
+  try {
+    if (bossActive || !player || !mobManager || !scene) return false;
+    if (player.isDead && player.isDead()) return false;
+    const boss = mobManager.spawnAt('dragon',
+      Math.round(player.position.x), Math.round(player.position.y + 20), Math.round(player.position.z));
+    if (!boss) return false;
+    boss.maxHp = boss.hp;
+    bossActive = true;
+    bossEntity = boss;
+    bossAttackTimer = 2;
+    addChatLine('The Prismite Dragon has appeared!', '#ff3');
+    return true;
+  } catch (_) { return false; }
 }
 
 // ── Year dial + Codex UI ───────────────────────────────────────────
@@ -3473,6 +3498,13 @@ function questTick(dt) {
   }
   const aq = questLog.activeQuest();
   if (!aq) return;
+  // Finale safety net: if the guardian is gone but its heart unclaimed
+  // (reloaded mid-finale), send it again. bossActive guards repeats.
+  try {
+    if (aq.id === 'q-the-long-now' && !bossActive && !bossEntity && player && !(player.isDead && player.isDead())) {
+      spawnFinaleDragon();
+    }
+  } catch (_) {}
   let res = null;
   try { res = questLog.checkDone(aq, questApi()); } catch (e) { console.warn('quest check failed:', e); }
   if (!res) return;
@@ -3505,7 +3537,54 @@ function questTick(dt) {
     addChatLine('📖 Testimony witnessed: ' + res.testimony.title + ' — ' + res.testimony.place + ', ' + formatYear(res.testimony.year) + '.', '#c084fc');
     try { speak('Testimony witnessed. ' + res.testimony.title, { priority: true }); } catch (_) {}
   }
+  // The ending: finishing the 2020 finale rolls credits. Once per world —
+  // checkDone only fires once per quest id, so this can't repeat.
+  if (res.quest.id === 'q-the-long-now') {
+    try { achievements.setStat('timelineComplete', 1); } catch (_) {}
+    try { if (audio && audio.levelUp) audio.levelUp(); } catch (_) {}
+    addChatLine('🏆 THE LONG NOW IS COMPLETE — 8,000 years, one story. Yours.', '#ffd75a');
+    showVictoryScreen();
+  }
   try { saveCurrentWorld(); } catch (_) {}
+}
+
+// ── Timeline ending: victory + credits overlay ─────────────────────────
+function showVictoryScreen() {
+  try {
+    document.getElementById('victory-screen')?.remove();
+    const s = (achievements && achievements.stats) || {};
+    const hrs = s.playTime ? (s.playTime / 3600).toFixed(1) + 'h' : '—';
+    const dist = s.distanceTraveled ? Math.floor(s.distanceTraveled) + ' blocks' : '—';
+    const rows = [
+      ['📜 Quests completed', s.questsDone || questLog.done.length || 0],
+      ['📖 Testimonies', questLog.testimonies.length || 0],
+      ['⏳ Time jumps', s.timeJumps || 0],
+      ['⛏ Blocks broken', s.totalBlocksBroken || 0],
+      ['⚔ Mobs slain', s.mobKillsAny || 0],
+      ['🚶 Distance walked', dist],
+      ['⏱ Time played', hrs],
+    ].map(([k, v]) =>
+      '<div style="display:flex;justify-content:space-between;padding:6px 12px;font:12px monospace;color:#ddd;border-bottom:1px solid rgba(255,255,255,0.08);"><span>' + k + '</span><b style="color:#ffd75a">' + v + '</b></div>'
+    ).join('');
+    const el = document.createElement('div');
+    el.id = 'victory-screen';
+    el.style.cssText = 'position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:rgba(5,5,15,0.88);padding:16px;';
+    el.innerHTML =
+      '<div style="max-width:460px;width:100%;max-height:92vh;overflow-y:auto;background:linear-gradient(180deg,#1a1430,#0d0a1a);border:2px solid #ffd75a;border-radius:14px;padding:28px 26px;text-align:center;font-family:monospace;box-shadow:0 0 60px rgba(255,215,90,0.25);">' +
+      '<div style="font-size:44px;">🏆</div>' +
+      '<div style="font:bold 22px monospace;color:#ffd75a;letter-spacing:2px;margin:8px 0 2px;">THE LONG NOW</div>' +
+      '<div style="font:12px monospace;color:#a8f;letter-spacing:3px;margin-bottom:6px;">— COMPLETE —</div>' +
+      '<div style="font:12px/1.7 monospace;color:#bbb;margin-bottom:14px;">6000 BC → 2020 AD. Every year released,<br>every testimony kept. The timeline is yours.</div>' +
+      '<div style="text-align:left;margin-bottom:16px;border:1px solid rgba(255,215,90,0.25);border-radius:10px;overflow:hidden;">' + rows + '</div>' +
+      '<div style="font:10px/1.8 monospace;color:#777;margin-bottom:16px;">A LogicLeague game<br>Thanks for playing all 8,000 years of it.</div>' +
+      '<button id="victory-keep" style="font:bold 13px monospace;padding:10px 30px;border-radius:8px;border:none;cursor:pointer;background:#3a8a5a;color:#fff;">▶ KEEP PLAYING</button>' +
+      '</div>';
+    document.body.appendChild(el);
+    document.getElementById('victory-keep')?.addEventListener('click', () => {
+      try { el.remove(); } catch (_) {}
+      try { if (typeof ui !== 'undefined' && ui && ui.showMenu) ui.showMenu('main'); } catch (_) {}
+    });
+  } catch (_) {}
 }
 
 function placeBlock(slotOverride, targetHit) {
