@@ -1,6 +1,6 @@
 // Standalone save — localStorage only, zero BlockForge deps.
-const KEY = 'mergekeep_p2_v1';
-const OLD_KEYS = ['mergekeep_p1_v1', 'mergekeep_p0_v1'];
+const KEY = 'mergekeep_p3_v1';
+const OLD_KEYS = ['mergekeep_p2_v1', 'mergekeep_p1_v1', 'mergekeep_p0_v1'];
 export const GRID = 16;
 
 export function defaultState() {
@@ -37,6 +37,10 @@ export function defaultState() {
     seenChest: {}, // {Common: n, ...}
     raidStars: {}, // {baseName: bestStars}
     collClaimed: [], // [pct...]
+    // P3
+    ascension: 0, shards: 0,
+    endlessBest: 0,
+    season: { id: '', xp: 0, tier: 0, claimed: [] },
     towers, walls,
     army: { grunt: { 1: 6 }, archer: { 1: 6 }, giant: { 1: 3 } },
     selected: null
@@ -63,6 +67,10 @@ function migrate(old) {
   if (!s.seenChest) s.seenChest = {};
   if (!s.raidStars) s.raidStars = {};
   if (!s.collClaimed) s.collClaimed = [];
+  if (typeof s.ascension !== 'number') s.ascension = 0;
+  if (typeof s.shards !== 'number') s.shards = 0;
+  if (typeof s.endlessBest !== 'number') s.endlessBest = s.wave || 0;
+  if (!s.season) s.season = d.season;
   return s;
 }
 

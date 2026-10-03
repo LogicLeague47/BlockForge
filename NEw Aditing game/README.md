@@ -16,11 +16,13 @@ npm run build
 - War chests: earned on wave/raid wins, Common→Legendary with pity (Epic every 10, Legendary every 25), loot = gold/elixir + leveled troops
 - Hero Starfall: big button + H key, 40s cooldown, meteors nuke swarm (defend) or defenses (raid)
 
-## P2 scope (this build)
-- Daily raid seed: same base for everyone each day (seeded RNG), 1 try/day, streak 🔥 bonus (+3🏆/streak, +15🪙/streak)
-- Leagues: Wood→Legend (6 tiers), loot bonus 0→50%, badge in topbar + next-league hint
-- Collection: 45 entries (towers/troops/waves/raids/chests), live % + milestone claims at 25/50/75/100%
-- Second builder: hire for 150🏆, true 2-slot parallel queue, all timers multi-slot
+## P3 scope — FULL GAME (this build)
+- 6 towers (Arrow/Cannon/Frost/Mortar/Tesla/Hive) + 6 troops (Grunt/Archer/Giant/Bomber/Healer/Drake), all mergeable L1-5, TH-gated unlocks
+- TH 1-10 + Mine 1-6, tower cap 24, prestige-ready economy
+- Endless waves past 8 with boss every 5 (2.1x brute), best-wave tracked, double chest at 8+
+- Prestige Ascension: needs TH5+Wave8, resets to TH1, +1-12 Star Shards (+6% all power each, forever), keeps collection/season/builders
+- 28-day seasons: XP from every win, 20 tiers, gold/elixir/chest rewards, claimable in Build
+- Hero Starfall Lv1-5 (up to x3.5 dmg), bomber wall-bonus, healer sustain AI
 
 ## Models / CC0
 All models are procedural cartoonish placeholders built in `src/models.js`.

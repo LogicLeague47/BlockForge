@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { GRID, load, save, uid } from './save.js';
-import { TOWERS, TROOPS, MAX_LVL, RAID_BASES, towerStats, TH_LEVELS, MAX_TH, MINE_LEVELS, MAX_MINE, rollChestRarity, chestLoot, HERO, LEAGUES, leagueOf, SECOND_BUILDER_TROPHIES, todayKey, dailyBase, COLL_TOTAL, COLL_MILESTONES } from './balance.js';
+import { GRID, load, save, uid, defaultState } from './save.js';
+import { TOWERS, TROOPS, MAX_LVL, RAID_BASES, towerStats, TH_LEVELS, MAX_TH, MINE_LEVELS, MAX_MINE, rollChestRarity, chestLoot, HERO, HERO_LEVELS, MAX_HERO, LEAGUES, leagueOf, SECOND_BUILDER_TROPHIES, todayKey, dailyBase, COLL_TOTAL, COLL_MILESTONES, ascMult, prestigeReward, seasonId, SEASON_TIERS, seasonXpForTier, seasonReward } from './balance.js';
 import { makeCamera, lights } from './camera.js';
 import { BaseView } from './world.js';
 import { Battle } from './battle.js';
@@ -136,7 +136,7 @@ function tryDeploy({ gx, gz }) {
   if (!lvl) return toast('No troops! Go to Raid menu → Recruit');
   // consume one
   if (!consumeTroop(raidTroop, lvl)) return toast('No troops left');
-  const ok = battle.deployAt(raidTroop, lvl, gx, gz);
+  const ok = battle.deployAt(raidTroop, lvl, gx, gz, state.shards || 0);
   if (!ok) { refundTroop(raidTroop, lvl); return toast('Deploy on the glowing edge ring!'); }
   persist();
 }
@@ -223,15 +223,34 @@ function renderDock() {
       const txt = Object.entries(bag).map(([l, n]) => n ? `L${l}x${n}` : '').filter(Boolean).join(' ') || '—';
       btn(a, `${k}: ${txt} → merge`, () => mergeTroops(k));
     }
+    const hl = (state.heroLevel || 1);
+    const hc = mk(`☄️ Hero Starfall Lv${hl} (x${(HERO_LEVELS[hl] || HERO_LEVELS[1]).dmgMult})`);
+    if (hl < MAX_HERO) {
+      const nx = HERO_LEVELS[hl + 1];
+      btn(hc, `⬆ Hero → Lv${hl + 1} ${nx.costGold}🪙 ${nx.costElixir}🧪`, upgradeHero);
+    } else hc.innerHTML += `<div style="font-size:12px;opacity:.8">MAXED 👑</div>`;
+    const se = ensureSeason();
+    const sc = mk(`🌟 Season ${se.id} Tier ${se.tier}/${SEASON_TIERS} (${se.xp}xp)`);
+    for (let t = 1; t <= Math.min(se.tier + 1, 6); t++) {
+      const claimed = se.claimed.includes(t);
+      const r = seasonReward(t);
+      btn(sc, claimed ? `✅ T${t}` : t <= se.tier ? `Claim T${t} +${r.gold}🪙${r.chest ? '+' + r.chest : ''}` : `T${t} 🔒`, () => claimSeason(t), { disabled: claimed || t > se.tier });
+    }
+    if (se.tier >= 6) sc.innerHTML += `<div style="font-size:12px;opacity:.8">… tiers 7-${SEASON_TIERS} unlock as you earn XP</div>`;
+    const pr = mk(`💫 Ascension ${state.ascension || 0} ✦${state.shards || 0} (x${ascMult(state.shards).toFixed(2)})`);
+    const pw = prestigeReward(state);
+    pr.innerHTML += `<div style="font-size:12px;opacity:.8">Reset to TH1, keep shards/collection. Needs TH5+Wave8.</div>`;
+    btn(pr, `ASCEND → +${pw} shards`, doPrestige, { disabled: (state.thLevel || 1) < 5 || (state.wave || 0) < 8 });
   } else if (mode === 'defend') {
     const lg = leagueOf(state.trophies || 0);
-    const next = Math.min(8, state.wave + 1);
-    const c = mk(`🌙 Swarm Nights — cleared ${state.wave}/8 ${lg.icon}${lg.name}`);
-    btn(c, next > 8 ? 'All cleared! Replay N8' : `▶ Start Wave ${next}`, () => startDefend(next));
+    const next = (state.wave || 0) + 1;
+    const best = Math.max(state.endlessBest || 0, state.wave || 0);
+    const c = mk(`🌙 Swarm Nights — best ${best} ${lg.icon}${lg.name}`);
+    btn(c, `▶ Start Wave ${next}${next > 8 ? ' (ENDLESS)' : ''}${next % 5 === 0 ? ' 👹BOSS' : ''}`, () => startDefend(next));
     const t = mk(`🏅 League ${lg.icon} ${lg.name} (+${Math.round(lg.bonus * 100)}% loot)`);
     t.innerHTML += lg.next ? `<div style="font-size:12px;opacity:.8">Next: ${lg.next.icon} ${lg.next.name} at ${lg.next.min}🏆</div>` : `<div style="font-size:12px">MAX LEAGUE 👑</div>`;
     const tp = mk('Tip');
-    tp.innerHTML += `<div style="font-size:12px;opacity:.8">Merge towers first. Frost slows brutes. Cannons splash packs.</div>`;
+    tp.innerHTML += `<div style="font-size:12px;opacity:.8">Endless past 8. Boss every 5. Mortar splash + Tesla shred packs. Healer sustains raids.</div>`;
   } else {
     const lg2 = leagueOf(state.trophies || 0);
     const dd = dailyStatus();
@@ -430,6 +449,7 @@ function startDaily() {
       state.gold += gold; state.elixir += 90; state.trophies += tr; state.raidWins++;
       state.raidStars[g.name] = Math.max(state.raidStars[g.name] || 0, stars);
       if (stars >= 1) earnChest();
+      addSeasonXp(40 + stars * 20);
       sfx.star(); toast(`📅 Daily ${'★'.repeat(stars)}! Streak ${dd.streak}🔥 +${gold}🪙 +${tr}🏆`);
     } else {
       dd.lastDate = dd.lastDate; // loss keeps streak pipeline but no increment
@@ -493,14 +513,66 @@ function openChest(id) {
   persist();
 }
 
-// ---------- P1: hero ----------
+// ---------- P1/P3: hero ----------
 function fireHero() {
   if (!battling) return;
   if (Date.now() < heroReadyAt) return toast('Starfall recharging…');
   const hits = battle.heroStrike(state.heroLevel || 1);
   heroReadyAt = Date.now() + HERO.cooldownSec * 1000;
-  toast(`☄️ STARFALL! ${hits} targets smashed`);
+  toast(`☄️ STARFALL Lv${state.heroLevel || 1}! ${hits} targets smashed`);
   tickBuilder();
+}
+function upgradeHero() {
+  const next = (state.heroLevel || 1) + 1;
+  if (next > MAX_HERO) return toast('Hero maxed!');
+  const cfg = HERO_LEVELS[next];
+  if (state.gold < cfg.costGold || state.elixir < cfg.costElixir) return toast(`Need ${cfg.costGold}🪙 ${cfg.costElixir}🧪`);
+  state.gold -= cfg.costGold; state.elixir -= cfg.costElixir;
+  state.heroLevel = next;
+  sfx.build(); toast(`☄️ Hero Lv${next}! Damage x${cfg.dmgMult}`);
+  persist();
+}
+
+// ---------- P3: seasons ----------
+function ensureSeason() {
+  const id = seasonId();
+  if (!state.season || state.season.id !== id) state.season = { id, xp: 0, tier: 0, claimed: [] };
+  return state.season;
+}
+function addSeasonXp(n) {
+  const s = ensureSeason();
+  s.xp += n;
+  // level up tiers
+  while (s.tier < SEASON_TIERS && s.xp >= seasonXpForTier(s.tier + 1)) {
+    s.xp -= seasonXpForTier(s.tier + 1);
+    s.tier++;
+    toast(`🌟 Season ${s.id} Tier ${s.tier}! Claim it in Build → Season`);
+  }
+}
+function claimSeason(tier) {
+  const s = ensureSeason();
+  if (tier > s.tier) return toast('Tier not reached yet — win waves/raids/daily for XP');
+  if (s.claimed.includes(tier)) return toast('Already claimed');
+  const r = seasonReward(tier);
+  s.claimed.push(tier);
+  state.gold += r.gold; state.elixir += r.elixir;
+  if (r.chest) state.chests.push({ id: uid('c'), rarity: r.chest });
+  sfx.chest(); toast(`🌟 Season Tier ${tier}: +${r.gold}🪙 +${r.elixir}🧪${r.chest ? ' +' + r.chest : ''}`);
+  persist();
+}
+
+// ---------- P3: prestige Ascension ----------
+function doPrestige() {
+  if ((state.thLevel || 1) < 5 || (state.wave || 0) < 8) return toast('Need TH5 + Wave 8 to Ascend!');
+  const reward = prestigeReward(state);
+  const keep = { shards: (state.shards || 0) + reward, ascension: (state.ascension || 0) + 1, collClaimed: state.collClaimed || [], seenChest: state.seenChest || {}, raidStars: state.raidStars || {}, season: state.season, daily: state.daily, buildersUnlocked: state.buildersUnlocked };
+  const fresh = defaultState();
+  state = { ...fresh, ...keep };
+  state.th.hp = TH_LEVELS[1].hp;
+  save(state);
+  sfx.star();
+  toast(`💫 ASCENSION ${state.ascension}! +${reward} Star Shards (x${ascMult(state.shards).toFixed(2)} all power, kept forever)`);
+  view.render(state); setWaveLabel('Base'); persist();
 }
 
 // ---------- battles ----------
@@ -525,15 +597,19 @@ function startDefend(n) {
   battle.onEnd = ({ win }) => {
     battling = false; hideHero();
     if (win) {
-      const gold = bonusGold(120 + n * 45), tr = 8 + n * 2;
+      const gold = bonusGold(120 + n * 45), tr = 8 + n * 2 + Math.floor(n / 5) * 5;
       state.gold += gold; state.elixir += 40 + n * 12; state.trophies += tr;
       state.wave = Math.max(state.wave, n);
+      state.endlessBest = Math.max(state.endlessBest || 0, n);
       // heal base to TH max
       state.th.hp = fullTHHp();
       earnChest();
+      if (n >= 8) earnChest(); // endless bonus chest
+      addSeasonXp(25 + n * 4);
       sfx.star(); toast(`✅ Wave ${n} cleared! +${gold}🪙 +${tr}🏆 +🎁 chest`);
     } else {
       state.gold += 40; state.th.hp = fullTHHp();
+      addSeasonXp(5);
       sfx.lose(); toast('💀 Core fell — +40🪙 consolation. Merge & retry!');
     }
     view.render(state); setWaveLabel('Base'); persist();
@@ -554,9 +630,10 @@ function startRaid(i) {
       state.gold += gold; state.elixir += 60; state.trophies += tr; state.raidWins++;
       state.raidStars[g.name] = Math.max(state.raidStars[g.name] || 0, stars);
       if (stars >= 1) earnChest();
+      addSeasonXp(30 + stars * 15);
       sfx.star(); toast(`🏆 ${'★'.repeat(stars)} Victory! +${gold}🪙 +${tr}🏆${stars >= 1 ? ' +🎁' : ''}`);
     } else {
-      state.gold += 30; sfx.lose(); toast('Lost the raid — +30🪙. Merge troops higher!');
+      state.gold += 30; addSeasonXp(5); sfx.lose(); toast('Lost the raid — +30🪙. Merge troops higher!');
     }
     state.th.hp = fullTHHp();
     view.render(state); setWaveLabel('Base'); persist();
@@ -617,4 +694,4 @@ function loop() {
   view.group.traverse(o => { if (o.name === 'crystal') o.rotation.y += dt * 2; });
   renderer.render(scene, camera);
 }
-setTopbar(state, leagueOf(state.trophies || 0)); dailyStatus(); renderDock(); persist(); loop();
+setTopbar(state, leagueOf(state.trophies || 0)); dailyStatus(); ensureSeason(); renderDock(); persist(); loop();

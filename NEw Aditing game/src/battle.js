@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { towerStats, troopStats, waveComp, TH_LEVELS, HERO } from './balance.js';
+import { towerStats, troopStats, waveComp, TH_LEVELS, HERO, HERO_LEVELS, ascMult } from './balance.js';
 import { gridToWorld } from './world.js';
 import { makeSwarm, makeTroop } from './models.js';
 import { sfx } from './audio.js';
@@ -35,9 +35,9 @@ export class Battle {
     // defenses from player state
     this.defs = this._defsFromState(state);
     this.th = { ref: state.th };
-    // queue swarm
+    // queue swarm (boss flag preserved)
     for (let i = 0; i < comp.count; i++) {
-      this.spawnQueue.push({ hp: Math.round(55 * comp.hpMul), dmg: Math.round(10 * comp.dmgMul), speed: comp.speed, delay: i * 0.7 });
+      this.spawnQueue.push({ hp: Math.round(55 * comp.hpMul), dmg: Math.round(10 * comp.dmgMul), speed: comp.speed, delay: i * 0.7, boss: comp.boss && i === 0 });
     }
     this.totalDefs = this.defs.length + 1;
     this.destroyed = 0;
@@ -59,10 +59,12 @@ export class Battle {
   }
 
   _defsFromState(state) {
+    const mult = ascMult(state.shards);
     const list = [];
     const mk = (b, isTH = false) => {
       const p = this._gw(b.x, b.z);
-      let st = isTH ? { dmg: 10, range: 6, rate: 1, hp: state.th.hp ?? 1200, slow: 0 } : towerStats(b.type, b.level);
+      let st = isTH ? { dmg: Math.round(10 * mult), range: 6, rate: 1, hp: Math.round((state.th.hp ?? 1200) * mult), slow: 0 } : towerStats(b.type, b.level);
+      if (!isTH) { st = { ...st, dmg: Math.round(st.dmg * mult), hp: Math.round(st.hp * mult) }; }
       // find mesh placed by view
       const mesh = isTH ? this.view.thMesh : this.view.meshes.get(b.id);
       return { id: b.id || 'th', type: b.type || 'th', level: b.level || 1, gx: b.x, gz: b.z, x: p.x, z: p.z, hp: st.hp, max: st.hp, ...st, cd: 0, mesh, dead: false, isTH };
@@ -70,26 +72,28 @@ export class Battle {
     for (const t of state.towers) list.push(mk(t));
     for (const w of state.walls) {
       const p = this._gw(w.x, w.z);
-      const hp = 220 * w.level;
+      const hp = Math.round(220 * w.level * mult);
       const mesh = this.view.meshes.get(w.id);
       list.push({ id: w.id, type: 'wall', level: w.level, gx: w.x, gz: w.z, x: p.x, z: p.z, hp, max: hp, dmg: 0, range: 0, rate: 0, cd: 0, mesh, dead: false });
     }
     const tp = this._gw(state.th.x, state.th.z);
-    list.push({ id: 'th', type: 'th', level: 2, gx: state.th.x, gz: state.th.z, x: tp.x, z: tp.z, hp: state.th.hp ?? 1200, max: state.th.hp ?? 1200, dmg: 12, range: 6.5, rate: 1, cd: 0, mesh: this.view.thMesh, dead: false, isTH: true });
+    const thHp = Math.round((state.th.hp ?? 1200) * mult);
+    list.push({ id: 'th', type: 'th', level: 2, gx: state.th.x, gz: state.th.z, x: tp.x, z: tp.z, hp: thHp, max: thHp, dmg: Math.round(12 * mult), range: 6.5, rate: 1, cd: 0, mesh: this.view.thMesh, dead: false, isTH: true });
     return list;
   }
 
   spawnSwarm(s) {
-    // edge spawn
+    // edge spawn (boss = 2.2x scale brute)
     const side = Math.floor(Math.random() * 4);
     const G = 16, j = () => Math.floor(Math.random() * G);
     let gx = side === 0 ? 0 : side === 1 ? G - 1 : j();
     let gz = side === 2 ? 0 : side === 3 ? G - 1 : j();
     const p = this._gw(gx, gz);
     const m = makeSwarm();
+    if (s.boss) m.scale.setScalar(2.1);
     m.position.set(p.x, 0.3, p.z);
     this.scene.add(m);
-    this.atk.push({ mesh: m, x: p.x, z: p.z, hp: s.hp, max: s.hp, dmg: s.dmg, speed: s.speed, cd: 0, slowT: 0, range: 1.4 });
+    this.atk.push({ mesh: m, x: p.x, z: p.z, hp: s.hp, max: s.hp, dmg: s.dmg, speed: s.speed, cd: 0, slowT: 0, range: 1.4, boss: !!s.boss });
   }
 
   deployTroop(type, level) {
@@ -99,16 +103,17 @@ export class Battle {
     return 'select-edge';
   }
 
-  deployAt(type, level, gx, gz) {
+  deployAt(type, level, gx, gz, ascShards = 0) {
     // must be edge ring
     const edge = gx <= 1 || gz <= 1 || gx >= 14 || gz >= 14;
     if (!edge) return false;
     const st = troopStats(type, level);
+    const mult = ascMult(ascShards);
     const p = this._gw(gx, gz);
     const m = makeTroop(type, level);
     m.position.set(p.x, 0.3, p.z);
     this.scene.add(m);
-    this.atk.push({ mesh: m, x: p.x, z: p.z, hp: st.hp, max: st.hp, dmg: st.dmg, speed: st.speed, range: st.range, cd: 0, slowT: 0, type });
+    this.atk.push({ mesh: m, x: p.x, z: p.z, hp: Math.round(st.hp * mult), max: Math.round(st.hp * mult), dmg: Math.round(st.dmg * mult), speed: st.speed, range: st.range, heal: st.heal ? Math.round(st.heal * mult) : 0, wallMult: st.wallMult || 1, cd: 0, slowT: 0, type });
     this.deployed++;
     sfx.place();
     return true;
@@ -124,10 +129,28 @@ export class Battle {
       this.spawnT = s.delay > 2 ? 0.4 : 0.7;
     } else this.spawnT -= dt;
 
-    // attackers move + melee
+    // attackers move + melee (healers heal allies instead)
     for (const a of this.atk) {
       if (a.hp <= 0) continue;
       if (a.slowT > 0) { a.slowT -= dt; }
+      if (a.type === 'healer' && a.heal) {
+        a.cd -= dt;
+        if (a.cd <= 0) {
+          let ally = null, bd = 1e9;
+          for (const o of this.atk) {
+            if (o === a || o.hp <= 0 || o.hp >= o.max) continue;
+            const dd = dist2(a, o);
+            if (dd <= (a.range || 5) * 2 && dd < bd) { bd = dd; ally = o; }
+          }
+          if (ally) { ally.hp = Math.min(ally.max, ally.hp + a.heal); this._healFx(ally); }
+          a.cd = 1.2;
+        }
+        // drift toward army centroid
+        let cx = 0, cz = 0, n = 0;
+        for (const o of this.atk) { if (o !== a && o.hp > 0) { cx += o.x; cz += o.z; n++; } }
+        if (n) { const d = Math.hypot(cx / n - a.x, cz / n - a.z) || 1; a.x += (cx / n - a.x) / d * a.speed * 0.5 * dt; a.z += (cz / n - a.z) / d * a.speed * 0.5 * dt; a.mesh.position.set(a.x, 0.3, a.z); }
+        continue;
+      }
       const sp = a.speed * (a.slowT > 0 ? 0.55 : 1);
       const tgt = this._pickTarget(a);
       if (!tgt) continue;
@@ -240,7 +263,8 @@ export class Battle {
   }
 
   _melee(a, tgt) {
-    tgt.hp -= a.dmg;
+    const dmg = (tgt.type === 'wall' && a.wallMult ? a.dmg * a.wallMult : a.dmg);
+    tgt.hp -= dmg;
     // hit flash
     if (tgt.mesh) { tgt.mesh.position.y += 0.05; setTimeout(() => { if (tgt.mesh) tgt.mesh.position.y -= 0.05; }, 60); }
     if (tgt.hp <= 0 && !tgt.dead) {
@@ -254,11 +278,19 @@ export class Battle {
   _mirrorTH(tgt) { /* topbar reads battle defs directly */ }
 
   _fire(d, target) {
-    const color = d.type === 'frost' ? 0x4dd0e1 : d.type === 'cannon' ? 0xff5722 : 0xffe082;
+    const color = d.type === 'frost' ? 0x4dd0e1 : d.type === 'mortar' ? 0x424242 : d.type === 'tesla' ? 0xb39ddb : d.type === 'hive' ? 0xffee58 : d.type === 'cannon' ? 0xff5722 : 0xffe082;
     const m = new THREE.Mesh(this.projGeo, new THREE.MeshBasicMaterial({ color }));
     m.position.set(d.x, 2.4, d.z);
     this.scene.add(m);
-    this.projs.push({ mesh: m, tx: target.x, tz: target.z, target, dmg: d.dmg, slow: d.slow || 0, splash: d.type === 'cannon' ? 2.2 : 0, life: 2 });
+    const splash = d.splash || (d.type === 'cannon' ? 2.2 : d.type === 'mortar' ? 3.2 : 0);
+    this.projs.push({ mesh: m, tx: target.x, tz: target.z, target, dmg: d.dmg, slow: d.slow || 0, splash, life: 2 });
+  }
+
+  _healFx(a) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), new THREE.MeshBasicMaterial({ color: 0x69f0ae, transparent: true, opacity: 0.9 }));
+    m.position.set(a.x, 1.6, a.z);
+    this.scene.add(m);
+    this.projs.push({ mesh: m, tx: a.x, tz: a.z, target: null, dmg: 0, life: 0.5, meteor: true });
   }
 
   _splash(p) {
@@ -281,10 +313,11 @@ export class Battle {
     return 0;
   }
 
-  // ---- P1 hero: Starfall meteor — defend nukes swarm, raid nukes defenses ----
+  // ---- P1/P3 hero: Starfall meteor — defend nukes swarm, raid nukes defenses ----
   heroStrike(heroLevel = 1) {
     if (!this.active) return 0;
-    const mult = 1 + (heroLevel - 1) * 0.3;
+    const hMult = (HERO_LEVELS[heroLevel] || HERO_LEVELS[1]).dmgMult;
+    const mult = hMult;
     let hits = 0;
     if (this.mode === 'defend') {
       const dmg = HERO.defendDmg * mult;

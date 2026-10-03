@@ -106,13 +106,42 @@ export function makeTower(type, level = 1) {
     g.add(mesh(new THREE.TorusGeometry(0.85, 0.12, 8, 16), lam(0xffb74d), 0, 0.55, 0)).children;
     g.children[g.children.length - 1].rotation.x = Math.PI / 2;
     eyes(g, 1.45, 0.35, 0.14);
-  } else { // frost
+  } else if (type === 'frost') {
     g.add(mesh(new THREE.CylinderGeometry(0.8, 1.1, 1.4, 7), lam(0xb0bec5), 0, 0.7, 0));
     const cry = mesh(new THREE.OctahedronGeometry(0.75 + boost * 0.5), new THREE.MeshLambertMaterial({ color: 0x4dd0e1, emissive: 0x00838f, emissiveIntensity: 0.5 }), 0, 2.1, 0);
     cry.name = 'crystal'; g.add(cry);
     g.add(mesh(new THREE.TorusGeometry(0.55, 0.1, 8, 7), lam(0xe1f5fe), 0, 1.45, 0)).children;
     g.children[g.children.length - 1].rotation.x = Math.PI / 2;
     eyes(g, 0.9, 0.3, 0.12);
+  } else if (type === 'mortar') {
+    g.add(mesh(new THREE.CylinderGeometry(1.1, 1.4, 0.9, 9), lam(0x8d6e63), 0, 0.45, 0));
+    g.add(mesh(new THREE.SphereGeometry(0.7, 10, 8), lam(0x5d4037), 0, 1.15, 0));
+    const tube = mesh(new THREE.CylinderGeometry(0.42, 0.5, 1.5, 10), lam(0x3e2723), 0, 1.9, -0.2);
+    tube.rotation.x = 0.5; g.add(tube);
+    g.add(mesh(new THREE.SphereGeometry(0.3, 8, 6), lam(0xff7043), 0, 1.2, 0.75));
+    g.add(mesh(new THREE.BoxGeometry(1.9, 0.3, 1.9), lam(0xa1887f), 0, 0.15, 0));
+    eyes(g, 1.15, 0.32, 0.13);
+  } else if (type === 'tesla') {
+    g.add(mesh(new THREE.CylinderGeometry(0.85, 1.15, 1.1, 8), lam(0x5e35b1), 0, 0.55, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.5, 0.65, 0.9, 8), lam(0x9575cd), 0, 1.5, 0));
+    const orb = mesh(new THREE.SphereGeometry(0.5 + boost * 0.3, 12, 10), new THREE.MeshLambertMaterial({ color: 0xb39ddb, emissive: 0x7e57c2, emissiveIntensity: 0.8 }), 0, 2.3, 0);
+    orb.name = 'crystal'; g.add(orb);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      g.add(mesh(new THREE.SphereGeometry(0.12, 6, 5), new THREE.MeshBasicMaterial({ color: 0xe1bee7 }), Math.cos(a) * 0.7, 2.3, Math.sin(a) * 0.7));
+    }
+    eyes(g, 0.7, 0.3, 0.12);
+  } else { // hive
+    g.add(mesh(new THREE.CylinderGeometry(0.9, 1.05, 1.3, 8), lam(0xffb300), 0, 0.65, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.9, 0.12, 8, 12), lam(0x5d4037), 0, 0.9, 0)).children;
+    g.children[g.children.length - 1].rotation.x = Math.PI / 2;
+    g.add(mesh(new THREE.SphereGeometry(0.55, 10, 8), lam(0xffca28), 0, 1.6, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.5, 6), lam(0x5d4037), 0, 2.1, 0));
+    for (let i = 0; i < 3; i++) {
+      const bee = mesh(new THREE.SphereGeometry(0.14, 8, 6), lam(0x212121), Math.cos(i * 2.1) * 0.9, 2.0 + (i % 2) * 0.3, Math.sin(i * 2.1) * 0.9);
+      bee.name = 'crystal'; g.add(bee);
+    }
+    eyes(g, 0.7, 0.32, 0.13);
   }
   // level pips
   for (let i = 0; i < level; i++) {
@@ -161,13 +190,36 @@ export function makeTroop(type, level = 1) {
     const bow = mesh(new THREE.TorusGeometry(0.4, 0.06, 8, 14, Math.PI * 1.4), lam(0x5d4037), 0.5, 1.0, 0);
     bow.rotation.z = 0.4; g.add(bow);
     eyes(g, 1.35, 0.16, 0.1);
-  } else { // giant
+  } else if (type === 'giant') {
     g.add(mesh(new THREE.SphereGeometry(0.8, 14, 12), lam(0xffb74d), 0, 0.9, 0));
     g.add(mesh(new THREE.SphereGeometry(0.55, 12, 10), lam(0xffe0b2), 0, 1.7, 0.1));
     g.add(mesh(new THREE.BoxGeometry(0.5, 0.4, 0.3), lam(0x8d6e63), -0.9, 1.0, 0));
     g.add(mesh(new THREE.BoxGeometry(0.5, 0.4, 0.3), lam(0x8d6e63), 0.9, 1.0, 0));
     g.add(mesh(new THREE.CylinderGeometry(0.35, 0.45, 0.5, 8), lam(0x6d4c41), 0, 2.15, 0)); // helmet
     eyes(g, 1.7, 0.24, 0.13);
+  } else if (type === 'bomber') {
+    g.add(mesh(new THREE.SphereGeometry(0.5, 12, 10), lam(0xef5350), 0, 0.65, 0));
+    g.add(mesh(new THREE.CylinderGeometry(0.25, 0.3, 0.6, 8), lam(0x37474f), 0, 1.1, 0)); // fuse
+    g.add(mesh(new THREE.SphereGeometry(0.14, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffeb3b }), 0, 1.45, 0)); // spark
+    g.add(mesh(new THREE.ConeGeometry(0.2, 0.4, 6), lam(0xb71c1c), -0.3, 0.35, 0));
+    g.add(mesh(new THREE.ConeGeometry(0.2, 0.4, 6), lam(0xb71c1c), 0.3, 0.35, 0));
+    eyes(g, 0.7, 0.2, 0.13);
+  } else if (type === 'healer') {
+    g.add(mesh(new THREE.CylinderGeometry(0.42, 0.55, 1.0, 8), lam(0xf8bbd0), 0, 0.7, 0));
+    g.add(mesh(new THREE.SphereGeometry(0.4, 12, 10), lam(0xfce4ec), 0, 1.45, 0));
+    g.add(mesh(new THREE.TorusGeometry(0.45, 0.09, 8, 14), new THREE.MeshBasicMaterial({ color: 0x4caf50 }), 0, 1.45, 0)).children;
+    g.children[g.children.length - 1].rotation.x = Math.PI / 2.4;
+    g.add(mesh(new THREE.BoxGeometry(0.12, 0.5, 0.12), lam(0x388e3c), 0.5, 1.0, 0.2)); // staff
+    g.add(mesh(new THREE.SphereGeometry(0.16, 8, 6), new THREE.MeshBasicMaterial({ color: 0x69f0ae }), 0.5, 1.3, 0.2));
+    eyes(g, 1.45, 0.17, 0.1);
+  } else { // drake
+    g.add(mesh(new THREE.SphereGeometry(0.55, 12, 10), lam(0xff8a65), 0, 0.9, 0));
+    g.add(mesh(new THREE.ConeGeometry(0.25, 0.7, 6), lam(0xd84315), 0, 0.9, 0.65)); // snout
+    const wingMat = lam(0xffab91);
+    const wl = mesh(new THREE.BoxGeometry(0.9, 0.08, 0.5), wingMat, -0.7, 1.2, -0.1); wl.rotation.z = 0.5; g.add(wl);
+    const wr = mesh(new THREE.BoxGeometry(0.9, 0.08, 0.5), wingMat, 0.7, 1.2, -0.1); wr.rotation.z = -0.5; g.add(wr);
+    g.add(mesh(new THREE.ConeGeometry(0.3, 0.8, 6), lam(0xbf360c), 0, 1.45, -0.2));
+    eyes(g, 1.0, 0.22, 0.12);
   }
   for (let i = 1; i < level; i++) // shoulder stars
     g.add(mesh(new THREE.OctahedronGeometry(0.14), new THREE.MeshBasicMaterial({ color: 0xffd54a }), 0.55, 0.6 + i * 0.3, 0.3));
