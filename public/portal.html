@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Full texture packs: blocks + mobs + items',
+          desc: 'Texture packs grow from tiles-only to full v2: tiles/ repaints the atlas (blocks + hands), mobs/ reskins every creature box, items/ replaces all 2D icons everywhere (hotbar, inventory, hands, cursor, drops). Old tile-only zips still apply. Reset restores everything.',
+          date: 'Oct 3',
+          bugs: ['packs ignored mob/item PNGs silently', 'pack preview counted tiles only'],
+          updates: ['v2 folders tiles/mobs/items/items3d + back-compat root PNGs', 'pack preview breaks down tiles/mobs/items', 'reset clears mobs/items/3D overrides'],
+          features: ['mob reskins via mobs/<type>_<part>_<0-5>.png', 'item reskins via items/<id>.png', 'Minecraft v2 pack on Desktop (241 tiles, 378 mobs, 137 items)'],
+        },
+        {
+          hash: 'PENDING',
           heading: '3 new mods + 2 new games',
           desc: 'Mods: Aether Step (bounce per airtime), Mossback (gentle giant + Moss Apples), Ember Lantern (placeable glow block). Games page: Block Snake and Ore Sweeper, both mobile-ready with best records.',
           date: 'Oct 1',

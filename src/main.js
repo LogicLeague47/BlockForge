@@ -9,7 +9,7 @@ import { Player } from './player.js';
 import { raycastVoxel, closestBlockInRadius } from './raycast.js';
 import { buildAtlas, makeIcon, TILE } from './tiles.js';
 import { unzipSync, strFromU8 } from 'fflate';
-import { UI, drawCrack, makeItemIconCanvas } from './ui.js';
+import { UI, drawCrack, makeItemIconCanvas, setItemPackTexture, clearItemPack } from './ui.js';
 import { AudioManager } from './audio.js';
 import { speak, setVoiceMuted, isVoiceMuted } from './voice.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor, slabVariantFor } from './blocks.js';
@@ -20,7 +20,7 @@ import { ViewModel } from './viewmodel.js';
 import { saveWorld, loadWorld, getWorldList, saveWorldList, createWorld, deleteWorld, migrateLegacy, hasSave, hasTutorialBeenSeen, markTutorialSeen, syncTutorialFromSdk, cgPullProgress, cleanDevWorldsFromPlayerList, getDevWorldList, saveDevWorldList, getParkourWorldList, saveParkourWorldList, getOneBlockWorldList, saveOneBlockWorldList, saveMultiplayerInventory, loadMultiplayerInventory, saveMultiplayerBedSpawn, loadMultiplayerBedSpawn, cloudSet } from './storage.js';
 import { SMELTING, SMELT_TIME, SMELT_TIME_DEFAULT, RECIPES } from './recipes.js';
 import { AchievementManager, ACHIEVEMENTS, CATEGORIES } from './achievements.js';
-import { MobManager, MOB_TYPES, Arrow, preloadMobTextures } from './mobs.js';
+import { MobManager, MOB_TYPES, Arrow, preloadMobTextures, setMobPackTexture, clearMobPack } from './mobs.js';
 import { calcBiome, calcHeight, growTreeInWorld } from './worldgen.js';
 import { initCrazyGamesAccountManager, setupCrazyGamesAuthHandlers, startCrazyGamesGameplay } from './crazygames-integration.js';
 import { cgGameplayStart, cgGameplayStop, cgLoadingStart, cgLoadingStop, cgHappyTime, cgMidgameAd, cgRewardedAd, cgHasAdblock, cgShouldMuteAudio, cgOnSettingsChange, cgIsInstantMultiplayer, cgReportProgress, cgSetGameContext, cgClearGameContext, cgShowAuthPrompt, cgShowAccountLinkPrompt, cgGetUser, cgGetUserToken, cgIsAccountAvailable, cgOnAuthChange, cgShowBanner, cgShowResponsiveBanner, cgClearBanner, cgClearAllBanners, cgEnvironment } from './cg-helper.js';
@@ -11400,15 +11400,23 @@ async function applyCustomSel() {
     renderCustomSkins();
     return;
   }
-  // Texture pack (community or local): apply tiles onto the live atlas.
+  // Texture pack v2: tiles/ -> atlas (blocks+hands), mobs/ -> mob boxes,
+  // items/ -> 2D icons (hotbar/inventory/hands/cursor/drops), items3d/ -> held 3D icons.
   const data = s.kind === 'pack-local' ? s.data : s.item?.data;
   const nm = s.kind === 'pack-local' ? s.name : String(s.item?.name || 'pack');
   if (!data) { customStatus('⚠ No pack data.', '#f88'); return; }
   customStatus('Applying ' + nm + '…', '#aaa');
   try {
     const r = await applyPackDataUrl(nm, data, s.kind === 'pack-local' ? { kind: 'local', idx: s.idx } : { kind: 'gallery', name: nm });
-    if (r.applied > 0) customStatus('✅ Pack applied — ' + r.applied + ' textures live. Re-applies on boot.', '#6f6');
-    else customStatus('⚠ No usable tile PNGs found (need a .zip of tile-named PNGs).', '#f88');
+    const total = (r.applied | 0) + (r.mobs | 0) + (r.items | 0) + (r.item3d | 0);
+    if (total > 0) {
+      const bits = [r.applied + ' tiles'];
+      if (r.mobs) bits.push(r.mobs + ' mobs');
+      if (r.items) bits.push(r.items + ' items');
+      if (r.item3d) bits.push(r.item3d + ' 3D');
+      customStatus('✅ Pack applied — ' + bits.join(' · ') + ' live. Re-applies on boot.', '#6f6');
+    }
+    else customStatus('⚠ No usable PNGs found (need tiles/ + mobs/ + items/ folders or tile-named PNGs).', '#f88');
   } catch (_) { customStatus('⚠ Pack failed to apply.', '#f88'); }
   renderCustomDetail();
   renderCustomPacks();
@@ -11465,18 +11473,26 @@ function renderCustomSkins() {
     .catch(() => { if (st) st.textContent = 'Community skins unavailable.'; });
 }
 function packInfo(data) {
-  // Usable-tile count without full extraction (header scan only).
+  // Usable-texture count without full extraction (header scan only).
+  // v2 packs: tiles/ + mobs/ + items/ + items3d/.
   try {
     const u8 = dataUrlToU8(data);
     const names = zipNames(u8);
-    let usable = 0;
+    let tiles = 0, mobs = 0, items = 0;
+    const MOB_RE = /^[a-z_]+_(body|head|leg|snout|arm|cape)_[0-5]$/;
     for (const p of names) {
       const base = String(p.split('/').pop() || '');
       if (!/\.png$/i.test(base)) continue;
-      const tile = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
-      if (TILES[tile]) usable++;
+      const dir = String(p.split('/').slice(0, -1).join('/') || '').toLowerCase();
+      const stem = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      if (dir.includes('mob') && MOB_RE.test(stem)) { mobs++; continue; }
+      if ((dir.includes('item')) && /^\d+$/.test(stem)) { items++; continue; }
+      if (TILES[stem]) tiles++;
     }
-    return names.length + ' files · ' + usable + ' usable textures';
+    const parts = [names.length + ' files', tiles + ' tiles'];
+    if (mobs) parts.push(mobs + ' mobs');
+    if (items) parts.push(items + ' items');
+    return parts.join(' · ');
   } catch (_) { return ''; }
 }
 function renderCustomPacks() {
@@ -11669,11 +11685,26 @@ async function applyPackDataUrl(name, dataUrl, persist) {
       try { remap = JSON.parse(strFromU8(data)).tiles || {}; } catch (_) {}
     }
   }
+  // Pack v2 folders (back-compat: root-level tile PNGs still work):
+  //   tiles/<bf_tile>.png            -> block atlas (blocks + hands, both use atlas)
+  //   mobs/<type>_<part>_<0-5>.png   -> mob box textures (all mobs, all parts)
+  //   items/<itemId>.png             -> 2D item icons (hotbar/inventory/hands/cursor/drops)
+  //   items3d/<blockId>.png          -> held 3D block icons (hotbar/inventory/hands)
+  // Anything else with a tile-matching basename is treated as a tile (v1 packs).
+  const MOB_RE = /^[a-z_]+_(body|head|leg|snout|arm|cape)_[0-5]$/;
   const jobs = [];
+  const mobJobs = [];
+  const itemJobs = [];
+  const item3dJobs = [];
   for (const [p, data] of entries) {
     const base = String(p.split('/').pop() || '');
     if (!/\.png$/i.test(base) || !data || data.length > 1048576) continue;
-    let tile = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    const dir = String(p.split('/').slice(0, -1).join('/') || '').toLowerCase();
+    const stem = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    if (dir.includes('mob') && MOB_RE.test(stem)) { mobJobs.push(loadTileImage(stem, data)); continue; }
+    if (dir.includes('item3d') && /^\d+$/.test(stem)) { item3dJobs.push(loadTileImage(stem, data)); continue; }
+    if (dir.includes('item') && /^\d+$/.test(stem)) { itemJobs.push(loadTileImage(stem, data)); continue; }
+    let tile = stem;
     if (remap[base]) tile = String(remap[base]);
     if (!TILES[tile]) continue;
     jobs.push(loadTileImage(tile, data));
@@ -11688,6 +11719,8 @@ async function applyPackDataUrl(name, dataUrl, persist) {
       if (!img) continue;
       const t = TILES[tile];
       if (!t) continue;
+      // Correct orientation: pack PNGs are upright 16x16; draw as-is scaled
+      // to the 32px atlas cell (no flip — UV flip is handled by the mesher).
       ctx.clearRect(t[0] * TILE, t[1] * TILE, TILE, TILE);
       ctx.drawImage(img, t[0] * TILE, t[1] * TILE, TILE, TILE);
       applied++;
@@ -11695,11 +11728,51 @@ async function applyPackDataUrl(name, dataUrl, persist) {
     ctx.imageSmoothingEnabled = prev;
     if (applied > 0 && atlasTexture) atlasTexture.needsUpdate = true;
   } catch (_) { return { applied: 0, total: jobs.length }; }
-  if (applied > 0 && persist) {
+  // Mobs: store overrides + drop cached textures so new spawns use pack art.
+  let mobsApplied = 0;
+  try {
+    const mImgs = await Promise.all(mobJobs);
+    const touched = new Set();
+    for (const { tile, img } of mImgs) {
+      if (!img) continue;
+      try { setMobPackTexture(tile, img); mobsApplied++; touched.add(tile.split('_').slice(0, -2).join('_')); } catch (_) {}
+    }
+    for (const [typeName, def] of Object.entries(MOB_TYPES)) {
+      if (touched.has(typeName)) { try { delete def._tex; } catch (_) {} }
+    }
+    if (mobsApplied > 0) { try { preloadMobTextures().catch(() => {}); } catch (_) {} }
+  } catch (_) {}
+  // Items (2D icons): hotbar/inventory/hands/cursor/drops all render via
+  // makeItemIconCanvas, which checks the override map first.
+  let itemsApplied = 0;
+  try {
+    const iImgs = await Promise.all(itemJobs);
+    for (const { tile, img } of iImgs) {
+      if (!img) continue;
+      const id = parseInt(tile, 10);
+      if (!Number.isFinite(id)) continue;
+      try { setItemPackTexture(id, img); itemsApplied++; } catch (_) {}
+    }
+  } catch (_) {}
+  // Held 3D block icons: makeIcon checks window.__BF_ITEM3D first.
+  let item3dApplied = 0;
+  try {
+    if (!window.__BF_ITEM3D) window.__BF_ITEM3D = new Map();
+    if (!window.__BF_ITEM3D_PACK) window.__BF_ITEM3D_PACK = new Set();
+    const tImgs = await Promise.all(item3dJobs);
+    for (const { tile, img } of tImgs) {
+      if (!img) continue;
+      const id = parseInt(tile, 10);
+      if (!Number.isFinite(id)) continue;
+      try { window.__BF_ITEM3D.set(id, img); window.__BF_ITEM3D_PACK.add(id); item3dApplied++; } catch (_) {}
+    }
+  } catch (_) {}
+  const totalApplied = applied + mobsApplied + itemsApplied + item3dApplied;
+  if (totalApplied > 0 && persist) {
     _activePack = { name, ...persist };
     try { localStorage.setItem('bf_active_tpack', JSON.stringify(_activePack)); } catch (_) {}
   }
-  return { applied, total: jobs.length };
+  return { applied, total: jobs.length, mobs: mobsApplied, items: itemsApplied, item3d: item3dApplied };
 }
 let _activePack = null;
 try { _activePack = JSON.parse(localStorage.getItem('bf_active_tpack') || 'null'); } catch (_) { _activePack = null; }
@@ -11711,6 +11784,15 @@ function resetPack() {
     ctx.clearRect(0, 0, atlasCanvas.width, atlasCanvas.height);
     ctx.drawImage(fresh, 0, 0);
     if (atlasTexture) atlasTexture.needsUpdate = true;
+    try { clearMobPack(); } catch (_) {}
+    try { clearItemPack(); } catch (_) {}
+    try {
+      if (window.__BF_ITEM3D && window.__BF_ITEM3D_PACK) {
+        for (const id of window.__BF_ITEM3D_PACK) { try { window.__BF_ITEM3D.delete(id); } catch (_) {} }
+        window.__BF_ITEM3D_PACK = new Set();
+      }
+    } catch (_) {}
+    try { preloadMobTextures().catch(() => {}); } catch (_) {}
     _activePack = null;
     try { localStorage.removeItem('bf_active_tpack'); } catch (_) {}
     return true;

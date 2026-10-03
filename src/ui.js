@@ -131,7 +131,35 @@ function drawArmorUrl(full, half) {
 //
 // Art is hand-built to match vanilla BlockForge item sprites: correct silhouettes,
 // multi-tone shading, specular highlights and per-material palettes for tools.
+// Texture-pack item override: packs supply `items/<itemId>.png` (e.g. items/256.png).
+// main.js stores loaded images in `window.__BF_ITEM_PACK`. Hands, hotbar,
+// inventory, drops and cursor all render through here, so one override covers
+// every surface. Reset clears the map.
+export function setItemPackTexture(itemId, img) {
+  try {
+    if (!window.__BF_ITEM_PACK) window.__BF_ITEM_PACK = {};
+    window.__BF_ITEM_PACK[itemId | 0] = img;
+  } catch (_) {}
+}
+export function clearItemPack() {
+  try { window.__BF_ITEM_PACK = {}; } catch (_) {}
+}
 export function makeItemIconCanvas(itemId) {
+  try {
+    const pack = window.__BF_ITEM_PACK;
+    const ov = pack ? pack[itemId | 0] : null;
+    if (ov && ov.complete && ov.naturalWidth > 0) {
+      const c0 = document.createElement('canvas');
+      c0.width = 16; c0.height = 16;
+      const x0 = c0.getContext('2d');
+      x0.imageSmoothingEnabled = false;
+      // Correct orientation: vanilla item PNGs are upright; draw as-is scaled
+      // to 16x16 (animated strips already cropped to first frame by the loader).
+      x0.clearRect(0, 0, 16, 16);
+      x0.drawImage(ov, 0, 0, 16, 16);
+      return _compose3D(c0);
+    }
+  } catch (_) {}
   const c = document.createElement('canvas');
   c.width = 16; c.height = 16;
   const x = c.getContext('2d');
