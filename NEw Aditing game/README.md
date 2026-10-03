@@ -9,13 +9,12 @@ npm run dev    # http://localhost:5174
 npm run build
 ```
 
-## P0 scope
-- 16x16 cartoon diorama, orbit camera, Town Core + 3 tower types + walls
-- Click tower → click same tower to MERGE (3x logic simplified to 2x for P0 feel, auto-merge with M)
-- Barracks: recruit + merge troops (3x L → L+1), higher level = higher raid rank
-- Defend: 8 swarm waves, win = gold/trophies
-- Raid: 3 ghost bases, YOU deploy troops by clicking edge ring, stars → trophies
-- Local save `mergekeep_p0_v1`, passive mine income
+## P1 scope (this build)
+- Town Hall 1-5: HP/tower caps/unlocks, upgrade cost + builder timer, finish-now with 🧪
+- Builder queue: 1 slot, progress bar top-center, tap to speed up
+- Mine 1-4: passive income scaling + offline welcome-back chest (8h cap)
+- War chests: earned on wave/raid wins, Common→Legendary with pity (Epic every 10, Legendary every 25), loot = gold/elixir + leveled troops
+- Hero Starfall: big button + H key, 40s cooldown, meteors nuke swarm (defend) or defenses (raid)
 
 ## Models / CC0
 All models are procedural cartoonish placeholders built in `src/models.js`.

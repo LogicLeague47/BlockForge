@@ -31,9 +31,9 @@ export class BaseView {
   }
   render(state, ghostTowers = []) {
     this.clear();
-    // TH
+    // TH (level-scaled cartoon model)
     const tp = gridToWorld(state.th.x, state.th.z);
-    this.thMesh = makeTownHall(2);
+    this.thMesh = makeTownHall(state.thLevel || 2);
     this.thMesh.position.set(tp.x, 0.3, tp.z);
     this.thMesh.userData.hp = state.th.hp;
     this.group.add(this.thMesh);

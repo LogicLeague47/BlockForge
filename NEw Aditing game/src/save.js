@@ -1,5 +1,6 @@
 // Standalone save — localStorage only, zero BlockForge deps.
-const KEY = 'mergekeep_p0_v1';
+const KEY = 'mergekeep_p1_v1';
+const OLD_KEYS = ['mergekeep_p0_v1'];
 export const GRID = 16;
 
 export function defaultState() {
@@ -23,18 +24,41 @@ export function defaultState() {
     wave: 0, // highest defend wave cleared (0-8)
     raidWins: 0,
     th: { x: 7, z: 7, hp: 1200 },
+    thLevel: 1, mineLevel: 1,
+    builder: null, // {kind:'th'|'mine', toLevel, finishesAt}
+    chests: [], // {id, rarity}
+    pity: 0,
+    heroLevel: 1,
+    lastSeen: Date.now(),
     towers, walls,
     army: { grunt: { 1: 6 }, archer: { 1: 6 }, giant: { 1: 3 } },
     selected: null
   };
 }
 
+function migrate(old) {
+  const d = defaultState();
+  const s = { ...d, ...old };
+  s.th = { ...d.th, ...(old.th || {}) };
+  s.builder = old.builder || null;
+  s.chests = Array.isArray(old.chests) ? old.chests : [];
+  s.army = old.army || d.army;
+  if (!s.thLevel) s.thLevel = 1;
+  if (!s.mineLevel) s.mineLevel = 1;
+  if (typeof s.pity !== 'number') s.pity = 0;
+  if (typeof s.lastSeen !== 'number') s.lastSeen = Date.now();
+  return s;
+}
+
 export function load() {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return defaultState();
-    const s = { ...defaultState(), ...JSON.parse(raw) };
-    return s;
+    let raw = localStorage.getItem(KEY);
+    if (raw) return migrate(JSON.parse(raw));
+    for (const k of OLD_KEYS) {
+      raw = localStorage.getItem(k);
+      if (raw) { const s = migrate(JSON.parse(raw)); save(s); return s; }
+    }
+    return defaultState();
   } catch { return defaultState(); }
 }
 

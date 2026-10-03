@@ -18,4 +18,7 @@ export const sfx = {
   coin: () => { blip(990, 0.07); setTimeout(() => blip(1320, 0.1), 60); },
   star: () => { blip(740, 0.1); setTimeout(() => blip(980, 0.1), 90); setTimeout(() => blip(1240, 0.16), 180); },
   lose: () => blip(180, 0.4, 'sawtooth', 0.07),
+  meteor: () => { blip(90, 0.5, 'sawtooth', 0.1); setTimeout(() => blip(1400, 0.2, 'sine', 0.05), 120); },
+  build: () => { blip(330, 0.12, 'triangle', 0.07); setTimeout(() => blip(495, 0.14), 100); },
+  chest: () => { blip(880, 0.09); setTimeout(() => blip(1108, 0.09), 80); setTimeout(() => blip(1318, 0.14), 160); },
 };

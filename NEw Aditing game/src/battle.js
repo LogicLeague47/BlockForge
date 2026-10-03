@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { towerStats, troopStats, waveComp } from './balance.js';
+import { towerStats, troopStats, waveComp, TH_LEVELS, HERO } from './balance.js';
 import { gridToWorld } from './world.js';
 import { makeSwarm, makeTroop } from './models.js';
 import { sfx } from './audio.js';
@@ -29,6 +29,9 @@ export class Battle {
     this.clearField(); this.view.render(state);
     this.active = true; this.mode = 'defend';
     const comp = waveComp(waveN);
+    // TH hp scales with TH level; heal to full at battle start
+    const thHp = (TH_LEVELS[state.thLevel || 1] || TH_LEVELS[1]).hp;
+    state.th.hp = thHp;
     // defenses from player state
     this.defs = this._defsFromState(state);
     this.th = { ref: state.th };
@@ -43,8 +46,9 @@ export class Battle {
 
   startRaid(ghost) {
     this.clearField();
-    // render ghost base
-    const fake = { th: { x: 7, z: 7, hp: 1200 }, towers: ghost.towers.map((t, i) => ({ ...t, id: 'g' + i })), walls: (ghost.walls || []).map((w, i) => ({ ...w, type: 'wall', level: 1, id: 'gw' + i })) };
+    // render ghost base (TH hp scales with ghost tier)
+    const gTh = 1200 + (ghost.towers.reduce((a, t) => a + t.level, 0) || 0) * 150;
+    const fake = { th: { x: 7, z: 7, hp: gTh }, thLevel: 2, towers: ghost.towers.map((t, i) => ({ ...t, id: 'g' + i })), walls: (ghost.walls || []).map((w, i) => ({ ...w, type: 'wall', level: 1, id: 'gw' + i })) };
     this.view.render(fake);
     this.active = true; this.mode = 'raid';
     this.defs = this._defsFromState(fake);
@@ -158,10 +162,19 @@ export class Battle {
         if (Math.random() < 0.3) sfx.shoot();
       }
     }
-    // projectiles
+    // projectiles (+ meteor fx)
     for (const p of this.projs) {
       if (p.dead) continue;
       p.life -= dt;
+      if (p.meteor) {
+        p.mesh.position.y -= 22 * dt;
+        if (p.fx) { p.fx.scale.multiplyScalar(1 + dt * 3); p.fx.material.opacity = Math.max(0, p.life * 1.6); }
+        if (p.life <= 0 || p.mesh.position.y <= 0.6) {
+          p.dead = true; this.scene.remove(p.mesh);
+          if (p.fx) this.scene.remove(p.fx);
+        }
+        continue;
+      }
       const dx = p.tx - p.mesh.position.x, dy = 1.6 - p.mesh.position.y, dz = p.tz - p.mesh.position.z;
       const dd = Math.sqrt(dx * dx + dz * dz);
       if (dd < 0.5 || p.life <= 0) {
@@ -266,6 +279,50 @@ export class Battle {
     if (thDead) return 2;
     if (pct >= 0.5) return 1;
     return 0;
+  }
+
+  // ---- P1 hero: Starfall meteor — defend nukes swarm, raid nukes defenses ----
+  heroStrike(heroLevel = 1) {
+    if (!this.active) return 0;
+    const mult = 1 + (heroLevel - 1) * 0.3;
+    let hits = 0;
+    if (this.mode === 'defend') {
+      const dmg = HERO.defendDmg * mult;
+      for (const a of this.atk) {
+        if (a.hp <= 0) continue;
+        a.hp -= dmg; a.slowT = 2; hits++;
+        this._meteorFx(a.x, a.z);
+      }
+    } else {
+      const dmg = HERO.raidDmg * mult;
+      for (const d of this.defs) {
+        if (d.dead) continue;
+        d.hp -= dmg; hits++;
+        this._meteorFx(d.x, d.z);
+        if (d.hp <= 0) {
+          d.dead = true; this.destroyed++;
+          if (d.mesh) { d.mesh.rotation.z = 1.2; d.mesh.position.y = 0.1; }
+        }
+      }
+    }
+    sfx.meteor?.();
+    return hits;
+  }
+
+  _meteorFx(x, z) {
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(0.45, 10, 8),
+      new THREE.MeshBasicMaterial({ color: 0xffb300 })
+    );
+    m.position.set(x + (Math.random() - 0.5) * 2, 9, z + (Math.random() - 0.5) * 2);
+    this.scene.add(m);
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.4, 1.6, 20),
+      new THREE.MeshBasicMaterial({ color: 0xffd54a, transparent: true, opacity: 0.9, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2; ring.position.set(x, 0.5, z);
+    this.scene.add(ring);
+    this.projs.push({ mesh: m, tx: x, tz: z, target: null, dmg: 0, life: 0.55, fx: ring, meteor: true });
   }
 
   _finish(win, stars) {
