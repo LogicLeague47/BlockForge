@@ -565,12 +565,28 @@ export class PlayerModel {
   }
 
   _getBlockCanvas(blockId, face) {
-    const t = TILES[tileNameFor(blockId, face)];
+    const tile = tileNameFor(blockId, face);
+    const t = TILES[tile];
     const c = document.createElement('canvas');
     c.width = 16; c.height = 16;
     const ctx = c.getContext('2d');
     ctx.imageSmoothingEnabled = false;
     if (t && this._atlasCanvas) ctx.drawImage(this._atlasCanvas, t[0] * 32, t[1] * 32, 32, 32, 0, 0, 16, 16);
+    // Match the tinted world in grayscale-pack mode (see mesher _MC_*_TINT).
+    try {
+      if (window.__BF_GRAY_TILES) {
+        let tint = null;
+        if (tile === 'grass_top') tint = '#91bd59';
+        else if (tile === 'leaves' || tile === 'dark_leaves' || tile === 'birch_leaves' || tile === 'spruce_leaves' || tile === 'acacia_leaves') tint = '#4dae1f';
+        else if (tile === 'short_grass' || tile === 'tall_grass') tint = '#91bd59';
+        if (tint) {
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = tint;
+          ctx.fillRect(0, 0, 16, 16);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
+    } catch (_) {}
     return c;
   }
 

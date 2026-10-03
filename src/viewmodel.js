@@ -239,61 +239,61 @@ export class ViewModel {
     return this._extrudedSprite(itemId, 0.45, 0.45);
   }
 
-  // Block items: a small bevelled cube textured from the atlas.
-  // Bakes side/top/bottom into a single texture to reduce draw calls from 6→1.
+  // Block items: a small bevelled cube with EXACT per-face textures.
+  // One material per face (side/side/top/bottom/side/side), each baked from
+  // its own atlas tile — no UV-strip remapping, so no face can ever sample a
+  // neighbouring tile or stretch. In grayscale-pack mode the grass-top and
+  // leaf faces are multiplied with the plains biome color so the held block
+  // matches the tinted world (MeshBasicMaterial ignores vertex colors).
   _buildBlockMesh(blockId) {
     const sideName = tileNameFor(blockId, 'side');
     const topName = tileNameFor(blockId, 'top');
     const botName = tileNameFor(blockId, 'bottom');
-    const c = document.createElement('canvas');
-    c.width = TILE * 3; c.height = TILE;
-    const ctx = c.getContext('2d');
-    ctx.imageSmoothingEnabled = false;
-    const drawTile = (name, dx) => {
+    let gray = false;
+    try { gray = !!window.__BF_GRAY_TILES; } catch (_) {}
+    const matFor = (name) => {
       const t = TILES[name];
-      if (t && this.atlasCanvas) ctx.drawImage(this.atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, dx, 0, TILE, TILE);
+      const c = document.createElement('canvas');
+      c.width = TILE; c.height = TILE;
+      const ctx = c.getContext('2d');
+      ctx.imageSmoothingEnabled = false;
+      if (t && this.atlasCanvas) ctx.drawImage(this.atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+      if (gray) {
+        let tint = null;
+        if (name === 'grass_top') tint = '#91bd59';
+        else if (name === 'leaves' || name === 'dark_leaves' || name === 'birch_leaves' || name === 'spruce_leaves' || name === 'acacia_leaves') tint = '#4dae1f';
+        if (tint) {
+          ctx.globalCompositeOperation = 'multiply';
+          ctx.fillStyle = tint;
+          ctx.fillRect(0, 0, TILE, TILE);
+          ctx.globalCompositeOperation = 'source-over';
+        }
+      }
+      const tex = new THREE.CanvasTexture(c);
+      tex.magFilter = THREE.NearestFilter;
+      tex.minFilter = THREE.NearestFilter;
+      tex.generateMipmaps = false;
+      tex.colorSpace = THREE.SRGBColorSpace;
+      return new THREE.MeshBasicMaterial({ map: tex, fog: false });
     };
-    drawTile(sideName, 0);
-    drawTile(topName, TILE);
-    drawTile(botName, TILE * 2);
-    const tex = new THREE.CanvasTexture(c);
-    tex.magFilter = THREE.NearestFilter;
-    tex.minFilter = THREE.NearestFilter;
-    tex.generateMipmaps = false;
-    tex.colorSpace = THREE.SRGBColorSpace;
-    const mat = new THREE.MeshBasicMaterial({ map: tex, fog: false });
-    const size = 0.42;
-    const geo = new THREE.BoxGeometry(size, size, size);
-    // Remap UVs: each face maps to 1/3 of the texture strip (side=left, top=middle, bottom=right)
-    const uv = geo.attributes.uv;
-    // BoxGeometry face order: +X, -X, +Y, -Y, +Z, -Z
-    // Each face has 4 vertices (2 triangles). Map UVs to the 3-tile strip.
-    const faces = [
-      { idx: 0, col: 0 }, // +X = side
-      { idx: 4, col: 0 }, // -X = side
-      { idx: 8, col: 1 }, // +Y = top
-      { idx: 12, col: 2 }, // -Y = bottom
-      { idx: 16, col: 0 }, // +Z = side
-      { idx: 20, col: 0 }, // -Z = side
-    ];
-    for (const f of faces) {
-      const u0 = f.col / 3, u1 = (f.col + 1) / 3;
-      // Four UV pairs per face: (0,0),(1,0),(1,1),(0,1) → remapped
-      uv.setXY(f.idx + 0, u0, 0);
-      uv.setXY(f.idx + 1, u1, 0);
-      uv.setXY(f.idx + 2, u1, 1);
-      uv.setXY(f.idx + 3, u0, 1);
-    }
-    uv.needsUpdate = true;
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.rotation.set(-0.18, -0.55, 0.05);
-    mesh.position.set(0, 0, 0);
+    const side = matFor(sideName), top = matFor(topName), bottom = matFor(botName);
+    // BoxGeometry material order: +X, -X, +Y, -Y, +Z, -Z
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(0.34, 0.34, 0.34),
+      [side, side.clone(), top, bottom, side.clone(), side.clone()]
+    );
+    mesh.rotation.set(-0.12, -0.65, 0.06);
+    mesh.position.set(0.02, -0.02, 0);
     return mesh;
   }
 
   _buildPlantMesh(blockId) {
     const sideName = tileNameFor(blockId, 'side');
-    const tex = this._atlasTileTexture(sideName);
+    let grayTint = null;
+    try {
+      if (window.__BF_GRAY_TILES && (sideName === 'short_grass' || sideName === 'tall_grass')) grayTint = '#91bd59';
+    } catch (_) {}
+    const tex = this._atlasTileTexture(sideName, grayTint);
     const mat = new THREE.MeshBasicMaterial({ map: tex, transparent: true, alphaTest: 0.5, depthWrite: false, side: THREE.DoubleSide, fog: false });
     const wrap = new THREE.Group();
     const size = 0.5;
@@ -307,7 +307,7 @@ export class ViewModel {
     return wrap;
   }
 
-  _atlasTileTexture(name) {
+  _atlasTileTexture(name, tint) {
     const t = TILES[name];
     const c = document.createElement('canvas');
     c.width = TILE; c.height = TILE;
@@ -315,6 +315,12 @@ export class ViewModel {
     ctx.imageSmoothingEnabled = false;
     if (t) {
       ctx.drawImage(this.atlasCanvas, t[0] * TILE, t[1] * TILE, TILE, TILE, 0, 0, TILE, TILE);
+    }
+    if (tint) {
+      ctx.globalCompositeOperation = 'multiply';
+      ctx.fillStyle = tint;
+      ctx.fillRect(0, 0, TILE, TILE);
+      ctx.globalCompositeOperation = 'source-over';
     }
     const tex = new THREE.CanvasTexture(c);
     tex.magFilter = THREE.NearestFilter;
