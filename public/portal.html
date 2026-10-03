@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'Drag-and-drop uploads + specific pack errors',
+          desc: 'Customization menu has a dropbox: drop a .zip (goes as a pack) or an image (goes as a skin) — no file-picker MIME quirks. Wrong-type and oversize packs now say exactly what is wrong before anything is sent.',
+          date: 'Oct 3',
+          bugs: ['pack picker could reject valid zips with the generic server message'],
+          updates: ['dropbox sharing the picker pipeline', 'extension + ~3.5MB pre-checks with specific messages'],
+          features: ['drag-and-drop pack/skin uploads'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Clear error for cloud-placeholder uploads',
           desc: 'Uploading a Skin or Texture Pack that iCloud/Drive has not finished downloading now says exactly that ("download it to this device first") instead of the cryptic not-supported message.',
           date: 'Oct 3',

@@ -11586,22 +11586,35 @@ function bindCustomMenu(ui) {
     renderPrivBtn();
     customStatus(uploadVis() === 'private' ? '🔒 Next uploads stay private.' : '🔓 Next uploads go public.', '#8f8', 2);
   });
-  const readFile = (input, isSkin) => {
-    const f = input.files && input.files[0];
+  // Shared by the file pickers AND the drag-and-drop box below.
+  const handleUploadFile = (f, isSkin) => {
     if (!f) return;
     // Cloud placeholders (iCloud/Google Drive not fully downloaded) read as
     // 0 bytes and would fail server-side with a cryptic message — catch early.
     if (!f.size) {
       customStatus('⚠ That file is empty — if it lives in iCloud/Drive, download it to this device first, then upload.', '#f88');
-      input.value = '';
       return;
+    }
+    // Extension + size pre-checks mirror the server rules so the user gets a
+    // specific message instead of "not a supported image or texture-pack zip".
+    // Server: zip needs a .zip name; images png/jpeg/gif; zip cap 5MB encoded
+    // (~3.5MB on disk); images 1.5MB.
+    if (!isSkin) {
+      const nm = String(f.name || '');
+      if (!/\.zip$/i.test(nm) && !/\.(png|jpe?g|gif)$/i.test(nm)) {
+        customStatus('⚠ Packs need a .zip (or a single .png tile) — folders must be zipped first.', '#f88');
+        return;
+      }
+      if (/\.zip$/i.test(nm) && f.size > 3670016) {
+        customStatus('⚠ That zip is ' + (f.size / 1048576).toFixed(1) + 'MB — packs must stay under ~3.5MB so the server accepts them.', '#f88');
+        return;
+      }
     }
     customStatus('Uploading ' + f.name + '…', '#aaa');
     const rd = new FileReader();
-    rd.onerror = () => { customStatus('⚠ Could not read file.', '#f88'); input.value = ''; };
+    rd.onerror = () => { customStatus('⚠ Could not read file.', '#f88'); };
     rd.onload = () => {
       const dataUrl = String(rd.result || '');
-      input.value = '';
       if (dataUrl.length < 100) {
         customStatus('⚠ That file could not be read (empty?) — download it to this device first, then upload.', '#f88');
         return;
@@ -11634,10 +11647,40 @@ function bindCustomMenu(ui) {
     };
     rd.readAsDataURL(f);
   };
+  const readFile = (input, isSkin) => {
+    const f = input.files && input.files[0];
+    try { input.value = ''; } catch (_) {}
+    handleUploadFile(f, isSkin);
+  };
   const si = document.getElementById('custom-skin-input');
   if (si) si.addEventListener('change', () => readFile(si, true));
   const pi = document.getElementById('custom-pack-input');
   if (pi) pi.addEventListener('change', () => readFile(pi, false));
+  // Drag-and-drop box (same pipeline as the pickers — no accept-filter, so
+  // cloud/iCloud picker quirks are bypassed; .zip -> pack, image -> skin).
+  const dz = document.getElementById('custom-drop');
+  if (dz) {
+    const stop = (e) => { try { e.preventDefault(); e.stopPropagation(); } catch (_) {} };
+    ['dragenter', 'dragover'].forEach((ev) => dz.addEventListener(ev, (e) => {
+      stop(e);
+      try { e.dataTransfer.dropEffect = 'copy'; } catch (_) {}
+      dz.style.borderColor = '#5f5'; dz.style.color = '#5f5';
+    }));
+    const unhl = (e) => { stop(e); dz.style.borderColor = ''; dz.style.color = ''; };
+    dz.addEventListener('dragleave', unhl);
+    dz.addEventListener('drop', (e) => {
+      stop(e); unhl(e);
+      let f = null;
+      try { f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; } catch (_) {}
+      if (!f) { customStatus('⚠ Drop a file, not a folder — zip the folder first, then drop the .zip.', '#f88'); return; }
+      const nm = String(f.name || '').toLowerCase();
+      const tp = String(f.type || '').toLowerCase();
+      const isZip = /\.zip$/.test(nm) || tp.indexOf('zip') >= 0;
+      const isImg = /\.(png|jpe?g|gif)$/.test(nm) || tp.indexOf('image/') === 0;
+      if (!isZip && !isImg) { customStatus('⚠ Drop a .zip pack or a .png/.jpg skin image.', '#f88'); return; }
+      handleUploadFile(f, !isZip);
+    });
+  }
 }
 
 // ── 🎨 Texture-pack engine (live atlas + mob/item overrides) ────────────
