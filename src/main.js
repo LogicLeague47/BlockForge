@@ -11551,6 +11551,16 @@ function bindCustomMenu(ui) {
     const i = document.getElementById('custom-pack-input');
     if (i) i.click();
   });
+  document.getElementById('btn-custom-tiles')?.addEventListener('click', () => {
+    const box = document.getElementById('custom-tiles');
+    if (!box) return;
+    if (box.style.display === 'none') {
+      try {
+        box.textContent = Object.keys(TILES).sort().join(', ');
+      } catch (_) { box.textContent = 'Tile list unavailable.'; }
+      box.style.display = 'block';
+    } else box.style.display = 'none';
+  });
   document.getElementById('btn-custom-priv')?.addEventListener('click', () => {
     try {
       const next = uploadVis() === 'private' ? '' : '1';
