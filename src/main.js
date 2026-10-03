@@ -11500,6 +11500,41 @@ function packInfo(data) {
     return parts.join(' · ');
   } catch (_) { return ''; }
 }
+function deleteLocalPack(idx) {
+  if (!Number.isFinite(idx) || idx < 0) return;
+  let list = [];
+  try { list = JSON.parse(localStorage.getItem('bf_uploads_textures') || '[]') || []; } catch (_) { list = []; }
+  if (!list[idx]) return;
+  const nm = String(list[idx].name || 'pack');
+  list.splice(idx, 1);
+  try { localStorage.setItem('bf_uploads_textures', JSON.stringify(list)); } catch (_) {}
+  // The active-pack ref stores a local index — keep it pointing at the same
+  // pack, or reset the live textures if the active pack itself was deleted.
+  try {
+    if (_activePack && _activePack.kind === 'local' && typeof _activePack.idx === 'number') {
+      if (_activePack.idx === idx) {
+        if (resetPack()) customStatus('🗑 ' + nm + ' deleted — default textures restored.', '#6f6');
+        else customStatus('🗑 ' + nm + ' deleted.', '#6f6');
+        _activePack = null;
+        try { localStorage.removeItem('bf_active_tpack'); } catch (_) {}
+      } else {
+        if (_activePack.idx > idx) {
+          _activePack.idx -= 1;
+          try { localStorage.setItem('bf_active_tpack', JSON.stringify(_activePack)); } catch (_) {}
+        }
+        customStatus('🗑 ' + nm + ' deleted.', '#6f6');
+      }
+    } else {
+      customStatus('🗑 ' + nm + ' deleted.', '#6f6');
+    }
+  } catch (_) {}
+  try {
+    if (_customSel && _customSel.kind === 'pack-local' && _customSel.idx === idx) _customSel = null;
+    else if (_customSel && _customSel.kind === 'pack-local' && _customSel.idx > idx) _customSel.idx -= 1;
+  } catch (_) {}
+  renderCustomDetail();
+  renderCustomPacks();
+}
 function renderCustomPacks() {
   const box = document.getElementById('custom-packs');
   const st = document.getElementById('custom-packs-status');
@@ -11520,10 +11555,19 @@ function renderCustomPacks() {
     html += local.map((it, idx) => {
       const nm = String((it && it.name) || 'pack');
       const act = !!(_activePack && _activePack.kind === 'local' && _activePack.idx === idx);
-      return packRow(nm, 'local' + (act ? ' · applied' : ''), act, 'data-plocal="' + idx + '"');
+      return packRow(nm, 'local' + (act ? ' · applied' : ''), act, 'data-plocal="' + idx + '"').replace(
+        '<div style="font:bold 11px monospace;color:#a8f;">▸</div></div>',
+        '<div style="font:bold 11px monospace;color:#a8f;">▸</div><div data-pdel="' + idx + '" title="Delete pack" style="font:bold 13px monospace;color:#f66;padding:2px 6px;border-radius:6px;cursor:pointer;">✕</div></div>'
+      );
     }).join('');
   }
   box.innerHTML = html + '<div style="font:10px monospace;color:#888;margin:8px 2px 4px;">COMMUNITY:</div><div id="custom-packs-comm"><div style="font:11px monospace;color:#666;">Loading…</div></div>';
+  box.querySelectorAll('[data-pdel]').forEach((el) => {
+    el.addEventListener('click', (e) => {
+      try { e.stopPropagation(); } catch (_) {}
+      deleteLocalPack(parseInt(el.getAttribute('data-pdel'), 10));
+    });
+  });
   box.querySelectorAll('[data-plocal]').forEach((el) => {
     el.addEventListener('click', () => {
       const idx = parseInt(el.getAttribute('data-plocal'), 10);
