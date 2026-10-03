@@ -132,12 +132,19 @@ function tickCulling(refs, now) {
     }
     _sodium.updateCulling(refs.manager.meshes);
     // Inner ring (≤2 chunks from camera) is ALWAYS visible — guarantees no
-    // holes near the player even if frustum math is ever off.
-    for (const [, entry] of refs.manager.meshes) {
+    // holes near the player even if frustum math is ever off. Chunk groups
+    // sit at the origin (geometry is world-space), so the ring is computed
+    // from the "cx,cz" map key, never group.position.
+    for (const [key, entry] of refs.manager.meshes) {
       try {
-        if (!entry || !entry.group || !entry.group.position) continue;
-        const gx = entry.group.position.x + 8 - px;
-        const gz = entry.group.position.z + 8 - pz;
+        if (!entry || !entry.group) continue;
+        const sep = String(key).indexOf(',');
+        if (sep <= 0) { entry.group.visible = true; continue; }
+        const cx = Number(String(key).slice(0, sep));
+        const cz = Number(String(key).slice(sep + 1));
+        if (!Number.isFinite(cx) || !Number.isFinite(cz)) { entry.group.visible = true; continue; }
+        const gx = cx * 16 + 8 - px;
+        const gz = cz * 16 + 8 - pz;
         if (gx * gx + gz * gz <= 32 * 32) entry.group.visible = true;
       } catch (_) {}
     }

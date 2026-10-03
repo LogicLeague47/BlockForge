@@ -67,6 +67,32 @@ const _heartUrlCache = new Map();
 const _drumUrlCache = new Map();
 const _armorUrlCache = new Map();
 
+// Texture-pack HUD override: packs supply `hud/<name>.png` (9x9, upright)
+// for heart_full/half/empty, hunger_full/half/empty, armor_full/half/empty
+// (vanilla gui/icons.png sprites). Every HUD surface renders through
+// drawHeart/drawDrumstick/drawArmorUrl, so one override covers all of them.
+// Reset clears the map.
+export function setHudPackTexture(name, img) {
+  try {
+    if (!window.__BF_HUD_PACK) window.__BF_HUD_PACK = {};
+    window.__BF_HUD_PACK[String(name)] = img;
+    _heartUrlCache.clear(); _drumUrlCache.clear(); _armorUrlCache.clear();
+  } catch (_) {}
+}
+export function clearHudPack() {
+  try {
+    window.__BF_HUD_PACK = {};
+    _heartUrlCache.clear(); _drumUrlCache.clear(); _armorUrlCache.clear();
+  } catch (_) {}
+}
+function _hudOverride(name) {
+  try {
+    const pack = window.__BF_HUD_PACK;
+    const ov = pack ? pack[String(name)] : null;
+    if (ov && ov.complete && ov.naturalWidth > 0) return ov;
+  } catch (_) {}
+  return null;
+}
 function drawPixelIcon(pixels, fullCol, halfL, halfR, emptyCol, full, half, cache) {
   const key = `${full ? 1 : 0}${half ? 1 : 0}`;
   if (cache.has(key)) return cache.get(key);
@@ -88,12 +114,32 @@ function drawPixelIcon(pixels, fullCol, halfL, halfR, emptyCol, full, half, cach
 }
 
 function drawHeart(full, half) {
+  const ov = _hudOverride(full ? 'heart_full' : (half ? 'heart_half' : 'heart_empty'));
+  if (ov) {
+    const c0 = document.createElement('canvas');
+    c0.width = 9; c0.height = 9;
+    const x0 = c0.getContext('2d');
+    x0.imageSmoothingEnabled = false;
+    x0.clearRect(0, 0, 9, 9);
+    x0.drawImage(ov, 0, 0, 9, 9);
+    return c0;
+  }
   const c = drawPixelIcon(HEART_PIXELS, HEART_COLS, HEART_HALF_L, HEART_HALF_R, HEART_EMPTY, full, half, _heartCache);
   if (full) { const x = c.getContext('2d'); x.fillStyle = '#ffd7d7'; x.fillRect(1, 1, 2, 1); }
   return c;
 }
 
 function drawDrumstick(full, half) {
+  const ov = _hudOverride(full ? 'hunger_full' : (half ? 'hunger_half' : 'hunger_empty'));
+  if (ov) {
+    const c0 = document.createElement('canvas');
+    c0.width = 9; c0.height = 9;
+    const x0 = c0.getContext('2d');
+    x0.imageSmoothingEnabled = false;
+    x0.clearRect(0, 0, 9, 9);
+    x0.drawImage(ov, 0, 0, 9, 9);
+    return c0;
+  }
   const c = drawPixelIcon(DRUM_PIXELS, DRUM_COLS, DRUM_HALF_L, DRUM_HALF_R, DRUM_EMPTY, full, half, _drumCache);
   if (full) { const x = c.getContext('2d'); x.fillStyle = '#ffe0b0'; x.fillRect(2, 1, 2, 1); }
   return c;
@@ -116,6 +162,16 @@ function drawDrumstickUrl(full, half) {
 }
 
 function drawArmorUrl(full, half) {
+  const ov = _hudOverride(full ? 'armor_full' : (half ? 'armor_half' : 'armor_empty'));
+  if (ov) {
+    const c0 = document.createElement('canvas');
+    c0.width = 9; c0.height = 9;
+    const x0 = c0.getContext('2d');
+    x0.imageSmoothingEnabled = false;
+    x0.clearRect(0, 0, 9, 9);
+    x0.drawImage(ov, 0, 0, 9, 9);
+    return c0.toDataURL();
+  }
   const key = `${full ? 1 : 0}${half ? 1 : 0}`;
   if (_armorUrlCache.has(key)) return _armorUrlCache.get(key);
   const canvas = drawPixelIcon(ARMOR_PIXELS, ARMOR_COLS, ARMOR_HALF_L, ARMOR_HALF_R, ARMOR_EMPTY, full, half, _armorCache);
@@ -1907,6 +1963,13 @@ export class UI {
     return url;
   }
 
+  // Texture packs change what every icon looks like — drop all cached icon
+  // URLs (and force the status bars to repaint) on apply/reset.
+  clearIconCaches() {
+    try { this._iconUrlCache.clear(); } catch (_) {}
+    try { this._lastHpKey = -1; this._lastHuKey = -1; this._lastArmorPoints = -1; } catch (_) {}
+  }
+
   setActive(i) {
     this.active = ((i % HOTBAR_SLOTS) + HOTBAR_SLOTS) % HOTBAR_SLOTS;
     this.slots.forEach((s, idx) => s.classList.toggle('active', idx === this.active));
@@ -2017,11 +2080,12 @@ export class UI {
     }
 
     // Health hearts (left side) — custom pixel icons, rebuilt only on change.
+    // Order is left-to-right like Minecraft: damage eats the RIGHTMOST heart.
     const hpKey = Math.ceil(player.health);
     if (hpKey !== this._lastHpKey) {
       this._lastHpKey = hpKey;
       let hh = '';
-      for (let i = 9; i >= 0; i--) {
+      for (let i = 0; i < 10; i++) {
         const val = player.health - i * 2;
         const full = val >= 2, half = val >= 1;
         hh += `<img src="${drawHeartUrl(full, half)}" width="18" height="18" alt="">`;

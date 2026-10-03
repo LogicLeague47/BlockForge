@@ -24,7 +24,12 @@ export class SodiumRendererOptimizer {
     this.lodDistance = 64; // Max render distance before LOD downscaling
   }
 
-  // Update frustum culling and hierarchical LOD for chunk groups
+  // Update frustum culling and hierarchical LOD for chunk groups.
+  // NOTE: chunk geometry is built in WORLD coordinates with the group left at
+  // the origin, so group.position is (0,0,0) for every chunk and must NOT be
+  // used here — the "cx,cz" map key carries the real chunk origin. Using the
+  // group position tested an origin-centered box for every chunk, which hid
+  // ALL terrain whenever world origin was off-screen.
   updateCulling(chunkMeshes) {
     if (!this.camera) return;
     this.projScreenMatrix.multiplyMatrices(
@@ -40,10 +45,20 @@ export class SodiumRendererOptimizer {
     for (const [key, entry] of chunkMeshes) {
       if (!entry || !entry.group) continue;
       const group = entry.group;
-      
-      const pos = group.position;
-      const dx = pos.x + 8 - camPos.x;
-      const dz = pos.z + 8 - camPos.z;
+
+      let bx = null, bz = null;
+      try {
+        const sep = String(key).indexOf(',');
+        if (sep > 0) {
+          const cx = Number(String(key).slice(0, sep));
+          const cz = Number(String(key).slice(sep + 1));
+          if (Number.isFinite(cx) && Number.isFinite(cz)) { bx = cx * 16; bz = cz * 16; }
+        }
+      } catch (_) { bx = null; }
+      if (bx === null) { group.visible = true; visibleCount++; continue; }
+
+      const dx = bx + 8 - camPos.x;
+      const dz = bz + 8 - camPos.z;
       const distSq = dx * dx + dz * dz;
 
       // Distance-based LOD culling (Sodium style)
@@ -53,8 +68,8 @@ export class SodiumRendererOptimizer {
         continue;
       }
 
-      _cullBox.min.set(pos.x, 0, pos.z);
-      _cullBox.max.set(pos.x + 16, 256, pos.z + 16);
+      _cullBox.min.set(bx, 0, bz);
+      _cullBox.max.set(bx + 16, 256, bz + 16);
       const isVisible = this.frustum.intersectsBox(_cullBox);
       group.visible = isVisible;
       

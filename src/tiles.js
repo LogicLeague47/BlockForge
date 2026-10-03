@@ -20,6 +20,11 @@ import { TILES, tileNameFor, BLOCKS } from './blocks.js';
 
 const _makeIconCache = new Map();
 const _MAKE_ICON_CACHE_MAX = 200;
+// Texture packs repaint the live atlas in place, so every cached block icon
+// must be dropped on apply/reset or the hotbar keeps showing pre-pack art.
+export function clearIconCache() {
+  try { _makeIconCache.clear(); } catch (_) {}
+}
 
 export const TILE = 32;
 export const ICON_SIZE = 64;       // block icon canvas (2x supersampled iso)

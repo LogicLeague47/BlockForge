@@ -1555,6 +1555,15 @@
       var UPDATE_SECTIONS = [
         {
           hash: 'PENDING',
+          heading: 'MC grass colors, terrain culling + hearts fixed',
+          desc: 'Minecraft-pack grass tops, leaves and tufts now take true biome greens (plains lush, savanna dry, swamp murky) instead of gray. Fixed terrain vanishing when world origin left the screen (culler tested the wrong box), hearts depleting left-to-right, and packs can now reskin hearts/hunger/armor via hud/ icons — hotbar, HUD and hands all refresh on apply.',
+          date: 'Oct 3',
+          bugs: ['gray grass tops with MC pack (grayscale texture x white tint)', 'all terrain hidden when origin off-screen (cull box at 0,0)', 'hearts emptied left-first instead of right-first', 'hotbar/HUD kept pre-pack art from stale icon caches'],
+          updates: ['grayscale-tint mode with remesh on apply/reset', 'culling + inner-ring pin use real chunk coords', 'hud/ pack folder (9 MC sprites)', 'icon-cache + held-mesh refresh on apply/reset'],
+          features: ['biome grass/leaf colors with MC packs', 'MC hearts/hunger/armor bar via pack'],
+        },
+        {
+          hash: 'PENDING',
           heading: 'Drag-and-drop uploads + specific pack errors',
           desc: 'Customization menu has a dropbox: drop a .zip (goes as a pack) or an image (goes as a skin) — no file-picker MIME quirks. Wrong-type and oversize packs now say exactly what is wrong before anything is sent.',
           date: 'Oct 3',

@@ -7,9 +7,9 @@ import { ChunkMeshManager } from './chunkmesh.js';
 import { ChunkLoader } from './chunkloader.js';
 import { Player } from './player.js';
 import { raycastVoxel, closestBlockInRadius } from './raycast.js';
-import { buildAtlas, makeIcon, TILE } from './tiles.js';
+import { buildAtlas, makeIcon, TILE, clearIconCache } from './tiles.js';
 import { unzipSync, strFromU8 } from 'fflate';
-import { UI, drawCrack, makeItemIconCanvas, setItemPackTexture, clearItemPack } from './ui.js';
+import { UI, drawCrack, makeItemIconCanvas, setItemPackTexture, clearItemPack, setHudPackTexture, clearHudPack } from './ui.js';
 import { AudioManager } from './audio.js';
 import { speak, setVoiceMuted, isVoiceMuted } from './voice.js';
 import { BLOCK, BLOCKS, HOTBAR_BLOCKS, blockDrop, blockHardness, blockTool, blockHarvestLevel, isCraftingTable, TILES, tileNameFor, SLAB_TO_FULL, stairVariantFor, slabVariantFor } from './blocks.js';
@@ -11401,22 +11401,24 @@ async function applyCustomSel() {
     return;
   }
   // Texture pack v2: tiles/ -> atlas (blocks+hands), mobs/ -> mob boxes,
-  // items/ -> 2D icons (hotbar/inventory/hands/cursor/drops), items3d/ -> held 3D icons.
+  // items/ -> 2D icons (hotbar/inventory/hands/cursor/drops), items3d/ -> held
+  // 3D icons, hud/ -> hearts, hunger + armor bar (heart/hunger/armor_full/half/empty).
   const data = s.kind === 'pack-local' ? s.data : s.item?.data;
   const nm = s.kind === 'pack-local' ? s.name : String(s.item?.name || 'pack');
   if (!data) { customStatus('⚠ No pack data.', '#f88'); return; }
   customStatus('Applying ' + nm + '…', '#aaa');
   try {
     const r = await applyPackDataUrl(nm, data, s.kind === 'pack-local' ? { kind: 'local', idx: s.idx } : { kind: 'gallery', name: nm });
-    const total = (r.applied | 0) + (r.mobs | 0) + (r.items | 0) + (r.item3d | 0);
+    const total = (r.applied | 0) + (r.mobs | 0) + (r.items | 0) + (r.item3d | 0) + (r.hud | 0);
     if (total > 0) {
       const bits = [r.applied + ' tiles'];
       if (r.mobs) bits.push(r.mobs + ' mobs');
       if (r.items) bits.push(r.items + ' items');
       if (r.item3d) bits.push(r.item3d + ' 3D');
+      if (r.hud) bits.push(r.hud + ' HUD');
       customStatus('✅ Pack applied — ' + bits.join(' · ') + ' live. Re-applies on boot.', '#6f6');
     }
-    else customStatus('⚠ No usable PNGs found (need tiles/ + mobs/ + items/ folders or tile-named PNGs).', '#f88');
+    else customStatus('⚠ No usable PNGs found (need tiles/ + mobs/ + items/ + hud/ folders or tile-named PNGs).', '#f88');
   } catch (_) { customStatus('⚠ Pack failed to apply.', '#f88'); }
   renderCustomDetail();
   renderCustomPacks();
@@ -11474,24 +11476,27 @@ function renderCustomSkins() {
 }
 function packInfo(data) {
   // Usable-texture count without full extraction (header scan only).
-  // v2 packs: tiles/ + mobs/ + items/ + items3d/.
+  // v2 packs: tiles/ + mobs/ + items/ + items3d/ + hud/.
   try {
     const u8 = dataUrlToU8(data);
     const names = zipNames(u8);
-    let tiles = 0, mobs = 0, items = 0;
+    let tiles = 0, mobs = 0, items = 0, hud = 0;
     const MOB_RE = /^[a-z_]+_(body|head|leg|snout|arm|cape)_[0-5]$/;
+    const HUD_RE = /^(heart|hunger|armor)_(full|half|empty)$/;
     for (const p of names) {
       const base = String(p.split('/').pop() || '');
       if (!/\.png$/i.test(base)) continue;
       const dir = String(p.split('/').slice(0, -1).join('/') || '').toLowerCase();
       const stem = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
       if (dir.includes('mob') && MOB_RE.test(stem)) { mobs++; continue; }
+      if ((dir.includes('hud') || dir.includes('icon')) && HUD_RE.test(stem)) { hud++; continue; }
       if ((dir.includes('item')) && /^\d+$/.test(stem)) { items++; continue; }
       if (TILES[stem]) tiles++;
     }
     const parts = [names.length + ' files', tiles + ' tiles'];
     if (mobs) parts.push(mobs + ' mobs');
     if (items) parts.push(items + ' items');
+    if (hud) parts.push(hud + ' HUD');
     return parts.join(' · ');
   } catch (_) { return ''; }
 }
@@ -11743,17 +11748,21 @@ async function applyPackDataUrl(name, dataUrl, persist) {
       try { remap = JSON.parse(strFromU8(data)).tiles || {}; } catch (_) {}
     }
   }
-  // Pack v2 folders (back-compat: root-level tile PNGs still work):
-  //   tiles/<bf_tile>.png            -> block atlas (blocks + hands, both use atlas)
-  //   mobs/<type>_<part>_<0-5>.png   -> mob box textures (all mobs, all parts)
-  //   items/<itemId>.png             -> 2D item icons (hotbar/inventory/hands/cursor/drops)
-  //   items3d/<blockId>.png          -> held 3D block icons (hotbar/inventory/hands)
-  // Anything else with a tile-matching basename is treated as a tile (v1 packs).
+// Pack v2 folders (back-compat: root-level tile PNGs still work):
+//   tiles/<bf_tile>.png            -> block atlas (blocks + hands, both use atlas)
+//   mobs/<type>_<part>_<0-5>.png   -> mob box textures (all mobs, all parts)
+//   items/<itemId>.png             -> 2D item icons (hotbar/inventory/hands/cursor/drops)
+//   items3d/<blockId>.png          -> held 3D block icons (hotbar/inventory/hands)
+//   hud/<heart|hunger|armor>_<full|half|empty>.png -> hearts, hunger + armor bar
+// Anything else with a tile-matching basename is treated as a tile (v1 packs).
   const MOB_RE = /^[a-z_]+_(body|head|leg|snout|arm|cape)_[0-5]$/;
   const jobs = [];
+  const jobTiles = [];
   const mobJobs = [];
   const itemJobs = [];
   const item3dJobs = [];
+  const hudJobs = [];
+  const HUD_RE = /^(heart|hunger|armor)_(full|half|empty)$/;
   for (const [p, data] of entries) {
     const base = String(p.split('/').pop() || '');
     if (!/\.png$/i.test(base) || !data || data.length > 1048576) continue;
@@ -11761,11 +11770,13 @@ async function applyPackDataUrl(name, dataUrl, persist) {
     const stem = base.replace(/\.png$/i, '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
     if (dir.includes('mob') && MOB_RE.test(stem)) { mobJobs.push(loadTileImage(stem, data)); continue; }
     if (dir.includes('item3d') && /^\d+$/.test(stem)) { item3dJobs.push(loadTileImage(stem, data)); continue; }
-    if (dir.includes('item') && /^\d+$/.test(stem)) { itemJobs.push(loadTileImage(stem, data)); continue; }
+    if (dir.includes('item') && !dir.includes('item3d') && /^\d+$/.test(stem)) { itemJobs.push(loadTileImage(stem, data)); continue; }
+    if ((dir.includes('hud') || dir.includes('icon')) && HUD_RE.test(stem)) { hudJobs.push(loadTileImage(stem, data)); continue; }
     let tile = stem;
     if (remap[base]) tile = String(remap[base]);
     if (!TILES[tile]) continue;
     jobs.push(loadTileImage(tile, data));
+    jobTiles.push(tile);
   }
   const imgs = await Promise.all(jobs);
   let applied = 0;
@@ -11825,12 +11836,43 @@ async function applyPackDataUrl(name, dataUrl, persist) {
       try { window.__BF_ITEM3D.set(id, img); window.__BF_ITEM3D_PACK.add(id); item3dApplied++; } catch (_) {}
     }
   } catch (_) {}
-  const totalApplied = applied + mobsApplied + itemsApplied + item3dApplied;
+  // HUD icons (hearts/hunger/armor): ui.js painters check the override map.
+  let hudApplied = 0;
+  try {
+    const hImgs = await Promise.all(hudJobs);
+    for (const { tile, img } of hImgs) {
+      if (!img) continue;
+      try { setHudPackTexture(tile, img); hudApplied++; } catch (_) {}
+    }
+  } catch (_) {}
+  // Grayscale-pack mode: if the pack replaced grass_top, vertex tints must
+  // switch to true MC biome colors (the vanilla texture is grayscale). Tints
+  // are baked per-vertex, so remesh every loaded chunk to pick them up.
+  try {
+    if (jobTiles.includes('grass_top')) {
+      window.__BF_GRAY_TILES = true;
+      if (manager && manager.meshes) {
+        for (const k of manager.meshes.keys()) { try { manager.markDirty(...k.split(',').map(Number)); } catch (_) {} }
+      }
+    }
+  } catch (_) {}
+  // Drop every cached icon/URL so hotbar, inventory, HUD and hands rebuild
+  // from pack art instead of showing pre-pack pixels.
+  try {
+    clearIconCache();
+    if (typeof ui !== 'undefined' && ui && ui.clearIconCaches) ui.clearIconCaches();
+    if (typeof viewmodel !== 'undefined' && viewmodel && viewmodel.refreshHeld) viewmodel.refreshHeld();
+    if (typeof player !== 'undefined' && player) {
+      if (ui && ui.updateStatusBars) { try { ui.updateStatusBars(player); } catch (_) {} }
+      if (ui && player.inventory && ui.buildHotbarFromInventory) { try { ui.buildHotbarFromInventory(player.inventory); } catch (_) {} }
+    }
+  } catch (_) {}
+  const totalApplied = applied + mobsApplied + itemsApplied + item3dApplied + hudApplied;
   if (totalApplied > 0 && persist) {
     _activePack = { name, ...persist };
     try { localStorage.setItem('bf_active_tpack', JSON.stringify(_activePack)); } catch (_) {}
   }
-  return { applied, total: jobs.length, mobs: mobsApplied, items: itemsApplied, item3d: item3dApplied };
+  return { applied, total: jobs.length, mobs: mobsApplied, items: itemsApplied, item3d: item3dApplied, hud: hudApplied };
 }
 let _activePack = null;
 try { _activePack = JSON.parse(localStorage.getItem('bf_active_tpack') || 'null'); } catch (_) { _activePack = null; }
@@ -11844,6 +11886,22 @@ function resetPack() {
     if (atlasTexture) atlasTexture.needsUpdate = true;
     try { clearMobPack(); } catch (_) {}
     try { clearItemPack(); } catch (_) {}
+    try { clearHudPack(); } catch (_) {}
+    // Leave grayscale-tint mode and remesh so default pre-colored tints return.
+    // Also drop icon caches + rebuild held meshes so no pack art lingers.
+    try {
+      window.__BF_GRAY_TILES = false;
+      if (manager && manager.meshes) {
+        for (const k of manager.meshes.keys()) { try { manager.markDirty(...k.split(',').map(Number)); } catch (_) {} }
+      }
+      clearIconCache();
+      if (typeof ui !== 'undefined' && ui && ui.clearIconCaches) ui.clearIconCaches();
+      if (typeof viewmodel !== 'undefined' && viewmodel && viewmodel.refreshHeld) viewmodel.refreshHeld();
+      if (typeof player !== 'undefined' && player) {
+        if (ui && ui.updateStatusBars) { try { ui.updateStatusBars(player); } catch (_) {} }
+        if (ui && player.inventory && ui.buildHotbarFromInventory) { try { ui.buildHotbarFromInventory(player.inventory); } catch (_) {} }
+      }
+    } catch (_) {}
     try {
       if (window.__BF_ITEM3D && window.__BF_ITEM3D_PACK) {
         for (const id of window.__BF_ITEM3D_PACK) { try { window.__BF_ITEM3D.delete(id); } catch (_) {} }

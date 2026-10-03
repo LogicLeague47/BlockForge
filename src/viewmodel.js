@@ -171,6 +171,14 @@ export class ViewModel {
     if (this.offhandMesh) this.offhandGroup.add(this.offhandMesh);
   }
 
+  // Texture packs repaint the atlas/icons underneath already-baked held meshes.
+  // Forgetting the cached ids forces the next setHeld/setOffhand (every frame)
+  // to rebuild from live pack art.
+  refreshHeld() {
+    this.heldId = undefined;
+    this.offhandId = undefined;
+  }
+
   _disposeMesh(m) {
     m.traverse?.((o) => {
       // Shared extruded item meshes are cache-owned — never dispose them.

@@ -110,6 +110,50 @@ const FACE_SHADE = {
 // E/W sides brighter, N/S sides slightly darker (like BlockForge)
 const SIDE_SHADE_AXIS = { '0': 0.88, '1': 0.88, '2': 0.68, '3': 0.68, '4': 0.82, '5': 0.82 };
 
+// Minecraft-pack mode: vanilla grass/leaves/plant textures are GRAYSCALE and
+// get their green from a biome tint at render time (like real Minecraft),
+// while the default procedural atlas is pre-colored and only needs the mild
+// multipliers above. main.js sets window.__BF_GRAY_TILES when an applied pack
+// contains grayscale tiles (grass_top), and clears it on reset — the mesher
+// then switches to true MC biome colors for tops/leaves/plants only.
+const _MC_GRASS_TINT = {
+  [BIOMES.PLAINS]:       [0.57, 0.74, 0.35],
+  [BIOMES.FOREST]:       [0.47, 0.75, 0.35],
+  [BIOMES.BIRCH_FOREST]: [0.53, 0.73, 0.40],
+  [BIOMES.DARK_FOREST]:  [0.32, 0.55, 0.22],
+  [BIOMES.DESERT]:       [0.80, 0.75, 0.35],
+  [BIOMES.TAIGA]:        [0.55, 0.70, 0.42],
+  [BIOMES.SNOWY]:        [0.55, 0.68, 0.50],
+  [BIOMES.SAVANNA]:      [0.75, 0.72, 0.28],
+  [BIOMES.JUNGLE]:       [0.35, 0.69, 0.16],
+  [BIOMES.SWAMP]:        [0.42, 0.48, 0.22],
+  [BIOMES.MOUNTAINS]:    [0.55, 0.70, 0.35],
+  [BIOMES.BEACH]:        [0.57, 0.74, 0.35],
+  [BIOMES.OCEAN]:        [0.57, 0.74, 0.35],
+  [BIOMES.DEEP_OCEAN]:   [0.57, 0.74, 0.35],
+  [BIOMES.RIVER]:        [0.57, 0.74, 0.35],
+};
+const _MC_LEAF_TINT = {
+  [BIOMES.PLAINS]:       [0.30, 0.68, 0.12],
+  [BIOMES.FOREST]:       [0.28, 0.66, 0.10],
+  [BIOMES.BIRCH_FOREST]: [0.50, 0.65, 0.33],
+  [BIOMES.DARK_FOREST]:  [0.20, 0.50, 0.08],
+  [BIOMES.DESERT]:       [0.55, 0.60, 0.20],
+  [BIOMES.TAIGA]:        [0.35, 0.58, 0.30],
+  [BIOMES.SNOWY]:        [0.40, 0.60, 0.35],
+  [BIOMES.SAVANNA]:      [0.55, 0.58, 0.15],
+  [BIOMES.JUNGLE]:       [0.25, 0.65, 0.08],
+  [BIOMES.SWAMP]:        [0.30, 0.42, 0.12],
+  [BIOMES.MOUNTAINS]:    [0.35, 0.60, 0.20],
+  [BIOMES.BEACH]:        [0.30, 0.68, 0.12],
+  [BIOMES.OCEAN]:        [0.30, 0.68, 0.12],
+  [BIOMES.DEEP_OCEAN]:   [0.30, 0.68, 0.12],
+  [BIOMES.RIVER]:        [0.30, 0.68, 0.12],
+};
+function _grayTilesOn() {
+  try { return !!window.__BF_GRAY_TILES; } catch (_) { return false; }
+}
+
 // Block-specific color tints for visual variety
 const BLOCK_TINT = {
   [BLOCK.GRASS]:        [0.95, 1.0, 0.85],
@@ -243,7 +287,15 @@ export function buildChunkGeometry(chunk, world) {
         const target = isWater ? water : (def.cutout ? cutout : (def.transparent ? trans : opaque));
 
         if (def.plant) {
-          pushPlant(target, wx, y, wz, b, sample);
+          // Grayscale-pack grass tufts (short/tall_grass) get the biome green;
+          // pre-colored plants (flowers, wheat, saplings, torches) stay white.
+          let pr = 1, pg = 1, pb = 1;
+          if (_grayTilesOn() && (b === BLOCK.SHORT_GRASS || b === BLOCK.TALL_GRASS)) {
+            const bIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
+            const gt = _MC_GRASS_TINT[bIdx] || _MC_GRASS_TINT[BIOMES.PLAINS];
+            pr = gt[0]; pg = gt[1]; pb = gt[2];
+          }
+          pushPlant(target, wx, y, wz, b, sample, [pr, pg, pb]);
           continue;
         }
 
@@ -343,16 +395,35 @@ export function buildChunkGeometry(chunk, world) {
           const bt = BLOCK_TINT[b];
           if (bt) { tintR = bt[0]; tintG = bt[1]; tintB = bt[2]; }
 
-          // Grass/leaves get additional biome color multiplier
-          if (b === BLOCK.GRASS || b === BLOCK.SNOW_GRASS) {
+          // Grass/leaves get additional biome color multiplier.
+          // In grayscale-pack mode the TOP faces of grass use true MC biome
+          // colors (the side texture has baked colors, so sides keep the mild
+          // path), and leaves use MC foliage colors on all faces. Snowy grass
+          // tops stay whitish — never green.
+          const _gray = _grayTilesOn();
+          if (b === BLOCK.GRASS) {
+            const biomeIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
+            if (_gray && face.name === 'top') {
+              const tint = _MC_GRASS_TINT[biomeIdx] || _MC_GRASS_TINT[BIOMES.PLAINS];
+              tintR = tint[0]; tintG = tint[1]; tintB = tint[2];
+            } else {
+              const tint = GRASS_TINT[biomeIdx] || _ONE3;
+              tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
+            }
+          } else if (b === BLOCK.SNOW_GRASS) {
             const biomeIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
             const tint = GRASS_TINT[biomeIdx] || _ONE3;
             tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
           } else if (b === BLOCK.LEAVES || b === BLOCK.DARK_OAK_LEAVES
             || b === BLOCK.BIRCH_LEAVES || b === BLOCK.SPRUCE_LEAVES || b === BLOCK.ACACIA_LEAVES) {
             const biomeIdx = chunk.biomeMap ? chunk.biomeMap[z * CHUNK_SIZE + x] : BIOMES.PLAINS;
-            const tint = LEAF_TINT[biomeIdx] || _DEFAULT_LEAF_TINT;
-            tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
+            if (_gray) {
+              const tint = _MC_LEAF_TINT[biomeIdx] || _MC_LEAF_TINT[BIOMES.PLAINS];
+              tintR = tint[0]; tintG = tint[1]; tintB = tint[2];
+            } else {
+              const tint = LEAF_TINT[biomeIdx] || _DEFAULT_LEAF_TINT;
+              tintR *= tint[0]; tintG *= tint[1]; tintB *= tint[2];
+            }
           }
 
           const start = target.pos.itemCount;
@@ -460,7 +531,8 @@ function _attachDir(sample, wx, y, wz) {
 }
 
 // Two perpendicular vertical quads (BlockForge-style "crossed" billboard).
-function pushCrossedBillboard(target, wx, y, wz, uv) {
+function pushCrossedBillboard(target, wx, y, wz, uv, rgb) {
+  const r = (rgb && rgb[0]) ?? 1, g = (rgb && rgb[1]) ?? 1, b2 = (rgb && rgb[2]) ?? 1;
   const uvp = [[uv.u0, uv.v0], [uv.u1, uv.v0], [uv.u1, uv.v1], [uv.u0, uv.v1]];
   for (let q = 0; q < 2; q++) {
     const start = target.pos.itemCount;
@@ -468,7 +540,7 @@ function pushCrossedBillboard(target, wx, y, wz, uv) {
     for (let i = 0; i < 4; i++) {
       target.pos.push3(wx + qu[i][0], y + qu[i][1], wz + qu[i][2]);
       target.uv.push2(uvp[i][0], uvp[i][1]);
-      target.col.push3(1, 1, 1);
+      target.col.push3(r, g, b2);
       target.nor.push3(0, 1, 0);
     }
     target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
@@ -477,7 +549,8 @@ function pushCrossedBillboard(target, wx, y, wz, uv) {
 
 // A single quad pressed flat against a wall face (ladder / sign / painting /
 // button / lever / wall-torch). `dir` is the wall face it hangs on.
-function pushWallQuad(target, wx, y, wz, uv, dir) {
+function pushWallQuad(target, wx, y, wz, uv, dir, rgb) {
+  const r = (rgb && rgb[0]) ?? 1, g = (rgb && rgb[1]) ?? 1, b2 = (rgb && rgb[2]) ?? 1;
   const start = target.pos.itemCount;
   const o = 0.06;
   let corners, normal;
@@ -489,7 +562,7 @@ function pushWallQuad(target, wx, y, wz, uv, dir) {
   for (let i = 0; i < 4; i++) {
     target.pos.push3(wx + corners[i][0], y + corners[i][1], wz + corners[i][2]);
     target.uv.push2(uvp[i][0], uvp[i][1]);
-    target.col.push3(1, 1, 1);
+    target.col.push3(r, g, b2);
     target.nor.push3(normal[0], normal[1], normal[2]);
   }
   target.idx.push6(start, start + 1, start + 2, start, start + 2, start + 3);
@@ -499,7 +572,7 @@ function pushWallQuad(target, wx, y, wz, uv, dir) {
 //  - grass, flowers, saplings, pots, plates, carpets, dust: upright crossed billboard
 //  - wall decorations (ladder, sign, painting, button, lever): flat against the wall
 //  - torches: floor (crossed), wall (per direction, flat on the wall), ceiling (crossed)
-function pushPlant(target, wx, y, wz, blockId, sample) {
+function pushPlant(target, wx, y, wz, blockId, sample, rgb) {
   const tile = tileNameFor(blockId, 'side');
   const uv = tileUVRect(tile);
   const isTorch = blockId === BLOCK.TORCH || blockId === BLOCK.GREENSTONE_TORCH;
@@ -518,7 +591,7 @@ function pushPlant(target, wx, y, wz, blockId, sample) {
     pushWallQuad(target, wx, y, wz, uv, dir);
     return;
   }
-  pushCrossedBillboard(target, wx, y, wz, uv);
+  pushCrossedBillboard(target, wx, y, wz, uv, rgb);
 }
 
 function toGeometry(buf) {
